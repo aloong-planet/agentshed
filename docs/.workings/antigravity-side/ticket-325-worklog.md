@@ -68,7 +68,7 @@ No point without a prototype. Deviations from a prototype's form are recorded in
   decisions record quoted a Chinese dictionary value; every other command exit 0 (e2e 141 passed, smoke OK). The
   record was fixed and the run repeated at the next commit; the red log is kept in the session scratch, not the repo
   (it quotes the offending line, and no current conclusion rests on it)
-- [ ] T7 `/review-tests` post-implementation check (independent sub-agent, launched 2026-10-29 with the range
+- [x] T7 `/review-tests` post-implementation check (independent sub-agent, launched 2026-10-29 with the range
   a474875..79dcd57 and the pre-review log) → ticket-325-review-tests.md. Round 1 handed back six findings (five missed
   regressions, one record); all fixed in tests and records (disposition in the record). Self-check items 6–7: the
   mutation evidence is kept whole with its script ([ticket-325-r1-mutations.log](ticket-325-r1-mutations.log), named
@@ -121,9 +121,33 @@ No point without a prototype. Deviations from a prototype's form are recorded in
   change-scope exit=1
   ```
 
-  The e2e file is `changed`, so the fix is committed and handed to an independent sub-agent for round 3
-- [ ] T8 Spec reconciliation (read-only on code), write-backs
-- [ ] T9 Archive: decisions, CONTEXT, features (`/features-catalog`), doc sync, checklist rows
+  The e2e file is `changed`, so the fix is committed (14c76ba) and handed to an independent sub-agent for round 3.
+  Round 3 (range 99e35ee..14c76ba) handed back one finding (8, records: final-regression.md named 99e35ee as the
+  tests' version, at which its corrected rows are false); fixed in the records (14c76ba named there and in the
+  checklist). Change scope against 14c76ba (`node ~/.claude/skills/implement/change-scope.mjs --base 14c76ba`):
+
+  ```
+  inert   docs/.workings/antigravity-side/checklist.md
+  inert   docs/.workings/antigravity-side/final-regression.md
+  inert   docs/.workings/antigravity-side/ticket-325-review-tests.md
+  verdict: skip (3 files differ from the base)
+  change-scope exit=0
+  ```
+
+  Records only: no targeted run and no further round are due. The post-implementation check ends with round 3's
+  hand-back; its eight findings are fixed (dispositions in the test review record).
+- [x] T8 Spec reconciliation (read-only on code), write-backs: the code review record's "Spec final check"; no product
+  code changed after it (rounds 1–3 changed tests and records), so its conclusions stand; write-backs in 79dcd57 and the
+  side-count wording in 99e35ee
+- [x] T9 Archive (2026-10-29): decisions in [ticket-325-decisions.md](ticket-325-decisions.md) — none reaches the ADR
+  threshold, and ADR-0037 is Accepted with nothing to upgrade or overturn; CONTEXT.md needs no new term (its "Shared
+  skills directory" checked true); no postmortem — the one trap of the round (a search that called `rg` under `bash -c`,
+  where only the interactive shell's function exists, its failure masked by `|| echo`) has no durable defence beyond
+  this record and the search script's control, so it stays here; features updated through `/features-catalog` with the
+  #325 regression section in [final-regression.md](final-regression.md); the doc sync checklist and the checklist rows
+  written. `/ui-design`'s character-icon report: the seven touched components' icon slots are SVG components from
+  `icons.tsx` (`Inbox`, `GitFork`, `Minus`, `ChevronRight`, `Dot`); their non-ASCII characters are copy separators (`→`,
+  `·`, `×`) and the empty-value dash, not icons. The rest of the renderer was not enumerated this round
 - [ ] T10 Full verification gate, final run; commit
 
 ## Targeted verification (implement step 4.6), 2026-10-29, before f68f91e

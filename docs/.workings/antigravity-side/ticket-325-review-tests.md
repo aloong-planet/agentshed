@@ -640,3 +640,182 @@ written first): the home has no `~/.gemini/antigravity-cli`, keeps its plugin an
 "Not detected", agy's plugin group with its row and agy's MCP group with the server's row. The detected-and-empty
 sentence E4 read before stays read by #322's case (R2). final-regression.md's two Stage 1 rows were corrected with it.
 
+## Post-implementation check — round 3 (incremental)
+
+Date 2026-10-29 · implementation version `14c76ba` (branch `feat/antigravity-components`) · ticket
+[#325](https://github.com/aloong-planet/agentshed/issues/325) (feature slug `antigravity-side`) · incremental check of
+the fix range `99e35ee..14c76ba` (one commit, 14c76ba: round 2's fix of finding 7) · independent sub-agent. Every
+conclusion outside this round's scope is carried over: round 2's (at `99e35ee`) for the objects of that round, round 1's
+(at `79dcd57`) for the rest.
+
+Project capability declaration: unchanged in the range (`git diff --quiet 99e35ee 14c76ba -- docs/specs capabilities.toml
+src scripts`, exit 0: the specs, product code and scripts are unchanged too). Parsed with Python's `tomllib`: every
+registry ID is present (`macos-distribution`'s prerequisite holds, `client-framework` = `"electron"`), none outside the
+registry; `mutation-testing` is `enabled = false`; `e2e-suite` and `lint` are enabled; `working-language` = `"en"`.
+
+### Scope
+
+Search commands and their results:
+
+- Changed tests and helpers: `git diff --name-only 99e35ee 14c76ba` lists `e2e/app.spec.ts` and seven files under
+  `docs/.workings/antigravity-side/`. `git diff -U0 99e35ee 14c76ba -- e2e src scripts | rg "^@@"` gives six hunks, all
+  in `e2e/app.spec.ts`, at new lines 1054–1056, 1080–1082, 1105–1108, 1111, 1115–1116 and 1119: inside E4 (its comment
+  :1051–1056, its body :1057–1128; the first hunk's header names E1, the last `test(` line above the comment). E4's
+  `file` helper is a closure local to the case. No module-level helper, fixture builder or shared setup changed.
+- Tests that depend on a changed helper: none, since no helper changed. Cross-check that nothing imports the changed
+  file: `rg -n "^export " e2e/app.spec.ts` exits 1; `rg -n --hidden --no-ignore -g '!node_modules' -g '!out' -g '!.git'
+  -g '!docs' "(from|import\()\s*['\"][^'\"]*app\.spec['\"]" .` exits 1; as a control, the same pattern for `./scan`
+  finds 12 files.
+- Rows of the test design table changed in the range: "E4 (changed again)" (the increment for round 2's finding 7) and
+  its self-check paragraph.
+
+### Run evidence
+
+All results come from the handed-over [ticket-325-targeted-r2.log](ticket-325-targeted-r2.log). This check ran no test
+and started no app.
+
+The log has every item the gate requires: `git rev-parse HEAD` = `99e35ee1…`; `git status --porcelain
+--untracked-files=all` lists six modified files, each with its `git hash-object`; each command (the diff of `src e2e
+scripts`, the importer search, `pnpm typecheck`, `pnpm lint`, `pnpm exec electron-vite build && pnpm exec playwright
+test e2e/app.spec.ts`) has its exit code and full output.
+
+Version against the range: I compared each listed hash with `git rev-parse 14c76ba:<path>`. Five of six match,
+including `e2e/app.spec.ts` (`c81d3be…`). `ticket-325-worklog.md` differs (log `0c7d16b…`, commit `cb5a3b6…`): it
+records this run's results, so it was edited after the run. The two logs 14c76ba adds are not in the version list:
+`ticket-325-r2-mutations.log` existed before the run, but `git status --porcelain --untracked-files=all` does not list
+untracked files under the gitignored `docs/.workings/`; the targeted log is the run's own output. All three are under
+`docs/`: ESLint ignores it (`eslint.config.js:38`), neither tsconfig `pnpm typecheck` uses (`tsconfig.node.json`,
+`tsconfig.web.json`) includes it, and no e2e case reads the repository's
+`docs/` (`app.spec.ts`'s mentions of `docs/` are fixture text). So the run tested 14c76ba's code and tests.
+
+Results for this round's test: e2e #12 (E4, :1057) passed (887 ms) on the build made in the same `&&` chain (exit 0).
+#9 (#322's case R2, :736), which the fix relies on for the detected-and-empty sentence, passed in the same run; 92 of 92
+passed. `pnpm typecheck` and `pnpm lint` exit 0.
+
+### Written tests against the test design table
+
+| Row | Written test | Agreement |
+|---|---|---|
+| E4 (changed again) | `e2e/app.spec.ts` :1057 | As designed. Seam E. Input: the home no longer creates `~/.gemini/antigravity-cli` (the removed `mkdirSync`), keeps agy's plugin under `~/.gemini/config/plugins/flutter` (:1077–1079) and gains `~/.gemini/config/mcp_config.json` holding `sqlite-explorer` (:1082). Assertions: the Antigravity card's `.k` contains "Not detected" (:1106); the list under the Antigravity heading's adjacent card is exactly `['flutter']` on the Plugins tab (:1111) and `['sqlite-explorer']` on the MCP tab (:1119); expected values are the fixture's own names and the state word written as a literal. Resource: E4's one launch (:1084). The removed read (agy's MCP group's detected-and-empty sentence) is R2's at :759–761, the same exact sentence, as the row says. The row's "written and reviewed before the test" cannot be checked from history: the row and the test landed in one commit |
+
+Test file header and comments (Coverage): the range adds no gap. The comments it changes are true: the case comment
+(:1054–1056) and the fixture comments (:1076, :1080–1081: agy's plugin has no record and no server; a global server;
+agy not detected).
+
+### Dimension conclusions
+
+- **Coverage**:
+  - The row's claim, checked against the spec text (unchanged in the range): plugins-view "Settled during
+    implementation" ("The group shows whenever the side is detected or has a plugin") and agents-overview's Antigravity
+    boundaries ("The MCP section's Antigravity group shows whenever the side is detected or lists a server"). Each
+    rule's four combinations on the agents page now have a named input: detected and empty, R2 (:757, :759); detected
+    with content, E1 and E2; not detected and empty, E5; not detected with content, E4 (:1111 for a plugin, :1119 for a
+    global server). The project page's Antigravity plugin row with agy not detected is read too (:1124), through the
+    same `AntigravityGroup` condition. Round 2's finding 7 is closed.
+  - The precondition is real: detection is `readAntigravityRegistry(roots.antigravityHome)` (`scan.ts:51`) with
+    `antigravityHome` = `~/.gemini/antigravity-cli` (`src/main/roots.ts:16`), while plugins and the global MCP file are
+    read under `antigravityConfigDir` = `dirname(antigravityHome)/config` (`types.ts:27–34`) either way.
+  - Nothing E4 read before lost its driver: its other reads (two rows, the open row kept, the no-marketplace forms,
+    Claude's plugin server note, the bare "In effect globally") do not depend on agy's detection, and E1 and E2 still
+    drive the detected-with-content state.
+  - Fixture shape: `~/.gemini/config` without the CLI's data root follows the research's shared configuration
+    directory row (`~/research/antigravity-cli-internals/local-data-and-usage.md:80`: `~/.gemini/config/` holds
+    `mcp_config.json`, plugins and `config.json`, shared across agy's products, whose data roots are separate per
+    product, :78). The global file's `mcpServers` map with a `command` follows the samples
+    (`spike/samples/global/.gemini/config/mcp_config.json`, and the plugin sample's server, which has no `disabled` key
+    either); the plugin keeps the sample's top-level `plugin.json`. Values are invented; no structure comes from the
+    spec alone.
+  - No finding.
+
+- **Case design**:
+  - The new state is reachable through the public path: a machine where agy's other products left `~/.gemini/config`,
+    or where the CLI's data root was removed, as the research row states.
+  - The reads are rendered text in the built app, reached by real clicks on the tab buttons; the case runs on its own
+    temporary home and launch.
+  - No finding.
+
+- **False greens**: per the project capability declaration, `mutation-testing` is not enabled, so this check skips
+  mutation testing. The answers below come from the code (`PluginsView.tsx:179`, `McpServers.tsx:32`, `AgentsPane.tsx`'s
+  `SideCard`). They agree with the main agent's two reversible mutations
+  ([ticket-325-r2-mutations.log](ticket-325-r2-mutations.log): M7 red at :1111, M8 red at :1119, both files restored
+  byte for byte; the unmutated build passes both in the targeted run). This check made no mutation.
+
+  | Read | Goes red when |
+  |---|---|
+  | :1106 "Not detected" | agy reads as detected on a home without its data root (detection taken from `~/.gemini` or `~/.gemini/config`), or the card is not drawn. The detected card's `.k` reads "ANTIGRAVITYDetected", which does not contain the phrase |
+  | :1111 the plugin group | the group is hidden while agy is not detected (M7), shows "No plugins installed" (a `.none`, so no adjacent `.card`), or lists another or an extra row |
+  | :1119 the MCP group | the group is hidden while agy is not detected (M8), the global file is not read without the CLI's data root, the group shows its empty sentence, or lists another or an extra row |
+
+  - A previous tab's content cannot satisfy the two list reads. `AgentsPane` renders one tab's component in
+    `.pane-body`, only the Antigravity group carries an `ag` badge on the Plugins and MCP tabs, and when :1119 runs the
+    Plugins tab's matching list would be `['flutter']`, not `['sqlite-explorer']`.
+  - Browser forms (`false-greens.md`): the reads assert rendered content, not presence alone; each `expect` polls the
+    expression it asserts; the change adds no synthetic event, geometry read or one-shot read. The "Not detected" read
+    runs after the Skills rows have rendered from the first snapshot, and the startup skeleton's side card carries no
+    state word (`StartupSkeleton.tsx:165–168`).
+  - The mutation log's `built=true` field only checks that `out/renderer/index.html` is non-empty, so a stale build
+    would also pass it. The record does not rest on that field: `build exit=0` shows a fresh build ran, and each red
+    lands on its targeted line, in a case that passes unmutated.
+  - No finding.
+
+- **Resource reuse**:
+  - The build ran once in the targeted run: one `electron-vite build` (main, preload and renderer bundles once each).
+  - E4 launches once (:1084, closed at :1127), as the row says; the fix adds no launch. Launches print nothing
+    (round 1), so I counted them in the code.
+  - E4 builds its own home and clears no process-shared resource, so collection order decides nothing.
+  - No finding.
+
+### Findings
+
+8. **final-regression.md's #325 section names a test version at which its corrected rows are false** (records).
+   - The section's scope line (`final-regression.md:65`, edited in 14c76ba) reads "product code as of `e783065`, tests
+     as of `99e35ee`".
+   - Its Stage 1 rows rest on E4 as changed in 14c76ba: plugins-view ("drawn without agy for a plugin (E4)"),
+     agents-overview ("its presence without agy for a server (E4)") and Dictionaries ("`noAgMcp` by #322's case", the
+     whole list only since E4 stopped reading it).
+   - At `99e35ee`, E4's home creates `~/.gemini/antigravity-cli` and E4 reads the detected-and-empty sentence (the lines
+     this range removes). Anyone re-checking those rows at the version the section names finds them false.
+   - Impact: the version line is how the regression is re-checked later; no product or test code is affected.
+   - Recommended now, in this ticket's PR: name `14c76ba` (or whichever commit last changes the tests) as the tests'
+     version. `ticket-325-doc-sync.md`'s "Cross regression … step 8" row (Done) rests on this section; recheck it with
+     the fix.
+
+### Document sync
+
+Checked for this round's facts. The range changes one e2e case (E4's home and three reads) and the working records. It
+changes no product behaviour, spec, term or decision.
+
+- This record: the increment row "E4 (changed again)", its self-check and round 2's disposition are true against the
+  written test (table above) and the mutation log. Round 2's section, committed in this range, describes `99e35ee` and
+  stays true for that version.
+- `docs/.workings/antigravity-side/`, enumerated whole: `find docs/.workings/antigravity-side -mindepth 1` lists 23
+  entries, none hidden; `git ls-files` counts 23 tracked; `git status --porcelain --ignored --untracked-files=all` on the
+  directory is empty (nothing ignored or modified; the tree is clean at 14c76ba).
+  - `checklist.md`'s #325 rows for plugins-view and agents-overview (:186, :189): true, including "the group drawn
+    without agy for its plugin", "agy's group drawn without agy for a global server", and the empty sentence credited to
+    #322's case alone. Its version note ("round 2's E4 change after it") is accurate.
+  - `final-regression.md`'s #325 section: the Stage 1 rows are true at 14c76ba; the scope line is not (finding 8).
+    Stages 2 and 3 cite no E4 read.
+  - `ticket-325-doc-sync.md`: unchanged in the range; its step-8 row rests on final-regression.md (finding 8).
+  - `ticket-325-review-code.md`'s added line ("E4's home and reads only"): true; the range changes no product code.
+  - `ticket-325-worklog.md`'s round-2 paragraph under T7: matches the targeted log (typecheck, lint, 92 passed, every
+    command exit 0, no importer). The table of findings outside this ticket's change, committed in this range, concerns
+    no test in this round's scope.
+  - `ticket-325-r2-mutations.log`: read whole; the record's self-check cites it accurately.
+- The six specs: unchanged in the range; their Testing Decisions stay true.
+- The feature pages `plugins-view.md` and `agents-overview.md` state no group-visibility rule (`grep -n -i detect` finds
+  only the side card's "not detected"), so the newly tested state contradicts none of their sentences.
+- README.md, README.en.md, CONTEXT.md and AGENTS.md: no statement on the Antigravity groups' visibility (`grep -n -i
+  "detected\|antigravity group\|No plugins installed"` finds only CONTEXT's `notDetectedHint` lines, on another subject).
+- The research row the design row cites: read (Coverage above).
+
+Excluded: ADRs, since no decision changes, and the GitHub ticket, whose acceptance boxes the orchestrator ticks at
+delivery.
+
+### Disposition of round 3 (main agent, 2026-10-29)
+
+The hand-back's one title matches finding 8. Fixed in the records only: final-regression.md's #325 scope line now names
+`14c76ba` as the tests' version (the commit that last changes them), and the checklist's first #325 row names `14c76ba`
+for round 2's E4 change. The "Cross regression … step 8" sync row was rechecked with it: its rows are true at `14c76ba`.
+The fix changes no test and no data a test reads (change scope against `14c76ba` in the worklog), so no further round.
+

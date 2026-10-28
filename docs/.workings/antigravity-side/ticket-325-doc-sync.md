@@ -10,3 +10,13 @@ Ticket: [#325](https://github.com/aloong-planet/agentshed/issues/325) · feature
 | Deviations written back — wrap-up | [skills-view spec](../../specs/skills-view.md), [skill-install spec](../../specs/skill-install.md), [subagents-view spec](../../specs/subagents-view.md), [plugins-view spec](../../specs/plugins-view.md), [agents-overview spec](../../specs/agents-overview.md) agents-overview::REQ-003/AC-04, [project-detail spec](../../specs/project-detail.md) project-detail::REQ-002/AC-03 | Done — the boundaries and decisions implementation settled (listed in [ticket-325-review-code.md](ticket-325-review-code.md), "Spec final check"), and the sentences that reading Antigravity's components made false. Completed with this PR's merge |
 | The feature checklist's current verification for this ticket's units — before delivery | [checklist.md](checklist.md) | Done — one row per unit and path, with the commit its evidence was obtained at. Completed with this PR's merge |
 | Cross regression for this ticket's range — step 8 | [final-regression.md](final-regression.md) (#325 section), the documents above and the agents-page, project-detail, install and skills-preview prototypes | Done — three stage tables in the #325 section. Completed with this PR's merge |
+
+Pre-delivery scope re-check (2026-10-29, at 14c76ba plus this record): read against the change and its results — the six
+feature pages and the features index, the six specs' Antigravity sections and the sentences a third read side made
+false, CONTEXT.md, ADR-0037, the agents-page, project-detail, install and skills-preview prototypes, the other tickets'
+sync checklists (#322's CONTEXT "Agent side" row still true; #323's and #326's rows still name sentences this ticket
+left in place; #327's index row unaffected), the feature checklist and the regression report. Differences found and
+handled in this PR: the features index's Subagents row; the two-side sentences in four specs; a test comment in #322's
+case; the regression rows and checklist rows the test review's eight findings named; the regression section's test
+version. No item marked done rests on a basis that no longer holds; no item is pending.
+

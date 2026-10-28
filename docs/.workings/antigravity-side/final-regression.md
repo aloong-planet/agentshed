@@ -121,7 +121,7 @@ site and the prototypes are unchanged.
 ## #325 Antigravity components: skills, the shared skills directory, subagents, plugins and MCP — 2026-10-29
 
 Ticket: [#325](https://github.com/aloong-planet/agentshed/issues/325) · scope: this ticket's change (branch
-`feat/antigravity-components`, stacked on #322's `a474875`; product code as of `e783065`, tests as of `99e35ee`,
+`feat/antigravity-components`, stacked on #322's `a474875`; product code as of `e783065`, tests as of `14c76ba`,
 documents as of this section's commit). Languages in scope, by a script count (`grep -c -P '[\x{4e00}-\x{9fff}]'` per file, control
 `src/shared/i18n/zh.ts` 379): the six feature pages, the six specs, CONTEXT.md and the features and specs indexes hold
 no Han text; README.md (50 lines), `site/src/i18n/ui.ts` and the Chinese dictionary hold Chinese, so the first two were
