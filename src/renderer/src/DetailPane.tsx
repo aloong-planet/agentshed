@@ -5,7 +5,7 @@ import { useDisplayClock } from './DisplayClock'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { MarkdownBody } from './MarkdownBody'
-import { ConfigFiles } from './ConfigFiles'
+import { ConfigSection } from './ConfigSection'
 import type { ArtifactEntry, ArtifactType, CappedText, ProjectDetail, ProjectEntry, ProjectSkillEntry, Snapshot } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
 import { projectDetailQueryKey, useProjectDetailQuery } from './project-detail-query'
@@ -785,30 +785,18 @@ function ArtifactsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
 }
 
 /**
- * The Configuration section (project-detail::REQ-002/AC-02): two entries, the project's own CLAUDE.md and
- * AGENTS.md, each headed by its path; no settings summary.
+ * The Configuration section (project-detail::REQ-002/AC-02): the project's own CLAUDE.md and AGENTS.md, each
+ * headed by its path; no settings summary.
  */
 function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   const lang = useLanguage()
-  const [which, setWhich] = useState<'claude' | 'agents'>('claude')
   const { openArtifact, readerOverlay } = useArtifactReader(detail)
-  const file = which === 'claude' ? detail.configs.claudeMd : detail.configs.agentsMd
+  const { claudeMd, agentsMd } = detail.configs
   return (
     <div>
-      <div className="cfg-switch">
-        {(
-          [
-            ['claude', 'CLAUDE.md'],
-            ['agents', 'AGENTS.md']
-          ] as const
-        ).map(([w, label]) => (
-          <button key={w} className={which === w ? 'on' : ''} onClick={() => setWhich(w)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <ConfigFiles
-        files={file === null ? [] : [file]}
+      <ConfigSection
+        claudeMd={claudeMd === null ? [] : [claudeMd]}
+        agentsMd={agentsMd === null ? [] : [agentsMd]}
         links={{
           baseDir: detail.path,
           // A relative link to a listed project document opens the same reader overlay as the

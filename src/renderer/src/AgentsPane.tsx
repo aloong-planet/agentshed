@@ -3,7 +3,7 @@ import { StartupHint } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { useMemo, useRef, useState } from 'react'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
-import { ConfigFiles } from './ConfigFiles'
+import { ConfigSection } from './ConfigSection'
 import type { AgentSide, Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
 import { sliceUsage, type UsageWindow } from '@shared/usage'
@@ -392,41 +392,24 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
 }
 
 /**
- * The Configuration section (agents-overview::REQ-004): two entries named by their files, not grouped by side —
- * CLAUDE.md, and AGENTS.md holding every global AGENTS.md a side loads that exists, in the order the main process
- * sends them. No settings summary for any side.
+ * The Configuration section (agents-overview::REQ-004): CLAUDE.md, and AGENTS.md holding every global AGENTS.md a
+ * side loads that exists, in the order the main process sends them. No settings summary for any side.
  */
 function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
   const lang = useLanguage()
-  const [which, setWhich] = useState<'claude' | 'agents'>('claude')
-  const files =
-    which === 'claude' ? (snap.global.claudeMd === null ? [] : [snap.global.claudeMd]) : snap.global.agentsMd
   return (
-    <div>
-      <div className="cfg-switch">
-        {(
-          [
-            ['claude', 'CLAUDE.md'],
-            ['agents', 'AGENTS.md']
-          ] as const
-        ).map(([w, label]) => (
-          <button key={w} className={which === w ? 'on' : ''} onClick={() => setWhich(w)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <ConfigFiles
-        files={files}
-        links={{
-          // The global configuration card has no in-app targets wired, so every relative link gets
-          // the explicit out-of-scope notice (the invariant's fallback) — onInternal is unreachable
-          baseDir: '',
-          readable: [],
-          onInternal: () => {},
-          onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
-        }}
-      />
-    </div>
+    <ConfigSection
+      claudeMd={snap.global.claudeMd === null ? [] : [snap.global.claudeMd]}
+      agentsMd={snap.global.agentsMd}
+      links={{
+        // The global configuration card has no in-app targets wired, so every relative link gets
+        // the explicit out-of-scope notice (the invariant's fallback) — onInternal is unreachable
+        baseDir: '',
+        readable: [],
+        onInternal: () => {},
+        onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+      }}
+    />
   )
 }
 
