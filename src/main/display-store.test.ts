@@ -111,9 +111,9 @@ it('restores a project detail saved before its memory carried the main file entr
 
 // project-detail::REQ-002/AC-02 across an update: every project detail in this machine's display cache on 2026-10-29
 // (27 of them) holds `configs: { claudeMd, agentsMd, settingsSummary }`, the two files as contents with no path
-// ({ text, truncated } or null) and the summary as a string or null. They restore with each present file given its
-// path in the project — the only place the project's own two files live — and without the summary, until the live
-// read replaces them (the 2026-10-21 postmortem's rule). A malformed one is still dropped.
+// ({ text, truncated } or null — each a file in 6 of them) and the summary as a string or null. They restore with
+// each present file given its path in the project — the only place the project's own two files live — and without
+// the summary, until the live read replaces them (the 2026-10-21 postmortem's rule). A malformed one is still dropped.
 it('restores a project detail saved before configuration entries carried their paths', () => {
   const root = dir()
   const saved = (path: string, configs: Record<string, unknown>) => ({ kind: 'projectDetail', path, data: {
@@ -122,18 +122,25 @@ it('restores a project detail saved before configuration entries carried their p
   } })
   writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
     ...emptyDisplayData(), reads: [
-      saved('/w/p', { claudeMd: { text: '# Saved conventions', truncated: false }, agentsMd: null, settingsSummary: '{\n  "allowedTools": []\n}' }),
+      saved('/w/p', {
+        claudeMd: { text: '# Saved conventions', truncated: false },
+        agentsMd: { text: '# Saved agent notes', truncated: true },
+        settingsSummary: '{\n  "allowedTools": []\n}'
+      }),
+      saved('/w/r', { claudeMd: null, agentsMd: { text: '# Only agent notes', truncated: false }, settingsSummary: null }),
       saved('/w/q', { claudeMd: 7, agentsMd: null, settingsSummary: null })
     ]
   } }))
   const reads = new DisplayStore(root).get().reads
-  expect(reads.map((r) => r.kind === 'projectDetail' && r.path)).toEqual(['/w/p'])
-  const restored = reads[0]
-  if (restored.kind !== 'projectDetail') throw new Error('expected the saved project detail')
-  expect(restored.data.configs).toEqual({
-    claudeMd: { file: '/w/p/CLAUDE.md', content: { text: '# Saved conventions', truncated: false } },
-    agentsMd: null
-  })
+  expect(reads.map((r) => r.kind === 'projectDetail' && r.path)).toEqual(['/w/p', '/w/r'])
+  const configs = reads.map((r) => (r.kind === 'projectDetail' ? r.data.configs : null))
+  expect(configs).toEqual([
+    {
+      claudeMd: { file: '/w/p/CLAUDE.md', content: { text: '# Saved conventions', truncated: false } },
+      agentsMd: { file: '/w/p/AGENTS.md', content: { text: '# Saved agent notes', truncated: true } }
+    },
+    { claudeMd: null, agentsMd: { file: '/w/r/AGENTS.md', content: { text: '# Only agent notes', truncated: false } } }
+  ])
 })
 
 // agents-overview::REQ-004 across an update: the snapshot in this machine's display cache on 2026-10-29 holds

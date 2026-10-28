@@ -107,4 +107,15 @@ Conclusion: no finding.
    not enabled): without the paths the old snapshot fails validation and is dropped, so with the scan held for 20 s
    no Configuration section is drawn and the case's 5 s wait on the restored path heading times out.
 
+7. **Prototype mismatch, found while preparing step 8** — the prototypes draw the configuration card at
+   `max-height: 52vh` with its files scrolling inside (since their first version, 2026-07-29); the app's card grew with
+   its contents. Impact: self-harm (several AGENTS.md files, or one long file, lengthen the page). Disposition: done in
+   a9c382f — `.cfg-files { max-height: 52vh }`, scoped to this card; the configuration e2e case asserts the bound with
+   the oversized CLAUDE.md. The memory card's identical difference is outside this interface and is an open finding in
+   ticket-326-decisions.md.
+
 Bugs fixed with a test that first went red: none — no bug was found.
+
+Self-check of the step-6 fix (post-implementation-check.md item 1, 2026-10-29): the fix for the Post-implementation
+check's Finding 1 changed no product code (only `display-store.test.ts` and the records), so there is no product
+statement to set beside its spec text. Not applicable.
