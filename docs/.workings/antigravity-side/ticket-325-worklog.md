@@ -148,7 +148,15 @@ No point without a prototype. Deviations from a prototype's form are recorded in
   written. `/ui-design`'s character-icon report: the seven touched components' icon slots are SVG components from
   `icons.tsx` (`Inbox`, `GitFork`, `Minus`, `ChevronRight`, `Dot`); their non-ASCII characters are copy separators (`→`,
   `·`, `×`) and the empty-value dash, not icons. The rest of the renderer was not enumerated this round
-- [ ] T10 Full verification gate, final run; commit
+- [x] T10 Full verification gate, final run: [ticket-325-gate-full.log](ticket-325-gate-full.log), at 8e242af (clean
+  tree), every command exit 0 — no command skipped (change scope against the pre-review run's 79dcd57 says run: the test
+  files changed); unit 978 passed / 1 skipped (the existing `ccusage-parity` skip), the whole e2e suite 162 passed,
+  smoke OK. The commit after it adds records and logs only; its reuse of this result is checked in
+  [ticket-325-gate-reuse.log](ticket-325-gate-reuse.log) (change scope against 8e242af, lint, typecheck). Delivery
+  credentials (implement "Delivery"): the code review and test review records read for version, range, findings and
+  dispositions (all eight test review findings and the six code review findings fixed); step 8 done in this branch
+  (features, regression section); the doc sync checklist has no pending item. No push and no PR, by the orchestrator's
+  instruction: the rebase onto main, the gate after it and the PR are the orchestrator's next step
 
 ## Targeted verification (implement step 4.6), 2026-10-29, before f68f91e
 
