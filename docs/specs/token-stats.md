@@ -586,7 +586,20 @@ Applies to: every conversation database of the side, forks and subagent conversa
 - agy is running a conversation while a scan reads it: the copy path (token-stats::CON-002) reads the
   committed part of the log; a torn last frame is ignored by SQLite's own log checks, so the figures
   lag at most one scan behind the conversation. agy exiting between the check and the copy merges and
-  deletes the log; the copy then finds none and the database alone holds everything.
+  deletes the log; the copy then finds none and the database alone holds everything. The log is copied
+  before the database, so agy exiting between the two copies also leaves a database copy that holds
+  everything; a checkpoint agy runs while it keeps writing could still split the pair (not observed),
+  and a read of it that fails is retried at the next scan.
+- While a conversation has a log, every scan that reads it copies the database and the log in full: no
+  copy-on-write clone is made through the runtime on macOS (measured 2026-10-29: 400 MB in 0.4–0.7 s).
+  A conversation whose database time and log did not change since its last successful read is not
+  read again.
+- A read cut short by the application being killed leaves its copy in a temporary directory only the
+  user can read; nothing is left under agy's directories.
+- A conversation is credited to the first of its trajectory metadata's workspace URIs or, in a record
+  without them, of its workspaces' folders (the two named the same folder in every measured record); a
+  first folder that is not a local `file:` URI credits no project. A nesting depth of zero is no
+  subagent marker (token-stats::REQ-003/AC-07): no measured main conversation carries one.
 - agy starts writing a database that is being read in place: the read may fail; the log is now there,
   so token-stats::REQ-004/AC-03 applies and the next scan reads it through the copy.
 - Rewind: agy deletes the rewound calls from the database (steps and generator records alike,

@@ -178,7 +178,9 @@ existing row's count) at the next automatic scan, as for any registration; remov
 again happens in agy, never here (Out of Scope). Opening agy's interface in a folder and leaving without
 sending anything creates a conversation (token-stats::REQ-003/AC-09), which moves that folder's most
 recent time, as any session file's modification would. The side's name in the dropdown and the hover
-layer follows [agents-overview::CON-004](agents-overview.md).
+layer follows [agents-overview::CON-004](agents-overview.md). An entry of the ledger that is not a path is
+skipped and the others kept; a ledger that is not a list is a corrupt settings file (projects-list::REQ-001/AC-05).
+A conversation that cannot be read, or whose first folder is not a local one, gives no folder its activity.
 
 ## Startup restoration
 
