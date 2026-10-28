@@ -49,7 +49,7 @@ import type {
   TurnThinkBlock,
   TurnToolBlock
 } from '@shared/domain'
-import { CLAUDE_DISPATCH } from './question-index'
+import { AGY_DISPATCH, CLAUDE_DISPATCH, agyKeptLines, agyStepIndex } from './question-index'
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
@@ -581,6 +581,95 @@ function grokAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
   return [...out, ...unknownBlock(u)]
 }
 
+// ── Antigravity CLI (session-view::REQ-004). Every transcript of 2026-10-28 enumerated (15 transcripts, 104 lines):
+// five line types, each a known one here; anything else leaves the unknown trace (C8).
+const AGY_KNOWN = new Set(['USER_INPUT', 'PLANNER_RESPONSE', 'GENERIC', 'SYSTEM_MESSAGE', 'ERROR_MESSAGE'])
+/** The conversation a dispatch created, in its result's echo ("Created the following subagent: {…}", measured) */
+const AGY_CREATED = /"conversationId":\s*"([^"]+)"/
+/** A system message's sender and body: `[Message] timestamp=… sender=<id> priority=… content=<body>` (measured) */
+const AGY_SENDER = /\bsender=(\S+)/
+const AGY_MESSAGE = /\[Message\][^\n]*?\bcontent=([\s\S]*?)\n<\/SYSTEM_MESSAGE>/
+
+function agyAt(o: Record<string, unknown>): number | null {
+  const ts = typeof o['created_at'] === 'string' ? Date.parse(o['created_at']) : NaN
+  return Number.isNaN(ts) ? null : ts
+}
+
+/**
+ * An Antigravity turn's lines → blocks (session-view::REQ-004/AC-04 to AC-06). A response line is thinking → prose →
+ * its calls, in that order; the format carries no call id, and each measured call is followed by exactly one result
+ * line (24 of 24), so results pair with calls in order — a failed or still-running call's result included. A dispatch
+ * (`invoke_subagent`) is a sub block: its result only echoes the creation, and its return is the message the created
+ * conversation sends back — a system message whose sender is that conversation's id, in this turn (C3). A failed model
+ * call's error line is prose (owner's ruling 2026-10-28); every other system message is harness noise. Lines a rewind
+ * undid inside the turn are dropped by the indexer's rule; a rewind back to a question never reaches here, the
+ * indexer having ended the turn before it.
+ */
+function antigravityAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
+  const out: TurnBlock[] = []
+  const u: Unknowns = { counts: new Map() }
+  const kept = agyKeptLines(objs.map(agyStepIndex))
+  /** Calls awaiting their result line, in order */
+  const pending: Array<TurnToolBlock | TurnSubBlock> = []
+  /** A dispatched conversation's id → its sub block, for the message it sends back */
+  const subByConversation = new Map<string, TurnSubBlock>()
+  objs.forEach((o, i) => {
+    if (!kept[i]) return
+    const t = labelOf(o['type'])
+    const at = agyAt(o)
+    if (t === 'PLANNER_RESPONSE') {
+      if (typeof o['thinking'] === 'string' && o['thinking'].trim()) out.push({ kind: 'think', at, body: o['thinking'] })
+      if (typeof o['content'] === 'string' && o['content'].trim()) out.push({ kind: 'text', role: 'assistant', at, body: o['content'] })
+      for (const c of Array.isArray(o['tool_calls']) ? o['tool_calls'] : []) {
+        const call = asRecord(c)
+        const name = typeof call?.['name'] === 'string' ? call['name'] : null
+        const args = asRecord(call?.['args'])
+        const block: TurnToolBlock | TurnSubBlock =
+          name === AGY_DISPATCH
+            ? {
+                kind: 'sub',
+                at,
+                name: typeof args?.['TypeName'] === 'string' ? args['TypeName'] : name,
+                prompt: typeof args?.['Prompt'] === 'string' ? args['Prompt'] : inputText(call?.['args']),
+                steps: [],
+                result: null,
+                // Its transcript is not read: the read allow-list admits listed sessions only (R1)
+                unlinked: true
+              }
+            : (() => {
+                const text = inputText(call?.['args'])
+                return { kind: 'tool', at, name, summary: oneLine(text.replace(/\s+/g, ' ')), input: text, output: null, truncated: false }
+              })()
+        pending.push(block)
+        out.push(block)
+      }
+    } else if (t === 'GENERIC') {
+      const call = pending.shift()
+      const text = typeof o['content'] === 'string' ? o['content'] : typeof o['error'] === 'string' ? o['error'] : ''
+      if (call?.kind === 'tool') call.output = text
+      else if (call?.kind === 'sub') {
+        const id = AGY_CREATED.exec(text)?.[1]
+        if (id !== undefined) subByConversation.set(id, call)
+      }
+    } else if (t === 'SYSTEM_MESSAGE') {
+      const c = typeof o['content'] === 'string' ? o['content'] : ''
+      const sender = AGY_SENDER.exec(c)?.[1]
+      const sub = sender === undefined ? undefined : subByConversation.get(sender)
+      if (sub) {
+        const body = AGY_MESSAGE.exec(c)?.[1] ?? c
+        sub.result = sub.result === null ? body : `${sub.result}\n\n${body}`
+      }
+    } else if (t === 'ERROR_MESSAGE') {
+      const e = typeof o['error'] === 'string' ? o['error'] : typeof o['content'] === 'string' ? o['content'] : ''
+      if (e.trim()) out.push({ kind: 'text', role: 'assistant', at, body: e })
+    } else if (!AGY_KNOWN.has(t)) {
+      noteUnknown(u, t)
+    }
+    // USER_INPUT: the question renders in its own row; an empty request renders nothing
+  })
+  return [...out, ...unknownBlock(u)]
+}
+
 export function turnBlocksFromText(side: AgentSide, raw: string): TurnBlock[] {
   const objs: Array<Record<string, unknown>> = []
   for (const line of raw.split('\n')) {
@@ -593,5 +682,6 @@ export function turnBlocksFromText(side: AgentSide, raw: string): TurnBlock[] {
     }
   }
   if (side === 'grok') return grokAssemble(objs)
+  if (side === 'antigravity') return antigravityAssemble(objs)
   return side === 'claude' ? claudeAssemble(objs) : codexAssemble(objs)
 }

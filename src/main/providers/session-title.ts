@@ -23,7 +23,9 @@ export const TITLE_MAX = 60
 const CARGS = /<command-args>([\s\S]*?)<\/command-args>/
 const CRON = /^\[cron:[^\]]*\]\s*/
 
-function normalize(raw: string): string {
+/** Whitespace collapsed to single spaces and trimmed: how every side's question text reads wherever it is shown or matched
+ * (session-view::REQ-002) */
+export function normalize(raw: string): string {
   return raw.trim().replace(/\s+/g, ' ')
 }
 

@@ -3,7 +3,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeQuestionIndexer, questionTextAt, type QuestionRec } from './question-index'
+import { makeAntigravityQuestionIndexer, makeQuestionIndexer, questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
+import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 
 /**
  * Driven the same way as the wiring in the two parsers: eachJsonlLine feeds the indexer line by line, then
@@ -710,5 +711,118 @@ describe('questionTextAt (the session page\'s display text, judged the same way 
     expect(
       questionTextAt('claude', { ...(cUser('dispatch prompt') as Record<string, unknown>), isSidechain: true })
     ).toBeNull()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// Antigravity CLI (session-view::REQ-004): a question is a user-input line's request body, and a rewind's redo —
+// a line whose step index is not greater than an earlier line's — undoes every line from the first carrying that
+// index. The transcripts are agy's own (agy-transcript-fixture.ts); a shape no transcript shows is marked derived.
+describe('Antigravity CLI questions and turns (session-view::REQ-004)', () => {
+  const T = MEASURED_TRANSCRIPT
+  const obj = (line: string): Record<string, unknown> => JSON.parse(line) as Record<string, unknown>
+  /** A line in agy's user-input shape (the measured key set), its content as given */
+  const userInput = (step: number, content: string): string =>
+    JSON.stringify({ step_index: step, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:06:22Z', content })
+  /** A line in agy's response shape carrying one tool call */
+  const call = (step: number, name: string): string =>
+    JSON.stringify({ step_index: step, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:06:23Z', input_tokens: 1, cache_read_tokens: 0, output_tokens: 1, tool_calls: [{ name, args: { Path: '/x' } }] })
+  const result = (step: number, content: string): string =>
+    JSON.stringify({ step_index: step, source: 'MODEL', type: 'GENERIC', status: 'DONE', created_at: '2026-10-28T08:06:24Z', content })
+  const answer = (step: number, content: string): string =>
+    JSON.stringify({ step_index: step, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:06:25Z', input_tokens: 1, cache_read_tokens: 0, output_tokens: 1, content })
+
+  async function indexText(text: string): Promise<{ recs: QuestionRec[]; title: string | null; texts: string[] }> {
+    const dir = mkdtempSync(join(tmpdir(), 'qidx-agy-'))
+    const file = join(dir, 'transcript_full.jsonl')
+    writeFileSync(file, text)
+    try {
+      const idx = makeAntigravityQuestionIndexer()
+      let fileEnd = 0
+      await eachJsonlLine(file, (o, start, end) => {
+        idx.line(o, start, end)
+        fileEnd = end
+      })
+      const recs = idx.done(fileEnd)
+      const buf = readFileSync(file)
+      const texts = recs.map((r) => questionTextOfRange('antigravity', buf.subarray(r[0], r[1]).toString('utf8')) ?? '<unreadable>')
+      return { recs, title: idx.firstQuestionText(), texts }
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+  /** Where a line starts in a transcript's text: read off the text, not computed by the indexer */
+  const offsetOf = (text: string, line: string): number => Buffer.byteLength(text.slice(0, text.indexOf(line)))
+
+  test('a question is the request body: the metadata and the settings change agy appends are not part of it (AC-01)', () => {
+    // Measured: the first question carries a settings change after its metadata, the second only the metadata
+    expect(questionTextAt('antigravity', obj(T.main[0]))).toBe('In one sentence, what does calc.py in this folder do?')
+    expect(questionTextAt('antigravity', obj(T.main[4]))).toBe(
+      'Run the tests with: python3 -m unittest. Fix the bugs in calc.py so every test passes (an empty list averages to 0; percent returns a percentage), then run the tests again and tell me the result in one line.'
+    )
+  })
+
+  test('a user-input line without a request block is listed whole; an empty request is no question; a system message never is (AC-01)', () => {
+    // Derived shapes: no measured line lacks the request block or holds an empty one
+    expect(questionTextAt('antigravity', obj(userInput(0, 'plain words\nwith a second line')))).toBe('plain words with a second line')
+    expect(questionTextAt('antigravity', obj(userInput(0, '<USER_REQUEST>\n\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nx\n</ADDITIONAL_METADATA>')))).toBeNull()
+    expect(questionTextAt('antigravity', obj(userInput(0, '<USER_REQUEST>\nfirst line\n\n  second   line\n</USER_REQUEST>')))).toBe('first line second line')
+    // Measured: a notice agy writes as a system message, and a subagent's dispatch message that opens its transcript
+    expect(questionTextAt('antigravity', obj(T.main[5]))).toBeNull()
+    expect(questionTextAt('antigravity', obj(T.subagent[0]))).toBeNull()
+  })
+
+  test('each question\'s turn runs to the next question\'s line, with its tool calls counted (AC-02, AC-07)', async () => {
+    const text = transcriptText(T.main)
+    const { recs, texts, title } = await indexText(text)
+    expect(recs.map((r) => r[0])).toEqual([0, 4, 12, 19].map((i) => offsetOf(text, T.main[i])))
+    expect(recs.map((r) => r[1])).toEqual([1, 5, 13, 20].map((i) => offsetOf(text, T.main[i])))
+    expect(recs.map((r) => r[2])).toEqual([4, 12, 19].map((i) => offsetOf(text, T.main[i])).concat(Buffer.byteLength(text)))
+    expect(recs.map((r) => [r[4], r[5]])).toEqual([[1, 0], [3, 0], [2, 0], [0, 0]])
+    expect(recs.map((r) => r[3])).toEqual([Date.parse('2026-10-28T08:06:22Z'), Date.parse('2026-10-28T08:08:49Z'), Date.parse('2026-10-28T08:09:33Z'), Date.parse('2026-10-28T08:20:12Z')])
+    expect(texts[3]).toBe('In one short sentence, which test in test_calc.py is the simplest?')
+    expect(title).toBe('In one sentence, what does calc.py in this folder do?')
+  })
+
+  test('a subagent dispatch counts as a subagent, not as a tool (AC-07)', async () => {
+    expect((await indexText(transcriptText(T.dispatch))).recs.map((r) => [r[4], r[5]])).toEqual([[1, 1]])
+    expect((await indexText(transcriptText(T.cancelledDispatch))).recs.map((r) => [r[4], r[5]])).toEqual([[1, 0], [5, 1], [0, 0]])
+  })
+
+  test('a rewind: the lines it undid take no number and are not listed — the measured fork (AC-03)', async () => {
+    const text = transcriptText(T.forkRewound)
+    const { recs, texts, title } = await indexText(text)
+    expect(recs.map((r) => [r[0], r[2]])).toEqual([[offsetOf(text, T.forkRewound[3]), Buffer.byteLength(text)]])
+    expect(texts).toEqual(['In one short sentence, which function in calc.py is the simplest?'])
+    expect(title).toBe('In one short sentence, which function in calc.py is the simplest?')
+  })
+
+  test('a rewind back to a question ends the turn before it at the undone lines; one inside a turn counts only the redo (AC-03, AC-07)', async () => {
+    // Derived positions of the measured mechanism: (a) the redo reuses the undone question's index
+    const a = [userInput(0, '<USER_REQUEST>\nfirst\n</USER_REQUEST>'), answer(1, 'A'), userInput(2, '<USER_REQUEST>\nundone\n</USER_REQUEST>'), answer(3, 'B'), userInput(2, '<USER_REQUEST>\nredone\n</USER_REQUEST>'), answer(3, 'B again')]
+    const ta = transcriptText(a)
+    const ra = await indexText(ta)
+    expect(ra.texts).toEqual(['first', 'redone'])
+    expect(ra.recs.map((r) => [r[0], r[2]])).toEqual([[0, offsetOf(ta, a[2])], [offsetOf(ta, a[4]), Buffer.byteLength(ta)]])
+    // (b) the redo reuses the index of a tool call inside the turn
+    const b = [userInput(0, '<USER_REQUEST>\nfirst\n</USER_REQUEST>'), call(1, 'read_file'), result(2, 'undone'), call(1, 'run_command'), result(2, 'redone'), userInput(3, '<USER_REQUEST>\nsecond\n</USER_REQUEST>')]
+    const tb = transcriptText(b)
+    const rb = await indexText(tb)
+    expect(rb.texts).toEqual(['first', 'second'])
+    expect(rb.recs.map((r) => [r[2], r[4]])).toEqual([[offsetOf(tb, b[5]), 1], [Buffer.byteLength(tb), 0]])
+  })
+
+  test('a line that will not parse is skipped without the rest of the file; a half-written last line ends no turn (AC-08)', async () => {
+    const lines = [...T.main.slice(0, 10), '{"step_index": 10, "type": "PLANNER_RE', ...T.main.slice(10)]
+    const text = transcriptText(lines) + '{"step_index":22,"source":"MODEL","type":"PLANNER_RESP'
+    const { recs, texts } = await indexText(text)
+    expect(texts).toEqual([
+      'In one sentence, what does calc.py in this folder do?',
+      'Run the tests with: python3 -m unittest. Fix the bugs in calc.py so every test passes (an empty list averages to 0; percent returns a percentage), then run the tests again and tell me the result in one line.',
+      'You now have permission to edit calc.py. Fix both bugs, run python3 -m unittest again, and report the result in one line.',
+      'In one short sentence, which test in test_calc.py is the simplest?'
+    ])
+    expect(recs.map((r) => [r[4], r[5]])).toEqual([[1, 0], [3, 0], [2, 0], [0, 0]])
+    expect(recs[3][2]).toBe(Buffer.byteLength(transcriptText(lines)))
   })
 })

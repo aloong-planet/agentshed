@@ -7,7 +7,7 @@
 // body and degenerates into a second corpus at
 // search time. Text is always read live by range (measured 23 ms on a warm cache).
 import type { AgentSide, ForkState } from '@shared/domain'
-import { realUserText } from './session-title'
+import { normalize, realUserText } from './session-title'
 
 /**
  * One question's index, encoded into the cache as a compact array:
@@ -279,6 +279,9 @@ export function questionTextAt(side: AgentSide, obj: Record<string, unknown>): s
   // A Grok question can span several chunk lines, so its text is derived from the whole slice by
   // grokQuestionTextFromSlice — a single parsed line cannot carry it and this path must not be used
   if (side === 'grok') return null
+  // agy's question is its request block; the other harnesses' noise shapes are not stripped from it — none of them
+  // is agy's, and its own additions sit outside the block
+  if (side === 'antigravity') return antigravityQuestion(obj)
   const raw = (side === 'claude' ? claudeQuestion : codexQuestion)(obj)
   return raw === null ? null : realUserText(raw)
 }
@@ -541,6 +544,125 @@ export function makeQuestionIndexer(side: 'claude' | 'codex', seed: readonly Que
       // does not come from a discarded question
       firstRaw = keptHeads.length > 0 ? keptHeads[0] : null
       return kept
+    }
+  }
+}
+
+// ── Antigravity CLI (session-view::REQ-004) ──
+//
+// agy writes a conversation's full transcript as a JSON line per step (`transcript_full.jsonl`), every line carrying
+// its step index and one of five types — measured over every transcript of 2026-10-28 (15 transcripts, 104 lines):
+// USER_INPUT 24, PLANNER_RESPONSE 44, GENERIC 24 (a tool call's result), SYSTEM_MESSAGE 11, ERROR_MESSAGE 1.
+
+/** The tool call that dispatches a subagent (2 of the 24 measured calls); its result only echoes the creation */
+export const AGY_DISPATCH = 'invoke_subagent'
+
+const AGY_REQUEST = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/
+
+/**
+ * An agy question (session-view::REQ-004/AC-01): a user-input line's request body. agy appends blocks after it — the
+ * additional metadata (every one of the 24 measured lines) and a settings change (13) — which are not the question.
+ * A line without a request block (never measured) is listed whole, so that nothing is lost; an empty request is no
+ * question. Normalised like every side's question text (session-view::REQ-002).
+ */
+function antigravityQuestion(obj: Record<string, unknown>): string | null {
+  if (obj['type'] !== 'USER_INPUT') return null
+  const c = obj['content']
+  if (typeof c !== 'string') return null
+  const t = normalize(AGY_REQUEST.exec(c)?.[1] ?? c)
+  return t === '' ? null : t
+}
+
+/** A line's step index; null when it carries none (never measured), and then it is neither a redo nor undone */
+export function agyStepIndex(obj: Record<string, unknown>): number | null {
+  const s = obj['step_index']
+  return typeof s === 'number' && Number.isFinite(s) ? s : null
+}
+
+/**
+ * Which lines a rewind left behind (session-view::REQ-004/AC-03). agy's rewind keeps the undone lines in the transcript
+ * and writes the redo under the same step indices (measured): a line whose step index is not greater than an earlier
+ * line's starts a redo, and every line from the first one carrying that index up to the redo is undone. Equivalently,
+ * a line is undone exactly when a later line's step index is not greater than its own — which is what this reads,
+ * from the end. `steps[i]` is line i's step index; the result's i is whether line i is kept.
+ */
+export function agyKeptLines(steps: ReadonlyArray<number | null>): boolean[] {
+  const kept = new Array<boolean>(steps.length)
+  let laterMin = Infinity
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const s = steps[i]
+    kept[i] = s === null || s < laterMin
+    if (s !== null && s < laterMin) laterMin = s
+  }
+  return kept
+}
+
+/** A response line's calls: subagent dispatches apart from the other tools (session-view::REQ-004/AC-07) */
+function agyCounts(obj: Record<string, unknown>): { tools: number; subagents: number } {
+  if (obj['type'] !== 'PLANNER_RESPONSE' || !Array.isArray(obj['tool_calls'])) return { tools: 0, subagents: 0 }
+  let tools = 0
+  let subagents = 0
+  for (const c of obj['tool_calls']) {
+    if (asRecord(c)?.['name'] === AGY_DISPATCH) subagents++
+    else tools++
+  }
+  return { tools, subagents }
+}
+
+/**
+ * The Antigravity question indexer. A rewind is known only once its redo arrives, so the lines are kept as they come
+ * — their offsets, step index, question and calls, never their text beyond a question's — and the index is decided at
+ * the end: the kept questions, each turn running from its question's line to the next kept question's line (C1), less
+ * any run of undone lines at its end — a rewind back to the next question leaves the turn before it ending where the
+ * undone lines begin. Undone lines inside a turn (a rewind to a step within it) stay in its range and are dropped when
+ * the turn is read (turn-content's assembler applies the same rule to the range). Calls count on kept lines only.
+ */
+export function makeAntigravityQuestionIndexer(): {
+  line(obj: Record<string, unknown>, start: number, end: number): void
+  firstQuestionText(): string | null
+  done(fileEnd: number): QuestionRec[]
+} {
+  interface Line {
+    start: number
+    end: number
+    step: number | null
+    question: string | null
+    at: number | null
+    tools: number
+    subagents: number
+  }
+  const lines: Line[] = []
+  let first: string | null = null
+  return {
+    line(obj, start, end) {
+      const question = antigravityQuestion(obj)
+      const ts = typeof obj['created_at'] === 'string' ? Date.parse(obj['created_at']) : NaN
+      lines.push({ start, end, step: agyStepIndex(obj), question, at: Number.isNaN(ts) ? null : ts, ...agyCounts(obj) })
+    },
+    firstQuestionText() {
+      return first
+    },
+    done(fileEnd) {
+      const kept = agyKeptLines(lines.map((l) => l.step))
+      const qs = lines.flatMap((l, i) => (kept[i] && l.question !== null ? [i] : []))
+      first = qs.length > 0 ? lines[qs[0]].question : null
+      return qs.map((qi, k): QuestionRec => {
+        const next = k + 1 < qs.length ? qs[k + 1] : lines.length
+        // The turn's last kept line: the undone run after it, if any, belongs to no turn
+        let last = next - 1
+        while (last > qi && !kept[last]) last--
+        const end = last + 1 < lines.length ? lines[last + 1].start : fileEnd
+        let tools = 0
+        let subagents = 0
+        for (let i = qi + 1; i <= last; i++) {
+          if (!kept[i]) continue
+          tools += lines[i].tools
+          subagents += lines[i].subagents
+        }
+        const l = lines[qi]
+        const text = l.question as string
+        return [l.start, l.end, end, l.at, tools, subagents, fingerprint(text)]
+      })
     }
   }
 }
