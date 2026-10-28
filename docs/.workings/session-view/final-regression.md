@@ -49,12 +49,13 @@ d6026e5 -- src docs/specs docs/features docs/adr CONTEXT.md` is empty.
 | A rule written this round | none new: the prototype ruling applies CONTEXT's tooltip-form invariant, whose canonical copy exists | None |
 | Review findings and work state | the increment's code review (no finding), its design review (no finding), the independent incremental check (no findings); the two items reported to the owner, now decided and fixed; T14-T16 | Recorded in each record; T16 closes with this report, the PR update and the push |
 | Verification state | the owner's instruction: after the fix, only the relevant tests | The targeted run covers the changed case and every repository check; the last full gate is a43e77e's, stated in the PR |
+| The merge (work state) | T13; `checklist.md`'s note on where this round's rows go | Written in this PR before the merge: T13 done with the merge of PR #321, with CI's full e2e on 5558315; the checklist's note, which said this round's rows would be added there, corrected (the round has no tickets; its criteria are in the task list) |
 
 ### Convergence
 
 Every row above was processed. Text changed by the regression: the PR description (rewritten before the push) and
-T16 in session-id-tasks.md. Both were re-queued against the rows they touch (the PR row, the regression row) and
-changed nothing further.
+T16 in session-id-tasks.md; at the merge, T13 and the checklist's note. Each was re-queued against the rows it touches
+(the PR row, the regression row, the task list's success criteria) and changed nothing further.
 
 Pre-delivery scope re-check: the increment's facts — the owner's two decisions, the test, the prototype, the runs,
 the mutations and the independent check — against the task list, the reviews and this report; no missing item, and

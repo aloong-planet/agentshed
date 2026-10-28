@@ -40,7 +40,9 @@ The session ID and resume round, 2026-10-28.
 
 ## Spec → tickets → verification
 
-The rows below are the #278 round's; this round's rows are added when its implementation is planned.
+The rows below are the #278 round's. The session ID and resume round was implemented directly from the spec, without
+tickets: its coverage units' criteria and checks are in [the task list](session-id-tasks.md)'s success criteria, and
+their results in its tasks and the review records.
 
 | Spec coverage unit and link | Source text and conditions | Owning ticket and role | Planned verification and boundary |
 |---|---|---|---|

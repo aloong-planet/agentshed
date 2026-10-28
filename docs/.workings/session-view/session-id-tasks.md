@@ -46,7 +46,12 @@ prototype are the authority.
 - [x] T12 Step 8: /features-catalog — the feature entry, its index row and both READMEs updated; the regression in
   final-regression.md; two prototype differences ruled by the owner (the app's look kept, the prototype redrawn);
   `resumeCommand` keyed by every side (review-code.md, F3)
-- [ ] T13 Full verification, delivery (PR)
+- [x] T13 Full verification, delivery (PR) — the full gate on a43e77e, all exit 0
+  ([log](evidence/session-id/gate-full-a43e77e.log)); the commits after it covered by change-scope and the targeted
+  runs (`after-full-reuse.log`, then T16). PR #321 opened 2026-10-28; CI on 5558315 green, its full e2e included
+  (runs 40697688034 and 40697688154), so the regression row "P, REQ-001 … full verification" also rests on a full e2e
+  run at that commit. Delivered with the merge of PR #321 (squash), on the owner's instruction of 2026-10-28 ("merge",
+  in Chinese)
 
 ## Targeted verification (T6), 2026-10-28, on the working tree before the implementation commit
 
