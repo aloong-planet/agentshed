@@ -354,8 +354,8 @@ is its relationship to the surface it sits on?
   backgrounds, badge fills, the scrollbar thumb). One value per appearance, shared across themes.
   Currently 28 (measured 2026-10-23).
 - **static** — it is an opaque block carrying its own ground (a destructive button, a callout), so no
-  surrounding surface applies. One value throughout. Currently 4 (measured 2026-10-23). The name
-  follows Primer and Material, which both use *static* for exactly this.
+  surrounding surface applies. One value throughout. Currently 5 (measured 2026-10-28; the fifth is the
+  tooltip's warning line). The name follows Primer and Material, which both use *static* for exactly this.
 
 Verified by measuring, never by counting definitions: switch through every theme × appearance and
 read the resolved values — the class predicts which of them must differ and which must match. A

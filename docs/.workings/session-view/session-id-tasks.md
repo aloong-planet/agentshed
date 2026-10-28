@@ -41,8 +41,8 @@ prototype are the authority.
   found them missing (its F6; [log](evidence/session-id/pre-review-run-rest.log)). All passed.
 - [x] T9 Step 6: /review-tests post-implementation check — three independent checks (F1-F6, F7-F9, F10), all handled; see
   review-tests.md and the sections below
-- [ ] T10 Spec final check
-- [ ] T11 Step 7: archive
+- [x] T10 Spec final check
+- [x] T11 Step 7: archive
 - [ ] T12 Step 8: /features-catalog
 - [ ] T13 Full verification, delivery (PR)
 
@@ -117,3 +117,24 @@ prototype are the authority.
   e2e/startup-restore.spec.ts; "verdict: skip (2 files differ from the base)". The test's executable content is
   unchanged, so no further review is due. lint, typecheck and check:lang on the change
   ([log](evidence/session-id/f10-targeted.log)).
+
+## Spec final check (T10) and archive (T11), 2026-10-28, on 7ba1806
+
+- Each coverage unit read against the code: US-001/AC-01 (SessionPane's meta line; the engine's sessionQuestions per
+  side), AC-02 (SessionActions' three buttons, hover and focus handlers), AC-03 and AC-04 (copy of the ID and of
+  resumeCommand's line), AC-05 (the tooltip's command line), AC-06 (the copied state, the check glyph, 1.5 s, the timer
+  restarted), AC-07 (revealSessionFile with the page's own file), AC-08 (the stale flag from the project entry on every
+  route), AC-09 (the disabled buttons and the unavailable label), AC-10 (the two toasts); CON-001 (clipboard and Finder
+  only, bare tool names), CON-002 (the builder's quoting), CON-003 (the restore's fill-in). None missing or partial.
+- Written back into the spec (implementation-time changes, no scope added): the fork-parent jump keeping the check and
+  tooltip on their own page (failure modes), the copied button's border at rest (UI decisions), the shared tooltip form
+  (UI and implementation decisions), the header keyed by the session file, the reused "Copied" entry, and the stale
+  route clause that described the code before this change, removed. The shared tooltip form also changed the rail's
+  update button (the owner's ruling on the review's refactor list), recorded in the spec's implementation decisions.
+- Archive: no ADR (no decision this round is hard to reverse and contested at once); CONTEXT's static theme-variable
+  count updated to the measured 5; no postmortem (the replace slip was caught by typecheck at once, and the gate's
+  missing commands by the post-implementation check — each recorded above, the slip also in memory).
+- ui-design §2, character icons outside the change: every non-ASCII character in the UI files this change touched
+  (SessionActions, SessionPane, UpdateSlot, FloatingBox, App) enumerated — em dashes and an ellipsis in comments, and the
+  meta line's ' · ' separator, which icons.tsx's header names as typography, not an icon. None found; the app beyond
+  these files was not enumerated this round.

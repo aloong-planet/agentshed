@@ -773,6 +773,8 @@ a session-metadata ID; 7 are thread segments named `<thread>_<segment>`, whose I
   header. Whether the project is stale comes from the project the page belongs to, not from the route
   (session-view::US-001/AC-08).
 - The UI language switches while a tooltip is open: the tooltip follows.
+- Jumping to the fork parent within 1.5 seconds of a copy, or with a tooltip open: the check and the
+  tooltip belong to the page they were made on and do not follow to the parent's page.
 
 **Copying**
 - The session ID: exactly the ID, no label, no line break.
@@ -820,12 +822,14 @@ a session-metadata ID; 7 are thread segments named `<thread>_<segment>`, whose I
   startup hint. Chosen over a two-row strip that showed the command on the page and over a row of text
   links under the meta line.
 - **The buttons**: the stale note's copy-button geometry — a fixed 22px box with a 12px icon centred,
-  the line colour as border, the secondary text colour as icon, the accent colour on hover. A disabled
-  button is dimmed and does not change on hover. Icons (Lucide): copy the ID = Copy, the product's
+  the line colour as border, the secondary text colour as icon, the accent colour and the stronger line
+  colour on hover. A copy's check recolours the icon in the accent colour and leaves the border at rest.
+  A disabled button is dimmed and does not change on hover. Icons (Lucide): copy the ID = Copy, the product's
   settled copy icon; show in Finder = FolderOpen, chosen over FolderSearch and SquareArrowOutUpRight;
   copy the resume command = SquareTerminal, chosen over History and Play — boxed, so it stays distinct
   from the Terminal icon on the question rows' tool counts.
-- **The tooltip**: the trend chart's instant dark form, below its button and right-aligned to it, kept
+- **The tooltip**: the product's shared tooltip form — the chart tooltip's fixed dark ground, instant —
+  below its button and right-aligned to it, kept
   inside the window, at most 440px wide, the command in the monospaced face wrapping anywhere; the stale
   warning in a warm colour on the next line.
 - **The no-ID form and the failure toasts** as session-view::US-001/AC-09 and AC-10; the wording of the
@@ -957,15 +961,16 @@ a session-metadata ID; 7 are thread segments named `<thread>_<segment>`, whose I
 - **The resume command** is built in the renderer by one pure function of the agent side, the session
   ID and the project directory, carrying session-view::CON-002's quoting; copying goes through the
   existing clipboard channel. The session page is given its project's directory and stale flag by the
-  shell, from the project entry it opened in, on every route — today only the global-search route
-  passes the stale flag, inside its exits.
+  shell, from the project entry it opened in, on every route. The header's buttons are keyed by the
+  session file, as the page body is, so their state does not follow a jump to the fork parent.
 - **The tooltip** is a viewport-positioned layer, so no ancestor clips it, closed by the shared
   anchor-invalidation hook on scroll and on resize (the CONTEXT floating-layer invariant: a layer that is
-  glanced at is dismissed). Its warning line takes a colour of the static class, declared for light and
-  for dark alike, since the tooltip's dark ground does not change with either.
+  glanced at is dismissed). Its look is the floating surface's one tooltip form, shared with the rail's
+  update button so the two cannot drift apart. Its warning line takes a colour of the static class,
+  declared for light and for dark alike, since the tooltip's dark ground does not change with either.
 - **Icons and copy**: FolderOpen and SquareTerminal join the icon module from Lucide's source; the
   labels, tooltips, the no-ID form and the two failure messages are new dictionary entries in both
-  languages, Chinese first.
+  languages, Chinese first; "Copied" reuses the stale note's entry, a synonymous action.
 
 ## Testing Decisions
 
