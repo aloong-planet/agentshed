@@ -9,6 +9,8 @@ window.SharedCopy = {
   zh: {
     // Tabs and status (Agents, plugins, project detail)
     tabCfg: '配置',
+    // The configuration tab's entry when no file of that name exists (Agents, project detail)
+    cfgNone: '无',
     notEnabled: '未启用',
     // Token totals, composition and trend (Agents, project detail)
     winAllShort: '累计总量',
@@ -16,7 +18,7 @@ window.SharedCopy = {
     compUncached: '未命中输入',
     compOutput: '输出',
     compTipCacheRead: (v) => `${v} · 命中缓存、不必重算的输入`,
-    compTipUncached: (v) => `${v} · 含 cache 写(仅 Claude 侧非零):都是这一轮真读进模型的输入`,
+    compTipUncached: (v) => `${v} · 含 cache 写(只在报告 cache 写的侧非零):都是这一轮真读进模型的输入`,
     compTipOutput: (v) => `${v} · 模型生成的 token`,
     trendPrefix: '近',
     trendSuffix: '天趋势',
@@ -34,6 +36,9 @@ window.SharedCopy = {
     projectLost: '(项目已失联)',
     srcPlugin: 'plugin 自带',
     secClaudeProject: '项目级 · .claude/skills',
+    // The shared skills directory: one group, one install target, loaded by more than one side (project
+    // detail, install)
+    secShared: '共享 · .agents/skills',
     installTo: '安装到…',
     uninstall: '卸载',
     // A skill package's file table (plugins, skills)
@@ -59,13 +64,14 @@ window.SharedCopy = {
   },
   en: {
     tabCfg: 'Config',
+    cfgNone: 'None',
     notEnabled: 'Not enabled',
     winAllShort: 'Total',
     compCacheRead: 'Cache reads',
     compUncached: 'Uncached input',
     compOutput: 'Generated output',
     compTipCacheRead: (v) => `${v} · input served from cache, never recomputed`,
-    compTipUncached: (v) => `${v} · cache writes included (non-zero on the Claude side only): everything the model read afresh this turn`,
+    compTipUncached: (v) => `${v} · cache writes included (non-zero only on sides that report them): everything the model read afresh this turn`,
     compTipOutput: (v) => `${v} · tokens the model generated`,
     trendPrefix: 'Last',
     trendSuffix: 'days’ trend',
@@ -82,6 +88,7 @@ window.SharedCopy = {
     projectLost: ' (project unreachable)',
     srcPlugin: 'bundled with plugin',
     secClaudeProject: 'Project level · .claude/skills',
+    secShared: 'Shared · .agents/skills',
     installTo: 'Install to…',
     uninstall: 'Uninstall',
     colFile: 'File',

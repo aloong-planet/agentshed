@@ -15,7 +15,7 @@
      2026-10-21:界面语言减到中英(ADR-0035),卡内文案随之只留这两种。
      图标注:复制按钮用 Lucide copy(已定稿);全部图标来自 _shared/icons.js。
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness)——「记录侧」
-       CC+CX+GK / 仅 CC / 仅 GK。界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关
+       CC+CX+GK+AG / 仅 CC / 仅 GK(2026-10-28:第四侧 Antigravity 的全名徽章 ANTIGRAVITY 加入,全部四侧一档压测徽章行的宽度)。界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关
        (卡内文案画了中英两种语言,即全部界面语言);色值取共享主题 _shared/theme.css,
        本页不自定义 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。
      项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。 -->
@@ -67,6 +67,7 @@
   .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
+  .b.a{background:var(--ag-bg);color:var(--ag-fg)}
 </style>
 <script src="../dimensions.js"></script>
 <script src="../demo-dimensions.js" data-follow="language mode theme"></script>
@@ -101,7 +102,7 @@
     <div class="dh-group">
       <span class="dh-title">记录侧</span>
       <div class="dh-opts">
-        <button type="button" class="dh-opt" data-v="s:all" aria-pressed="true">CC+CX+GK</button>
+        <button type="button" class="dh-opt" data-v="s:all" aria-pressed="true">CC+CX+GK+AG</button>
         <button type="button" class="dh-opt" data-v="s:cc" aria-pressed="false">仅 CC</button>
         <button type="button" class="dh-opt" data-v="s:gk" aria-pressed="false">仅 GK</button>
       </div>
@@ -130,8 +131,8 @@ const T = {
 const COPY_SVG = ICONS.Copy(12);
 // 全名徽章(2026-08-23 用户裁定:不用 CC/CX/GK 缩写)——与 Agents 侧卡、Plugins 区标题的
 // CLAUDE CODE/CODEX/GROK chips 同款形态
-const BADGE = {cc:'<span class="b c">CLAUDE CODE</span>', cx:'<span class="b x">CODEX</span>', gk:'<span class="b g">GROK</span>'};
-let SIDES = ['cc','cx','gk'], LANG = 'zh';
+const BADGE = {cc:'<span class="b c">CLAUDE CODE</span>', cx:'<span class="b x">CODEX</span>', gk:'<span class="b g">GROK</span>', ag:'<span class="b a">ANTIGRAVITY</span>'};
+let SIDES = ['cc','cx','gk','ag'], LANG = 'zh';
 
 function codeline(payload){
   return `<span class="codeline"><span class="code">${payload.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`+
@@ -168,7 +169,7 @@ document.addEventListener('click', (e)=>{
   const el = e.target.closest('[data-demo-harness] [data-v]'); if (!el) return;
   const [k,v] = el.dataset.v.split(':');
   for (const sib of el.parentElement.querySelectorAll(`[data-v^="${k}:"]`)) sib.setAttribute('aria-pressed', String(sib===el));
-  if (k==='s') SIDES = v==='all' ? ['cc','cx','gk'] : [v];
+  if (k==='s') SIDES = v==='all' ? ['cc','cx','gk','ag'] : [v];
   render();
 });
 </script>

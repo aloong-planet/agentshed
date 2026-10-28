@@ -1,6 +1,6 @@
 # Plugins view
 
-> Related: [features](../features/plugins-view.md) · [skills-view](skills-view.md) (preview infrastructure) · ADR-0012 (preview decoupled from enablement) · ADR-0010 (plugin skills join the effective view) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0002
+> Related: [features](../features/plugins-view.md) · [skills-view](skills-view.md) (preview infrastructure) · ADR-0012 (preview decoupled from enablement) · ADR-0010 (plugin skills join the effective view) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0002 · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
@@ -114,8 +114,9 @@ is read-only.
   global library); entries are distinguished by a source badge; they **expand and preview on equal
   footing with on-disk skills** (file table / inline stats / markdown preview, see the skills-view
   spec; unlocked 2026-08-07, overturning its v1 exclusion).
-- G4 They do not take part in cross-side merging (the Codex plugin ecosystem is independent), and
-  `sides` is always the Claude side; Codex plugin skills **do not join** (ADR-0012).
+- G4 They do not take part in cross-side merging (each side's plugin ecosystem is independent), and
+  `sides` is always the plugin's own side: Claude's and Antigravity's plugin skills join
+  (plugins-view::REQ-001/AC-04), Codex plugin skills **do not join** (ADR-0012).
 
 **Sequence H: plugin skill package preview** (inside the Plugins expansion's Skills tab; identical on
 both pages and both sides)
@@ -165,6 +166,41 @@ both pages and both sides)
 - R4 Snapshot size discipline as in skills-view: each skill carries only aggregate stats and its
   locating identity, with the file list and contents fetched on demand at expansion.
 
+## The Antigravity CLI side
+
+### plugins-view::REQ-001 Antigravity CLI plugins
+
+Applies to: the Plugins section of the agents page and of project detail, and the Skills join
+(ADR-0037; shapes measured 2026-10-28 with agy's official `flutter` plugin).
+
+- plugins-view::REQ-001/AC-01: An Antigravity group lists the plugins installed under
+  `~/.gemini/config/plugins/<name>/`, each read from its `plugin.json`, with its version and the
+  marketplace it was installed from ("From <marketplace>").
+- plugins-view::REQ-001/AC-02: Enablement is read from agy's shared configuration
+  (`~/.gemini/config/config.json`): a plugin with no enabled key is enabled — a fresh install writes
+  none (measured) — an explicit false is disabled and an explicit true enabled. A configuration file
+  that is missing or does not parse is skipped, so every plugin reads as having no key (the fall-through
+  F2 describes for Claude's layers).
+- plugins-view::REQ-001/AC-03: Expanding a row shows the category tabs for what the plugin bundles:
+  Skills (its `skills/` packages, previewable under sequence H with the plugin's directory as the
+  package root), Subagents (its `agents/` definitions) and MCP (the servers in its `mcp_config.json`,
+  named as agy names them, `<plugin>_<server>`). Rules bundled in a plugin are not shown (agy's rules
+  are shown nowhere, ADR-0037) and hooks are not shown (no sample).
+- plugins-view::REQ-001/AC-04: The skills of an effectively enabled Antigravity plugin join the Skills
+  section as namespaced entries — `<plugin>:<skill>`, as agy names them (measured) — with the AG badge,
+  following sequence G's other rules (G1–G3).
+- plugins-view::REQ-001/AC-05: Project detail lists the same plugins, labelled as taking effect globally
+  and naming their marketplace; agy has no project-level enablement, and workspace plugins
+  (`.agents/plugins/`) are not read (no sample).
+- plugins-view::REQ-001/AC-06: No merging by name with another side's group (E9); a disabled plugin
+  remains readable (H4).
+
+Failure modes and boundaries: a plugin directory without a readable `plugin.json` keeps its directory
+name and shows no version, without affecting the others (E5); disabling a plugin in agy takes its
+skills out of the Skills section and its servers out of the MCP section at the next scan (G1); a
+plugin's MCP server that cannot start (a missing command) still lists, since listing reads the file and
+starts nothing; a manifest path pointing outside the package is refused (E11).
+
 ## Implementation Decisions
 
 - **Types**: an installation record array (with scope / owning project / lost marker) + layered
@@ -203,6 +239,10 @@ Following ADR-0002's dual seam:
    Skills tab shows the file table and clicking a file shows the contents in a drawer; a disabled
    plugin is readable; a missing one is greyed out; the Codex group has only a Skills tab; the detail
    page's F3 scenario regresses in both directions.
+4. **The Antigravity side** (plugins-view::REQ-001): fixtures shaped from the `flutter` sample — a fresh
+   install (no enabled key), a disabled one, a missing configuration file — asserting the group, the
+   three category tabs, the namespaced skills joining only while enabled, and the bundled server
+   names.
 
 A good test asserts only external behaviour (directory → the set of entries / stats / readability;
 entry point → admitted or the reason for refusal), never the traversal implementation details.

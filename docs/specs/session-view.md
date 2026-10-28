@@ -1,6 +1,6 @@
 # Session view
 
-> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons)
+> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side)
 > Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1); amended 2026-09-12 for atomic opening and cached revisits (P, UI decisions); amended 2026-10-28 for the session ID and resume (session-view::US-001, session-view::CON-001 to session-view::CON-003; prototype gate passed the same day).
 
 > Startup restoration uses the original page prototypes confirmed on 2026-09-14.
@@ -704,7 +704,8 @@ which tool it belongs to or how that tool spells resume.
 - session-view::US-001/AC-01: The session page's header shows the session ID at the end of its meta
   line, after a "Session ID" label: for Claude Code the session file's name without its extension, for
   Codex the ID its record's opening session-metadata entry carries, for Grok the name of the session's
-  directory.
+  directory, for Antigravity CLI the conversation ID, which is the name of the conversation's database
+  without its extension (owner's ruling 2026-10-28).
 - session-view::US-001/AC-02: The right end of the title row holds three buttons, in this order: copy
   the session ID, show the record file in Finder, copy the resume command. Each one's tooltip names its
   action, appears at once on pointer hover and on keyboard focus, and goes when the pointer or the focus
@@ -713,8 +714,9 @@ which tool it belongs to or how that tool spells resume.
   else.
 - session-view::US-001/AC-04: Copying the resume command puts one line on the clipboard:
   `cd <project directory> && <resume>`, where `<resume>` is `claude --resume <id>` for a Claude Code
-  session, `codex resume <id>` for a Codex session and `grok --resume <id>` for a Grok session, and the
-  project directory is the path of the project the page belongs to, quoted under
+  session, `codex resume <id>` for a Codex session, `grok --resume <id>` for a Grok session and
+  `agy --conversation <id>` for an Antigravity session, and the project directory is the path of the
+  project the page belongs to, quoted under
   session-view::CON-002.
 - session-view::US-001/AC-05: The resume button's tooltip shows, below its name, the whole command it
   copies.
@@ -723,7 +725,8 @@ which tool it belongs to or how that tool spells resume.
   seconds again.
 - session-view::US-001/AC-07: Showing the record file opens Finder with the session's source file
   selected: the Claude Code session file, the Codex rollout (its compressed file, for a cold rollout),
-  the Grok session's update stream inside its directory.
+  the Grok session's update stream inside its directory, the Antigravity conversation's database
+  (session-view::REQ-003/AC-01), never its transcript.
 - session-view::US-001/AC-08: For a stale project the resume command is still copied, and its tooltip
   adds a line saying the project directory no longer exists, so the command's cd will fail. This holds
   on every route to such a page: a global search hit, and the fork parent reached from it.
@@ -763,7 +766,9 @@ Measured 2026-10-28 over every session on this machine: 1048 of 1048 Claude Code
 a UUID carry that UUID as their only session ID (the 1471 `agent-*` files are subagents and the 75 files
 with no session ID at all have no question; neither is listed). All 2525 non-empty Codex rollouts carry
 a session-metadata ID; 7 are thread segments named `<thread>_<segment>`, whose ID is the thread's. All
-14 Grok sessions are directories named by a UUID.
+14 Grok sessions are directories named by a UUID. All 19 Antigravity conversations (agy 1.4.9) are
+databases named by a UUID, the conversation ID agy's own summary index records for each, forks and
+subagents included.
 
 **Opening the page**
 - First open, cached revisit, restore before the first scan (P1, P4, session-view::REQ-001): the ID and
@@ -804,6 +809,9 @@ a session-metadata ID; 7 are thread segments named `<thread>_<segment>`, whose I
 - Resuming a Claude Code session from another directory makes Claude Code itself print the same
   `cd … && claude --resume …` line, which is why the command changes directory first; Codex otherwise
   asks whether to use the session's directory, and Grok keeps its sessions by directory.
+- agy resumes a conversation by ID with `--conversation` (its help, agy 1.4.9). What it does when the
+  conversation is resumed from a directory other than the one it ran in was not tried, because trying
+  it writes to agy's data.
 - A session still open in another terminal: the agent side decides what a second resume does.
 
 **Where the ID does not appear**
@@ -835,6 +843,123 @@ a session-metadata ID; 7 are thread segments named `<thread>_<segment>`, whose I
 - **The no-ID form and the failure toasts** as session-view::US-001/AC-09 and AC-10; the wording of the
   no-ID form is neutral on purpose, true both when the record has no ID and while a restored page waits
   for its live replacement (owner's ruling 2026-10-28).
+
+## The Antigravity CLI side
+
+An Antigravity CLI session is one conversation (ADR-0037): its database holds the usage
+([token-stats::REQ-003](token-stats.md)), and its full transcript — `transcript_full.jsonl` in agy's
+per-conversation directory, a JSON line per step — holds the questions and turns, read by byte range
+and never used for tokens. The transcript facts below come from every transcript on this machine on
+2026-10-28: 104 lines in 15 conversations.
+
+### session-view::REQ-003 Antigravity sessions in the list
+
+Applies to: Antigravity conversations in a project's Sessions tab, its overview card and global search.
+
+- session-view::REQ-003/AC-01: A session is one conversation database, identified by its path, in the
+  project [token-stats::REQ-003/AC-08](token-stats.md) credits it to. A subagent conversation
+  ([token-stats::REQ-003/AC-07](token-stats.md)) gets no row of its own.
+- session-view::REQ-003/AC-02: A conversation with no question (session-view::REQ-004/AC-01) is not
+  listed and its tokens count (A3a). This covers the empty conversation agy creates each time its
+  interface is opened and nothing is sent, and a fork that has asked nothing of its own.
+- session-view::REQ-003/AC-03: The title is agy's own title for the conversation, from its conversation
+  summaries, falling back to the first indexed question when agy has none or its summaries cannot be
+  read — the priority rule the Codex and Grok sides follow (A4, G2; owner's ruling 2026-10-28). The
+  summaries are read under [token-stats::CON-002](token-stats.md).
+- session-view::REQ-003/AC-04: Last activity is the largest step timestamp in the conversation's database
+  (A1's "largest timestamp inside the file").
+- session-view::REQ-003/AC-05: The row's token figure is the conversation's own usage under
+  [token-stats::REQ-003](token-stats.md), a fork's copied calls excluded.
+- session-view::REQ-003/AC-06: A row carries the Antigravity side badge
+  ([agents-overview::CON-004](agents-overview.md)), and a fork's row carries the fork marker, as a
+  stripped Codex fork's does (session-view::REQ-005/AC-05).
+
+### session-view::REQ-004 Antigravity questions and turns
+
+Applies to: opening an Antigravity session, expanding its turns and searching it.
+
+- session-view::REQ-004/AC-01: A question is a user-input line, and its text is the body of the line's
+  user-request block; the blocks agy appends after it (additional metadata, a settings change) are not
+  part of the question. Every user-input line measured (24) carries the request block, followed by the
+  additional-metadata block and, in 13 of them, a settings change. A user-input line without a request block is listed whole, so that
+  nothing is lost (ADR-0036's rule); one whose request is empty is not a question. A system-message
+  line — agy's notices, a timer firing, a subagent's message — is never a question.
+- session-view::REQ-004/AC-02: A turn runs from its question's line to the next question's line (C1)
+  and is read by byte range (C2); opening a session reads only the questions' ranges, never the whole
+  transcript.
+- session-view::REQ-004/AC-03: A rewind leaves the undone lines in the transcript and writes the redo
+  under the same step indices (measured). A line whose step index is not greater than an earlier line's
+  starts a redo: every line from the first one carrying that index up to the redo is abandoned. An
+  abandoned question takes no number, is not listed, opens nothing and is not searched — the page shows
+  what the conversation finally became (B3).
+- session-view::REQ-004/AC-04: Inside a turn, an assistant-response line's text is prose and its
+  thinking renders as a thinking block: agy's thinking is plain text (19 of 44 assistant lines carry it,
+  measured), so this side is the first whose thinking block has content (C6). Each tool call — its name
+  and arguments — pairs with the result line that follows it, in order: the format carries no call id,
+  and each of the 24 measured calls is followed by exactly one result line. A result line's text is the
+  call's return, a failed or still-running call's included.
+- session-view::REQ-004/AC-05: A tool call named `invoke_subagent` is a subagent block (C3). Its
+  arguments are the dispatch; its return is the message the dispatched conversation sends back — the
+  system-message line whose sender is the conversation id the dispatch's result names — and never the
+  dispatch's own result, which only echoes that the subagent was created. The subagent's own steps
+  stay unattributed: its transcript is not read, since the read allow-list admits listed sessions only
+  (R1). A dispatch whose subagent sent nothing back (cancelled, measured) shows no return.
+- session-view::REQ-004/AC-06: A failed model call's error line renders as prose, as a failed call does
+  on the Claude side, where Claude Code writes it as assistant text (owner's ruling 2026-10-28). Every
+  other system-message line is harness noise and is not rendered (C8). A line of any type outside user
+  input, assistant response, tool result, system message and error leaves the unknown trace (C8).
+- session-view::REQ-004/AC-07: The turn volume counts tool calls other than `invoke_subagent`, and
+  subagent dispatches as `invoke_subagent` calls.
+- session-view::REQ-004/AC-08: A conversation whose transcript is missing — the empty conversation agy
+  creates has none (measured) — has no question. A line that will not parse is skipped without
+  discarding the rest of the file.
+- session-view::REQ-004/AC-09: A listed session's transcript path enters the read allow-list (R1);
+  the transcripts of subagent conversations do not.
+
+### session-view::REQ-005 Antigravity forks
+
+Applies to: a conversation made by agy's `/fork`, or by switching the custom agent, which forks.
+
+- session-view::REQ-005/AC-01: A fork is marked as one (owner's ruling 2026-10-28): its page opens with
+  the stripped-fork banner (B2's info level), saying it was forked from «parent title», that the copied
+  history was stripped and that only what follows the fork is shown, the parent's title linking to the
+  parent's page (P2).
+- session-view::REQ-005/AC-02: The parent is the conversation the fork's copied steps came from, named by
+  the source of the last copied step in the fork's database: copied steps keep the parent's
+  conversation id as their source, while the fork's own metadata names no parent (measured). The
+  parent's title follows session-view::REQ-003/AC-03.
+- session-view::REQ-005/AC-03: The question list holds only the fork's own questions. agy writes no
+  copied history into a fork's transcript (measured), so nothing is stripped from it and no fingerprint
+  check runs, unlike a Codex replay (B2).
+- session-view::REQ-005/AC-04: When the parent's database is no longer on this machine, the banner says
+  the session was forked from a session that is no longer on this machine, with no link; the rest of
+  the page is unchanged.
+- session-view::REQ-005/AC-05: The fork state reaches the session list, the hit groups and global search
+  as a stripped Codex fork's does; the uncertain state never arises on this side.
+
+### Failure modes and boundaries: Antigravity sessions
+
+- A session open while agy is still working in it: a snapshot update refetches the page by transfusion
+  (P5), and a changed transcript has its index rebuilt for that file only (C4).
+- agy rewrites a transcript when it compacts the context (its documented behaviour, not observed here):
+  the signature changes, the index is rebuilt (C4), and turn identities that no longer match are
+  refused rather than answered from the old offsets (session-view::REQ-001/AC-04).
+- A rewind while the session page is open: the next snapshot drops the abandoned question
+  (session-view::REQ-004/AC-03); an expanded turn whose identity no longer matches is not answered from
+  the old range (session-view::REQ-001/AC-04).
+- The parent of an open fork is deleted: after the next scan the banner switches to the no-longer-here
+  form (session-view::REQ-005/AC-04).
+- A fork of a fork (not observed): the parent named is the source of the last copied step, the
+  conversation the nearest copied content came from.
+- A subagent dispatched and later messaged again: its second message is a system-message line with the
+  same sender, inside whichever turn it arrives in; only a dispatch's own turn shows a return.
+- The header's ID and resume command (session-view::US-001): a fork has its own conversation ID, so its
+  command resumes the fork, never its parent; a subagent conversation has no page and so no command. No
+  saved Antigravity page predates the session ID, so session-view::CON-003's restore never applies to
+  one.
+- Introduced content: agy's prose holds markdown links to workspace files (`file://…`, in 10 of the 44
+  assistant lines measured). Prose renders as text on every side, so they show as written and nothing
+  in them can be clicked; no navigation surface is added. Titles from agy's summaries render as text.
 
 ## Implementation Decisions
 
@@ -948,8 +1073,9 @@ a session-metadata ID; 7 are thread segments named `<thread>_<segment>`, whose I
   turning "there when you click" into "there before you click".
 - **The session ID** (session-view::US-001): the session page payload gains the session ID, a non-empty
   string or null, and the contract (R3) admits exactly those two. The main process produces it: for
-  Claude Code and Grok from the file path alone (the file name without its extension; the session
-  directory's name), by one pure function that the display copy's restore also calls
+  Claude Code, Grok and Antigravity from the file path alone (the file name without its extension; the
+  session directory's name; the conversation database's name without its extension), by one pure
+  function that the display copy's restore also calls
   (session-view::CON-003); for Codex from the session-metadata ID the scan already reads into its cached
   per-file record, null where that record has none. Only an absent field is filled in on restore; a
   present but malformed one is still dropped by validation, as for the project memory's main file.
@@ -1026,8 +1152,24 @@ scan is asserted at the e2e seam of the cross-process restart (the second launch
 a restored session file swapped for a symlink is refused and Finder is not called; put back as a regular
 file, it is shown.
 
+The Antigravity side (session-view::REQ-003, session-view::REQ-004, session-view::REQ-005) is tested at
+the providers seam with a fixture home holding conversation databases and transcripts shaped from the
+real ones of 2026-10-28: a conversation with tool calls and a permission-denied result; a subagent
+dispatch with its returned message and its own conversation (no row); a cancelled dispatch; a
+rewound and redone turn; a fork with its parent present and one with it gone; a failed first call
+with its error line; an empty conversation without a transcript; a conversation with agy's title and
+one whose summaries are missing. The offset index's fetch equals the turn a full parse yields, as on
+the other sides, and e2e opens an Antigravity fork from the Sessions tab and expands a turn. Its header
+(session-view::US-001) joins the session ID cases above: the ID read from the database's name at the
+providers seam, the `agy --conversation` form in the command builder's unit tests, and at the e2e seam
+the fork's own ID copied, its command copied, and the database handed to Finder.
+
 ## Out of Scope
 
+- agy's truncated transcript (`transcript.jsonl`) and the step payloads in its databases as sources of
+  turn contents (ADR-0037 option 10).
+- Rendering a subagent's own steps inside the dispatching turn: its transcript is not read
+  (session-view::REQ-004/AC-05).
 - Searching across projects — that is global search, a feature of its own ([global-search](global-search.md));
   this spec's search is within one project.
 - Unregistered projects' sessions.

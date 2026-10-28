@@ -76,7 +76,17 @@
        since before this round), and the tooltip's shadow the floating layers' shared one (0 6px 22px, the
        float-shadow colour), as the rail's update button tooltip has it. The demo bar gains "Grok 会话" in
        "会话数据", and the groups "项目目录", "会话 ID", "项目路径" and "外部操作"; what decides each in the
-       app is on its note line. -->
+       app is on its note line.
+     2026-10-28 (the fourth side, Antigravity; ADR-0037): an Antigravity conversation wears the AG badge and its
+       full name in the meta line; its title is agy's own generated title (English, as agy writes it). A
+       conversation made by /fork is marked as a fork (owner's ruling, 2026-10-28): the banner names the
+       conversation it came from and says the copied history is stripped — agy marks every copied step with its
+       source, so the stripping is exact, never a guess, and there is no uncertain tier for this side. Its header
+       carries the conversation ID, the copied resume command is `agy --conversation <id>`, and showing the record
+       file selects the conversation's database (owner's ruling, 2026-10-28). When the
+       source conversation is no longer on this machine, the banner says so instead of naming it. Turns undone
+       with /rewind do not appear (nothing on the page marks them). The demo bar's 会话数据 group gains two
+       states, Antigravity fork and Antigravity fork·来源已不在本机. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -105,6 +115,7 @@
      「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
      故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
+  .b.a{background:var(--ag-bg);color:var(--ag-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
   .head .meta{font-size:12px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
   /* The session ID at the end of the meta line: one unbreakable run, so a narrow window wraps before it,
@@ -288,6 +299,8 @@
       <button type="button" class="dh-opt" data-ds="claude" aria-pressed="true">Claude 主会话</button>
       <button type="button" class="dh-opt" data-ds="codex" aria-pressed="false">Codex fork</button>
       <button type="button" class="dh-opt" data-ds="orphan" aria-pressed="false">Codex fork·父会话缺失</button>
+      <button type="button" class="dh-opt" data-ds="agfork" aria-pressed="false">Antigravity fork</button>
+      <button type="button" class="dh-opt" data-ds="aggone" aria-pressed="false">Antigravity fork·来源已不在本机</button>
       <button type="button" class="dh-opt" data-ds="grok" aria-pressed="false">Grok 会话</button>
     </div></div>
     <div class="dh-group"><span class="dh-title">项目目录</span><div class="dh-opts">
@@ -320,7 +333,7 @@
       <button type="button" class="dh-act" data-locate="4">跳到 05 并高亮</button>
     </div></div>
     <p class="dh-note">启动恢复各档在 app 里由这次启动的扫描进度与结果决定;app 内没有这个开关。</p>
-    <p class="dh-note">会话数据在 app 里由被打开的会话本身决定(fork 前缀能否确定剥离,取决于父会话文件是否在扫描集内);app 内没有这个开关。</p>
+    <p class="dh-note">会话数据在 app 里由被打开的会话本身决定(Codex fork 前缀能否确定剥离,取决于父会话文件是否在扫描集内;Antigravity fork 的复制步骤带来源标记,剥离总是确定的,只是来源对话可能已不在本机);app 内没有这个开关。</p>
     <p class="dh-note">取回状态在 app 里由取回前的一次签名校验(路径 + mtime + size)与该轮的读取结果决定:签名不符只重建该文件的索引,单轮读取失败只影响该轮、再点可重试;app 内没有这个开关。</p>
     <p class="dh-note">打开来源在 app 里由会话是从哪里打开的决定:从全局搜索的命中直接打开的会话是「返回搜索结果」与「进入项目」两个出口;从项目里打开的、经「进入项目」之后再打开的、顺着 fork 横幅跳到的父会话,都只有返回项目;app 内没有这个开关。</p>
     <p class="dh-note">搜索定位在 app 里由点进一条搜索命中触发(项目详情「会话」分栏的搜索,或全局搜索);app 内没有这个按钮。</p>
@@ -338,7 +351,7 @@
   const pl = (n,one,other) => new Intl.PluralRules('en').select(n)==='one'?one:other;
   const EN_DAY = {'7月29日 周三':'Wed, July 29','7月30日 周四':'Thu, July 30',
     '9月13日 周六':'Sat, September 13','9月14日 周日':'Sun, September 14',
-    '10月26日 周一':'Mon, October 26','10月27日 周二':'Tue, October 27'};  // the day groups' English labels
+    '10月26日 周一':'Mon, October 26','10月27日 周二':'Tue, October 27','10月28日 周三':'Wed, October 28'};  // the day groups' English labels
   const T = {
     zh:{
       back:p=>`返回 ${p} · 会话`, backSearch:'返回搜索结果', enterProject:p=>`进入 ${p} · 会话`,
@@ -355,6 +368,8 @@
       forkPoints:n=>`本会话有 <b>${n} 处分叉</b>。已按最后一条消息沿父链回溯到根渲染这一条链——即「这次对话最终长什么样」;被放弃的分支不显示。`,
       forkedFrom:title=>`本会话 fork 自 <a>《${title}》</a>——重放前缀已剥离,下面只展示本次 fork 之后的新内容。<b>更早的历史见该会话</b>。`,
       stripUncertainOrphan:'<b>重放前缀剥离不确定</b>:本会话 fork 自一个<b>不在扫描集内</b>的父会话(父文件已被清理,或属未注册项目),只能按启发式剥离——<b>可能多剥(丢消息)或少剥(重复)</b>,请对照原文核对。不静默剥错是这里唯一能给的保证。',
+      forkedFromCopied:title=>`本会话 fork 自 <a>《${title}》</a>——复制来的历史已剥离,下面只展示本次 fork 之后的新内容。<b>更早的历史见该会话</b>。`,
+      forkedFromGone:'本会话 fork 自一个<b>已不在本机</b>的会话——复制来的历史已剥离,下面只展示本次 fork 之后的新内容。',
       mainline:(n,days)=>`提问(主干)· ${n} 条 · ${days} 天`,
       expandAll:'全部展开', collapseAll:'全部收起', ascending:'正序', descending:'倒序',
       dayGroup:(day,n)=>`${day} · ${n} 条`,
@@ -391,6 +406,8 @@
       forkPoints:n=>`This session has <b>${n} ${pl(n,'fork point','fork points')}</b>. The chain shown is traced from the last message back along the parent links to the root — i.e. "what this conversation finally looks like"; abandoned branches are not shown.`,
       forkedFrom:title=>`This session was forked from <a>“${title}”</a>— the replayed prefix has been stripped, so only what follows this fork is shown below. <b>See that session for the earlier history</b>.`,
       stripUncertainOrphan:'<b>Uncertain prefix stripping</b>: this session was forked from a parent <b>outside the scan set</b> (its file was cleaned up, or it belongs to an unregistered project), so stripping could only be heuristic — <b>it may have stripped too much (losing messages) or too little (duplicates)</b>. Please check against the original. Not failing silently is the only guarantee available here.',
+      forkedFromCopied:title=>`This session was forked from <a>“${title}”</a>— the copied history has been stripped, so only what follows this fork is shown below. <b>See that session for the earlier history</b>.`,
+      forkedFromGone:'This session was forked from a session that is <b>no longer on this machine</b> — the copied history has been stripped, so only what follows this fork is shown below.',
       mainline:(n,days)=>`Questions (main line) · ${n} ${pl(n,'question','questions')} · ${days} ${pl(days,'day','days')}`,
       expandAll:'Expand all', collapseAll:'Collapse all', ascending:'Oldest first', descending:'Newest first',
       dayGroup:(day,n)=>`${EN_DAY[day]??day} · ${n} ${pl(n,'question','questions')}`,
@@ -778,6 +795,44 @@
     ]
   };
 
+  // ── An Antigravity fork: only its own 4 questions (agy's transcript holds no copied history; the copied usage
+  //    in its database is excluded from its tokens). The title is agy's own, in English as agy writes it ──
+  const AG_TURNS = [
+    {n:'01',d:'10月28日 周三',t:'16:18',tools:2,subs:0,
+     txt:'percent 现在返回整数百分比,改成保留一位小数',
+     turn:[
+      {type:'think',size:'0.3k',body:'先看 percent 的实现和对应测试,再决定是改返回值还是只改格式化。'},
+      {type:'tool',nm:'view_file',sum:'calc.py · 15 行',input:'{ "Path": "calc.py" }',output:'def percent(part, whole):\n    return part / whole * 100\n…(共 15 行)'},
+      {type:'text',body:'改成 <code>round(part / whole * 100, 1)</code>,并把 <code>test_percent</code> 的期望值更新为 <code>25.0</code>。'},
+      {type:'tool',nm:'edit_file',sum:'calc.py · +1 −1',input:'{ "Path": "calc.py", "old": "return part / whole * 100", "new": "return round(part / whole * 100, 1)" }',output:'Edited 1 file'}
+     ]},
+    {n:'02',d:'10月28日 周三',t:'16:24',tools:1,subs:0,
+     txt:'跑一下测试',
+     turn:[{type:'tool',nm:'run_command',sum:'python3 -m unittest · 4 passed',input:'{ "CommandLine": "python3 -m unittest" }',output:'....\nRan 4 tests in 0.001s\n\nOK'},
+           {type:'text',body:'4 个测试全部通过。'}]},
+    {n:'03',d:'10月28日 周三',t:'16:31',tools:0,subs:1,
+     txt:'让一个 subagent 检查还有没有别的地方依赖整数百分比',
+     turn:[{type:'sub',nm:'self',sum:'5 步 · 21k tok · 检查调用点',prompt:'Find every caller of percent() in this workspace and report whether any expects an integer.',
+            steps:[['1','grep_search percent('],['2','view_file test_calc.py'],['…','(略 2 步)'],['5','汇总返回']],
+            ret:'Only test_calc.py calls percent(); it now expects 25.0. Nothing else depends on an integer result.'},
+           {type:'text',body:'只有测试在调用 <code>percent()</code>,已同步更新,没有别的依赖。'}]},
+    L('04','10月28日 周三','16:40','好,收工',0,0,'好。')
+  ];
+  const AG_FORK = {
+    badge:'a', side:'AG', tool:'agy', id:'e4b7a0d2-31c8-4f6e-9a57-0c2d8f1b6e39',
+    title:'Rounding Percent Output',
+    meta:{side:'Antigravity',q:4,tok:'52k',mb:'0.6 MB',ago:0},
+    banners:[{k:'info',i:'GitFork',t:c=>c.forkedFromCopied('Fixing Calc.py Test Failures')}],
+    qs:AG_TURNS
+  };
+  const AG_GONE = {
+    badge:'a', side:'AG', tool:'agy', id:'e4b7a0d2-31c8-4f6e-9a57-0c2d8f1b6e39',
+    title:'Rounding Percent Output',
+    meta:{side:'Antigravity',q:4,tok:'52k',mb:'0.6 MB',ago:0},
+    banners:[{k:'info',i:'GitFork',t:c=>c.forkedFromGone}],
+    qs:AG_TURNS
+  };
+
   // ── A Grok session: 6 questions across two days, filler turns only ──
   const GROK = {
     badge:'g', side:'GK', tool:'grok', id:'019fd1e2-1042-7c12-94e9-15b9d0ad23ec',
@@ -800,7 +855,7 @@
     ]
   };
 
-  const DATA = {claude:CLAUDE, codex:CODEX, orphan:ORPHAN, grok:GROK};
+  const DATA = {claude:CLAUDE, codex:CODEX, orphan:ORPHAN, grok:GROK, agfork:AG_FORK, aggone:AG_GONE};
   let cur='claude', fetchState='ok', order='desc'; // 默认倒序(2026-08-06 用户裁定)
   let origin='project';            // where the session was opened from: a project, or global search
   // The header's session ID and resume (2026-10-28): the demo bar's states, and the button whose copy shows
@@ -811,7 +866,8 @@
   // The resume command: change into the project's directory (single-quoted, a quote inside closed, escaped
   // and reopened), then resume by session ID in the session's own side's tool
   const shq = s => `'${s.replace(/'/g,`'\\''`)}'`;
-  const RESUME = {claude:id=>`claude --resume ${id}`, codex:id=>`codex resume ${id}`, grok:id=>`grok --resume ${id}`};
+  const RESUME = {claude:id=>`claude --resume ${id}`, codex:id=>`codex resume ${id}`, grok:id=>`grok --resume ${id}`,
+    agy:id=>`agy --conversation ${id}`};
   const resumeCmd = d => `cd ${shq(PATHS[pathState])} && ${RESUME[d.tool](d.id)}`;
   const loaded=new Set();          // 已取回过的轮次(索引失效只在首次取回时重建)
   const fetchingTurns=new Map();   // turns not fetched yet: 'fetching' | 'rebuilding' while the fetch runs, 'failed' after

@@ -42,6 +42,10 @@
   --cx-fg: #1f7a4d;
   --gk-bg: #ece5f5;
   --gk-fg: #7a63a0;
+  /* Antigravity's badge takes the hue of its provider colour, Google blue (ADR-0021); its fg-on-bg
+     contrast (4.69 light, 6.81 dark) sits in the band of the other three pairs */
+  --ag-bg: #dde7fb;
+  --ag-fg: #3563b5;
   --p-anthropic: #d97757;
   --p-openai: #10a37f;
   --p-google: #4285f4;
@@ -114,6 +118,8 @@ html[data-demo-mode="dark"] {
   --cx-fg: #7fd6a4;
   --gk-bg: #352c48;
   --gk-fg: #c9b3ec;
+  --ag-bg: #1f2e49;
+  --ag-fg: #96b9f3;
   --p-anthropic: #e8916f;
   --p-openai: #2fc79f;
   --p-google: #6ba3f7;

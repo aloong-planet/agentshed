@@ -1,6 +1,6 @@
 # Skills view
 
-> Related: [features/skills-view](../features/skills-view.md) · [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0002 · ADR-0004 · ADR-0010  
+> Related: [features/skills-view](../features/skills-view.md) · [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0002 · ADR-0004 · ADR-0010 · ADR-0037  
 > Status: **delivered** (prototype gate passed 2026-08-06; expand-to-preview + enumerate-and-read + inline package stats + `differs` removed + same-name override in detail). **Filtering by name and hover-for-full-name added 2026-08-10** (prototype gate passed the same day).
 
 ## Problem Statement
@@ -78,7 +78,7 @@ repeats what is already legible is noise.
 11. As a user with a large global library, I want to type part of a skill's name and see only the
     matching rows, so that I can reach one skill without scrolling past dozens of others.
 12. As a user, I want the same box in project detail to narrow every group at once, so that I do not have
-    to work out which of the five groups a name lives in before I can look for it.
+    to work out which group a name lives in before I can look for it.
 13. As a user, I want a group whose entries all filtered out to disappear entirely rather than linger as
     an empty heading, so that what is left on screen is only what matched.
 14. As a user, I want to tell "nothing matched what I typed" apart from "there is nothing here at all",
@@ -242,7 +242,7 @@ repeats what is already legible is noise.
 
 **Sequence F: project detail → Skills section → filtering by name**
 
-- F1 **One** box narrows all five groups at once; there is no per-group box.
+- F1 **One** box narrows every group at once; there is no per-group box.
 - F2 A group heading's count shows the number of rows **after** filtering, not the group's total. A count
   that kept reporting the total would contradict the rows underneath it.
 - F3 A group with no matches disappears **together with its heading and card** — the same rule the section
@@ -325,7 +325,8 @@ name" reads as if the filesystem had already constrained it.
   side, file count and total bytes, enter it (C1); the scan no longer retains full text for diffing.
 - R5 N-side extension: side enumeration, badges and segments are all driven by "the sides this skill
   actually exists on"; hard-coding exactly two side buttons in the UI or the contract is forbidden.
-  The data sources are Claude, Codex and Grok's own skills root; the model stays N-side.
+  The data sources are each side's own skills roots (Antigravity's per skills-view::REQ-001/AC-01); the
+  model stays N-side.
 - R6 The existing "the two sides differ" copy: everything in features / prototypes / tests depending on
   `differs` is deleted or rewritten, so the documentation does not lie.
 - R7 The old project detail Skills rule of "project-level and global-layer side by side + shadowing /
@@ -343,6 +344,66 @@ name" reads as if the filesystem had already constrained it.
   popover, where a stale selector left it positioned against the document and it landed off-screen.
 - R11 **Subagents, Plugins, Memory and MCP do not get a search box in this change.** Adding one where the
   list is short is noise, and each list would need its own decision about what a match means.
+
+## The Antigravity CLI side and the shared skills directory
+
+### skills-view::REQ-001 Antigravity's skills on the global page
+
+Applies to: the agents page's Skills section, and the global library every install starts from
+([skill-install](skill-install.md)).
+
+- skills-view::REQ-001/AC-01: Antigravity's global library is the skills agy loads from its three
+  global directories — `~/.gemini/antigravity-cli/skills`, `~/.gemini/config/skills` and
+  `~/.gemini/skills` (the last one is what agy itself labels "Shared skills"; it is not the shared
+  skills directory of CONTEXT.md). A name present in more than one is listed once, as the copy agy
+  uses: the first directory over the second over the third. Measured 2026-10-28 with agy's own skill
+  listing, which shows one copy of a same-name pair, in that order. The row's preview opens that copy.
+- skills-view::REQ-001/AC-02: agy's built-in skills are not listed (ADR-0037).
+- skills-view::REQ-001/AC-03: Its rows carry the AG badge in the side slots (R5); a name that other
+  sides' libraries hold too is one row with every such side's badge, and the drawer's side switcher
+  includes Antigravity (A2).
+- skills-view::REQ-001/AC-04: The bundled skills of Antigravity's effectively enabled plugins join the
+  list as namespaced entries — `<plugin>:<skill>`, as agy names them (measured) — with the AG badge
+  and the plugin badge ([plugins-view::REQ-001/AC-04](plugins-view.md)).
+- skills-view::REQ-001/AC-05: The global skill count on the Antigravity card counts AC-01's names,
+  without built-in or plugin entries.
+- skills-view::REQ-001/AC-06: Codex's global library (`~/.agents/skills`) is not Antigravity's: agy does
+  not load it (measured).
+
+### skills-view::REQ-002 The shared skills directory in project detail
+
+Applies to: the project detail page's Skills section.
+
+- skills-view::REQ-002/AC-01: The project's `.agents/skills` is one group, the shared skills directory
+  (CONTEXT.md), headed "Shared · .agents/skills" with the CX and AG badges. It sits between the Codex
+  groups and the Antigravity groups and replaces what used to be Codex's project-level group (ADR-0037).
+  The badges name both sides that load the directory, whatever the project is registered on (owner's
+  ruling 2026-10-28).
+- skills-view::REQ-002/AC-02: Its entries are project-level: each is previewable (B5) and uninstallable
+  ([skill-install::REQ-002](skill-install.md)).
+- skills-view::REQ-002/AC-03: B1 holds for both of its owners: a name in the shared directory hides the
+  same name in Codex's global group and in Antigravity's global group.
+- skills-view::REQ-002/AC-04: Antigravity's global group follows the shared group, listing
+  skills-view::REQ-001/AC-01's names that the shared directory does not hold (B2).
+- skills-view::REQ-002/AC-05: The plugin-bundled group's rows carry their side's badge, since more than
+  one side contributes to it.
+- skills-view::REQ-002/AC-06: A project registered on neither Codex nor Antigravity still shows the
+  group when the directory holds skills, as the Codex project-level group did; an empty or absent
+  directory shows no group (F3).
+
+### Failure modes and boundaries: the Antigravity side and the shared directory
+
+- The same name in two of agy's global directories: one row, previewing the copy agy uses
+  (skills-view::REQ-001/AC-01); the other copy is reachable in no list, as agy itself does not use it.
+- The same name in the shared directory and in both owners' global libraries: the detail lists only
+  the shared entry, with no global row under either owner (skills-view::REQ-002/AC-03).
+- A skill uninstalled from the shared directory: the detail refetches in place (skill-install R2) and a
+  global entry of the same name, hidden until then, reappears under its owner's global group.
+- The filter (sequence F) narrows the shared group like any other; its heading count follows the
+  filter, and an emptied group disappears with its heading.
+- A symlinked skill in one of agy's global directories follows the existing symlink rules (A6, C9).
+- A built-in skill whose name matches one of the user's: the user's is listed, the built-in is not;
+  which one agy prefers at run time is not measured and not claimed.
 
 ## UI decisions (prototype gate passed · 2026-08-06)
 
@@ -454,6 +515,10 @@ Matching the current behaviour of
   previously a literal in each copy, which made this surface the one thing in the UI that could not
   follow the palette — and a single alpha cannot serve both, since one that reads on a light backdrop
   disappears on a dark one.
+- **Antigravity's roots** (skills-view::REQ-001, skills-view::REQ-002): the known global skills roots
+  that C9's container check admits gain agy's three global directories; the project's `.agents/skills`
+  is already a known project root. The detail assembly emits the shared directory as one group owned
+  by both of its loading sides, and the same-name override runs against each owner's global set.
 - **New copy goes through the dictionaries**: the placeholder and the "no name matched" empty states are
   user-visible strings, so they exist in both languages. The empty state is a **new** string, not a
   reuse of the existing "library is empty" one (E5/F4) — reusing it would be cheaper and would lie.
@@ -476,6 +541,11 @@ Following ADR-0002's dual seam:
 A good test asserts only external behaviour (directory → the set of relative paths listed / the text
 read / the reason for refusal), never the internal traversal details. Drawer animations are not unit
 tested.
+
+**The Antigravity side** (skills-view::REQ-001, skills-view::REQ-002) adds fixture cases at the providers
+seam: one name in two and in all three of agy's global directories (the copy agy uses is the one
+listed), a built-in skill present (not listed), and a shared-directory name that hides both owners'
+global entries; e2e reads the shared group's heading and badges in project detail.
 
 **Filtering and hover** add no provider-side surface, so they sit on the seams that already exist:
 

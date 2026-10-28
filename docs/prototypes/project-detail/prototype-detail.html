@@ -61,7 +61,25 @@
        token 概览卡)画了中、英两种,其他语言按英文显示并有提示;两页及以上共用的文案取共享文案表
        _shared/copy.js;评审注解、演示条与 mock 数据保持原样。
        色值取共享主题 _shared/theme.css,本页不自定义 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。
-     项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。 -->
+     项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。
+     2026-10-28 (the fourth side, Antigravity; ADR-0037): Transfer is registered on all four sides. The header gains
+       the ANTIGRAVITY chip; the overview's per-side row, trend side switch and by-model rows gain Antigravity (its
+       models as agy records them); recent sessions and the Sessions tab gain Antigravity conversations, one of
+       them a fork (the fork pill; its banner is on the session page).
+       Skills: the shared skills directory — .agents/skills, loaded by both Codex and Antigravity — is one group
+       of its own badged CX AG, placed between the Codex groups and the Antigravity groups (owner's ruling); it
+       replaces what used to be Codex's project level. Antigravity's global level follows; plugin-bundled rows
+       now carry their side's badge, since two sides contribute to that group.
+       Subagents gain Antigravity's project level (.agents/agents) and global level; Plugins and MCP gain an
+       Antigravity group (global plugins; the global mcp_config.json and plugin-bundled servers — a project's own
+       .agents/mcp_config.json is not shown: agy was not observed to load it).
+       Configuration (owner's ruling): two entries, not by side — the project's CLAUDE.md and AGENTS.md (the
+       latter read by Codex and Antigravity alike), each headed by its path, "None" when absent. The Claude
+       settings summary is removed.
+     2026-10-28 (owner's ruling): the Skills tab no longer draws tdd as a "shadows global" project row over a
+       "shadowed by project level" global row. Since skills-view (2026-08-06) the skills effective view shows only
+       the project-level entry of a same-name pair within one side, with no shadowing badge (CONTEXT, "Effective
+       view"); this page had kept the older drawing. Shadowing is still drawn for subagents, where it is the rule. -->
 <!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
 <html lang="zh-CN">
 <head>
@@ -100,6 +118,7 @@
      故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
+  .b.a{background:var(--ag-bg);color:var(--ag-fg)}
   .path{font-size:11px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;margin:4px 0 10px}
   .tabs{display:flex;gap:2px}
   .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
@@ -129,6 +148,8 @@
     line-height:1.75;font-size:12.5px;max-height:52vh;overflow:auto}
   .md h3{font-size:13px;margin-bottom:6px}
   .md code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
+  /* A configuration entry's body starts with the file's path (the same form as the Agents page) */
+  .md .cfg-path{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2);margin:0 0 6px}
   .none{color:var(--text-2);padding:20px;text-align:center}
   .chart{height:96px;margin-bottom:0}
   .chips{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
@@ -236,7 +257,7 @@
   <script src="../_shared/project-side.js"></script>
   <div class="main">
     <div class="head">
-      <div class="h1"><b>Transfer</b><span class="b c">CLAUDE CODE</span><span class="b x">CODEX</span><span class="b g">GROK</span><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span></div>
+      <div class="h1"><b>Transfer</b><span class="b c">CLAUDE CODE</span><span class="b x">CODEX</span><span class="b g">GROK</span><span class="b a">ANTIGRAVITY</span><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span></div>
       <div class="path">~/CascadeProjects/Transfer</div>
       <div class="tabs" id="tabs">
         <span class="tab on" data-t="ov" data-i18n="tabOverview">概览</span><span class="tab" data-t="skills">Skills</span>
@@ -255,7 +276,7 @@
         <div data-shared-block="totals-card" id="ovTot"></div>
         <!-- Global span proposal: inline choices, remembered across prototype pages and reloads. Drawn in Chinese and English; any other language shows as English. -->
         <div class="grp-t trend-heading"><span class="trend-span-label"><span data-i18n="trendPrefix">近</span> <span class="trend-span-options" id="ovspan" role="group" aria-label="趋势天数" data-i18n-aria="trendDays"></span> <span data-i18n="trendSuffix">天趋势</span></span><span data-i18n="trendContext">(本地时区 · 日粒度)</span>
-          <span class="seg" id="ovseg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
+          <span class="seg" id="ovseg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span><span>Antigravity</span></span></div>
         <div class="chart" id="ovchart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="ovxaxis"></div>
         <div class="legend" id="ovlegend"></div>
@@ -265,17 +286,17 @@
      straight to the session page; everything else is in the sessions tab -->
         <div class="grp-t"><span data-i18n="recentSessions">最近会话</span>(上限 5 条;subagent 与预热会话计 token 但不单独入列)</div>
         <div class="card">
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b a" style="flex:none">AG</span><span class="t">Rounding Percent Output</span><span class="tok">52k</span><span class="d" data-ago="0">今天</span></div>
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">MAS 上架支持:构建线与独立 bundle id</span><span class="tok">312k</span><span class="d" data-ago="3">3天前</span></div>
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">屏幕录制权限 preflight 修复</span><span class="tok">188k</span><span class="d" data-ago="5">5天前</span></div>
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b x" style="flex:none">CX</span><span class="t">迁移 Claude Code skills 到 Codex</span><span class="tok">96k</span><span class="d" data-ago="9">9天前</span></div>
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">消息领域模型收敛为单一数据源</span><span class="tok">421k</span><span class="d" data-ago="12">12天前</span></div>
-          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">会话导出格式讨论</span><span class="tok">22k</span><span class="d" data-ago="14">14天前</span></div>
         </div>
-        <div class="note" data-i18n="ovNote">共 7 个会话 —— 全部与搜索见「会话」分栏。</div>
+        <div class="note" data-i18n="ovNote">共 9 个会话 —— 全部与搜索见「会话」分栏。</div>
       </div>
       <div data-p="sessions" data-shared-block="session-hits" style="display:none">
         <div class="sbar">
-          <input id="sq" placeholder="在本项目的 7 个会话里搜索…" data-i18n-ph="searchPlaceholder">
+          <input id="sq" placeholder="在本项目的 9 个会话里搜索…" data-i18n-ph="searchPlaceholder">
           <span class="scope" id="sscope"><span class="on" data-sc="q" data-i18n="scopeQuestions">搜提问</span><span data-sc="all" data-i18n="scopeFullText">全文</span></span>
         </div>
         <div id="sres"></div>
@@ -285,13 +306,13 @@
         <div class="card">
           <div class="it"><span class="nm">ui-design</span><span class="pill prj" data-i18n="pillProject">项目级</span>
             <span class="ds">项目专属 UI 走查规范</span></div>
-          <div class="it"><span class="nm">tdd</span><span class="pill prj" data-i18n="pillProject">项目级</span><span class="pill shadow" data-i18n="shadowsGlobal">遮蔽全局</span>
+          <div class="it"><span class="nm">tdd</span><span class="pill prj" data-i18n="pillProject">项目级</span>
             <span class="ds">红先于绿,覆盖来自 spec 失败模式节</span></div>
         </div>
-        <div class="grp-t"><span data-i18n="secClaudeGlobal">全局层 · Claude</span>(4 / 26)</div>
+        <!-- Claude's global library also has a tdd; the project-level one above is the only tdd row (the
+             effective-view rule for skills), so this group lists 25 of the 26 global skills -->
+        <div class="grp-t"><span data-i18n="secClaudeGlobal">全局层 · Claude</span>(3 / 25)</div>
         <div class="card">
-          <div class="it shadowed"><span class="nm">tdd</span><span class="pill glb" data-i18n="pillGlobal">全局</span><span class="pill shadow" data-i18n="shadowed">被项目级遮蔽</span>
-            <span class="ds">红先于绿(全局版)</span></div>
           <div class="it"><span class="nm">review-code</span><span class="pill glb" data-i18n="pillGlobal">全局</span>
             <span class="ds">四层法 review</span></div>
           <div class="it"><span class="nm">grilling</span><span class="pill glb" data-i18n="pillGlobal">全局</span>
@@ -306,16 +327,38 @@
           <div class="it"><span class="nm">github-ops</span><span class="pill glb" data-i18n="pillGlobal">全局</span><span class="pill ln" data-i18n="pillSymlink">软链</span>
             <span class="ds">GitHub 产出规范(无 AI 署名)</span></div>
         </div>
+        <!-- The shared skills directory: loaded by Codex and Antigravity alike, so it is one group of its own between
+             the two sides that own it (owner's ruling, 2026-10-28) rather than a Codex project level and an
+             Antigravity project level showing the same files. Its entries are project-level and uninstallable; an
+             uninstall removes the skill for both sides (the confirmation says so — see the install prototype). -->
+        <div class="grp-t"><span data-i18n="secShared">共享 · .agents/skills</span> <span class="b x">CX</span> <span class="b a">AG</span>(2)</div>
+        <div class="card">
+          <div class="it"><span class="nm">commit-style</span><span class="pill prj" data-i18n="pillProject">项目级</span>
+            <span class="ds">本仓库的提交信息约定(Codex 与 Antigravity 都会加载)</span></div>
+          <div class="it"><span class="nm">changelog-entry</span><span class="pill prj" data-i18n="pillProject">项目级</span>
+            <span class="ds">按本仓库的 changelog 格式补一条</span></div>
+        </div>
+        <!-- A name in the shared directory and in Antigravity's global library at once shows only the project-level
+             row (the effective-view rule for skills), so no global row repeats a shared one here -->
+        <div class="grp-t"><span data-i18n="secAgGlobal">全局层 · Antigravity</span>(2 / 9)</div>
+        <div class="card">
+          <div class="it"><span class="nm">release-notes</span><span class="pill glb" data-i18n="pillGlobal">全局</span>
+            <span class="ds">从 git log 起草发布说明</span></div>
+          <div class="it"><span class="nm">pdf-report</span><span class="pill glb" data-i18n="pillGlobal">全局</span>
+            <span class="ds">把分析结果排成 PDF 报告</span></div>
+        </div>
         <div class="grp-t" data-i18n="secPlugin">插件内含 · 本项目有效启用(命名空间调用,只读无装卸)</div>
         <div class="card">
-          <div class="it"><span class="nm">superpowers:brainstorming</span><span class="pill plg" data-i18n="pillPlugin">插件</span>
+          <div class="it"><span class="nm">superpowers:brainstorming</span><span class="b c">CC</span><span class="pill plg" data-i18n="pillPlugin">插件</span>
             <span class="ds">Explores intent before implementation.</span></div>
-          <div class="it"><span class="nm">superpowers:test-driven-development</span><span class="pill plg" data-i18n="pillPlugin">插件</span>
+          <div class="it"><span class="nm">superpowers:test-driven-development</span><span class="b c">CC</span><span class="pill plg" data-i18n="pillPlugin">插件</span>
             <span class="ds">Red before green.</span></div>
+          <div class="it"><span class="nm">flutter:dart-add-unit-test</span><span class="b a">AG</span><span class="pill plg" data-i18n="pillPlugin">插件</span>
+            <span class="ds">Write and organize unit tests for Dart code.</span></div>
         </div>
       </div>
       <div data-p="subagents" style="display:none">
-        <div class="grp-t" data-i18n="saHint">生效视图 · 两侧同名均为项目级遮蔽(subagents 语义;与 skills 的 Codex 同名共存相反) · 点条目开抽屉</div>
+        <div class="grp-t" data-i18n="saHint">生效视图 · 同一侧同名为项目级遮蔽(subagents 语义;与 skills 的 Codex 同名共存相反) · 点条目开抽屉</div>
         <div class="grp-t"><span data-i18n="secClaudeAgents">项目级 · .claude/agents</span>(1)</div>
         <div class="card">
           <div class="it row-btn" data-sa="0"><span class="nm">code-reviewer</span><span class="b c">CC</span>
@@ -327,6 +370,14 @@
           <div class="it row-btn" data-sa="1"><span class="nm">explorer</span><span class="b x">CX</span>
             <span class="pill prj" data-i18n="pillProject">项目级</span><span class="pill warn" data-i18n="overridesBuiltin">覆盖内置</span><span class="pill shadow" data-i18n="shadows">遮蔽同名</span>
             <span class="ds">项目级 explorer:覆盖内置,并遮蔽用户级同名(键取 toml name 字段)</span></div>
+        </div>
+        <!-- Antigravity's definitions are Markdown with front matter; whether a project-level name shadows a global
+             one was not observed, so its rows carry no shadowing badge -->
+        <div class="grp-t"><span data-i18n="secAgAgents">项目级 · .agents/agents</span>(1)</div>
+        <div class="card">
+          <div class="it row-btn" data-sa="7"><span class="nm">demo-agent</span><span class="b a">AG</span>
+            <span class="pill prj" data-i18n="pillProject">项目级</span>
+            <span class="ds">Explains calc.py for this repository.</span></div>
         </div>
         <div class="grp-t"><span data-i18n="secClaudeGlobal">全局层 · Claude</span>(3)</div>
         <div class="card">
@@ -345,6 +396,13 @@
             <span class="ds">用户级 explorer(未生效)</span></div>
           <div class="it row-btn" data-sa="6"><span class="nm">code-reviewer</span><span class="b x">CX</span>
             <span class="pill glb" data-i18n="pillGlobal">全局</span><span class="ds">Expert code review specialist.(Codex 侧全局,与 Claude 侧各自成行)</span></div>
+        </div>
+        <div class="grp-t"><span data-i18n="secAgGlobal">全局层 · Antigravity</span>(2)</div>
+        <div class="card">
+          <div class="it row-btn" data-sa="8"><span class="nm">code-reviewer</span><span class="b a">AG</span>
+            <span class="pill glb" data-i18n="pillGlobal">全局</span><span class="ds">Expert code review specialist.(Antigravity 侧全局,与其他侧各自成行)</span></div>
+          <div class="it row-btn" data-sa="9"><span class="nm">release-checker</span><span class="b a">AG</span>
+            <span class="pill glb" data-i18n="pillGlobal">全局</span><span class="ds">Checks a release branch for missing changelog entries.</span></div>
         </div>
       </div>
       <div data-p="memory" style="display:none">
@@ -390,6 +448,14 @@
             <span class="ds" data-i18n="cacheOnly">仅缓存枚举</span></div>
         </div>
         <div class="note" data-i18n="plFoot">Codex 组仅列缓存中存在的插件;启用态与内含组件语义本期不建模;Codex 插件为全局生效,无项目级启用语义。</div>
+        <!-- Antigravity's plugins take effect globally (its own enablement record; absent = enabled); a project's own
+             .agents/plugins was not observed and is not read. Bundled rules are not listed. -->
+        <div class="grp-t"><span class="b a">ANTIGRAVITY</span></div>
+        <div class="card" id="plistAg">
+          <div class="it row-btn" data-pg="3"><span class="nm">flutter</span>
+            <span class="src">v1.0.6</span><span class="pill on" data-i18n="enabledShort">启用</span>
+            <span class="ds" data-i18n="plVerdictAg">全局生效 · 来自 antigravity-plugins-official</span></div>
+        </div>
       </div>
       <div data-p="mcp" style="display:none">
         <div class="grp-t" data-i18n="mcpTitle">MCP Servers(按来源标注)</div>
@@ -402,6 +468,12 @@
             <span class="ds">[mcp_servers.node_repl]</span><span class="src">Codex</span></div>
           <div class="it"><span class="nm">computer-use</span><span class="pill glb">config.toml</span>
             <span class="ds">[mcp_servers.computer-use]</span><span class="src">Codex</span></div>
+          <div class="it"><span class="nm">sqlite-explorer</span><span class="pill glb">mcp_config.json</span>
+            <span class="ds">node /usr/local/bin/sqlite-mcp-server.js</span><span class="src">Antigravity</span></div>
+          <div class="it"><span class="nm">github</span><span class="pill glb">mcp_config.json</span><span class="pill off" data-i18n="mcpDisabled">已停用</span>
+            <span class="ds">https://api.githubcopilot.com/mcp/</span><span class="src">Antigravity</span></div>
+          <div class="it"><span class="nm">flutter_dart-mcp-server</span><span class="pill glb" data-i18n="srcPlugin">plugin 自带</span>
+            <span class="ds" data-i18n="mcpFromFlutter">来自 flutter 插件</span><span class="src">Antigravity</span></div>
         </div>
       </div>
       <div data-p="arts" style="display:none">
@@ -412,15 +484,12 @@
         <div class="none" style="font-size:12px;padding:12px">非八步项目在此显示「未按约定沉淀」空态(不视为错误)</div>
       </div>
       <div data-p="cfg" style="display:none">
+        <!-- Two entries, not by side (owner's ruling, 2026-10-28): the project's own CLAUDE.md and AGENTS.md, each headed
+             by its path; AGENTS.md is read by Codex and Antigravity alike. The settings summary is removed. -->
         <div class="cfg-switch" id="cfgs">
-          <span class="on" data-cfg="claude">CLAUDE.md</span><span data-cfg="agents">AGENTS.md</span><span data-cfg="settings" data-i18n="settingsSummary">settings 摘要</span>
+          <span class="on" data-cfg="claude">CLAUDE.md</span><span data-cfg="agents">AGENTS.md</span>
         </div>
-        <div class="md" id="cfgbody">
-          <h3># Transfer — 项目约定</h3>
-          <p>按内容的腐烂速度分类,各有唯一归宿——写文档前先定它属于哪类:</p>
-          <p>术语/不变量 → 根目录 <code>CONTEXT.md</code>;架构决策 → <code>docs/adr/</code>,只追加不改写;
-          运维手册 → <code>docs/ops/</code> 就地更新;功能目录 → <code>docs/features/</code>…(只读渲染,滚动容器内)</p>
-        </div>
+        <div class="md" id="cfgbody"></div>
       </div>
     </div>
   </div>
@@ -469,22 +538,22 @@
       byModel:w=>`按模型拆分 · ${w}`, noModelInWindow:'该窗口内没有模型用量',
       noUsageInWindow:'选中的时间窗口内没有用量',
       trendContext:'(本地时区 · 日粒度)',
-      recentSessions:'最近会话', ago:n=>`${n}天前`, agoToday:'今天', agoWeek:'1周前',
-      ovNote:'共 7 个会话 —— 全部与搜索见「会话」分栏。',
-      searchPlaceholder:'在本项目的 7 个会话里搜索…', scopeQuestions:'搜提问', scopeFullText:'全文',
+      recentSessions:'最近会话', ago:n=>n===0?'今天':`${n}天前`, agoToday:'今天', agoWeek:'1周前',
+      ovNote:'共 9 个会话 —— 全部与搜索见「会话」分栏。',
+      searchPlaceholder:'在本项目的 9 个会话里搜索…', scopeQuestions:'搜提问', scopeFullText:'全文',
       sortNote:(order,n)=>`按<b>最近活动时间</b>${order} · ${n} 个会话`, descending:'倒序', ascending:'正序',
       questionCount:n=>`${n} 提问`,
       titleFromFirst:'标题取首条提问', titleCleaned:'标题已清洗',
       sessionsFoot:'只列已注册项目的会话;subagent 与预热会话不单独入列,但 token 仍计入统计——故此处条数与 token 卡的分母不是同一个。',
       sessionsFoot2:'「最近活动」= 文件内最大时间戳——Codex 侧原先取首个时间戳,fork 会话会误报为重放时刻。',
-      emptyTitle:'该项目还没有会话记录。', emptyHint:'Claude Code / Codex 在此目录下开过对话后会自动出现。',
+      emptyTitle:'该项目还没有会话记录。', emptyHint:'agent 在此目录下开过对话后会自动出现。',
       noHits:'没有命中。默认只搜提问,试试切到「全文」。',
       hitsFound:(h,s)=>`找到 <b>${h}</b> 条 · ${s} 个会话`, folded:n=>` · 已折叠 <b>${n}</b> 条 fork 重放副本`,
       inBody:'正文',
-      secClaudeGlobal:'全局层 · Claude', secCodexGlobal:'全局层 · Codex',
+      secClaudeGlobal:'全局层 · Claude', secCodexGlobal:'全局层 · Codex', secAgGlobal:'全局层 · Antigravity', secAgAgents:'项目级 · .agents/agents',
       secPlugin:'插件内含 · 本项目有效启用(命名空间调用,只读无装卸)',
-      shadowsGlobal:'遮蔽全局', shadowed:'被项目级遮蔽', shadows:'遮蔽同名',
-      saHint:'生效视图 · 两侧同名均为项目级遮蔽(subagents 语义;与 skills 的 Codex 同名共存相反) · 点条目开抽屉',
+      shadowed:'被项目级遮蔽', shadows:'遮蔽同名',
+      saHint:'生效视图 · 同一侧同名为项目级遮蔽(subagents 语义;与 skills 的 Codex 同名共存相反) · 点条目开抽屉',
       secClaudeAgents:'项目级 · .claude/agents', secCodexAgents:'项目级 · .codex/agents',
       saFl:{ shadows:'压过同名低层定义', builtin:'覆盖内置(default/worker/explorer 之一被替换);压过用户级同名',
         shadowed:'被项目级定义遮蔽(未生效)' },
@@ -499,7 +568,8 @@
       secBundledHooks:'内含 hooks(事件摘要)',
       mcpTitle:'MCP Servers(按来源标注)', mcpFromPlugin:'来自 chrome-devtools-mcp 插件',
       srcProjectMcp:'项目 .mcp.json', mcpProjectDs:'示意:项目级 MCP,受 enabled/disabled 开关控制',
-      filterAll:'全部', noArtifactsOfType:'该类无产物', settingsSummary:'settings 摘要'
+      filterAll:'全部', noArtifactsOfType:'该类无产物',
+      plVerdictAg:'全局生效 · 来自 antigravity-plugins-official', mcpDisabled:'已停用', mcpFromFlutter:'来自 flutter 插件', secBundledAgents:'内含 subagents'
     },
     en: { ...SharedCopy.en,
       tabOverview:'Overview', tabSessions:'Sessions', tabArts:'Artifacts',
@@ -509,22 +579,22 @@
       trendContext:'(local time zone · daily)',
       // Relative days in the words of Intl.RelativeTimeFormat with numeric:'auto'
       recentSessions:'Recent sessions', ago:n=>n===0?'today':n===1?'yesterday':`${n} days ago`, agoToday:'today', agoWeek:'1 week ago',
-      ovNote:'7 sessions in total — see the “Sessions” tab for all of them and for search.',
-      searchPlaceholder:'Search across 7 sessions in this project…', scopeQuestions:'Search questions', scopeFullText:'Full text',
+      ovNote:'9 sessions in total — see the “Sessions” tab for all of them and for search.',
+      searchPlaceholder:'Search across 9 sessions in this project…', scopeQuestions:'Search questions', scopeFullText:'Full text',
       sortNote:(order,n)=>`By <b>last activity</b>, ${order} · ${n} ${pl(n,'session','sessions')}`, descending:'newest first', ascending:'oldest first',
       questionCount:n=>`${n} ${pl(n,'question','questions')}`,
       titleFromFirst:'Title from first question', titleCleaned:'Title cleaned',
       sessionsFoot:'Only sessions of registered projects are listed; subagent and warm-up sessions are not listed separately, though their tokens still count — so this count and the denominator of the token cards are not the same thing.',
       sessionsFoot2:'“Last activity” = the largest timestamp inside the file — the Codex side used to take the first timestamp, which misreported a forked session as the moment of the replay.',
-      emptyTitle:'No session records in this project yet.', emptyHint:'They appear automatically once Claude Code / Codex has had a conversation in this directory.',
+      emptyTitle:'No session records in this project yet.', emptyHint:'They appear automatically once an agent has had a conversation in this directory.',
       noHits:'No hits. Only questions are searched by default — try switching to “Full text”.',
       hitsFound:(h,s)=>`Found <b>${h}</b> ${pl(h,'hit','hits')} · ${s} ${pl(s,'session','sessions')}`,
       folded:n=>` · <b>${n}</b> fork replay ${pl(n,'copy','copies')} folded away`,
       inBody:'Body',
-      secClaudeGlobal:'Global level · Claude', secCodexGlobal:'Global level · Codex',
+      secClaudeGlobal:'Global level · Claude', secCodexGlobal:'Global level · Codex', secAgGlobal:'Global level · Antigravity', secAgAgents:'Project level · .agents/agents',
       secPlugin:'Bundled in plugins · effectively enabled here (namespaced, read-only, no install/uninstall)',
-      shadowsGlobal:'Shadows global', shadowed:'Shadowed by project level', shadows:'Shadows same name',
-      saHint:'Effective view · a same name on both sides is shadowed at project level (subagent semantics; the opposite of Codex skills coexisting under one name) · click a row to open the drawer',
+      shadowed:'Shadowed by project level', shadows:'Shadows same name',
+      saHint:'Effective view · within a side, a same name is shadowed at project level (subagent semantics; the opposite of Codex skills coexisting under one name) · click a row to open the drawer',
       secClaudeAgents:'Project level · .claude/agents', secCodexAgents:'Project level · .codex/agents',
       saFl:{ shadows:'overrides a lower-level definition of the same name',
         builtin:'overrides a built-in (one of default/worker/explorer is replaced); overrides the user-level one of the same name',
@@ -541,7 +611,8 @@
       secBundledHooks:'Bundled hooks (event summary)',
       mcpTitle:'MCP servers (labelled by source)', mcpFromPlugin:'From the chrome-devtools-mcp plugin',
       srcProjectMcp:'project .mcp.json', mcpProjectDs:'Illustration: a project-level MCP, governed by its enabled/disabled switch',
-      filterAll:'All', noArtifactsOfType:'No artifacts of this type', settingsSummary:'settings summary'
+      filterAll:'All', noArtifactsOfType:'No artifacts of this type',
+      plVerdictAg:'In effect globally · from antigravity-plugins-official', mcpDisabled:'Disabled', mcpFromFlutter:'From the flutter plugin', secBundledAgents:'Bundled subagents'
     }
   }
   // The value in effect now; DemoDimensions.on at the end of this script re-renders on every change
@@ -567,12 +638,12 @@
 
 
   // ── 概览的时间窗口:卡排本身就是筛选器,与 Agents 页同形态(项目级尺度的 mock) ──
-  const OV_SIDES = [{cls:'c',name:'CLAUDE'},{cls:'x',name:'CODEX'},{cls:'g',name:'GROK'}]
+  const OV_SIDES = [{cls:'c',name:'CLAUDE'},{cls:'x',name:'CODEX'},{cls:'g',name:'GROK'},{cls:'a',name:'ANTIGRAVITY'}]
   const OV_RANGES = [
-    { days:null, side:[38500000, 15100000, 2200000] },   // 累计总量 · 全部历史
-    { days:1,    side:[  412000,    96000,   21000] },   // 本日
-    { days:7,    side:[ 2840000,   730000,  186000] },   // 近 7 天
-    { days:30,   side:[ 9600000,  3100000,  640000] }    // 近 N 天(N 随全局趋势天数)
+    { days:null, side:[38500000, 15100000, 2200000, 1860000] },   // 累计总量 · 全部历史
+    { days:1,    side:[  412000,    96000,   21000,   52000] },   // 本日
+    { days:7,    side:[ 2840000,   730000,  186000,  320000] },   // 近 7 天
+    { days:30,   side:[ 9600000,  3100000,  640000, 1120000] }    // 近 N 天(N 随全局趋势天数)
   ]
   // 卡上的窗口名:前三张固定,第四张随全局趋势天数
   const ovWin = i => i < 3 ? T[LANG].win[i] : T[LANG].winDays(OV_RANGES[3].days)
@@ -581,7 +652,8 @@
     { nm:'claude-fable-5', cls:'anthropic', v:[24000000, 236000, 1620000, 5480000] },
     { nm:'claude-opus-5',  cls:'anthropic', v:[14500000, 176000, 1220000, 4120000] },
     { nm:'gpt-5.5-codex',  cls:'openai',    v:[15100000,  96000,  730000, 3100000] },
-    { nm:'grok-4.6-build', cls:'xai',       v:[ 2200000,  21000,  186000,  640000] }
+    { nm:'grok-4.6-build', cls:'xai',       v:[ 2200000,  21000,  186000,  640000] },
+    { nm:'gemini-3.8-flash-n', cls:'google', v:[ 1860000,  52000,  320000, 1120000] }
   ]
   // 构成三段占该窗口总量的比例,顺序对齐 OV_RANGES,每行恰好加总为 1(三段之和=总量,是这个切法的全部理由)
   const OV_COMP = [
@@ -637,14 +709,14 @@
     OV_R = +b.dataset.r; ovApply()
   })
   const ovDays = TrendChartProto.scaleHistory(
-    TrendChartProto.mockDays(5, { days: 90, scale: 4e6 }), OV_RANGES[3].side)
+    TrendChartProto.mockDays(5, { days: 90, scale: 4e6, withGoogle: true }), OV_RANGES[3].side)
   const ovTrend = TrendChartProto.mount(
     { chart: 'ovchart', xaxis: 'ovxaxis', legend: 'ovlegend', seg: 'ovseg', span: 'ovspan' }, ovDays)
-  const ovModelShares = OV_MODELS.map(m => m.v[3] / OV_RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]])
+  const ovModelShares = OV_MODELS.map(m => m.v[3] / OV_RANGES[3].side[{anthropic:0, openai:1, xai:2, google:3}[m.cls]])
   TrendChartProto.watchSpan(span => {
     OV_RANGES[3].days = span
     OV_RANGES[3].side = TrendChartProto.totalsFor(ovDays, span)
-    OV_MODELS.forEach((m, i) => { m.v[3] = OV_RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]] * ovModelShares[i] })
+    OV_MODELS.forEach((m, i) => { m.v[3] = OV_RANGES[3].side[{anthropic:0, openai:1, xai:2, google:3}[m.cls]] * ovModelShares[i] })
     ovApply()
   })
 
@@ -710,7 +782,16 @@
      kv:[['model','—'],['sandbox_mode','read-only']],body:'(用户级 toml 原文,mock 略)'},
     {n:'code-reviewer',lv:'global',side:'Codex',fl:'',
      kv:[['model',L('defaultSubagentModel')],['sandbox_mode','—']],
-     body:'You are a senior code reviewer…(developer_instructions 三引号块)'}
+     body:'You are a senior code reviewer…(developer_instructions 三引号块)'},
+    {n:'demo-agent',lv:'project',side:'Antigravity',fl:'',
+     kv:[['subagent','true'],['model','inherit']],
+     body:'You explain calc.py. (.agents/agents/demo-agent/agent.md 的正文)'},
+    {n:'code-reviewer',lv:'global',side:'Antigravity',fl:'',
+     kv:[['tools','view_file, grep_search'],['subagent','true'],['mainAgent','false'],['model','inherit']],
+     body:'You are a senior code reviewer…(~/.gemini/config/agents/code-reviewer/agent.md 的正文)'},
+    {n:'release-checker',lv:'global',side:'Antigravity',fl:'',
+     kv:[['tools','view_file, run_command'],['subagent','true'],['model','flash']],
+     body:'You check a release branch before it is tagged…(mock 略)'}
   ];
   // The memory directory's files in the shape of real ones: the main file (rendered above, and readable in the
   // drawer when a topic links to it) and the topics — front matter with a nested metadata.type, Why / How to
@@ -732,7 +813,11 @@
         `<div class="sect">${t.secBundledSkills}</div><span class="chip">superpowers:brainstorming</span><span class="chip">superpowers:test-driven-development</span><span class="chip">+12</span>`+
         `<div class="sect">${t.secBundledHooks}</div><span class="chip">SessionStart × 1</span>`,
       `<div class="sect">${t.secInstall}</div><span class="chip">user</span><span class="chip bad">project · gone-proj${t.projectLost}</span>`+
-        `<div class="sect">${t.secBundledHooks}</div><span class="chip">PreToolUse × 2</span>`
+        `<div class="sect">${t.secBundledHooks}</div><span class="chip">PreToolUse × 2</span>`,
+      // Antigravity's flutter: no install records (its plugins are global); bundled rules are not listed
+      `<div class="sect">${t.secBundledSkills}</div><span class="chip">flutter:dart-add-unit-test</span><span class="chip">flutter:flutter-add-widget-test</span><span class="chip">+23</span>`+
+        `<div class="sect">${t.secBundledAgents}</div><span class="chip">flutter_a11y_agent</span>`+
+        `<div class="sect">${t.secBundledMcp}</div><span class="chip">dart-mcp-server</span>`
     ][i];
   }
   const dmask=document.getElementById('dmask'),drawer=document.getElementById('drawer');
@@ -809,6 +894,10 @@
   const GOTO='data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html"';
   // d = 距今天数(按界面语言写成相对时间);p = 行内角标,随界面语言渲染
   const SESS=[
+    // Antigravity: agy's own titles (English, as agy writes them); the fork's tokens hold only its own calls
+    {b:'a',s:'AG',t:'Rounding Percent Output',n:4,tok:'52k',d:0,
+     p:()=>`<span class="pill fork">${ICONS.GitFork(10)} fork</span>`},
+    {b:'a',s:'AG',t:'Fixing Calc.py Test Failures',n:3,tok:'41k',d:0,p:()=>''},
     {b:'c',s:'CC',t:'MAS 上架支持:构建线与独立 bundle id',n:42,tok:'312k',d:3,p:()=>''},
     {b:'c',s:'CC',t:'屏幕录制权限 preflight 修复',n:7,tok:'188k',d:5,p:()=>''},
     {b:'x',s:'CX',t:'迁移 Claude Code skills 到 Codex',n:18,tok:'96k',d:9,
@@ -824,26 +913,29 @@
   // dup = a fork replay copy (54.7% of Codex bytes are these); body = a hit only in the answer body, visible
   // only in full-text scope
   const CORPUS=[
-    {s:0,n:'01',q:'帮我看下 MAS 上架要改什么,现在的 electron-builder 配置能直接用吗?',d:'14:02'},
-    {s:0,n:'02',q:'构建线怎么和现在的分开?我不想为了 MAS 把 DMG 那条线也改掉',d:'14:09'},
-    {s:0,n:'03',q:'那 bundle id 呢?两个 id 会不会让用户装出两份?',d:'14:31'},
-    {s:0,n:'04',q:'沙箱权限为啥报错?entitlements 里 network.client 已经打开了',d:'15:02'},
-    {s:0,n:'05',q:'帮我把 notarize 脚本改成两条线各自一份',d:'15:40'},
-    {s:0,n:'09',q:'notarize 失败了,看下日志',d:'16:22'},
-    {s:0,n:'14',q:'接着上午那段被压缩的对话:MAS 线和 DMG 线已经拆开,两个 bundle id 的 entitlements 也各自整理过了,network.client 打开后沙箱的报错查过是旧描述文件;现在剩下 notarize 通过之后 stapler 报 Record not found,是该等苹果同步还是换 notarytool 的 --wait',d:'17:05'},
-    {s:0,n:'04',q:'(回答正文)notarization 与 App Store 审核是两条互斥路径,MAS 线不触发',d:'15:05',body:1},
-    {s:1,n:'03',q:'权限弹窗为啥不出来?TCC 那边要先 preflight 一次',d:'07-24'},
-    {s:1,n:'11',q:'签名和 notarize 分两步跑会不会有问题',d:'07-24'},
-    {s:2,n:'02',q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样',d:'09-14'},
-    {s:2,n:'05',q:'skills 的 frontmatter 字段两侧差在哪',d:'09-14'},
-    {s:2,n:'02',q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样',d:'09-12',dup:1},
-    {s:2,n:'02',q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样',d:'09-11',dup:1},
-    {s:3,n:'07',q:'网关拆出来之后权限怎么算,还要不要单独申请',d:'09-13'},
-    {s:3,n:'07',q:'网关拆出来之后权限怎么算,还要不要单独申请',d:'09-10',dup:1},
-    {s:4,n:'12',q:'导出的时候消息副本要不要去重',d:'07-12'},
-    {s:4,n:'44',q:'(回答正文)这里和 notarize 无关,是签名链的问题',d:'07-12',body:1},
-    {s:5,n:'01',q:'会话导出成 Markdown 的话工具调用怎么放',d:'07-10'},
-    {s:6,n:'02',q:'缓存打开之后 CI 会不会拿到旧的 node_modules',d:'06-30'},
+    {s:0,n:'01',q:'percent 现在返回整数百分比,改成保留一位小数',d:'16:18'},
+    {s:0,n:'02',q:'跑一下测试',d:'16:24'},
+    {s:1,n:'03',q:'测试为什么挂了?percent 和 average 各有一个',d:'15:52'},
+    {s:2,n:'01',q:'帮我看下 MAS 上架要改什么,现在的 electron-builder 配置能直接用吗?',d:'14:02'},
+    {s:2,n:'02',q:'构建线怎么和现在的分开?我不想为了 MAS 把 DMG 那条线也改掉',d:'14:09'},
+    {s:2,n:'03',q:'那 bundle id 呢?两个 id 会不会让用户装出两份?',d:'14:31'},
+    {s:2,n:'04',q:'沙箱权限为啥报错?entitlements 里 network.client 已经打开了',d:'15:02'},
+    {s:2,n:'05',q:'帮我把 notarize 脚本改成两条线各自一份',d:'15:40'},
+    {s:2,n:'09',q:'notarize 失败了,看下日志',d:'16:22'},
+    {s:2,n:'14',q:'接着上午那段被压缩的对话:MAS 线和 DMG 线已经拆开,两个 bundle id 的 entitlements 也各自整理过了,network.client 打开后沙箱的报错查过是旧描述文件;现在剩下 notarize 通过之后 stapler 报 Record not found,是该等苹果同步还是换 notarytool 的 --wait',d:'17:05'},
+    {s:2,n:'04',q:'(回答正文)notarization 与 App Store 审核是两条互斥路径,MAS 线不触发',d:'15:05',body:1},
+    {s:3,n:'03',q:'权限弹窗为啥不出来?TCC 那边要先 preflight 一次',d:'07-24'},
+    {s:3,n:'11',q:'签名和 notarize 分两步跑会不会有问题',d:'07-24'},
+    {s:4,n:'02',q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样',d:'09-14'},
+    {s:4,n:'05',q:'skills 的 frontmatter 字段两侧差在哪',d:'09-14'},
+    {s:4,n:'02',q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样',d:'09-12',dup:1},
+    {s:4,n:'02',q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样',d:'09-11',dup:1},
+    {s:5,n:'07',q:'网关拆出来之后权限怎么算,还要不要单独申请',d:'09-13'},
+    {s:5,n:'07',q:'网关拆出来之后权限怎么算,还要不要单独申请',d:'09-10',dup:1},
+    {s:6,n:'12',q:'导出的时候消息副本要不要去重',d:'07-12'},
+    {s:6,n:'44',q:'(回答正文)这里和 notarize 无关,是签名链的问题',d:'07-12',body:1},
+    {s:7,n:'01',q:'会话导出成 Markdown 的话工具调用怎么放',d:'07-10'},
+    {s:8,n:'02',q:'缓存打开之后 CI 会不会拿到旧的 node_modules',d:'06-30'},
   ];
   let sq='', scope='q', sempty=false, sorder='desc';   // desc=最近活动在前(spec A1 默认)
   const sordSeg=()=>`<span class="seg" data-sord><span class="${sorder==='desc'?'on':''}" data-so="desc">${T[LANG].recentFirst}</span>`+
@@ -911,13 +1003,17 @@
   });
   renderSessions();
 
-  // 配置分栏:按 data-cfg 认文件(文件名是数据,第三项的名字随界面语言)
+  // 配置分栏:两项,按 data-cfg 认文件(文件名是数据);正文以路径开头,文件不存在时显示「无」(随界面语言)
   let cfgSel='claude';
+  const CFG_FILE={
+    claude:{path:'~/CascadeProjects/Transfer/CLAUDE.md',html:'<h3># Transfer — 项目约定</h3><p>按内容的腐烂速度分类,各有唯一归宿——写文档前先定它属于哪类:术语/不变量 → 根目录 <code>CONTEXT.md</code>;架构决策 → <code>docs/adr/</code>……(只读渲染,滚动容器内)</p>'},
+    agents:{path:'~/CascadeProjects/Transfer/AGENTS.md',html:'<h3># AGENTS.md</h3><p>本项目给 Codex 与 Antigravity 的说明……(只读渲染)</p>'}
+  };
   function renderCfg(){
-    document.getElementById('cfgbody').innerHTML=cfgSel==='claude'?'<h3># Transfer — 项目约定</h3><p>按内容的腐烂速度分类…(只读渲染)</p>'
-      :cfgSel==='agents'?'<h3># AGENTS.md</h3><p>Codex 侧项目说明…(只读渲染;不存在时显示"无")</p>'
-      :`<h3>${T[LANG].settingsSummary}</h3><p><code>enabledMcpjsonServers: [figma]</code><br><code>allowedTools: …</code>(从 ~/.claude.json 项目键提取的只读摘要)</p>`;
+    const f=CFG_FILE[cfgSel];
+    document.getElementById('cfgbody').innerHTML=f?`<div class="cfg-path">${f.path}</div>${f.html}`:`<div class="none">${T[LANG].cfgNone}</div>`;
   }
+  renderCfg();
   document.getElementById('cfgs').addEventListener('click',e=>{
     if(e.target.tagName!=='SPAN')return;
     document.querySelectorAll('#cfgs span').forEach(x=>x.classList.toggle('on',x===e.target));
@@ -932,7 +1028,7 @@
     document.querySelectorAll('#plist .exp').forEach(x=>{ x.innerHTML=pcontents(+x.previousElementSibling.dataset.pg) });
     if(drawerHtml) drawer.innerHTML=drawerHtml();
     if(MF!==null){ paintMfChrome(); mfCtl.set({}) }
-    if(cfgSel==='settings') renderCfg();
+    renderCfg();
   });
 </script>
 <script>

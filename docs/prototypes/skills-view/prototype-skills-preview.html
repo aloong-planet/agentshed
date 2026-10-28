@@ -22,7 +22,12 @@
      真代码与 features 早已照此实现,只有本原型停在旧形态——issue #98)。展开能力的判定
      不再看来源,改看**有没有包**:插件行同样可能展不开(真代码里它的包根可以为空,fail-closed),
      所以 mock 里留了一条查不到包的插件行,箭头处显示 · 。装卸按钮仍然只给磁盘行——
-     那是 ADR-0004 的 G3,ADR-0012 没有动它。 -->
+     那是 ADR-0004 的 G3,ADR-0012 没有动它。
+     2026-10-28 (the fourth side, Antigravity; ADR-0037): the AG badge joins the side slots, and an Antigravity
+       library entry is added. In the detail, what used to be CODEX · 项目级 is now the shared skills directory —
+       .agents/skills, loaded by Codex and Antigravity alike — one group between the Codex and Antigravity groups,
+       followed by Antigravity's global level. Grok's badge, which read GB here where every other page reads GK,
+       now reads GK (owner's ruling). -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -107,6 +112,7 @@
   .b.cl{background:var(--cl-bg);color:var(--cl-fg)}
   .b.cx{background:var(--cx-bg);color:var(--cx-fg)}
   .b.gb{background:var(--gb-bg);color:var(--gb-fg)}
+  .b.ag{background:var(--ag-bg);color:var(--ag-fg)}
   .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
   .pill{font-size:10px;border-radius:5px;padding:2px 7px;flex:none}
   .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
@@ -266,7 +272,8 @@
       group: {
         'cl-project': 'CLAUDE CODE · 项目级',
         'cl-global': 'CLAUDE CODE · 全局层',
-        'cx-project': 'CODEX · 项目级',
+        shared: '共享 · .agents/skills(CODEX · ANTIGRAVITY)',
+        'ag-global': 'ANTIGRAVITY · 全局层',
         plugin: '插件自带'
       },
       groupTitle: (title, n) => `${title}(${n})`,
@@ -289,7 +296,8 @@
       group: {
         'cl-project': 'CLAUDE CODE · Project level',
         'cl-global': 'CLAUDE CODE · Global level',
-        'cx-project': 'CODEX · Project level',
+        shared: 'Shared · .agents/skills (CODEX · ANTIGRAVITY)',
+        'ag-global': 'ANTIGRAVITY · Global level',
         plugin: 'Bundled with plugins'
       },
       groupTitle: (title, n) => `${title} (${n})`,
@@ -298,10 +306,10 @@
   }
   const tx = () => COPY[lang]
 
-  const SIDE_ORDER = ['claude', 'codex', 'grok']
-  const SIDE_LABEL = { claude: 'Claude', codex: 'Codex', grok: 'Grok' }
-  const SIDE_BADGE = { claude: 'CC', codex: 'CX', grok: 'GB' }
-  const SIDE_CLASS = { claude: 'cl', codex: 'cx', grok: 'gb' }
+  const SIDE_ORDER = ['claude', 'codex', 'grok', 'antigravity']
+  const SIDE_LABEL = { claude: 'Claude', codex: 'Codex', grok: 'Grok', antigravity: 'Antigravity' }
+  const SIDE_BADGE = { claude: 'CC', codex: 'CX', grok: 'GK', antigravity: 'AG' }
+  const SIDE_CLASS = { claude: 'cl', codex: 'cx', grok: 'gb', antigravity: 'ag' }
   const PACKAGES = window.SKILL_PACKAGES || {}
 
   function badges(sides) {
@@ -591,6 +599,7 @@
     { name: 'github-ops', description: '完整真实包 · 点行展开文件 · 点文件开抽屉', sides: ['claude', 'codex', 'grok'], origin: 'disk', symlink: true },
     { name: 'deep-demo', description: '深度>2 提示（展开后可见）', sides: ['claude', 'codex'], origin: 'disk', symlink: false },
     { name: 'tdd', description: 'Test-driven development…', sides: ['claude'], origin: 'disk', symlink: false },
+    { name: 'release-notes', description: 'Antigravity 全局库 · 从 git log 起草发布说明', sides: ['antigravity'], origin: 'disk', symlink: false },
     { name: 'superpowers:brainstorming', description: '插件 · 与磁盘行平等展开预览(ADR-0012)', sides: ['claude'], origin: 'plugin', symlink: false },
     // 名字列固定 200px,这条 41 字符的名字必然被截断 —— hover 全名的形态要有被截断的行才演示得出来
     { name: 'chrome-devtools-mcp:memory-leak-debugging', description: '插件 · 长名字,演示 hover 全名;同样可展开', sides: ['claude'], origin: 'plugin', symlink: false },
@@ -619,9 +628,16 @@
       ]
     },
     {
-      id: 'cx-project',
+      // The shared skills directory: one group, loaded by Codex and Antigravity alike, between the two sides
+      id: 'shared',
       items: [
-        { name: 'github-ops', sides: ['codex'], origin: 'disk', level: 'project', symlink: false }
+        { name: 'github-ops', sides: ['codex', 'antigravity'], origin: 'disk', level: 'project', symlink: false }
+      ]
+    },
+    {
+      id: 'ag-global',
+      items: [
+        { name: 'release-notes', sides: ['antigravity'], origin: 'disk', level: 'global', symlink: false }
       ]
     },
     {
