@@ -10,6 +10,7 @@ import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
 import { readCodexRegistry, readCodexSessions, type CodexSessionMeta } from './codex'
 import { readGrokRegistry, readGrokSessions, type GrokSessionMeta } from './grok'
+import { readAntigravityRegistry, readAntigravitySessions, type AntigravitySessionMeta } from './antigravity'
 import { readGlobalLayer } from './global'
 import { readMemorySummary } from './memory'
 
@@ -21,17 +22,23 @@ export interface ScanDeps {
 }
 
 /**
- * The Codex and Grok session lists. Walking them reads every Codex rollout's first line and every Grok
- * session's summary, so a scan walks once and hands the result to both scan() and TokenEngine.build
- * (#160) — which also gives the two one shared set of sessions instead of two walks a moment apart.
+ * The Codex, Grok and Antigravity session lists. Walking them reads every Codex rollout's first line, every Grok
+ * session's summary and every Antigravity conversation's trajectory metadata, so a scan walks once and hands the
+ * result to both scan() and TokenEngine.build (#160) — which also gives the two one shared set of sessions instead of
+ * two walks a moment apart.
  */
 export interface SessionWalk {
   codex: CodexSessionMeta[]
   grok: GrokSessionMeta[]
+  antigravity: AntigravitySessionMeta[]
 }
 
 export function walkSessions(roots: ScanRoots): SessionWalk {
-  return { codex: readCodexSessions(roots.codexHome), grok: readGrokSessions(roots.grokHome) }
+  return {
+    codex: readCodexSessions(roots.codexHome),
+    grok: readGrokSessions(roots.grokHome),
+    antigravity: readAntigravitySessions(roots.antigravityHome)
+  }
 }
 
 // Every reader below is synchronous; the Promise is the seam's shape, which both callers await.
@@ -41,12 +48,15 @@ export function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
   const claude = readClaudeRegistry(roots.claudeConfigFile)
   const codex = readCodexRegistry(roots.codexHome)
   const grok = readGrokRegistry(roots.grokHome)
+  const antigravity = readAntigravityRegistry(roots.antigravityHome)
   snap.sides.claude.detected = claude.detected
   if (claude.error) snap.sides.claude.error = claude.error
   snap.sides.codex.detected = codex.detected
   if (codex.error) snap.sides.codex.error = codex.error
   snap.sides.grok.detected = grok.detected
   if (grok.error) snap.sides.grok.error = grok.error
+  snap.sides.antigravity.detected = antigravity.detected
+  if (antigravity.error) snap.sides.antigravity.error = antigravity.error
 
   const byKey = new Map<string, ProjectEntry>()
   const add = (rawPath: string, side: AgentSide): void => {
@@ -69,12 +79,14 @@ export function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
   for (const p of claude.paths) add(p, 'claude')
   for (const p of codex.paths) add(p, 'codex')
   for (const p of grok.paths) add(p, 'grok')
+  for (const p of antigravity.paths) add(p, 'antigravity')
 
   // Activity: Claude uses a readdir of the encoded directory; Codex attributes by the rollout's
-  // first-line cwd; Grok by the session store's percent-encoded directory name (subagents excluded
-  // on every side). B9: sessions count from every side that has them, including one that did not
-  // register the directory — the enrichment loop below touches registered entries only, which is
-  // also what keeps A7 true (sessions alone never create an entry or raise the side count).
+  // first-line cwd; Grok by the session store's percent-encoded directory name; Antigravity by the
+  // first folder a conversation's own metadata lists (subagents excluded on every side). B9: sessions
+  // count from every side that has them, including one that did not register the directory — the
+  // enrichment loop below touches registered entries only, which is also what keeps A7 true
+  // (sessions alone never create an entry or raise the side count).
   const walked = deps.sessions ?? walkSessions(roots)
   const codexSessions = walked.codex
   const byKeyAgg = (sessions: Array<{ cwd: string; subagent: boolean; mtimeMs: number }>): Map<string, { count: number; last: number | null }> => {
@@ -91,12 +103,17 @@ export function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
   }
   const codexByKey = byKeyAgg(codexSessions)
   const grokByKey = byKeyAgg(walked.grok)
+  // A conversation that could not be read, or lists no local folder, is credited to nothing
+  const agByKey = byKeyAgg(
+    walked.antigravity.flatMap((s) => (s.cwd === null ? [] : [{ cwd: s.cwd, subagent: s.subagent, mtimeMs: s.mtimeMs }]))
+  )
   for (const [key, entry] of byKey) {
     const cl = readClaudeActivity(roots.claudeHome, entry.path)
     const cx = codexByKey.get(key)
     const gk = grokByKey.get(key)
-    entry.sessionCount = cl.sessionCount + (cx?.count ?? 0) + (gk?.count ?? 0)
-    const candidates = [cl.lastSessionAt, cx?.last ?? null, gk?.last ?? null].filter(
+    const ag = agByKey.get(key)
+    entry.sessionCount = cl.sessionCount + (cx?.count ?? 0) + (gk?.count ?? 0) + (ag?.count ?? 0)
+    const candidates = [cl.lastSessionAt, cx?.last ?? null, gk?.last ?? null, ag?.last ?? null].filter(
       (v): v is number => v !== null
     )
     entry.lastSessionAt = candidates.length ? Math.max(...candidates) : null

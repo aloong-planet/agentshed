@@ -33,7 +33,8 @@ const MODE_SIDE: Record<Exclude<TrendMode, 'total'>, AgentSide> = {
 const SIDE_PRIMARY_PROVIDER: Record<AgentSide, Provider> = {
   claude: 'Anthropic',
   codex: 'OpenAI',
-  grok: 'xAI'
+  grok: 'xAI',
+  antigravity: 'Google'
 }
 
 export interface TrendSegment {

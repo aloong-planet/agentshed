@@ -14,7 +14,7 @@ const day = (
   byProvider?: DayUsage['byProvider']
 ): DayUsage => ({
   day: d,
-  bySide: { claude, codex, grok: 0 },
+  bySide: { claude, codex, grok: 0, antigravity: 0 },
   byProvider: byProvider ?? { Anthropic: claude, OpenAI: codex }
 })
 /** Take the anchor day's local day key, so the run's time zone does not affect it */
@@ -114,13 +114,13 @@ describe('buildTrendBars', () => {
   })
 
   it('Grok mode reads the grok side and degenerates to one xAI segment (D4; #124)', () => {
-    const row = { day: today, bySide: { claude: 300, codex: 100, grok: 40 }, byProvider: {} }
+    const row = { day: today, bySide: { claude: 300, codex: 100, grok: 40, antigravity: 0 }, byProvider: {} }
     const gk = buildTrendBars([row], anchor, 'Grok', [])
     expect(gk[29].total).toBe(40)
     expect(gk[29].segments).toEqual([{ provider: 'xAI', value: 40 }])
     // The other sides' volume must not leak into Grok mode
     const empty = buildTrendBars(
-      [{ day: today, bySide: { claude: 300, codex: 100, grok: 0 }, byProvider: {} }],
+      [{ day: today, bySide: { claude: 300, codex: 100, grok: 0, antigravity: 0 }, byProvider: {} }],
       anchor,
       'Grok',
       []
@@ -137,7 +137,7 @@ describe('buildTrendBars', () => {
     // written as a literal — the point is the pipeline, not the name.
     const key = providerOf('llama-4-70b')
     const bars = buildTrendBars(
-      [{ day: today, bySide: { claude: 0, codex: 0, grok: 0 }, byProvider: { [key]: 42 } }],
+      [{ day: today, bySide: { claude: 0, codex: 0, grok: 0, antigravity: 0 }, byProvider: { [key]: 42 } }],
       anchor,
       'total',
       []

@@ -20,6 +20,7 @@ function roots(): ScanRoots {
     claudeConfigFile: join(dir, '.claude.json'),
     codexHome: join(dir, '.codex'),
     grokHome: join(dir, '.grok'),
+    antigravityHome: join(dir, '.gemini', 'antigravity-cli'),
     agentsSkillsDir: join(dir, '.agents', 'skills')
   }
 }

@@ -13,6 +13,7 @@ export function realRoots(): ScanRoots {
     claudeConfigFile: join(home, '.claude.json'),
     codexHome: join(home, '.codex'),
     grokHome: join(home, '.grok'),
+    antigravityHome: join(home, '.gemini', 'antigravity-cli'),
     agentsSkillsDir: join(home, '.agents', 'skills')
   }
 }

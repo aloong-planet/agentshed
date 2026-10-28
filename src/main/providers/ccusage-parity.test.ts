@@ -81,6 +81,7 @@ describe.skipIf(!run)('ccusage reconciliation', () => {
       claudeConfigFile: join(home, '.claude.json'),
       codexHome: join(home, '.codex'),
       grokHome: join(home, '.grok'),
+      antigravityHome: join(home, '.gemini', 'antigravity-cli'),
       agentsSkillsDir: join(home, '.agents', 'skills')
     }
     const config = JSON.parse(readFileSync(roots.claudeConfigFile, 'utf8')) as { projects?: Record<string, unknown> }

@@ -13,8 +13,10 @@ import { join } from 'node:path'
 import type { AgentSide, UsageRow } from '../src/shared/domain'
 import { UsageArchive } from '../src/main/providers/archive'
 import { CACHE_VERSION, rowsFromCacheFile } from '../src/main/providers/token-stats'
+import { AGENT_SIDES } from '../src/shared/validate'
 
-const SIDES = new Set<string>(['claude', 'codex', 'grok'])
+// The contract's own side set, so the script cannot fall a side behind the app
+const SIDES = AGENT_SIDES
 const DAY = /^\d{4}-\d{2}-\d{2}$/
 
 function arg(name: string): string | undefined {
@@ -24,7 +26,7 @@ function arg(name: string): string | undefined {
 
 function usage(): never {
   console.error(
-    'usage: pnpm restore:archive --snapshot <token-cache.json> --side <claude|codex|grok> --from <YYYY-MM-DD> --to <YYYY-MM-DD> [--user-data <dir>] [--apply]'
+    `usage: pnpm restore:archive --snapshot <token-cache.json> --side <${[...SIDES].join('|')}> --from <YYYY-MM-DD> --to <YYYY-MM-DD> [--user-data <dir>] [--apply]`
   )
   process.exit(2)
 }

@@ -59,6 +59,10 @@
      foreground letter-for-letter --p-xai's dark value */
   --gk-bg: #ece5f5;
   --gk-fg: #7a63a0;
+  /* AG: the hue of its provider colour, Google blue (ADR-0021); the pair the owner confirmed on the prototypes
+     (agents-overview::CON-004), appearance-varying like the other side pairs */
+  --ag-bg: #dde7fb;
+  --ag-fg: #3563b5;
   /* Provider colours (data colours, independent of the UI accent --accent) */
   --p-anthropic: #d97757;
   --p-openai: #10a37f;
@@ -149,6 +153,8 @@ html[data-theme='amber'] {
     --cx-fg: #7fd6a4;
     --gk-bg: #352c48;
     --gk-fg: #c9b3ec;
+    --ag-bg: #1f2e49;
+    --ag-fg: #96b9f3;
     /* Lightened on a dark background to keep the contrast */
     --p-anthropic: #e8916f;
     --p-openai: #2fc79f;
@@ -451,6 +457,10 @@ body {
 .badge.gk {
   background: var(--gk-bg);
   color: var(--gk-fg);
+}
+.badge.ag {
+  background: var(--ag-bg);
+  color: var(--ag-fg);
 }
 .empty {
   margin: auto;
@@ -817,6 +827,9 @@ body {
 }
 .dot.grok {
   background: var(--p-xai);
+}
+.dot.antigravity {
+  background: var(--p-google);
 }
 .stale-tag {
   font-size: 9.5px;

@@ -73,7 +73,7 @@ describe('window slicing', () => {
     expect(sliceUsage(rows, 'd30', anchor, 30).total).toBe(12)
     expect(sliceUsage(rows, 'd30', anchor, 60).total).toBe(35)
     expect(sliceUsage(rows, 'd30', anchor, 90)).toEqual({
-      total: 79, bySide: { claude: 12, codex: 23, grok: 44 },
+      total: 79, bySide: { claude: 12, codex: 23, grok: 44, antigravity: 0 },
       composition: { uncachedInput: 74, output: 2, cacheRead: 3 },
       byModel: [
         { side: 'grok', model: 'oldest', total: 44 },
@@ -146,7 +146,7 @@ describe('window slicing', () => {
     expect(s.total).toBe(0)
     expect(s.composition).toEqual({ uncachedInput: 0, output: 0, cacheRead: 0 })
     expect(s.bySide, 'every side present with an explicit zero, so the cards have something to render')
-      .toEqual({ claude: 0, codex: 0, grok: 0 })
+      .toEqual({ claude: 0, codex: 0, grok: 0, antigravity: 0 })
     expect(s.byModel).toEqual([])
   })
 

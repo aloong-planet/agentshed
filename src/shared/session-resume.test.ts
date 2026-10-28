@@ -14,6 +14,10 @@ describe('the resume command', () => {
       .toBe("cd '/Users/x/work/p' && codex resume 01a1250a-7662-7e30-a170-62f43cb935cc")
     expect(resumeCommand('grok', '019fd1e2-1042-7c12-94e9-15b9d0ad23ec', DIR))
       .toBe("cd '/Users/x/work/p' && grok --resume 019fd1e2-1042-7c12-94e9-15b9d0ad23ec")
+    // Antigravity CLI resumes a conversation by its ID (session-view::US-001/AC-04, agy 1.4.9's help)
+    expect(resumeCommand('antigravity', '8c07e920-698c-4969-a30b-0226832da747', DIR))
+      .toBe("cd '/Users/x/work/p' && agy --conversation 8c07e920-698c-4969-a30b-0226832da747")
+    expect(resumeCommand('antigravity', 'x y', DIR)).toBe("cd '/Users/x/work/p' && agy --conversation 'x y'")
   })
 
   it('quotes any directory, a space, a single quote and non-ASCII letters included', () => {

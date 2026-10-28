@@ -91,8 +91,9 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
       name,
       description: cl?.description ?? cx?.description ?? gk?.description ?? null,
       sides,
-      symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false, grok: gk?.symlink ?? false },
-      pkg: { claude: cl?.pkg ?? null, codex: cx?.pkg ?? null, grok: gk?.pkg ?? null },
+      // Antigravity's global library is read by skills-view::REQ-001; until then it holds nothing here
+      symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false, grok: gk?.symlink ?? false, antigravity: false },
+      pkg: { claude: cl?.pkg ?? null, codex: cx?.pkg ?? null, grok: gk?.pkg ?? null, antigravity: null },
       origin: 'disk',
       pluginName: null,
       pluginRoot: null,
@@ -110,10 +111,10 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
         name: `${ns}:${s.name}`,
         description: s.description,
         sides: ['claude'],
-        symlink: { claude: false, codex: false, grok: false },
+        symlink: { claude: false, codex: false, grok: false, antigravity: false },
         // G3 equal-footing preview (ADR-0012): the stats and the package root come from the same scan as
         // the bundled component summary (H5)
-        pkg: { claude: s.pkg, codex: null, grok: null },
+        pkg: { claude: s.pkg, codex: null, grok: null, antigravity: null },
         origin: 'plugin',
         pluginName: p.name,
         pluginRoot: p.installPath,

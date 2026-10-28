@@ -25,7 +25,7 @@ export interface CappedText {
   truncated: boolean
 }
 
-export type AgentSide = 'claude' | 'codex' | 'grok'
+export type AgentSide = 'claude' | 'codex' | 'grok' | 'antigravity'
 
 /**
  * The per-side project skills directory, relative to the project root (the landing place of a
@@ -35,7 +35,10 @@ export type AgentSide = 'claude' | 'codex' | 'grok'
 export const PROJECT_SKILLS_DIR: Record<AgentSide, string> = {
   claude: '.claude/skills',
   codex: '.agents/skills',
-  grok: '.grok/skills'
+  grok: '.grok/skills',
+  // The shared skills directory Codex loads too (CONTEXT "Shared skills directory"; skill-install::REQ-001 makes it one
+  // install target for both)
+  antigravity: '.agents/skills'
 }
 
 /** Detection information for one agent side */
@@ -544,13 +547,13 @@ export function emptyTotals(): TokenTotals {
 /** A DayUsage.bySide with every side's explicit zero (ADR-0020: producers write zeros they do not
  * otherwise mean — the price of letting the compiler enforce completeness) */
 export function zeroBySide(): Record<AgentSide, number> {
-  return { claude: 0, codex: 0, grok: 0 }
+  return { claude: 0, codex: 0, grok: 0, antigravity: 0 }
 }
 
 export function emptyTokenStats(): TokenStats {
   return {
     rows: [],
-    bySide: { claude: emptyTotals(), codex: emptyTotals(), grok: emptyTotals() },
+    bySide: { claude: emptyTotals(), codex: emptyTotals(), grok: emptyTotals(), antigravity: emptyTotals() },
     byModel: [],
     byDay: []
   }
@@ -670,7 +673,12 @@ export interface Snapshot {
 export function emptySnapshot(scannedAt: number): Snapshot {
   return {
     scannedAt,
-    sides: { claude: { detected: false }, codex: { detected: false }, grok: { detected: false } },
+    sides: {
+      claude: { detected: false },
+      codex: { detected: false },
+      grok: { detected: false },
+      antigravity: { detected: false }
+    },
     projects: [],
     global: {
       skills: [],

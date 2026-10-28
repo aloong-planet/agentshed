@@ -134,3 +134,53 @@ it('restores session pages saved before the session ID was kept, filling the ID 
     [codex, null]
   ])
 })
+
+// A display cache written before Antigravity CLI joined the side set (the key sets of this machine's real cache on
+// 2026-10-29: every per-side Record — the snapshot's sides, every token block's bySide and its days' bySide, each
+// global skill's symlink and pkg — holds claude, codex and grok only). The contract now asks for every side, so
+// without filling the new one in, the first launch after the update would drop every saved page (CONTEXT, "a page
+// switch is atomic": a field added to a saved type is filled in on restore). A malformed entry is still dropped.
+function withoutSide<T>(v: T, side: string): T {
+  return JSON.parse(JSON.stringify(v), (k, val: unknown) => (k === side ? undefined : val)) as T
+}
+function savedBeforeTheSide(): Record<string, unknown> {
+  const snap = emptySnapshot(500)
+  snap.projects = [{ path: '/p', name: 'p', sides: ['claude'], stale: false, lastSessionAt: 1, sessionCount: 1 }]
+  snap.tokens.byDay = [{ day: '2026-10-28', bySide: { claude: 5, codex: 0, grok: 0, antigravity: 0 }, byProvider: { Anthropic: 5 } }]
+  snap.global.skills = [{
+    name: 's', description: null, sides: ['claude'], symlink: { claude: false, codex: false, grok: false, antigravity: false },
+    pkg: { claude: { files: 1, bytes: 2 }, codex: null, grok: null, antigravity: null }, origin: 'disk', pluginName: null,
+    pluginRoot: null, pluginSkillName: null
+  }]
+  const stats = { tokens: snap.tokens, sessions: [] }
+  const detail = { path: '/p', skills: [], subagents: [], memory: { main: null, mainFile: null, topics: [] }, plugins: [], mcp: [],
+    configs: { claudeMd: null, agentsMd: null, settingsSummary: null }, stats, artifacts: [] }
+  return withoutSide({ ...emptyDisplayData(), snapshot: snap, stats: [['/p', stats]],
+    reads: [{ kind: 'projectDetail', path: '/p', data: detail }] }, 'antigravity')
+}
+
+it('restores a display cache saved before the Antigravity side, with that side filled in rather than the pages dropped', () => {
+  const root = dir()
+  const saved = savedBeforeTheSide()
+  expect(JSON.stringify(saved)).not.toContain('antigravity')
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: saved }))
+  const restored = new DisplayStore(root).get()
+  expect(restored.snapshot?.scannedAt).toBe(500)
+  expect(restored.snapshot?.sides.antigravity).toEqual({ detected: false })
+  expect(restored.snapshot?.tokens.bySide.antigravity).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 })
+  expect(restored.snapshot?.tokens.byDay[0].bySide).toEqual({ claude: 5, codex: 0, grok: 0, antigravity: 0 })
+  expect(restored.snapshot?.global.skills[0].symlink.antigravity).toBe(false)
+  expect(restored.snapshot?.global.skills[0].pkg.antigravity).toBeNull()
+  expect(restored.stats.map(([p, s]) => [p, s.tokens.bySide.antigravity.total])).toEqual([['/p', 0]])
+  const detail = restored.reads[0]
+  if (detail?.kind !== 'projectDetail') throw new Error('expected the saved project detail')
+  expect(detail.data.stats?.tokens.bySide.antigravity.total).toBe(0)
+})
+
+it('still drops a saved snapshot whose entry for the side is present but malformed', () => {
+  const root = dir()
+  const saved = savedBeforeTheSide() as { snapshot: { sides: Record<string, unknown> } }
+  saved.snapshot.sides['antigravity'] = 7
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: saved }))
+  expect(new DisplayStore(root).get().snapshot).toBeNull()
+})
