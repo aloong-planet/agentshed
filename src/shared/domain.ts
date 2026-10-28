@@ -55,6 +55,11 @@ export interface SideInfo {
    * On a registry parse failure that side's data is empty but the app does not crash.
    */
   error?: AppError
+  /**
+   * How many of the side's sessions the scan could not read in the format it supports — the Antigravity CLI side's
+   * conversation databases (token-stats::REQ-004), the one side that checks a format; absent when none
+   */
+  unreadable?: number
 }
 
 /** Project: a working directory recorded in either agent side's registry (union of both sides, one directory to one project) */

@@ -1,7 +1,7 @@
 // Trend bar segmentation: in combined mode each bar stacks the two sides (Claude/Codex), and single-side
 // mode degenerates to one segment.
 import { describe, it, expect } from 'vitest'
-import { buildTrendBars } from './trend'
+import { buildTrendBars, TREND_MODE_LABEL } from './trend'
 import { providerOf } from './provider'
 import { inWindow } from './usage'
 import type { DayUsage } from './domain'
@@ -127,6 +127,16 @@ describe('buildTrendBars', () => {
     )
     expect(empty[29].total).toBe(0)
     expect(empty[29].segments).toEqual([])
+  })
+
+  it('Antigravity mode reads the antigravity side and degenerates to one Google segment (D4; project-detail::REQ-002/AC-04)', () => {
+    const row = { day: today, bySide: { claude: 300, codex: 100, grok: 0, antigravity: 40 }, byProvider: {} }
+    const ag = buildTrendBars([row], anchor, 'Antigravity', [])
+    expect(ag[29].total).toBe(40)
+    expect(ag[29].segments).toEqual([{ provider: 'Google', value: 40 }])
+    // The other sides' volume stays out of it, and its own stays out of theirs
+    expect(buildTrendBars([row], anchor, 'Claude', [])[29].total).toBe(300)
+    expect(TREND_MODE_LABEL['Antigravity']).toBe('Antigravity')
   })
 
   it('an unknown model\'s volume still enters a segment: the key is produced by providerOf and consumed by PROVIDER_ORDER', () => {

@@ -198,6 +198,8 @@ async function doScan(): Promise<Snapshot> {
         const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
         const t = await tokenEngine.build(realRoots(), claudePaths, registered, sessions)
         snap.tokens = t.global
+        // Antigravity CLI conversations the scan could not read reach the side's card (token-stats::REQ-004/AC-02)
+        if (t.antigravityUnreadable > 0) snap.sides.antigravity.unreadable = t.antigravityUnreadable
         nextStats = t.perProject
         // The session count shares its source with the sessions section. scan() gives a **file count**
         // (including warmups and subagents),

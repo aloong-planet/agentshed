@@ -122,6 +122,9 @@ export const zh = {
     byModel: '按模型拆分(跨项目;Codex 侧为会话主模型近似)',
     detected: '已检测',
     undetected: '未检测到',
+    // The Antigravity side card's third line when the scan left conversations unread (agents-overview::REQ-003/AC-02)
+    unreadableConversations: (n: number) => `${n} 个对话读不出`,
+    unreadableTip: 'agy 自动更新后会话格式可能变了;这些对话的用量没有计入',
     emptyGlobalLib: '各侧全局库均为空',
     sideMismatch: (project: string) => `${project} 不属于该 skill 所在的 agent 侧`,
     installed: (skill: string, project: string, side: string) =>

@@ -24,7 +24,7 @@ import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { closeApp } from './close-app'
 import { ERR } from '../src/shared/errors'
-import { encodeTrajectoryMetadata, settingsJson, writeConversation } from '../src/main/testing/agy-fixture'
+import { callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation, type UsageFixture } from '../src/main/testing/agy-fixture'
 
 /** Each case gets its own userData with no cross-contamination; a cache file can be seeded */
 function makeUserData(cacheContent?: string): string {
@@ -980,6 +980,108 @@ test('the Antigravity badge takes its own pair in light and in dark, the same un
   await close(l)
 })
 
+/** A day key (YYYY-MM-DD) in local time — the form a bar's data-day carries */
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Ticket antigravity-side/#323: a folder Claude Code registers and agy trusts. Claude made one call two days ago (1k);
+ * agy made 3k today (gemini-3.8-flash-n), 4k two days ago — the same day as Claude's, with cache reads in it — 10k
+ * twenty days ago and 20k forty-five days ago; a fifth agy conversation is at user version 2, a format the app does not
+ * read, holding 50k that must count nowhere. The windows then read 37k / 3k / 7k / 17k on the Antigravity card.
+ */
+function mkAntigravityUsageHome(): { home: string; both: string; conversations: string } {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agyuse-'))
+  const both = join(home, 'both-sides')
+  mkdirSync(both, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [both]: {} } }))
+  const cdir = join(home, '.claude', 'projects', both.replace(/[^a-zA-Z0-9]/g, '-'))
+  mkdirSync(cdir, { recursive: true })
+  writeFileSync(
+    join(cdir, 'c.jsonl'),
+    [
+      JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: 'A Claude question' } }),
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: localDayOffset(2).toISOString(),
+        message: { id: 'msg-c1', model: 'claude-fable-5', usage: { input_tokens: 800, output_tokens: 200, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+      })
+    ].join('\n') + '\n'
+  )
+  const agy = join(home, '.gemini', 'antigravity-cli')
+  const conversations = join(agy, 'conversations')
+  mkdirSync(conversations, { recursive: true })
+  writeFileSync(join(agy, 'settings.json'), settingsJson([both]))
+  const conversation = (id: string, usage: UsageFixture, at: Date, model: string, userVersion?: number): void => {
+    const { step, gen } = callRecord({ conversationId: id, stepIdx: 1, genIdx: 0, usage, createdAt: at.getTime() - 5_000, completedAt: at.getTime(), responseModel: model })
+    writeConversation(conversations, id, encodeTrajectoryMetadata({ folders: [both], conversationId: id }), { steps: [step], gens: [gen], userVersion })
+  }
+  conversation('c-today', { messageId: 'e-today', input: 2800, output: 200 }, localDayOffset(0), 'gemini-3.8-flash-n')
+  conversation('c-recent', { messageId: 'e-recent', input: 600, output: 400, cacheRead: 3000 }, localDayOffset(2), 'gemini-3.6-flash')
+  conversation('c-month', { messageId: 'e-month', input: 9000, output: 1000 }, localDayOffset(20), 'gemini-3.6-flash')
+  conversation('c-old', { messageId: 'e-old', input: 18000, output: 2000 }, localDayOffset(45), 'gemini-3.6-flash')
+  conversation('c-new-format', { messageId: 'e-bad', input: 50000 }, localDayOffset(1), 'gemini-3.6-flash', 2)
+  return { home, both, conversations }
+}
+
+// agents-overview::REQ-003/AC-01 (the figure), agents-overview::REQ-003/AC-02, token-stats::REQ-004/AC-02,
+// project-detail::REQ-002/AC-04 (the Overview's part), token-stats::REQ-003 along the user's path: the side's usage on
+// its card in every window, the unreadable notice and its return to the usual line, and a project's Overview with two
+// sides on one day
+test('Antigravity usage: the card in every window, the unreadable notice, and a project Overview with two sides on one day', async () => {
+  const { home, conversations } = mkAntigravityUsageHome()
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
+  const win = await l.app.firstWindow()
+  const card = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') })
+  const windows = win.locator('.pane-head .tot-row .tot-c')
+
+  // The card's figure follows the selected window: all history, today, the last 7 days, the last 30 — the
+  // conversation in the new format counting in none of them
+  await expect(card.locator('.v')).toHaveText('37k')
+  for (const [i, want] of [[1, '3k'], [2, '7k'], [3, '17k'], [0, '37k']] as const) {
+    await windows.nth(i).click()
+    await expect(card.locator('.v')).toHaveText(want)
+  }
+
+  // The third line counts the conversation that could not be read, in the warning colour, with its reason on hover
+  const line = card.locator('.s')
+  await expect(line).toHaveText('1 conversation couldn’t be read')
+  await expect(line).toHaveAttribute('title', 'agy may have changed its conversation format in an update; their usage is not counted')
+  expect(await line.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(179, 85, 47)')
+
+  // The project's Overview: each side's figure, a day both sides used — stacked in the combined chart, Google's
+  // alone in the Antigravity mode — and Antigravity's models as agy records them
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'both-sides' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Overview' }).click()
+  await win.locator('.pane-body .tot-row .tot-c').first().click()
+  const sideFigure = (cls: string): ReturnType<typeof win.locator> =>
+    win.locator('.pane-body .tot-sides > span', { has: win.locator(`.badge.${cls}`) }).locator('b')
+  await expect(sideFigure('ag')).toHaveText('37k')
+  await expect(sideFigure('cl')).toHaveText('1k')
+  const shared = win.locator(`.pane-body .chart .col[data-day="${dayKey(localDayOffset(2))}"]`)
+  await expect(shared.locator('.sp.anthropic')).toHaveCount(1)
+  await expect(shared.locator('.sp.google')).toHaveCount(1)
+  await win.locator('.pane-body .grp-t .seg button', { hasText: 'Antigravity' }).click()
+  await expect(shared.locator('.sp')).toHaveCount(1)
+  await expect(shared.locator('.sp.google')).toHaveCount(1)
+  await expect(shared).toHaveAttribute('data-tip', /Google\s+4k/)
+  await expect(win.locator('.pane-body .models .m .nm2')).toHaveText(['gemini-3.6-flash', 'gemini-3.8-flash-n', 'claude-fable-5'])
+
+  // agy rewrites the conversation in the supported format: at the next automatic scan the usual line returns, and
+  // the figure stays
+  await win.locator('.rail .ri').nth(0).click()
+  rmSync(join(conversations, 'c-new-format.db'))
+  writeConversation(conversations, 'c-new-format', encodeTrajectoryMetadata({ folders: [join(home, 'both-sides')], conversationId: 'c-new-format' }))
+  await expect(line).toHaveText('1 project · 0 global skills · 0 subagents')
+  await expect(card.locator('.side-warn')).toHaveCount(0)
+  await expect(card.locator('.v')).toHaveText('37k')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // Ticket grok-side/#123 (spec C5/C7): side filtering is a single-choice dropdown. Being operated
 // rather than glanced at, it answers a resize by repositioning — and the resize answer is where
 // #122 lives: a resize makes the browser clamp a scrolled container's scrollTop and dispatch a
@@ -1910,7 +2012,7 @@ test('the archive retains a past day whose live figure fell under the same stamp
   // is a literal here on purpose: a bump turns this case red (the seeded pair reads as another stamp and
   // the decrease is accepted) instead of silently passing — update it together with CACHE_VERSION.
   const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }
-  const stamp = `${pkg.version}+c17`
+  const stamp = `${pkg.version}+c18`
   const retainedRow = {
     day,
     side: 'claude',

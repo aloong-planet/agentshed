@@ -86,6 +86,8 @@ export const en: Locale = {
       `For ${days} of those days (earliest ${earliest}) the source session files have already been auto-cleaned by the agent, so the numbers come from the local archive (hatched bars)`,
     byModel: 'By model (across projects; the Codex side approximates each session’s main model)',
     detected: 'Detected', undetected: 'Not detected',
+    unreadableConversations: (n) => `${n} ${plural('en', n, { one: 'conversation', other: 'conversations' })} couldn’t be read`,
+    unreadableTip: 'agy may have changed its conversation format in an update; their usage is not counted',
     emptyGlobalLib: 'Every side’s global library is empty',
     sideMismatch: (project) => `${project} does not belong to the agent side this skill lives on`,
     installed: (skill, project, side) => `Installed ${skill} → ${project} (${side})`,
