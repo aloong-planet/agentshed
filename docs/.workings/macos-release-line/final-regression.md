@@ -491,3 +491,57 @@ checked against the real update path after the routes (the document sync checkli
 | Two owner questions asked on unchecked facts: D6 on REQ-002/AC-03 covering a rejected package, and D8's first answer on a rejection at install giving C4's toast | the questions' texts against the code and Squirrel.Mac's source | Each corrected and asked again with the fact checked (D6 → D7 and D8; D8 revised); the task list says so |
 
 Queue empty; the pre-delivery scope re-check is recorded in the document sync checklist.
+
+## Ticket #240, after the release — v0.1.0-beta.2 and the real update path
+
+- Date: 2026-10-28
+- Scope: the release `v0.1.0-beta.2` (the tag on main's c0da98a, run 40553823619) and what it made happen — the
+  independent check of its files, the offline first launch, routes 1 and 2 on the owner's Mac, the release note, the
+  live landing page; and this ticket's records change, `git diff c0da98a` on branch `docs/record-v0.1.0-beta.2`: the
+  app-update spec's Testing Decisions (the Pending note's condition met), `update-source.test.ts`'s header (comments
+  only), the coverage checklist, the task list, the document sync checklist, the code review's third round, the
+  evidence of tasks 12–19
+- Version: 92928ba for the spec, the header and the records; the records of this stage in the commit after it
+
+The two questions for the feature catalogue: **what became a lie** — nothing. Routes 1 and 2 did what
+`docs/features/app-update.md` says: the ready button installed the update and restarted into the new version, an update
+left ready installed on quit and the next launch ran it, the first launch after the version went up said "You're up to
+date", the ready state offered "Install now", and a test version was offered the newer test version. **What was
+missing** — nothing: the release added no behaviour. `docs/features/` is unchanged.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/app-update.md`, Testing Decisions: the real path, channel selection on real releases and install on quit, accepted on an installation of one release updating to the next by each install route; the formal channel once a pre-release follows a formal release | routes 1 and 2 (`route1-*.txt`, `route2-*.txt`); E1 on real releases (`route1-staged.txt`); the formal channel still waiting (the checklist's US-004/AC-01 row) | True |
+| `src/main/update-source.test.ts`, the header's gap for the restart, install on quit, the real package's signature check and the pre-release channel, now stated as met | the same evidence and `artifact-check.txt`'s designated-requirement check; the code review's third round | True |
+| `checklist.md`: the round's line; the rows of 2026-10-28 (the release run, the independent check, the release note, the live page, E1, routes 1 and 2, H2, B3, the Testing Pending note); the AC-02 row replaced by its result; #230's, #231's and #235's conclusions; D9's conclusion; #253's two rows and its plan row | each row's evidence files, read again; the conclusions against those rows | True |
+| `ticket-240-tasks.md` tasks 11–20, `ticket-240-doc-sync.md`, `ticket-240-review-code.md`'s third round | the checklist's rows; the evidence; the diff | True |
+| The published release note of `v0.1.0-beta.2` (GitHub; mac-distribution::REQ-005) | the change between the tags (the scrollbars, appearance spec; the in-app update, app-update spec); the release's four assets (the table lists the DMG only); the run's gates and the independent check (before "notarized by Apple"); the compare link; the owner's summary | True (`release-note.txt`) |
+| ADRs, features, prototypes, `CONTEXT.md`, the READMEs, the site | — | Row set empty: none changed |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | — | Row set empty: no file added or renamed in `docs/specs`, `docs/features` or `docs/adr` |
+| Rule ↔ template and generated documents | — | Row set empty: no rule or template changed |
+| One fact ↔ its other statements: when the real update path is verifiable | the scope of this ticket's earlier section (131 tracked files; Latin in all, Han in eleven), searched for "two releases", "first verifiable", "verifiable once", "real release", "real update path", "accepted by evidence", and in the eleven files for the Chinese words for real, two versions and verify (`evidence/ticket-240/step8-after-release.txt`): the changed sentence; ADR-0031's rejected option 11 and the site README's fixture note, about other things. Outside the scope: the test header and the checklist (changed) | Agree |
+| One fact ↔ its other statements: what the real update path does (the restart, install on quit, the post-update line) | `docs/features/app-update.md`'s capabilities; the spec's US-001/AC-04, AC-05, REQ-004/AC-04, C1, C2, C7, CON-004; the settings footnote, in English "click the update button at the bottom left to install it and restart; otherwise it installs when you quit" and its Chinese form (seen in both routes' screenshots) | Agree with what routes 1 and 2 showed |
+| Rule ↔ the gate that holds it | — | Row set empty: no rule changed this round |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed: GitHub's releases, one → two (`v0.1.0-beta`, `v0.1.0-beta.2`) | statements counting or listing releases: the same scope searched for "only release", "one release", "single release", "first release", "0.1.0-beta", "releases exist", "no release", and in the eleven files for the Chinese words for only, first, first version, test version and "0.1.0" (`step8-after-release.txt`). Every hit names `v0.1.0-beta` as the first release or is an example, a fixture or a dated account (ADR-0035); the landing page's "Only a test version so far: {version}" and its Chinese form take the version at run time and read 0.1.0-beta.2 live (`landing-after-release.txt`). No structure aligned by position with the releases. The enumeration gate (`check:ui`, `enumeration-wording-gate`) does not cover releases, so this was a manual scan; releases are not a product dimension the app enumerates, so no gate is proposed | No statement became false |
+| `Pending:` notes in scope | `git grep -n "Pending:"` over the specs, `CONTEXT.md`, `docs/ops`, `docs/features` and `docs/adr`, before (c0da98a) and after this change (`step8-after-release.txt`): before, app-update's "two releases exist, so an installation of the first has been updated to the second"; after, none | Due and disposed of in this change (rewritten as plain text, the note removed) |
+| New general rules this round | — | Row set empty for the product. A verification fact learned: syspolicyd's info-level lines age out of the log store within minutes, so the offline launch's reachability and notarization-date lines exist only in the capture taken at 12:30 CST. It governs how release evidence is taken, not the product; it is stated in the evidence's header and in this report |
+| Work state changed: #240's units verified on the real release | the checklist's #240 rows; #230's, #231's and #235's rows, which named #240's paths as unverified | Rewritten in this change |
+| Work state changed: #239's deferred AC-02 passed | the checklist's AC-02 row (replaced); #239's item | The row in this change; #239's item after the merge (the document sync checklist) |
+| Work state changed: #253's third item passed at the tag's run | the checklist's #253 rows and plan row; #240's verification-run row; #253's item | The rows in this change; #253's item after the merge |
+| Work state changed: the release published, the live landing page now offering it | landing-page::REQ-001/AC-02, AC-05 (#239's row of 2026-10-22 recorded v0.1.0-beta) | A row of 2026-10-28 for v0.1.0-beta.2; no site change came with it |
+| Found while checking: the rows of #234, #237 and #238 still say their #239 parts are unverified, though #239's rows of 2026-10-21/22 verified them | the checklist's current verification | Not this round's facts (#239's); left for #241's closeout, which verifies every row of the feature |
+| The review findings | the code review's third round: R3-1 (a comment line over the block's width), fixed; no post-implementation check this round, since the test file changed in comments only (change-scope against c0da98a: `same`; `ticket-240-review-tests.md`) | Handled |
+
+Queue empty; the pre-delivery scope re-check is recorded in the document sync checklist.
