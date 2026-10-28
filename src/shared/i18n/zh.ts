@@ -362,7 +362,7 @@ export const zh = {
     dispatchPrompt: '派发 prompt',
     innerSteps: '内部步骤',
     unlinkedNote:
-      '这次派发的内部步骤在记录中**没有稳定引用链**可归位到此处(两侧实测皆然)——未展示,不做猜测性配对;完整转写在其独立文件中(如有)。',
+      '这次派发的内部步骤未在此展示——要么记录中**没有稳定引用链**可把它们归位到这次派发之下,要么它们在 subagent 自己的记录里,而那份记录不被读取;不做猜测性配对,完整转写在其独立文件中(如有)。',
     backToMain: '返回主会话',
     noReturn: '(未返回)',
     unknownRecords: (count: number, types: string) =>

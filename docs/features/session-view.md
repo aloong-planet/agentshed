@@ -33,8 +33,9 @@ sessions, one per row, with "how many questions I asked in this conversation".
   transcript only holds the truncated version (this product does not read the sidecar file), rather
   than pretending it is complete
 - **Subagent dispatches are visible in place**: both the dispatch prompt and the result returned to
-  the main session are there; no side's records attribute the internal steps to a specific dispatch in
-  a way the product can follow — so we say they are not shown rather than guessing at a pairing
+  the main session are there; the internal steps are not, since the records either carry no stable
+  reference chain that would attribute them to a specific dispatch or keep them in the subagent's own
+  record, which is not read — so we say they are not shown rather than guessing at a pairing
 - **Reasoning and thinking are presented honestly**: Codex has only plaintext sub-headings, and the
   body is encrypted content that can never be obtained — the UI says so rather than blurring it with
   full reasoning; Claude's thinking is likewise only a placeholder in the records, with no body, while

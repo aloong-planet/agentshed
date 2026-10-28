@@ -446,7 +446,9 @@ describe('nothing is written to disk (CON-001)', () => {
 
 describe('an Antigravity conversation joins as its page shows it (REQ-001)', () => {
   // The measured transcripts: a conversation of four questions, a fork rewound once (its first question undone), and a
-  // subagent whose transcript opens with the dispatch message its parent sent
+  // subagent whose transcript opens with the dispatch message its parent sent — and, derived, a question a user asked it
+  // after resuming it by its ID (no measured subagent transcript holds one)
+  const subagentQuestion = JSON.stringify({ step_index: 7, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:30:00Z', content: '<USER_REQUEST>\nWhich of them is the longest?\n</USER_REQUEST>' })
   function mkAgyHome(): Record<string, string> {
     const home = roots().antigravityHome
     const conversations = join(home, 'conversations')
@@ -463,7 +465,7 @@ describe('an Antigravity conversation joins as its page shows it (REQ-001)', () 
     f.sub = write(
       MEASURED_TRANSCRIPT_ID.subagent,
       encodeTrajectoryMetadata({ folders: [alpha], conversationId: MEASURED_TRANSCRIPT_ID.subagent, parentConversationId: MEASURED_TRANSCRIPT_ID.dispatch, nestingDepth: 1, subagentSpec: true }),
-      MEASURED_TRANSCRIPT.subagent
+      [...MEASURED_TRANSCRIPT.subagent, subagentQuestion]
     )
     return f
   }
@@ -479,5 +481,6 @@ describe('an Antigravity conversation joins as its page shows it (REQ-001)', () 
     ])
     expect((await corpus.search('exactly one word')).sessions).toEqual([])
     expect((await corpus.search('list the names of all functions')).sessions).toEqual([])
+    expect((await corpus.search('which of them is the longest')).sessions).toEqual([])
   })
 })

@@ -502,12 +502,16 @@ export class TokenEngine {
   /** agy's own conversation titles as last read (session-view::REQ-003/AC-03): at every build, since agy titles a
    * conversation after the fact without the conversation itself changing, and on a page's first need before any */
   private agyTitles: Map<string, string> | null = null
+  /** Where the summaries are copied when a log is beside them; the system's temporary directory unless given, as a
+   * parse job's `tmpParent` is */
+  private readonly agyTmpParent: string | undefined
 
-  constructor(cacheDir: string, runner: ParseRunner = INLINE) {
+  constructor(cacheDir: string, runner: ParseRunner = INLINE, agyTmpParent?: string) {
     this.cacheDir = cacheDir
     this.cacheFile = join(cacheDir, 'token-cache.json')
     this.cache = this.loadCache()
     this.runner = runner
+    this.agyTmpParent = agyTmpParent
   }
 
   private loadCache(): CacheShape {
@@ -636,7 +640,7 @@ export class TokenEngine {
     this.cache = { version: CACHE_VERSION, files: seen }
     this.persist()
     // agy's titles: a failed read while agy writes its summaries keeps the last ones read
-    this.agyTitles = readAgySummaryTitles(roots.antigravityHome) ?? this.agyTitles ?? new Map()
+    this.agyTitles = readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? this.agyTitles ?? new Map()
     const result = combine(aggs, this.agyTitles)
     result.sessionFiles = sessionFiles
     await retitleStripped(result.retitle)
@@ -811,7 +815,7 @@ export class TokenEngine {
       if (agg.unreadable) throw appError(ERR.sessionParseFailed)
       const parent = this.agyParent(agg)
       // Read once when no build has yet: the titles the list shows, so the page and the banner agree with it
-      this.agyTitles ??= readAgySummaryTitles(roots.antigravityHome) ?? new Map()
+      this.agyTitles ??= readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? new Map()
       return {
         side: 'antigravity',
         questions: agg.questions,

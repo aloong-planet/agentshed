@@ -23,6 +23,12 @@
 //   read counts it unreadable (driven below), while the walk, which reads only the trajectory record, still gives its
 //   folder the database's time — activity is the file's time by design (CONTEXT "Activity"); not driven as a case of
 //   its own, since it adds no rule beyond the two reads each driven here.
+// - A transcript agy rewrites (its context compaction) while a session page is open: a turn the page asks for under its
+//   old revision is refused (session-view::REQ-001/AC-04) by the IPC handlers, whose question revision and end-of-read
+//   identity check are taken on the transcript, the session's read source, not on the database. No case here reaches
+//   the handlers, and a rewrite in the middle of a read is a race no fixture can stage without a pause. An e2e that
+//   replaces the open fork's transcript by rename, bytes unchanged, then expands a turn and sees it refused would
+//   close the first half; an injectable pause between the read and the check, the second.
 // - The real-data reconciliation (the reader over copies of agy's own conversations against the descriptor-based
 //   decoder of the research record) needs real agy data and stays out of the default gate; run 2026-10-29 for #323:
 //   43 calls, identical figures (research record §10.11).
@@ -1155,6 +1161,24 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     expect([...r.sessionFiles]).toEqual([main])
   })
 
+  it('a subagent conversation that was asked something still gets no row and is not admitted (REQ-003/AC-01, REQ-004/AC-09, token-stats::REQ-003/AC-07)', async () => {
+    const { p, main, sub } = dispatchHome()
+    // Derived: no subagent transcript measured holds a user-input line; a user resuming a subagent by its ID would
+    // write one. The control: the same transcript in a conversation whose record names no parent is listed
+    const asked = [...T.subagent, question(7, 'Which of them is the longest?')]
+    writeTranscript(agyRoot(), ID.subagent, asked)
+    const control = usageConversation('conv-control', [p], [{ usage: { messageId: 'm-k', input: 30, output: 3 }, at: oct(25) }])
+    writeTranscript(agyRoot(), 'conv-control', asked)
+    const r = await build()
+    expect(sessionsOf(r, p).map((s) => [s.file, s.questionCount])).toEqual([
+      [main, 1],
+      [control, 1]
+    ])
+    expect(agyTotal(r)).toBe(330 + 7148 + 55 + 33)
+    expect(sessionReadTarget(r.sessionFiles, sub)).toBeNull()
+    expect([...r.sessionFiles].sort()).toEqual([main, control].sort())
+  })
+
   it.each([
     ['no summaries database', (): void => undefined],
     ['an empty title, as agy leaves a fork\'s', (): void => void writeSummaries(agyRoot(), [{ id: ID.dispatch, title: '' }])],
@@ -1191,6 +1215,27 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     const r = await build()
     expect(sessionsOf(r, p).map((s) => s.title)).toEqual(['Retitled While Running'])
     expect(listing(agyRoot())).toEqual(during)
+  })
+
+  it('a summaries read that fails while agy writes them keeps the titles last read (REQ-003/AC-03)', async () => {
+    const { p, main } = dispatchHome()
+    // The copy a read makes while a log is beside the summaries cannot be made: a read while agy writes that fails
+    const e = new TokenEngine(cacheDir(), undefined, join(dir, 'no-such-dir'))
+    const rebuild = (): Promise<TokenBuildResult> => e.build(roots(), [], undefined, walkSessions(roots()))
+    expect(sessionsOf(await rebuild(), p).map((s) => s.title)).toEqual(['List Calc.py Function Names'])
+    rmSync(join(agyRoot(), 'conversation_summaries.db'))
+    const { writer } = writeSummaries(agyRoot(), [], { keepOpen: true })
+    if (!writer) throw new Error('no writer')
+    writers.push(writer)
+    insertSummaries(writer, [{ id: ID.dispatch, title: 'Retitled While Running' }])
+    // Neither the log's title (a read that worked) nor the first question (the titles dropped)
+    expect(sessionsOf(await rebuild(), p).map((s) => s.title)).toEqual(['List Calc.py Function Names'])
+    // With no titles read before, the same failure falls back to the first question: at a build, and on a page asked
+    // for before any build
+    const fallback = 'Use the invoke_subagent tool to start one subagent of type s…'
+    const fresh = (): TokenEngine => new TokenEngine(cacheDir(), undefined, join(dir, 'no-such-dir'))
+    expect((await fresh().sessionQuestions(roots(), main)).title).toBe(fallback)
+    expect(sessionsOf(await fresh().build(roots(), [], undefined, walkSessions(roots())), p).map((s) => s.title)).toEqual([fallback])
   })
 
   it('a changed transcript is indexed again for that conversation alone, its database untouched (C4)', async () => {
@@ -1280,6 +1325,35 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
       await build()
       const q = await engine().sessionQuestions(roots(), fork)
       expect([q.forkState, q.forkParentFile, q.forkParentTitle]).toEqual(['stripped', null, null])
+    })
+
+    it('a fork whose parent cannot be read takes the no-longer-here form (the "parent that cannot be read" failure mode)', async () => {
+      const { p, parent, fork } = parentAndFork(true)
+      // Derived: agy rewriting the parent in a format the app does not support, the fork itself still readable
+      const db = new DatabaseSync(parent)
+      db.exec('PRAGMA user_version = 2')
+      db.close()
+      const r = await build()
+      expect([sessionsOf(r, p).map((s) => [s.file, s.forkState]), r.antigravityUnreadable]).toEqual([[[fork, 'stripped']], 1])
+      const q = await engine().sessionQuestions(roots(), fork)
+      expect([q.forkState, q.forkParentFile, q.forkParentTitle]).toEqual(['stripped', null, null])
+    })
+
+    it('a fork\'s page names its parent with a corrupt cache entry ahead of it, before any build (the cache rule)', async () => {
+      const { parent, fork, silentFork } = parentAndFork(true)
+      await build()
+      const cacheFile = join(cacheDir(), 'token-cache.json')
+      const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }
+      for (const entry of [{ sig: '1:1', agg: null }, null]) {
+        // The corrupt entry first, so the parent lookup meets it before the parent
+        const rest = { ...cache.files }
+        delete rest[silentFork]
+        writeFileSync(cacheFile, JSON.stringify({ ...cache, files: { [silentFork]: entry, ...rest } }))
+        const keys = Object.keys((JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }).files)
+        expect(keys.indexOf(silentFork)).toBeLessThan(keys.indexOf(parent))
+        const q = await engine().sessionQuestions(roots(), fork)
+        expect([q.forkParentFile, q.forkParentTitle]).toEqual([parent, 'Explaining Calc.py Functionality'])
+      }
     })
 
     it('a fork of a fork names the conversation its last copied step came from (the "fork of a fork" failure mode)', async () => {

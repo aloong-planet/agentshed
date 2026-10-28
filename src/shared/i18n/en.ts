@@ -273,7 +273,7 @@ export const en: Locale = {
     dispatchPrompt: 'Dispatch prompt',
     innerSteps: 'Inner steps',
     unlinkedNote:
-      'The inner steps of this dispatch have **no stable reference chain** in the record that would place them here (measured on both sides) — they are not shown, and no speculative pairing is made; the full transcript is in its own file, if any.',
+      'The inner steps of this dispatch are not shown here: either the record has **no stable reference chain** that would place them under it, or they sit in the subagent’s own record, which is not read. No speculative pairing is made; the full transcript is in its own file, if any.',
     backToMain: 'Back to main session',
     noReturn: '(no result)',
     unknownRecords: (count, types) =>

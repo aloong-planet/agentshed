@@ -117,3 +117,320 @@ resource another case uses.
 
 No findings. (Design gaps were folded into the table before review: the "fork that asked nothing" case was added to
 T16.)
+
+### Increment: the post-implementation check's findings (2026-10-29)
+
+Rows added or changed for F1, F3 and F4 of the post-implementation check below, designed before the tests were
+written (implementation version 05faa8a plus the fix's working tree). F2 adds no test: the gap goes into
+`antigravity.test.ts`'s header with its closing condition (the refusal of a rewritten transcript is the IPC handler's
+end-of-read identity check and its question revision; no unit seam reaches the handler, and a rewrite in the middle of
+a read is a race the e2e cannot stage without a pause). The fix also rewords the subagent block's unattributed note
+(a dictionary entry, no test change: the e2e reads keep their phrase "stable reference chain").
+
+| # | Test (file) | Spec units | Seam | Input that drives the target branch | Assertion and where the expected value comes from | Fixture shape source | Expensive resource |
+|---|---|---|---|---|---|---|---|
+| T35 | a subagent conversation that was asked something still gets no row and is not admitted (antigravity.test.ts) — **new** | REQ-003/AC-01 (subagent clause), token-stats::REQ-003/AC-07, REQ-004/AC-09 (subagent part) | P | `dispatchHome` with the subagent's transcript given a user-input line after its measured lines; a control conversation with the same transcript under a record that names no parent | the project's rows are the dispatch's literal row and the control's (so the transcript does ask something); the global total still holds the subagent's call (7148, hand sum); `sessionReadTarget` refuses the subagent's database; the allow-list is the dispatch's and the control's databases | the real subagent record and transcript; the question line derived (no real subagent transcript holds one: a user resuming a subagent by its ID would write it) | none |
+| T36 | T28 — **changed** (question-corpus.test.ts) | global-search::REQ-001 (subagent part) | P | T28's home, the subagent's transcript given the same derived question | searching that question's words finds nothing; the existing assertions unchanged | as T35 | none |
+| T37 | a subagent that sends two messages within its dispatch's turn (turn-content.test.ts) — **new** | session-view failure mode "more than one message back" | U | `dispatch`'s turn with a second system message from the same sender after the answer (the measured message, its index after the answer's, another body) | the sub block's result is the real message body, a blank line, then the derived body, in that order | real + derived | none |
+| T38 | a summaries read that fails while agy writes keeps the titles last read (antigravity.test.ts) — **new** | REQ-003/AC-03 and the failure mode "a read that fails while agy writes them" | P | one engine given a directory that does not exist for the summaries copy (the engine's new constructor argument, as parse jobs carry theirs): built once with the summaries in place (no log, read in place), then the summaries replaced by an open writer whose log holds a new title, built again | the second build's row keeps "List Calc.py Function Names" — neither the log's title (a read that worked) nor the first question (titles dropped); with no titles read before, the same failing read gives the first question (clipped by hand) on a new engine's page asked before any build and at its first build | real schema and title; WAL by the existing writer | none |
+| T39 | a fork whose parent cannot be read (antigravity.test.ts) — **new** | the failure mode "a fork's parent that cannot be read"; REQ-005/AC-04 | P | `parentAndFork(true)` with the parent's database set to user version 2 after it is written (agy rewriting it in another format) | the parent is counted unreadable and has no row; the fork keeps its row; its page is `stripped` with no parent file or title | real records; the format change derived | none |
+| T40 | a full-text hit in lines a rewind undid inside a turn (search-sessions.test.ts) — **new** | the failure mode "a rewind back to a step inside a turn"; REQ-004/AC-03 | P | a listed conversation whose transcript is T5 (b)'s shape, the undone result holding a word no kept line holds | question mode: no group; full text: one group, its one hit question 1 in the body, nothing folded | derived from the measured rewind (as T5 (b)) | none |
+| T41 | a line without a step index (question-index.test.ts) — **new** | Implementation Decisions "a line without a step index is neither a redo nor undone"; REQ-004/AC-03 | U | derived lines in the measured shape: (a) Q(0) A(1) then a question with no index; (b) a question with no index then A(0) | (a) both questions listed; (b) the unnumbered question listed | derived (every measured line has an index) | none |
+| T42 | T30 — **changed** (e2e/app.spec.ts) | Implementation Decisions "the page's byte figure is the database's size" | E | the fork's page in T30's journey | the meta line holds the fork database's size as the line writes it (KB with one decimal, read from the file on disk); the transcript's size, written the same way, differs, so the read tells the two apart | as T30 | T30's launch |
+| T43 | a fork's page names its parent with a corrupt entry ahead of it, before any build (antigravity.test.ts) — **new** | the cache rule (shape guard before a field is read) on the fork-parent lookup | P | `parentAndFork(true)` built; the cache file rewritten with the silent fork's entry first, as `{ sig, agg: null }` and then as `null`; a new engine asked for the fork's page before it builds | the page names the parent's database and title in both forms; the corrupt key comes before the parent's in the written file (so the lookup meets it first) | real records; corruption as T31 | none |
+
+Review of the increment: every row drives a public seam (`build`, `sessionQuestions`, the indexer, the block assembler,
+the project search, the Electron journey); the one new seam (T38's directory) is a constructor argument the engine
+passes to the summaries read, with the default of every other read, so no case reaches into the engine. Expected values
+are hand figures, real texts or literals; T42's KB figure is written from the file's size by the format the meta line
+shows, which is not what the case tests (the case tests which file's size is shown, and asserts that the two files'
+figures differ). Each derived shape is a measured mechanism at a position not observed, marked in its case. No row
+adds an expensive resource. T38 was widened while it was written (the first-read fallbacks, item 3 below) and reviewed
+again on the same terms. No finding.
+
+Self-check before hand-over (items 2–5; items 6 and 7 below; item 1 in the code review record):
+
+| Item | Object | Result |
+|---|---|---|
+| 2 | T35, T36 | Expected values are literals and a hand sum (330 + 7148 + 55 + 33); red when the subagent detection is lost (R1, R2). Dropping either of the two parse guards alone leaves both green (R3, R4): a subagent's transcript is never read, and a subagent is never listed — either guard alone keeps the behaviour, so the cases watch the behaviour, not one line |
+| 2 | T37 | Literal from the real message; the case first asserts the real line carries that body (so the replacement cannot miss); red when only the last message is kept (R5) |
+| 2 | T38 | Three reads, each awaited; red when a failed read drops the titles (R6), when the build or the page's first read is not given the copy directory (R7, R8 — the read then works and shows the log's title) |
+| 2 | T39 | Literal row, count and page fields; red when a parent that cannot be read is resolved as the parent (the unreadable entry would have to carry the parent's id) or when the fork loses its row or state — answered against `agyParent` and the unreadable entry's empty id; no single line to alter |
+| 2 | T40 | Question mode empty, full text one hit at question 1 in the body, nothing folded; red when a full-text hit in undone lines inside a turn is dropped, folded or put in another turn — the project search maps a hit by the turn ranges, which hold the undone lines (T5 (b)) |
+| 2 | T41 | Red when a line without an index can be undone (R9) or acts as a redo (R10) |
+| 2 | T42 | The two figures are first asserted to differ (384.0 KB against 3.7 KB in the run), so the read tells the files apart; red when the meta line shows the transcript's size (the e2e reach check, after a rebuild) |
+| 2 | T43 | The corrupt key is asserted to come first, so the lookup meets it; red with a TypeError when the shape guard follows the field read (R11) |
+| 2 | Forms | No always-true bound, no expected value computed by the code under test (T42's KB figure is the format the line shows, not the case's subject), no old path, no conditional skip (T38 throws without its writer), no loop that may run empty (T43's two fixed entries) |
+| 3 | `TokenEngine`'s constructor | One new stored argument, no branch; its default is the read's own (the system's temporary directory), as before |
+| 3 | The build's title read | Read works: T14, T15, T21; fails with titles read before: T38 (kept); fails with none: T38 (a new engine's first build falls back) |
+| 3 | The page's first title read | Read works: T19; fails: T38 (a new engine's page falls back) — added to T38 by this item |
+| 3 | `check-shared-ui.mjs`'s side-count rule | The reworded note now passes the rule's default path (no side-count word); evidence: `pnpm check:ui` in the targeted verification |
+| 3 | The dictionaries' note | A string; the e2e reads of the Claude and Codex dispatches keep their phrase |
+| 4 | Data | T35/T36's question line is the measured user-input shape (the case file's `question` helper, from a real line); T37's second message is the real one with another body; T40/T41's lines carry the measured key set (T41 without the index); T39's parent is the real record at another user version; T43's corruption is T31's. Each derived shape is marked in its case |
+| 5 | Shared helpers | `mkAgyFork` (search-sessions.test.ts) gained a parameter; its users are that file's two cases, both in the targeted run. No shared fixture module changed |
+
+- Item 6, evidence: [ticket-324-fix-reach.log](ticket-324-fix-reach.log) keeps the reach checks' scripts, each
+  alteration's search and replacement, and their full output (each file restored byte for byte, the `src` diff
+  compared before and after). The exploratory runs before it stay in the session scratch directory; one of them labelled
+  an alteration "both parse guards dropped" while dropping only one, which R4 replaces with an exact label. The
+  targeted run's log is [ticket-324-fix-targeted.log](ticket-324-fix-targeted.log) (OVERALL exit 0); its first run,
+  [ticket-324-fix-targeted-run1.log](ticket-324-fix-targeted-run1.log), failed lint on an unused binding in T43, which
+  was replaced by a copy and a delete before the run was repeated. Found by the gate, so not a self-check finding.
+- Item 7, records: this increment's table (T38 widened); `antigravity.test.ts`'s header (F2's gap); the feature
+  checklist's #324 rows (re-evidenced at the fix commit); the document sync checklist (the checklist rows and the
+  reworded note); the decisions record; the code review record (item 1).
+
+Self-check findings: the first pass found one — item 3: a failed summaries read with no titles read before, at a build
+and on a page's first read, was driven by no case (a regression that would be missed: both lines changed in this fix).
+T38 was widened (rows above) and the self-check run again over the widened case: no finding.
+
+## Post-implementation check
+
+Date 2026-10-29 · ticket [#324](https://github.com/aloong-planet/agentshed/issues/324) (feature `antigravity-side`) ·
+implementation version 05faa8a (range `c9f69aa..05faa8a`, branch `feat/antigravity-sessions`) · scope: every test the
+ticket writes or changes — T1–T30 above and T31–T34 added below · reviewer independent of the implementation · this
+record's path is the test review artifact the ticket declares (`ticket-324-` prefix under the feature's working
+directory). The commit after the range (ef6ee8b, the features pages) changes no test and no product code.
+
+### Run evidence
+
+The handed-over pre-review run log, [ticket-324-gate-prereview.log](ticket-324-gate-prereview.log) (git-ignored), read
+in full against `implement/full-verification-gate.md`: `git rev-parse HEAD` = 05faa8a, the range's end; the version
+manifest is empty; typecheck, lint, the unit suite, `test:scripts`, `test:site`, `check:ui`, `check:lang`, `check:i18n`,
+`check:nul`, the e2e files the change touches (`app.spec.ts`, `token-span.spec.ts`) and smoke each carry their full
+output and `exit=0`; `OVERALL exit=0`. The reviewed files: `question-index.test.ts` 61, `turn-content.test.ts` 34,
+`antigravity.test.ts` 79, `question-corpus.test.ts` 17, `search-sessions.test.ts` 10, `token-stats.test.ts` 107 cases
+passed; e2e #91 (T30), #36 (T33) and `token-span.spec.ts` #99 (T34) passed among 100. One required item is missing:
+the two version commands carry no exit code (F5).
+
+Measured by this check, on reviewed cases and real data only:
+- A read-only enumeration of every `transcript_full.jsonl` under agy's data root (a script reading with `readFileSync`
+  only; script and output in the session scratch directory, not kept — the figures are quoted here): 15 transcripts,
+  104 lines, 0 unparsed; USER_INPUT 24 (request block 24, metadata 24, settings change 13, empty request 0),
+  PLANNER_RESPONSE 44 (thinking 19, `file://` in prose 10), GENERIC 24 (DONE 20, ERROR 3, RUNNING 1), SYSTEM_MESSAGE
+  11, ERROR_MESSAGE 1; 24 calls, every result line after a pending call and no response arriving with a call pending;
+  every line has a step index. Each of the fixture's six transcripts equals the real one line for line after the two
+  path substitutions its header names (`cancelledDispatch`: the real file's first 21 of 34 lines). Both real subagent
+  transcripts (`e7f637c9`, `b5ca9570`) open with a system message and hold no user-input line.
+- The real `conversation_summaries.db`, copied into the scratch directory and opened there as immutable (the copy then
+  removed; agy's file unchanged, still 40960 bytes of 2026-10-28 21:25): user version 3; its `CREATE TABLE` and two
+  `CREATE INDEX` statements equal the fixture's `SUMMARIES_SCHEMA` character for character; the three titles in
+  `MEASURED_TITLE` equal their rows; the fork's and both subagents' titles are empty.
+- `pnpm exec vitest run` on `antigravity.test.ts`, `question-corpus.test.ts` and `search-sessions.test.ts`, filtered
+  with `-t` to this ticket's describes in them (`--reporter=verbose`): 31 passed, 75 skipped, `tests 534ms`; no case
+  printed a duration, i.e. none reached vitest's default 300 ms slow-test threshold. Exit code 0.
+
+### Test design table: the written tests against their rows
+
+| Row | Written as | Agreement |
+|---|---|---|
+| T1 | Q "a question is the request body: …", Q "a user-input line without a request block is listed whole; …" | Agrees. The row's "line 5" is `main[4]` (step 4; `main[5]` is a notice); the cases call `questionTextAt` on the parsed line, which is what `questionTextOfRange` does after parsing — T2 drives the range form |
+| T2 | Q "each question's turn runs to the next question's line, with its tool calls counted" | Agrees; the offsets are `indexOf` of the real line in the text, and the case also pins the question ends, times and title |
+| T3 | Q "a subagent dispatch counts as a subagent, not as a tool" | Agrees |
+| T4 | Q "a rewind: the lines it undid take no number and are not listed — the measured fork" | Agrees (offset read off the text, not the literal 1141) |
+| T5 | Q "a rewind back to a question ends the turn before it at the undone lines; one inside a turn counts only the redo" | Agrees |
+| T6 | Q "a line that will not parse is skipped without the rest of the file; …" | Agrees |
+| T7–T10 | TC cases of the same names | Agree |
+| T11 | TC "a subagent's later message, in a turn of its own, renders nothing there" | Narrower than the row: only turn 2 (the later message alone) is driven; turn 1's return is T8's assertion and the turn boundary T2's/T5's. Equivalent for the failure mode it names |
+| T12, T13 | TC cases of the same names | Agree (T13 keeps the anchor form the Claude and Grok cases use) |
+| T14–T24 | the `sessions: …` describe of `antigravity.test.ts` | Agree; T14 and T20's subagent parts: F1 |
+| T25 | the case "an Antigravity conversation has no session page yet" | Removed, as designed |
+| T26 | the `it.each` "an entry missing %s, …" over ten fields with a well-formed control | Agrees; the arity and type cases moved to T32 |
+| T27 | `token-stats.test.ts` "a change to FileAgg's field set must be noticed …" | Agrees |
+| T28 | G "its displayed questions are searched with their numbers; …" | Agrees, but `forkRewound` is written without copied steps (not a fork in this home); the undone question is what REQ-001 needs. The subagent part: F1 |
+| T29 | S "question mode hits the kept question; the undone one is not a hit, and in full text it is folded" | Agrees; the needle is the undone question's "exactly one word" (the row said "forked", which the undone answer also holds); not a fork either |
+| T30 | e2e "Antigravity sessions: AG rows and forks, …" | Agrees (undone needle "exactly one word"); one `launch(` in its body |
+
+Four written or changed tests had no row. Added here and reviewed as the Design review prescribes:
+
+| # | Test (file) | Spec units | Seam | Input that drives the target branch | Assertion and where the expected value comes from | Fixture shape source | Expensive resource |
+|---|---|---|---|---|---|---|---|
+| T31 | "is read again rather than failing the build or the session page" (antigravity.test.ts) — **changed** | token-stats cache rule; C4 single-file rebuild of an Antigravity page | P | the cache entry replaced by `{ sig: '1:1', agg: null }`, then by `null`, the `dispatch` transcript beside | the build's total 110 both times (hand sum); the corrupt entry's page has the transcript's one question; an absent entry is `sessionNotIndexed` | real transcript | none |
+| T32 | `it.each` "an entry with %s is read again rather than reused" (antigravity.test.ts) — **new** | token-stats cache rule (shape guard) | P | a well-formed entry with a six-element call, a six-element question record, a title of `7` | the real 110, not the sentinel 999 000 a reuse gives | existing mechanism | none |
+| T33 | the archive retention case's stamp `+c19` (e2e/app.spec.ts) — **changed** | token-stats C10/ADR-0026; `CACHE_VERSION` 19 | E | the seeded archive written under the live stamp | unchanged assertions; the literal is the case's own tripwire for a version bump | existing | its existing launch |
+| T34 | the retained-rows case's stamp `+c19` (e2e/token-span.spec.ts) — **changed** | as T33 | E | as T33 | as T33 | existing | its existing launch |
+
+Review of the added rows: they drive the public seams (`build`, `sessionQuestions`) with the established on-disk
+corruption; their expected values are hand figures or literals, none computed by the code under test; `+c19` is the
+live path (`CACHE_VERSION = 19`); no expensive resource beyond T33/T34's existing launches. No finding.
+
+### Dimension: Coverage
+
+Session-view's "Failure modes and boundaries: Antigravity sessions" as it stands at 05faa8a, the 2026-10-29
+write-backs included, with the ticket's Implementation Decisions statements:
+
+| Failure mode / statement | Driven by | Verdict |
+|---|---|---|
+| agy still working: refetch (P5); index rebuilt for that file only (C4) | T22; P5 is the shared transfusion path | Covered |
+| A compaction rewrite: identities that no longer match are refused (REQ-001/AC-04) | nothing; the Design review's gap note is in no test file | F2 |
+| A rewind while the page is open: the next snapshot drops the undone question; an expanded turn's stale identity refused | T4, T5, T22; the refusal as above | Covered, refusal F2 |
+| An open fork's parent deleted: the banner switches at the next scan | T17 (b) | Covered |
+| A fork of a fork | T18 | Covered |
+| A subagent messaged again in a later turn | T11 | Covered |
+| The header's ID and command: the fork's own; a subagent has no page; no saved page predates the ID | T19, T30; a subagent's page: F1 | Covered except the subagent part |
+| Introduced content: `file://` links as text; titles as text | T30 (raw link text present, no anchor in the prose); titles render through the shared text path | Covered |
+| A rewind to a step inside a turn: undone lines not shown; full-text search counts a hit in them as that turn's | T12 (not shown); full-text: nothing | F3 (d) |
+| A subagent sending several messages within its dispatch's turn: shown in order | nothing | F3 (a) |
+| Summaries missing or of another shape: fallback; a read failing while agy writes keeps the last titles; a later title appears at the next scan | T15 (fallback); T21 (later title, the conversation's files unchanged); the failed read: nothing | F3 (b) |
+| The fork pill's copied-history wording on an Antigravity row | T30 (the pill's title attribute) | Covered |
+| A parent unreadable in the supported format: the banner's no-longer-here form | nothing | F3 (c) |
+| Implementation Decisions: a line without a step index is neither a redo nor undone | nothing (every fixture line has one) | F3 (e) |
+| Implementation Decisions: the page's byte figure is the database's size | nothing (T30 reads the meta line up to "1 question ·") | F3 (f) |
+| The fork-parent lookup over a cache read from disk with a corrupt entry (the cache rule) | nothing (T31's corrupt conversation is no fork) | F4 |
+| The ticket's acceptance units REQ-003 to REQ-005, US-001 (agy clauses), token-stats::REQ-003/AC-07, CON-002, REQ-004/AC-01, project-detail::REQ-002/AC-04, global-search::REQ-001 | T1–T24, T26–T30; the `agy --conversation` builder form in `session-resume.test.ts` (#322) | Covered, except the subagent clauses: F1 |
+
+Claimed against driven inputs: T14, T20, T28 and T30 claim the subagent clause (no row, not admitted, not searched),
+but the subagent fixture is the real subagent transcript, which asks nothing, so its absence follows from
+REQ-003/AC-02 whatever the subagent flag says (F1). Every other claimed boundary names the input that reaches it.
+
+Test file headers: `antigravity.test.ts`'s gap list has no entry for this ticket (F2; F3 (b) would need one if no seam is
+added); the other changed files need none for what they drive.
+
+Fixture independence: verified against the real data (Run evidence above) — the six transcripts are agy's own lines,
+the summaries schema and titles agy's own; the derived shapes are marked in each case.
+
+### Dimension: Case design
+
+Every case drives a public seam — the indexer and block assembler, `build`, `sessionQuestions`, `isFresh`,
+`sessionReadTarget`, the corpus and the project search, the Electron journey. The cache file is read or written only by
+T26, T27, T31 and T32, whose subject is the cache's shape (the established pattern). T24 repeats the handler's range
+read itself because the handler has no unit seam; it asserts the index the handler consumes. No case builds a state the
+public path cannot reach: forks carry copied steps as agy writes them; corrupt entries are the on-disk corruption the
+cache rule exists for. The clipboard and Finder are intercepted at the main process's Electron boundary as
+session-view's Testing Decisions prescribe; every click is a real one. No finding beyond those listed under Coverage.
+
+### Dimension: False greens
+
+Mutation testing: per the project's capability declaration, `mutation-testing` is not enabled (`enabled = false`), so
+it is skipped; each case's "when does it go red" is answered below against the code under test and the expected
+values' sources.
+
+| Case | Goes red when |
+|---|---|
+| T1 | the metadata or settings block stays in the text; a block-less line is dropped or not collapsed; an empty request or a system message (notice, subagent's opening message) becomes a question |
+| T2 | an offset or turn end differs from the real lines' positions; a turn overruns the next question or the last stops short of the file's end; a tool count differs from [1, 3, 2, 0]; a time or the title differs |
+| T3 | `invoke_subagent` counts as a tool, or a dispatch is not counted |
+| T4 | an undone line is kept (two questions), the kept question's range or the title differs |
+| T5 | (a) the undone question is listed or the first turn runs past the undone run; (b) the undone call is counted (2) or a question is lost |
+| T6 | a bad line drops the file or another question, or the half-written last line extends the last turn |
+| T7 | the block order or kinds change (thinking after prose, a notice rendered); an output is not the following result line's content (the ERROR result included); a thinking body differs |
+| T8 | the dispatch is no sub block; its name or prompt differs; its result is the creation echo or anything but the message body; steps non-empty or linked; `manage_subagents` not a tool with its output |
+| T9 | the cancellation notice or the timer's message fills the result or renders; the RUNNING result is not the call's output |
+| T10 | the error line is not prose with the error text; the invented type is dropped or traced elsewhere than after the blocks |
+| T11 | a sender-matched message outside its dispatch's turn renders anything |
+| T12 | the undone call or its result is shown, or the redo is missing |
+| T13 | a per-range read differs from the batched read (a range-reader property); turn 1's kinds change; turn 1's read reaches the 2 MB padding. The ranges' correctness itself is T2's |
+| T14 | any field of the literal row differs (summaries title; `at` from the file time or the calls only; tokens of another conversation; count; fork state); the empty or silent conversation gets a row; a no-row conversation's tokens leave the total; the empty database counts unreadable. Not when the subagent flag is ignored (F1) |
+| T15 | a missing, untitled, non-database or other-shaped summaries file breaks the build or gives a title other than the hand-clipped question (an empty title would show as `''`) |
+| T16 | the fork's tokens include copied calls; its state is not `stripped`; its parent or the parent's title is not found; its ID differs; the silent fork gets a row or its call is lost; copied calls count twice or never |
+| T17 | (a) a parentless fork is `uncertain`/`none` or names a parent; (b) a parent deleted before the next scan still resolves after it |
+| T18 | the parent is the first copied step's source (`conv-a`) rather than the last (`conv-b`) |
+| T19 | the ID is not the database's name; the source is not the transcript path; the title is not the summaries title read lazily on a fresh engine; the question text differs |
+| T20 | the listed database is not admitted, a transcript path is admitted, or the list holds anything else. Not when the subagent flag is ignored (F1) |
+| T21 | a read creates or changes a file in the data root, without or with a log; the log-only title is not read; titles are cached per conversation (the second build's conversation files are unchanged) |
+| T22 | the transcript is not in the signature (`isFresh` stays true, the second question is missing, the next build counts 1), or the database is written |
+| T23 | an unreadable conversation with a transcript is listed, admitted or not counted, or its page does not refuse with `sessionParseFailed` |
+| T24 | a question's range reaches past its line into the 1 MB padding; a zero-byte read also fails it |
+| T26 | an entry lacking the field under the current signature is reused (the sentinel 999 000); the control fails if well-formed entries stop being reused |
+| T27 | the Antigravity entry's key set changes |
+| T28 | a kept question is not found with its number, or the undone question is found. The subagent's text: only if system messages became questions (F1) |
+| T29 | the kept question is not hit with its number; the undone question is a question-mode hit; its full-text hit is not folded (here the undone lines precede the first kept question) |
+| T30 | any of its reads fails: row titles and order, badges, counts, the pill's title and count; the banner's sentence and link; the meta line's start and ID; the undone question listed; the turn's Thinking block, the raw link text, an anchor in the prose; the two clipboard writes; the tooltip's command; Finder given anything but the databases; the parent's page; the gone banner's sentence or a link in it; the global search groups, badge, pill and hits; a no-hit search showing groups; a main-process error. Not on the byte figure (F3 (f)) or the subagent (F1) |
+| T31 | a corrupt entry fails the build or the page, or is not read again for the page; an absent entry stops being `sessionNotIndexed` |
+| T32 | an entry with a six-element call or question record, or a non-string title, is reused |
+| T33, T34 | the cache version moves without the literal (the case's own design) |
+
+Forms checked: no always-true bound (T13: < 20 KB against a 2 MB file; T24: > 0 and < 5 KB against 1 MB); no expected
+value computed by the code under test (offsets by `indexOf`, texts and titles written out, clipped titles by hand); no
+old path (`+c19` and the twelve keys are live; T25 removed the retired assertion); no conditional skip (T21 throws
+without its writer); no assertion that may not run (T13's loop follows `toHaveLength(4)`; every rejection is awaited).
+T30's browser assertions against `review-code/false-greens.md`: each absence (`.ans a`, the gone banner's `a`, the
+search groups) is read after a positive read of the same region has settled (the raw link text, the banner's whole
+sentence, "No hits."); the clipboard and Finder reads poll the asserted value itself; no synthetic event or internal
+call stands in for a user path.
+
+### Dimension: Resource reuse
+
+Expensive resources and their counts, from the pre-review run: the e2e build — one `electron-vite build` (main,
+preload, renderer once, log lines 557–581) before Playwright; T30's Electron launch — #91 ran once with no retry, its
+body holds one `launch(` (line 6132) and one `close(`, so one launch for the whole Antigravity journey; T33/T34 keep
+their existing single launches. The providers cases are not expensive resources: each builds a small home in the
+per-case `beforeEach` directory, and the measured filtered run above took 534 ms for 31 cases with none past 300 ms.
+No reviewed case clears or releases a resource another case uses — no process-level cache is added by the change
+(`agyTitles` is per engine instance, every case makes its own engine), what a case deletes (T17's parent, T21's
+summaries, the homes `afterEach` removes) lies in that case's own home, and no e2e case rebuilds or removes the build
+output — so no collection order bears on the counts. The design's
+reuse of `roots`, `trust`, `usageConversation`, `build`, `corpusOver`, `run`, `launch` and `close` holds in the code.
+No finding.
+
+### Document sync for this check's findings
+
+Scope (2026-10-29, at 05faa8a and the working tree): this record; the gate log; the four specs; issue #324 (read with
+`gh`); `docs/.workings/antigravity-side/` enumerated with `ls -la`, ignored files included (the gate log is the one
+git-ignored file) — `checklist.md`, `ticket-324-doc-sync.md`, `ticket-324-decisions.md`, `ticket-324-review-code.md`,
+`final-regression.md` (no #324 test statement); `docs/features/{session-view,project-detail,global-search}.md` as of
+ef6ee8b, `CONTEXT.md`, ADR-0037. Excluded: the other tickets' records (#322, #323, #325–#327: their own ranges) and
+`docs/prototypes/` (no test statement).
+
+Statements the findings make untrue or unsupported: the feature checklist's #324 rows session-view::REQ-003/AC-01,
+REQ-004/AC-09, token-stats::REQ-003/AC-07 and the global-search::REQ-001 regression row cite cases whose subagent part
+the input cannot drive (F1); its REQ-003/AC-03, REQ-004/AC-03 ("the rule's reading as written back"), REQ-004/AC-05
+and REQ-005/AC-04 rows read "Verified" while the write-backs under them listed in F3 are driven by no case. The
+Design review's coverage row says the compaction gap is in the test file header (F2). The features pages, CONTEXT.md
+and the ADR state behaviour, which no finding changes. `ticket-324-doc-sync.md` has no item for the checklist rows: a
+Pending item is owed there ("the #324 rows of the feature checklist re-evidenced after F1 and F3 are handled, or
+reopened — before delivery", documents: `checklist.md`). Per the hand-off this reviewer writes only this record; the
+item is listed here for the implementer to add.
+
+### Findings
+
+- **F1 — Every subagent fixture's transcript asks nothing, so no test drives the subagent rule of the list, the read
+  allow-list or search.** `parseAntigravityFile` lists a conversation only when `!c.subagent && questions.length > 0`
+  and skips a subagent's transcript altogether. The subagent in T14/T20 (`dispatchHome`), T28 (`mkAgyHome`) and T30
+  is written with the real `subagent` transcript, which holds no user-input line (measured: neither real subagent
+  transcript has one), so it is unlisted, unadmitted and unsearched by REQ-003/AC-02 alone: dropping `!c.subagent`, or
+  a subagent detection that stops working, leaves every case green. Impact: session-view::REQ-003/AC-01's subagent
+  clause, token-stats::REQ-003/AC-07's no-row part, REQ-004/AC-09's subagent part and global-search::REQ-001's subagent
+  part are recorded as verified on evidence that cannot fail; it bites the day a subagent conversation's transcript
+  carries a question (a user resuming it by its ID, for one). Recommended now: a derived subagent conversation (the
+  measured subagent record, its transcript given a user-input line in the measured shape, marked not observed),
+  asserting no row with its tokens counted, not admitted, not in the corpus — in the providers seam, through the same
+  `build`; then re-evidence the four checklist rows (Document sync above).
+- **F2 — The compaction-rewrite identity gap that the Design review says is recorded in the test file header is
+  recorded in no test file.** The coverage row for "agy rewrites a transcript when it compacts" says the refusal is
+  unreachable at the unit seam and is noted in the test file header; no changed test file's header carries it (the
+  `antigravity.test.ts` gap list ends with #323's items). The detail at risk is the handlers' `sourceIdentity(source)`
+  (the transcript, `src/main/index.ts`): reverted to the database's identity, a rewritten transcript is answered from
+  stale offsets (session-view::REQ-001/AC-04) and nothing goes red — T30 never rewrites a transcript. Recommended now:
+  either stage an Antigravity transcript rewrite in the existing e2e that asserts the refusal, or write the gap and
+  its closing condition into `antigravity.test.ts`'s header, which makes the Design review's statement true.
+- **F3 — Six behaviours the spec states for this side, written back or decided during implementation, are driven by no
+  test and recorded as no gap.** All six entered the spec in 5a117de, after the Design review, and no row was added:
+  (a) a subagent sending several messages in its dispatch's turn shows them in order — the concatenation in
+  `antigravityAssemble` can become "last only" or "first only" with every case green (T8 has one message; unit seam,
+  derived lines in the measured message shape); (b) a summaries read failing while agy writes keeps the titles last
+  read — `?? this.agyTitles` in `build` is never reached: the engine passes no `tmpParent` to `readAgySummaryTitles`,
+  so the failed-copy runner the conversation cases use cannot reach it (a missing seam: inject it as the parse jobs
+  carry theirs, or record the gap in the header); (c) a parent unreadable in the supported format gives the
+  no-longer-here banner — no case has an unreadable parent (providers seam: T16's home with the parent at user version
+  2); (d) a full-text hit in undone lines inside a turn counts as that turn's — T29's undone lines precede the first
+  kept question and are folded, which is the other branch (providers seam: T5 (b)'s transcript searched in full
+  text); (e) a line without a step index is neither a redo nor undone — `s === null ||` in `agyKeptLines` is never
+  reached, every fixture line carrying an index (unit seam, a derived line); (f) the page's byte figure is the
+  database's size — `statSync(file)` rather than the source in `getSessionPage` can change unseen, T30 reading the meta
+  line only up to "1 question ·" (e2e seam: read the figure and set it against the database's size, not the
+  transcript's). Recommended now: add the rows and cases (or, for (b) without a seam, the header gap), then re-evidence
+  the four checklist rows named under Document sync.
+- **F4 — The fork-parent lookup's guard against a corrupt cache entry is reached by no test.** `agyParent` iterates
+  every cache entry and relies on `isWellFormedAgg(v?.agg)` before dereferencing; before the first build the cache is
+  as read from disk (`loadCache` checks only the version), so a null or agg-less entry for any other file would throw
+  on a fork's page at startup without it. T31's corrupt conversation is no fork, so `agyParent` returns before the
+  loop. Recommended now: in T31's describe, a fork whose parent is present beside a corrupt entry for a third
+  conversation, the fork's page asked before any build (the page names its parent and does not throw).
+- **F5 — The pre-review log gives no exit code for its two version commands, so its empty version manifest is not told
+  apart from a failed `git status`.** `implement/full-verification-gate.md` requires an exit code taken without a pipe
+  for every command, the version commands included; lines 2–5 of the log carry `git rev-parse HEAD` and
+  `git status --porcelain --untracked-files=all` with their output and no `exit=` line (the #323 pre-review log has
+  them). Not re-run here, as the rule forbids; this reviewer's own `git status` at the start of the check showed a clean
+  tree at 05faa8a, which corroborates but does not replace the log. Recommended: record both exit codes in the full
+  run's log before delivery, which re-establishes the version for the whole suite.

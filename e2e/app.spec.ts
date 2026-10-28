@@ -17,7 +17,7 @@
 // page, which no drawer survives; add a case when it can change with a drawer open, such as from a menu).
 // Copy follows the dictionary the language cases cover; the file, mode and scroll would survive because a
 // language change remounts nothing in the drawer.
-import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
@@ -25,7 +25,7 @@ import { test, expect, _electron as electron, type ElectronApplication } from '@
 import { closeApp } from './close-app'
 import { ERR } from '../src/shared/errors'
 import { MEASURED_TITLE, callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation, writeSummaries, type UsageFixture } from '../src/main/testing/agy-fixture'
-import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, writeTranscript } from '../src/main/testing/agy-transcript-fixture'
+import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTranscript } from '../src/main/testing/agy-transcript-fixture'
 
 /** Each case gets its own userData with no cross-contamination; a cache file can be seeded */
 function makeUserData(cacheContent?: string): string {
@@ -6820,6 +6820,12 @@ test('Antigravity sessions: AG rows and forks, a fork\'s page with its banner, h
   await expect(win.locator('.pane-head .det-title .badge.ag')).toHaveText('AG')
   await expect(win.locator('.pane-head .smeta')).toContainText('Antigravity · 1 question ·')
   await expect(win.locator('.pane-head .smeta .sid-v')).toHaveText(FORK_ID)
+  // The byte figure is the fork's database's size — the record file Finder shows — not its transcript's: each written
+  // as the meta line writes a size in KB, and the two told apart
+  const kb = (file: string): string => `${(statSync(file).size / 1024).toFixed(1)} KB`
+  const forkTranscript = transcriptFile(join(home, '.gemini', 'antigravity-cli'), FORK_ID)
+  expect(kb(fork)).not.toBe(kb(forkTranscript))
+  await expect(win.locator('.pane-head .smeta')).toContainText(` tok · ${kb(fork)} · last active`)
   const banner = win.locator('.pane-body .banner.info')
   await expect(banner).toHaveText(
     'This session was forked from “Explaining Calc.py Functionality”— the copied history has been stripped, so only what follows this fork is shown below. See that session for the earlier history.'

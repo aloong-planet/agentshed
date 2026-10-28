@@ -89,3 +89,47 @@ the per-side rules differ in kind, as for the other sides); the rest of the base
 
 Instance or class: both are instances (named comments). The class question "a comment states a measured fact" was
 answered by re-measuring every fact the new comments state (the premises list above).
+
+## Self-check before hand-over — fixes of the post-implementation check (2026-10-29)
+
+Item 1 (product code the fix changes, against the spec text it implements), over 05faa8a's working tree:
+
+| Change | Spec text | Result |
+|---|---|---|
+| `TokenEngine` takes an optional directory for the summaries copy, passed to both title reads (the build's and a page's first) | session-view::REQ-003/AC-03 "The summaries are read under token-stats::CON-002"; token-stats::CON-002 "a log: copied together with its log … and the copy is removed" | Agrees: production passes nothing, so the read keeps its default (the system's temporary directory), as before; the argument only chooses where the copy goes, which CON-002 does not fix |
+| The subagent block's unattributed note reworded in both dictionaries: "not shown here: either the record has no stable reference chain that would place them under it, or they sit in the subagent's own record, which is not read" | C3 "the sub block on every side is unified as the dispatch arguments + the return + an unattributed warning"; session-view::REQ-004/AC-05 "The subagent's own steps stay unattributed: its transcript is not read"; CONTEXT's rule that copy never enumerates the sides | Agrees, and corrects the old wording, which gave as its reason a missing reference chain "(measured on both sides)": untrue of an Antigravity dispatch, whose result names the subagent's conversation, and a side count |
+| `check-shared-ui.mjs` loses the note's allowance | The same CONTEXT rule: copy that must enumerate is allowed by key with its reason | Agrees: the note no longer names a side count, so the allowance had no object (an orphan of this change) |
+
+No finding.
+
+## Spec final check (before step 7; code read only)
+
+2026-10-29, against the specs as this branch leaves them (cbe22ca with the write-backs of 5a117de), the product code at
+the post-implementation fix (this ticket's paths), unit by unit; evidence per unit in the checklist's current
+verification:
+
+| Unit (spec text) | Implementation | Conclusion |
+|---|---|---|
+| session-view::REQ-003/AC-01 "A session is one conversation database, identified by its path, in the project token-stats::REQ-003/AC-08 credits it to. A subagent conversation … gets no row of its own" | `parseAntigravityFile`: a subagent's transcript is not read and it is never `listed`; `combine` adds a row for a listed conversation under its `projectKey`; the build admits a registered project's listed conversations | Met |
+| REQ-003/AC-02 "A conversation with no question … is not listed and its tokens count" | `listed` requires a question; the calls enter the rows regardless | Met |
+| REQ-003/AC-03 "agy's own title … falling back to the first indexed question when agy has none or its summaries cannot be read … read under token-stats::CON-002" | `readAgySummaryTitles` through `readConversationDb`; non-empty titles only; `combine` and the page take the title, else the clipped first question; a failed read keeps the last titles | Met |
+| REQ-003/AC-04 "the largest step timestamp in the conversation's database" | `conversationCalls`' `lastStepAt` over every step's creation and completion time | Met |
+| REQ-003/AC-05 "the conversation's own usage … a fork's copied calls excluded" | The per-file tokens after the copied calls are dropped (#323's rule) | Met |
+| REQ-003/AC-06 "the Antigravity side badge … a fork's row carries the fork marker" | `SIDE_BADGE.antigravity`; `forkState: 'stripped'` for a fork; the pill's copied-history tooltip | Met |
+| REQ-004/AC-01 "the body of the line's user-request block … without a request block is listed whole … empty request is not a question … A system-message line … is never a question" | `antigravityQuestion` | Met |
+| REQ-004/AC-02 "from its question's line to the next question's line … byte range … never the whole transcript" | `makeAntigravityQuestionIndexer`'s records; the handlers read the ranges from the transcript | Met |
+| REQ-004/AC-03 "A line whose step index is not greater than an earlier line's starts a redo …" | `agyKeptLines` (the reading written back to Implementation Decisions); the indexer and the assembler both apply it | Met (as written back) |
+| REQ-004/AC-04 "prose … thinking block … Each tool call … pairs with the result line that follows it … a failed or still-running call's included" | `antigravityAssemble` | Met |
+| REQ-004/AC-05 "`invoke_subagent` is a subagent block … its return is the … system-message line whose sender is the conversation id the dispatch's result names … never the dispatch's own result … steps stay unattributed … cancelled … shows no return" | `antigravityAssemble`: the creation echo maps the id; a sender's messages join in order; `unlinked`; the reworded note | Met |
+| REQ-004/AC-06 "A failed model call's error line renders as prose … Every other system-message line … not rendered … outside [the five types] leaves the unknown trace" | `antigravityAssemble` | Met |
+| REQ-004/AC-07 "tool calls other than `invoke_subagent`, and subagent dispatches as `invoke_subagent` calls" | `agyCounts` over kept lines | Met |
+| REQ-004/AC-08 "transcript is missing … no question. A line that will not parse is skipped" | The parse catches a missing transcript; `eachJsonlLine` skips a bad line | Met |
+| REQ-004/AC-09 "enters the read allow-list … by its database's path … transcript is read only through that entry … derives the transcript's path from the admitted database path" | `sessionFiles` holds listed databases; `sessionReadSource` on the main process | Met (as written back) |
+| REQ-005/AC-01 to AC-05 (the banner; the parent as the source of the last copied step; only the fork's own questions; the gone form; the fork state everywhere, never uncertain) | `forkOf` from the last copied step; `agyParent` over readable entries; `Banners`' Antigravity branch; `forkState: 'stripped'` | Met |
+| US-001/AC-01, AC-04, AC-07 (the Antigravity clauses) | `sessionIdFromPath`; the resume builder's agy form (#322); Finder given the allow-listed database | Met |
+| token-stats::REQ-003/AC-07 (no row), project-detail::REQ-002/AC-04 (Sessions), global-search::REQ-001 (regression) | As REQ-003/AC-01; the Sessions tab lists the rows; the corpus takes listed sessions | Met for this ticket's paths |
+
+Failure modes the ticket settles, each traced to a case or a named gap (the test review's coverage, increment
+included): the compaction rewrite's refusal is a named gap (`antigravity.test.ts` header). Scope beyond these units,
+traced: the summaries copy-directory argument (a test seam, CON-002 unchanged); the reworded note (C3, REQ-004/AC-05).
+No code contradicts a spec statement.

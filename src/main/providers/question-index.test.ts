@@ -812,6 +812,15 @@ describe('Antigravity CLI questions and turns (session-view::REQ-004)', () => {
     expect(rb.recs.map((r) => [r[2], r[4]])).toEqual([[offsetOf(tb, b[5]), 1], [Buffer.byteLength(tb), 0]])
   })
 
+  test('a line without a step index is neither a redo nor undone (the rule\'s reading, AC-03)', async () => {
+    // Derived: every measured line carries a step index
+    const unnumbered = JSON.stringify({ source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:06:30Z', content: '<USER_REQUEST>\nunnumbered\n</USER_REQUEST>' })
+    // (a) after numbered lines it undoes nothing
+    expect((await indexText(transcriptText([userInput(0, '<USER_REQUEST>\nfirst\n</USER_REQUEST>'), answer(1, 'A'), unnumbered]))).texts).toEqual(['first', 'unnumbered'])
+    // (b) before a line at step 0 it is not undone
+    expect((await indexText(transcriptText([unnumbered, answer(0, 'A')]))).texts).toEqual(['unnumbered'])
+  })
+
   test('a line that will not parse is skipped without the rest of the file; a half-written last line ends no turn (AC-08)', async () => {
     const lines = [...T.main.slice(0, 10), '{"step_index": 10, "type": "PLANNER_RE', ...T.main.slice(10)]
     const text = transcriptText(lines) + '{"step_index":22,"source":"MODEL","type":"PLANNER_RESP'

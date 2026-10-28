@@ -587,6 +587,16 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
     ])
   })
 
+  test('a subagent that sends two messages within its dispatch\'s turn: the return holds both, in order (the "more than one message" failure mode)', () => {
+    // Derived: the measured message again, after the answer, with another body
+    const first = JSON.parse(T.dispatch[5]) as { content: string }
+    const body = 'The functions defined in `calc.py` are:\n1. `add`\n2. `average`\n3. `percent`'
+    expect(first.content).toContain(`content=${body}\n</SYSTEM_MESSAGE>`)
+    const second = JSON.stringify({ ...first, step_index: 8, content: first.content.replace(body, 'Also: `average` returns 0 for an empty list.') })
+    const sub = turnBlocksFromText('antigravity', transcriptText([...T.dispatch.slice(1, 7), second])).find((b) => b.kind === 'sub') as Extract<TurnBlock, { kind: 'sub' }>
+    expect(sub.result).toBe(`${body}\n\nAlso: \`average\` returns 0 for an empty list.`)
+  })
+
   test('a subagent\'s later message, in a turn of its own, renders nothing there (the "messaged again" failure mode)', () => {
     // Derived: the measured message, arriving after the next question
     const again = JSON.stringify({ ...(JSON.parse(T.dispatch[5]) as Record<string, unknown>), step_index: 9 })
