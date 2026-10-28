@@ -8,7 +8,18 @@
      界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关:界面文案画了中、英
      两种,其他语言按英文显示并有提示;几个页面共用的文案取自共享文案表 _shared/copy.js;区块标题与说明行是
      评审注解,与 mock 数据一样保持原样。色值取共享主题 _shared/theme.css,本页不自定义 app token。
-     app 窗口的根样式在共享件 _shared/app-window.css 里。本页没有演示条。 -->
+     app 窗口的根样式在共享件 _shared/app-window.css 里。本页没有演示条。
+     2026-10-28 (the fourth side, Antigravity; ADR-0037): the library list gains the GK and AG badge slots (CC CX GK AG,
+       as on the Agents page). A target row now shows where the copy will land, one mark per directory: CC for
+       .claude/skills, GK for .grok/skills, and for .agents/skills the shared skills directory's mark — one
+       outlined group naming the sides that load it (CX AG) — because Codex and Antigravity load that one
+       directory: it is one landing and one result, never a Codex landing and an Antigravity landing that
+       collide (owner's ruling). Whether a row offers a directory follows the skill's sides that the project is
+       registered on; the shared mark itself always names both sides that load the directory, whatever the
+       project is registered on (owner's ruling, 2026-10-28: agy-demo, registered on Antigravity only, still
+       shows CX AG). A same-name check against the shared directory is made once. The project-level copies gain
+       a shared-directory entry, whose uninstall confirmation says the skill goes for every side that loads the
+       directory. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -29,8 +40,13 @@
   .it:first-child{border-top:0}
   .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;width:200px;flex:none}
   .ds{flex:1;min-width:0;color:var(--text-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bdg{display:flex;gap:3px;flex:none;width:74px}
+  .bdg{display:flex;gap:3px;flex:none;width:96px}
   .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
+  .b.g{background:var(--gk-bg);color:var(--gk-fg)}.b.a{background:var(--ag-bg);color:var(--ag-fg)}
+  /* A target row's landings, one mark per directory; the shared skills directory is one outlined group naming
+     the sides that load it */
+  .pop .lands{margin-left:auto;display:flex;align-items:center;gap:4px;flex:none}
+  .pop .shared-land{display:inline-flex;gap:2px;border:1px solid var(--line-strong);border-radius:4px;padding:1px 2px}
   /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
      「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
      故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
@@ -88,7 +104,12 @@
     <div class="card">
       <div class="uheader"><span><span data-i18n="secClaudeProject">项目级 · .claude/skills</span>(仅项目级可卸;全局层 skill 无卸载入口)</span></div>
       <div class="it"><span class="nm">ui-design</span><span class="ds">项目专属 UI 走查规范</span>
-        <button class="ins" id="uni" data-i18n="uninstall">卸载</button></div>
+        <button class="ins" id="uni" data-u="claude" data-i18n="uninstall">卸载</button></div>
+    </div>
+    <div class="card">
+      <div class="uheader"><span><span data-i18n="secShared">共享 · .agents/skills</span> <span class="b x">CX</span> <span class="b a">AG</span>(一处落地,两侧都加载)</span></div>
+      <div class="it"><span class="nm">commit-style</span><span class="ds">本仓库的提交信息约定</span>
+        <button class="ins" id="uniShared" data-u="shared" data-i18n="uninstall">卸载</button></div>
     </div>
   </div>
   <div class="toast" id="toast"></div>
@@ -107,6 +128,10 @@
       blocked:(p,s)=>`${p} 已有同名 skill「${s}」,已阻止,不覆盖`,
       installed:(s,p)=>`已安装 ${s} → ${p}((复制落地))`,
       confirmTitle:'卸载项目级 skill?', confirmBody:'将删除以下目录(项目 git 状态由你自行处理;不做副本差异检测):',
+      confirmShared:sides=>`这个目录由 ${sides} 共同加载:删除后它们都不再有这个 skill。`,
+      installedShared:(s,p,sides)=>`已安装 ${s} → ${p} 的共享目录(复制落地;${sides} 都会加载)`,
+      sideJoin:' 与 ',
+      sideMismatch:p=>`${p} 不属于该 skill 所在的 agent 侧`,
       cancel:'取消', del:'删除', uninstalled:n=>`已卸载 ${n}`
     },
     en:{
@@ -117,6 +142,10 @@
       installed:(s,p)=>`Installed ${s} → ${p} (by copy)`,
       confirmTitle:'Uninstall the project-level skill?',
       confirmBody:'The following directory will be deleted (handle your project’s git state yourself; no copy-diff check is performed):',
+      confirmShared:sides=>`This directory is loaded by ${sides}: once it is deleted, none of them has this skill.`,
+      installedShared:(s,p,sides)=>`Installed ${s} → ${p}’s shared directory (by copy; loaded by ${sides})`,
+      sideJoin:' and ',
+      sideMismatch:p=>`${p} does not belong to the agent side this skill lives on`,
       cancel:'Cancel', del:'Delete', uninstalled:n=>`Uninstalled ${n}`
     }
   };
@@ -128,37 +157,62 @@
 
   // The target project mock: has = a same-named skill is already installed (marked inside the picker);
   // stale is greyed out
+  // sides = the sides the project is registered on; has = the same-named skills already landed, keyed by the
+  // directory they sit in ('claude' or 'shared' — the shared skills directory is checked once)
   const PROJECTS=[
-    {n:'agentshed',stale:false,has:[]},
-    {n:'Transfer',stale:false,has:['tdd','ui-design']},
-    {n:'openclaw-v3',stale:false,has:[]},
-    {n:'New project',stale:true,has:[]},
+    {n:'agentshed',stale:false,sides:['c','g'],has:{}},
+    {n:'Transfer',stale:false,sides:['c','x','g','a'],has:{claude:['tdd','ui-design'],shared:['commit-style']}},
+    {n:'agy-demo',stale:false,sides:['a'],has:{}},
+    {n:'openclaw-v3',stale:false,sides:['c','g'],has:{}},
+    {n:'New project',stale:true,sides:['x'],has:{}},
   ];
+  // c / x / g / a = present in that side's global library
   const LIB=[
-    {n:'tdd',ds:'红先于绿,覆盖来自 spec 失败模式节',c:1,x:1},
-    {n:'grilling',ds:'按依赖分批的需求逼问',c:1,x:1},
+    {n:'tdd',ds:'红先于绿,覆盖来自 spec 失败模式节',c:1,x:1,a:1},
+    {n:'grilling',ds:'按依赖分批的需求逼问',c:1,x:1,g:1},
     {n:'decision-form',ds:'批量决策外部表单(含渲染器脚本)',c:0,x:1},
     {n:'review-code',ds:'四层法 review',c:1,x:0},
     {n:'github-ops',ds:'GitHub 产出规范(无 AI 署名)',c:1,x:1,ln:true},
-    {n:'electron-scaffold',ds:'新 Electron 项目一次性基础设施',c:1,x:1},
+    {n:'release-notes',ds:'从 git log 起草发布说明',a:1},
   ];
+  // The sides that load the shared skills directory, and their names for a sentence
+  const SHARED_SIDES=['x','a'], SIDE_NAME={x:'Codex',a:'Antigravity'};
+  const BADGE={c:'<span class="b c">CC</span>',x:'<span class="b x">CX</span>',g:'<span class="b g">GK</span>',a:'<span class="b a">AG</span>'};
+  /** Where a skill would land in a project: one entry per directory. The shared skills directory is one landing,
+   *  drawn with every side that loads it, whatever the project is registered on — not a Codex landing and an
+   *  Antigravity landing */
+  function landings(s,p){
+    const sides=['c','x','g','a'].filter(k=>s[k]&&p.sides.includes(k));
+    const out=[];
+    if(sides.includes('c')) out.push({dir:'claude',html:BADGE.c});
+    if(sides.some(k=>SHARED_SIDES.includes(k))){
+      const loaders=SHARED_SIDES;
+      out.push({dir:'shared',loaders,html:`<span class="shared-land" title="${T[LANG].secShared}">${loaders.map(k=>BADGE[k]).join('')}</span>`});
+    }
+    if(sides.includes('g')) out.push({dir:'grok',html:BADGE.g});
+    return out;
+  }
   const lib=document.getElementById('lib');
   function renderLib(){
     const t=T[LANG];
     // 重绘不丢已弹出的选择器
     const open=lib.querySelector('.pop.open')?.id;
+    const miss='<span class="b miss">—</span>';
     lib.innerHTML=LIB.map((s,i)=>`<div class="it">
       <span class="nm">${s.n}</span>
-      <span class="bdg">${s.c?'<span class="b c">CC</span>':'<span class="b miss">—</span>'}${s.x?'<span class="b x">CX</span>':'<span class="b miss">—</span>'}</span>
+      <span class="bdg">${['c','x','g','a'].map(k=>s[k]?BADGE[k]:miss).join('')}</span>
       ${s.ln?`<span class="pill ln">${t.pillSymlink}</span>`:''}
       <span class="ds">${s.ds}</span>
       <button class="ins" data-i="${i}">${t.installTo}</button>
       <div class="pop" id="pop-${i}">
         <div class="t">${t.pickTarget}</div>
         ${PROJECTS.map(p=>{
-          const has=p.has.includes(s.n);
-          return `<div class="p ${p.stale?'dis':''}" data-s="${s.n}" data-p="${p.n}" data-has="${has?1:0}" ${p.stale?'':''}>
-            ${p.n}${p.stale?`<span class="why">${t.staleDisabled}</span>`:has?`<span class="have">${t.hasSame}</span>`:''}</div>`;
+          const lands=landings(s,p);
+          const has=lands.some(l=>(p.has[l.dir]||[]).includes(s.n));
+          const shared=lands.find(l=>l.dir==='shared');
+          return `<div class="p ${p.stale?'dis':''}" data-s="${s.n}" data-p="${p.n}" data-has="${has?1:0}" data-none="${lands.length?0:1}" data-shared="${shared?shared.loaders.map(k=>SIDE_NAME[k]).join(t.sideJoin):''}">
+            ${p.n}${p.stale?`<span class="why">${t.staleDisabled}</span>`:has?`<span class="have">${t.hasSame}</span>`:''}
+            <span class="lands">${lands.map(l=>l.html).join('')}</span></div>`;
         }).join('')}
       </div>
     </div>`).join('');
@@ -181,26 +235,32 @@
       if(p.classList.contains('dis'))return;
       p.closest('.pop').classList.remove('open');
       const {p:proj,s:skill}=p.dataset;
-      if(p.dataset.has==='1'){toast(()=>T[LANG].blocked(proj,skill),false);}
+      if(p.dataset.none==='1'){toast(()=>T[LANG].sideMismatch(proj),false);}
+      else if(p.dataset.has==='1'){toast(()=>T[LANG].blocked(proj,skill),false);}
+      else if(p.dataset.shared){const sides=p.dataset.shared;toast(()=>T[LANG].installedShared(skill,proj,sides),true);}
       else{toast(()=>T[LANG].installed(skill,proj),true);}
       return;
     }
   });
   // The uninstall confirmation: show the full path to be deleted
   const mask=document.getElementById('mask'),dlg=document.getElementById('dlg');
+  // Which project-level copy the open dialog is about: the Claude one, or the shared directory's
+  let UN='claude';
   function renderDlg(){
-    const t=T[LANG];
+    const t=T[LANG], shared=UN==='shared', name=shared?'commit-style':'ui-design';
     dlg.innerHTML=`<h3>${t.confirmTitle}</h3>
       <p>${t.confirmBody}</p>
-      <code>~/CascadeProjects/Transfer/.claude/skills/ui-design/</code>
+      <code>~/CascadeProjects/Transfer/${shared?'.agents':'.claude'}/skills/${name}/</code>
+      ${shared?`<p>${t.confirmShared(SHARED_SIDES.map(k=>SIDE_NAME[k]).join(t.sideJoin))}</p>`:''}
       <div class="btns"><button id="dlg-c">${t.cancel}</button><button class="danger" id="dlg-y">${t.del}</button></div>`;
     document.getElementById('dlg-c').onclick=close;
-    document.getElementById('dlg-y').onclick=()=>{close();toast(()=>T[LANG].uninstalled('ui-design'),true);};
+    document.getElementById('dlg-y').onclick=()=>{close();toast(()=>T[LANG].uninstalled(name),true);};
   }
-  document.getElementById('uni').onclick=()=>{
+  document.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>{
+    UN=b.dataset.u;
     mask.style.display='block';dlg.style.display='block';
     renderDlg();
-  };
+  });
   function close(){mask.style.display='none';dlg.style.display='none'}
   mask.onclick=close;
 

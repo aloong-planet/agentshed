@@ -18,22 +18,24 @@
 //   ProjectSide.onRender(fn)     calls fn(column) after every draw
 // The copy follows the page's language (demo-dimensions.js).
 ;(function () {
-  // Most recent first, as the app sorts them. Transfer carries all three sides: the row where the name,
-  // the stale slot, the activity and the count crowd the column hardest.
+  // Most recent first, as the app sorts them. Transfer carries all four sides: the row where the name,
+  // the stale slot, the activity and the count crowd the column hardest. agy-demo is registered on the
+  // Antigravity side alone.
   const PROJECTS = [
     { name: 'agentshed', path: '~/CascadeProjects/agentshed', sides: ['claude', 'grok'], days: 0 },
+    { name: 'agy-demo', path: '~/CascadeProjects/agy-demo', sides: ['antigravity'], days: 0 },
     { name: 'chatgpt-token', path: '~/CascadeProjects/chatgpt-token', sides: ['codex'], days: 1 },
     { name: 'openclaw-v3', path: '~/CascadeProjects/openclaw-v3', sides: ['claude', 'grok'], days: 2 },
-    { name: 'Transfer', path: '~/CascadeProjects/Transfer', sides: ['claude', 'codex', 'grok'], days: 3, route: 'project-detail/detail' },
+    { name: 'Transfer', path: '~/CascadeProjects/Transfer', sides: ['claude', 'codex', 'grok', 'antigravity'], days: 3, route: 'project-detail/detail' },
     { name: 'AI-Learning', path: '~/CascadeProjects/AI-Learning', sides: ['codex'], days: 5 },
     { name: 'aloong-tools', path: '~/CascadeProjects/aloong-tools', sides: ['claude'], days: 7 },
     { name: 'csv-debug-viewer', path: '~/CascadeProjects/csv-debug-viewer', sides: ['claude'], days: 30 },
-    { name: 'removed-experiment-2025', path: '/Users/you/Projects/removed-experiment-2025', sides: ['claude', 'codex', 'grok'], days: 45, stale: true, route: 'project-detail/detail-stale-note' },
+    { name: 'removed-experiment-2025', path: '/Users/you/Projects/removed-experiment-2025', sides: ['claude', 'codex', 'grok', 'antigravity'], days: 45, stale: true, route: 'project-detail/detail-stale-note' },
     { name: 'New project', path: '~/Projects/New project', sides: ['codex'], days: 60, stale: true },
     { name: 'fe', path: '~/tmp/fe', sides: ['codex'], days: 60, stale: true }
   ]
   // Product names, identical in every language
-  const SIDE_NAME = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok' }
+  const SIDE_NAME = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok', antigravity: 'Antigravity' }
   const plural = (l, n, forms) => forms[new Intl.PluralRules(l).select(n)] ?? forms.other
   const COPY = {
     zh: { locale: 'zh-CN', search: '搜索项目…', all: '全部', showStale: '显示失效项目', staleFiltered: (n) => `已过滤 ${n} 个失效`, noMatch: '无匹配项目', staleTag: '失效' },

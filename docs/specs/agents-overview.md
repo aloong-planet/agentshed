@@ -1,6 +1,6 @@
 # Agents overview
 
-> Related: [features](../features/agents-overview.md) · ADR-0001 (single type source) · ADR-0002 (dual seam)
+> Related: [features](../features/agents-overview.md) · ADR-0001 (single type source) · ADR-0002 (dual seam) · ADR-0037 (Antigravity CLI side)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01. Each section's component-level requirements and boundaries live in its own
 > spec (subagents-view / memory-view / plugins-view / token-stats / skill-install); this document
@@ -111,6 +111,71 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - G3 The third summary card follows A2/A3 like the others; installing a Grok skill into a project
   lands in the project's own .grok/skills (the same copy semantics as the other sides).
 
+## The Antigravity CLI side
+
+### agents-overview::CON-004 The Antigravity side's name and colour (direct acceptance)
+
+Applies to: every place the interface names or colours a side. The Antigravity CLI side is called
+**Antigravity**: that full name where sides are named in full (hover layers, the side dropdown, a
+session page's meta line), the badge **AG** where sides are badged, and the uppercase chip
+**ANTIGRAVITY** where sides are chipped (side cards, a project's header, the stale note). Its colour is
+the Google provider colour (ADR-0021); its badge pair is fill #dde7fb with text #3563b5 in the light
+appearance and fill #1f2e49 with text #96b9f3 in the dark, varying with appearance and not with colour
+scheme, like the other side colours. Documents keep "Antigravity CLI", to tell it from the desktop app
+and the IDE (ADR-0037).
+
+### agents-overview::REQ-003 The Antigravity side on the agents page
+
+- agents-overview::REQ-003/AC-01: A summary card for the side: detected when agy's data root exists
+  (A1, A2); its figure is the side's usage in the selected window; its third line is the side's project
+  count, global skill count and subagent count (B2), each by the same accounting as its section.
+- agents-overview::REQ-003/AC-02: When the scan left Antigravity conversations unread
+  ([token-stats::REQ-004](token-stats.md)), the card's third line reads "N conversations couldn't be
+  read" in the warning colour instead, with a tooltip saying that agy may have changed its conversation
+  format in an update and that their usage is not counted; the figure above it stays. A count of zero
+  shows the usual third line. (Placement: the owner's ruling of 2026-10-28.)
+- agents-overview::REQ-003/AC-03: The Skills, Subagents and Plugins sections gain the side as
+  [skills-view::REQ-001](skills-view.md), [subagents-view::REQ-001](subagents-view.md) and
+  [plugins-view::REQ-001](plugins-view.md) define; the Memory section shows nothing for it
+  ([memory-view](memory-view.md), Out of Scope).
+- agents-overview::REQ-003/AC-04: The MCP section's Antigravity group lists the servers in agy's global
+  MCP file (`~/.gemini/config/mcp_config.json`), a server marked disabled carrying the disabled pill,
+  and the servers bundled with its effectively enabled plugins, under the name agy gives them
+  (`<plugin>_<server>`, measured) and marked as coming from that plugin. A project's own
+  `.agents/mcp_config.json` is shown nowhere: agy was not observed to load it (ADR-0037).
+
+### agents-overview::REQ-004 Configuration shows CLAUDE.md and AGENTS.md
+
+Applies to: the Configuration section of the agents page ([project-detail::REQ-002](project-detail.md)
+governs the project page's).
+
+- agents-overview::REQ-004/AC-01: The section has two entries, CLAUDE.md and AGENTS.md, not grouped by
+  side (ADR-0037).
+- agents-overview::REQ-004/AC-02: CLAUDE.md is `~/.claude/CLAUDE.md`.
+- agents-overview::REQ-004/AC-03: AGENTS.md renders, one after another, every global AGENTS.md a side
+  was observed to load that exists — `~/.codex/AGENTS.md`, `~/.gemini/AGENTS.md`,
+  `~/.gemini/config/AGENTS.md`, in that order (agy loads both of its own, the root one first, measured)
+  — each headed by its path. When none exists the entry shows "None".
+- agents-overview::REQ-004/AC-04: The Codex `config.toml` summary is removed, and no settings summary is
+  shown for any side.
+- agents-overview::REQ-004/AC-05: agy's GEMINI.md files and its rules are shown nowhere; Grok's global
+  AGENTS.md is not added, there being no sample of it.
+
+### Failure modes and boundaries: the Antigravity side on the agents page
+
+- agy installed but never used (data root present, no conversation, no trusted folder): the card is
+  detected with zero usage and zero counts (A9 in the projects-list spec).
+- An automatic update of agy breaks the format: the card's third line turns into the unreadable count
+  at the next scan and back once the count returns to zero; the usage figure shows what could be read.
+- One of the three global AGENTS.md files cannot be read: its slot shows the read error under its path
+  and the others render (B5); all three absent → "None".
+- `~/.gemini/GEMINI.md` exists and no AGENTS.md does: the AGENTS.md entry shows "None"
+  (agents-overview::REQ-004/AC-05).
+- A global MCP file that does not parse: the Antigravity group shows no servers from it, the plugin
+  servers still list, and the other sides are unaffected (the per-side degradation rule).
+- Copy never enumerates the sides as a closed set: the unreadable notice names only this side's own
+  conversations, and the configuration entries are named by file, not by side.
+
 ## Startup restoration requirements
 
 ### agents-overview::REQ-001 Restore the previous snapshot
@@ -220,6 +285,13 @@ and corruption degradation and snapshot assembly; the contract validation round 
 switching through every section renders with no main-process errors (adding a section requires
 updating the tab count assertion).
 
+The Antigravity side (agents-overview::CON-004, agents-overview::REQ-003, agents-overview::REQ-004) is
+tested on the same seams: the providers layer over a fixture home holding agy's data root, an
+unreadable conversation, a global MCP file with a disabled server and an enabled plugin's servers, and
+any subset of the three global AGENTS.md files; e2e reads the side card's third line in both states
+and the AGENTS.md entry with two files, three and none. The badge pair's values in both appearances
+are asserted where the other side colours are.
+
 The skeleton (A4 family) is tested at the e2e seam: an environment-injected delay holds the first
 scan open (the same injection family as the rescan intervals), so the skeleton window is a stable
 state rather than a race. Assertions are render-level, not existence-level: the placeholder blocks
@@ -236,3 +308,5 @@ the snapshot arrives (the same discipline as the project list's floating-layer a
 - Live file watching (startup scan + the automatic rescans only).
 - A dedicated first-scan error state (A4d keeps the skeleton and lets the rescan triggers retry).
 - Making a first installation or a cleared user-data directory show history before its first scan: no saved display data exists in that case.
+- Settings summaries of any side (the Codex `config.toml` summary and the Claude project settings
+  summary were removed on 2026-10-28, ADR-0037), and agy's GEMINI.md files and rules.

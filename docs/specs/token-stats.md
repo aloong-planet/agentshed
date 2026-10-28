@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records)
+> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases (the
 > accounting decisions are in the ADRs and are not restated here).
@@ -356,7 +356,7 @@ overnight froze `scannedAt` and today's data was not shown)**
   undated rows on real data across all three sides, and the row sums matched the side totals exactly
   on all three, so the change is neutral on today's data and load-bearing the day it is not.
 - G8 The composition cuts the selected window's total into the three cross-side comparable buckets —
-  `input + cacheWrite` / `output` / `cacheRead` — which carry one meaning each on all three sides and
+  `input + cacheWrite` / `output` / `cacheRead` — which carry one meaning each on every side and
   sum exactly to the total (the invariant in CONTEXT.md). It is rendered **below the totals and
   outside any card**: it decomposes the same number the side figures decompose, by a different axis,
   so the two are siblings rather than one being contained in the other.
@@ -496,6 +496,127 @@ step that crosses midnight waits for that tick and the render after it, not for 
 G2/G3/G6/G7/G11/G13, D1/D10, C10/C11/C20 and E2–E4 are in-scope regressions; parser formulae and
 archive retention policy are not changed by this feature.
 
+## The Antigravity CLI side
+
+Antigravity CLI (`agy`) is the fourth agent side (ADR-0037). Each of its conversations is a SQLite
+database whose rows carry protobuf records, one usage record per model call; the schema is not
+published and is read from the descriptors embedded in agy 1.4.9. The facts below were measured on
+this machine on 2026-10-28, against real conversations in both of agy's sign-in modes, a fork, a
+rewind, a subagent and failed calls. Only the latest format is supported.
+
+### token-stats::CON-001 What the Antigravity CLI side reads (direct acceptance)
+
+Applies to: the Antigravity CLI side. Its conversations, settings and conversation titles are read
+only from agy's own data root, `~/.gemini/antigravity-cli`; its component and configuration files are
+read where agy loads them, as the component specs list. The Antigravity desktop app's and IDE's data
+roots (`~/.gemini/antigravity`, `~/.gemini/antigravity-ide`) are never read. A conversation is a
+`.db` file directly in the conversations directory (subagent conversations sit there too, measured);
+the log and shared-memory files beside it are not conversations. Only the supported format is read:
+user version 1, with the tables and columns usage is read from (the steps' index and metadata, the
+generator metadata's index and data, the trajectory metadata). Any other shape is unreadable
+(token-stats::REQ-004).
+
+### token-stats::CON-002 Reading agy's files writes nothing (direct acceptance)
+
+Applies to: every read of a file under agy's directories, the conversation databases and the title
+database included. A read creates, changes or deletes no file there — no journal, shared-memory or
+log file, and no checkpoint. A database with no write-ahead log beside it is read in place, opened as
+immutable; a database with a log beside it (agy has it open) is copied together with its log into this
+application's own temporary directory and read there, and the copy is removed afterwards. Measured
+2026-10-28: an ordinary read-only open of a WAL database leaves `-shm` and `-wal` files behind, and an
+immutable open of a database agy is writing misses the rows still in its log.
+
+### token-stats::REQ-003 Count Antigravity usage once per model call
+
+Applies to: every conversation database of the side, forks and subagent conversations included.
+
+- token-stats::REQ-003/AC-01: A model call counts once across every database of the side. Its identity
+  is its `response_id`, else its `provider_assigned_message_id`, else its `message_id` — signed-in
+  sessions carry the first, API-key sessions only the last (measured). agy records every call three
+  times in one database — the step's usage, the generator metadata's usage and the first entry of that
+  record's retry list — and the three count once.
+- token-stats::REQ-003/AC-02: A retry-list entry counts as a call of its own only when it carries token
+  counts and an identity different from the call it belongs to. A failed attempt without token counts
+  (a 429, a 503 or a timeout, measured) adds nothing.
+- token-stats::REQ-003/AC-03: The four fields are taken as recorded: input = input tokens, output =
+  output tokens, cache read = cache-read tokens, cache write = cache-write tokens. Thinking is already
+  inside output and is never added again; input already excludes cache reads and nothing is subtracted
+  from it. The total is the four fields summed, higher than agy's own total by exactly the cache reads
+  (ADR-0037), and the composition buckets keep G8's meanings.
+- token-stats::REQ-003/AC-04: The model is the generator metadata's `response_model` as agy records it,
+  never normalised (`gemini-3.8-flash-n` stays `gemini-3.8-flash-n`). A call without one counts toward
+  the total and enters no model bucket (the rule A6 and F3 apply on the other sides).
+- token-stats::REQ-003/AC-05: A call's day is its step's completion time, else its creation time, in
+  local time. A call with neither — a generator record with no step — is an undated row (G7).
+- token-stats::REQ-003/AC-06: A conversation made by `/fork` (or by switching the custom agent, which
+  forks) holds a copy of its parent's database. A step whose source names another conversation, and a
+  generator record attached only to such steps, is that conversation's usage and never the fork's: a
+  fork's figures hold only what it generated itself. When the conversation it was copied from is no
+  longer on this machine, those calls count nowhere live; past days keep them through the archive
+  (C10, C17) and the own day shows the lower figure.
+- token-stats::REQ-003/AC-07: A subagent conversation is one whose own trajectory metadata names a
+  parent conversation, or carries a nesting depth or a subagent spec. It is never recognised by where
+  its file sits, nor by its trajectory source, which is the same for subagents and main conversations
+  (measured). Its usage counts, and it stays out of the session list (the rule B3 and F5 apply).
+- token-stats::REQ-003/AC-08: A conversation's usage is credited to the project of the first folder its
+  trajectory metadata lists, presumed to be the directory agy was launched in. A folder that is not
+  registered contributes to the global figures only (A2's rule, ADR-0019).
+  > Pending: a real conversation spanning several folders has been observed, and the first folder it
+  > lists is the directory agy was launched in.
+- token-stats::REQ-003/AC-09: A database with no steps and no generator records contributes nothing and
+  is not unreadable. agy creates one each time its interface is opened, even when nothing is sent
+  (measured).
+
+### token-stats::REQ-004 Report Antigravity conversations that cannot be read
+
+- token-stats::REQ-004/AC-01: A conversation database that cannot be read in the supported format
+  (token-stats::CON-001) — it will not open, its user version, tables or columns differ, or a usage
+  record will not decode — is left out of every figure and every list, and counted.
+- token-stats::REQ-004/AC-02: The scan's count of unreadable conversations reaches the Antigravity side
+  card ([agents-overview::REQ-003/AC-02](agents-overview.md)); a count of zero shows no notice.
+- token-stats::REQ-004/AC-03: A read that fails while a log is beside the database, before or after
+  the read, is agy writing it rather than a format change: it is not counted, the conversation keeps
+  its last successful result, and it is read again at the next scan. A conversation never read
+  successfully contributes nothing until a read succeeds.
+- token-stats::REQ-004/AC-04: Leaving a conversation out lowers the live figures: past days keep their
+  archived figures (C10) and the own day shows the lower figure. The notice is the only signal.
+
+### Failure modes and boundaries: the Antigravity CLI side
+
+- agy is running a conversation while a scan reads it: the copy path (token-stats::CON-002) reads the
+  committed part of the log; a torn last frame is ignored by SQLite's own log checks, so the figures
+  lag at most one scan behind the conversation. agy exiting between the check and the copy merges and
+  deletes the log; the copy then finds none and the database alone holds everything.
+- agy starts writing a database that is being read in place: the read may fail; the log is now there,
+  so token-stats::REQ-004/AC-03 applies and the next scan reads it through the copy.
+- Rewind: agy deletes the rewound calls from the database (steps and generator records alike,
+  measured). The next scan's figures fall; a past day keeps its figure through C10 only if a scan saw
+  it first, and the own day shows the lower figure (C11).
+- Fork, then the parent is deleted from agy's resume list: token-stats::REQ-003/AC-06 — the copied calls
+  leave the live figures with the parent, and the fork's own figures do not change.
+- An automatic update of agy changes the format: new and rewritten conversations become unreadable and
+  are counted (token-stats::REQ-004); unchanged conversations keep their cached results, since their
+  files did not change.
+- Signed-in and API-key conversations on one machine: both identity orders resolve
+  (token-stats::REQ-003/AC-01); an API-key `message_id` has the same shape as a signed-in `response_id`,
+  and the two namespaces were not observed to collide.
+- A model id with a routing suffix (`-n`): kept as recorded (token-stats::REQ-003/AC-04), so the per-model
+  list can show names no other tool shows; accepted.
+- A model call agy runs on a Claude model reports cache writes; the four-field total includes them and
+  the CONTEXT.md invariant that treats cache writes as a Claude-only figure is amended when this side
+  ships.
+- Usage agy never writes to a database — the `/btw` side question (deleted once answered) and the Auto
+  mode's command reviewer — is not counted; this under-count is stated in the features page, not in the
+  interface.
+- The generator metadata holds each call's full prompt and can reach hundreds of megabytes in one
+  database: decoding skips those fields by their length prefix, and a scan never materialises them.
+- A zero-byte or non-SQLite `.db` file fails to open in the supported format and is counted as
+  unreadable (token-stats::REQ-004/AC-01).
+- The settings file or the data root is missing or corrupt: projects-list A1–A3 and A9 apply to this
+  side as to the others.
+- External content: the side's figures are numbers this application computes; no content from agy's
+  files is rendered by this feature (G14 holds).
+
 ## Implementation Decisions
 
 - **Global preference and derived window**: reuse the app-owned preference store and its validated
@@ -586,6 +707,21 @@ archive retention policy are not changed by this feature.
 - **Automatic refresh**: the trigger layer lives entirely in the main process (focus + timer, with
   parameters injected from the environment); the renderer gets no new channel (the existing snapshot
   push is reused); the cost of a rescan is absorbed by the incremental cache.
+- **Antigravity usage** (ADR-0037): the databases are opened through the runtime's built-in SQLite
+  module (available in Electron 43), under token-stats::CON-002. The records are decoded by field number
+  against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and skipping
+  the prompt fields by their length prefix; the extraction script and the descriptor set stay with the
+  research record so a drift can be re-checked. Calls are de-duplicated after the per-file results are
+  combined, since identity spans databases (token-stats::REQ-003/AC-01). A conversation's cache entry
+  is keyed by its path, the database's modification time and the log's presence, modification time and
+  size — never the database's size, which a checkpoint leaves unchanged (measured); a changed
+  conversation is re-read whole, as agy rewrites and truncates rows in place. The per-file aggregate
+  gains this side's variant, so the cache structure version is bumped in the same change; the usage
+  row already carries the side, so the archive format is unaffected. The side joins the agent-side
+  set, so typecheck enumerates every per-side producer and consumer (ADR-0020). Its models' provider
+  is inferred from the model name by the provider inference module (a Gemini model is Google's; a
+  Claude model run through agy is Anthropic's, D3), and its side colour is the Google provider colour
+  (ADR-0021).
 
 ## Testing Decisions
 
@@ -650,6 +786,22 @@ a duplicate response id, and a cold rollout equal to its plain twin. The ccusage
 its meaning for legacy data only: it compares days whose Codex rollouts carry no usage records and
 reports the record-bearing days separately as an expected divergence.
 
+The Antigravity side (token-stats::CON-001, token-stats::CON-002, token-stats::REQ-003,
+token-stats::REQ-004) is tested at the providers seam
+with fixture databases encoded through the embedded descriptors, their shapes taken from the real
+conversations of 2026-10-28 rather than imagined: the triple record of one call; an API-key call with a
+`message_id` only and a signed-in call with a `response_id`; a failed attempt without tokens and a retry
+with tokens and an identity of its own; a fork with and without its parent present; a database after a
+rewind; a subagent conversation; a generator record with no step (undated); an empty conversation; a
+database with a log beside it; and the unreadable shapes (another user version, a missing column, a
+record that will not decode). The two-sides-one-day case above is mandatory for this side too.
+token-stats::CON-002 is asserted at the filesystem: after a scan the fixture conversations directory
+holds the same files with the same modification times, with and without a log present. The field
+mapping and the de-duplication rest on the 2026-10-28 reconciliation in the research record, where 16
+de-duplicated calls across seven databases matched agy's own per-call usage output to the token, the
+differences explained by one rewound call and three subagent calls; that reconciliation needs real
+agy data and stays out of the default gate.
+
 
 The window aggregation (sequence G) is a **pure function from the row set plus a window to the four
 figures a view needs**, which is the same seam the trend and axis functions already use — the highest
@@ -698,3 +850,11 @@ moved and others did not — checking them one at a time would pass on a page th
   aggregation deliberately collapses.
 - ~~Rendering session contents (metadata only)~~ (2026-08-06: fully shipped by
   `docs/specs/session-view.md`, moved out of this spec's boundary).
+- Gemini CLI as a side (ADR-0037 option 2: deferred until usage through a paid Gemini API key or an
+  enterprise licence needs counting, when it would be a fifth side), and the Antigravity desktop app's
+  and IDE's data roots (ADR-0037 option 3).
+- agy's own cost and credit figures: not read, for the reason F4 gives.
+- Normalising Antigravity model names, or mapping agy's opaque model enumeration to names
+  (ADR-0037 option 7).
+- Recovering usage that a rewind deleted before any scan saw it: the database no longer holds it, and
+  the transcript's token fields carry no model and no call identity.

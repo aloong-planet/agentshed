@@ -52,7 +52,10 @@
      The interface language, light/dark and palette follow the settings prototype and the gallery's unified
        settings; the copy is drawn in Chinese and English, other languages show as English with a note. The
        copy two or more pages show comes from _shared/copy.js; mock data stays as written. Colours come from
-       _shared/theme.css; the app window's root styles are in _shared/app-window.css. -->
+       _shared/theme.css; the app window's root styles are in _shared/app-window.css. 
+     2026-10-28 (the fourth side, Antigravity; ADR-0037): an Antigravity conversation joins the mock (AG badge, agy's
+       own title, a fork with its copied history stripped), so its hits show how this side reads in the list.
+     -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -74,6 +77,7 @@
   .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px;flex:none}
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
+  .b.a{background:var(--ag-bg);color:var(--ag-fg)}
   .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none;display:inline-flex;align-items:center;gap:3px}
   .pill.fork{border:1px solid var(--line-strong);color:var(--text-2)}
   .pill.forkq{border:1px dashed var(--risk-border);color:var(--risk-fg)}
@@ -188,12 +192,15 @@
     'openclaw-v3': '~/CascadeProjects/openclaw-v3', Transfer: '~/CascadeProjects/Transfer',
     'AI-Learning': '~/CascadeProjects/AI-Learning', 'aloong-tools': '~/CascadeProjects/aloong-tools',
     'csv-debug-viewer': '~/CascadeProjects/csv-debug-viewer',
-    'removed-experiment-2025': '/Users/you/Projects/removed-experiment-2025'
+    'removed-experiment-2025': '/Users/you/Projects/removed-experiment-2025',
+    'agy-demo': '~/CascadeProjects/agy-demo'
   }
   const STALE = new Set(['removed-experiment-2025'])
   // b = side badge class, s = its label; fork = none | stripped | uncertain; d = days since last activity
   const SESS = [
     { p:'agentshed', b:'c', s:'CC', t:'全局搜索:跨项目搜会话提问', d:0, fork:'none' },
+    // Antigravity: agy's own title (English, as agy writes it); a fork, its copied history stripped
+    { p:'agy-demo', b:'a', s:'AG', t:'Rounding Percent Output', d:0, fork:'stripped' },
     { p:'Transfer', b:'c', s:'CC', t:'MAS 上架支持:构建线与独立 bundle id', d:3, fork:'none' },
     { p:'Transfer', b:'c', s:'CC', t:'屏幕录制权限 preflight 修复', d:5, fork:'none' },
     { p:'agentshed', b:'g', s:'GK', t:'Grok 接入:会话流与 summary.json', d:6, fork:'none' },
@@ -208,24 +215,25 @@
   const QUESTIONS = [
     { s:0, i:2, q:'搜索结果按会话平铺还是按项目分组?', d:0 },
     { s:0, i:7, q:'冷会话解压太慢了,问句能不能常驻内存', d:0 },
-    { s:1, i:1, q:'帮我看下 MAS 上架要改什么,现在的 electron-builder 配置能直接用吗?', d:3 },
-    { s:1, i:4, q:'沙箱权限为啥报错?entitlements 里 network.client 已经打开了', d:3 },
-    { s:1, i:5, q:'帮我把 notarize 脚本改成两条线各自一份', d:3 },
-    { s:1, i:9, q:'notarize 失败了,看下日志', d:3 },
-    { s:1, i:15, q:'这段接着上一段被压缩的对话继续:前面定了 MAS 上架拆成两条构建线、两个 bundle id 各自一份 entitlements,network.client 打开后沙箱报错也查过了,是旧的描述文件没删干净,DMG 那条线的签名身份也换成了团队证书;现在剩下的是 notarize 通过之后 stapler 一直报 Record not found,要不要改用 notarytool 的 --wait', d:3 },
-    { s:1, i:12, q:'notarize 通过了但 stapler 报 Record not found,是不是要等苹果那边同步?先别重试,把 xcrun notarytool log 的完整输出贴给我,我想看是哪一个二进制没签上', d:3 },
-    { s:2, i:3, q:'权限弹窗为啥不出来?TCC 那边要先 preflight 一次', d:5 },
-    { s:2, i:11, q:'签名和 notarize 分两步跑会不会有问题', d:5 },
-    { s:3, i:4, q:'签名公证那套 notarize 流程 Grok 这边用得上吗', d:6 },
-    { s:4, i:2, q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样', d:9 },
-    { s:4, i:5, q:'skills 的 frontmatter 字段两侧差在哪', d:9 },
-    { s:5, i:7, q:'网关拆出来之后权限怎么算,还要不要单独申请', d:10 },
-    { s:6, i:3, q:'RAG 的 chunk 大小怎么定,512 还是 1024', d:14 },
-    { s:6, i:12, q:'rag 评测为什么用 MRR 不用 recall@k', d:14 },
-    { s:7, i:2, q:'缓存打开之后 CI 会不会拿到旧的 node_modules', d:21 },
-    { s:8, i:1, q:'csv 大文件怎么分页预览,别一次读进内存', d:30 },
-    { s:9, i:3, q:'forge 的 notarize 插件和 builder 的有什么不同', d:45 },
-    { s:9, i:8, q:'osx-sign 的 entitlements 权限怎么继承', d:45 }
+    { s:1, i:1, q:'percent 现在返回整数百分比,改成保留一位小数', d:0 },
+    { s:2, i:1, q:'帮我看下 MAS 上架要改什么,现在的 electron-builder 配置能直接用吗?', d:3 },
+    { s:2, i:4, q:'沙箱权限为啥报错?entitlements 里 network.client 已经打开了', d:3 },
+    { s:2, i:5, q:'帮我把 notarize 脚本改成两条线各自一份', d:3 },
+    { s:2, i:9, q:'notarize 失败了,看下日志', d:3 },
+    { s:2, i:15, q:'这段接着上一段被压缩的对话继续:前面定了 MAS 上架拆成两条构建线、两个 bundle id 各自一份 entitlements,network.client 打开后沙箱报错也查过了,是旧的描述文件没删干净,DMG 那条线的签名身份也换成了团队证书;现在剩下的是 notarize 通过之后 stapler 一直报 Record not found,要不要改用 notarytool 的 --wait', d:3 },
+    { s:2, i:12, q:'notarize 通过了但 stapler 报 Record not found,是不是要等苹果那边同步?先别重试,把 xcrun notarytool log 的完整输出贴给我,我想看是哪一个二进制没签上', d:3 },
+    { s:3, i:3, q:'权限弹窗为啥不出来?TCC 那边要先 preflight 一次', d:5 },
+    { s:3, i:11, q:'签名和 notarize 分两步跑会不会有问题', d:5 },
+    { s:4, i:4, q:'签名公证那套 notarize 流程 Grok 这边用得上吗', d:6 },
+    { s:5, i:2, q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样', d:9 },
+    { s:5, i:5, q:'skills 的 frontmatter 字段两侧差在哪', d:9 },
+    { s:6, i:7, q:'网关拆出来之后权限怎么算,还要不要单独申请', d:10 },
+    { s:7, i:3, q:'RAG 的 chunk 大小怎么定,512 还是 1024', d:14 },
+    { s:7, i:12, q:'rag 评测为什么用 MRR 不用 recall@k', d:14 },
+    { s:8, i:2, q:'缓存打开之后 CI 会不会拿到旧的 node_modules', d:21 },
+    { s:9, i:1, q:'csv 大文件怎么分页预览,别一次读进内存', d:30 },
+    { s:10, i:3, q:'forge 的 notarize 插件和 builder 的有什么不同', d:45 },
+    { s:10, i:8, q:'osx-sign 的 entitlements 权限怎么继承', d:45 }
   ]
   const SEARCHED_PROJECTS = new Set(SESS.map((x) => x.p)).size
 

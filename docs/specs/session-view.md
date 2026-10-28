@@ -1,6 +1,6 @@
 # Session view
 
-> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer)
+> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0037 (Antigravity CLI side)
 > Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1); amended 2026-09-12 for atomic opening and cached revisits (P, UI decisions).
 
 > Startup restoration uses the original page prototypes confirmed on 2026-09-14.
@@ -678,6 +678,119 @@ invalidation and source rewrite. P1–P8, C4, C7, R1/R3 and the existing range-r
 boundaries are in-scope regressions. Parsing/source-format coverage outside those interactions is
 unchanged; export remains outside scope.
 
+## The Antigravity CLI side
+
+An Antigravity CLI session is one conversation (ADR-0037): its database holds the usage
+([token-stats::REQ-003](token-stats.md)), and its full transcript — `transcript_full.jsonl` in agy's
+per-conversation directory, a JSON line per step — holds the questions and turns, read by byte range
+and never used for tokens. The transcript facts below come from every transcript on this machine on
+2026-10-28: 104 lines in 15 conversations.
+
+### session-view::REQ-003 Antigravity sessions in the list
+
+Applies to: Antigravity conversations in a project's Sessions tab, its overview card and global search.
+
+- session-view::REQ-003/AC-01: A session is one conversation database, identified by its path, in the
+  project [token-stats::REQ-003/AC-08](token-stats.md) credits it to. A subagent conversation
+  ([token-stats::REQ-003/AC-07](token-stats.md)) gets no row of its own.
+- session-view::REQ-003/AC-02: A conversation with no question (session-view::REQ-004/AC-01) is not
+  listed and its tokens count (A3a). This covers the empty conversation agy creates each time its
+  interface is opened and nothing is sent, and a fork that has asked nothing of its own.
+- session-view::REQ-003/AC-03: The title is agy's own title for the conversation, from its conversation
+  summaries, falling back to the first indexed question when agy has none or its summaries cannot be
+  read — the priority rule the Codex and Grok sides follow (A4, G2; owner's ruling 2026-10-28). The
+  summaries are read under [token-stats::CON-002](token-stats.md).
+- session-view::REQ-003/AC-04: Last activity is the largest step timestamp in the conversation's database
+  (A1's "largest timestamp inside the file").
+- session-view::REQ-003/AC-05: The row's token figure is the conversation's own usage under
+  [token-stats::REQ-003](token-stats.md), a fork's copied calls excluded.
+- session-view::REQ-003/AC-06: A row carries the Antigravity side badge
+  ([agents-overview::CON-004](agents-overview.md)), and a fork's row carries the fork marker, as a
+  stripped Codex fork's does (session-view::REQ-005/AC-05).
+
+### session-view::REQ-004 Antigravity questions and turns
+
+Applies to: opening an Antigravity session, expanding its turns and searching it.
+
+- session-view::REQ-004/AC-01: A question is a user-input line, and its text is the body of the line's
+  user-request block; the blocks agy appends after it (additional metadata, a settings change) are not
+  part of the question. Every user-input line measured (24) carries the request block, followed by the
+  additional-metadata block and, in 13 of them, a settings change. A user-input line without a request block is listed whole, so that
+  nothing is lost (ADR-0036's rule); one whose request is empty is not a question. A system-message
+  line — agy's notices, a timer firing, a subagent's message — is never a question.
+- session-view::REQ-004/AC-02: A turn runs from its question's line to the next question's line (C1)
+  and is read by byte range (C2); opening a session reads only the questions' ranges, never the whole
+  transcript.
+- session-view::REQ-004/AC-03: A rewind leaves the undone lines in the transcript and writes the redo
+  under the same step indices (measured). A line whose step index is not greater than an earlier line's
+  starts a redo: every line from the first one carrying that index up to the redo is abandoned. An
+  abandoned question takes no number, is not listed, opens nothing and is not searched — the page shows
+  what the conversation finally became (B3).
+- session-view::REQ-004/AC-04: Inside a turn, an assistant-response line's text is prose and its
+  thinking renders as a thinking block: agy's thinking is plain text (19 of 44 assistant lines carry it,
+  measured), so this side is the first whose thinking block has content (C6). Each tool call — its name
+  and arguments — pairs with the result line that follows it, in order: the format carries no call id,
+  and each of the 24 measured calls is followed by exactly one result line. A result line's text is the
+  call's return, a failed or still-running call's included.
+- session-view::REQ-004/AC-05: A tool call named `invoke_subagent` is a subagent block (C3). Its
+  arguments are the dispatch; its return is the message the dispatched conversation sends back — the
+  system-message line whose sender is the conversation id the dispatch's result names — and never the
+  dispatch's own result, which only echoes that the subagent was created. The subagent's own steps
+  stay unattributed: its transcript is not read, since the read allow-list admits listed sessions only
+  (R1). A dispatch whose subagent sent nothing back (cancelled, measured) shows no return.
+- session-view::REQ-004/AC-06: A failed model call's error line renders as prose, as a failed call does
+  on the Claude side, where Claude Code writes it as assistant text (owner's ruling 2026-10-28). Every
+  other system-message line is harness noise and is not rendered (C8). A line of any type outside user
+  input, assistant response, tool result, system message and error leaves the unknown trace (C8).
+- session-view::REQ-004/AC-07: The turn volume counts tool calls other than `invoke_subagent`, and
+  subagent dispatches as `invoke_subagent` calls.
+- session-view::REQ-004/AC-08: A conversation whose transcript is missing — the empty conversation agy
+  creates has none (measured) — has no question. A line that will not parse is skipped without
+  discarding the rest of the file.
+- session-view::REQ-004/AC-09: A listed session's transcript path enters the read allow-list (R1);
+  the transcripts of subagent conversations do not.
+
+### session-view::REQ-005 Antigravity forks
+
+Applies to: a conversation made by agy's `/fork`, or by switching the custom agent, which forks.
+
+- session-view::REQ-005/AC-01: A fork is marked as one (owner's ruling 2026-10-28): its page opens with
+  the stripped-fork banner (B2's info level), saying it was forked from «parent title», that the copied
+  history was stripped and that only what follows the fork is shown, the parent's title linking to the
+  parent's page (P2).
+- session-view::REQ-005/AC-02: The parent is the conversation the fork's copied steps came from, named by
+  the source of the last copied step in the fork's database: copied steps keep the parent's
+  conversation id as their source, while the fork's own metadata names no parent (measured). The
+  parent's title follows session-view::REQ-003/AC-03.
+- session-view::REQ-005/AC-03: The question list holds only the fork's own questions. agy writes no
+  copied history into a fork's transcript (measured), so nothing is stripped from it and no fingerprint
+  check runs, unlike a Codex replay (B2).
+- session-view::REQ-005/AC-04: When the parent's database is no longer on this machine, the banner says
+  the session was forked from a session that is no longer on this machine, with no link; the rest of
+  the page is unchanged.
+- session-view::REQ-005/AC-05: The fork state reaches the session list, the hit groups and global search
+  as a stripped Codex fork's does; the uncertain state never arises on this side.
+
+### Failure modes and boundaries: Antigravity sessions
+
+- A session open while agy is still working in it: a snapshot update refetches the page by transfusion
+  (P5), and a changed transcript has its index rebuilt for that file only (C4).
+- agy rewrites a transcript when it compacts the context (its documented behaviour, not observed here):
+  the signature changes, the index is rebuilt (C4), and turn identities that no longer match are
+  refused rather than answered from the old offsets (session-view::REQ-001/AC-04).
+- A rewind while the session page is open: the next snapshot drops the abandoned question
+  (session-view::REQ-004/AC-03); an expanded turn whose identity no longer matches is not answered from
+  the old range (session-view::REQ-001/AC-04).
+- The parent of an open fork is deleted: after the next scan the banner switches to the no-longer-here
+  form (session-view::REQ-005/AC-04).
+- A fork of a fork (not observed): the parent named is the source of the last copied step, the
+  conversation the nearest copied content came from.
+- A subagent dispatched and later messaged again: its second message is a system-message line with the
+  same sender, inside whichever turn it arrives in; only a dispatch's own turn shows a return.
+- Introduced content: agy's prose holds markdown links to workspace files (`file://…`, in 10 of the 44
+  assistant lines measured). Prose renders as text on every side, so they show as written and nothing
+  in them can be clicked; no navigation surface is added. Titles from agy's summaries render as text.
+
 ## Implementation Decisions
 
 - **Judging a hit row** (session-view::REQ-002): by laying the row out before it is painted — the whole
@@ -823,8 +936,21 @@ font: CI lays the rows out in another. Where a moved row starts is a pure functi
 keyword, unit-tested in the renderer: characters outside the basic plane counted once, the keyword at the
 start, several occurrences.
 
+The Antigravity side (session-view::REQ-003, session-view::REQ-004, session-view::REQ-005) is tested at
+the providers seam with a fixture home holding conversation databases and transcripts shaped from the
+real ones of 2026-10-28: a conversation with tool calls and a permission-denied result; a subagent
+dispatch with its returned message and its own conversation (no row); a cancelled dispatch; a
+rewound and redone turn; a fork with its parent present and one with it gone; a failed first call
+with its error line; an empty conversation without a transcript; a conversation with agy's title and
+one whose summaries are missing. The offset index's fetch equals the turn a full parse yields, as on
+the other sides, and e2e opens an Antigravity fork from the Sessions tab and expands a turn.
+
 ## Out of Scope
 
+- agy's truncated transcript (`transcript.jsonl`) and the step payloads in its databases as sources of
+  turn contents (ADR-0037 option 10).
+- Rendering a subagent's own steps inside the dispatching turn: its transcript is not read
+  (session-view::REQ-004/AC-05).
 - Searching across projects — that is global search, a feature of its own ([global-search](global-search.md));
   this spec's search is within one project.
 - Unregistered projects' sessions.

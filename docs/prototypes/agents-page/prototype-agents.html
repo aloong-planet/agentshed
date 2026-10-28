@@ -57,8 +57,24 @@
        placeholder like <slug> shows as written (the shared md-preview rule for every rendered surface). The body's
        read states (loading, could not read, empty file)
        show inside the same frame. Mock file contents follow the shape of real memory files.
+     2026-10-28 (the fourth side, Antigravity; ADR-0037): every place a side is named gains Antigravity — its
+       side card (badge ANTIGRAVITY, Google blue), the trend chart's side switch, the by-model rows (its model names
+       as agy records them, e.g. gemini-3.8-flash-n), a fourth badge slot in the Skills list (CC CX GK AG; the GK
+       slot was already in the app and is drawn here for the first time), its global and plugin-bundled skills,
+       its subagents (Markdown definitions, AG badge; the drawer's side switch gains Antigravity), its plugins
+       (grouped like the others, enabled / not enabled, bundled skills / subagents / MCP servers — rules are not
+       shown) and its MCP servers (the global mcp_config.json, plugin-bundled ones, a disabled one marked).
+       Memory shows nothing for Antigravity: no sample exists to ground a reader on.
+       Decided by the owner (2026-10-28): when agy conversations cannot be read, the Antigravity side card's
+       third line becomes a warning-coloured line with the count, and the figure above it stays. The
+       configuration tab no longer distinguishes sides: two entries, CLAUDE.md (~/.claude/CLAUDE.md) and
+       AGENTS.md — every global AGENTS.md Codex or agy loads that exists (~/.codex/AGENTS.md, ~/.gemini/AGENTS.md,
+       ~/.gemini/config/AGENTS.md), one after another, each headed by its path; "None" when none exists. The
+       config.toml summary is removed.
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
-       页面内容流)承载四组开关,按分栏出现——「启动」四档常驻(骨架 / 扫描中 / 完成 / 失败,共享件
+       页面内容流)承载六组开关,按分栏出现——「Antigravity unreadable」两态常驻(none / 3 conversations;
+       真实判定 = 读 agy 会话库时失败的个数);「AGENTS.md files」三态仅在配置分栏出现(two / three / none;
+       真实判定 = 这三个路径上哪些文件存在);以及下列原有的四组——「启动」四档常驻(骨架 / 扫描中 / 完成 / 失败,共享件
        _shared/startup-status;真实判定 = 渲染器是否已收到首个快照与扫描的结果;选骨架时其余各组隐去,它们
        演示的都是已载入的内容);「用量」三态常驻(有数据 / 本日无用量 / 全空;
        第二态是最容易漏掉却最常见的那个:早上打开时本日为 0 而历史不为 0,形态与全空不同——侧卡仍报
@@ -109,7 +125,11 @@
      故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
+  .b.a{background:var(--ag-bg);color:var(--ag-fg)}
   .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
+  /* A side card's third line when that side has conversations it could not read: the count in the warning
+     colour, in place of the summary */
+  .stat .s.side-warn{color:var(--warn-fg)}
   .tabs{display:flex;gap:2px}
   .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
   .tab:hover{color:var(--text)}
@@ -121,7 +141,7 @@
   .it:last-child{border-bottom:0}
   .it .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;width:180px;flex:none}
   .it .ds{flex:1;min-width:0;color:var(--text-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bdg{display:flex;gap:3px;flex:none;width:74px}
+  .bdg{display:flex;gap:3px;flex:none;width:96px}
   .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none}
   .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
   .pill.on{background:var(--ok-bg);color:var(--ok-fg)}
@@ -136,6 +156,10 @@
     line-height:1.75;font-size:12.5px;max-height:52vh;overflow:auto}
   .md h3{font-size:13px;margin-bottom:6px}
   .md code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
+  /* The AGENTS.md entry renders several files one after another; each starts with its path */
+  .md .cfg-path{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2);margin:16px 0 6px;
+    padding-top:12px;border-top:1px solid var(--line)}
+  .md .cfg-path:first-child{margin-top:0;padding-top:0;border-top:0}
   .none{color:var(--text-2);padding:16px;text-align:center;font-size:12px}
   .chart{height:130px}
   .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;margin-left:auto}
@@ -222,7 +246,7 @@
       <div data-p="token">
         <!-- Global span proposal: inline choices, remembered across prototype pages and reloads. Drawn in Chinese and English; other languages show as English. -->
         <div class="grp-t trend-heading"><span class="trend-span-label"><span data-i18n="trendPrefix">近</span> <span class="trend-span-options" id="tspan" role="group" aria-label="趋势天数" data-i18n-aria="trendDays"></span> <span data-i18n="trendSuffix">天趋势</span></span><span data-i18n="trendContext">(本地时区 · 日粒度 · 跨全部项目)</span>
-          <span class="seg" id="tseg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
+          <span class="seg" id="tseg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span><span>Antigravity</span></span></div>
         <div class="chart" id="chart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="txaxis"></div>
         <div class="legend" id="tlegend"></div>
@@ -236,32 +260,42 @@
       <div data-p="skills" style="display:none">
         <div class="grp-t"><span data-i18n="skillsHint">合并单列 · 徽标=该侧是否存在 · 来源:全局库(可装卸)/ 插件(只读)</span>
           <span class="jump" data-goto="skill-install/install" data-goto-href="../skill-install/prototype-install.html">装卸交互演示 ↗</span></div>
+        <!-- One badge slot per side, in the side order (CC CX GK AG); a dash where the side lacks the entry.
+             Antigravity's global library is two directories (its own and the one it shares with its desktop app),
+             listed as one; its built-in skills are not listed. Its plugin-bundled skills are namespaced like
+             Claude's. -->
         <div class="card">
           <div class="it"><span class="nm">tdd</span>
-            <span class="bdg"><span class="b c">CC</span><span class="b x">CX</span></span>
-            <span class="diff" data-i18n="sidesDiffer">两侧有差异</span><span class="ds">红先于绿,覆盖来自 spec 失败模式节</span></div>
+            <span class="bdg"><span class="b c">CC</span><span class="b x">CX</span><span class="b miss">—</span><span class="b a">AG</span></span>
+            <span class="diff" data-i18n="sidesDiffer">各侧有差异</span><span class="ds">红先于绿,覆盖来自 spec 失败模式节</span></div>
           <div class="it"><span class="nm">grilling</span>
-            <span class="bdg"><span class="b c">CC</span><span class="b x">CX</span></span>
-            <span class="diff" data-i18n="sidesDiffer">两侧有差异</span><span class="ds">按依赖分批的需求逼问</span></div>
+            <span class="bdg"><span class="b c">CC</span><span class="b x">CX</span><span class="b g">GK</span><span class="b miss">—</span></span>
+            <span class="diff" data-i18n="sidesDiffer">各侧有差异</span><span class="ds">按依赖分批的需求逼问</span></div>
           <div class="it"><span class="nm">decision-form</span>
-            <span class="bdg"><span class="b miss">—</span><span class="b x">CX</span></span>
+            <span class="bdg"><span class="b miss">—</span><span class="b x">CX</span><span class="b miss">—</span><span class="b miss">—</span></span>
             <span class="ds">批量决策外部表单(含渲染器脚本)</span></div>
           <div class="it"><span class="nm">review-code</span>
-            <span class="bdg"><span class="b c">CC</span><span class="b miss">—</span></span>
+            <span class="bdg"><span class="b c">CC</span><span class="b miss">—</span><span class="b miss">—</span><span class="b miss">—</span></span>
             <span class="ds">四层法 review</span></div>
           <div class="it"><span class="nm">github-ops</span>
-            <span class="bdg"><span class="b c">CC</span><span class="b x">CX</span></span>
+            <span class="bdg"><span class="b c">CC</span><span class="b x">CX</span><span class="b miss">—</span><span class="b miss">—</span></span>
             <span class="pill ln" data-i18n="pillSymlink">软链</span><span class="ds">GitHub 产出规范(无 AI 署名)</span></div>
+          <div class="it"><span class="nm">release-notes</span>
+            <span class="bdg"><span class="b miss">—</span><span class="b miss">—</span><span class="b miss">—</span><span class="b a">AG</span></span>
+            <span class="ds">从 git log 起草发布说明(Antigravity 全局库)</span></div>
           <div class="it"><span class="nm">chrome-devtools-mcp:a11y-debugging</span>
-            <span class="bdg"><span class="b c">CC</span><span class="b miss">—</span></span>
+            <span class="bdg"><span class="b c">CC</span><span class="b miss">—</span><span class="b miss">—</span><span class="b miss">—</span></span>
             <span class="pill plg" data-i18n="pillPlugin">插件</span><span class="ds">有效启用插件的内含 skill(命名空间调用,无装卸按钮)</span></div>
           <div class="it"><span class="nm">chrome-devtools-mcp:troubleshooting</span>
-            <span class="bdg"><span class="b c">CC</span><span class="b miss">—</span></span>
+            <span class="bdg"><span class="b c">CC</span><span class="b miss">—</span><span class="b miss">—</span><span class="b miss">—</span></span>
             <span class="pill plg" data-i18n="pillPlugin">插件</span><span class="ds">与磁盘同名 skill 并存互不遮蔽(命名空间隔离)</span></div>
+          <div class="it"><span class="nm">flutter:dart-add-unit-test</span>
+            <span class="bdg"><span class="b miss">—</span><span class="b miss">—</span><span class="b miss">—</span><span class="b a">AG</span></span>
+            <span class="pill plg" data-i18n="pillPlugin">插件</span><span class="ds">Antigravity 插件 flutter 的内含 skill(命名空间调用,无装卸按钮)</span></div>
         </div>
       </div>
       <div data-p="subagents" style="display:none">
-        <div class="grp-t" data-i18n="subagentsHint">双端合并单列 · 同名一行(格式异构,不做内容 diff) · 点条目开抽屉看完整定义</div>
+        <div class="grp-t" data-i18n="subagentsHint">各侧合并单列 · 同名一行(格式异构,不做内容 diff) · 点条目开抽屉看完整定义</div>
         <div class="card" id="salist"></div>
       </div>
       <div data-p="memory" style="display:none">
@@ -283,6 +317,11 @@
             <span class="ds" data-i18n="cacheOnlySameName">仅缓存枚举(与 Claude 组同名条目各自成行)</span></div>
         </div>
         <div class="note" data-i18n="codexFoot">Codex 组仅列缓存中存在的插件(名称/marketplace/版本);启用态与内含组件语义本期不建模。</div>
+        <!-- Antigravity's plugins are global (installed into the configuration it shares with its desktop app);
+             enablement is its own record, absent = enabled. Bundled rules are not listed: rules are shown
+             nowhere (ADR-0037). -->
+        <div class="grp-t"><span class="b a">ANTIGRAVITY</span></div>
+        <div class="card" id="plistAg"></div>
       </div>
       <div data-p="mcp" style="display:none">
         <div class="grp-t"><span class="b c">CLAUDE CODE</span><span data-i18n="globalMcp">全局 MCP</span></div>
@@ -299,16 +338,25 @@
           <div class="it"><span class="nm">computer-use</span><span class="src">config.toml</span>
             <span class="ds">[mcp_servers.computer-use]</span></div>
         </div>
+        <!-- Antigravity: its global mcp_config.json and the servers its enabled plugins bring (named
+             <plugin>_<server>, as agy names them). A server the file marks disabled keeps its row. -->
+        <div class="grp-t"><span class="b a">ANTIGRAVITY</span>~/.gemini/config/mcp_config.json</div>
+        <div class="card">
+          <div class="it"><span class="nm">sqlite-explorer</span><span class="src">mcp_config.json</span>
+            <span class="ds">node /usr/local/bin/sqlite-mcp-server.js</span></div>
+          <div class="it"><span class="nm">github</span><span class="src">mcp_config.json</span>
+            <span class="pill off" data-i18n="mcpDisabled">已停用</span><span class="ds">https://api.githubcopilot.com/mcp/</span></div>
+          <div class="it"><span class="nm">flutter_dart-mcp-server</span><span class="src" data-i18n="srcPlugin">plugin 自带</span>
+            <span class="ds" data-i18n="mcpFromFlutter">来自 flutter 插件</span></div>
+        </div>
       </div>
+      <!-- Two entries, not by side (owner's ruling, 2026-10-28): CLAUDE.md, and AGENTS.md rendering every global
+           AGENTS.md that exists, each headed by its path. The file names are names, not copy. -->
       <div data-p="cfg" style="display:none">
         <div class="cfg-switch" id="cfgs">
-          <span class="on" data-cfg="cl" data-i18n="cfgClaudeMd">全局 CLAUDE.md</span><span data-cfg="cx" data-i18n="cfgAgentsMd">全局 AGENTS.md</span><span data-cfg="toml" data-i18n="cfgToml">config.toml 摘要</span>
+          <span class="on" data-cfg="claude">CLAUDE.md</span><span data-cfg="agents">AGENTS.md</span>
         </div>
-        <div class="md" id="cfgbody">
-          <h3># 全局 CLAUDE.md</h3>
-          <p>- always use pnpm as package management tool for js projects.</p>
-          <p>- 开发新功能:八步流程(骨架)……(只读渲染,滚动容器内)</p>
-        </div>
+        <div class="md" id="cfgbody"></div>
       </div>
     </div>
   </div>
@@ -331,7 +379,7 @@
     </div>
     <div class="body">
       <div class="grp-t trend-heading"><span class="trend-span-label"><span data-i18n="trendPrefix">近</span> <span class="trend-span-options" id="skTspan" role="group" aria-label="趋势天数" data-i18n-aria="trendDays"></span> <span data-i18n="trendSuffix">天趋势</span></span><span data-i18n="trendContext">(本地时区 · 日粒度 · 跨全部项目)</span>
-        <span class="seg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
+        <span class="seg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span><span>Antigravity</span></span></div>
       <!-- 灰柱直接是图表容器的子项,与真实的柱子同样排布 -->
       <div class="chart" id="skChart" data-shared-block="trend-chart"></div>
       <!-- x 轴与图例也要占位:载入后这两行会出现,骨架不预留的话填充时下方内容会跳一次 -->
@@ -352,6 +400,21 @@
   <div data-demo-harness id="harness">
     <span class="dh-tag">Demo ·</span>
     <span data-startup-controls></span>
+    <div class="dh-group" id="demoUnread">
+      <span class="dh-title">Antigravity unreadable</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-u="0" aria-pressed="true">none</button>
+        <button type="button" class="dh-opt" data-u="3" aria-pressed="false">3 conversations</button>
+      </div>
+    </div>
+    <div class="dh-group" id="demoAgentsMd" hidden>
+      <span class="dh-title">AGENTS.md files</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-am="two" aria-pressed="true">two exist</button>
+        <button type="button" class="dh-opt" data-am="three" aria-pressed="false">all three</button>
+        <button type="button" class="dh-opt" data-am="none" aria-pressed="false">none</button>
+      </div>
+    </div>
     <div class="dh-group" id="demoUsage">
       <span class="dh-title">用量</span>
       <div class="dh-opts">
@@ -379,6 +442,8 @@
       </div>
     </div>
     <p class="dh-note">启动各档在 app 里由渲染器是否已收到这次启动的首个快照、以及扫描的结果决定;app 内没有这个开关。</p>
+    <p class="dh-note" id="demoUnreadNote">The Antigravity unreadable count comes from the conversation databases the scan could not read. The app has no such switch.</p>
+    <p class="dh-note" id="demoAgentsMdNote" hidden>Which AGENTS.md files show depends on which of ~/.codex/AGENTS.md, ~/.gemini/AGENTS.md and ~/.gemini/config/AGENTS.md exist. The app has no such switch.</p>
     <p class="dh-note" id="demoUsageNote">用量三态在 app 里由本机记下的 token 用量决定(有没有记录、本日有没有用量);app 内没有这个开关。</p>
     <p class="dh-note" id="demoMfReadNote" hidden>The memory file read states come from reading the file the drawer opens; they apply to every file here. The app has no such switch.</p>
     <p class="dh-note" id="demoCxmemNote" hidden>Codex 记忆四态在 app 里由 Codex 的 config.toml features.memories 与记忆目录里的文件决定;app 内没有这个开关。</p>
@@ -398,8 +463,8 @@ const T = {
     noModelUsage:'该窗口内没有模型用量',
     trendContext:'(本地时区 · 日粒度 · 跨全部项目)',
     skillsHint:'合并单列 · 徽标=该侧是否存在 · 来源:全局库(可装卸)/ 插件(只读)',
-    sidesDiffer:'两侧有差异',
-    subagentsHint:'双端合并单列 · 同名一行(格式异构,不做内容 diff) · 点条目开抽屉看完整定义',
+    sidesDiffer:'各侧有差异',
+    subagentsHint:'各侧合并单列 · 同名一行(格式异构,不做内容 diff) · 点条目开抽屉看完整定义',
     parseFailed:'解析失败', unreadable:'不可读',
     noDescription:'(无 description)', degraded:'降级条目',
     errToml:'toml 解析失败(损坏或语法错误);Codex 本身也不会加载它。其余条目不受影响。',
@@ -421,8 +486,10 @@ const T = {
     codexFoot:'Codex 组仅列缓存中存在的插件(名称/marketplace/版本);启用态与内含组件语义本期不建模。',
     globalMcp:'全局 MCP', mcpFromPlugin:'来自 chrome-devtools-mcp 插件',
     globalMcpServers:'(全局 mcpServers)', mcpEmpty:'当前为空——项目级 .mcp.json 的归属在项目详情',
-    cfgClaudeMd:'全局 CLAUDE.md', cfgAgentsMd:'全局 AGENTS.md', cfgToml:'config.toml 摘要',
-    tomlProjects:(n)=>`共 ${n} 条`, tomlMcp:(n)=>`${n} 段(只读摘要)`
+    mcpDisabled:'已停用', mcpFromFlutter:'来自 flutter 插件',
+    unreadableConvs:(n)=>`${n} 个对话读不出`,
+    unreadableTip:'agy 自动更新后会话格式可能变了;这些对话的用量没有计入',
+    secAgents:'内含 subagents', fromMarketplace:(m)=>`来自 ${m}`
   },
   en: { ...SharedCopy.en,
     winAll:'Total · all history', winToday:'Today', winD7:'Last 7 days',
@@ -434,7 +501,7 @@ const T = {
     trendContext:'(local time zone · daily · across all projects)',
     skillsHint:'Merged into one list · badge = present on that side · source: global library (installable) / plugin (read-only)',
     sidesDiffer:'Sides differ',
-    subagentsHint:'Both sides merged into one list · same name on one row (formats differ; no content diff) · click a row to open its full definition in a drawer',
+    subagentsHint:'Sides merged into one list · same name on one row (formats differ; no content diff) · click a row to open its full definition in a drawer',
     parseFailed:'Parse failed', unreadable:'Unreadable',
     noDescription:'(no description)', degraded:'Degraded entry',
     errToml:'Failed to parse the toml (corrupt or a syntax error); Codex itself will not load it either. Other entries are unaffected.',
@@ -456,8 +523,10 @@ const T = {
     codexFoot:'The Codex group lists only plugins present in the cache (name / marketplace / version); enablement state and bundled-component semantics are not modelled in this release.',
     globalMcp:'Global MCP', mcpFromPlugin:'From the chrome-devtools-mcp plugin',
     globalMcpServers:'(global mcpServers)', mcpEmpty:'Currently empty — project-level .mcp.json belongs to the project details',
-    cfgClaudeMd:'Global CLAUDE.md', cfgAgentsMd:'Global AGENTS.md', cfgToml:'config.toml summary',
-    tomlProjects:(n)=>`${n} in total`, tomlMcp:(n)=>`${n} ${plural(n,'section','sections')} (read-only summary)`
+    mcpDisabled:'Disabled', mcpFromFlutter:'From the flutter plugin',
+    unreadableConvs:(n)=>`${n} ${plural(n,'conversation','conversations')} couldn’t be read`,
+    unreadableTip:'agy may have changed its conversation format in an update; their usage is not counted',
+    secAgents:'Bundled subagents', fromMarketplace:(m)=>`From ${m}`
   }
 };
 let LANG = DemoDimensions.get('language');
@@ -477,15 +546,21 @@ function applyI18n(){
 const SIDES = [
   { id:'cl', cls:'c', name:'CLAUDE CODE', on:true, n:[46,26,5] },
   { id:'cx', cls:'x', name:'CODEX',       on:true, n:[18,23,4] },
-  { id:'gk', cls:'g', name:'GROK',        on:true, n:[3,7,1] }
+  { id:'gk', cls:'g', name:'GROK',        on:true, n:[3,7,1] },
+  { id:'ag', cls:'a', name:'ANTIGRAVITY', on:true, n:[4,9,3] }
 ];
 // 四个时间窗口 = 四张卡 = 时间筛选器本身。days 同时喂给趋势图(压暗窗口外的日子);null=不压暗
 const RANGES = [
-  { id:'all', days:null, side:[9191526594,2441689686,694099983] },
-  { id:'d1',  days:1,    side:[  61400000,  14200000,   3900000] },
-  { id:'d7',  days:7,    side:[ 372400000,  96300000,  31200000] },
-  { id:'d30', days:30,   side:[1523400000, 402100000, 118600000] }
+  { id:'all', days:null, side:[9191526594,2441689686,694099983,386400000] },
+  { id:'d1',  days:1,    side:[  61400000,  14200000,   3900000,  9800000] },
+  { id:'d7',  days:7,    side:[ 372400000,  96300000,  31200000, 41200000] },
+  { id:'d30', days:30,   side:[1523400000, 402100000, 118600000, 96500000] }
 ];
+// The demo's count of Antigravity conversations the scan could not read (the harness sets it)
+let UNREAD = 0;
+// The configuration tab's open entry, and which global AGENTS.md files the demo says exist (two = Codex's and
+// agy's config one; the root one is missing). Declared here because the harness syncs before the tab is drawn.
+let CFG = 'claude', AGMD = 'two';
 /** 窗口卡的标签;第四张随全局趋势天数(30 / 60 / 90)变 */
 const winLabel = (ri) => {
   const r = RANGES[ri];
@@ -501,7 +576,10 @@ const MODELS = [
   { nm:'gpt-5.5-codex',    cls:'openai',    v:[2000000000, 11700000,  79000000, 331000000] },
   { nm:'gpt-5.5',          cls:'openai',    v:[ 441689686,  2500000,  17300000,  71100000] },
   { nm:'grok-4.6-build',   cls:'xai',       v:[ 524099983,  3900000,  24600000,  92000000] },
-  { nm:'grok-4.5-build',   cls:'xai',       v:[ 170000000,        0,   6600000,  26600000] }
+  { nm:'grok-4.5-build',   cls:'xai',       v:[ 170000000,        0,   6600000,  26600000] },
+  // Antigravity's model names as agy records them (response_model), suffix included — not normalised
+  { nm:'gemini-3.8-flash-n', cls:'google',  v:[ 268000000,  7400000,  30900000,  70200000] },
+  { nm:'gemini-3.6-flash',   cls:'google',  v:[ 118400000,  2400000,  10300000,  26300000] }
 ];
 // 构成三段占该窗口总量的比例(未命中输入 / 输出 / cache 读)。顺序对齐 RANGES,每行恰好加总为 1——
 // 三段之和就是总量,这是这个切法唯一的理由,mock 里也不能破。刻意让比例随窗口变:近期 cache 命中率
@@ -551,11 +629,16 @@ function renderTotals(){
      }).join('')}</div>${compBlock()}`;
   // 各侧的量并进各自的侧卡(不再单列一行):同一个侧别标签在相邻两行出现两遍是纯重复,
   // 而"这一侧用了多少"本就属于"这一侧装了什么"那张卡的中间行。数字随选中窗口变。
+  // The third line carries the side's summary, or — for Antigravity with conversations it could not read —
+  // that count in the warning colour; the figure above stays (owner's ruling, 2026-10-28)
+  const third = (s) => !s.on ? '<div class="s">—</div>'
+    : s.id === 'ag' && UNREAD > 0 ? `<div class="s side-warn" title="${tr().unreadableTip}">${tr().unreadableConvs(UNREAD)}</div>`
+    : `<div class="s">${tr().sideSummary(...s.n)}</div>`;
   document.getElementById('sideCards').innerHTML = SIDES.map((s,i)=>
     `<div class="stat">
       <div class="k"><span class="b ${s.cls}">${s.name}</span>${s.on?tr().detected:tr().undetected}</div>
       <div class="v">${s.on?fmt(sideOf(RANGE,i)):'—'}</div>
-      <div class="s">${s.on?tr().sideSummary(...s.n):'—'}</div></div>`).join('');
+      ${third(s)}</div>`).join('');
 }
 
 function renderModels(){
@@ -601,11 +684,11 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg', span: 'tspan' },
     window.__trendDays
   )
-  const spanModelShares = MODELS.map(m => m.v[3] / RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]])
+  const spanModelShares = MODELS.map(m => m.v[3] / RANGES[3].side[{anthropic:0, openai:1, xai:2, google:3}[m.cls]])
   TrendChartProto.watchSpan(span => {
     RANGES[3].days = span   // 第四张卡的标签由 winLabel 按 days 现取
     RANGES[3].side = TrendChartProto.totalsFor(window.__trendDays, span)
-    MODELS.forEach((m, i) => { m.v[3] = RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]] * spanModelShares[i] })
+    MODELS.forEach((m, i) => { m.v[3] = RANGES[3].side[{anthropic:0, openai:1, xai:2, google:3}[m.cls]] * spanModelShares[i] })
     applyRange()
   })
 
@@ -614,9 +697,12 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   const INH = Symbol('inherited');
   const kvv = (v) => v === INH ? tr().inherited : v;
   const SUBAGENTS=[
-    {n:'code-reviewer',sides:'cx',desc:'Expert code review specialist. Proactively reviews code for quality, security, and maintainability.',
+    {n:'code-reviewer',sides:'cxa',desc:'Expert code review specialist. Proactively reviews code for quality, security, and maintainability.',
      cl:{kv:[['tools','Read, Grep, Glob, Bash'],['model',INH]],body:'You are a senior code reviewer ensuring high standards of code quality and security.\n\nWhen invoked:\n1. Run git diff to see recent changes\n2. Focus on modified files\n3. Begin review immediately\n\nReview checklist:\n- Code is simple and readable\n- No exposed secrets or API keys\n- Good test coverage\n\nProvide feedback organized by priority.'},
-     cx:{kv:[['model','—(default_subagent_model)'],['sandbox_mode','—']],body:'You are a senior code reviewer ensuring high standards…\n(与 Claude 侧同文;developer_instructions 三引号块)'}},
+     cx:{kv:[['model','—(default_subagent_model)'],['sandbox_mode','—']],body:'You are a senior code reviewer ensuring high standards…\n(与 Claude 侧同文;developer_instructions 三引号块)'},
+     ag:{kv:[['tools','view_file, grep_search'],['subagent','true'],['mainAgent','false'],['model','inherit']],body:'You are a senior code reviewer ensuring high standards…\n(Antigravity 侧:~/.gemini/config/agents/code-reviewer/agent.md 的正文)'}},
+    {n:'release-checker',sides:'a',desc:'Checks a release branch for missing changelog entries and version bumps.(Antigravity 单侧条目)',
+     ag:{kv:[['tools','view_file, run_command'],['subagent','true'],['mainAgent','true'],['model','flash']],body:'You check a release branch before it is tagged…(mock 略)'}},
     {n:'data-scientist',sides:'cx',desc:'Data analysis expert for SQL queries, BigQuery operations, and data insights.',
      cl:{kv:[['tools','Bash, Read, Write'],['model',INH]],body:'You are a data scientist specializing in SQL…(mock 略)'},
      cx:{kv:[['model','gpt-5.5'],['sandbox_mode','workspace-write']],body:'You are a data scientist…(mock 略)'}},
@@ -672,6 +758,17 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     {n:'ghost-plugin@somewhere',v:'0.1.0',on:false,why:()=>'user',
      exp:()=>`<div class="none">${tr().installMissing}</div>`}
   ];
+  // Antigravity's plugins: global, enablement from its own record (absent = enabled); a row expands to its
+  // bundled skills (namespaced), subagents and MCP servers. Bundled rules are not listed.
+  const AG_PLUGINS=[
+    {n:'flutter',v:'1.0.6',on:true,mk:'antigravity-plugins-official',
+     exp:()=>`<div class="sect">${tr().secSkills}</div><span class="chip">flutter:dart-add-unit-test</span><span class="chip">flutter:flutter-add-widget-test</span><span class="chip">+23</span>`+
+       `<div class="sect">${tr().secAgents}</div><span class="chip">flutter_a11y_agent</span>`+
+       `<div class="sect">${tr().secMcp}</div><span class="chip">dart-mcp-server</span>`},
+    {n:'gdocs',v:'0.0.3',on:false,mk:'antigravity-plugins-official',
+     exp:()=>`<div class="sect">${tr().secSkills}</div><span class="chip">gdocs:draft-doc</span><span class="chip">gdocs:edit-doc</span>`}
+  ];
+  const AG_OPEN=new Set();
   // 展开态记在集合里而不是只留在 DOM 上:换语言要整列重画,展开的行与开着的抽屉都得原样留下
   // MF = 抽屉里开着的记忆文件 [条目, 文件]
   let CXMEM='on-has', SIDE='c', SA=null, MF=null;
@@ -730,8 +827,10 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   });
   dmask.onclick=closeDrawer;
   addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+  // Subagent slots for the sides whose definitions are read: Claude, Codex, Antigravity (Grok's are not parsed)
   const sideB=(s)=>(s.includes('c')?'<span class="b c">CC</span>':'<span class="b miss">—</span>')
-                  +(s.includes('x')?'<span class="b x">CX</span>':'<span class="b miss">—</span>');
+                  +(s.includes('x')?'<span class="b x">CX</span>':'<span class="b miss">—</span>')
+                  +(s.includes('a')?'<span class="b a">AG</span>':'<span class="b miss">—</span>');
 
   function renderSubagents(){
     $('salist').innerHTML=SUBAGENTS.map((a,i)=>`<div class="it row-btn" data-sa="${i}">
@@ -742,8 +841,10 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   function saDrawerHtml(){
     const a=SUBAGENTS[SA];
     if(a.err) return `<h2>${a.n}</h2><div class="meta">${tr().degraded}</div><div class="none">${tr()[a.err]}</div>`;
-    const both=a.cl&&a.cx, cur=both?(SIDE==='c'?a.cl:a.cx):(a.cl||a.cx);
-    const seg=both?`<span class="sideseg"><span class="${SIDE==='c'?'on':''}" data-side="c">Claude(.md)</span><span class="${SIDE==='x'?'on':''}" data-side="x">Codex(.toml)</span></span>`:'';
+    // The side switch lists every side that defines this name; a single-side entry has no switch
+    const avail=[['c',a.cl,'Claude(.md)'],['x',a.cx,'Codex(.toml)'],['a',a.ag,'Antigravity(.md)']].filter(([,d])=>d);
+    const cur=(avail.find(([k])=>k===SIDE)||avail[0])[1];
+    const seg=avail.length>1?`<span class="sideseg">${avail.map(([k,,label])=>`<span class="${SIDE===k?'on':''}" data-side="${k}">${label}</span>`).join('')}</span>`:'';
     return `<h2>${a.n}</h2><div class="meta">${a.desc??''}</div>${seg}
       <div class="kv">${cur.kv.map(([k,v])=>`<span class="k2">${k}</span><span>${kvv(v)}</span>`).join('')}</div>
       <div class="raw">${cur.body}</div>`;
@@ -771,6 +872,10 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
       <span class="nm">${p.n}</span><span class="src">v${p.v}</span>
       <span class="pill ${p.on?'on':'off'}">${p.on?tr().enabled:tr().notEnabled}</span>
       <span class="ds">${p.why()}</span></div>`+(PLG_OPEN.has(i)?`<div class="exp">${p.exp()}</div>`:'')).join('');
+    $('plistAg').innerHTML=AG_PLUGINS.map((p,i)=>`<div class="it row-btn" data-plg-ag="${i}">
+      <span class="nm">${p.n}</span><span class="src">v${p.v}</span>
+      <span class="pill ${p.on?'on':'off'}">${p.on?tr().enabled:tr().notEnabled}</span>
+      <span class="ds">${tr().fromMarketplace(p.mk)}</span></div>`+(AG_OPEN.has(i)?`<div class="exp">${p.exp()}</div>`:'')).join('');
   }
   // 演示条只建一次(标记在上方),这里只改 aria-pressed 与 hidden。
   // 「用量」一组常驻:总量卡已移入页头,所有分栏都看得见,开关也就不该随分栏出现/消失;
@@ -778,6 +883,10 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   function syncHarness(){
     const on=document.querySelector('#tabs .tab.on')?.dataset.t, sk=!$('skMain').hidden;
     $('demoUsage').hidden=$('demoUsageNote').hidden=sk;
+    $('demoUnread').hidden=$('demoUnreadNote').hidden=sk;
+    $('demoAgentsMd').hidden=$('demoAgentsMdNote').hidden=sk||on!=='cfg';
+    $('harness').querySelectorAll('[data-u]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.u===UNREAD)));
+    $('harness').querySelectorAll('[data-am]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.am===AGMD)));
     $('demoCxmem').hidden=$('demoCxmemNote').hidden=sk||on!=='memory';
     $('demoMfRead').hidden=$('demoMfReadNote').hidden=sk||on!=='memory';
     $('harness').querySelectorAll('[data-r]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.r===MFREAD)));
@@ -785,6 +894,10 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     $('harness').querySelectorAll('[data-v]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===CXMEM)));
   }
   $('harness').addEventListener('click',e=>{
+    const u=e.target.closest('[data-u]')?.dataset.u;
+    if(u!==undefined){ UNREAD=+u; renderTotals(); syncHarness(); return }
+    const am=e.target.closest('[data-am]')?.dataset.am;
+    if(am!==undefined){ AGMD=am; renderCfg(); syncHarness(); return }
     const em=e.target.closest('[data-e]')?.dataset.e;
     if(em!==undefined){ DEMO = em; applyRange(); syncHarness(); return }
     const r=e.target.closest('[data-r]')?.dataset.r;
@@ -806,7 +919,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
       `<button type="button" class="tot-c" tabindex="-1"><div class="tot-k">${k}</div><div class="tot-v">${skLine([64,44,52,52][i],18)}</div></button>`).join('');
     $('skSides').innerHTML=SIDES.map((s,i)=>
       `<div class="stat"><div class="k"><span class="b ${s.cls}">${s.name}</span>${skLine(38,8)}</div>
-         <div class="v">${skLine([58,46,50][i],13)}</div><div class="s">${skLine([150,140,120][i],8)}</div></div>`).join('');
+         <div class="v">${skLine([58,46,50,52][i],13)}</div><div class="s">${skLine([150,140,120,132][i],8)}</div></div>`).join('');
   }
   $('skCompLg').innerHTML=skLine(64,8)+skLine(84,8)+skLine(56,8);
   $('skLegend').innerHTML=skLine(72,9)+skLine(64,9)+skLine(90,9);
@@ -833,7 +946,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   StartupStatus.withSkeleton(showSkeleton);
   document.querySelector('.body').addEventListener('click',e=>{
     const sa=e.target.closest('[data-sa]');
-    if(sa){ closeDrawer(); SA=+sa.dataset.sa; const a=SUBAGENTS[SA]; SIDE=a.cl?'c':'x'; openDrawer(saDrawerHtml()); return }
+    if(sa){ closeDrawer(); SA=+sa.dataset.sa; const a=SUBAGENTS[SA]; SIDE=a.cl?'c':a.cx?'x':'a'; openDrawer(saDrawerHtml()); return }
     const mem=e.target.closest('[data-mem]');
     if(mem){ const i=+mem.dataset.mem;
       if(MEM_OPEN.has(i)) MEM_OPEN.delete(i); else MEM_OPEN.add(i);
@@ -843,6 +956,10 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     const plg=e.target.closest('[data-plg]');
     if(plg){ const i=+plg.dataset.plg;
       if(PLG_OPEN.has(i)) PLG_OPEN.delete(i); else PLG_OPEN.add(i);
+      renderPlugins(); return }
+    const pag=e.target.closest('[data-plg-ag]');
+    if(pag){ const i=+pag.dataset.plgAg;
+      if(AG_OPEN.has(i)) AG_OPEN.delete(i); else AG_OPEN.add(i);
       renderPlugins(); return }
   });
   drawer.addEventListener('click',e=>{ // 抽屉内双端切换:原地刷新不关闭
@@ -856,17 +973,28 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
     closeDrawer(); syncHarness();
   });
-  // 两份 md 的正文是 mock 文件内容,不随语言变;config.toml 摘要是 app 拼出来的句子,随语言变
-  let CFG='cl';
-  const tomlHtml=()=>`<h3>${tr().cfgToml}</h3><p><code>model = …</code><br><code>[projects."…"] trust_level</code> ${tr().tomlProjects(18)}<br><code>[mcp_servers.*]</code> ${tr().tomlMcp(2)}</p>`;
+  // 配置分栏:两项,不分侧。文件正文是 mock 内容,不随语言变;"无"是界面文案,随语言变。
+  // AGENTS.md 一项把存在的全局 AGENTS.md 依次渲染(各以路径开头),顺序 Codex、agy 根目录、agy config;
+  // AGMD = 演示条选的存在组合(two = Codex 与 agy config,根目录那份缺失;声明在第一段脚本里)
+  const CFG_FILES={
+    claude:[{path:'~/.claude/CLAUDE.md',html:'<h3># 全局 CLAUDE.md</h3><p>- always use pnpm as package management tool for js projects.<br>- 开发新功能:八步流程(骨架)……(只读渲染)</p>'}],
+    agents:[{path:'~/.codex/AGENTS.md',html:'<h3># 全局 AGENTS.md</h3><p>读取 skill 必须按当前工具的 skill 机制完整载入……(只读渲染)</p>'},
+            {path:'~/.gemini/AGENTS.md',html:'<h3># Agent rules</h3><p>Prefer small, reviewable changes……(只读渲染)</p>',root:true},
+            {path:'~/.gemini/config/AGENTS.md',html:'<h3># Antigravity instructions</h3><p>Answer in Chinese unless asked otherwise……(只读渲染)</p>'}]
+  };
+  function renderCfg(){
+    const files=CFG==='claude'?CFG_FILES.claude
+      :AGMD==='none'?[]:CFG_FILES.agents.filter(f=>AGMD==='three'||!f.root);
+    document.getElementById('cfgbody').innerHTML=files.length
+      ?files.map(f=>`<div class="cfg-path">${f.path}</div>${f.html}`).join('')
+      :`<div class="none">${tr().cfgNone}</div>`;
+  }
   document.getElementById('cfgs').addEventListener('click',e=>{
     if(e.target.tagName!=='SPAN')return;
     document.querySelectorAll('#cfgs span').forEach(x=>x.classList.toggle('on',x===e.target));
-    const b=document.getElementById('cfgbody');CFG=e.target.dataset.cfg;
-    b.innerHTML=CFG==='cl'?'<h3># 全局 CLAUDE.md</h3><p>- always use pnpm…<br>- 八步流程骨架……(只读渲染)</p>'
-      :CFG==='cx'?'<h3># 全局 AGENTS.md</h3><p>Codex 全局说明……(只读渲染;缺失显示"无")</p>'
-      :tomlHtml();
+    CFG=e.target.dataset.cfg; renderCfg();
   });
+  renderCfg();
 
   // 界面语言跟随设置原型所选:静态文案、各分栏与开着的抽屉原地重画;展开态、选中窗口与分栏都不动。
   // 趋势图与启动提示两个共享块各自跟随,不在这里重画
@@ -874,7 +1002,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     LANG = v;
     document.documentElement.lang = v === 'zh' ? 'zh-CN' : 'en';
     applyI18n(); renderTotals(); renderModels(); renderSubagents(); renderMemory(); renderPlugins(); renderSkeleton();
-    if (CFG === 'toml') document.getElementById('cfgbody').innerHTML = tomlHtml();
+    renderCfg();
     if (SA !== null) drawer.innerHTML = saDrawerHtml();
     else if (MF !== null) { paintMfChrome(); mfCtl.set({}) }
   });

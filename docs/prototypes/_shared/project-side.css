@@ -226,6 +226,9 @@
 [data-shared-block="project-side"] .dot.grok {
   background: var(--p-xai);
 }
+[data-shared-block="project-side"] .dot.antigravity {
+  background: var(--p-google);
+}
 [data-shared-block="project-side"] .stale-tag {
   font-size: 9.5px;
   color: var(--warn-fg);

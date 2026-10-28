@@ -1,6 +1,6 @@
 # Subagents view
 
-> Related: [features](../features/subagents-view.md) · ADR-0001 (single type source) · ADR-0002 (dual seam)
+> Related: [features](../features/subagents-view.md) · ADR-0001 (single type source) · ADR-0002 (dual seam) · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
@@ -75,6 +75,36 @@ Everything is read-only.
 - R2 Snapshot size: subagent source text enters the snapshot; at this machine's scale (single-digit
   file counts × a 200 KB cap) that is acceptable and no lazy loading is done.
 
+## The Antigravity CLI side
+
+### subagents-view::REQ-001 Antigravity CLI subagents
+
+Applies to: the Subagents section of the agents page and of project detail (ADR-0037; shapes measured
+2026-10-28 with samples agy confirmed loading).
+
+- subagents-view::REQ-001/AC-01: Global definitions are read from `~/.gemini/config/agents/`, in both
+  forms agy loads: `<name>.md` and `<name>/agent.md`. Project-level definitions are read from
+  `.agents/agents/<name>/agent.md`, the form sampled at that level.
+- subagents-view::REQ-001/AC-02: A definition is Markdown with front matter: its name is the front
+  matter's `name`, else the file's name (or, for the directory form, the directory's); its description
+  is the front matter's; the drawer shows the definition as written (A6, A7).
+- subagents-view::REQ-001/AC-03: A definition marked as not usable as a main agent is listed like any
+  other: agy loads it, and only agy's own agent list leaves it out (measured).
+- subagents-view::REQ-001/AC-04: On the agents page an Antigravity definition sharing its name with
+  another side's is one row with both badges, the drawer switching sides (A5).
+- subagents-view::REQ-001/AC-05: In project detail the project-level group is headed "Project level ·
+  .agents/agents" and the global entries follow; Antigravity rows carry no shadowing badge, since
+  whether a project-level name shadows a global one in agy was not observed, and a degraded judgement
+  follows the target system's behaviour rather than an assumption (CONTEXT.md).
+- subagents-view::REQ-001/AC-06: Subagents bundled with an Antigravity plugin show inside that plugin's
+  expansion ([plugins-view::REQ-001](plugins-view.md)), not in this section.
+
+Failure modes and boundaries: a definition without front matter or without a name follows A4; one that
+cannot be read stays with the unreadable label (A8); a file over 200 KB is truncated (A6); the
+directory form without an `agent.md` holds no definition; a project-level flat `<name>.md` was not
+sampled and is not read; a missing agents directory at either level yields an empty group, not an error
+(A1, B1).
+
 ## Implementation Decisions
 
 - **Types**: the merged global entry (with per-side source text and fields) and the effective-view
@@ -96,7 +126,9 @@ providers layer (covering the failure mode table: corrupt toml, missing name, du
 a layer, unreadable files, the shadowing judgement); (2) the contract validation round trip. The
 standard for a good test: exercise only the reader's external behaviour (fixture directory → domain
 entries), not its internal parsing functions. Unreadable files use a `chmod 000` fixture, explicitly
-skipped when running as root.
+skipped when running as root. subagents-view::REQ-001 adds Antigravity fixtures of both global forms, a
+project-level definition, a definition not usable as a main agent, and a same-name pair with another
+side.
 
 ## Out of Scope
 

@@ -67,8 +67,9 @@
     listener(selectedSpan)
   }
 
-  // The prototype cards and chart share daily mock totals. Google belongs to the Codex mock side.
-  const SIDE_PROVIDERS = [['Anthropic'], ['OpenAI', 'Google'], ['xAI']]
+  // The prototype cards and chart share daily mock totals, one provider per side, in the pages' side order
+  // (Claude, Codex, Grok, Antigravity). Google belongs to the Antigravity mock side.
+  const SIDE_PROVIDERS = [['Anthropic'], ['OpenAI'], ['xAI'], ['Google']]
   function totalsFor(days, span) {
     return SIDE_PROVIDERS.map((providers) => days.slice(-span).reduce((sum, day) =>
       sum + providers.reduce((n, p) => n + (day.by[p] || 0), 0), 0))
@@ -87,14 +88,14 @@
   const providerName = (p) => (p === 'Other' ? t().other : p)
   // 单侧模式 → 该侧当前实际在用的 provider。三侧各自一一对应只是此刻的事实,不是不变量:
   // ADR-0008 之所以按 provider 而非按侧分段,就是为了让某侧哪天混入别家模型时图表逻辑不必改。
-  const MODE_PROVIDER = { Claude: 'Anthropic', Codex: 'OpenAI', Grok: 'xAI' }
+  const MODE_PROVIDER = { Claude: 'Anthropic', Codex: 'OpenAI', Grok: 'xAI', Antigravity: 'Google' }
 
   function fmt(n) {
     return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n)
   }
 
-  /** Generate mock daily history; opts.scale controls the magnitude and opts.withGoogle demonstrates an
-   * agent mixing in another vendor's models */
+  /** Generate mock daily history; opts.scale controls the magnitude and opts.withGoogle adds the
+   * Antigravity side's usage (Google models) */
   function mockDays(seed, opts) {
     const o = opts || {}
     const count = o.days || 30
@@ -107,7 +108,9 @@
       const sc = 0.2 + rnd() * 1.7
       by.Anthropic = Math.round((o.scale || 9e7) * sc)
       if (rnd() < 0.7) by.OpenAI = Math.round((o.scale || 9e7) * 0.28 * sc * (0.3 + rnd()))
-      if (o.withGoogle && [2, 8, 16].includes(i)) by.Google = Math.round((o.scale || 9e7) * 0.13 * (0.4 + rnd()))
+      // Antigravity: a few early days and most of the last ten — a thin blue segment in the combined view,
+      // and a sparse run of data days in its single-side view
+      if (o.withGoogle && ([2, 8, 16].includes(i) || (i >= count - 10 && i % 3 !== 1))) by.Google = Math.round((o.scale || 9e7) * 0.13 * (0.4 + rnd()))
       // Grok 是刚接进来的一侧,只有最近几天有量 —— 这是它现在真实的样子,也正是要压测的边界:
       // 合计模式下它是薄薄一段(分辨得出来吗),单侧模式下 30 天里只剩几个数据日(x 轴按数据日出标签,
       // 见 ADR-0009),两种情形都比「每天都有量」更能暴露问题。

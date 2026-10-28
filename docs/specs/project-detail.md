@@ -1,6 +1,6 @@
 # Project detail
 
-> Related: [features](../features/project-detail.md) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0002 · ADR-0028 (query layer)
+> Related: [features](../features/project-detail.md) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0002 · ADR-0028 (query layer) · ADR-0037 (Antigravity CLI side)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01. Each section's component-level requirements and boundaries live in its own
 > spec (subagents-view / memory-view / plugins-view / skill-install / token-stats); this document
@@ -190,6 +190,33 @@ never writes to any agent's registry; it tells the user what happened and hands 
   display order, and the chip labels (missing one produces either "scanned but not shown" or "shown
   but cannot be opened").
 
+## The Antigravity CLI side and the Configuration section
+
+### project-detail::REQ-002 Antigravity in a project's page, and its configuration entries
+
+Applies to: the project detail page.
+
+- project-detail::REQ-002/AC-01: The header's side chips include ANTIGRAVITY when the project is
+  registered on that side ([agents-overview::CON-004](agents-overview.md)); the stale note's chips
+  follow by construction (S3).
+- project-detail::REQ-002/AC-02: The Configuration section has two entries, CLAUDE.md and AGENTS.md —
+  the project's own files, each headed by its path, "None" when absent (A4). The project's AGENTS.md is
+  read by Codex and Antigravity alike and is shown once. The Claude project settings summary is removed,
+  and no settings summary is shown for any side (ADR-0037).
+- project-detail::REQ-002/AC-03: The MCP section's Antigravity group lists agy's global servers and its
+  effectively enabled plugins' servers ([agents-overview::REQ-003/AC-04](agents-overview.md)); the
+  project's own `.agents/mcp_config.json` is not shown.
+- project-detail::REQ-002/AC-04: The Skills, Subagents, Plugins and Sessions sections show the side as
+  their specs define ([skills-view::REQ-002](skills-view.md),
+  [subagents-view::REQ-001](subagents-view.md), [plugins-view::REQ-001](plugins-view.md),
+  [session-view::REQ-003](session-view.md)); the Overview's per-side row, trend side switch and model
+  rows include it ([token-stats::REQ-003](token-stats.md)); the Memory section shows nothing for it, so
+  a project registered only on Antigravity gets the memory-view D4 empty state.
+
+Failure modes and boundaries: a project registered only on Antigravity opens with the ANTIGRAVITY chip
+alone and its own sessions; a configuration file that cannot be read shows the read error under its
+path, the other entry unaffected; the configuration previews keep R3's link destinations.
+
 ## Cross-restart page restoration
 
 ### project-detail::REQ-001 Restore successful project pages
@@ -289,6 +316,10 @@ existing "expansion state survives the automatic refresh" case, which must stay 
 Transition itself is verified by mutation once: without it the same case goes red on the hold.
 No renderer unit test mounts a page (none does today), so the query layer has no unit seam; the
 main-process side of the knob is a one-line read and is not unit tested.
+
+project-detail::REQ-002 is asserted at the e2e seam over a fixture home with a project registered on
+Antigravity only and one on every side: the header chips, the two configuration entries with their
+path headings and "None", the absence of a settings summary, and the Antigravity MCP group.
 
 ## Out of Scope
 

@@ -1,6 +1,6 @@
 # Project list
 
-> Related: [features](../features/projects-list.md) · ADR-0002 (dual seam) · ADR-0019 (what a registry is, per side) · ADR-0021 (side colour) · ADR-0022 (manual hiding removed)
+> Related: [features](../features/projects-list.md) · ADR-0002 (dual seam) · ADR-0019 (what a registry is, per side) · ADR-0021 (side colour) · ADR-0022 (manual hiding removed) · ADR-0037 (Antigravity CLI side)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the requirements and boundaries were inferred from features, the existing
 > test cases and the code's behaviour, since the original reasoning was lost with `.scratch/`. The
@@ -148,6 +148,38 @@ and are never written back to any agent configuration.
   it is outside the list's visible part. The filters are left as they are, so a row they hide (a stale
   project, by default) stays hidden.
 
+## The Antigravity CLI side
+
+### projects-list::REQ-001 Antigravity CLI's registry and activity
+
+Applies to: the Antigravity CLI side's contribution to the project list (ADR-0037).
+
+- projects-list::REQ-001/AC-01: The side's registry is `trustedWorkspaces` in agy's settings file: the
+  folders the user agreed to trust when agy asked, written by agy itself (measured 2026-10-28). Each
+  entry is a project from this side's point of view, and the union, merge, count and staleness rules
+  (A4–A6, A8, A9) apply unchanged.
+- projects-list::REQ-001/AC-02: A folder agy has run in only headless, never trusted, is not a project
+  from this side's point of view: it does not enter the list and does not raise an entry's count, and
+  its tokens count globally (A7).
+- projects-list::REQ-001/AC-03: agy's own project records — shared with the Antigravity desktop app and
+  created automatically — are never read as registrations (CONTEXT.md's flagged ambiguity,
+  "Antigravity's own 'project' is not a Project").
+- projects-list::REQ-001/AC-04: Activity: a conversation is attributed to a folder by
+  [token-stats::REQ-003/AC-08](token-stats.md), and a subagent conversation neither counts nor moves the
+  time (B3, B8). The most recent session time is the later of the conversation database's and its
+  write-ahead log's modification times: while agy is writing, the database file itself does not change,
+  only its log (measured), so "the session file's mtime" keeps one meaning across all sides (B7).
+- projects-list::REQ-001/AC-05: agy's data root missing → the side is not detected (A1, A2); the root
+  present with no trusted folder → detected with no projects (A9); the settings file corrupt → this side
+  degrades with an error explanation and every other side behaves normally (A3).
+
+Failure modes and boundaries: trusting a folder in agy and then scanning adds the row (or raises an
+existing row's count) at the next automatic scan, as for any registration; removing it from the list
+again happens in agy, never here (Out of Scope). Opening agy's interface in a folder and leaving without
+sending anything creates a conversation (token-stats::REQ-003/AC-09), which moves that folder's most
+recent time, as any session file's modification would. The side's name in the dropdown and the hover
+layer follows [agents-overview::CON-004](agents-overview.md).
+
 ## Startup restoration
 
 This page consumes [agents-overview::REQ-001](agents-overview.md) for restored rows,
@@ -195,6 +227,10 @@ registry union, corruption degradation, path normalisation, activity attribution
 exclusion — with a fixture per side, since each side's registry and session layout differ while the
 resulting entries must not. The A7/A8 distinction (sessions without a registry record) needs its own
 fixture case, because it is the one place where "has sessions" and "is a project" come apart.
+projects-list::REQ-001 adds an Antigravity fixture home to the same seam: a settings file trusting one
+folder, conversations in that folder and in an untrusted one (the A7/A8 case for this side), a subagent
+conversation, and a conversation with a log beside it whose modification time is later than the
+database's (projects-list::REQ-001/AC-04).
 
 UI interactions are covered by e2e, and the two floating layers (C6/C7) need **geometric** assertions
 rather than existence ones: a clipped or mislaid layer reports a perfectly ordinary bounding box, so

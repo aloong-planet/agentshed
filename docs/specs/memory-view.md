@@ -1,6 +1,6 @@
 # Memory view
 
-> Related: [features](../features/memory-view.md) · ADR-0001 (single type source) · ADR-0002 (dual seam)
+> Related: [features](../features/memory-view.md) · ADR-0001 (single type source) · ADR-0002 (dual seam) · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
@@ -240,3 +240,6 @@ itself stays covered by the shared link module's unit tests.
 - Searching memory contents and aggregating them across projects.
 - Following `[[name]]` references: they stay plain text (memory-view::US-001/AC-04); making them links
   needs a name-to-file rule of its own and is left for a later change.
+- Antigravity CLI's knowledge items (agy's agent-written memory): none was produced over an eight-turn
+  session, so there is no sample to ground a reader on (ADR-0037). The side shows nothing in either
+  Memory section, and a project registered only on Antigravity gets D4's empty state.

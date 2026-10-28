@@ -31,9 +31,12 @@ default, can be toggled on.
 _Avoid_: dead project, invalid project
 
 **Agent side**:
-A data source. Enumerated: Claude Code, Codex, Grok.
+A data source. Enumerated: Claude Code, Codex, Grok, and Antigravity CLI (being onboarded, ADR-0037).
 _Avoid_: tool, CLI, platform; `grok-build` (that is the name of a profile *inside* the Grok side, not
-the side)
+the side); "Gemini" for the Antigravity CLI side (Gemini CLI is a different tool and not a side);
+"Antigravity" bare in documents (it names a product family whose desktop app and IDE keep data this
+product does not read). The interface itself labels this side "Antigravity" (ADR-0037): the
+distinction matters to documents about what is read, not to the person choosing a side
 
 **Global library**:
 The set of skills at an agent's global layer, and the only source for a project install. Read-only
@@ -48,6 +51,16 @@ configuration at runtime. It belongs to the side that owns it on disk and never 
 side's lists; instead the borrowing side's grouping says in copy that the borrowing happens, so what
 is left out stays visible rather than silent (ADR-0019).
 _Avoid_: shared component (nothing is shared — one side is reading the other's files); inherited
+
+**Shared skills directory**:
+A project-level skills directory that more than one agent side loads as its own — `.agents/skills`,
+loaded by both Codex and Antigravity CLI. It belongs to no single side: it is shown once, as a group of
+its own naming the sides that load it, it is one install target rather than one per side, and
+removing a skill from it removes it for every side that loads it (ADR-0037). It is always
+project-level: the global directory agy itself labels "Shared skills" (`~/.gemini/skills`) is one of
+Antigravity CLI's global libraries, not a shared skills directory.
+_Avoid_: compatibility-borrowed (neither side is reading the other's files — each loads the directory
+natively); Codex skills, Antigravity skills (each names only one of its owners)
 
 **Project install**:
 Landing a skill from the global library into the project's own directory as a full copy. Uninstalling
@@ -737,6 +750,11 @@ _Avoid_: beta mode, insider track, update track
   question when it is added.
 
 ## Flagged ambiguities
+
+- **Antigravity's own "project" is not a Project (2026-10-28)**: Antigravity groups folders into
+  projects of its own, shared with its desktop app and created automatically, and calls a folder a
+  "workspace". Neither is a **Project** here: on the Antigravity CLI side a Project is a folder in its
+  trust ledger, the same per-folder decision record as on the other sides (ADR-0037).
 
 - **"Live day" is retired (2026-09-09)**: liveness was a property of a day, so a side whose
   history had vanished still counted as live because another side had activity that day, and its
