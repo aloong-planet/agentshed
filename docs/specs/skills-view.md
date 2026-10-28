@@ -404,6 +404,11 @@ Applies to: the project detail page's Skills section.
 - A symlinked skill in one of agy's global directories follows the existing symlink rules (A6, C9).
 - A built-in skill whose name matches one of the user's: the user's is listed, the built-in is not;
   which one agy prefers at run time is not measured and not claimed.
+- A shared entry's row carries the badges of both sides that load the directory, and its drawer's
+  subtitle names both, whatever the project is registered on (as the group heading, AC-01).
+- A Claude plugin and an Antigravity plugin of one name bundling one skill: two `<plugin>:<skill>` rows,
+  one per side, each previewing its own package — never merged (plugins-view G4). Each row keeps its own
+  expansion when filtering moves the rows around it (E7).
 
 ## UI decisions (prototype gate passed · 2026-08-06)
 

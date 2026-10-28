@@ -61,7 +61,10 @@ No point without a prototype. Deviations from a prototype's form are recorded in
   "Targeted verification" below; committed as f68f91e
 - [x] T4 Checklist reconciliation for #325's units (below)
 - [x] T5 `/review-code` → ticket-325-review-code.md (six findings; fixes with red-first cases)
-- [ ] T6 Full verification gate, pre-review run
+- [ ] T6 Full verification gate, pre-review run. First run (2026-10-29, at e783065) red on `check:lang` alone: the
+  decisions record quoted a Chinese dictionary value; every other command exit 0 (e2e 141 passed, smoke OK). The
+  record was fixed and the run repeated at the next commit; the red log is kept in the session scratch, not the repo
+  (it quotes the offending line, and no current conclusion rests on it)
 - [ ] T7 `/review-tests` post-implementation check (independent sub-agent) → ticket-325-review-tests.md
 - [ ] T8 Spec reconciliation (read-only on code), write-backs
 - [ ] T9 Archive: decisions, CONTEXT, features (`/features-catalog`), doc sync, checklist rows

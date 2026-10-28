@@ -201,6 +201,23 @@ skills out of the Skills section and its servers out of the MCP section at the n
 plugin's MCP server that cannot start (a missing command) still lists, since listing reads the file and
 starts nothing; a manifest path pointing outside the package is refused (E11).
 
+Settled during implementation (2026-10-29):
+
+- A plugin is identified by its directory name: the key agy's configuration records it under, and the
+  namespace of its skills and servers. Its manifest is the top-level `plugin.json`, the form sampled.
+- A plugin whose record names no marketplace shows no "From" note, and on a project's page reads "In
+  effect globally" alone. An enabled value other than an explicit false reads as no key: enabled.
+- The group shows whenever the side is detected or has a plugin, saying "No plugins installed" when
+  empty: agy's plugins carry enablement, unlike Codex's probe-style cache.
+- A plugin's subagents are its `agents/*.md`, named as agy names them (the front matter's `name`, else
+  the file's name). Two giving one name are both listed, since what agy does with the pair was not
+  measured; a symbolic link to a definition is followed, as the global agents directories are read;
+  `agents.json` is not read (not sampled).
+- A skill or subagent description written as a YAML block scalar (`>-`, `|-` — five of the `flutter`
+  sample's skills are written so) shows its text, not the marker; the same reading serves every side.
+- A Claude plugin and an Antigravity plugin of one name: a row in each group (E9), and their bundled
+  skills of one name join the Skills section as two rows, one per side (G4).
+
 ## Implementation Decisions
 
 - **Types**: an installation record array (with scope / owning project / lost marker) + layered

@@ -28,10 +28,18 @@ typing part of its name. No cross-side content diff.
   external links open in the system browser — none of them ever navigates the app away
 - When nesting goes too deep, a notice suggests restructuring the skill rather than listing the deep
   files
+- Antigravity CLI's global skills join the list with their own badge. Where agy keeps a skill of one name
+  in more than one of its global folders, the list shows it once and opens the copy agy actually uses;
+  agy's built-in skills are not listed
 - Project detail: **within one side, a same-name pair shows only the project-level entry**; anything
   that exists only globally is still listed
+- Project detail: the project's skills folder that Codex and Antigravity CLI both load is **one group**,
+  "Shared · .agents/skills", badged with both sides and placed between Codex's and Antigravity's global
+  groups; a skill in it hides the same name in both sides' global groups, and its rows preview and
+  uninstall like any project-level skill
 - Plugin-sourced skills (namespaced entries) expand and preview on equal footing with on-disk skills
-  (inline counts / file table / drawer; still no install or uninstall)
+  (inline counts / file table / drawer; still no install or uninstall), each badged with its plugin's
+  side; two sides' plugins bundling one skill name give two rows, one per side
 - The install/uninstall buttons and the expand/preview interaction do not steal clicks from each other
 
 ## Boundaries and non-goals

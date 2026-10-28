@@ -139,3 +139,57 @@ fix was the missing exit or the sibling readers' rule (findings 3, 5), and one p
 sample (finding 1). Verification after the fixes: `pnpm typecheck` exit 0; `pnpm lint` exit 0; the unit suite 81
 files, 973 passed, 1 skipped; on a fresh build the two new e2e cases, the shared-directory case and the Grok install
 and detail cases, 7 passed. The full gate follows (worklog T6).
+
+## Spec final check (before step 7; code read only)
+
+Against the specs at `cbe22ca` plus this branch's write-backs (listed under the table), unit by unit for this ticket's
+paths; evidence per unit is in the checklist's current verification.
+
+| Unit (spec text) | Implementation | Conclusion |
+|---|---|---|
+| skills-view::REQ-001/AC-01 "three global directories … listed once, as the copy agy uses: the first … over the second over the third … The row's preview opens that copy" | `globalSkillsRoots`, `readSkillLibrary` (first wins), `globalSkillEntry` for preview and install | Met |
+| skills-view::REQ-001/AC-02 "agy's built-in skills are not listed" | `builtin/skills` is in no root list | Met |
+| skills-view::REQ-001/AC-03 "AG badge … one row with every such side's badge, and the drawer's side switcher includes Antigravity" | Sides merged by name over every side's library; drawer switch over `sides` | Met |
+| skills-view::REQ-001/AC-04 "bundled skills of … effectively enabled plugins join … `<plugin>:<skill>` … with the AG badge and the plugin badge" | `addPluginSkill('antigravity', …)` for enabled plugins | Met |
+| skills-view::REQ-001/AC-05 "counts AC-01's names, without built-in or plugin entries" | Card count `origin === 'disk'` | Met (for every side; written back to agents-overview B2) |
+| skills-view::REQ-001/AC-06 "Codex's global library (`~/.agents/skills`) is not Antigravity's" | Not in agy's root list | Met |
+| skills-view::REQ-002/AC-01 "one group … headed "Shared · .agents/skills" with the CX and AG badges … between the Codex groups and the Antigravity groups … whatever the project is registered on" | `skillsDirLoaders`, the detail assembly's order, DetailPane's section heading | Met |
+| skills-view::REQ-002/AC-02 "entries are project-level: each is previewable (B5) and uninstallable" | Level `project`; preview and uninstall through the first loader's side | Met |
+| skills-view::REQ-002/AC-03 "a name in the shared directory hides the same name in Codex's global group and in Antigravity's global group" | Each owner's global set minus the shared names | Met |
+| skills-view::REQ-002/AC-04 "Antigravity's global group follows the shared group" | Assembly order | Met |
+| skills-view::REQ-002/AC-05 "The plugin-bundled group's rows carry their side's badge" | Plugin rows' badge from their own side | Met |
+| skills-view::REQ-002/AC-06 "A project registered on neither … still shows the group when the directory holds skills … an empty or absent directory shows no group" | The shared directory is read for every project; empty groups are dropped | Met |
+| skill-install::REQ-001/AC-01 "one target: one outlined mark naming both sides that load it (CX AG), whatever the project is registered on" | `skillLandings` loaders; the picker's `.pop-shared` mark | Met |
+| skill-install::REQ-001/AC-02 "Whether a project offers it follows A8" | Landings from the skill's sides ∩ the project's | Met |
+| skill-install::REQ-001/AC-03 "The same-name check (A4) against the directory is made once" | One `installSkill` per landing | Met |
+| skill-install::REQ-001/AC-04 "The result is reported once for the directory … a failure is one failure notice" | One result per landing; `installedShared` | Met |
+| skill-install::REQ-001/AC-05 "Antigravity's global library is an install source … the copy installed is the one agy uses" | Source via `globalSkillEntry` | Met |
+| skill-install::REQ-002/AC-01 "deletes it from `.agents/skills` (B1). The confirmation shows the full path (B4) and states that the directory is loaded by Codex and Antigravity" | `confirmShared` under the path | Met |
+| skill-install::REQ-003/AC-01 "A stale project is listed in the picker, disabled and labelled as stale" | `disabled={p.stale}`, `pickStale` | Met |
+| skill-install::REQ-003/AC-02 "carries a "Same name installed" tag; choosing it shows the existing blocked notice (A4) and installs nothing" | `skillHoldings`, the tag, the blocked notice per held landing, no IPC install | Met (tags now reset per opening, review finding 3) |
+| subagents-view::REQ-001/AC-01 "Global … `<name>.md` and `<name>/agent.md`. Project-level … `.agents/agents/<name>/agent.md`" | `readAntigravitySide(dir, withFlat)` | Met |
+| subagents-view::REQ-001/AC-02 "its name is the front matter's `name`, else the file's name … description is the front matter's; the drawer shows the definition as written" | `frontMatter` + `fmValue`; content as read | Met (block scalars read as text, review finding 1) |
+| subagents-view::REQ-001/AC-03 "A definition marked as not usable as a main agent is listed like any other" | No filter on `mainAgent` | Met |
+| subagents-view::REQ-001/AC-04 "one row with both badges, the drawer switching sides" | `mergeSides` with `antigravity` | Met |
+| subagents-view::REQ-001/AC-05 "project-level group is headed "Project level · .agents/agents" and the global entries follow; Antigravity rows carry no shadowing badge" | Grouped layout; `shadowing = side !== 'antigravity'` | Met (the grouped layout for every side written back) |
+| subagents-view::REQ-001/AC-06 "Subagents bundled with an Antigravity plugin show inside that plugin's expansion … not in this section" | Plugin agents only in `contents.agents` | Met |
+| plugins-view::REQ-001/AC-01 "lists the plugins installed under `~/.gemini/config/plugins/<name>/`, each read from its `plugin.json`, with its version and the marketplace" | `readAntigravityPlugins` | Met |
+| plugins-view::REQ-001/AC-02 "no enabled key is enabled … an explicit false is disabled … missing or does not parse is skipped" | `enabled: rec['enabled'] !== false`; `readJson` null → `{}` | Met |
+| plugins-view::REQ-001/AC-03 "Skills …, Subagents (its `agents/` definitions) and MCP (… `<plugin>_<server>`). Rules … not shown … hooks are not shown" | `readAntigravityPluginContents` | Met |
+| plugins-view::REQ-001/AC-04 "The skills of an effectively enabled Antigravity plugin join the Skills section" | As skills-view::REQ-001/AC-04 | Met |
+| plugins-view::REQ-001/AC-05 "Project detail lists the same plugins, labelled as taking effect globally and naming their marketplace … workspace plugins … are not read" | `AntigravityGroup onProjectPage`, `inEffectGlobally` | Met |
+| plugins-view::REQ-001/AC-06 "No merging by name with another side's group (E9); a disabled plugin remains readable (H4)" | Separate groups and per-side join entries; preview independent of enablement | Met |
+| agents-overview::REQ-003/AC-01 (#325's part) "global skill count and subagent count (B2)" | `sideStats` | Met |
+| agents-overview::REQ-003/AC-03 (#325's part) "The Skills, Subagents and Plugins sections gain the side" | As above | Met |
+| agents-overview::REQ-003/AC-04 "global MCP file …, a server marked disabled carrying the disabled pill, and the servers bundled with its effectively enabled plugins … `<plugin>_<server>` … marked as coming from that plugin … `.agents/mcp_config.json` is shown nowhere" | `readGlobalMcp`, `McpServerRow`, `AntigravityMcpGroup` | Met |
+| project-detail::REQ-002/AC-03 "lists agy's global servers and its effectively enabled plugins' servers …; the project's own `.agents/mcp_config.json` is not shown" | `AntigravityMcpGroup onProjectPage` | Met |
+| project-detail::REQ-002/AC-04 (#325's part) "The Skills, Subagents, Plugins … sections show the side as their specs define" | As above | Met |
+
+Scope beyond these units, each traced: the Claude card's skill count (agents-overview B2, written back), the MCP row
+form for every side and the plugin note on Claude's plugin servers (agents-overview REQ-003 boundaries, written back),
+project detail's grouped Subagents layout for every side (subagents-view Implementation Decisions, written back), the
+block-scalar reading on every side (plugins-view and subagents-view boundaries, written back), the picker listing stale
+projects (skill-install::REQ-003/AC-01 itself). No code contradicts a spec statement. Written back on this branch
+(2026-10-29): agents-overview B2 and the REQ-003 boundaries; skills-view's REQ-001/REQ-002 boundaries; skill-install
+REQ-001 and REQ-003 boundaries; subagents-view REQ-001 boundaries and the project detail layout; plugins-view REQ-001's
+settled boundaries; project-detail REQ-002's MCP group visibility.

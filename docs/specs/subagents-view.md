@@ -103,7 +103,11 @@ Failure modes and boundaries: a definition without front matter or without a nam
 cannot be read stays with the unreadable label (A8); a file over 200 KB is truncated (A6); the
 directory form without an `agent.md` holds no definition; a project-level flat `<name>.md` was not
 sampled and is not read; a missing agents directory at either level yields an empty group, not an error
-(A1, B1).
+(A1, B1). Two definitions in one directory giving one name: the first in name order is listed (agy's
+own choice was not measured; Codex's loader keeps the first within a layer, A9). A description written
+as a YAML block scalar (`>-`, `|-`) shows its text, not the marker. The drawer's Antigravity rows are
+tools, subagent, mainAgent and model, each "—" when absent: whether an agy subagent without a model
+inherits the main one was not measured, so the drawer claims nothing.
 
 ## Implementation Decisions
 
@@ -118,6 +122,11 @@ sampled and is not read; a missing agents directory at either level yields an em
   master-detail two-column (compresses the list's information density) and "inline metadata expansion
   + overlay" (the expansion is a redundant stop on the way to the drawer).
 - **Sorting**: project level first, then by name within each group (as with skills).
+- **Project detail's layout** (settled 2026-10-29 with subagents-view::REQ-001/AC-05): the effective view
+  is grouped — each side's project-level group headed by the directory that side reads (`.claude/agents`,
+  `.codex/agents`, `.agents/agents`), then each side's global group ("Global level · <side>"), each
+  heading counted; Claude's and Codex's shadowing badges are unchanged, Antigravity's rows carry none.
+  One grouped side among flat ones would read wrong.
 
 ## Testing Decisions
 

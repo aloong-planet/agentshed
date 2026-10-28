@@ -105,7 +105,10 @@ Failure modes and boundaries: a skill on Codex and Antigravity both, installed i
 registered on both, lands once, and a second attempt hits the same-name block (A4); a project registered
 only on Antigravity still sees the mark name both loaders, and the uninstall warning names both,
 because Codex loads the directory whenever it runs there; the copy-to-temporary-then-rename rule (A6)
-and name validation (A7, B3) apply to the one landing unchanged.
+and name validation (A7, B3) apply to the one landing unchanged. When Codex and Antigravity both
+qualify, the copy landed is the first side's in side order — Codex's (settled 2026-10-29: the rule the
+drawer's default side already follows, A1); an Antigravity-only install takes the copy agy uses (AC-05).
+A failure in the shared landing names the directory, not a side.
 
 ## The install picker's rows
 
@@ -122,7 +125,11 @@ interface baseline, already drew both; the app had neither).
 
 Failure modes and boundaries: a project that turns stale or gains the same name after the picker was
 drawn is caught by A5's and A4's refusals at install time; a project whose landings include the shared
-skills directory is tagged when that directory holds the name (skill-install::REQ-001/AC-03).
+skills directory is tagged when that directory holds the name (skill-install::REQ-001/AC-03). Choosing a
+tagged project installs nothing in any of its landings, a free one included (AC-02's "installs
+nothing"). The tags belong to one opening of the picker: a reopened picker draws none until its own
+arrive, never the previous opening's (settled 2026-10-29); a target untagged meanwhile is still refused
+at install time (A4).
 
 ## Implementation Decisions
 
