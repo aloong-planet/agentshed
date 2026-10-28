@@ -427,8 +427,8 @@ export function agySessionSignature(file: string): string | null {
 
 /**
  * agy's own conversation titles, from its summaries database (`<data root>/conversation_summaries.db`, the index its
- * `/resume` list reads), by conversation id; a conversation agy left untitled (a fork, a subagent) is not in it
- * (session-view::REQ-003/AC-03). Read without writing there (token-stats::CON-002), as a conversation is. Empty when the
+ * `/resume` list reads), by conversation id; a conversation agy left untitled — its row's title empty, as for a fork or
+ * a subagent (measured) — is left out (session-view::REQ-003/AC-03). Read without writing there (token-stats::CON-002), as a conversation is. Empty when the
  * database is not there or will not read in the shape titles are read from (its table with `conversation_id` and
  * `title`) — the titles then fall back to the first question; null when the read failed while agy was writing it, so
  * the caller keeps the titles it last read.

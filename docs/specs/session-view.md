@@ -976,6 +976,9 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   at every one (written back 2026-10-29).
 - The fork pill on an Antigravity row says the copied history was stripped, rather than a replayed prefix — a copy
   variant of the drawn pill (written back 2026-10-29).
+- A fork's parent that cannot be read in the supported format is left out like any such conversation
+  (token-stats::REQ-004/AC-01), so the fork's banner takes the no-longer-here form — inexact in that case, which needs
+  the parent rewritten in a new format while the fork itself still reads (written back 2026-10-29).
 
 ## Implementation Decisions
 

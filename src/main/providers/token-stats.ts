@@ -243,8 +243,9 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg | AntigravityFileAgg
  *      by (mtime, size).
  * v19: AntigravityFileAgg gained the conversation as a session (#324): its own id, the subagent flag, listed, its last
  *      activity, the conversation a fork came from, the title fallback and the question index over its transcript —
- *      **a shape change**; and its signature now covers the transcript too, so a transcript agy appended to is indexed
- *      again. An entry from v18 has no question index, and would leave every conversation unlisted until it changed.
+ *      **a shape change**, bumped with it as this comment's rule asks (the shape guard below, which now requires the new
+ *      fields, would also turn every v18 entry away one by one); and its signature now covers the transcript too, so a
+ *      transcript agy appended to is indexed again.
  * v13: cacheWrite stopped being parsed on the Codex and Grok sides and is written as 0 (ADR-0023).
  *      **A computation change, not a shape change** — which is exactly the case this comment's rule
  *      above exists for: without the bump, an entry cached under v12 keeps its parsed value while
