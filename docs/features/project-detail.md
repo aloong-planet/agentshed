@@ -40,8 +40,8 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
   HTML opens with the system default application. Reopening a file you already read (from the list or
   from a cross-reference link) shows it at once, including after restarting. A failed refresh keeps
   an already read preview; a file never successfully read reports the failure in a toast
-- Sessions: this project's sessions on the Claude Code, Codex and Grok sides, with sorting and search,
-  opening to the full conversation (see [Session view](session-view.md))
+- Sessions: this project's sessions on every agent side, with sorting and search, opening to the full
+  conversation (see [Session view](session-view.md))
 - A stale project's detail page opens as a note page instead of the sections: it names why the
   project is stale (the directory no longer exists while the listed agents' registries still record
   it), notes that removal takes the row off the list without affecting token totals, and hands over
@@ -50,8 +50,8 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
 
 ## Boundaries and non-goals
 - The page header names the sides that registered the project with their chips, ANTIGRAVITY among
-  them; an Antigravity CLI conversation moves the project's activity in the list and its usage counts
-  in the Overview's figures like every side's (see [Token statistics](token-stats.md)), but it is not
-  listed in Sessions
+  them; an Antigravity CLI conversation moves the project's activity in the list, its usage counts in the
+  Overview's figures like every side's (see [Token statistics](token-stats.md)), and it is listed in
+  Sessions with the AG badge
 - For a project not following the eight-step process, the artifacts tab shows a "nothing accumulated
   by convention" empty state, which is not treated as an error

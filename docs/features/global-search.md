@@ -57,7 +57,8 @@ project.
 - Questions only: answers, tool output and everything else in a turn are reached through the project's
   own Sessions search, switched to full text
 - The sessions searched are the ones each project's Sessions tab lists: a directory no agent registered is
-  not searched, nor are subagent or warmup sessions; questions inside a compacted window cannot be found
+  not searched, nor are subagent or warmup sessions; questions inside a compacted window cannot be found,
+  nor can a question undone with Antigravity CLI's rewind
 - A session marked uncertain strip may hit on a few replayed questions at its start that its parent also
   hits
 - A question written over several lines is matched as it is shown, its line breaks read as spaces
