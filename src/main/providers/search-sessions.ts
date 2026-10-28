@@ -112,8 +112,9 @@ export async function searchProjectSessions(
     const qText = new Map<number, { text: string; at: number | null }>()
 
     // ── The coarse question pass: raw byte ranges, decoding and parsing only the entries that hit ──
+    // From the file the ranges are in: the session file, or an Antigravity conversation's transcript
     const { bufs } = await readRangeBuffers(
-      s.file,
+      q.source,
       recs.map((r) => ({ start: r[0], end: r[1] }))
     )
     const parseQ = (idx: number): { text: string; at: number | null } | null => {
@@ -140,7 +141,7 @@ export async function searchProjectSessions(
       try {
         // A cold rollout is decompressed whole in one pass here — full-text mode reads whole by design
         // (spec D2), and the cold reader keeps that one pass (spec C2/D3)
-        whole = await readRolloutWhole(s.file)
+        whole = await readRolloutWhole(q.source)
       } catch {
         whole = Buffer.alloc(0)
       }

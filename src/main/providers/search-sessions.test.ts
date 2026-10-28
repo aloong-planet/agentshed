@@ -7,6 +7,8 @@ import type { SessionMeta } from '@shared/domain'
 import { TokenEngine } from './token-stats'
 import { searchProjectSessions } from './search-sessions'
 import type { ScanRoots } from './types'
+import { callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation } from '../testing/agy-fixture'
+import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, writeTranscript } from '../testing/agy-transcript-fixture'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Ticket 08: searching this project's sessions (spec D1–D4).
@@ -197,5 +199,31 @@ describe('a cold rollout (.jsonl.zst) is searched in one streaming pass, in ques
     const byFile = new Map(r.groups.map((g) => [g.file, g.hits]))
     expect(byFile.get(cold)).toEqual(byFile.get(plain))
     expect(byFile.get(cold)?.[0]?.inBody).toBe(true)
+  })
+})
+
+// An Antigravity conversation (session-view::REQ-004): its questions are read from its transcript — the measured fork,
+// rewound once — while its identity is the database. The question a rewind undid is neither a hit nor reachable.
+describe('an Antigravity conversation is searched in its transcript', () => {
+  function mkAgyFork(): string {
+    const home = roots().antigravityHome
+    mkdirSync(join(home, 'conversations'), { recursive: true })
+    writeFileSync(join(home, 'settings.json'), settingsJson([proj]))
+    const id = MEASURED_TRANSCRIPT_ID.forkRewound
+    const { step, gen } = callRecord({ conversationId: id, stepIdx: 22, genIdx: 0, usage: { messageId: 'm-f', input: 10, output: 1 }, createdAt: Date.parse(TS), completedAt: Date.parse(TS) })
+    writeConversation(join(home, 'conversations'), id, encodeTrajectoryMetadata({ folders: [proj], conversationId: id }), { steps: [step], gens: [gen] })
+    writeTranscript(home, id, MEASURED_TRANSCRIPT.forkRewound)
+    return join(home, 'conversations', `${id}.db`)
+  }
+
+  it('question mode hits the kept question; the undone one is not a hit, and in full text it is folded', async () => {
+    const file = mkAgyFork()
+    const q = await run('simplest', false)
+    expect(q.groups.map((g) => [g.file, g.side, g.hits.map((h) => [h.i, h.text])])).toEqual([
+      [file, 'antigravity', [[1, 'In one short sentence, which function in calc.py is the simplest?']]]
+    ])
+    expect((await run('exactly one word', false)).groups).toEqual([])
+    const full = await run('exactly one word', true)
+    expect([full.groups, full.folded]).toEqual([[], 1])
   })
 })

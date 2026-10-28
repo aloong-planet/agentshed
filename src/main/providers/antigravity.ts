@@ -15,7 +15,7 @@
 // mechanism allows it): a read of such a pair that fails contributes nothing, and the next scan reads it again.
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { ERR } from '@shared/errors'
 import type { RegistryResult } from './claude'
@@ -250,10 +250,23 @@ export function readAntigravitySessions(home: string, tmpParent: string = tmpdir
  */
 export type AgyCall = [string | null, number | null, number, number, number, number, string | null]
 
-/** A conversation's usage read: its credited folder and calls; unreadable in the supported format; or failed while
- * agy was writing it (not counted, its last result kept) */
+/** What a conversation's database says about it as a session (session-view::REQ-003, REQ-005) */
+export interface AgyConversation {
+  /** Its own id, as its trajectory table records it (token-stats::REQ-003/AC-06): the key agy's summaries and a fork's
+   * copied steps name it by */
+  id: string
+  /** Whether its own metadata says it is a subagent (token-stats::REQ-003/AC-07): it gets no row */
+  subagent: boolean
+  /** The largest step timestamp in the database (session-view::REQ-003/AC-04); null when no step carries one */
+  at: number | null
+  /** For a fork, the conversation its last copied step came from (session-view::REQ-005/AC-02); null otherwise */
+  forkOf: string | null
+}
+
+/** A conversation's usage read: its credited folder, calls and session facts; unreadable in the supported format; or
+ * failed while agy was writing it (not counted, its last result kept) */
 export type AgyUsageRead =
-  | { kind: 'read'; folder: string | null; calls: AgyCall[] }
+  | { kind: 'read'; folder: string | null; calls: AgyCall[]; conversation: AgyConversation }
   | { kind: 'unreadable' }
   | { kind: 'failed' }
 
@@ -283,7 +296,7 @@ function ownConversationIds(db: DatabaseSync): Set<string> {
  * (time, copied, the call they carry); the generator records, which hold each call's whole prompt, are decoded one row
  * at a time.
  */
-function conversationCalls(self: Set<string>, db: DatabaseSync): AgyCall[] {
+function conversationCalls(self: Set<string>, db: DatabaseSync): { calls: AgyCall[]; at: number | null; forkOf: string | null } {
   interface Call {
     usage: ModelUsage
     at: number | null
@@ -314,6 +327,11 @@ function conversationCalls(self: Set<string>, db: DatabaseSync): AgyCall[] {
     }
   }
   const steps = new Map<number, StepInfo>()
+  // The session facts the steps give (session-view::REQ-003/AC-04, REQ-005/AC-02): the largest step time — copied
+  // steps included, theirs being older — and the source of the last copied step, the conversation the nearest copied
+  // content came from
+  let lastStepAt: number | null = null
+  let forkOf: string | null = null
   for (const row of db.prepare('SELECT idx, metadata FROM steps WHERE metadata IS NOT NULL ORDER BY idx').iterate()) {
     const { idx, metadata } = row as { idx: number; metadata: unknown }
     if (!(metadata instanceof Uint8Array)) throw new Error('agy conversation: step metadata is not a blob')
@@ -324,6 +342,8 @@ function conversationCalls(self: Set<string>, db: DatabaseSync): AgyCall[] {
       call: null
     }
     steps.set(idx, info)
+    for (const t of [m.createdAt, m.completedAt]) if (t !== null && (lastStepAt === null || t > lastStepAt)) lastStepAt = t
+    if (info.copied) forkOf = m.sourceConversationId
     if (info.copied) continue
     if (m.usage && hasTokens(m.usage)) info.call = add(m.usage, info.at, null)
     addRetries(m.usage, m.retries, info.at, null)
@@ -348,13 +368,13 @@ function conversationCalls(self: Set<string>, db: DatabaseSync): AgyCall[] {
     }
     addRetries(g.usage, g.retries, at, g.responseModel)
   }
-  return calls.map(({ usage: u, at, model }) => [u.identity, at, u.input, u.output, u.cacheRead, u.cacheWrite, model])
+  return { calls: calls.map((c) => [c.usage.identity, c.at, c.usage.input, c.usage.output, c.usage.cacheRead, c.usage.cacheWrite, c.model]), at: lastStepAt, forkOf }
 }
 
 /**
  * Read a conversation's usage without writing under agy's directories (token-stats::CON-002): its format checked
- * (token-stats::CON-001), its credited folder (token-stats::REQ-003/AC-08) and its calls. `tmpParent` is where a copy is
- * made when a log is beside the database.
+ * (token-stats::CON-001), its credited folder (token-stats::REQ-003/AC-08), its calls, and what its database says about
+ * it as a session (AgyConversation). `tmpParent` is where a copy is made when a log is beside the database.
  */
 export function readAntigravityUsage(file: string, tmpParent: string = tmpdir()): AgyUsageRead {
   const logBefore = existsSync(`${file}-wal`)
@@ -365,11 +385,72 @@ export function readAntigravityUsage(file: string, tmpParent: string = tmpdir())
         checkFormat(db)
         const m = trajectoryRecord(db)
         if (m === null) throw new Error('agy conversation: no trajectory record')
-        return { kind: 'read', folder: firstFolder(m), calls: conversationCalls(ownConversationIds(db), db) }
+        const self = ownConversationIds(db)
+        const { calls, at, forkOf } = conversationCalls(self, db)
+        return { kind: 'read', folder: firstFolder(m), calls, conversation: { id: [...self][0], subagent: isSubagent(m), at, forkOf } }
       },
       tmpParent
     )
   } catch {
     return failedWhileWritten(file, logBefore) ? { kind: 'failed' } : { kind: 'unreadable' }
+  }
+}
+
+// ── Sessions (session-view::REQ-003, REQ-004) ──
+
+/**
+ * A conversation's full transcript: `<data root>/brain/<conversation id>/.system_generated/logs/transcript_full.jsonl`,
+ * the conversation id being its database's name (19 of 19 measured, forks and subagents included). The session's
+ * questions and turns are read from it by byte range (session-view::REQ-004/AC-02); its identity stays the database.
+ */
+export function agyTranscriptPath(file: string): string {
+  return join(dirname(dirname(file)), 'brain', basename(file, '.db'), '.system_generated', 'logs', 'transcript_full.jsonl')
+}
+
+/**
+ * A conversation's signature as a session: its database's (conversationSignature) and its transcript's modification
+ * time and size, so a transcript agy appended to — or rewrote when it compacted the context — is indexed again (C4),
+ * as is a database it wrote; '-' for a transcript not there.
+ */
+export function agySessionSignature(file: string): string | null {
+  const db = conversationSignature(file)
+  if (db === null) return null
+  let transcript: string
+  try {
+    const st = statSync(agyTranscriptPath(file))
+    transcript = `${st.mtimeMs}:${st.size}`
+  } catch {
+    transcript = '-'
+  }
+  return `${db.sig}|${transcript}`
+}
+
+/**
+ * agy's own conversation titles, from its summaries database (`<data root>/conversation_summaries.db`, the index its
+ * `/resume` list reads), by conversation id; a conversation agy left untitled (a fork, a subagent) is not in it
+ * (session-view::REQ-003/AC-03). Read without writing there (token-stats::CON-002), as a conversation is. Empty when the
+ * database is not there or will not read in the shape titles are read from (its table with `conversation_id` and
+ * `title`) — the titles then fall back to the first question; null when the read failed while agy was writing it, so
+ * the caller keeps the titles it last read.
+ */
+export function readAgySummaryTitles(home: string, tmpParent: string = tmpdir()): Map<string, string> | null {
+  const file = join(home, 'conversation_summaries.db')
+  if (!existsSync(file)) return new Map()
+  const logBefore = existsSync(`${file}-wal`)
+  try {
+    return readConversationDb(
+      file,
+      (db) => {
+        const titles = new Map<string, string>()
+        for (const row of db.prepare('SELECT conversation_id, title FROM conversation_summaries').iterate()) {
+          const { conversation_id: id, title } = row as { conversation_id?: unknown; title?: unknown }
+          if (typeof id === 'string' && id !== '' && typeof title === 'string' && title.trim() !== '') titles.set(id, title)
+        }
+        return titles
+      },
+      tmpParent
+    )
+  } catch {
+    return failedWhileWritten(file, logBefore) ? null : new Map()
   }
 }

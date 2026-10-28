@@ -1464,7 +1464,9 @@ describe('cache version migration (a real bug regression)', () => {
     expect(keysOf('codex')).toEqual([
       'at', 'boundary', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'paginated', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
     ])
-    expect(keysOf('antigravity')).toEqual(['calls', 'file', 'kind', 'projectKey', 'unreadable'])
+    expect(keysOf('antigravity')).toEqual([
+      'at', 'calls', 'conversationId', 'file', 'forkOf', 'kind', 'listed', 'projectKey', 'questions', 'subagent', 'title', 'unreadable'
+    ])
   })
 
   // Ticket 03a's founding premise (spec D2a): the index **stores offsets only, not even a truncated
