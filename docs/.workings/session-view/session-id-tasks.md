@@ -89,3 +89,19 @@ prototype are the authority.
   `inert` docs/.workings/session-view/review-code.md, review-tests.md, session-id-tasks.md and docs/specs/session-view.md;
   `changed` e2e/app.spec.ts (code changed) and e2e/startup-restore.spec.ts (code changed); "verdict: run (6 files differ
   from the base)". The tests changed, so the fixes are committed and handed to an incremental review.
+
+## The incremental check's fixes (F7-F9, 2026-10-28)
+
+- F7: E2 moves the session file aside and back by rename and asserts its inode is unchanged; the finding's premise
+  (that the later rewrite pinned the page handler's byte ranges and text) did not hold under a mutation shown to reach
+  the bundle — see review-tests.md's second self-check. The untested handler arguments predate this change and are left
+  to the owner. F8: the resume button's first tooltip read is bounded at 500 ms; the row says why focus is driven on one
+  button. F9: the two statements corrected in review-tests.md.
+- Self-check items 6 and 7: the evidence is under evidence/session-id (f7-*, f8-*, f7-f9-targeted.log), named for its
+  contents; the records touched (review-tests.md's second increment and self-check, this file) match the tests as
+  written. No finding.
+- Targeted verification: lint, typecheck, e2e/app.spec.ts and e2e/startup-restore.spec.ts in full (88 passed) and
+  check:lang, on 3c37a76 with the three changed files listed by hash ([log](evidence/session-id/f7-f9-targeted.log)).
+  `node ~/.claude/skills/implement/change-scope.mjs --base 3c37a76`, exit 1: `inert` review-tests.md; `changed`
+  e2e/app.spec.ts and e2e/startup-restore.spec.ts (code changed); "verdict: run (3 files differ from the base)". The
+  tests changed again: committed and handed to a second incremental review.

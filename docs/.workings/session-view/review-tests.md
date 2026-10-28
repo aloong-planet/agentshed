@@ -77,7 +77,8 @@ case, and the state each case needs is one the app builds itself (files on disk,
 ### False greens
 
 Design-time checks: no threshold assertions (always-true does not arise); every expected value is written from
-the spec or from the fixture's own literal (one, the copied button's border, from the prototype — the increment below) (the file name, the directory name, the record's id), never recomputed
+the spec's words, from the fixture's own literal, or from the confirmed prototype (the check glyph, the copy, the copied
+button's border — the increments below), never recomputed by the code under test (the file name, the directory name, the record's id), never recomputed
 by the code under test — U9's commands are spelled out, not produced by the quoting function; every assertion is
 on the new live path (the session page's header, the new field, the new channel). The negative reads in E1 are
 placed after a later event of the same order. Mutation testing: per the project's capability declaration,
@@ -113,11 +114,49 @@ changed. The E1 row stands as written above, with these assertions changed or ad
 Review of the changed rows. Coverage: each row names the input that reaches its branch; E2 reaches the restored branch
 only through a real restart with the scan held, and reads the startup state to prove it. Case design: E2 calls the
 preload API as the case already does for `readArtifact`, and replaces only Finder's call at the process boundary.
-False greens: no row retries a negative; the 500 ms bound fails a tooltip that waits for a native-title delay; the
+False greens: one read is a retried negative — AC-06's "no rect", which can pass only while the check shows, since the
+copy glyph's rect goes only with the swap and the next read needs it back; the 500 ms bound fails a tooltip that waits
+for a native-title delay; the
 glyph assertions are on the icon's own markup, so dropping the swap fails them; E2's empty recorder is read after the
 call's rejection has arrived, and its second call proves the recorder records. Resource reuse: no new launch. The
 design review's Coverage now reads "the restored-entry check (U10 for the judge, E2 for its wiring)", and its False
 greens holds with the border's expected value taken from the prototype, as the row says. No finding.
+
+### Test design table — second increment, after the incremental check's F7-F9 (2026-10-28)
+
+| # | Spec item | Seam | Input that drives the target branch | Assertion object and where its expected value comes from | Fixture shape source | Expensive resource and how provided |
+|---|---|---|---|---|---|---|
+| E2 (changed) | as E2, and keeping session-view::REQ-001/AC-04's rewrite in place | as E2 | the restored `saved.jsonl` moved aside with a rename and a symlink put at its path; then the symlink removed and the file renamed back | as E2, plus the file's inode after the swap back equals the one read before it — so the case's later rewrite is in place, as it was before E2 | as E2 | as E2 |
+| E1 (changed) US-001/AC-02 | "appears at once" | as E1 | hover on each of the three buttons; keyboard focus on the reveal button | the tooltip names the action within 500 ms of each hover and of the focus. Focus is driven on one button only: the three buttons are drawn by one map with the same focus and hover handlers, so a second focus read would test the same code | as E1 | the same launch |
+
+Review of the changed rows. Coverage: E2's inode read proves the swap left the rest of the case where it was, its later
+rewrite in place as before E2 (whether that rewrite pins the page handler's arguments is settled in the self-check
+below: it does not, and never did). AC-02's row now says what E1 reads, and the reason the other two focus reads would add nothing. Case design and
+resource reuse unchanged. False greens: the inode equality and the 500 ms bounds are reads that go red on the
+regression they name. No finding.
+
+F9's corrections, in place above: the design review's False greens and the first increment's review now say the
+expected values come from the spec's words, the fixtures' literals and the confirmed prototype (the check glyph, the
+copy, the copied button's border), none from the code under test; and that AC-06's "no rect" is a retried negative,
+which can pass only while the check shows — the copy glyph's rect goes only with the swap, and the next read needs it
+back.
+
+### Self-check before the second fixes were handed back (F7-F9; items 2-5)
+
+- Item 2, the assertions changed: E2's inode equality (red if the swap back gives a new file); the resume button's
+  500 ms bound (red for a delayed tooltip). F9 changes no assertion. No finding.
+- F7's premise was put to a mutation and did not hold: with the inode kept, both of the page handler's
+  `questionRevision` calls given a constant byte range and text, built (the bundle holds the two mutated calls and
+  none of the originals), leave the restart case green ([script](evidence/session-id/f7-mutation.mjs),
+  [result](evidence/session-id/f7-mutation.json), [reach](evidence/session-id/f7-mutation-reach.json)). The rewrite
+  changes the file's size and mtime, so the turn's freshness check refetches it whatever the revision holds; the
+  later rewrite never pinned those arguments, before E2 or since. The mutation sits on both sides of the comparison,
+  so its survival alone would not condemn the case; with the reach shown, the conclusion is that nothing here pins the
+  handler's arguments to `questionRevision`. That gap predates this change (it concerns session-view::REQ-001/AC-04,
+  not US-001) and is left to the owner. E2 keeps the inode all the same, which returns the case's later steps to the
+  setup they had before E2.
+- Item 3: no product function changed. Item 4: E2 still uses the case's own saved session. Item 5: no shared helper
+  changed. No finding.
 
 ### Self-check before the fixes were handed back (items 2-5)
 
@@ -300,3 +339,190 @@ incomplete:
 
 No statement in the spec's requirements, `docs/features`, the ADRs or `CONTEXT.md` is affected: no finding is a
 product defect. This check changed nothing outside this section.
+
+### Increment: the fixes 466d1c0..3c37a76 (2026-10-28)
+
+Checked 2026-10-28 by a sub-agent independent of the implementation and of the fixes. No ticket: this record.
+Implementation version: 3c37a76 (the fixes, 466d1c0..3c37a76, one commit; the whole change 03ff1a2..3c37a76).
+
+Scope, retrieved as the incremental check prescribes:
+
+- Tests the range changes: `git diff --name-only 466d1c0..3c37a76` lists two test files besides ten files under
+  `docs/`. Every hunk in `e2e/app.spec.ts` lies inside E1 (5525-5788); the one hunk in `e2e/startup-restore.spec.ts`
+  (128-158) lies inside "restart restores viewed project, questions and read answer before a new scan finishes",
+  where E2 now sits. Objects: E1 and that restart case.
+- Tests that depend on test helper code the range changes: the range changes no helper outside those two files, and
+  neither exports anything (`git grep -nE "^export" -- e2e/app.spec.ts e2e/startup-restore.spec.ts`: no hit, exit 1).
+  Every tracked file naming either one (`git ls-files -z | xargs -0 grep -lE "(app|startup-restore)\.spec"`) was read
+  at its hits: outside `docs/`, `e2e/app-update.spec.ts:40` and `e2e/global-search.spec.ts:39, 57, 126` mention
+  `app.spec.ts` in comments, and `scripts/check-lang.mjs:238` and `scripts/check-lang.test.mjs:27` hold it as a path
+  string; none imports it (control: the same search for `./close-app` finds its 9 importers). No further test.
+- Test design table rows the range changes: the seven rows of "Test design table — increment after the
+  post-implementation check" (E1 changed: AC-01, AC-02, AC-06, AC-10; E1 added in 99d96c1: the border, the parent;
+  E2).
+
+Carried over: U1-U10 (four unit test files the range does not touch) keep every Dimension's conclusion of the
+post-implementation check above (2026-10-28, on 99d96c1).
+
+Inputs, and how each was checked:
+
+- Run evidence: [post-check-fix-targeted.log](evidence/session-id/post-check-fix-targeted.log). Version: HEAD 466d1c0
+  and six modified files with their hash-object values. Both test files, the spec, review-code.md and review-tests.md
+  hash to 3c37a76's blobs (`git rev-parse 3c37a76:<file>`); session-id-tasks.md was edited after the run (6bb46bf
+  logged, 14c6e95 committed). That file and the six evidence files the range adds (absent from the list because
+  `.gitignore:4` ignores `docs/.workings/`) are inert, ESLint ignores `docs/`, and no reviewed test reads them, so
+  the log stands for 3c37a76's executable files. Commands: `pnpm lint`, `pnpm typecheck`,
+  `pnpm e2e e2e/app.spec.ts e2e/startup-restore.spec.ts`, `pnpm check:lang`, each with its output and `exit=0`, then
+  `overall=0`; the hash-object step is described rather than spelled out, and how the codes were taken is not shown.
+  E1 passed (line 152, 4.9 s), the restart case passed (line 153, 26.9 s).
+- The F6 fix: [pre-review-run-rest.log](evidence/session-id/pre-review-run-rest.log), on 466d1c0 (99d96c1's code plus
+  the first log) with only review-tests.md modified: test:scripts, test:site, check:ui, check:lang, check:i18n,
+  check:nul and smoke, each `exit=0`, then `overall=0`, no failing output. With pre-review-run.log, all eleven
+  commands of `pnpm verify` ran on 99d96c1's code, and T8 in session-id-tasks.md describes the two parts as they ran.
+  F6 is resolved.
+- Capability declaration, read with Python's `tomllib`: `[mutation-testing] enabled = false`.
+- One re-run of a reviewed test: after `pnpm exec electron-vite build` (exit 0), E1 alone with `DEBUG=pw:api`
+  (exit 0, passed), to time the reads the fixes moved or added (False greens). The output stays in the session's
+  scratch directory; the lines that carry conclusions are quoted below. One replay outside the repository of E2's
+  file steps (write, copy elsewhere, unlink, symlink, unlink, write, rewrite) on a file in the OS temp directory, for
+  its inode (Coverage): `{"before":3847566505,"afterSwapBack":3847566508,"afterInPlaceRewrite":3847566508,
+  "sameAsSaved":false}`. `git status --porcelain --untracked-files=all` was empty before and after; no source, test or
+  data file was changed.
+- The fixes' own evidence: the [mutation script](evidence/session-id/post-check-mutations.mjs) makes each mutation as
+  a unique one-line replacement, builds, runs the case, restores the file byte for byte in `finally` and rebuilds; the
+  [results](evidence/session-id/post-check-mutations.json) show each restore `identical: true`, the rebuild exit 0,
+  and each failure on the assertion it was written for (startup-restore.spec.ts:152, app.spec.ts:5659, 5750).
+
+#### Per-case consistency with the test design table
+
+| Row | Written test | Conclusion |
+|---|---|---|
+| E1 (changed) AC-01 | `app.spec.ts:5627`, `toHaveText(new RegExp(`· Session ID ${CLAUDE_ID}$`))` | Matches |
+| E1 (changed) AC-02 | hover on the copy-ID and reveal buttons, each read with `{ timeout: 500 }` (5638-5643); focus on the reveal button (5647-5648); the resume button's tooltip read with the default 5 s (5682-5683) | Does not match: the row says hover and keyboard focus on each button (F8) |
+| E1 (changed) AC-06 | 5659-5660 while copied; 5675 once the check has gone | Matches |
+| E1 (added) the border | 5661-5664 | Matches |
+| E1 (added) the parent | 5767-5777 | Matches |
+| E1 (changed) AC-10 | 5744-5750 | Matches |
+| E2 | `startup-restore.spec.ts:128-158` | Matches the row, which does not say that putting the file back gives it a new inode — a change to the state the rest of the case starts from (F7) |
+
+Test file headers: E1's note (5531-5541) gives the five gaps the design review listed, each with its reason and the
+condition for a case, and each reason holds in the code: the language changes only through `onLanguage` from the
+settings page (App.tsx:292-301; the startup prefs echo sets the preference, not the language, 166-176); the overview
+card's rows call the same `onOpenSession` the Sessions tab does, from the same project entry (DetailPane.tsx:147, 257,
+386-387, 417, into App.tsx:417); the tooltip's state holds only the action and position, its text drawn from the
+props on every render (SessionActions.tsx:40, 75-84); the ID and the command are React text (SessionPane.tsx's
+`sid-v` span, SessionActions.tsx:80). F4 is resolved. startup-restore.spec.ts's header claims no gap; E2's comment
+(128-131) says what it drives.
+
+#### Coverage
+
+- E2 reaches the restored branch: the second launch holds its first scan 20 s, the hint's `data-state` is read once
+  before and once after the two calls (135, 158), and `firstScanComplete` turns true in the same synchronous block
+  that sends `ready` (index.ts:244-249), so "not ready" after the second call means both calls met
+  `restored: true` (index.ts:437). The calls differ only in the file's type, and `existsSync` follows the symlink to
+  `elsewhere.jsonl`, so the refusal can come only from `restored && !regular` (security.ts:204-206). F3 is resolved;
+  the spec's testing decisions name the seam (session-view.md:1019-1022).
+- E2 changes the state the rest of the case starts from (F7). Its `unlinkSync` and `writeFileSync` (154-155) put back
+  a new file, so `saved.jsonl` no longer has the inode the saved page and its read turn were revisioned on (the
+  replay above); the case's later rewrite (160) keeps the new one. A question's revision is the file's `dev:ino` plus
+  the question's byte range and text (source-identity.ts:24-25), and a saved or cached turn is kept while its revision
+  matches (index.ts:136; turn-content-query.ts:16-17). Before the range the rewrite at 160 kept the inode, so only the
+  range and text the page handler passes (index.ts:328, 380) told "Rewritten question" from "Saved question", and 164
+  would have gone red without them (session-view::REQ-001/AC-04). Now the inode alone changes every revision, and 164 passes
+  either way. source-identity.test.ts:33 pins the function (same file, same inode, other text), not the handler's
+  arguments; no other e2e case was found rewriting a read session in place (e2e/ searched for replace-based rewrites,
+  appends, truncation and renames: the other hits are appends, app.spec.ts:1294, 5130, 5412 and
+  global-search.spec.ts:82).
+- E1's changed reads each enter what they claim: the meta line's end (AC-01), the bound after hover and focus (AC-02,
+  on the buttons F8 names), the check glyph while copied and the copy glyph after (AC-06), the class inside the 1.5 s
+  after a refusal (AC-10).
+- Fixture shapes: E2 adds no data another program writes; its inputs are the app's own saved display from the first
+  launch and a change of file type, and the reveal channel reads no content. Nothing beyond F7.
+
+#### Case design
+
+E2 calls `revealSessionFile` through the preload API, as the case already calls `readArtifact`, under an allow-list
+the app restored itself across a real restart, and replaces only `shell.showItemInFolder` in the main process, the
+boundary the spec's testing decisions name. The symlink swap is a file-system event a user or another program can
+cause. E1's changes read rendered markup and classes, no internal state. No finding.
+
+#### False greens
+
+Per the project's capability declaration, mutation-testing is not enabled, so mutation testing is skipped. When each
+changed assertion goes red, against the code under test and its expected value's source:
+
+- AC-01 (5627): the ID not at the line's end, the label not "Session ID" right before it, or the " · " before the
+  label gone.
+- AC-02 (5640, 5648): a tooltip that names its action 500 ms or more after the hover or focus — the native title's
+  delay, or a hover delay of that order; not a shorter one. In the re-run the three bounded reads passed 8, 1 and
+  2 ms after they started (the `pw:api` deltas from `expect.toHaveText started` to `succeeded`). The resume button's
+  first read waits 5 s (F8).
+- AC-06 (5659-5660, 5675): the icon not swapped (the copy glyph's path, as the fixes' mutation received), both glyphs
+  drawn (two paths: a strict-mode failure), or the copy glyph not back once the check has gone. The "no rect" read is
+  a retried `toHaveCount(0)`; it can pass only while the check shows, since the rect goes only with the swap and 5675
+  needs it back — but the increment's review says no row retries a negative (F9).
+- AC-10 (5744-5750): a check present at the single read, which in the re-run came about 31 ms after the click (the
+  `pw:api` deltas from the click to `locator.getAttribute succeeded`, the button resolved as `class="sact"`), inside any
+  1.5 s check set at or after the click; the guard throws rather than skips if the read falls later. The fixes'
+  mutation set the check before the copy and never cleared it on the failure path, so the old retried form would also
+  have failed it; F1's case, a check that clears itself after 1.5 s, is answered by the read's timing. F1 is resolved.
+- E2 (135-158): the handler passing anything but the restored state before the first scan ("shown" for "refused", as
+  the fixes' `restored: false` mutation received; an inverted flag likewise, `firstScanComplete` being false there);
+  Finder called on the refused path (the recorder read after the rejection has arrived, from a synchronous handler);
+  a regular restored entry refused, or Finder given another path; the scan done at either hint read. `if (!app)` and
+  the guards throw, never return. Its blind spot is the one F7 opens later in the case, not in E2's own reads.
+- E1's unchanged reads, re-timed since the fixes added reads between the two copies: at the second click the button
+  resolved as `<button type="button" data-act="id" class="sact done" …>`, so the second copy still landed inside the
+  first check, which the restart check needs; the steps besides the 1 s wait took about 68 ms (the wait itself shows
+  only as `+1s`). The border read came about 20 ms after the first click, the next hover's target still
+  `class="sact done"`. The rest as in the post-implementation check above.
+- Against review-code's false-greens list: form one — the glyph is read from the icon's markup, not inferred from the
+  class; form five — the AC-10 and parent reads are single reads under time guards. The range adds no gate and no
+  command-line acceptance.
+
+#### Resource reuse
+
+From the targeted log: one `electron-vite build` (main, preload, renderer; lines 41-63) for its 88 cases. The list
+reporter prints no launches, so the count is from the code: E1 launches once (5590) and closes once (5787); the
+restart case launches twice (55, 95), as before the range, and E2 runs inside the second launch — no new launch, as
+its row says. No reviewed case clears or releases a process-wide resource (E2's recorder lives in the case's own app
+process), so execution order bears on no count. No finding.
+
+#### Findings
+
+| # | Where | Dimension | Finding | Evidence | Handling |
+|---|---|---|---|---|---|
+| F7 | `startup-restore.spec.ts:150-155, 160-164`; `index.ts:328, 380` | Coverage | E2 puts the session file back as a new file, so the case's later rewrite is no longer in place under the saved page's `dev:ino`. Before the range only the byte range and text the page handler passes to `questionRevision` told the rewritten question from the saved one, and 164 would have gone red without them (session-view::REQ-001/AC-04: no old answer under a new question after a rewrite); now the new inode alone changes every revision, and 164 stays green if the handler stops passing them. source-identity.test.ts:33 pins the function, not the handler's call | the inode replay under Inputs; `source-identity.ts:24-25`; `index.ts:136` | Keep the inode: move the file aside with `renameSync`, symlink to it, then remove the symlink and rename the file back, asserting its `ino` equals the one read before E2. Amend E2's row and review it first. The spec's testing decisions stay true as written |
+| F8 | the increment's row "E1 (changed) US-001/AC-02"; `app.spec.ts:5638-5648, 5682-5683` | Coverage | The row says the tooltip is read within 500 ms after hover and keyboard focus on each button; E1 bounds hover on the copy-ID and reveal buttons and focus on the reveal button, and reads the resume button's tooltip with the default 5 s | the lines named | Amend the row to the reads E1 makes, with the reason the others need none of their own: one map renders the three buttons with the same handlers (`SessionActions.tsx:88-103`). Or bound the resume button's first read at 500 ms too, and still narrow "focus" to the reveal button |
+| F9 | this record: the design review's False greens (line 80) and the increment's review (line 116) | False greens | Two statements the range wrote do not match the tests: "one" expected value, the copied button's border, is said to come from the prototype, while the check glyph the range added (`M20 6 9 17l-5-5`, in `docs/prototypes/_shared/icons.js`) and E1's button labels, tooltip texts, stale warning and failure toasts (in `prototype-session.html`, not in the spec) come from it too; and "no row retries a negative", while the AC-06 row's "no rect" is a retried `toHaveCount(0)` | `git grep -l -F` of each string over `docs/specs`, `docs/prototypes` and the dictionaries | Correct both: the expected values come from the spec's words, the fixtures' literals and the confirmed prototype, none from the code under test, so False greens' conclusion stands; the "no rect" read is a retried negative that can pass only while the check shows. No test change |
+
+F1 to F6 of the post-implementation check above are resolved, each as its paragraph here says (F2's AC-02 part with
+F8's correction to its row, F3's with F7's side effect).
+
+#### Document sync this check creates
+
+Scope, enumerated with `find` (no ignore rules apply; hidden and ignored files included): the root's Markdown and
+TOML files, `docs/specs`, `docs/features`, `docs/adr`, and `docs/.workings/session-view` with its evidence — 130
+files (the previous check's 124 and the six evidence files the range adds; five PNGs, the rest text) — plus the two
+reviewed test files' headers. Left out, as before: other features' working directories, `docs/prototypes` (read
+only for F9's sources; no finding changes them) and `site/`. Searched for "each button", "at once", "500 ms",
+"expected value", "retries a negative", "retried", "restored allow-list", "restored-entry", "startup-restore",
+"check glyph", "session ID", "rewrit", "inode", "dev:ino", "questionRevision" and "in place".
+
+The previous check's sync rows are done and were read against the tests: the design review's Coverage and False
+greens and the E1 rows (lines 60, 80, 98-120), session-id-tasks.md's success criteria and T8, E1's gap note, and the
+spec's testing decisions (session-view.md:1019-1022) — true, except as F8 and F9 say.
+
+Statements the findings make untrue or incomplete:
+
+| Statement | Where | Findings |
+|---|---|---|
+| The E2 row (the file put back) and the increment's review of it, once F7 is fixed | this record, Test design table increment | F7 |
+| The row "E1 (changed) US-001/AC-02" | this record, Test design table increment | F8 |
+| "one, the copied button's border, from the prototype"; "no row retries a negative" | this record, Design review and its increment's review | F9 |
+
+ADR-0029 says the restart scenario "verifies source rewrite" (line 65), and the spec asks the cross-process scenario
+to cover source rewrite (session-view.md:685-687): both stay true as written, and F7's fix gives them back the
+in-place rewrite. session-id-tasks.md's AC-02 and R1 rows, `docs/features`, the other ADRs and `CONTEXT.md` (its
+retried-negative rule, 706-713, agrees with F9's correction) are unaffected: no finding is a product defect. This
+check changed nothing outside this section.

@@ -5679,7 +5679,7 @@ test('the session page header: the session ID, copying it and the resume command
   // The resume command: in the tooltip in full, copied as it reads; no stale warning here (AC-04, AC-05, CON-002)
   const claudeCmd = `cd ${quotedProj} && claude --resume ${CLAUDE_ID}`
   await btn('resume').hover()
-  await expect(tip.locator('.stip-cmd')).toHaveText(claudeCmd)
+  await expect(tip.locator('.stip-cmd')).toHaveText(claudeCmd, { timeout: 500 })
   await expect(tip).toContainText('Copy resume command')
   await expect(tip.locator('.stip-warn')).toHaveCount(0)
   // Visible where it is, not only present: its own centre hit-tests to it (CONTEXT's floating-layer invariant)

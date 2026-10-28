@@ -1,6 +1,6 @@
 import type {} from '../src/renderer/src/env'
 // Real Electron lifecycle: the display is earned by reading, then restored independently of indexing.
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, symlinkSync, unlinkSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync, statSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
@@ -144,15 +144,17 @@ test('restart restores viewed project, questions and read answer before a new sc
     const reveal = (file: string) => win.evaluate(async f => {
       try { await window.agentshed.revealSessionFile(f); return 'shown' } catch { return 'refused' }
     }, file)
-    const session = join(cdir, 'saved.jsonl'), sessionBody = readFileSync(session, 'utf8')
-    const elsewhere = join(home, 'elsewhere.jsonl')
-    writeFileSync(elsewhere, sessionBody)
-    unlinkSync(session)
-    symlinkSync(elsewhere, session)
+    // The file is moved aside and back by rename, so it keeps its inode: the rewrite below stays in place, and only
+    // the byte ranges and text the page handler passes tell the rewritten question from the saved one
+    const session = join(cdir, 'saved.jsonl'), aside = join(home, 'saved-aside.jsonl')
+    const inode = statSync(session).ino
+    renameSync(session, aside)
+    symlinkSync(aside, session)
     expect(await reveal(session)).toBe('refused')
     expect(await revealed()).toEqual([])
     unlinkSync(session)
-    writeFileSync(session, sessionBody)
+    renameSync(aside, session)
+    expect(statSync(session).ino, 'the session file is back under its own inode').toBe(inode)
     expect(await reveal(session)).toBe('shown')
     expect(await revealed()).toEqual([session])
     expect(await hint.getAttribute('data-state')).not.toBe('ready')
