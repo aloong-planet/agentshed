@@ -10,7 +10,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { isUpdateInFlight } from '@shared/update'
 import { dictOf } from '@shared/i18n'
-import { FloatingBox, type FloatingAt } from './FloatingBox'
+import { FloatingBox, TIP_LOOK, type FloatingAt } from './FloatingBox'
 import { useAnchorInvalidation } from './useAnchorInvalidation'
 import { Download, LoaderCircle } from './icons'
 import { useLanguage } from './language'
@@ -85,17 +85,7 @@ export function UpdateSlot(): JSX.Element | null {
       at={tipAt}
       // The chart tooltip's fixed dark form (REQ-001/AC-04), centred on the slot vertically. The text is
       // already the slot's accessible name, so the layer itself is hidden from assistive technology.
-      style={{
-        background: 'var(--tip-bg)',
-        color: 'var(--tip-fg)',
-        border: 0,
-        borderRadius: 8,
-        padding: '6px 10px',
-        fontSize: 12.5,
-        whiteSpace: 'nowrap',
-        pointerEvents: 'none',
-        transform: 'translateY(-50%)'
-      }}
+      style={{ ...TIP_LOOK, fontSize: 12.5, whiteSpace: 'nowrap', transform: 'translateY(-50%)' }}
     >
       <span data-testid="update-tip" aria-hidden="true">
         {label}

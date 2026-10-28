@@ -215,6 +215,15 @@ export const en: Locale = {
     goToProjectStale: (project) => `Go to ${project}`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('en', questions, { one: 'question', other: 'questions' })} · ${tok} tok · ${mb} · last active ${ago}`,
+    sessionId: 'Session ID',
+    sessionIdUnavailable: 'Session ID unavailable',
+    idUnreadable: 'This session’s ID could not be read',
+    copyId: 'Copy session ID',
+    revealFile: 'Show the record file in Finder',
+    copyResume: 'Copy resume command',
+    resumeStale: 'The project directory no longer exists, so this command’s cd will fail',
+    copyFailed: 'Copy failed: the clipboard refused it',
+    revealFailed: (detail) => `Cannot show it in Finder: ${detail}`,
     cannotOpen: (detail) => `Cannot open this session: ${detail}`,
     mainline: (n, days) =>
       `Questions (main line) · ${n} ${plural('en', n, { one: 'question', other: 'questions' })}${days}`,

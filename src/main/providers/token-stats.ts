@@ -32,6 +32,7 @@ import { emptyTokenStats, emptyTotals } from '@shared/domain'
 import { deriveStats } from '@shared/usage'
 import { mergeKey } from '@shared/path-key'
 import { localDay } from '@shared/format'
+import { sessionIdFromPath } from '@shared/session-resume'
 import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta } from './codex'
@@ -612,6 +613,8 @@ export class TokenEngine {
      * missing or on the Claude side */
     forkParentTitle: string | null
     forkParentFile: string | null
+    /** The ID the session's own side resumes it by (session-view::US-001/AC-01); null when its record has none */
+    sessionId: string | null
   }> {
     const cached = this.cache.files[file]
     if (!cached) throw appError(ERR.sessionNotIndexed)
@@ -663,7 +666,8 @@ export class TokenEngine {
         at: agg.at,
         forkPoints: agg.forkPoints,
         forkParentTitle: null,
-        forkParentFile: null
+        forkParentFile: null,
+        sessionId: sessionIdFromPath('claude', file)
       }
     }
     if (agg.kind === 'grok') {
@@ -676,7 +680,8 @@ export class TokenEngine {
         at: agg.at,
         forkPoints: 0,
         forkParentTitle: null,
-        forkParentFile: null
+        forkParentFile: null,
+        sessionId: sessionIdFromPath('grok', file)
       }
     }
     const shown = await this.codexShown(agg)
@@ -690,7 +695,9 @@ export class TokenEngine {
       // The parent is named as its own page and the list title it: a parent that is itself a stripped fork by
       // its first question left, not by the question it replayed (#278)
       forkParentTitle: shown.parent ? (await this.codexShown(shown.parent)).title : null,
-      forkParentFile: shown.parent?.file ?? null
+      forkParentFile: shown.parent?.file ?? null,
+      // Codex keeps the ID in its record's session metadata, read by the scan
+      sessionId: agg.sessionId
     }
   }
 

@@ -2,7 +2,9 @@ import { displaySnapshotValid, displayDetailValid, displayStatsValid } from './d
 // Successful presentation payloads only (ADR-0029). No renderer-to-disk write channel.
 import type { CappedText, ProjectDetail, ProjectStats, SessionPage, SessionTurn, Snapshot } from './domain'
 import type { ListSkillFilesArgs, ListSkillFilesResult } from './ipc'
-import { validateProjectDetail, validateProjectStats, validateSessionPage, validateSessionTurn, validateSnapshot } from './validate'
+import { validateProjectDetail, validateProjectStats, validateSessionPage, validateSessionTurn, validateSnapshot, AGENT_SIDES } from './validate'
+import { sessionIdFromPath } from './session-resume'
+import type { AgentSide } from './domain'
 
 export type SavedRead =
   | { kind: 'projectDetail'; path: string; data: ProjectDetail }
@@ -69,11 +71,17 @@ export function validSavedRead(v: unknown): v is SavedRead {
 }
 
 /** A project detail saved before its memory carried the main file's entry restores with none listed; the live
- * read replaces it (ADR-0029's upgrade case; spec memory-view, Implementation Decisions). Only an absent field is
- * filled in: a present but malformed one is left for validation to drop. */
+ * read replaces it (ADR-0029's upgrade case; spec memory-view, Implementation Decisions). A session page saved
+ * before the session ID was kept restores with the ID its path holds — Claude Code's and Grok's — and none for
+ * Codex, whose ID is in its record, until the live page replaces it (session-view::CON-003). Only an absent field
+ * is filled in: a present but malformed one is left for validation to drop. */
 function upgradeSavedRead(v: unknown): unknown {
-  if (!object(v) || v.kind !== 'projectDetail' || !object(v.data) || !object(v.data.memory) || 'mainFile' in v.data.memory) return v
-  return { ...v, data: { ...v.data, memory: { ...v.data.memory, mainFile: null } } }
+  if (!object(v) || !object(v.data)) return v
+  if (v.kind === 'projectDetail' && object(v.data.memory) && !('mainFile' in v.data.memory))
+    return { ...v, data: { ...v.data, memory: { ...v.data.memory, mainFile: null } } }
+  if (v.kind === 'sessionPage' && !('sessionId' in v.data) && typeof v.data.file === 'string' && AGENT_SIDES.has(String(v.data.side)))
+    return { ...v, data: { ...v.data, sessionId: sessionIdFromPath(v.data.side as AgentSide, v.data.file) } }
+  return v
 }
 
 /** Independent entries degrade independently; corrupt envelope metadata is handled by the store. */

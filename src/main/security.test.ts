@@ -15,7 +15,7 @@
 // setWindowOpenHandler written, no will-navigate" — which is exactly the shape this project once had.
 // So no off-the-shelf tool guards this class of regression, and the decision layer is a pure function
 // pinned down here.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
 import { isAppUrl, externalOpenTarget, assertTrustedSender, cspFor } from './security'
 
 const DEV = 'http://localhost:5173'
@@ -177,4 +177,54 @@ describe('sessionReadTarget (the session read allow-list judgement)', () => {
   it('an empty allow-list refuses everything', () => {
     expect(sessionReadTarget(new Set<string>(), '/Users/x/.claude/projects/-e/a.jsonl')).toBeNull()
   })
+})
+
+// session-view::US-001/AC-07, AC-10 and R1: showing a session's record file in Finder admits exactly what reading
+// it admits (the exact-path session allow-list, judged first), and then only a file still there; an entry restored
+// before the first scan only while it is a regular file, as a restored artifact is opened. Real temp files and a
+// symlink stand in for the disk; the judge is given the same probes the handler gives it.
+import { sessionRevealTarget } from './security'
+import { regularTarget } from './source-identity'
+import { existsSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+describe('sessionRevealTarget (showing a session\'s record file in Finder)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'agentshed-reveal-'))
+  const present = join(root, 'a.jsonl')
+  const target = join(root, 'target.jsonl')
+  const link = join(root, 'link.jsonl')
+  const gone = join(root, 'gone.jsonl')
+  writeFileSync(present, '{}\n')
+  writeFileSync(target, '{}\n')
+  symlinkSync(target, link)
+  const listed = new Set([present, link, gone])
+  const probes = { exists: existsSync, regular: (f: string) => regularTarget(f) }
+  const judge = (raw: unknown, restored = false) => sessionRevealTarget(listed, raw, { restored, ...probes })
+
+  it('shows a listed file that is still there, live or restored', () => {
+    expect(judge(present)).toEqual({ ok: true, file: present })
+    expect(judge(present, true)).toEqual({ ok: true, file: present })
+  })
+
+  it('reports a listed file that is gone, without showing anything', () => {
+    expect(judge(gone)).toEqual({ ok: false, code: ERR.sessionFileUnreadable })
+  })
+
+  it('a restored entry that is not a regular file is refused; a live one is shown', () => {
+    expect(judge(link, true)).toEqual({ ok: false, code: ERR.sessionNotWhitelisted })
+    expect(judge(link)).toEqual({ ok: true, file: link })
+  })
+
+  it('refuses whatever is not exactly a listed path — another type, empty, traversal, a prefix lookalike, an encoding, another case — before touching it', () => {
+    let touched = 0
+    const counting = { restored: false, exists: (f: string) => { touched++; return existsSync(f) }, regular: (f: string) => { touched++; return regularTarget(f) } }
+    for (const raw of [42, null, '', `${root}/../${root.split('/').pop() ?? ''}/a.jsonl`, `${present}2`, `${present}/x`,
+      present.replace('a.jsonl', '%61.jsonl'), present.toUpperCase(), target]) {
+      expect(sessionRevealTarget(listed, raw, counting)).toEqual({ ok: false, code: ERR.sessionNotWhitelisted })
+    }
+    expect(touched).toBe(0)
+  })
+
+  afterAll(() => rmSync(root, { recursive: true, force: true }))
 })

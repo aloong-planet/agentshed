@@ -278,3 +278,25 @@ export function LoaderCircle({ size }: { size?: number }): JSX.Element {
     </Icon>
   )
 }
+
+/** Lucide folder-open — the session page's "show the record file in Finder" (chosen 2026-10-28 over
+ * folder-search and square-arrow-out-up-right: it says "go to the folder it sits in" plainly) */
+export function FolderOpen({ size }: { size?: number }): JSX.Element {
+  return (
+    <Icon size={size}>
+      <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
+    </Icon>
+  )
+}
+
+/** Lucide square-terminal — the session page's "copy the resume command" (chosen 2026-10-28 over history and
+ * play: a command for a terminal; boxed, so it stays apart from Terminal on the question rows' tool counts) */
+export function SquareTerminal({ size }: { size?: number }): JSX.Element {
+  return (
+    <Icon size={size}>
+      <path d="m7 11 2-2-2-2" />
+      <path d="M11 13h4" />
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+    </Icon>
+  )
+}

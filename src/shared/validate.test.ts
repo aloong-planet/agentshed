@@ -309,6 +309,7 @@ describe('validateSessionPage (the session page payload)', () => {
     forkPoints: 0,
     forkParentTitle: null,
     forkParentFile: null,
+    sessionId: 'a',
     questions: [{ i: 1, text: 'question one', at: 1, tools: 2, subagents: 0 }]
   }
 
@@ -316,6 +317,17 @@ describe('validateSessionPage (the session page payload)', () => {
     expect(validateSessionPage(okPage).ok).toBe(true)
     expect(validateSessionPage({ ...okPage, questions: [], at: null }).ok).toBe(true)
     expect(validateSessionPage({ ...okPage, questions: [{ i: 1, text: 't', at: null, tools: 0, subagents: 0 }] }).ok).toBe(true)
+  })
+
+  // session-view::US-001/AC-01, AC-09 (R3): the session ID is a non-empty string, or null when it cannot be read
+  it('admits a session ID that is a non-empty string or null, and refuses an empty one, another type, or none', () => {
+    expect(validateSessionPage({ ...okPage, sessionId: '6b3f2a10-4c5d-4e6f-8a7b-9c0d1e2f3a4b' }).ok).toBe(true)
+    expect(validateSessionPage({ ...okPage, sessionId: null }).ok).toBe(true)
+    const withoutId = Object.fromEntries(Object.entries(okPage).filter(([k]) => k !== 'sessionId'))
+    for (const bad of [{ ...okPage, sessionId: '' }, { ...okPage, sessionId: 7 }, withoutId]) {
+      const r = validateSessionPage(bad)
+      expect(r.ok === false && r.failure.path).toBe('page.sessionId')
+    }
   })
 
   it('refuses an invalid side or forkState and points at the path', () => {

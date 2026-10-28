@@ -47,6 +47,21 @@ const SURFACE: CSSProperties = {
 }
 
 /**
+ * The tooltip's form over the surface: the chart tooltip's fixed dark ground, the same in every theme and
+ * appearance. Written once, for every hover tooltip on a FloatingBox (the rail's update button, the session page
+ * header's buttons), so the copies cannot drift apart; a layer adds only what is its own (size, wrapping, offset).
+ * Not interactive: the pointer passes through it.
+ */
+export const TIP_LOOK: CSSProperties = {
+  background: 'var(--tip-bg)',
+  color: 'var(--tip-fg)',
+  border: 0,
+  borderRadius: 8,
+  padding: '6px 10px',
+  pointerEvents: 'none'
+}
+
+/**
  * The ref is forwarded because the dismissal watcher needs to recognise this element: a scroll
  * originating inside the layer means the user is reading it, not that the anchor moved.
  */

@@ -184,6 +184,7 @@ const api = {
     ipcRenderer.invoke(CMD.readArtifact, file) as Promise<CappedText>,
   openArtifact: (file: string): Promise<void> => ipcRenderer.invoke(CMD.openArtifact, file),
   copyText: (text: string): Promise<void> => ipcRenderer.invoke(CMD.copyText, text),
+  revealSessionFile: (file: string): Promise<void> => ipcRenderer.invoke(CMD.revealSessionFile, file),
   installSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
     ipcRenderer.invoke(CMD.installSkill, args) as Promise<SkillOpResult>,
   uninstallSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>

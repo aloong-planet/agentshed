@@ -3,7 +3,7 @@ import { DisplayStore } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, regularTarget } from './source-identity'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
 import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
-import { readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   CMD,
@@ -37,7 +37,8 @@ import {
   installCsp,
   installNavigationGuards,
   installPermissionGuards,
-  sessionReadTarget
+  sessionReadTarget,
+  sessionRevealTarget
 } from './security'
 import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
@@ -340,6 +341,7 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     forkPoints: q.forkPoints,
     forkParentTitle: q.forkParentTitle,
     forkParentFile: q.forkParentFile,
+    sessionId: q.sessionId,
     questions
   }
   assertSessionPage(page)
@@ -428,6 +430,13 @@ handle(CMD.copyText, (_e, text: unknown) => {
   if (typeof text !== 'string' || text === '')
     throw appError(ERR.badArgs, { channel: 'copyText', field: 'text' })
   clipboard.writeText(text)
+})
+
+// Before the first scan the allow-list is the restored one, whose entries are shown only while regular files
+handle(CMD.revealSessionFile, (_e, raw: unknown) => {
+  const r = sessionRevealTarget(sessionWhitelist, raw, { restored: !firstScanComplete, exists: existsSync, regular: (f) => regularTarget(f) })
+  if (!r.ok) throw appError(r.code)
+  shell.showItemInFolder(r.file)
 })
 
 handle(CMD.openArtifact, async (_e, file: unknown) => {

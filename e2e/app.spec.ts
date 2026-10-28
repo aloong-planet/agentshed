@@ -5521,3 +5521,268 @@ test('selectable trend span: localized controls fit both pages in light and dark
     await close(l)
   }
 })
+
+// session-view::US-001 (AC-01 to AC-10) and CON-002 end to end, on the session page as a user reaches it. One
+// home: a project whose directory name holds a space and a single quote, with a Claude Code session named by a
+// UUID, a Codex rollout with an id, one without, and a Grok session; and a stale project (registered in Codex's
+// config, never created) holding a Codex parent and its fork, reached from global search. The main process's
+// clipboard write and Finder call are replaced at the Electron boundary with recorders, so a run neither
+// overwrites the user's clipboard nor opens Finder. Each command below is spelled out, its quoting included.
+// Gaps, not driven here:
+// - the header on a cached revisit or a restored page: the same render as a first open, from the same page data (the
+//   restore of that data is display-store.test.ts's). A case is due if the header stops being drawn from the page.
+// - a transfusion while a tooltip is open: the tooltip is drawn from the current page on every render. A case is due
+//   if the tooltip keeps a copy of the page's data of its own.
+// - a language switch while a tooltip is open: the language changes only on the settings page, which no session
+//   page survives. A case is due when the language can change with a session page open (from a menu, say).
+// - the overview card's route: it opens the page through the same shell call as the Sessions tab, from the same
+//   project entry. A case is due if that route stops passing the project entry.
+// - agent text drawn as text: the ID and the path reach the page only as React text nodes. A case is due if either
+//   is ever rendered as markup.
+test('the session page header: the session ID, copying it and the resume command, and showing the record file (session-view::US-001)', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-resume-'))
+  const proj = join(home, "it's demo")
+  const stale = join(home, 'gone-proj') // registered, never created
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  mkdirSync(join(home, '.codex'), { recursive: true })
+  writeFileSync(join(home, '.codex', 'config.toml'), `[projects."${stale}"]\ntrust_level = "trusted"\n`)
+  const at = (d: number): string => localDayOffset(d).toISOString()
+  const usage = (ts: string): string =>
+    JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'token_count', info: { last_token_usage: { input_tokens: 50, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 9, total_tokens: 59 } } } })
+  const q = (ts: string, message: string): string => JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message } })
+
+  const CLAUDE_ID = '6b3f2a10-4c5d-4e6f-8a7b-9c0d1e2f3a4b'
+  const cdir = join(home, '.claude', 'projects', proj.replace(/[^a-zA-Z0-9]/g, '-'))
+  mkdirSync(cdir, { recursive: true })
+  const claudeFile = join(cdir, `${CLAUDE_ID}.jsonl`)
+  writeFileSync(claudeFile, [
+    JSON.stringify({ type: 'user', timestamp: at(1), message: { role: 'user', content: 'Claude resume question' } }),
+    JSON.stringify({ type: 'assistant', timestamp: at(1), message: { model: 'claude-fable-5', content: [{ type: 'text', text: 'Done.' }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } })
+  ].join('\n') + '\n')
+
+  const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
+  mkdirSync(sdir, { recursive: true })
+  const CODEX_ID = '019fb0c0-1111-7af3-af7d-8505cedf1ec2'
+  const codexFile = join(sdir, `rollout-2026-01-01T09-00-00-${CODEX_ID}.jsonl`)
+  writeFileSync(codexFile, [JSON.stringify({ timestamp: at(2), type: 'session_meta', payload: { cwd: proj, id: CODEX_ID } }), q(at(2), 'Codex resume question'), usage(at(2))].join('\n') + '\n')
+  const noIdFile = join(sdir, 'rollout-2026-01-01T10-00-00-noid.jsonl')
+  writeFileSync(noIdFile, [JSON.stringify({ timestamp: at(3), type: 'session_meta', payload: { cwd: proj } }), q(at(3), 'Codex question with no id'), usage(at(3))].join('\n') + '\n')
+
+  const GROK_ID = '019fd1e2-1042-7c12-94e9-15b9d0ad23ec'
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+  const gdir = join(home, '.grok', 'sessions', encodeURIComponent(proj), GROK_ID)
+  mkdirSync(gdir, { recursive: true })
+  writeFileSync(join(gdir, 'summary.json'), JSON.stringify({ info: { id: GROK_ID, cwd: proj } }))
+  const grokFile = join(gdir, 'updates.jsonl')
+  const gts = Math.floor(localDayOffset(4).getTime() / 1000)
+  writeFileSync(grokFile, JSON.stringify({ timestamp: gts, method: '_x.ai/session/update', params: { sessionId: 's', update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Grok resume question' }, _meta: { promptIndex: 0 } } } }) + '\n')
+
+  // The stale project: a parent and its fork replaying the parent's question (global-search.spec.ts's shape)
+  const PARENT = '019fb0c0-aaaa-7af3-af7d-8505cedf1ec3'
+  const CHILD = '019fb0c0-bbbb-7af3-af7d-8505cedf1ec3'
+  const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+    JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: stale, id, ...extra } })
+  writeFileSync(join(sdir, `rollout-${PARENT}.jsonl`), [meta(at(6), PARENT), q(at(6), 'Parent question in the gone project'), usage(at(6))].join('\n') + '\n')
+  writeFileSync(join(sdir, `rollout-${CHILD}.jsonl`), [meta(at(5), CHILD, { forked_from_id: PARENT }), q(at(5), 'Parent question in the gone project'), q(at(5), 'Resume the stale fork please'), usage(at(5))].join('\n') + '\n')
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await l.app.evaluate(({ clipboard, shell }) => {
+    const g = globalThis as unknown as { __copied: string[]; __revealed: string[]; __refuse: boolean }
+    g.__copied = []
+    g.__revealed = []
+    g.__refuse = false
+    clipboard.writeText = (text: string) => {
+      if (g.__refuse) throw new Error('the clipboard refused it')
+      g.__copied.push(text)
+    }
+    shell.showItemInFolder = (p: string) => {
+      g.__revealed.push(p)
+    }
+  })
+  const copied = (): Promise<string[]> => l.app.evaluate(() => (globalThis as unknown as { __copied: string[] }).__copied)
+  const revealed = (): Promise<string[]> => l.app.evaluate(() => (globalThis as unknown as { __revealed: string[] }).__revealed)
+  const btn = (act: string) => win.locator(`.pane-head .sact[data-act="${act}"]`)
+  const tip = win.locator('[data-testid="session-tip"]')
+  const away = (): Promise<void> => win.mouse.move(5, 5)
+  const openRow = async (title: string): Promise<void> => {
+    await win.locator('.pane-body .card .se', { hasText: title }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText(title)
+  }
+  const backToSessions = async (): Promise<void> => {
+    await win.locator('.pane-head .sback').click()
+    await expect(win.locator('.pane-body .card .se').first()).toBeVisible()
+  }
+  const quotedProj = `'${home}/it'\\''s demo'`
+
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: "it's demo" }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+
+  // ── Claude Code: the ID in the meta line, the three buttons at the title row's right end (AC-01, AC-02) ──
+  await openRow('Claude resume question')
+  await expect(win.locator('.pane-head .smeta .sid-v')).toHaveText(CLAUDE_ID)
+  await expect(win.locator('.pane-head .smeta')).toHaveText(new RegExp(`· Session ID ${CLAUDE_ID}$`))
+  await expect(win.locator('.pane-head .sact')).toHaveCount(3)
+  expect(await win.locator('.pane-head .sact').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label'))))
+    .toEqual(['Copy session ID', 'Show the record file in Finder', 'Copy resume command'])
+  const rowBox = await win.locator('.pane-head .det-title').boundingBox()
+  const groupBox = await win.locator('.pane-head .sacts').boundingBox()
+  if (rowBox === null || groupBox === null) throw new Error('title row or button group not rendered')
+  expect(Math.abs(rowBox.x + rowBox.width - (groupBox.x + groupBox.width)), 'the buttons end at the title row\'s right').toBeLessThanOrEqual(1)
+
+  // Each tooltip names its action on hover, and goes when the pointer leaves (AC-02)
+  // "At once": within 500 ms, well under the native title's delay of about a second
+  for (const [act, name] of [['id', 'Copy session ID'], ['reveal', 'Show the record file in Finder']] as const) {
+    await btn(act).hover()
+    await expect(tip).toHaveText(name, { timeout: 500 })
+    await away()
+    await expect(tip).toHaveCount(0)
+  }
+  // …and on keyboard focus: the case's window is not shown, so focus is emulated through the DevTools protocol
+  const cdp = await win.context().newCDPSession(win)
+  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+  await btn('reveal').focus()
+  await expect(tip).toHaveText('Show the record file in Finder', { timeout: 500 })
+  await btn('reveal').blur()
+  await expect(tip).toHaveCount(0)
+
+  // Copying the ID: exactly the ID, a check and "Copied" (AC-03, AC-06)
+  await btn('id').hover()
+  await btn('id').click()
+  await expect.poll(copied).toEqual([CLAUDE_ID])
+  await expect(btn('id')).toHaveClass(/\bdone\b/)
+  await expect(tip).toHaveText('Copied')
+  // The icon itself becomes the check (Lucide's check glyph) in place of the copy glyph (its rect)
+  await expect(btn('id').locator('svg path')).toHaveAttribute('d', 'M20 6 9 17l-5-5')
+  await expect(btn('id').locator('svg rect')).toHaveCount(0)
+  // The check changes the icon and its colour only: with the pointer gone, its border is the resting one (the prototype)
+  await away()
+  const borders = await win.locator('.pane-head .sact').evaluateAll((bs) => bs.map((b) => getComputedStyle(b).borderTopColor))
+  expect(borders[0], 'a copied button keeps the resting border').toBe(borders[1])
+  await btn('id').hover()
+  // A second copy within 1.5 s starts the 1.5 s again: timed in the page, the check outlives the first copy's
+  // window (about 500 ms after the second click without a restart, about 1500 ms with one)
+  await win.waitForTimeout(1000)
+  await btn('id').click()
+  const second = await win.evaluate(() => performance.now())
+  const gone = await (await win.waitForFunction(
+    () => !document.querySelector('.pane-head .sact[data-act="id"]')?.classList.contains('done') && performance.now(),
+    null, { polling: 50, timeout: 5000 })).jsonValue()
+  expect(Number(gone) - second, 'the check is held 1.5 s from the second copy').toBeGreaterThan(1000)
+  await expect(btn('id').locator('svg rect')).toHaveCount(1)
+  await expect(tip).toHaveText('Copy session ID')
+  await expect.poll(copied).toEqual([CLAUDE_ID, CLAUDE_ID])
+
+  // The resume command: in the tooltip in full, copied as it reads; no stale warning here (AC-04, AC-05, CON-002)
+  const claudeCmd = `cd ${quotedProj} && claude --resume ${CLAUDE_ID}`
+  await btn('resume').hover()
+  await expect(tip.locator('.stip-cmd')).toHaveText(claudeCmd, { timeout: 500 })
+  await expect(tip).toContainText('Copy resume command')
+  await expect(tip.locator('.stip-warn')).toHaveCount(0)
+  // Visible where it is, not only present: its own centre hit-tests to it (CONTEXT's floating-layer invariant)
+  expect(await tip.evaluate((el) => {
+    const box = el.parentElement as HTMLElement
+    const r = box.getBoundingClientRect()
+    box.style.pointerEvents = 'auto'
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    box.style.pointerEvents = 'none'
+    return hit !== null && box.contains(hit) && r.right <= window.innerWidth && r.left >= 0
+  })).toBe(true)
+  await btn('resume').click()
+  await expect.poll(copied).toEqual([CLAUDE_ID, CLAUDE_ID, claudeCmd])
+
+  // Showing the record file hands Finder the session file (AC-07)
+  await btn('reveal').click()
+  await expect.poll(revealed).toEqual([claudeFile])
+  await away()
+
+  // ── Codex and Grok: their own IDs, commands and record files ──
+  await backToSessions()
+  await openRow('Codex resume question')
+  await expect(win.locator('.pane-head .smeta .sid-v')).toHaveText(CODEX_ID)
+  await btn('resume').hover()
+  await expect(tip.locator('.stip-cmd')).toHaveText(`cd ${quotedProj} && codex resume ${CODEX_ID}`)
+  await btn('reveal').click()
+  await expect.poll(revealed).toEqual([claudeFile, codexFile])
+  await away()
+
+  await backToSessions()
+  await openRow('Grok resume question')
+  await expect(win.locator('.pane-head .smeta .sid-v')).toHaveText(GROK_ID)
+  await btn('resume').hover()
+  await expect(tip.locator('.stip-cmd')).toHaveText(`cd ${quotedProj} && grok --resume ${GROK_ID}`)
+  await btn('reveal').click()
+  await expect.poll(revealed).toEqual([claudeFile, codexFile, grokFile])
+  await away()
+
+  // ── A Codex record without an id: unavailable, the two buttons disabled with the reason, Finder still works (AC-09) ──
+  await backToSessions()
+  await openRow('Codex question with no id')
+  await expect(win.locator('.pane-head .smeta')).toContainText('Session ID unavailable')
+  await expect(win.locator('.pane-head .smeta .sid-v')).toHaveCount(0)
+  await expect(btn('id')).toHaveAttribute('aria-disabled', 'true')
+  await expect(btn('resume')).toHaveAttribute('aria-disabled', 'true')
+  await expect(btn('reveal')).not.toHaveAttribute('aria-disabled', 'true')
+  await btn('resume').hover()
+  await expect(tip).toHaveText('This session’s ID could not be read')
+  const before = (await copied()).length
+  await btn('id').click({ force: true })
+  await btn('resume').click({ force: true })
+  // Finder's call comes after the two clicks on the same renderer, so once it is recorded no copy is still on its way
+  await btn('reveal').click()
+  await expect.poll(revealed).toEqual([claudeFile, codexFile, grokFile, noIdFile])
+  expect(await copied()).toHaveLength(before)
+  await away()
+
+  // ── Failures: a refused clipboard and a vanished file, each the error toast (AC-10) ──
+  await backToSessions()
+  await openRow('Codex resume question')
+  await l.app.evaluate(() => { (globalThis as unknown as { __refuse: boolean }).__refuse = true })
+  const refusedAt = Date.now()
+  await btn('id').click()
+  await expect(win.locator('.toast.err', { hasText: 'Copy failed: the clipboard refused it' })).toBeVisible()
+  // Read once, inside the 1.5 s a wrongly shown check would last: a retried "not" passes once such a check has gone
+  const refusedClass = await btn('id').getAttribute('class')
+  if (Date.now() - refusedAt >= 1500) throw new Error('the toast arrived after a check would have gone: this read proves nothing')
+  expect(refusedClass, 'a refused copy shows no check').not.toMatch(/\bdone\b/)
+  await l.app.evaluate(() => { (globalThis as unknown as { __refuse: boolean }).__refuse = false })
+  rmSync(codexFile)
+  await btn('reveal').click()
+  await expect(win.locator('.toast.err', { hasText: 'Cannot show it in Finder: The session file can no longer be read' })).toBeVisible()
+  expect(await revealed()).toHaveLength(4)
+  await away()
+
+  // ── A stale project from global search, and the fork parent reached from it: copied, with the cd warning (AC-08) ──
+  await win.locator('.rail .ri').nth(2).click()
+  await win.locator('.gsearch .sbar input').fill('stale fork')
+  await win.locator('.gsearch .pane-body .hit', { hasText: 'Resume the stale fork please' }).click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Resume the stale fork please', { timeout: 10000 })
+  const staleWarning = 'The project directory no longer exists, so this command’s cd will fail'
+  await btn('resume').hover()
+  await expect(tip.locator('.stip-cmd')).toHaveText(`cd '${stale}' && codex resume ${CHILD}`)
+  await expect(tip.locator('.stip-warn')).toHaveText(staleWarning)
+  // A copy here does not follow the jump to the parent: its check belongs to this page's button (AC-06). Read once,
+  // inside the check's 1.5 s, since a retried "not" would pass anyway once the check has gone by itself
+  await btn('resume').click()
+  await expect(btn('resume')).toHaveClass(/\bdone\b/)
+  const copiedAt = Date.now()
+  await away()
+  await win.locator('.pane-body .banner a').click()
+  await expect(win.locator('.pane-head .smeta .sid-v')).toHaveText(PARENT)
+  const parentClass = await btn('resume').getAttribute('class')
+  if (Date.now() - copiedAt >= 1500) throw new Error('the parent page arrived after the check would have gone: this read proves nothing')
+  expect(parentClass, 'the parent page\'s button carries no check from the child page').not.toMatch(/\bdone\b/)
+  await btn('resume').hover()
+  await expect(tip.locator('.stip-warn')).toHaveText(staleWarning)
+  await btn('resume').click()
+  await expect.poll(async () => (await copied()).at(-1)).toBe(`cd '${stale}' && codex resume ${PARENT}`)
+
+  // The two handler errors this case provokes on purpose, and nothing else
+  expect(l.errors).toHaveLength(2)
+  expect(l.errors.some((e) => e.includes('the clipboard refused it'))).toBe(true)
+  expect(l.errors.some((e) => e.includes(ERR.sessionFileUnreadable))).toBe(true)
+  await close(l)
+})

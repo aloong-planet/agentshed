@@ -293,6 +293,18 @@ export const zh = {
     goToProjectStale: (project: string) => `进入 ${project}`,
     headMeta: (side: string, questions: number, tok: string, mb: string, ago: string) =>
       `${side} · ${questions} 提问 · ${tok} tok · ${mb} · 最后活动 ${ago}`,
+    /** The session ID at the end of the meta line, and the title row's three buttons (session-view::US-001).
+     * The unavailable wording is neutral on purpose: it is true both when the record carries no ID and while
+     * a page restored from before IDs were kept waits for its live replacement */
+    sessionId: '会话 ID',
+    sessionIdUnavailable: '会话 ID 不可用',
+    idUnreadable: '读不到这个会话的会话 ID',
+    copyId: '复制会话 ID',
+    revealFile: '在 Finder 中显示记录文件',
+    copyResume: '复制 resume 命令',
+    resumeStale: '项目目录已不存在,命令里的 cd 会失败',
+    copyFailed: '复制失败:剪贴板拒绝写入',
+    revealFailed: (detail: string) => `无法在 Finder 中显示:${detail}`,
     cannotOpen: (detail: string) => `会话打不开:${detail}`,
     mainline: (n: number, days: string) => `提问(主干)· ${n} 条${days}`,
     dayCount: (n: number) => ` · ${n} 天`,

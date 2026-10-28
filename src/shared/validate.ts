@@ -179,6 +179,8 @@ export function validateSessionPage(v: unknown): ValidateResult {
     return failType('page.forkParentTitle', 'string|null')
   if (v['forkParentFile'] !== null && typeof v['forkParentFile'] !== 'string')
     return failType('page.forkParentFile', 'string|null')
+  if (v['sessionId'] !== null && (typeof v['sessionId'] !== 'string' || v['sessionId'] === ''))
+    return failType('page.sessionId', 'string(non-empty)|null')
   const qs = v['questions']
   if (!Array.isArray(qs)) return failType('page.questions', 'array')
   for (let i = 0; i < qs.length; i++) {

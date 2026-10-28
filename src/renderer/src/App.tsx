@@ -394,6 +394,8 @@ export function App(): JSX.Element {
                     file={openSession.file}
                     focusQ={openSession.focusQ}
                     projectName={shown?.name ?? shownProject}
+                    projectDir={shownProject}
+                    stale={shown?.stale ?? false}
                     now={now}
                     onBack={backToProject}
                     onOpenSession={(f) => {
