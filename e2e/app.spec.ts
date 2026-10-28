@@ -495,6 +495,13 @@ test('the Configuration section: CLAUDE.md and AGENTS.md on both pages, each fil
   await expect(paths).toHaveText([join(home, '.claude', 'CLAUDE.md')])
   await expect(body.locator('.md')).toContainText('marker-claude-global')
   await expect(body.locator('.md')).toContainText('…(truncated)')
+  // The card keeps the prototype's height (52% of the window) and scrolls inside: the oversized file would
+  // otherwise make it thousands of pixels tall
+  const card = await body.locator('.md').evaluate((e) => ({
+    height: e.getBoundingClientRect().height, cap: window.innerHeight * 0.52, overflows: e.scrollHeight > e.clientHeight
+  }))
+  expect(card.height).toBeLessThanOrEqual(card.cap + 1)
+  expect(card.overflows).toBe(true)
   // Two entries named by their files, not grouped by side, and no settings summary (AC-01, AC-04) — read once the
   // body above is in place
   expect(await labels()).toEqual(['CLAUDE.md', 'AGENTS.md'])

@@ -1198,6 +1198,11 @@ body {
   padding-top: 0;
   border-top: 0;
 }
+/* The Configuration card keeps the prototypes' height: past about half the window its files scroll inside it,
+   so several AGENTS.md files never push the page into a long scroll */
+.cfg-files {
+  max-height: 52vh;
+}
 /* "None", and an unreadable file's sentence, sit inside the Configuration card as the prototypes draw them: the
    empty-state line without a frame of its own, the card being the frame */
 .cfg-files > .none {
