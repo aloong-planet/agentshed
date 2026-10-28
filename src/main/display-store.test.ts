@@ -111,9 +111,10 @@ it('restores a project detail saved before its memory carried the main file entr
 
 // project-detail::REQ-002/AC-02 across an update: every project detail in this machine's display cache on 2026-10-29
 // (27 of them) holds `configs: { claudeMd, agentsMd, settingsSummary }`, the two files as contents with no path
-// ({ text, truncated } or null — each a file in 6 of them) and the summary as a string or null. They restore with
-// each present file given its path in the project — the only place the project's own two files live — and without
-// the summary, until the live read replaces them (the 2026-10-21 postmortem's rule). A malformed one is still dropped.
+// ({ text, truncated } or null: both files in 3, AGENTS.md only in 3, CLAUDE.md only in 3, neither in 18) and the
+// summary as a string or null. They restore with each present file given its path in the project — the only place
+// the project's own two files live — an absent one staying absent, and without the summary, until the live read
+// replaces them (the 2026-10-21 postmortem's rule). A malformed one is still dropped.
 it('restores a project detail saved before configuration entries carried their paths', () => {
   const root = dir()
   const saved = (path: string, configs: Record<string, unknown>) => ({ kind: 'projectDetail', path, data: {
@@ -128,18 +129,20 @@ it('restores a project detail saved before configuration entries carried their p
         settingsSummary: '{\n  "allowedTools": []\n}'
       }),
       saved('/w/r', { claudeMd: null, agentsMd: { text: '# Only agent notes', truncated: false }, settingsSummary: null }),
+      saved('/w/s', { claudeMd: { text: '# Only conventions', truncated: false }, agentsMd: null, settingsSummary: '{}' }),
       saved('/w/q', { claudeMd: 7, agentsMd: null, settingsSummary: null })
     ]
   } }))
   const reads = new DisplayStore(root).get().reads
-  expect(reads.map((r) => r.kind === 'projectDetail' && r.path)).toEqual(['/w/p', '/w/r'])
+  expect(reads.map((r) => r.kind === 'projectDetail' && r.path)).toEqual(['/w/p', '/w/r', '/w/s'])
   const configs = reads.map((r) => (r.kind === 'projectDetail' ? r.data.configs : null))
   expect(configs).toEqual([
     {
       claudeMd: { file: '/w/p/CLAUDE.md', content: { text: '# Saved conventions', truncated: false } },
       agentsMd: { file: '/w/p/AGENTS.md', content: { text: '# Saved agent notes', truncated: true } }
     },
-    { claudeMd: null, agentsMd: { file: '/w/r/AGENTS.md', content: { text: '# Only agent notes', truncated: false } } }
+    { claudeMd: null, agentsMd: { file: '/w/r/AGENTS.md', content: { text: '# Only agent notes', truncated: false } } },
+    { claudeMd: { file: '/w/s/CLAUDE.md', content: { text: '# Only conventions', truncated: false } }, agentsMd: null }
   ])
 })
 

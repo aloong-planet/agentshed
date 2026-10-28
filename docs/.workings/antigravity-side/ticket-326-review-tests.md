@@ -33,7 +33,7 @@ rendered Configuration section is asserted at e2e.
 | T2d | an unreadable project file shows under its path, the other entry unaffected (`project-detail.test.ts`) | project-detail::REQ-002 failure modes | providers | project `AGENTS.md` is a directory; CLAUDE.md readable | `agentsMd` equals `{ file, content: null }`; `claudeMd` carries its literal text | — | none |
 | T3a | the snapshot contract admits the new configuration shape and refuses malformed entries with a path (`validate.test.ts`) | contract for agents-overview::REQ-004 (ADR-0001) | IPC contract (`validateSnapshot`) | `global.claudeMd` a ConfigFile; `agentsMd` a list including `content: null`; then `agentsMd` = `{}`, an entry with `file: ''`, an entry whose content is `{}` | `ok` true for the valid one; for each malformed one `ok` false and the failure path names the field (literal substrings) | — | none |
 | T3b | the detail contract admits ConfigFile / null and refuses malformed ones (`validate.test.ts`, existing rows rewritten) | contract for project-detail::REQ-002/AC-02 | IPC contract (`validateProjectDetail`) | `configs.claudeMd` a ConfigFile; `agentsMd` = 42; `claudeMd.file` = ''; the pre-change shape `{ text, truncated }` | admitted / refused with the literal path | — | none |
-| T4a | a project detail saved before configuration entries carried their paths restores with them filled in (`display-store.test.ts`) | CONTEXT invariant "A page switch is atomic and a revisit is instant" (restoring runs the live contract; a changed field is filled in) for project-detail::REQ-002/AC-02 | display store (cache file written at the filesystem boundary, then `new DisplayStore(root)`) | a saved detail whose `configs` is `{ claudeMd: CappedText, agentsMd: CappedText, settingsSummary: string }`, the two texts distinct (as in 6 of the 27 real saved details); a second whose `configs` is `{ claudeMd: null, agentsMd: CappedText, settingsSummary: null }`; a third whose old `claudeMd` is malformed (`7`) (revised 2026-10-29 for Post-implementation check Finding 1, reviewed under the incremental rule: a saved AGENTS.md that is a file now reaches the conversion, and distinct texts and paths make a swapped or unconverted file visible) | restored `configs` equal the literals `{ claudeMd: { file: '/w/p/CLAUDE.md', content: <its saved text> }, agentsMd: { file: '/w/p/AGENTS.md', content: <its saved text> } }` and `{ claudeMd: null, agentsMd: { file: '/w/r/AGENTS.md', content: <its saved text> } }`, with no `settingsSummary`; the malformed one is dropped | the real display cache on this machine (2026-10-29: 27 saved details, every `configs` holding exactly `claudeMd`, `agentsMd` as `{ text, truncated }`/null and `settingsSummary` as string/null) | none |
+| T4a | a project detail saved before configuration entries carried their paths restores with them filled in (`display-store.test.ts`) | CONTEXT invariant "A page switch is atomic and a revisit is instant" (restoring runs the live contract; a changed field is filled in) for project-detail::REQ-002/AC-02 | display store (cache file written at the filesystem boundary, then `new DisplayStore(root)`) | the real cache's three present-file combinations, one saved detail each: both files `{ text, truncated }` with distinct texts (`/w/p`; 3 of the 27 real saved details), AGENTS.md only (`/w/r`; 3 of 27), CLAUDE.md only (`/w/s`; 3 of 27); a fourth whose old `claudeMd` is malformed (`7`). "Neither file" (18 of 27) is the memory restore case's input (revised 2026-10-29 for Post-implementation check Findings 1 and 2, reviewed under the incremental rule: a saved AGENTS.md that is a file reaches the conversion, a saved absent one must stay absent, and distinct texts and paths make a swapped, unconverted or invented file visible) | restored `configs` equal the literals `{ claudeMd: { file: '/w/p/CLAUDE.md', … }, agentsMd: { file: '/w/p/AGENTS.md', … } }`, `{ claudeMd: null, agentsMd: { file: '/w/r/AGENTS.md', … } }` and `{ claudeMd: { file: '/w/s/CLAUDE.md', … }, agentsMd: null }`, contents the saved texts, with no `settingsSummary`; the malformed one is dropped | the real display cache on this machine (2026-10-29: 27 saved details, every `configs` holding exactly `claudeMd`, `agentsMd` as `{ text, truncated }`/null and `settingsSummary` as string/null) | none |
 | T4b | a snapshot saved before the change restores with its configuration converted (`display-store.test.ts`) | same invariant, for agents-overview::REQ-004 | display store with the main process's global configuration paths injected | a saved snapshot whose `global` holds `claudeGlobalMd` (text), `codexAgentsMd` (text) and `codexConfigSummary`; a second with `codexAgentsMd: null`; the first again parsed without paths | with paths: `claudeMd`/`agentsMd` equal literal ConfigFiles at the injected paths and no old key survives; `codexAgentsMd: null` gives `agentsMd: []`; without paths the snapshot is dropped (fail-closed) | the real cache's `global` key set (2026-10-29: `skills … mcp, claudeGlobalMd, codexAgentsMd, codexConfigSummary`, the three as `{ text, truncated }` / `{ model, projectCount, mcpCount }`); the parts this change does not touch come from `emptySnapshot`, so another ticket's side-set change cannot turn this case red for a reason that is not this one | none |
 | T5 | the Configuration section on both pages (`e2e/app.spec.ts`, new case) | agents-overview::REQ-004/AC-01…AC-05; project-detail::REQ-002/AC-02; agents-overview B5, project-detail A4 (regression); the failure modes above; the agents page's link interception (CONTEXT "A link inside rendered content must never navigate the whole window", regression) | e2e (built app over a fixture home, `AGENTSHED_RESCAN_MS=250` so file changes arrive by automatic rescan) | home: global CLAUDE.md (oversized, for the truncation marker), the three AGENTS.md (the Codex one with a relative link), GEMINI.md ×2, rules, `~/.codex/config.toml`; project A with CLAUDE.md and AGENTS.md as a directory and a project-key `allowedTools`; project B with nothing. Then remove `~/.gemini/AGENTS.md`, turn `~/.gemini/config/AGENTS.md` into a directory, and remove all | switch labels exactly `['CLAUDE.md', 'AGENTS.md']` (literal, read once the body is in place); `.cfg-path` texts equal the literal paths in the spec's order after each change; each body's marker; the unreadable sentence under its path; "None" when none, inside the card with no frame of its own (computed `border-top-width` 0px against the card's 1px — the prototype's form; incremental change of 2026-10-29, reviewed: the expected values come from the prototype's drawing, not from the app's CSS); the truncated marker; the card bounded at the prototype's height — with the oversized CLAUDE.md its rect height is at most 52% of the window (+1 px) while its content overflows it (`scrollHeight > clientHeight`), so without the rule the case is red (incremental change of 2026-10-29, reviewed: the 52% comes from the prototype, and the oversized file guarantees the unbounded card would far exceed it); no GEMINI/rules marker in the pane text; computed style of the path line (monospace, 11px, `--text-2`) and its separator (first 0, later 1px top border) from the prototype; a relative link raises the notice toast and the URL is unchanged | locations as T1a | the e2e build (one `electron-vite build` per `pnpm e2e` run, shared by every case); one app launch for the whole case — every state is reached by rescan rather than a relaunch |
 | T8 | a display cache from before the change restores the agents page's configuration before the first scan (`e2e/startup-restore.spec.ts`, new case; added 2026-10-29 during step 5 to close the design-time gap on the main process's wiring) | CONTEXT "A page switch is atomic and a revisit is instant" for agents-overview::REQ-004; agents-overview::REQ-001/AC-01 (restore before the first scan) | e2e (built app, a `display-cache.json` written into the user-data directory before launch, the first scan held by `AGENTSHED_SCAN_DELAY_MS=20000`) | the saved snapshot's `global` in the previous version's shape (`claudeGlobalMd`, `codexAgentsMd` as contents, `codexConfigSummary`); a live `~/.claude/CLAUDE.md` with different text | the Config tab's path headings equal the literal `join(home, '.claude', 'CLAUDE.md')` / `join(home, '.codex', 'AGENTS.md')` and the bodies are the saved texts, not the live one; the startup status is not `ready` (the scan is still held) | the real cache's `global` key set, as T4b; the rest from `emptySnapshot` | one launch; the build shared as T5 |
@@ -95,6 +95,19 @@ Self-check before handing over (post-implementation-check.md items 2–5):
    exercised by both restored details. Not applicable beyond that.
 4. The fix's data: a saved AGENTS.md as `{ text, truncated }` — the real cache's shape (6 of 27). No finding.
 5. No shared test helper changed (the `saved` builder is local to the case). Not applicable.
+
+### Incremental revision for the incremental check's Finding 2 (2026-10-29)
+
+Row T4a revised again before the test was changed: a CLAUDE.md-only saved detail (`/w/s`) is added, asserted with
+`agentsMd: null`, and the row's counts now follow the incremental check's recount of this machine's cache (both 3,
+AGENTS.md only 3, CLAUDE.md only 3, neither 18). Reviewed under the incremental rule — Coverage: every present-file
+combination the real cache holds is driven, and an absent saved AGENTS.md is asserted absent; Case design: unchanged;
+False greens: the case now also goes red if a saved absent AGENTS.md comes back as a file with no contents (the shape
+validation admits as "unreadable") — the expected `null` is a literal; Resource reuse: unchanged. No finding.
+
+Self-check before handing over (items 2–5): 2 — the added assertion is a literal object compared with `toEqual`
+(a `null` property is compared, not skipped); no threshold, alias or imported constant. 3 — no product function
+changed. 4 — the added detail is the real cache's CLAUDE.md-only shape. 5 — no shared helper changed. No finding.
 
 ## Post-implementation check
 
@@ -279,3 +292,122 @@ ticket-326-doc-sync.md row 2, "Deviations written back", holds as Waiting):
 Impact: until the write-back, the specs misstate how AC-02 is tested and leave out a declared exemption, while two
 records say otherwise. Handling: step 7's write-back, as row 2 tracks; failing that, correct the two records. Home:
 ticket-326-doc-sync.md row 2.
+
+### Incremental check (a9c382f..8493010)
+
+Date: 2026-10-29 · ticket: #326 (aloong-planet/agentshed) · fix range: a9c382f..8493010 (one commit, 8493010, for
+Finding 1) · handed over by `/implement` step 6 · run evidence:
+[ticket-326-fix1-verification.log](ticket-326-fix1-verification.log). Everything outside the scope below carries
+over from the first round (Post-implementation check above, 2026-10-29, at a9c382f).
+
+#### Scope and the searches that set it
+
+- Files the range changes outside `docs/`: `git diff --name-only a9c382f..8493010 -- . ':!docs'` gives
+  `src/main/display-store.test.ts` only (exit 0). Its diff touches one case, `:117` (T4a), and that case's comment.
+- Shared test code the range changes: none; the `saved` builder is local to the case, and `dir()` is unchanged.
+- Tests depending on the changed file: `grep -rna --exclude-dir=node_modules --exclude-dir=out --exclude-dir=.git -e
+  'display-store\.test' src e2e scripts build site vitest.config.* electron.vite.config.* playwright.config.ts
+  package.json` (exit 0) finds one line, a comment in `e2e/app.spec.ts:5682`, not an import; the file exports nothing
+  (`grep -nE '^\s*export\b'`, exit 1). No dependant.
+- Test design table rows the range changes: the table sections of the two commits' records, diffed, differ in row T4a
+  only.
+
+Objects of this check: the T4a case and the T4a row.
+
+#### Run evidence
+
+- Version: `git rev-parse HEAD` a9c382f plus five modified files, each with its `git hash-object`. The three that
+  8493010 commits match its blobs (`display-store.test.ts` bdd768c, `ticket-326-review-code.md` 5256494, this record
+  65aa15b); the two features pages are uncommitted Markdown (inert, `change-scope.mjs` says the same in
+  ticket-326-fix1-change-scope.log). 8493010 also adds two logs the version list does not name: the gate log, ignored
+  before the run and so not listed by `git status`, and this run's own log; both inert. Every file a test reads is as
+  in 8493010. Matches the range.
+- Commands: typecheck (exit 0), lint (exit 0), `pnpm vitest run src/main/display-store.test.ts` (exit 0; 11 tests
+  passed), each with its full output.
+- The log's dependants search did not run: `rg: command not found` (exit 127; the log's shell is bash, where `rg` is
+  not a command), and its `## overall: PASS` passes over that line. The search above stands in for it and finds no
+  dependant, so the run covers every object of this check. No finding.
+
+#### Per-case consistency with the test design table
+
+| # | Written test | Against the revised row |
+|---|---|---|
+| T4a | `display-store.test.ts:117` | Matches: `/w/p` with both files as `{ text, truncated }` (distinct texts and distinct `truncated`), `/w/r` with only AGENTS.md, `/w/q` malformed; the restored paths `['/w/p', '/w/r']` and both `configs` as literals; the summary absent. The row's input column says the two-file detail is "as in 6 of the 27 real saved details": in this machine's cache 3 have both files (and 6 have AGENTS.md as a file). See Finding 2 |
+
+The file header ("The filesystem store seam … Full-process restoration is e2e") needs no gap note; the case's comment
+("each a file in 6 of them") matches the cache.
+
+#### Coverage
+
+The real saved project details' configuration combinations, counted again in this machine's display cache (written
+01:16:38; shapes only, by a script): both files `{ text, truncated }` 3, AGENTS.md only 3, CLAUDE.md only 3, neither
+18 (27). The revised case drives the first two; CLAUDE.md-only is gone from it (it was the pre-fix `/w/p`), and
+"neither" is restored by the memory case at `:89`, whose `configs` are not asserted. So no case now asserts that a
+saved absent AGENTS.md restores as absent: Finding 2.
+
+#### Case design
+
+Carried over: the case still writes the cache at the filesystem boundary and reads back through `DisplayStore`. No
+finding.
+
+#### False greens
+
+Mutation testing is skipped (the `mutation-testing` capability is not enabled). The revised T4a goes red when the
+saved AGENTS.md is left unconverted (validation then drops `/w/p` and `/w/r`), pointed at CLAUDE.md's path, swapped
+with CLAUDE.md (distinct texts and flags), or its line deleted; when the summary survives (a string on `/w/p`, `null`
+on `/w/r`: `toEqual` does not skip a `null` property); when CLAUDE.md's null is not kept; when the malformed detail is
+kept. It does not go red when a saved absent AGENTS.md comes back as `{ file: '<project>/AGENTS.md', content: null }`:
+validation admits that shape (`content: null` is the unreadable state), and no restored detail with an absent
+AGENTS.md is asserted. The pre-fix case asserted `agentsMd: null` on `/w/p`. Finding 2.
+
+#### Resource reuse
+
+Counted from the targeted log: `display-store.test.ts`, 11 tests in 17 ms; no build and no launch. T4a uses a
+temporary directory. No expensive resource; as designed. No finding.
+
+#### Findings
+
+Finding 1: resolved for its file half. A saved AGENTS.md that is a file is now converted under test, by literal path
+and contents, in both real combinations that hold one; the targeted run passed.
+
+2. **The revised T4a dropped the only check that a saved absent AGENTS.md restores as absent** (a regression that
+   would be missed). The revision replaced the pre-fix `/w/p` (CLAUDE.md a file, AGENTS.md null, asserted
+   `agentsMd: null`) with a detail holding both files, so no case asserts an absent AGENTS.md any more. If the
+   AGENTS.md line in `upgradeSavedRead` (`src/shared/display-data.ts:95`) built `{ file, content: saved }` without
+   `pathed`'s null check, every test would stay green while each saved detail without an AGENTS.md (21 of 27 in this
+   machine's cache) restores with "The file cannot be read" under `<project>/AGENTS.md` until its live read: the
+   validator admits `content: null`. The CLAUDE.md side is covered (`/w/r` asserts `claudeMd: null`). Required: give
+   T4a a saved detail with CLAUDE.md a file and AGENTS.md null (the real CLAUDE.md-only combination, 3 of 27) and
+   assert `agentsMd: null`. Revise the row first, and correct its "as in 6 of the 27 real saved details" to the
+   counts above. Then review it under the incremental rule.
+
+Disposition (main agent, 2026-10-29): Finding 2 fixed — T4a's row revised first (design review, "Incremental revision
+for the incremental check's Finding 2", with the recounted combinations), then the case: a CLAUDE.md-only saved
+detail (`/w/s`) asserted with `agentsMd: null`. The fix-1 log's dependants search did not run (`rg` is a zsh function,
+absent under bash — exit 127, as this round found); the fix-2 log searches with `grep`. Targeted verification in
+[ticket-326-fix2-verification.log](ticket-326-fix2-verification.log); handed back for an incremental check.
+
+#### Document sync this check creates
+
+Scope as in the first round (document-sync.md), re-listed at 01:21: `docs/.workings/antigravity-side/` now also holds
+final-regression.md, ticket-326-fix1-verification.log and ticket-326-fix1-change-scope.log (all read); the worktree
+also carries uncommitted edits to both specs, CONTEXT.md and ticket-326-doc-sync.md (diff read).
+
+Facts this range changes: T4a now drives a saved AGENTS.md that is a file, and no longer asserts an absent one. The
+targeted run passed. Statements affected:
+
+- this record's T4a row: its "as in 6 of the 27" count, and an input that no longer holds an absent AGENTS.md
+  (Finding 2). The "Incremental revision" paragraph's Coverage line ("the row's input now reaches the AGENTS.md
+  half") is true, but it does not note the null half that the revision lost.
+- checklist.md:154 ("both saved shapes restore — passed | Verified") and final-regression.md:27 (the working records
+  "true at this round's commits"): the saved project detail's absent AGENTS.md rests on no assertion until Finding 2
+  is fixed.
+
+No spec, feature, ADR or CONTEXT statement changes: the uncommitted spec texts ("restores with each file at its place
+in the project"; "the restore … at the display store's filesystem seam") describe what the code does, and Finding 2
+concerns its evidence only.
+
+Carried over from the first round's "Differences seen": both are written back in the worktree's uncommitted spec
+edits. project-detail's Testing Decisions now say the configuration entries are asserted over any project, and both
+specs declare the unreadable slot's prototype exemption. ticket-326-doc-sync.md row 2 marks them done. They are not
+yet in a commit, so at 8493010 the two records still run ahead of the specs.
