@@ -1,0 +1,60 @@
+[
+ {
+  "name": "E2: the handler stops passing the restored state",
+  "build": 0,
+  "test": 1,
+  "lines": [
+   "  ✘  1 e2e/startup-restore.spec.ts:9:1 › restart restores viewed project, questions and read answer before a new scan finishes (6.5s)",
+   "    Error: expect(received).toBe(expected) // Object.is equality",
+   "    Expected: \"refused\"",
+   "    Received: \"shown\"",
+   "    > 152 |     expect(await reveal(session)).toBe('refused')",
+   "    Error Context: test-results/startup-restore-restart-re-1f1cc--before-a-new-scan-finishes/error-context.md",
+   "  1 failed"
+  ]
+ },
+ {
+  "restored": "src/main/index.ts",
+  "identical": true
+ },
+ {
+  "name": "F2: the icon is not swapped for the check",
+  "build": 0,
+  "test": 1,
+  "lines": [
+   "  ✘  1 e2e/app.spec.ts:5542:1 › the session page header: the session ID, copying it and the resume command, and showing the record file (session-view::US-001) (6.0s)",
+   "    Error: expect(locator).toHaveAttribute(expected) failed",
+   "    Expected: \"M20 6 9 17l-5-5\"",
+   "    Received: \"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"",
+   "    > 5659 |   await expect(btn('id').locator('svg path')).toHaveAttribute('d', 'M20 6 9 17l-5-5')",
+   "    Error Context: test-results/app-the-session-page-heade-6b060-d-file-session-view-US-001-/error-context.md",
+   "  1 failed"
+  ]
+ },
+ {
+  "restored": "src/renderer/src/SessionActions.tsx",
+  "identical": true
+ },
+ {
+  "name": "F1: the check is set before the copy resolves",
+  "build": 0,
+  "test": 1,
+  "lines": [
+   "  ✘  1 e2e/app.spec.ts:5542:1 › the session page header: the session ID, copying it and the resume command, and showing the record file (session-view::US-001) (4.3s)",
+   "    Error: a refused copy shows no check",
+   "    Expected pattern: not /\\bdone\\b/",
+   "    Received string:      \"sact done\"",
+   "      5749 |   if (Date.now() - refusedAt >= 1500) throw new Error('the toast arrived after a check would have gone: this read proves nothing')",
+   "    > 5750 |   expect(refusedClass, 'a refused copy shows no check').not.toMatch(/\\bdone\\b/)",
+   "    Error Context: test-results/app-the-session-page-heade-6b060-d-file-session-view-US-001-/error-context.md",
+   "  1 failed"
+  ]
+ },
+ {
+  "restored": "src/renderer/src/SessionActions.tsx",
+  "identical": true
+ },
+ {
+  "rebuildAfterRestore": 0
+ }
+]

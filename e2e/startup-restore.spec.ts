@@ -125,6 +125,37 @@ test('restart restores viewed project, questions and read answer before a new sc
     expect(await denied(artifact)).toBe(true)
     unlinkSync(artifact)
     writeFileSync(artifact, original)
+    // Showing a session's record file in Finder before the first scan (session-view::US-001/AC-07): the allow-list is
+    // still the restored one, whose entries are shown only while they are regular files. Finder's call is recorded
+    // at the process boundary, so the run opens no Finder; the startup state, read before and after, proves the scan
+    // is still held.
+    if (!app) throw new Error('the second launch is not running')
+    const running = app
+    const hint = win.locator('.startup-display-hint')
+    expect(await hint.getAttribute('data-state')).not.toBe('ready')
+    await running.evaluate(({ shell }) => {
+      const g = globalThis as unknown as { __revealed: string[] }
+      g.__revealed = []
+      shell.showItemInFolder = (p: string) => {
+        g.__revealed.push(p)
+      }
+    })
+    const revealed = (): Promise<string[]> => running.evaluate(() => (globalThis as unknown as { __revealed: string[] }).__revealed)
+    const reveal = (file: string) => win.evaluate(async f => {
+      try { await window.agentshed.revealSessionFile(f); return 'shown' } catch { return 'refused' }
+    }, file)
+    const session = join(cdir, 'saved.jsonl'), sessionBody = readFileSync(session, 'utf8')
+    const elsewhere = join(home, 'elsewhere.jsonl')
+    writeFileSync(elsewhere, sessionBody)
+    unlinkSync(session)
+    symlinkSync(elsewhere, session)
+    expect(await reveal(session)).toBe('refused')
+    expect(await revealed()).toEqual([])
+    unlinkSync(session)
+    writeFileSync(session, sessionBody)
+    expect(await reveal(session)).toBe('shown')
+    expect(await revealed()).toEqual([session])
+    expect(await hint.getAttribute('data-state')).not.toBe('ready')
     const source = join(cdir, 'saved.jsonl')
     writeFileSync(source, readFileSync(source, 'utf8').replaceAll('Saved question', 'Rewritten question').replaceAll('Saved answer', 'Rewritten answer'))
     // The complete saved page remains usable until a current mapping arrives.

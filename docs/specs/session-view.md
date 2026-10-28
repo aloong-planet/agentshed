@@ -1016,7 +1016,10 @@ Codex record with no ID, a Grok session directory; the command builder and its q
 quote, non-ASCII, an ID with shell characters), the reveal admission's pure judge (the bypass vectors of
 R1), and the contract's two admitted shapes, as unit tests; and the restore of a saved session page in
 the previous version's shape, taken from a real saved display copy, never written by the current code
-(the 2026-10-21 postmortem's rule).
+(the 2026-10-21 postmortem's rule). That the channel treats the allow-list as restored before the first
+scan is asserted at the e2e seam of the cross-process restart (the second launch, its first scan held):
+a restored session file swapped for a symlink is refused and Finder is not called; put back as a regular
+file, it is shown.
 
 ## Out of Scope
 

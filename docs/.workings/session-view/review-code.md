@@ -114,3 +114,8 @@ Re-scanned after F1: keying a component changes no security surface.
 
 The prototype's session page meta line is 11 px and the app's 12 px, a difference that predates this change; left to
 step 8's cross-check.
+
+## Self-check before the post-implementation check's fixes were handed back (2026-10-28)
+
+Item 1 (product code changed by the fixes, against its spec text): not applicable — the fixes for F1-F6 change tests,
+the spec's testing decisions and the working records only; no product code.

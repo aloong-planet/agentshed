@@ -5528,9 +5528,17 @@ test('selectable trend span: localized controls fit both pages in light and dark
 // config, never created) holding a Codex parent and its fork, reached from global search. The main process's
 // clipboard write and Finder call are replaced at the Electron boundary with recorders, so a run neither
 // overwrites the user's clipboard nor opens Finder. Each command below is spelled out, its quoting included.
-// Gaps: the header on a cached revisit or a restored page (the same render as a first open; the restore is
-// display-store.test.ts's), a transfusion or a language switch while a tooltip is open, and the overview card's
-// route (the same shell call as the Sessions tab's) are not driven here.
+// Gaps, not driven here:
+// - the header on a cached revisit or a restored page: the same render as a first open, from the same page data (the
+//   restore of that data is display-store.test.ts's). A case is due if the header stops being drawn from the page.
+// - a transfusion while a tooltip is open: the tooltip is drawn from the current page on every render. A case is due
+//   if the tooltip keeps a copy of the page's data of its own.
+// - a language switch while a tooltip is open: the language changes only on the settings page, which no session
+//   page survives. A case is due when the language can change with a session page open (from a menu, say).
+// - the overview card's route: it opens the page through the same shell call as the Sessions tab, from the same
+//   project entry. A case is due if that route stops passing the project entry.
+// - agent text drawn as text: the ID and the path reach the page only as React text nodes. A case is due if either
+//   is ever rendered as markup.
 test('the session page header: the session ID, copying it and the resume command, and showing the record file (session-view::US-001)', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-resume-'))
   const proj = join(home, "it's demo")
@@ -5616,7 +5624,7 @@ test('the session page header: the session ID, copying it and the resume command
   // ── Claude Code: the ID in the meta line, the three buttons at the title row's right end (AC-01, AC-02) ──
   await openRow('Claude resume question')
   await expect(win.locator('.pane-head .smeta .sid-v')).toHaveText(CLAUDE_ID)
-  await expect(win.locator('.pane-head .smeta')).toContainText(`Session ID ${CLAUDE_ID}`)
+  await expect(win.locator('.pane-head .smeta')).toHaveText(new RegExp(`· Session ID ${CLAUDE_ID}$`))
   await expect(win.locator('.pane-head .sact')).toHaveCount(3)
   expect(await win.locator('.pane-head .sact').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label'))))
     .toEqual(['Copy session ID', 'Show the record file in Finder', 'Copy resume command'])
@@ -5626,9 +5634,10 @@ test('the session page header: the session ID, copying it and the resume command
   expect(Math.abs(rowBox.x + rowBox.width - (groupBox.x + groupBox.width)), 'the buttons end at the title row\'s right').toBeLessThanOrEqual(1)
 
   // Each tooltip names its action on hover, and goes when the pointer leaves (AC-02)
+  // "At once": within 500 ms, well under the native title's delay of about a second
   for (const [act, name] of [['id', 'Copy session ID'], ['reveal', 'Show the record file in Finder']] as const) {
     await btn(act).hover()
-    await expect(tip).toHaveText(name)
+    await expect(tip).toHaveText(name, { timeout: 500 })
     await away()
     await expect(tip).toHaveCount(0)
   }
@@ -5636,7 +5645,7 @@ test('the session page header: the session ID, copying it and the resume command
   const cdp = await win.context().newCDPSession(win)
   await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
   await btn('reveal').focus()
-  await expect(tip).toHaveText('Show the record file in Finder')
+  await expect(tip).toHaveText('Show the record file in Finder', { timeout: 500 })
   await btn('reveal').blur()
   await expect(tip).toHaveCount(0)
 
@@ -5646,6 +5655,9 @@ test('the session page header: the session ID, copying it and the resume command
   await expect.poll(copied).toEqual([CLAUDE_ID])
   await expect(btn('id')).toHaveClass(/\bdone\b/)
   await expect(tip).toHaveText('Copied')
+  // The icon itself becomes the check (Lucide's check glyph) in place of the copy glyph (its rect)
+  await expect(btn('id').locator('svg path')).toHaveAttribute('d', 'M20 6 9 17l-5-5')
+  await expect(btn('id').locator('svg rect')).toHaveCount(0)
   // The check changes the icon and its colour only: with the pointer gone, its border is the resting one (the prototype)
   await away()
   const borders = await win.locator('.pane-head .sact').evaluateAll((bs) => bs.map((b) => getComputedStyle(b).borderTopColor))
@@ -5660,6 +5672,7 @@ test('the session page header: the session ID, copying it and the resume command
     () => !document.querySelector('.pane-head .sact[data-act="id"]')?.classList.contains('done') && performance.now(),
     null, { polling: 50, timeout: 5000 })).jsonValue()
   expect(Number(gone) - second, 'the check is held 1.5 s from the second copy').toBeGreaterThan(1000)
+  await expect(btn('id').locator('svg rect')).toHaveCount(1)
   await expect(tip).toHaveText('Copy session ID')
   await expect.poll(copied).toEqual([CLAUDE_ID, CLAUDE_ID])
 
@@ -5728,9 +5741,13 @@ test('the session page header: the session ID, copying it and the resume command
   await backToSessions()
   await openRow('Codex resume question')
   await l.app.evaluate(() => { (globalThis as unknown as { __refuse: boolean }).__refuse = true })
+  const refusedAt = Date.now()
   await btn('id').click()
   await expect(win.locator('.toast.err', { hasText: 'Copy failed: the clipboard refused it' })).toBeVisible()
-  await expect(btn('id')).not.toHaveClass(/\bdone\b/)
+  // Read once, inside the 1.5 s a wrongly shown check would last: a retried "not" passes once such a check has gone
+  const refusedClass = await btn('id').getAttribute('class')
+  if (Date.now() - refusedAt >= 1500) throw new Error('the toast arrived after a check would have gone: this read proves nothing')
+  expect(refusedClass, 'a refused copy shows no check').not.toMatch(/\bdone\b/)
   await l.app.evaluate(() => { (globalThis as unknown as { __refuse: boolean }).__refuse = false })
   rmSync(codexFile)
   await btn('reveal').click()
