@@ -9,7 +9,7 @@
 // the Codex group is probe-style (an empty cache hides the whole group), with only the Skills category
 // expandable for preview (E8).
 import { useState } from 'react'
-import type { PluginContents, PluginInstallRecord, ProjectDetail, Snapshot } from '@shared/domain'
+import type { AgentSide, PluginContents, PluginInstallRecord, ProjectDetail, Snapshot } from '@shared/domain'
 import { PluginSkillList } from './PluginSkillList'
 import { SIDE_BADGE, SIDE_CHIP_LABEL } from './side-badge'
 import { useDict } from './language'
@@ -45,7 +45,7 @@ function PluginExpand({
   contents
 }: {
   ns: string
-  side: 'claude' | 'codex'
+  side: AgentSide
   /** The summary-source package root (H5) */
   root: string | null
   contents: PluginContents
@@ -165,6 +165,59 @@ function CodexGroup({ snap, detailNote }: { snap: Snapshot; detailNote?: boolean
   )
 }
 
+/**
+ * The Antigravity group (plugins-view::REQ-001): agy's plugins are global, so both pages list the same ones from the
+ * snapshot — the agents page noting the marketplace, a project's page that they take effect globally (agy has no
+ * project-level enablement). No installation records and no merging by name with another side's group (AC-06); a
+ * disabled plugin expands and reads like an enabled one (H4). Shown once agy is detected, or when it has plugins.
+ */
+function AntigravityGroup({ snap, onProjectPage }: { snap: Snapshot; onProjectPage?: boolean }): JSX.Element | null {
+  const t = useDict()
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const plugins = snap.global.antigravityPlugins
+  if (!snap.sides.antigravity.detected && plugins.length === 0) return null
+  function toggle(name: string): void {
+    const next = new Set(expanded)
+    if (next.has(name)) next.delete(name)
+    else next.add(name)
+    setExpanded(next)
+  }
+  return (
+    <>
+      <div className="grp-t" style={{ marginTop: 14 }}>
+        <span className={`badge ${SIDE_BADGE.antigravity.cls}`}>{SIDE_CHIP_LABEL.antigravity}</span>
+      </div>
+      {plugins.length === 0 ? (
+        <div className="none">{t.plugins.noPlugins}</div>
+      ) : (
+        <div className="card plug-card">
+          {plugins.map((p) => (
+            <div key={p.name}>
+              <button className="it row-btn" onClick={() => toggle(p.name)}>
+                <span className="nm mono">{p.name}</span>
+                <span className="src mono">{p.version ? `v${p.version}` : ''}</span>
+                <span className={`pill ${p.enabled ? 'on' : 'off'}`}>
+                  {p.enabled ? (onProjectPage ? t.plugins.enabledShort : t.plugins.enabled) : t.plugins.notEnabled}
+                </span>
+                <span className="ds">
+                  {onProjectPage
+                    ? t.plugins.inEffectGlobally(p.marketplace)
+                    : p.marketplace === null
+                      ? ''
+                      : t.plugins.fromMarketplace(p.marketplace)}
+                </span>
+              </button>
+              {expanded.has(p.name) && (
+                <PluginExpand ns={p.name} side="antigravity" root={p.root} contents={p.contents} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
 export function GlobalPluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useDict()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -204,6 +257,7 @@ export function GlobalPluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
         </div>
       )}
       <CodexGroup snap={snap} />
+      <AntigravityGroup snap={snap} />
     </div>
   )
 }
@@ -267,6 +321,7 @@ export function ProjectPluginsTab({
         </div>
       )}
       <CodexGroup snap={snap} detailNote />
+      <AntigravityGroup snap={snap} onProjectPage />
     </div>
   )
 }

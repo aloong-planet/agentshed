@@ -1,6 +1,6 @@
 // The data layer provider interface (seam 1): the data roots are injectable, so tests feed fixtures and
 // production takes the real locations.
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { AgentSide } from '@shared/domain'
 
 export interface ScanRoots {
@@ -25,15 +25,35 @@ export interface ScanRoots {
 }
 
 /**
- * The per-side global skills library root. Keyed by AgentSide so a new side is a compile error here
- * rather than a silent fall-through in a ternary at each consumer.
+ * The directory holding Antigravity CLI's data root, `~/.gemini`. Derived from the data root for now: #326 adds a root of
+ * its own for the same directory, and the feature's closeout folds the two together (ticket #325's decisions).
  */
-export function globalSkillsRoots(roots: ScanRoots): Record<AgentSide, string> {
+export function geminiDir(roots: ScanRoots): string {
+  return dirname(roots.antigravityHome)
+}
+
+/** The configuration agy loads beside its data root, `~/.gemini/config` (ADR-0037): plugins, agents, MCP, skills */
+export function antigravityConfigDir(roots: ScanRoots): string {
+  return join(geminiDir(roots), 'config')
+}
+
+/**
+ * The per-side global skills library roots, in the order the side prefers a same-name copy. Keyed by AgentSide so a
+ * new side is a compile error here rather than a silent fall-through in a ternary at each consumer. Every side but
+ * Antigravity has one; agy loads three, a name present in several being the first one's (skills-view::REQ-001/AC-01,
+ * measured with agy's own listing). Its built-in skills (`antigravity-cli/builtin/skills`) are deliberately absent
+ * (AC-02), and so is Codex's `~/.agents/skills`, which agy does not load (AC-06).
+ */
+export function globalSkillsRoots(roots: ScanRoots): Record<AgentSide, readonly string[]> {
   return {
-    claude: join(roots.claudeHome, 'skills'),
-    codex: roots.agentsSkillsDir,
-    grok: join(roots.grokHome, 'skills'),
-    // agy's own CLI library, the first of the three it loads (skills-view::REQ-001/AC-01 widens this to all three)
-    antigravity: join(roots.antigravityHome, 'skills')
+    claude: [join(roots.claudeHome, 'skills')],
+    codex: [roots.agentsSkillsDir],
+    grok: [join(roots.grokHome, 'skills')],
+    antigravity: [
+      join(roots.antigravityHome, 'skills'),
+      join(antigravityConfigDir(roots), 'skills'),
+      // agy labels this one "Shared"; it is one of agy's global libraries, not the shared skills directory (CONTEXT)
+      join(geminiDir(roots), 'skills')
+    ]
   }
 }

@@ -3,9 +3,10 @@
 // enablement is layered: the global page reads the user layer (E4) and a project's viewpoint merges
 // local > project > user (F1),
 // with a missing or corrupt file at one layer skipping that layer (F2).
-import { existsSync, readFileSync, readdirSync, type Dirent } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync, type Dirent } from 'node:fs'
 import { basename, join, resolve, sep } from 'node:path'
 import type {
+  AntigravityPluginEntry,
   CodexPluginEntry,
   PluginContents,
   PluginEntry,
@@ -14,8 +15,8 @@ import type {
   PluginSkillSummary,
   ProjectPluginEntry
 } from '@shared/domain'
-import type { ScanRoots } from './types'
-import { fmField, readTextCapped } from './read-utils'
+import { antigravityConfigDir, type ScanRoots } from './types'
+import { fmField, fmValue, frontMatter, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 function readJson(file: string): Record<string, unknown> | null {
@@ -228,6 +229,81 @@ export function readCodexPlugins(codexHome: string): CodexPluginEntry[] {
         cachedVersions: versions.length
       })
     }
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+// ── Antigravity CLI plugins (plugins-view::REQ-001; shapes measured 2026-10-28 with agy's official `flutter` plugin) ──
+
+/** An MCP configuration file's servers, by name, with the flag agy reads to keep one from starting. A missing file, one
+ * that does not parse (agy's own global file can be 0 bytes), or one without an object of servers lists none */
+export function readMcpConfigServers(file: string): Array<{ name: string; disabled: boolean }> {
+  const servers = readJson(file)?.['mcpServers']
+  if (typeof servers !== 'object' || servers === null || Array.isArray(servers)) return []
+  return Object.entries(servers as Record<string, unknown>).map(([name, s]) => ({
+    name,
+    disabled: typeof s === 'object' && s !== null && (s as Record<string, unknown>)['disabled'] === true
+  }))
+}
+
+/** The name agy gives a Markdown agent definition: its front matter `name`, else the file's (or directory's) name
+ * (subagents-view::REQ-001/AC-02) */
+export function agyDefinitionName(text: string | null, fallback: string): string {
+  return fmValue(frontMatter(text), 'name') ?? fallback
+}
+
+/** A plugin's bundled pieces as agy loads them: `skills/<name>/SKILL.md`, `agents/*.md` (named as agy names them) and
+ * the servers of its `mcp_config.json` (`<plugin>_<server>`). Its rules are shown nowhere (ADR-0037) and its hooks have
+ * no sample, so neither is a category; workspace plugins are not read (AC-03, AC-05) */
+function readAntigravityPluginContents(root: string, plugin: string): PluginContents {
+  const agents: string[] = []
+  for (const d of safeDirents(join(root, 'agents'))) {
+    if (!d.isFile() || !d.name.endsWith('.md') || d.name.startsWith('.')) continue
+    agents.push(agyDefinitionName(readTextCapped(join(root, 'agents', d.name)), basename(d.name, '.md')))
+  }
+  return {
+    skills: pluginSkillSummaries(root).sort((a, b) => a.name.localeCompare(b.name)),
+    agents: agents.sort(),
+    hooks: [],
+    mcp: readMcpConfigServers(join(root, 'mcp_config.json')).map((s) => `${plugin}_${s.name}`).sort(),
+    missing: false
+  }
+}
+
+/**
+ * Antigravity CLI's plugins: every directory under `~/.gemini/config/plugins/`, each with the version its top-level
+ * plugin.json gives (none when that cannot be read — the plugin keeps its directory name, the others are unaffected)
+ * and the record agy's shared configuration keeps of it. Enablement (AC-02): no enabled key — a fresh install writes
+ * none — is enabled, an explicit false disabled; a configuration file that is missing or does not parse is skipped, so
+ * every plugin reads as having no key (F2's fall-through).
+ */
+export function readAntigravityPlugins(roots: ScanRoots): AntigravityPluginEntry[] {
+  const config = antigravityConfigDir(roots)
+  const recorded = readJson(join(config, 'config.json'))?.['plugins']
+  const records = typeof recorded === 'object' && recorded !== null ? (recorded as Record<string, unknown>) : {}
+  const dir = join(config, 'plugins')
+  const out: AntigravityPluginEntry[] = []
+  for (const d of safeDirents(dir)) {
+    if (d.name.startsWith('.')) continue
+    const root = join(dir, d.name)
+    try {
+      if (!statSync(root).isDirectory()) continue
+    } catch {
+      continue
+    }
+    const record = records[d.name]
+    const rec = typeof record === 'object' && record !== null ? (record as Record<string, unknown>) : {}
+    const from = rec['installedFrom']
+    const marketplace = typeof from === 'object' && from !== null ? (from as Record<string, unknown>)['marketplace'] : null
+    const version = readJson(join(root, 'plugin.json'))?.['version']
+    out.push({
+      name: d.name,
+      version: typeof version === 'string' ? version : null,
+      marketplace: typeof marketplace === 'string' ? marketplace : null,
+      enabled: rec['enabled'] !== false,
+      root,
+      contents: readAntigravityPluginContents(root, d.name)
+    })
   }
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }

@@ -226,8 +226,9 @@ function savedBeforeTheSide(): Record<string, unknown> {
   const stats = { tokens: snap.tokens, sessions: [] }
   const detail = { path: '/p', skills: [], subagents: [], memory: { main: null, mainFile: null, topics: [] }, plugins: [], mcp: [],
     configs: { claudeMd: null, agentsMd: null, settingsSummary: null }, stats, artifacts: [] }
-  return withoutSide({ ...emptyDisplayData(), snapshot: snap, stats: [['/p', stats]],
-    reads: [{ kind: 'projectDetail', path: '/p', data: detail }] }, 'antigravity')
+  // A cache that old predates Antigravity CLI's components too (#325), so neither key is in it
+  return withoutSide(withoutSide({ ...emptyDisplayData(), snapshot: snap, stats: [['/p', stats]],
+    reads: [{ kind: 'projectDetail', path: '/p', data: detail }] }, 'antigravity'), 'antigravityPlugins')
 }
 
 it('restores a display cache saved before the Antigravity side, with that side filled in rather than the pages dropped', () => {
@@ -246,6 +247,46 @@ it('restores a display cache saved before the Antigravity side, with that side f
   const detail = restored.reads[0]
   if (detail?.kind !== 'projectDetail') throw new Error('expected the saved project detail')
   expect(detail.data.stats?.tokens.bySide.antigravity.total).toBe(0)
+})
+
+// A display cache written after Antigravity CLI joined the sides but before its components were read (#325): the side
+// is in every per-side Record, while the global layer has no Antigravity plugins, its subagents no Antigravity
+// definition and none of their definitions agy's two front matter fields, and its MCP entries no disabled flag or
+// plugin. Each is filled in with what a scan without those components produces, rather than the saved pages dropped.
+function savedBeforeTheComponents(): Record<string, unknown> {
+  const snap = emptySnapshot(700) as unknown as { global: Record<string, unknown> }
+  const detail = (text: string): Record<string, unknown> =>
+    ({ content: { text, truncated: false }, description: null, tools: null, model: null, sandbox: null, error: null })
+  delete snap.global['antigravityPlugins']
+  snap.global['subagents'] = [{ name: 'code-reviewer', sides: ['claude'], description: null, claude: detail('saved'), codex: null, overridesBuiltin: false }]
+  snap.global['mcp'] = [{ name: 'figma', side: 'claude', source: 'global-config' }]
+  const page = { path: '/p', skills: [], memory: { main: null, mainFile: null, topics: [] }, plugins: [], mcp: [], artifacts: [], stats: null,
+    configs: { claudeMd: null, agentsMd: null, settingsSummary: null },
+    subagents: [{ name: 'r', side: 'claude', level: 'project', description: null, detail: detail('page'), shadows: false, shadowed: false, overridesBuiltin: false }] }
+  return { ...emptyDisplayData(), snapshot: snap, reads: [{ kind: 'projectDetail', path: '/p', data: page }] }
+}
+
+it('restores a display cache saved before Antigravity CLI\'s components, filling in what that version did not have', () => {
+  const root = dir()
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: savedBeforeTheComponents() }))
+  const restored = new DisplayStore(root).get()
+  expect(restored.snapshot?.scannedAt).toBe(700)
+  expect(restored.snapshot?.global.antigravityPlugins).toEqual([])
+  expect(restored.snapshot?.global.mcp).toEqual([{ name: 'figma', side: 'claude', source: 'global-config', disabled: false, plugin: null }])
+  const sub = restored.snapshot?.global.subagents[0]
+  expect(sub?.antigravity).toBeNull()
+  expect([sub?.claude?.subagent, sub?.claude?.mainAgent, sub?.claude?.content?.text]).toEqual([null, null, 'saved'])
+  const page = restored.reads[0]
+  if (page?.kind !== 'projectDetail') throw new Error('expected the saved project detail')
+  expect([page.data.subagents[0].detail.subagent, page.data.subagents[0].detail.mainAgent]).toEqual([null, null])
+})
+
+it('still drops a saved snapshot whose Antigravity plugins are present but malformed', () => {
+  const root = dir()
+  const saved = savedBeforeTheComponents() as { snapshot: { global: Record<string, unknown> } }
+  saved.snapshot.global['antigravityPlugins'] = [{ name: 'flutter' }]
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: saved }))
+  expect(new DisplayStore(root).get().snapshot).toBeNull()
 })
 
 it('still drops a saved snapshot whose entry for the side is present but malformed', () => {

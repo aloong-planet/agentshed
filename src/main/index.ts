@@ -11,6 +11,9 @@ import {
   type SearchSessionsArgs,
   type SessionTurnArgs,
   type SkillOpArgs,
+  type SkillInstallArgs,
+  type SkillLandingResult,
+  type SkillHoldings,
   type ListSkillFilesArgs,
   type ListSkillFilesResult
 } from '@shared/ipc'
@@ -30,7 +33,7 @@ import { CACHE_VERSION, TokenEngine, projectStatsFromRows } from './providers/to
 import { ParsePool } from './parse-pool'
 import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
-import { installSkill, uninstallSkill } from './providers/install'
+import { installSkillToProject, skillHoldings, uninstallSkill } from './providers/install'
 import { APP_HOST, registerAppProtocol } from './app-protocol'
 import { realRoots } from './roots'
 import {
@@ -236,7 +239,8 @@ async function doScan(): Promise<Snapshot> {
       readRegistry.replace({ owner: 'scan',
         artifacts: snap.global.memory.flatMap(m => m.files.map(f => f.file)),
         pluginRoots: [...snap.global.plugins.flatMap(p => p.installPath ? [p.installPath] : []),
-          ...snap.global.codexPlugins.flatMap(p => p.root ? [p.root] : [])], projects: [], skillFiles: [] })
+          ...snap.global.codexPlugins.flatMap(p => p.root ? [p.root] : []),
+          ...snap.global.antigravityPlugins.map(p => p.root)], projects: [], skillFiles: [] })
       for (const r of savedReads.values()) {
         if (r.kind === 'projectDetail' && !snap.projects.some(p => p.path === r.path && !p.stale)) readRegistry.remove(`project:${r.path}`)
         if (r.kind === 'skillFiles' && ((r.args.scope === 'project' && !snap.projects.some(p => p.path === r.args.projectPath && !p.stale)) ||
@@ -301,7 +305,10 @@ handle(CMD.getProjectDetail, async (_e, path: unknown) => {
   assertProjectDetail(detail)
   readRegistry.replace({ owner: `project:${path}`, artifacts: [...detail.artifacts.map(a => a.file), ...detail.memory.topics.map(t => t.file),
     ...(detail.memory.mainFile !== null ? [detail.memory.mainFile.file] : [])],
-    projects: [path], pluginRoots: detail.plugins.flatMap(p => p.installPath ? [p.installPath] : []), skillFiles: [] })
+    // The package roots this page's plugin skill rows preview from: Claude's plugins as this project sees them, and
+    // Antigravity's, which are global and read again for the page (a plugin installed since the last scan included)
+    projects: [path], pluginRoots: [...detail.plugins.flatMap(p => p.installPath ? [p.installPath] : []),
+      ...detail.skills.flatMap(s => s.origin === 'plugin' && s.side === 'antigravity' && s.pluginRoot ? [s.pluginRoot] : [])], skillFiles: [] })
   for (const r of savedReads.values()) if (r.kind === 'skillFiles' && ((r.args.scope === 'project' && r.args.projectPath === path &&
     !detail.skills.some(skill => skill.level === 'project' && skill.name === r.args.name && skill.side === r.args.side)) ||
     (r.args.scope === 'plugin' && !readRegistry.admission('pluginRoots', r.args.pluginRoot ?? '')))) readRegistry.remove(savedReadKey(r))
@@ -458,8 +465,27 @@ function checkSkillOpArgs(args: unknown): SkillOpArgs {
   }
   return a
 }
-handle(CMD.installSkill, (_e, args: unknown) => installSkill(realRoots(), checkSkillOpArgs(args)))
+function checkInstallArgs(args: unknown): SkillInstallArgs {
+  const a = args as SkillInstallArgs
+  if (
+    typeof a?.skillName !== 'string' ||
+    typeof a?.targetProjectPath !== 'string' ||
+    !Array.isArray(a?.sides) ||
+    a.sides.length === 0 ||
+    !a.sides.every((s) => AGENT_SIDES.has(s))
+  ) {
+    throw appError(ERR.badArgs, { channel: 'installSkill' })
+  }
+  return { skillName: a.skillName, sides: a.sides, targetProjectPath: a.targetProjectPath }
+}
+handle(CMD.installSkill, (_e, args: unknown): SkillLandingResult[] => installSkillToProject(realRoots(), checkInstallArgs(args)))
 handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallSkill(checkSkillOpArgs(args)))
+// The live projects of the current snapshot: the renderer names the skill, never the paths probed. Before the first
+// scan there is nothing to probe, and the install itself still refuses a same name (A4)
+handle(CMD.skillHoldings, (_e, name: unknown): SkillHoldings => {
+  if (typeof name !== 'string') throw appError(ERR.badArgs, { channel: 'skillHoldings' })
+  return skillHoldings((current?.projects ?? []).filter((p) => !p.stale).map((p) => p.path), name)
+})
 
 function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {
   const a = args as ListSkillFilesArgs

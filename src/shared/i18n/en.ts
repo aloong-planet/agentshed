@@ -91,15 +91,21 @@ export const en: Locale = {
     emptyGlobalLib: 'Every side’s global library is empty',
     sideMismatch: (project) => `${project} does not belong to the agent side this skill lives on`,
     installed: (skill, project, side) => `Installed ${skill} → ${project} (${side})`,
+    installedShared: (skill, project, sides) =>
+      `Installed ${skill} → ${project}’s shared directory (by copy; loaded by ${sides})`,
+    pickStale: 'Stale, disabled',
+    pickHasSame: 'Same name installed',
     grokBorrowHint: 'Grok reads Claude Code’s global skills / subagents / plugins / MCP at runtime; those borrowed components belong to the Claude side and do not join Grok’s lists',
     skillsHint: 'Merged into one list · click a row for package files · click a file to preview · no cross-side diff · plugins are read-only',
     levelPluginPkg: 'Plugin package', levelGlobalLib: 'Global library',
     installTo: 'Install to…',
-    pickTarget: 'Choose a target project (installed by copy; stale projects excluded)',
+    pickTarget: 'Choose a target project (installed by copy)',
     srcGlobalConfig: 'global config', srcPlugin: 'bundled with plugin',
     globalMcp: 'Global MCP',
     noGlobalMcp: 'No global MCP (project-level .mcp.json belongs to the project details)',
-    noMcpSection: 'config.toml has no mcp_servers section'
+    noMcpSection: 'config.toml has no mcp_servers section',
+    noAgMcp: 'No MCP servers (none in mcp_config.json, and no enabled plugin brings any)',
+    mcpFromPlugin: (plugin) => `From the ${plugin} plugin`
   },
 
   config: {
@@ -148,8 +154,8 @@ export const en: Locale = {
   },
 
   subagents: {
-    noneGlobal: 'No subagent definitions on either side (~/.claude/agents and ~/.codex/agents)',
-    globalHint: 'Both sides merged into one list · same name on one row (no content diff) · click a row for the full definition',
+    noneGlobal: 'No subagent definitions on any side',
+    globalHint: 'Sides merged into one list · same name on one row (no content diff) · click a row for the full definition',
     noDescription: '(no description)',
     noneProject: 'No subagent definitions at project or global level',
     projectHint: 'Effective view · project level shadows on both Claude and Codex · click a row for the full definition',
@@ -157,7 +163,9 @@ export const en: Locale = {
     overridesBuiltin: 'Overrides built-in', shadows: 'Shadows same name', shadowed: 'Shadowed by project level',
     metaShadows: ' · overrides a lower-level definition of the same name',
     metaShadowed: ' · shadowed by a project-level definition (not in effect)',
-    noSideDef: 'No definition on this side', inherited: '— (inherited)'
+    noSideDef: 'No definition on this side', inherited: '— (inherited)',
+    projectGroup: (dir) => `Project level · ${dir}`,
+    globalGroup: (side) => `Global level · ${side}`
   },
 
   memory: {
@@ -194,7 +202,10 @@ export const en: Locale = {
     enabledShort: 'Enabled', disabledShort: 'Disabled',
     noLayerMentions: 'Not mentioned in any layer',
     verdictFrom: (verdict, layer) => `${verdict} — decided by the ${layer}`,
-    layerLocal: 'local layer', layerProject: 'project layer', layerUser: 'user layer'
+    layerLocal: 'local layer', layerProject: 'project layer', layerUser: 'user layer',
+    fromMarketplace: (marketplace) => `From ${marketplace}`,
+    inEffectGlobally: (marketplace) =>
+      marketplace === null ? 'In effect globally' : `In effect globally · from ${marketplace}`
   },
   session: {
     forkPoints: (n) =>
@@ -320,12 +331,15 @@ export const en: Locale = {
     uninstallFailed: (detail) => `Uninstall failed: ${detail}`,
     secClaudeProject: 'Project level · .claude/skills',
     secClaudeGlobal: 'Global level · Claude',
-    secCodexProject: 'Project level · .agents/skills',
     secCodexGlobal: 'Global level · Codex',
+    secShared: 'Shared · .agents/skills',
+    secAgGlobal: 'Global level · Antigravity',
     secPlugin: 'Bundled in plugins · effectively enabled here (namespaced, read-only)',
     noSkills: 'No skills in effect for this project',
     confirmTitle: 'Uninstall the project-level skill?',
     confirmBody: 'The following directory will be deleted (handle your project’s git state yourself; no copy-diff check is performed):',
+    confirmShared: (sides) => `This directory is loaded by ${sides}: once it is deleted, none of them has this skill.`,
+    sideJoin: ' and ',
     cancel: 'Cancel',
     del: 'Delete',
     mcpTitle: 'Project level · .mcp.json (enabled/disabled comes from project settings)',

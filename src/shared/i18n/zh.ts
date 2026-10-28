@@ -129,17 +129,28 @@ export const zh = {
     sideMismatch: (project: string) => `${project} 不属于该 skill 所在的 agent 侧`,
     installed: (skill: string, project: string, side: string) =>
       `已安装 ${skill} → ${project}(${side})`,
+    /** An install into the shared skills directory: one landing, one result, naming the sides that load it
+     * (skill-install::REQ-001/AC-04); `sides` comes joined by detail.sideJoin */
+    installedShared: (skill: string, project: string, sides: string) =>
+      `已安装 ${skill} → ${project} 的共享目录(复制落地;${sides} 都会加载)`,
+    /** The install picker's row tags (skill-install::REQ-003) */
+    pickStale: '失效,禁用',
+    pickHasSame: '已装同名',
     grokBorrowHint: 'Grok 运行时会读取 Claude Code 的全局 skills / subagents / plugins / MCP;这些借入组件归属 Claude 侧,不并入 Grok 的清单',
     skillsHint: '合并单列 · 点行展开包内文件 · 点文件预览 · 无跨侧 diff · 插件只读',
     levelPluginPkg: '插件包',
     levelGlobalLib: '全局库',
     installTo: '安装到…',
-    pickTarget: '选择目标项目(复制落地;失效项目已排除)',
+    pickTarget: '选择目标项目(复制落地)',
     srcGlobalConfig: '全局配置',
     srcPlugin: 'plugin 自带',
     globalMcp: '全局 MCP',
     noGlobalMcp: '无全局 MCP(项目级 .mcp.json 的归属在项目详情)',
-    noMcpSection: 'config.toml 无 mcp_servers 段'
+    noMcpSection: 'config.toml 无 mcp_servers 段',
+    /** Antigravity's MCP group when it has nothing to list (agents-overview::REQ-003/AC-04) */
+    noAgMcp: '无 MCP server(mcp_config.json 中没有,启用的插件也未自带)',
+    /** An MCP row's note: the plugin that bundles the server */
+    mcpFromPlugin: (plugin: string) => `来自 ${plugin} 插件`
   },
 
   /** The Configuration section, on the agents page and on a project's page (agents-overview::REQ-004,
@@ -208,8 +219,8 @@ export const zh = {
 
   /** The Subagents view (ticket 10) */
   subagents: {
-    noneGlobal: '两侧均无 subagent 定义(~/.claude/agents 与 ~/.codex/agents)',
-    globalHint: '双端合并单列 · 同名一行(不做内容 diff) · 点条目看完整定义',
+    noneGlobal: '各侧均无 subagent 定义',
+    globalHint: '各侧合并单列 · 同名一行(不做内容 diff) · 点条目看完整定义',
     noDescription: '(无 description)',
     noneProject: '项目级与全局层均无 subagent 定义',
     projectHint: '生效视图 · Claude/Codex 均为项目级遮蔽 · 点条目看完整定义',
@@ -221,7 +232,10 @@ export const zh = {
     metaShadows: ' · 压过同名低层定义',
     metaShadowed: ' · 被项目级定义遮蔽(未生效)',
     noSideDef: '该侧无定义',
-    inherited: '—(继承)'
+    inherited: '—(继承)',
+    /** Project detail's group headings: the project-level directory a side reads, and a side's global level */
+    projectGroup: (dir: string) => `项目级 · ${dir}`,
+    globalGroup: (side: string) => `全局层 · ${side}`
   },
 
   /** The Memory view (ticket 10) */
@@ -266,7 +280,12 @@ export const zh = {
     verdictFrom: (verdict: string, layer: string) => `${verdict}判定来自 ${layer}`,
     layerLocal: 'local 层',
     layerProject: 'project 层',
-    layerUser: 'user 层'
+    layerUser: 'user 层',
+    /** An Antigravity plugin row's note on the agents page: the marketplace it was installed from */
+    fromMarketplace: (marketplace: string) => `来自 ${marketplace}`,
+    /** The same row on a project's page: agy has no project-level enablement (plugins-view::REQ-001/AC-05) */
+    inEffectGlobally: (marketplace: string | null) =>
+      marketplace === null ? '全局生效' : `全局生效 · 来自 ${marketplace}`
   },
   /** The session page and its in-turn blocks (ticket 09). The ** and ` markers are rich-text markup — see
    * RichText */
@@ -398,12 +417,19 @@ export const zh = {
     uninstallFailed: (detail: string) => `卸载失败:${detail}`,
     secClaudeProject: '项目级 · .claude/skills',
     secClaudeGlobal: '全局层 · Claude',
-    secCodexProject: '项目级 · .agents/skills',
     secCodexGlobal: '全局层 · Codex',
+    /** The shared skills directory's group: one directory Codex and Antigravity both load (skills-view::REQ-002) */
+    secShared: '共享 · .agents/skills',
+    secAgGlobal: '全局层 · Antigravity',
     secPlugin: '插件内含 · 本项目有效启用(命名空间调用,只读)',
     noSkills: '该项目无生效 skills',
     confirmTitle: '卸载项目级 skill?',
     confirmBody: '将删除以下目录(项目 git 状态由你自行处理;不做副本差异检测):',
+    /** Uninstalling from the shared skills directory: every side that loads it loses the skill
+     * (skill-install::REQ-002/AC-01); `sides` is the loaders' names, joined by sideJoin */
+    confirmShared: (sides: string) => `这个目录由 ${sides} 共同加载:删除后它们都不再有这个 skill。`,
+    /** What joins the names of the sides that load one directory into a phrase */
+    sideJoin: ' 与 ',
     cancel: '取消',
     del: '删除',
     mcpTitle: '项目级 · .mcp.json(enabled/disabled 来自项目设置)',

@@ -87,6 +87,9 @@ function upgradeSavedRead(v: unknown): unknown {
   if (v.kind === 'projectDetail') {
     let data: Record<string, unknown> = v.data
     if (object(data.stats)) upgradeSavedTokens(data.stats.tokens)
+    // A project page saved before Antigravity CLI's subagents were read (#325): its definitions lack agy's two fields
+    if (Array.isArray(data.subagents))
+      for (const s of data.subagents) if (object(s)) upgradeSavedSubagentDetail(s.detail)
     if (object(data.memory) && !('mainFile' in data.memory))
       data = { ...data, memory: { ...data.memory, mainFile: null } }
     if (object(data.configs) && 'settingsSummary' in data.configs && typeof data.path === 'string') {
@@ -128,6 +131,33 @@ function fillSavedSnapshotSides(snap: unknown): void {
     fillAbsentSides(s.symlink, () => false)
     fillAbsentSides(s.pkg, () => null)
   }
+  upgradeSavedComponents(snap.global)
+}
+
+/**
+ * A global layer saved before Antigravity CLI's components were read (#325) restores with what a scan of a machine
+ * without them produces — no Antigravity plugins — until the first scan replaces it, rather than failing the contract
+ * and costing the first launch after the update its saved snapshot. Only an absent field is filled in.
+ */
+function upgradeSavedComponents(global: unknown): void {
+  if (!object(global)) return
+  if (!('antigravityPlugins' in global)) global.antigravityPlugins = []
+  // A subagent of that time had no Antigravity definition, and none of its definitions the two fields only agy's carry
+  if (Array.isArray(global.subagents)) for (const s of global.subagents) if (object(s)) {
+    if (!('antigravity' in s)) s.antigravity = null
+    for (const d of [s.claude, s.codex, s.antigravity]) upgradeSavedSubagentDetail(d)
+  }
+  // An MCP entry of that time came from Claude's or Codex's configuration: none marked disabled, and its plugin, if
+  // any, not recorded
+  if (Array.isArray(global.mcp)) for (const m of global.mcp) if (object(m)) {
+    if (!('disabled' in m)) m.disabled = false
+    if (!('plugin' in m)) m.plugin = null
+  }
+}
+function upgradeSavedSubagentDetail(detail: unknown): void {
+  if (!object(detail)) return
+  if (!('subagent' in detail)) detail.subagent = null
+  if (!('mainAgent' in detail)) detail.mainAgent = null
 }
 
 /** Where the two global configuration files a snapshot saved before entries carried their paths had been read from

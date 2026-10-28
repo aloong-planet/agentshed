@@ -86,7 +86,7 @@ export interface SkillPkgStats {
  * One skill in the global library (both sides merged into one column).
  * The G series: an entry with origin=plugin comes from an effectively enabled plugin's bundled
  * skills — a namespaced name (plugin:skill), not taking part in on-disk same-name shadowing (G2),
- * with sides always claude (G4), and not installable or uninstallable (G3; ADR-0004 confines
+ * with sides always the plugin's own one side, Claude's or Antigravity's (G4), and not installable or uninstallable (G3; ADR-0004 confines
  * install/uninstall to the global library).
  */
 export interface GlobalSkill {
@@ -120,6 +120,10 @@ export interface SubagentSideDetail {
   model: string | null
   /** Codex side only: sandbox_mode */
   sandbox: string | null
+  /** Antigravity CLI side only: the front matter's `subagent` and `mainAgent` as written — a definition marked as not
+   * usable as a main agent is still loaded (subagents-view::REQ-001/AC-03); null elsewhere and when absent */
+  subagent: string | null
+  mainAgent: string | null
   /**
    * Failure information for when that side's file exists but will not parse or has no valid name;
    * null when normal.
@@ -133,14 +137,15 @@ export interface SubagentSideDetail {
   error: AppError | null
 }
 
-/** A global subagent (both sides merged into one column; no cross-side content diff — the formats differ, and we do not manufacture false signals) */
+/** A global subagent (the sides merged into one column; no cross-side content diff — the formats differ, and we do not manufacture false signals) */
 export interface SubagentEntry {
   name: string
   sides: AgentSide[]
-  /** The description to display: the Claude side takes priority */
+  /** The description to display: the first side's in side order (Claude, Codex, Antigravity CLI) */
   description: string | null
   claude: SubagentSideDetail | null
   codex: SubagentSideDetail | null
+  antigravity: SubagentSideDetail | null
   /** A Codex name matching a built-in (default/worker/explorer) → the custom one overrides the built-in (role.rs semantics) */
   overridesBuiltin: boolean
 }
@@ -223,6 +228,26 @@ export interface CodexPluginEntry {
   cachedVersions: number
 }
 
+/**
+ * An Antigravity CLI plugin (plugins-view::REQ-001): installed under `~/.gemini/config/plugins/<name>/`, in effect
+ * globally (agy has no project-level enablement), its enablement kept in agy's shared configuration.
+ */
+export interface AntigravityPluginEntry {
+  /** The plugin's directory name: the key agy's configuration records it under, and the namespace of its skills
+   * (`<name>:<skill>`) and servers (`<name>_<server>`) */
+  name: string
+  /** From its plugin.json; null when that cannot be read */
+  version: string | null
+  /** The marketplace it was installed from, as agy's configuration records it; null when not recorded */
+  marketplace: string | null
+  /** No enabled key = enabled (a fresh install writes none); an explicit false = disabled (AC-02) */
+  enabled: boolean
+  /** The plugin's directory: the summary-source package root its skills preview from (H5) */
+  root: string
+  /** Skills, subagents (by the name agy gives them) and MCP servers (`<plugin>_<server>`); no hooks — no sample (AC-03) */
+  contents: PluginContents
+}
+
 /** A plugin entry in project detail: effectively enabled = `enabledPlugins` merged local > project > user (F1) */
 export interface ProjectPluginEntry {
   name: string
@@ -240,8 +265,13 @@ export interface ProjectPluginEntry {
 export interface McpServerEntry {
   name: string
   side: AgentSide
-  /** 'global-config' (~/.claude.json) | 'plugin' (bundled in plugin.json) | 'config.toml' */
-  source: 'global-config' | 'plugin' | 'config.toml'
+  /** 'global-config' (~/.claude.json) | 'plugin' (bundled with a plugin) | 'config.toml' (Codex) |
+   * 'mcp_config.json' (Antigravity CLI's global file, agents-overview::REQ-003/AC-04) */
+  source: 'global-config' | 'plugin' | 'config.toml' | 'mcp_config.json'
+  /** The server's own configuration marks it disabled (agy keeps such a server from starting) */
+  disabled: boolean
+  /** The plugin that bundles it (its namespace), when `source` is 'plugin'; null otherwise */
+  plugin: string | null
 }
 
 /** The Agents global layer (ticket 07; subagents/memory are v2 component extensions) */
@@ -255,6 +285,8 @@ export interface GlobalLayer {
   plugins: PluginEntry[]
   /** Codex plugins (probe-style: an empty cache directory gives an empty array and the UI hides the whole group) */
   codexPlugins: CodexPluginEntry[]
+  /** Antigravity CLI plugins (plugins-view::REQ-001), the disabled ones included */
+  antigravityPlugins: AntigravityPluginEntry[]
   mcp: McpServerEntry[]
   /** The Configuration section's CLAUDE.md: `~/.claude/CLAUDE.md`; null when it does not exist */
   claudeMd: ConfigFile | null
@@ -698,6 +730,7 @@ export function emptySnapshot(scannedAt: number): Snapshot {
       codexMemoriesEnabled: false,
       plugins: [],
       codexPlugins: [],
+      antigravityPlugins: [],
       mcp: [],
       claudeMd: null,
       agentsMd: []

@@ -6,10 +6,11 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { MarkdownBody } from './MarkdownBody'
 import { ConfigSection } from './ConfigSection'
-import type { ArtifactEntry, ArtifactType, CappedText, ProjectDetail, ProjectEntry, ProjectSkillEntry, Snapshot } from '@shared/domain'
+import type { AgentSide, ArtifactEntry, ArtifactType, CappedText, ProjectDetail, ProjectEntry, ProjectSkillEntry, Snapshot } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
+import { skillsDirLoaders } from '@shared/skill-landing'
 import { projectDetailQueryKey, useProjectDetailQuery } from './project-detail-query'
-import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
+import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_FULL_NAME, SIDE_ORDER } from './side-badge'
 import { StaleNote } from './StaleNote'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
 import { sliceUsage, type UsageWindow } from '@shared/usage'
@@ -17,6 +18,7 @@ import { ProjectSubagentsTab } from './SubagentsView'
 import { ProjectMemoryTab } from './MemoryView'
 import { dirOf } from './md-links'
 import { ProjectPluginsTab } from './PluginsView'
+import { AntigravityMcpGroup } from './McpServers'
 import { fmtAgo } from './ProjectsPane'
 import { toast } from './Toast'
 import { SkillExpandBlock } from './SkillExpandBlock'
@@ -160,7 +162,7 @@ function DetailPaneBody({
             )}
             {tab === 'subagents' && <ProjectSubagentsTab detail={result.detail} />}
             {tab === 'plugins' && <ProjectPluginsTab detail={result.detail} snap={snap} />}
-            {tab === 'mcp' && <McpTab detail={result.detail} />}
+            {tab === 'mcp' && <McpTab detail={result.detail} snap={snap} />}
             {tab === 'memory' && (
               <ProjectMemoryTab
                 detail={result.detail}
@@ -535,6 +537,12 @@ function SkillRow({
   )
 }
 
+/** A project-level entry from the shared skills directory: a directory more than one side loads, its row carrying
+ * the first loader's side (skills-view::REQ-002/AC-01) */
+function isShared(s: ProjectSkillEntry): boolean {
+  return s.level === 'project' && skillsDirLoaders(PROJECT_SKILLS_DIR[s.side]).length > 1
+}
+
 function SkillsTab({
   detail,
   onChanged
@@ -550,14 +558,18 @@ function SkillsTab({
     const g = {
       clProject: [] as ProjectSkillEntry[],
       clGlobal: [] as ProjectSkillEntry[],
-      cxProject: [] as ProjectSkillEntry[],
       cxGlobal: [] as ProjectSkillEntry[],
+      // The shared skills directory, .agents/skills: one group owned by every side that loads it (skills-view::REQ-002)
+      shared: [] as ProjectSkillEntry[],
+      agGlobal: [] as ProjectSkillEntry[],
       plugin: [] as ProjectSkillEntry[] // Plugin-bundled: namespaced entries, read-only (G3)
     }
     for (const s of detail.skills) {
       if (s.level === 'plugin') g.plugin.push(s)
-      else if (s.side === 'claude') (s.level === 'project' ? g.clProject : g.clGlobal).push(s)
-      else (s.level === 'project' ? g.cxProject : g.cxGlobal).push(s)
+      else if (s.level === 'project') (isShared(s) ? g.shared : g.clProject).push(s)
+      else if (s.side === 'claude') g.clGlobal.push(s)
+      else if (s.side === 'codex') g.cxGlobal.push(s)
+      else g.agGlobal.push(s)
     }
     return g
   }, [detail])
@@ -574,17 +586,27 @@ function SkillsTab({
   }
   const delPath =
     confirm && `${detail.path}/${PROJECT_SKILLS_DIR[confirm.side]}/${confirm.name}/`
+  // An uninstall from the shared directory goes for every side that loads it, and the confirmation says so
+  // (skill-install::REQ-002/AC-01)
+  const confirmLoaders = confirm && isShared(confirm) ? skillsDirLoaders(PROJECT_SKILLS_DIR[confirm.side]) : null
   /**
    * A group renders only what matched, and the heading count reports **that** number rather than the
    * group's total — a count still reporting the total would contradict the rows underneath it. A group
    * with nothing left disappears heading and all, which is the rule this section already applied to a
-   * group that was empty to begin with.
+   * group that was empty to begin with. The shared group's heading also names the sides that load it, whatever
+   * the project is registered on (skills-view::REQ-002/AC-01).
    */
-  const section = (title: string, items: ProjectSkillEntry[]): JSX.Element | null => {
+  const section = (title: string, items: ProjectSkillEntry[], loaders?: AgentSide[]): JSX.Element | null => {
     const shown = filterByName(items, kw)
     return shown.length === 0 ? null : (
       <div key={title}>
-        <div className="grp-t">{title}({shown.length})</div>
+        <div className="grp-t">
+          {title}
+          {loaders?.map((side) => (
+            <span key={side} className={`badge ${SIDE_BADGE[side].cls}`}>{SIDE_BADGE[side].label}</span>
+          ))}
+          ({shown.length})
+        </div>
         <div className="card sk-card">
           {shown.map((s) => (
             <SkillRow
@@ -608,8 +630,9 @@ function SkillsTab({
       {any && <SkillSearch value={kw} onChange={setKw} />}
       {section(t.detail.secClaudeProject, groups.clProject)}
       {section(t.detail.secClaudeGlobal, groups.clGlobal)}
-      {section(t.detail.secCodexProject, groups.cxProject)}
       {section(t.detail.secCodexGlobal, groups.cxGlobal)}
+      {section(t.detail.secShared, groups.shared, skillsDirLoaders(PROJECT_SKILLS_DIR[groups.shared[0]?.side ?? 'codex']))}
+      {section(t.detail.secAgGlobal, groups.agGlobal)}
       {section(t.detail.secPlugin, groups.plugin)}
       {!any && <div className="none">{t.detail.noSkills}</div>}
       {any && !anyShown && <div className="none">{t.skills.noNameMatch}</div>}
@@ -620,6 +643,9 @@ function SkillsTab({
             <h2>{t.detail.confirmTitle}</h2>
             <p className="dlg-p">{t.detail.confirmBody}</p>
             <pre className="md mono dlg-path">{delPath}</pre>
+            {confirmLoaders && (
+              <p className="dlg-p">{t.detail.confirmShared(confirmLoaders.map((s) => SIDE_FULL_NAME[s]).join(t.detail.sideJoin))}</p>
+            )}
             <div className="dlg-btns">
               <button className="cfg-btn" onClick={() => setConfirm(null)}>
                 {t.detail.cancel}
@@ -635,7 +661,7 @@ function SkillsTab({
   )
 }
 
-function McpTab({ detail }: { detail: ProjectDetail }): JSX.Element {
+function McpTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
   const t = useDict()
   return (
     <div>
@@ -658,6 +684,8 @@ function McpTab({ detail }: { detail: ProjectDetail }): JSX.Element {
           ))}
         </div>
       )}
+      {/* agy's servers are global: the same group as the agents page (project-detail::REQ-002/AC-03) */}
+      <AntigravityMcpGroup snap={snap} onProjectPage />
     </div>
   )
 }

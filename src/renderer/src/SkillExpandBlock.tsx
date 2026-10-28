@@ -1,7 +1,8 @@
 // skills-view: a skill expands into a file table and clicking a file opens a drawer (on-disk and plugin
 // entries on equal footing, A4/ADR-0012)
 import { useEffect, useState } from 'react'
-import type { AgentSide, SkillPkgStats } from '@shared/domain'
+import { PROJECT_SKILLS_DIR, type AgentSide, type SkillPkgStats } from '@shared/domain'
+import { skillsDirLoaders } from '@shared/skill-landing'
 import type { ListSkillFilesArgs, SkillFileEntry } from '@shared/ipc'
 import { NameReveal } from './NameReveal'
 import { SkillFileDrawer } from './SkillFileDrawer'
@@ -46,7 +47,14 @@ export interface SkillExpandBlockProps {
 export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const t = useDict()
   const { name, source, symlink, levelLabel, level, pkgBySide, installSlot, uninstallSlot } = props
-  const sidesArr = source.kind === 'global' ? source.sides : [source.side]
+  // A project-level row is the directory's: its badges name every side that loads it — both owners of the shared
+  // skills directory, whatever the project is registered on (skills-view::REQ-002/AC-01)
+  const sidesArr =
+    source.kind === 'global'
+      ? source.sides
+      : source.kind === 'project'
+        ? skillsDirLoaders(PROJECT_SKILLS_DIR[source.side])
+        : [source.side]
   const fixedSide = source.kind === 'global' ? source.fixedSide : source.side
   const sorted = SIDE_ORDER.filter((s) => sidesArr.includes(s))
   const lang = useLanguage()
@@ -155,7 +163,12 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
       {drawer && (
         <SkillFileDrawer
           skill={name}
-          sideLabel={SIDE_SHORT_NAME[side]}
+          sideLabel={
+            // A shared directory's row belongs to both its loaders, so the drawer names both
+            source.kind === 'project' && sorted.length > 1
+              ? sorted.map((s) => SIDE_SHORT_NAME[s]).join(t.detail.sideJoin)
+              : SIDE_SHORT_NAME[side]
+          }
           levelLabel={
             levelLabel ??
             (source.kind === 'plugin'
