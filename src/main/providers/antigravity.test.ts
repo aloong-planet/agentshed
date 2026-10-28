@@ -6,24 +6,29 @@
 // Gaps, with what would close them:
 // - agy exiting between the reader's look for the log and its copy (token-stats failure modes): a race no fixture
 //   can stage, since the reader takes no pause between the two; an injectable step there would make it testable.
+// - agy exiting between the log's copy and the database's — the window the log-first order is for: the same kind of
+//   race, invisible after the read, and closed the same way.
 // - agy starting to write a database while it is read in place: the same race, the other way round.
+// - A read killed half-way leaving its copy behind: killing the process is outside this seam. What the copy is left
+//   in — a directory only the user can read — is asserted while a read runs.
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
   utimesSync,
   writeFileSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ERR } from '@shared/errors'
 import { scan } from './scan'
-import { readAntigravitySessions } from './antigravity'
+import { readAntigravitySessions, readConversationDb } from './antigravity'
 import type { ScanRoots } from './types'
 import type { DatabaseSync } from './sqlite'
 import {
@@ -194,6 +199,18 @@ describe("activity: a conversation's folder and time (projects-list::REQ-001/AC-
     expect(snap.projects[0]).toMatchObject({ sessionCount: 1, lastSessionAt: 1_793_000_500_000 })
   })
 
+  it('while agy writes, the time is the database\'s when it is later than the log\'s — a checkpoint writes the database and leaves the log', async () => {
+    const p = mkProject('p')
+    trust([p])
+    mkdirSync(conversations(), { recursive: true })
+    const { file, writer } = writeConversation(conversations(), 'live', encodeTrajectoryMetadata({ folders: [p], conversationId: 'live' }), { keepOpen: true })
+    if (writer) writers.push(writer)
+    utimesSync(`${file}-wal`, 1_793_000_000, 1_793_000_000)
+    utimesSync(file, 1_793_000_800, 1_793_000_800)
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects[0]).toMatchObject({ sessionCount: 1, lastSessionAt: 1_793_000_800_000 })
+  })
+
   it('a subagent conversation, with the same trajectory source and a later time, neither counts nor moves the time (token-stats::REQ-003/AC-07)', async () => {
     // The measured records name MEASURED_FOLDER; register exactly that path (it need not exist: stale is beside the point)
     trust([MEASURED_FOLDER])
@@ -228,6 +245,14 @@ describe("activity: a conversation's folder and time (projects-list::REQ-001/AC-
     const byName = Object.fromEntries(snap.projects.map((e) => [e.name, e]))
     expect(byName['first']).toMatchObject({ sessionCount: 1, lastSessionAt: 1_793_000_000_000 })
     expect(byName['second']).toMatchObject({ sessionCount: 0, lastSessionAt: null })
+  })
+
+  it('a first folder that is not a local file credits no project, not even a trusted folder listed after it', async () => {
+    const p = mkProject('p')
+    trust([p])
+    conversation('remote', [], 1_793_000_000, { rawUris: ['vscode-remote://ssh-remote+host/home/x', pathToFileURL(p).href] })
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects[0]).toMatchObject({ name: 'p', sessionCount: 0, lastSessionAt: null })
   })
 
   it('the conversation agy creates when its interface is opened and left moves the time, and is no error (token-stats::REQ-003/AC-09)', async () => {
@@ -328,5 +353,50 @@ describe("reading agy's files writes nothing there (token-stats::CON-002)", () =
     expect(sessions.map((s) => [s.cwd, s.subagent])).toEqual([[p, false]])
     expect(readdirSync(tmpParent)).toEqual([])
     expect(existsSync(join(conversations(), 'busy.db-wal'))).toBe(true)
+  })
+
+  it('the copy\'s directory is the user\'s alone while the read runs, so a read killed half-way leaves nothing others can read', () => {
+    const p = mkProject('p')
+    mkdirSync(conversations(), { recursive: true })
+    const { file, writer } = writeConversation(conversations(), 'busy', encodeTrajectoryMetadata({ folders: [p], conversationId: 'busy' }), { keepOpen: true })
+    if (writer) writers.push(writer)
+    const tmpParent = join(dir, 'tmp')
+    mkdirSync(tmpParent)
+    const seen = readConversationDb(file, (db) => {
+      const copyDir = dirname(db.location() ?? '')
+      // SQLite reports the path resolved (macOS's /var is a link to /private/var)
+      return { underParent: dirname(copyDir) === realpathSync(tmpParent), mode: statSync(copyDir).mode & 0o777 }
+    }, tmpParent)
+    expect(seen).toEqual({ underParent: true, mode: 0o700 })
+  })
+})
+
+describe('a conversation is read again only when it changed, and a failed read is tried again', () => {
+  // A conversation with a log is read through a copy made under the walk's temporary parent: a parent that does not
+  // exist makes every fresh read fail, which tells a read served from the last one apart from a new read
+  function busy(): string {
+    const p = mkProject('p')
+    mkdirSync(conversations(), { recursive: true })
+    const { writer } = writeConversation(conversations(), 'busy', encodeTrajectoryMetadata({ folders: [p], conversationId: 'busy' }), { keepOpen: true })
+    if (writer) writers.push(writer)
+    return p
+  }
+  const usable = (): string => {
+    const t = join(dir, 'tmp')
+    mkdirSync(t, { recursive: true })
+    return t
+  }
+  const unusable = (): string => join(dir, 'no-such-dir')
+
+  it('an unchanged conversation is not read again', () => {
+    const p = busy()
+    expect(readAntigravitySessions(agyRoot(), usable()).map((s) => s.cwd)).toEqual([p])
+    expect(readAntigravitySessions(agyRoot(), unusable()).map((s) => s.cwd)).toEqual([p])
+  })
+
+  it('a read that failed is tried again at the next walk', () => {
+    const p = busy()
+    expect(readAntigravitySessions(agyRoot(), unusable()).map((s) => s.cwd)).toEqual([null])
+    expect(readAntigravitySessions(agyRoot(), usable()).map((s) => s.cwd)).toEqual([p])
   })
 })

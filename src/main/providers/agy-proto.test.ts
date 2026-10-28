@@ -59,6 +59,11 @@ describe('the markers and folders a record can carry', () => {
     expect(isSubagent(decodeTrajectoryMetadata(encodeTrajectoryMetadata(base)))).toBe(false)
   })
 
+  it('a nesting depth of zero is no subagent marker', () => {
+    const m = decodeTrajectoryMetadata(encodeTrajectoryMetadata({ ...base, nestingDepth: 0 }))
+    expect([m.nestingDepth, isSubagent(m)]).toEqual([0, false])
+  })
+
   it('a record listing two folders names the first; without workspace_uris the workspaces carry them', () => {
     const two = decodeTrajectoryMetadata(encodeTrajectoryMetadata({ ...base, folders: ['/work/first', '/work/second'] }))
     expect(firstFolder(two)).toBe('/work/first')

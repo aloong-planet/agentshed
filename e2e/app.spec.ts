@@ -700,16 +700,19 @@ test('a stale project opens as the note page: card only, chips per recording sid
 /**
  * Ticket antigravity-side/#322: a fixture home where agy trusts three folders — one only it registered, one Claude
  * registered too (with a Claude memory, so the Memory section has a row to read), and one whose directory is gone —
- * and one conversation in the first, last written three days ago (projects-list::REQ-001/AC-01, AC-04).
+ * and one conversation in the first, last written three days ago (projects-list::REQ-001/AC-01, AC-04). A live folder
+ * only Claude registered gives the side filter a row to remove.
  */
 function mkAntigravityHome(): { home: string; agOnly: string; tri: string; ghost: string } {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agy-'))
   const agOnly = join(home, 'ag-only')
   const tri = join(home, 'ag-and-claude')
   const ghost = join(home, 'ag-ghost')
+  const claudeOnly = join(home, 'claude-only')
   mkdirSync(agOnly, { recursive: true })
   mkdirSync(tri, { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [tri]: {} } }))
+  mkdirSync(claudeOnly, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [tri]: {}, [claudeOnly]: {} } }))
   const mem = join(home, '.claude', 'projects', tri.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
   mkdirSync(mem, { recursive: true })
   writeFileSync(join(mem, 'MEMORY.md'), '# Memory\n\n- a note\n')
@@ -763,8 +766,9 @@ test('an Antigravity-registered project: its card, its row and hover name, the f
   expect(await tip.locator('.dot.antigravity').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(66, 133, 244)')
   await win.mouse.move(5, 5)
 
-  // The side filter's fifth option names the side and narrows the list to its live folders (the stale one stays
-  // hidden by the stale filter, C1)
+  // The side filter's fifth option names the side and narrows the list to its live folders: the Claude-only folder
+  // leaves, and the stale one stays hidden by the stale filter (C1)
+  await expect(win.locator('.side .row .nm')).toHaveText(['ag-only', 'ag-and-claude', 'claude-only'])
   await win.locator('.opts .dd-trigger').click()
   const opts = win.locator('.side-pop .dd-opt')
   await expect(opts).toHaveCount(5)
