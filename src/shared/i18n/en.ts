@@ -214,6 +214,9 @@ export const en: Locale = {
     anotherSession: 'another session',
     parentTitle: (title) => `“${title}”`,
     forkedFromTail: '— the replayed prefix has been stripped, so only what follows this fork is shown below. **See that session for the earlier history**.',
+    forkedFromCopiedTail: '— the copied history has been stripped, so only what follows this fork is shown below. **See that session for the earlier history**.',
+    forkedFromGone:
+      'This session was forked from a session that is **no longer on this machine** — the copied history has been stripped, so only what follows this fork is shown below.',
     stripUncertainOrphan:
       '**Uncertain prefix stripping**: this session was forked from a parent **outside the scan set** (its file was cleaned up, or it belongs to an unregistered project), so stripping could only be heuristic — **it may have stripped too much (losing messages) or too little (duplicates)**. Please check against the original. Not failing silently is the only guarantee available here.',
     stripUncertainMismatch: (parent) =>
@@ -315,6 +318,7 @@ export const en: Locale = {
     descending: 'descending',
     ascending: 'ascending',
     forkTip: 'This session was forked from another; the replayed prefix has been stripped',
+    forkTipCopied: 'This session was forked from another; the copied history has been stripped',
     forkUncertainTip: 'The parent session is outside the scan set or fails verification, so the replayed prefix could only be stripped heuristically — some may remain (duplicates)',
     questionCount: (n) => `${n} ${plural('en', n, { one: 'question', other: 'questions' })}`,
     sessionsFoot: 'Only sessions of registered projects are listed; subagent and warm-up sessions are not listed separately, though their tokens still count — so this count and the denominator of the token cards above are not the same thing.',
