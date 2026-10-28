@@ -888,7 +888,7 @@ test('an Antigravity-registered project: its card, its row and hover name, the f
   const win = await l.app.firstWindow()
 
   // The side card: the ANTIGRAVITY chip, detected, and the three projects it registers (the stale one included, as
-  // on every side's card); skills and subagents are not read on this side yet
+  // on every side's card); this home holds no Antigravity skill or subagent
   const card = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') })
   await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
   await expect(card.locator('.badge.ag')).toHaveText('ANTIGRAVITY')
@@ -900,6 +900,14 @@ test('an Antigravity-registered project: its card, its row and hover name, the f
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .it', { hasText: 'ag-and-claude' })).toBeVisible()
   expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
+
+  // #325: agy detected with no plugin and no MCP file — each group drawn, saying it is empty
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
+  await expect(win.locator('.pane-body .grp-t:has(.badge.ag) + .none')).toHaveText('No plugins installed')
+  await win.locator('.pane-head .tabs .tab', { hasText: 'MCP' }).click()
+  await expect(win.locator('.pane-body .grp-t:has(.badge.ag) + .none')).toHaveText(
+    'No MCP servers (none in mcp_config.json, and no enabled plugin brings any)'
+  )
 
   // The project list: the conversation's time on its folder, the side counted, and the side named on hover with its
   // Google-blue dot (the light --p-google)
@@ -931,6 +939,10 @@ test('an Antigravity-registered project: its card, its row and hover name, the f
   await agRow.click()
   await expect(win.locator('.det-title .badge')).toHaveCount(1)
   await expect(win.locator('.det-title .badge.ag')).toHaveText('ANTIGRAVITY')
+  // #325: on a project's page agy's MCP group appears only with servers — read after the page's own MCP heading
+  await win.locator('.pane-head .tabs .tab', { hasText: 'MCP' }).click()
+  await expect(win.locator('.pane-body .grp-t').first()).toHaveText('Project level · .mcp.json (enabled/disabled comes from project settings)')
+  expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .none')).toHaveText(
     'Memory is a Claude-side mechanism (Codex memory is global — see the Memory tab on the global page)'
@@ -1188,6 +1200,9 @@ function mkAgyComponentsHome(): { home: string; agOnly: string; all: string; sta
   skill(join(all, '.claude', 'skills'), 'ui-design', 'UI review rules', 'UI design, the project copy')
   skill(join(all, '.agents', 'skills'), 'changelog-entry', 'Add a changelog entry', 'Changelog entry, the shared copy')
   skill(join(all, '.agents', 'skills'), 'tdd', 'The project TDD', 'TDD, the shared project copy')
+  // transfer's own Claude and Codex subagents, so project detail heads each side's project group by its directory
+  file(join(all, '.claude', 'agents', 'proj-claude.md'), '---\ndescription: Project Claude helper\n---\nClaude project persona.\n')
+  file(join(all, '.codex', 'agents', 'proj-codex.toml'), 'name = "proj-codex"\ndescription = "Project Codex helper"\ndeveloper_instructions = "You help."\n')
   return { home, agOnly, all, stale }
 }
 
@@ -1251,7 +1266,8 @@ test('the agents page with Antigravity\'s components: card counts, Skills, Subag
   await sub('code-reviewer').click()
   await expect(win.locator('.drawer .sideseg button')).toHaveText(['Claude(.md)', 'Antigravity(.md)'])
   await win.locator('.drawer .sideseg button', { hasText: 'Antigravity' }).click()
-  await expect(win.locator('.drawer .kv')).toContainText('view_file, grep_search')
+  // agy's four keys as written, "—" where the definition has none: an absent model claims no inherited default
+  await expect(win.locator('.drawer .kv > span')).toHaveText(['tools', 'view_file, grep_search', 'subagent', '—', 'mainAgent', '—', 'model', '—'])
   await expect(win.locator('.drawer .raw')).toContainText('Antigravity reviewer persona.')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // A definition not usable as a main agent is listed, and says so (AC-03)
@@ -1327,17 +1343,20 @@ test('two sides\' plugins bundling one skill name: two rows, and filtering keeps
     mkdirSync(join(path, '..'), { recursive: true })
     writeFileSync(path, text)
   }
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: {} }))
+  // A project Claude registered: its page shows agy's plugin as in effect globally
+  const proj = join(home, 'claude-proj')
+  mkdirSync(proj)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
   // A row above the two, which the filter removes
   file(join(home, '.claude', 'skills', 'aaa-first', 'SKILL.md'), '---\ndescription: first\n---\nfirst\n')
   // Claude's flutter plugin, enabled at the user layer
   const cpkg = join(home, 'claude-flutter')
-  file(join(cpkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'flutter' }))
+  file(join(cpkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'flutter', mcpServers: { 'dart-tools': { command: 'dart' } } }))
   file(join(cpkg, 'skills', 'dart-add-unit-test', 'SKILL.md'), '---\ndescription: Claude copy\n---\nClaude plugin body\n')
   file(join(home, '.claude', 'plugins', 'installed_plugins.json'),
     JSON.stringify({ version: 2, plugins: { 'flutter@official': [{ scope: 'user', version: '1.0.0', installPath: cpkg }] } }))
   file(join(home, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'flutter@official': true } }))
-  // agy's flutter plugin, fresh install (enabled)
+  // agy's flutter plugin, enabled, with no record in agy's configuration (so no marketplace) and no server
   const apkg = join(home, '.gemini', 'config', 'plugins', 'flutter')
   file(join(apkg, 'plugin.json'), JSON.stringify({ name: 'flutter', version: '1.0.6' }))
   file(join(apkg, 'skills', 'dart-add-unit-test', 'SKILL.md'), '---\ndescription: agy copy\n---\nAntigravity plugin body\n')
@@ -1362,6 +1381,26 @@ test('two sides\' plugins bundling one skill name: two rows, and filtering keeps
   await expect(clRow.locator('.sk')).not.toHaveClass(/open/)
   await agRow.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Antigravity plugin body')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // Plugins: agy's plugin without a recorded marketplace carries no "From" note (plugins-view, settled boundaries)
+  const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
+  await tab('Plugins').click()
+  const agPlugin = win.locator('.it.row-btn', { hasText: 'v1.0.6' })
+  await expect(agPlugin.locator('.pill')).toHaveText('Enabled')
+  await expect(agPlugin.locator('.ds')).toHaveText('')
+  // MCP: Claude's plugin server names its plugin, the row form every group shares; agy's group, detected, says it has
+  // none (agents-overview::REQ-003 boundaries)
+  await tab('MCP').click()
+  await expect(win.locator('.pane-body .it', { hasText: 'dart-tools' }).locator('.ds')).toHaveText('From the flutter plugin')
+  await expect(win.locator('.pane-body .grp-t:has(.badge.ag) + .none')).toHaveText(
+    'No MCP servers (none in mcp_config.json, and no enabled plugin brings any)'
+  )
+  // The project's page: agy's plugin takes effect globally, with no marketplace to name
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'claude-proj' }).click()
+  await tab('Plugins').click()
+  await expect(win.locator('.it.row-btn', { hasText: 'v1.0.6' }).locator('.ds')).toHaveText('In effect globally')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -1405,6 +1444,15 @@ test('the install picker\'s same-name tag is this opening\'s: reopened after the
   await expect(win.locator('.toast.ok')).toHaveText('Installed tidy → proj (claude)')
   expect(readFileSync(join(copy, 'SKILL.md'), 'utf8')).toContain('global')
   expect(await win.evaluate(() => (window as unknown as { tagDrawn: boolean }).tagDrawn)).toBe(false)
+
+  // This home has no Antigravity CLI: neither its plugin group nor its MCP group is drawn (plugins-view, settled
+  // boundaries; agents-overview::REQ-003 boundaries). Each read follows the Claude group's heading on the same render
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
+  await expect(win.locator('.pane-body .grp-t:has(.badge.cl)')).toHaveCount(1)
+  expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'MCP' }).click()
+  await expect(win.locator('.pane-body .grp-t:has(.badge.cl)')).toHaveCount(1)
+  expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -1551,6 +1599,15 @@ test('the shared skills directory: one install target, stale and same-name rows,
   await expect(headings.nth(3)).toContainText('(2)')
   // The shared directory's tdd hides agy's: release-notes and commit-style remain
   await expect(headings.nth(4)).toHaveText('Global level · Antigravity(2)')
+  // Its Subagents: each side's project group headed by the directory that side reads, then the global groups
+  await tab('Subagents').click()
+  await expect(headings).toHaveText([
+    'Effective view · project level shadows on both Claude and Codex · click a row for the full definition',
+    'Project level · .claude/agents(1)',
+    'Project level · .codex/agents(1)',
+    'Global level · Claude(1)',
+    'Global level · Antigravity(3)'
+  ])
 
   expect(l.errors).toEqual([])
   await close(l)

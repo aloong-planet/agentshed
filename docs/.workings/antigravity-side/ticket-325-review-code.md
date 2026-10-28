@@ -193,3 +193,8 @@ projects (skill-install::REQ-003/AC-01 itself). No code contradicts a spec state
 (2026-10-29): agents-overview B2 and the REQ-003 boundaries; skills-view's REQ-001/REQ-002 boundaries; skill-install
 REQ-001 and REQ-003 boundaries; subagents-view REQ-001 boundaries and the project detail layout; plugins-view REQ-001's
 settled boundaries; project-detail REQ-002's MCP group visibility.
+
+## Self-check of the test review's fixes (item 1)
+
+Not applicable: the fixes for the post-implementation check's six findings (round 1, 2026-10-29) change no product
+code — tests, the e2e fixture home and the records only.

@@ -71,9 +71,61 @@ Field values are invented freely; the structures follow the samples.
 | E5 | the install picker's same-name tag is this opening's: reopened after the copy is gone, it is not drawn | skill-install::REQ-003/AC-02 | E | a project holding `tidy` in `.claude/skills`; open the picker (tag), close, delete the copy, reopen, install | an in-page MutationObserver's record that no tag was drawn after reopening (a retried assertion cannot see a one-round-trip tag); the success notice and the copy on disk · spec AC-02. Positive controls: the tag drawn before the copy goes; the observer's record turned true on the unfixed build | own fixture home | one Electron launch |
 
 Rows U30–U34, E4 and E5 were added at the code review (2026-10-29, [ticket-325-review-code.md](ticket-325-review-code.md)
-findings 1 and 3–6), each run red against the unfixed code first. E4 and E5 launch on their own small fixture homes:
-the components fixture has no Claude plugin and no project holding a Claude skill, and adding either would change E1–E3's
+findings 1 and 3–6). E4, E5, U32, U33 and U34 were run red against the unfixed code first; U30 and U31 pin provider
+behaviour that was already right (the faults they accompany were the renderer's keys) and passed when written. The rows
+were written after their tests, within the same review step — the order the "Increment" rule asks for (table first) was
+not kept for them; they were reviewed as rows afterwards. E4 and E5 launch on their own small fixture homes: the
+components fixture has no Claude plugin and no project holding a Claude skill, and adding either would change E1–E3's
 counts.
+
+Increment for the post-implementation check's findings (round 1, 2026-10-29; rows written and reviewed before the tests):
+
+| # | Test (planned name) | Spec coverage | Seam | Input that drives the target branch | Assertion object · expected value source | Fixture shape | Expensive resource |
+|---|---|---|---|---|---|---|---|
+| U3 (changed) | the preview opens the copy agy uses, and the install source is that copy too | skills-view::REQ-001/AC-01, skill-install::REQ-001/AC-05 | P (`resolveSkillRoot`, `listSkillPackageFiles`, `installSkillToProject`) | as before, plus an Antigravity-only install of `y` | as before, plus the installed package's distinguishing file = the CLI copy's (finding 6b: CLI over config was driven by no install case) | S-skl | none |
+| U30 (changed) | … two entries, one per side, never merged; Claude's plugin server names its plugin | plugins-view G4, AC-06; agents-overview REQ-003 boundary (one row form, Claude's plugin servers carry the note) | P (`scan`) | the Claude plugin's `plugin.json` gains `mcpServers` | the MCP entry `{ name, side: 'claude', source: 'plugin', plugin: 'flutter' }` — the bare name, not `flutter@official` · the boundary's wording (finding 3) | the existing Claude plugin manifest shape (`mcpServers` in `.claude-plugin/plugin.json`) | none |
+| U35 | a plugin is its directory: a manifest naming another name changes neither its row, its record, nor its namespaces | plugins-view settled: identity by directory name | P (`scan`, `readAntigravityPlugins`) | directory `flutter` whose `plugin.json` says `name: "dart-tools"`; its record under `flutter` with `enabled: false`; a skill and a server | `name` = `flutter`, `enabled` false (the record found by directory), no `flutter:`/`dart-tools:` skill joined while disabled; then enabled: `flutter:<skill>` and `flutter_<server>` (finding 1) | S-plg, S-cfg | none |
+| U36 | an enabled value other than true or false reads as no key: enabled | plugins-view settled; AC-02 | P (`readAntigravityPlugins`) | records with `enabled: "false"`, `0`, `null` | each `enabled` true · the settled bullet (finding 1) | S-cfg shape, values invented | none |
+| U37 | a bundled agent without a front matter name is named by its file | plugins-view::REQ-001/AC-03, subagents-view::REQ-001/AC-02 (agy's naming) | P (`readAntigravityPlugins`) | `agents/no-name.md` without front matter | `contents.agents` includes `no-name` (finding 1) | S-plg | none |
+| U38 | two definitions in one directory giving one name: the first in name order is listed | subagents-view::REQ-001 failure modes | P (`readGlobalSubagents`) | `config/agents/a.md` and `config/agents/b.md`, both `name: dup`, different descriptions | one `dup` with `a.md`'s description (finding 4a) | S-agt | none |
+| U39 | a higher directory holding the name without a SKILL.md: the list, the preview and the install all take the next copy | skills-view::REQ-001/AC-01 ("the row's preview opens that copy"); skill-install::REQ-001/AC-05 | P (`scan`, `resolveSkillRoot`, `installSkillToProject`) | `antigravity-cli/skills/x/` holding only `notes.md`; `config/skills/x/SKILL.md` | listed description = config's; resolved preview lists `SKILL.md`; the installed copy = config's (finding 5) | S-skl | none |
+| E1 (changed) | … plus the Antigravity drawer's rows | subagents-view::REQ-001 failure modes (the drawer's rows, "—" when absent) | E | `code-reviewer`'s Antigravity side: tools, no subagent, mainAgent or model | the drawer's key-value cells, exactly: tools · `view_file, grep_search`, then subagent, mainAgent, model each "—" (finding 4b) | as E1 | E1's launch |
+| E2 (changed) | … plus the all-sides project's subagent groups | subagents-view Implementation Decisions (each side's project group headed by its directory) | E | `transfer` gains a Claude (`.claude/agents/proj-claude.md`) and a Codex (`.codex/agents/proj-codex.toml`) project-level definition | the Subagents headings on `transfer`, exactly, in order (finding 4c) | the existing Claude and Codex definition shapes of the e2e suite | E2's launch |
+| E4 (changed) | … plus the no-marketplace forms and Claude's plugin server note | plugins-view settled (no "From" note; "In effect globally" alone); agents-overview REQ-003 boundary | E | E4's agy plugin has no record; its Claude plugin gains a server; a Claude-registered project | agents page: agy's row `.ds` empty, the Claude server row's note "From the flutter plugin"; the project page: agy's row "In effect globally" (finding 2, 3) | as E4 | E4's launch |
+| E5 (changed) | … plus no Antigravity groups when agy is not detected | plugins-view settled (group visibility); agents-overview REQ-003 boundary | E | E5's home has no `.gemini` | Plugins and MCP tabs: the Claude group's heading read first, then no AG badge in the pane (finding 2) | as E5 | E5's launch |
+| R2 (changed) | #322's "an Antigravity-registered project…" case: the empty Antigravity groups | plugins-view settled ("No plugins installed"); agents-overview REQ-003 boundary (the empty sentence); project-detail REQ-002 boundary (no group without servers) | E | its home: agy detected, no plugin, no MCP file | agents page: the AG plugin group's "No plugins installed", the AG MCP group's sentence; the AG-only project's MCP tab: its own heading read first, then no AG badge (finding 2); its comment "skills and subagents are not read on this side yet" corrected (made false by this ticket) | `mkAntigravityHome` | its launch |
+
+The increment adds no launch: every e2e change rides an existing case's launch and home, except E2's two definitions
+and E4's project, which change none of those cases' other reads (E2's card and Skills headings count global entries and
+skills only; E4 asserts no project count).
+
+Self-check of the round-1 fixes (implement post-implementation check, items 2–5; 2026-10-29, before the targeted run):
+
+- Item 2, each new or changed assertion against False greens: no threshold reads; expected values are the fixtures'
+  own names and the specs' wording, written as literals. Red conditions, each confirmed by a reversible mutation where
+  the fault sits in the providers ([ticket-325-r1-mutations.log](ticket-325-r1-mutations.log): six mutations, each
+  turning exactly its case red, every file restored byte for byte): U35 reads the record by the manifest's name (M2);
+  U36 treats only absent or true as enabled (M1); U37 drops the file-name fallback (M3); U38 lets the later file win
+  (M4); U39 takes the first existing entry whether or not it holds a SKILL.md (M5); U30's MCP read names the full plugin
+  id (M6). U3's install read is red when the install source is any copy but the CLI directory's (its file list names
+  `cli-only.md`). The renderer reads, answered against the code: E1's key-value read is exact, so Claude's
+  "— (inherited)" in agy's model slot, a missing row or a swapped order is red; E2's headings are exact and ordered;
+  E4's `.ds` read requires the element and an empty text ("From null" or any note is red), the Claude row's note is
+  red when the entry's plugin is null (no `.ds` element) or the full id; the empty sentences are read through the
+  adjacent-sibling selector of the Antigravity heading, so a hidden group (no heading) or another sentence is red; E5's
+  and #322's one-shot absence reads follow a positive read from the same render (the Claude group's heading, the
+  project's MCP heading), and a drawn Antigravity group would put its badge in that render. No async callback holds an
+  assertion; no loop runs over a possibly empty collection.
+- Item 3, functions the fix changes: none — the round changes tests and records only.
+- Item 4, the data the new tests use: U35, U37 and U39 keep the samples' structures (the sample plugin's manifest with
+  another `name`, the sample agent file without its front matter, a skills directory holding a non-skill entry); U36's
+  non-boolean values were never observed — they exist to tell the settled rule ("anything but an explicit false") from
+  its alternatives; U30's server is the Claude manifest's `mcpServers` shape the existing global suite uses; `transfer`'s
+  Claude and Codex definitions copy the e2e suite's existing shapes. None is shaped from the spec alone.
+- Item 5, shared test helpers the fix changes: `mkAgyComponentsHome` (e2e). Its users, by `rg -n "mkAgyComponentsHome"
+  e2e src`: E1 and E2 + E3 — both in the targeted run. No other helper changed.
+
+No finding from the self-check.
 
 E2 and E3 run in one launch (the same fixture, default rescan interval); E1 needs a short rescan interval for its last
 step, so it launches separately. Both launches use one fixture builder.
@@ -113,3 +165,253 @@ step, so it launches separately. Both launches use one fixture builder.
 ### Findings
 
 No findings.
+
+## Post-implementation check
+
+Date 2026-10-29 · implementation version `79dcd57` (branch `feat/antigravity-components`, range `a474875..79dcd57`:
+f68f91e, e783065, 79dcd57) · first round, no fix range · independent sub-agent. Scope: every test the range adds or
+changes — `src/main/providers/antigravity-components.test.ts` (new, 33 cases), `src/shared/skill-landing.test.ts` (new,
+5), `src/main/display-store.test.ts` (two new cases; `savedBeforeTheSide` now also strips `antigravityPlugins`),
+`src/shared/validate.test.ts` (one case widened), `e2e/app.spec.ts` (four new cases and `mkAgyComponentsHome`; one comment
+in the Grok install case) — the gate data change in `scripts/check-shared-ui.mjs` (the `noneGlobal` exemption removed),
+and the test design table above. Specs: the six named, read at `79dcd57`. During the check the worktree gained
+uncommitted edits from the parallel step 7–8 work (seen 06:10: four specs, the features index, checklist,
+final-regression, the doc sync checklist, the worklog); the spec edits are side-count wording ("both sides" to "every
+side") and change no requirement judged here.
+
+Project capability declaration (`capabilities.toml`, parsed with Python's `tomllib`): every registry ID is present;
+`mutation-testing` is `enabled = false`; `e2e-suite` and `lint` are enabled.
+
+### Run evidence
+
+All run results come from the handed-over [ticket-325-gate-prereview.log](ticket-325-gate-prereview.log); this check ran no
+test. The log carries every required item: `git rev-parse HEAD` = `79dcd5773053…` (the range's end); `git status
+--porcelain --untracked-files=all` empty, so the version list is empty (a clean tree); each command with its exit code and
+full output; the e2e command builds first (`electron-vite build && playwright test …`, exit 0 for the chain). Every
+reviewed test ran and passed in it: `antigravity-components.test.ts` 33 of 33 (none skipped, so U17's root skip did not
+fire), `skill-landing.test.ts` 5, `display-store.test.ts` 13, `validate.test.ts` 46; e2e #23 (E1), #24 (E4), #25 (E5),
+#26 (E2 + E3) and the R1 regressions #53, #55, #66. The log itself is untracked (`docs/.workings/` is in `.gitignore`;
+#322's logs were added with `-f`), so keeping it as this record's evidence needs `git add -f`.
+
+### Written tests against the test design table
+
+| Row | Written test | Agreement |
+|---|---|---|
+| U1, U2, U5, U6, U7 | `antigravity-components.test.ts` :126, :137, :175, :183, :189 | Seam, input, assertion object and expected-value source as designed |
+| U3 | :150 | As designed (the listed file names tell the copies apart; the root path itself is not asserted, the names suffice). Its name adds "and the install source is that copy too", which the case does not drive (finding 6) |
+| U4 | :164 | As designed for the two directories this change adds, plus the built-in directory (refused); the CLI directory was already a known root at `a474875` |
+| U8, U9, U11 | :489, :434, :476 | As designed; U11 adds a garbled manifest |
+| U10 | :457 and :469 | The table's five states split over two cases, plus a plugin with no record; the unparsable text is a truncated record that would read as disabled if partly parsed, stronger than `{` |
+| U12, U13, U14 | :392, :407, :420 | As designed; U12 enables one sample server so the flag has two values (stated in the fixture) |
+| U15, U16, U33, U17, U18, U19 | :305, :326, :335, :345 + :352, :364, :375 | As designed; U15 adds a renamed file and a body line reading `name:`; U17's second case is an explicit `it.skipIf(root)` |
+| U20, U21, U22 | :211, :229, :566 | As designed; U22 adds a workspace plugin directory (not read) |
+| U23–U26 | :245, :259, :269, :279 | As designed |
+| U27 | `skill-landing.test.ts`, four `skillLandings` cases + one `skillsDirLoaders` case | As designed; expected landings written out |
+| U28 | `display-store.test.ts` :198, :213 | As designed |
+| U29 | `validate.test.ts` :40 | As designed |
+| U30, U31, U32, U34 | :505, :550, :555, :528 | As designed |
+| E1 | `e2e/app.spec.ts` :912 | As designed: own launch, rescan 500 ms, the disable step proven by the row turning "Not enabled" |
+| E2 + E3 | :1131 | One case and one launch, the picker first and project detail after — the table's "shares E2's launch" |
+| E4, E5 | :1039, :1089 | As designed, each on its own small home (reason in the table's note) |
+| R1 | #53, #55, #66 | Passed; the only edit to them is a comment in the Grok install case |
+
+Test file headers (Coverage): the design review's coverage conclusion says two gaps are "to be written in the test file
+headers"; neither is in any of the four files (finding 6).
+
+### Dimension conclusions
+
+- **Coverage** — every failure-mode and boundary statement of this ticket's sections in the six specs at `79dcd57`,
+  including those written back in `79dcd57` after the design review, matched to the input that drives it:
+
+  | Statement | Driven by | Verdict |
+  |---|---|---|
+  | skills-view::REQ-001/AC-01…AC-06, REQ-002/AC-01…AC-06 | U1–U8, U20, U21, E1, E2 | Driven |
+  | skills-view: a name in two of agy's directories is one row, previewing the copy agy uses | U1–U3, E1 | Driven while every copy holds a SKILL.md; with an entry lacking one in a higher directory, finding 5 |
+  | skills-view: shared name hides both owners' globals; an uninstall brings the hidden global back | U20, E2 | Driven |
+  | skills-view: the filter narrows the shared group like any other | — | By construction: DetailPane's `section()` runs `filterByName` on every group, the shared one included (read in code); recorded at design time |
+  | skills-view: a symlinked skill in agy's directories (A6, C9) | U4; the existing symlink cases | By construction: `readSkillDir` and `isUnderKnownSkillRoots` serve every side; the row pill reads every side's flag |
+  | skills-view: a built-in sharing a user's name | U5 | Driven: any inclusion of the built-in directory lists `agy-customizations` |
+  | skills-view: shared rows and the drawer name both loaders whatever the registration; two sides' plugin rows | E2 (Antigravity-only project); U30, E4 | Driven |
+  | skill-install A2, A9, REQ-001/AC-01…AC-05, REQ-002/AC-01, REQ-003/AC-01, AC-02 | U23–U27, E2, E3, E5 | Driven |
+  | skill-install: Codex's copy when both qualify; the copy agy uses when Antigravity alone does | U23, U25 | Driven |
+  | skill-install: a shared landing's failure names the directory; a tagged project installs nothing in any landing; tags per opening | E3, E5 | Driven (the install-time failure uses the same `where()`) |
+  | skill-install: a target gone stale, or holding the name, after the picker was drawn | `installSkill`'s existing stale and conflict cases; U23's second call | Not re-driven through the picker (as designed); the promised header note is missing (finding 6) |
+  | subagents-view::REQ-001/AC-01…AC-06; A4, A8, directory without agent.md, project flat file | U15–U19, E1, E2 | Driven (AC-05's no-badge rule by U19; see False greens for E2's pill read) |
+  | subagents-view: over 200 KB truncated; a missing agents directory | the existing A6 case (`readCapped`, the same call); every scan in the file runs without `config/agents` | By construction / driven implicitly |
+  | subagents-view: two definitions in one directory giving one name — the first in name order | — | Undriven (finding 4) |
+  | subagents-view: block scalars | U33 | Driven |
+  | subagents-view: the drawer's Antigravity rows, each "—" when absent | E1 reads tools and mainAgent | An absent model's "—" undriven (finding 4) |
+  | subagents-view: project detail grouped, each side's project group headed by its directory | E2 (`.agents/agents`, Claude's and Antigravity's global groups) | Claude's and Codex's project headings undriven (finding 4) |
+  | plugins-view::REQ-001/AC-01…AC-06; no readable plugin.json; disabling; a server that cannot start | U8–U12, U22, U30–U32, E1, E2, E4 | Driven |
+  | plugins-view E11 (manifest path outside the package) | — | Not applicable to agy's reader: it reads no manifest path, only `version` from the top-level plugin.json |
+  | plugins-view settled: identity by directory name; an enabled value other than an explicit false; a bundled agent named by its file without a front matter name | — | Undriven (finding 1) |
+  | plugins-view settled: no marketplace → no "From" note, "In effect globally" alone; the group when detected, "No plugins installed" when empty | U10 (provider `marketplace: null`) | Renderer forms undriven (finding 2) |
+  | plugins-view settled: two agents of one name, a link, `agents.json`, block scalars, two sides' plugins of one name | U31, U32, U34, U30, E4; `agents.json` — only `*.md` is read | Driven / by construction |
+  | agents-overview B2 (the skill count, every side) | E1 | Driven through the one expression every card uses (`origin === 'disk'`) |
+  | agents-overview::REQ-003/AC-01 (#325's part), AC-03, AC-04; an unparsable global MCP file; no command or URL on a row | E1, U12–U14 (U12 pins the entry's exact shape) | Driven |
+  | agents-overview: the Antigravity MCP group when detected, its empty sentence | — | Undriven (finding 2) |
+  | agents-overview: one row form, so Claude's plugin servers carry the plugin note | E1 (Antigravity's rows only) | Claude's undriven (finding 3) |
+  | project-detail::REQ-002/AC-03, AC-04 (#325's part) | U13, E2 | Driven |
+  | project-detail: the Antigravity MCP group only when it has servers | E2 (with servers) | The empty branch undriven (finding 2) |
+
+  Fixture shapes were checked against the research samples (read only,
+  `~/research/antigravity-cli-internals/spike/samples/`): `config.json` and `config.disabled-sample.json` (records with
+  `installedFrom`, `enabled` true / false), the global and plugin `mcp_config.json` (stdio and `serverUrl` servers,
+  `disabled`, `env`), the top-level `plugin.json`, `a11y_agent.md` (quoted description, block-list `tools`), skills with a
+  nested `metadata:` block and a `|-` description, the project's demo skill and agent, `sample-reviewer`
+  (`mainAgent: false`). Each fixture keeps those structures; none is invented apart from the samples.
+
+- **Case design** — every providers case goes through an exported reader over its own temporary tree; the display-store
+  cases write the shape an older version saved and read it back through `DisplayStore.get()`; the e2e cases read rendered
+  text and badges, and real files on disk for install and uninstall. No case builds a state the public path cannot reach:
+  E1's rewritten `config.json` drops `installedFrom`, a record shape agy does not write, but no assertion after it depends
+  on the marketplace. Isolation: per-case temporary homes, every e2e case its own home and user-data directory. No finding.
+
+- **False greens** — per the project capability declaration, `mutation-testing` is not enabled, so mutation testing is
+  skipped. Each test's red condition, answered against the code and the expected-value sources:
+
+  | Test | Goes red when |
+  |---|---|
+  | U1, U2 | agy's precedence changes, a name lists twice, or the package stats come from another copy |
+  | U3 | the preview resolves a directory other than the listed copy |
+  | U4, U5, U6 | the added roots are dropped, a sibling or the built-in directory is admitted or read, or `~/.agents/skills` is attributed to agy |
+  | U7, U18, U30 | names stop merging across sides, or two sides' slots, roots or descriptions cross; U30 also when the two plugin entries merge |
+  | U8, U22 | a disabled plugin's skills join, or the namespace, side, level, root or bare name is wrong; U22 also when a workspace plugin is read |
+  | U9, U31, U32 | version, marketplace, root, the three categories, the `<plugin>_<server>` names, or rules/hooks change; a duplicate name is dropped; a link to a definition is skipped or a link to a directory listed |
+  | U10 (two cases) | no key, no record, a missing or an unparsable file stops reading as enabled, or true / false is misread |
+  | U11 | a plugin without a readable manifest disappears or affects the others |
+  | U12, U13, U14 | the disabled flag, the plugin attribution, the entry shape or the disabled plugin's servers change; a project's own MCP file is read; an empty or half-written file throws, lists servers or suppresses the others |
+  | U15, U16, U17 (two), U19, U33 | the naming fallbacks, description, content as written, a body line taken for a field, a filtered `mainAgent: false`, a directory without agent.md listed, an unreadable file dropped, a project flat file read, shadow flags on agy's rows, a block-scalar marker shown |
+  | U20, U21 | the shared directory lists per side, the globals stay unhidden, the group order or the recorded side changes, registration gates the group, or an empty directory yields entries |
+  | U23–U27 | two landings for one directory, another source copy, more than one conflict, wrong order or loaders, holdings by another test than A4's, a traversal name probed |
+  | U28, U29 | a saved snapshot or page from before the change is dropped or filled wrongly, a present malformed field is kept, or the live contract accepts a snapshot without `antigravityPlugins` |
+  | U34 | a block scalar shows its marker, literal lines are joined or folded ones kept apart, or Claude's skills are not read the same way |
+  | E1 | the card counts a built-in or plugin entry; a badge slot, the previewed copy, the drawer switch, the plugin row, tabs, chips, MCP rows, pill or note is wrong; after disabling, the plugin's skill or server stays |
+  | E4 | the two rows share a key (a stale third row after filtering), the open row closes, or the other package previews |
+  | E5 | a reopened picker draws the previous opening's tag (the in-page observer; also the install would be refused and the success notice never come); positive control: the tag is drawn while the copy is held |
+  | E2 + E3 | the marks, the stale row (an enabled one closes the picker on the forced click, so the next click fails), a tagged project writing a landing, the A8 notice, the detail headings, order and counts, the shared badges and drawer subtitle, the uninstall path, sentence, deletion and reappearance, the subagent headings, the plugin label or the MCP list change |
+
+  Two reads cannot turn red with their fixtures and carry no conclusion on their own: E2's `.pill.shadow` count (no
+  same-name pair in the fixture; U19 drives the rule, and the renderer draws the pills only from the provider's flags), and
+  E3's `existsSync(stale)` (no path creates that directory; the forced click is guarded by the next click and the single
+  notice). Browser forms (`false-greens.md`): presence-only reads are badge or label checks the spec requires; the
+  disable step polls the plugin row before one-shot absence reads of rows rendered from the same snapshot; one-shot
+  absences elsewhere follow a positive read of the same list; no synthetic events. The gate change only removes one
+  exemption, so the dictionary rule now checks `noneGlobal` as well (`check-shared-ui.mjs` loops over every key not
+  allow-listed); it cannot hide a red. The vacuous-coverage forms of findings 1–5 are the undriven inputs, not false
+  greens of the written assertions.
+
+- **Resource reuse** — expensive resources: the e2e build and the Electron launches. The build ran once (the log's single
+  `electron-vite build`: main, preload and renderer bundles once each). Launches have no output of their own in the log
+  (`launch()` prints nothing); counted from the code, one per reviewed e2e case — E1 (rescan 500 ms), E2 + E3, E4, E5 —
+  four in all, as the table says (#23 1.6 s, #24 0.7 s, #25 0.7 s, #26 11.2 s). They cannot be shared: E1 needs its own
+  rescan interval and rewrites `config.json`, E2 + E3 install and uninstall, E4 and E5 need homes whose additions would
+  change E1–E3's counts. Providers cases build millisecond trees per case (`beforeEach`, the existing suites' pattern; 33
+  cases in 294 ms). No reviewed case clears a process-shared resource, so collection order has nothing to decide. Shared
+  setup reused: `settingsJson` (`src/main/testing/agy-fixture.ts`) in both seams; `mkAgyComponentsHome` serves E1 and
+  E2 + E3. No finding.
+
+### Findings
+
+1. **plugins-view's settled reading rules are undriven** (missed regression). The spec (plugins-view, "Settled during
+   implementation") identifies a plugin by its directory name, reads any enabled value other than an explicit false as
+   enabled, and names a bundled agent by its file when its front matter has no `name`. No test can tell any of these from
+   an alternative: every fixture's `plugin.json` names its own directory (`mkAgPlugin` writes `{ ...FLUTTER_MANIFEST,
+   name }`; the e2e homes write `flutter` / `gdocs` under those directories); the only enabled values written are absent,
+   `true` and `false`; every bundled agent fixture has a `name` (`A11Y_AGENT`, `SAMPLE_REVIEWER`). Taking the row name, the
+   `config.json` key and the namespaces from `plugin.json` (`plugins.ts` `name: d.name`, `records[d.name]`), reading only
+   `enabled === true` or absent as enabled (`rec['enabled'] !== false`), or changing the fallback at `plugins.ts`
+   `agyDefinitionName(…, basename(d.name, '.md'))` keeps every test green. Recommended now, at the providers seam in
+   `antigravity-components.test.ts`: a plugin directory whose `plugin.json` names another name (row, record lookup,
+   `<dir>:<skill>`, `<dir>_<server>`), records with non-boolean `enabled` values, a bundled agent without front matter.
+   Document sync: final-regression.md's (uncommitted) row "plugins-view spec ↔ implementation" states "identity … agents'
+   names" true by U8–U11, U30–U34; correct it to the new cases once written.
+2. **The Antigravity Plugins and MCP groups' visibility, empty states and no-marketplace forms are undriven** (missed
+   regression). Spec: plugins-view settled bullets 2–3; agents-overview's boundary "The MCP section's Antigravity group
+   shows whenever the side is detected or lists a server; empty, it says …"; project-detail's "appears on a project's page
+   only when it has servers". The branches (`PluginsView.tsx` `AntigravityGroup`: hidden when not detected and empty,
+   `noPlugins` when empty, no "From" note and `inEffectGlobally(null)` without a marketplace; `McpServers.tsx`
+   `AntigravityMcpGroup`: hidden when empty on a project page or when not detected, `noAgMcp` on the agents page) are
+   reached by no test: no test file holds "No plugins installed", the `noAgMcp` sentence or a bare "In effect globally"
+   (searched in `e2e/` and `src/` tests, the Chinese values too); E4's home has a plugin without a marketplace and no MCP
+   file but never opens those tabs. Inverting any of these conditions keeps every test green. Recommended now, reusing
+   launches: E4's home already gives the no-marketplace row and the empty MCP sentence on the agents page; E5's home has no
+   `.gemini`, so both groups' absence can be read there; a Claude-registered project added to E4's home (it changes none
+   of E4's assertions) gives the project page's bare "In effect globally" and the absent MCP group. Document sync:
+   final-regression.md's rows for plugins-view ("no marketplace, group visibility"), agents-overview ("the MCP
+   boundaries"), project-detail ("the MCP group's visibility") and "Dictionaries ↔ the behaviour they state" ("each is
+   read on screen by E1–E3": `noAgMcp` and `inEffectGlobally`'s null branch are not).
+3. **Claude's plugin servers carrying the plugin note is undriven** (missed regression). agents-overview's boundary
+   (settled 2026-10-29): one row form for every group, "so Claude's plugin servers carry the note too". `global.ts` sets
+   `plugin: plugin.name.split('@')[0]` on Claude's plugin servers, but the only Claude plugin MCP case
+   (`global.test.ts:143`, unchanged) maps `${side}:${source}:${name}` and never reads `plugin`, and no e2e home gives a
+   Claude plugin a server. Setting it back to `null` (the behaviour before this change) or to the full `name@marketplace`
+   stays green. Recommended now: give U30's Claude plugin an `mcpServers` entry and assert its MCP entry (`plugin:
+   'flutter'`), and read the note on E4's MCP tab, which already has that Claude plugin. Document sync: final-regression.md's
+   row "agents-overview spec ↔ implementation" cites E1 and U12–U14 for "the MCP boundaries", which are Antigravity's
+   rows only.
+4. **Three settled subagents-view statements are undriven** (missed regression). (a) "Two definitions in one directory
+   giving one name: the first in name order is listed" — `subagents.ts` `readAntigravitySide`'s `if (out.has(name))
+   continue`; no fixture puts two such definitions in one directory (U15's names differ; U19's `dup` pair spans two
+   levels), and the Codex case (`subagents.test.ts:117`) runs separate code; deleting the guard lets the later file win,
+   all green. (b) "The drawer's Antigravity rows … each '—' when absent … the drawer claims nothing" about an absent model —
+   E1 reads tools and `mainAgent` only; rendering Claude's "— (inherited)" there stays green. (c) The project detail layout
+   "each side's project-level group headed by the directory that side reads (`.claude/agents`, `.codex/agents`, …)" — a
+   change this ticket made for Claude and Codex too; no test holds "Project level · .claude/agents" or ".codex/agents" (E2's
+   fixture has project-level definitions on Antigravity only), so a wrong entry in `SubagentsView.tsx`'s
+   `PROJECT_AGENTS_DIR` stays green. Recommended now: (a) as a providers case; (b) one more read in E1's drawer (the
+   `model` row of `code-reviewer`'s Antigravity side shows "—"); (c) project-level Claude and Codex definitions in an
+   existing home read in project detail — E2's `transfer` project, registered on every side, is the cheapest place.
+   Document sync: final-regression.md's row "subagents-view spec ↔ implementation" claims "first in name order … the
+   drawer's rows … the project detail layout" true by U15–U19, U33, E1, E2; the "Dictionaries" row's `projectGroup` is
+   read for `.agents/agents` only.
+5. **The list, the preview and the install can disagree when a higher-priority directory holds the name without a
+   SKILL.md, and no test drives it** (missed regression). skills-view::REQ-001/AC-01: "The row's preview opens that copy".
+   The list skips an entry without SKILL.md (`global.ts` `readSkillDir`), so it shows the next directory's copy;
+   `globalSkillEntry` (`skill-package.ts`) therefore prefers the first entry holding a SKILL.md — decision "The copy a
+   preview or install opens". Every fixture copy holds a SKILL.md (`mkSkill`, the e2e `skill()` helper), so reducing
+   `globalSkillEntry` to the first existing entry keeps every test green while the preview would open the broken copy the
+   list does not show and the install would refuse a listed skill. Recommended now: a providers case with
+   `antigravity-cli/skills/x/` holding no SKILL.md and `config/skills/x/SKILL.md`, asserting the listed description, the
+   resolved preview files and the installed copy.
+6. **Test-file records do not match the design review and the cases** (records). (a) The design review's coverage
+   conclusion says two gaps are "to be written in the test file headers" — A5's backstop (a target turning stale after the
+   picker was drawn, left to `installSkill`'s existing case) and the multi-folder Antigravity cases being #323's; neither
+   appears in any of the four test files (`rg "#323|skillStaleTarget|multi-folder"` over them: no hits). (b) U3's name
+   claims "and the install source is that copy too", but the case calls only `resolveSkillRoot` and
+   `listSkillPackageFiles`; the install source is driven by U25 (config over root), and the CLI-over-config install by no
+   case. Recommended: write the two gap lines into `antigravity-components.test.ts`'s header (or record why they are not
+   gaps), and rename U3 or add the install assertion to it.
+
+### Document sync
+
+Checked for this check's facts (the coverage findings above; no product behaviour changed): this record; the test files'
+headers; `docs/.workings/antigravity-side/` enumerated whole with `find` (19 files, none hidden; the directory is
+gitignored and 18 files are tracked, the pre-review log is not) — `checklist.md`'s #325 rows (54 matches, all read),
+`ticket-325-doc-sync.md`, `final-regression.md`'s #325 section, `ticket-325-worklog.md` and `ticket-325-decisions.md` as
+working records; the six specs' Testing Decisions and Antigravity sections. Excluded: `docs/features/`, CONTEXT.md, ADRs
+and the READMEs — they state behaviour, which these findings do not change; the GitHub ticket — its acceptance boxes are
+ticked by the orchestrator at delivery. Differences found: final-regression.md's (uncommitted, in progress at 06:10)
+Stage 1 rows for plugins-view, subagents-view, agents-overview and project-detail and its "Dictionaries" row cite tests
+for statements no test drives (findings 1–4 name each row); the checklist's #325 current-verification rows cite unit
+evidence that holds, and its subagents row's "no shadow pill" rests on U19 rather than E2 (no conclusion changes). Each
+finding's sync item is to be resolved with the finding, in this ticket's PR.
+
+### Disposition of round 1 (main agent, 2026-10-29)
+
+The hand-back's six titles match this section's six findings (numbers and subjects). Each was fixed in this ticket, rows
+first in the design review's increment table, then the cases:
+
+1. U35, U36, U37 (providers).
+2. E4 (no "From" note; "In effect globally" alone; the MCP group's empty sentence), E5 (no groups without agy),
+   #322's case R2 ("No plugins installed" and the empty sentence with agy; no group on a project's page without
+   servers).
+3. U30's MCP read and E4's Claude server row.
+4. (a) U38; (b) E1's exact key-value read; (c) E2's `transfer` Subagents headings.
+5. U39.
+6. (a) the two gap lines in `antigravity-components.test.ts`'s header; (b) U3 now drives the install source (CLI over
+   config).
+
+The document sync items each finding named (final-regression.md's Stage 1 rows and its "Dictionaries" row, the
+checklist's #325 rows) were corrected in the same change.
+

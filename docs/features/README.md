@@ -16,7 +16,7 @@ a product overview written for people.
 | [Agents overview](agents-overview.md) | The default landing page: every agent sides' global picture and total consumption at a glance |
 | [Project list](projects-list.md) | The union of every side's registered projects, filterable and searchable |
 | [Project detail](project-detail.md) | What one project has installed: each component's effective view, MCP, configuration and artifacts |
-| [Subagents view](subagents-view.md) | Both sides' subagent definitions merged into one view, showing at a glance which ones are in effect in a project |
+| [Subagents view](subagents-view.md) | The agent sides' subagent definitions merged into one view, showing at a glance which ones are in effect in a project |
 | [Memory view](memory-view.md) | What the agent remembers about each project, as a summary and in full |
 | [Plugins view](plugins-view.md) | Plugins grouped by side, enablement reported truthfully per viewpoint, bundled components expandable |
 | [Token statistics](token-stats.md) | Per-project and cross-project token consumption, trends and session traces |

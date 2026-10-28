@@ -12,18 +12,18 @@ are defined on this machine" or "which definition actually applies in this proje
 ## Solution
 
 Add a Subagents section to both the global page and the project detail page: the global page merges
-both sides into one column to see everything, and the detail page shows the effective view with the
+the sides into one column to see everything, and the detail page shows the effective view with the
 shadowing relationships; clicking an entry opens a drawer with the full definition as written.
 Everything is read-only.
 
 ## User Stories
 
-1. As a user, I want to see all subagents from both sides on the global page (one merged column, with
-   both-side badges), so that I know which specialised assistants are defined on this machine.
+1. As a user, I want to see all subagents from every side whose definitions are read on the global page
+   (one merged column, with side badges), so that I know which specialised assistants are defined on this machine.
 2. As a user, I want to click an entry to see the full definition (including the system prompt /
    developer_instructions) and metadata, so that I can see its persona and tool surface.
-3. As a user, I want an entry present on both sides to switch sides inside the drawer, so that I can
-   judge whether the two sides' configurations are equivalent (no machine diff signal is offered —
+3. As a user, I want an entry present on several sides to switch sides inside the drawer, so that I can
+   judge whether the sides' configurations are equivalent (no machine diff signal is offered —
    the formats differ, so a diff would be tautologically true).
 4. As a user, I want the effective view in project detail (project-level / global-level, with
    shadowing labelled), so that I know which definition actually applies in that project.
@@ -36,7 +36,7 @@ Everything is read-only.
 ## Failure modes and boundaries
 
 **Sequence A: global page → Subagents section**
-- A1 Neither side's agents directory exists or both are empty → empty-state copy, no crash.
+- A1 No side's agents directory exists, or all are empty → empty-state copy, no crash.
 - A2 Codex toml fails to parse (corrupt) → that entry shows a "parse failed" label (with the filename
   as a placeholder), and the rest behave normally.
 - A3 Codex toml has no valid `name` → marked an invalid definition (Codex itself does not load it).

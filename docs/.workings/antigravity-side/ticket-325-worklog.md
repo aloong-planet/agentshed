@@ -61,11 +61,49 @@ No point without a prototype. Deviations from a prototype's form are recorded in
   "Targeted verification" below; committed as f68f91e
 - [x] T4 Checklist reconciliation for #325's units (below)
 - [x] T5 `/review-code` → ticket-325-review-code.md (six findings; fixes with red-first cases)
-- [ ] T6 Full verification gate, pre-review run. First run (2026-10-29, at e783065) red on `check:lang` alone: the
+- [x] T6 Full verification gate, pre-review run: [ticket-325-gate-prereview.log](ticket-325-gate-prereview.log), at 79dcd57
+  (clean tree), every command exit 0 — unit 973 passed / 1 skipped, e2e (the six spec files that import a changed
+  module, as the gate's search rule derives them) 141 passed, smoke OK. No command skipped: this change alters test
+  files, so the skip rule does not apply. First run (2026-10-29, at e783065) red on `check:lang` alone: the
   decisions record quoted a Chinese dictionary value; every other command exit 0 (e2e 141 passed, smoke OK). The
   record was fixed and the run repeated at the next commit; the red log is kept in the session scratch, not the repo
   (it quotes the offending line, and no current conclusion rests on it)
-- [ ] T7 `/review-tests` post-implementation check (independent sub-agent) → ticket-325-review-tests.md
+- [ ] T7 `/review-tests` post-implementation check (independent sub-agent, launched 2026-10-29 with the range
+  a474875..79dcd57 and the pre-review log) → ticket-325-review-tests.md. Round 1 handed back six findings (five missed
+  regressions, one record); all fixed in tests and records (disposition in the record). Self-check items 6–7: the
+  mutation evidence is kept whole with its script ([ticket-325-r1-mutations.log](ticket-325-r1-mutations.log), named
+  for what it holds); the records the fix touches — the design table (increment rows), the test file header (two gap
+  lines), the checklist's #325 rows, final-regression.md's Stage 1 rows — were brought in line with the new cases in the
+  same change, and the code review record's item-1 line added.
+  Targeted run of the fix: [ticket-325-targeted-r1.log](ticket-325-targeted-r1.log) — typecheck, lint, the components
+  suite (38 passed) and all of `e2e/app.spec.ts` on a fresh build (92 passed), every command exit 0. Its first attempt
+  is not kept in the repo: its importer search called `rg`, which the gate's `bash -c` does not have (the interactive
+  shell's `rg` is a function), and a trailing `|| echo` turned the failure into a "none" — the same tests ran green, but
+  the list's evidence was false, so the run was repeated with a `grep` search that cannot mask a failure and carries a
+  positive control (no test imports a changed test file; the mentions are comments and a check-lang fixture path).
+  Change scope against the pre-fix commit (`node ~/.claude/skills/implement/change-scope.mjs --base 79dcd57`, run in
+  the worktree with the fix uncommitted):
+
+  ```
+  inert   docs/.workings/antigravity-side/checklist.md
+  inert   docs/.workings/antigravity-side/final-regression.md
+  inert   docs/.workings/antigravity-side/ticket-325-doc-sync.md
+  inert   docs/.workings/antigravity-side/ticket-325-review-code.md
+  inert   docs/.workings/antigravity-side/ticket-325-review-tests.md
+  inert   docs/.workings/antigravity-side/ticket-325-worklog.md
+  inert   docs/features/README.md
+  inert   docs/specs/agents-overview.md
+  inert   docs/specs/plugins-view.md
+  inert   docs/specs/skills-view.md
+  inert   docs/specs/subagents-view.md
+  changed e2e/app.spec.ts  (code changed)
+  changed src/main/providers/antigravity-components.test.ts  (code changed)
+  verdict: run (13 files differ from the base)
+  change-scope exit=1
+  ```
+
+  Both test files are `changed`, so the fix is committed and handed to an independent sub-agent for the incremental
+  check
 - [ ] T8 Spec reconciliation (read-only on code), write-backs
 - [ ] T9 Archive: decisions, CONTEXT, features (`/features-catalog`), doc sync, checklist rows
 - [ ] T10 Full verification gate, final run; commit

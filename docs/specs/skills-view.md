@@ -113,7 +113,7 @@ repeats what is already legible is noise.
   a button only installs or uninstalls, and neither expands nor opens the drawer.
 - A8 Clicking a file opens the drawer; if the package or file no longer exists or cannot be read → an
   explicit error inside the drawer, without crashing the list.
-- A9 Both sides' global libraries empty → the existing empty state, with no preview entry point.
+- A9 Every side's global library empty → the existing empty state, with no preview entry point.
 - A10 Depth > 2 → notice copy in the expanded area; over-deep paths do not enter the file list.
 - A11 Expanding a row whose file list cannot be enumerated → an error toast. Switching the UI language
   while that failed result stands does **not** show the toast again: the toast belongs to the failure,

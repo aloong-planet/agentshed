@@ -45,11 +45,11 @@ see [appearance](appearance.md) (the rail's settings dimension).
 ## Failure modes and boundaries
 
 **Sequence A: page load**
-- A1 Neither side detected → a whole-page empty state with guidance (which agent to install), not an
+- A1 No side detected → a whole-page empty state with guidance (which agent to install), not an
   error.
-- A2 One side not detected → that side's card shows "not detected", the other behaves normally.
+- A2 One side not detected → that side's card shows "not detected", the others behave normally.
 - A3 One side's registry corrupt → that side's card shows an error explanation (in place of the stats
-  row), the other side is unaffected.
+  row), the other sides are unaffected.
 - A4 First scan of this launch not finished and no usable saved snapshot → the page renders a **skeleton** (changed 2026-08-21;
   it used to be a bare hint on an otherwise empty stage): the page's real structure with its static
   labels rendered (title, time-window card labels, side-card names, tab labels, trend title) and a

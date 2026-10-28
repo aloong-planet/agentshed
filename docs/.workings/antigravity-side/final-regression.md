@@ -118,6 +118,66 @@ site and the prototypes are unchanged.
 | Work state changed | The feature checklist, this ticket's sync checklist | Current verification rows for #323 written after the fix commit 0e8f5b9, every quoted case title checked against the test files (54 of 54 found); the regression row's Gate part verified by the full run at 57dd5ec ([ticket-323-gate-full.log](ticket-323-gate-full.log), OVERALL exit=0); this ticket's sync rows done (see [ticket-323-doc-sync.md](ticket-323-doc-sync.md)) |
 | The post-implementation check's findings resolved (F1–F7) | The statements the check listed as untrue at fc5d0b1: the code review record's Runnability 2, this report's token-stats and agents-overview rows, the test review's Dimension 1 sentence on header gaps | Each rewritten to the cases added in 0e8f5b9 (see the rows above and the test review record's increment); the token-stats deletion bullet made exact |
 
+## #325 Antigravity components: skills, the shared skills directory, subagents, plugins and MCP — 2026-10-29
+
+Ticket: [#325](https://github.com/aloong-planet/agentshed/issues/325) · scope: this ticket's change (branch
+`feat/antigravity-components`, stacked on #322's `a474875`; product code and tests as of `e783065`, documents as of
+this section's commit). Languages in scope, by a script count (`grep -c -P '[\x{4e00}-\x{9fff}]'` per file, control
+`src/shared/i18n/zh.ts` 379): the six feature pages, the six specs, CONTEXT.md and the features and specs indexes hold
+no Han text; README.md (50 lines), `site/src/i18n/ui.ts` and the Chinese dictionary hold Chinese, so the first two were
+searched with Chinese terms as well (Stage 3) and the dictionary through `pnpm check:ui`.
+
+### Stage 1: changed declarations
+
+Declaration surfaces this round changed (`git diff --stat a474875 HEAD -- docs/features docs/specs docs/adr
+CONTEXT.md README.md README.en.md package.json site docs/prototypes src/shared/i18n`): six feature pages, the features
+index (one row, from Stage 2), six specs, the two dictionaries. ADRs, CONTEXT.md, the root READMEs, `package.json`, the
+site and the prototypes are unchanged (that command's output for those paths is empty).
+
+| Pair | Statement checked | Result |
+|---|---|---|
+| skills-view spec ↔ implementation | REQ-001/AC-01…AC-06, REQ-002/AC-01…AC-06 and the boundaries written back (shared rows and drawer, two sides' plugin rows) | True: each unit's evidence in the checklist's current verification; the written-back boundaries driven by E2 (shared row badges, drawer label) and E4 (two rows, the open one kept); "the row's preview opens that copy" also when a higher directory holds the name without a SKILL.md (U39, added for the test review's finding 5) |
+| skill-install spec ↔ implementation | REQ-001/AC-01…AC-05, REQ-002/AC-01, REQ-003/AC-01, AC-02 and the boundaries written back (the copy a shared landing takes, the failure notice naming the directory, nothing installed for a tagged target, tags per opening) | True: U23–U26, E3, E5; "Codex's copy when both qualify" is asserted by U23 (the two copies differ, the landed one is Codex's) |
+| subagents-view spec ↔ implementation | REQ-001/AC-01…AC-06, the boundaries written back (first in name order, block scalars, the drawer's rows) and the project detail layout | True: U15–U19, U33, E1, E2; first in name order by U38, the drawer's "—" rows by E1's exact key-value read, Claude's and Codex's project headings by E2's `transfer` read — the three added for the test review's finding 4 |
+| plugins-view spec ↔ implementation | REQ-001/AC-01…AC-06 and the settled boundaries (identity, no marketplace, group visibility, agents' names, links and duplicates, block scalars, two sides' plugins) | True: U8–U11, U30–U34, E1, E4; identity by directory (U35), non-boolean enabled values (U36), an agent named by its file (U37), the no-marketplace forms on both pages (E4), the group hidden without agy (E5) and empty with it (#322's case) — added for the test review's findings 1 and 2 |
+| agents-overview spec ↔ implementation | B2 (written back), REQ-003/AC-01, AC-03, AC-04 and the MCP boundaries | True: E1 card line and Antigravity's MCP rows; U12–U14; Claude's plugin server naming its plugin (U30, E4 — finding 3); the group's empty sentence (E4, #322's case) and its absence without agy (E5) — finding 2 |
+| project-detail spec ↔ implementation | REQ-002/AC-03, AC-04 and the MCP group's visibility | True: E2 (with servers); no group on a project's page without servers (#322's case — finding 2) |
+| each spec ↔ its features page | The six pairs, the capabilities and boundaries written this round | Agree; no features sentence states a behaviour the spec lacks |
+| ADR-0037 ↔ specs and features | Shared skills directory one target and one group; built-in skills, rules, project MCP file not shown; components shown only where agy was observed to load them | No contradiction; no decision this round reaches the ADR threshold (decisions in [ticket-325-decisions.md](ticket-325-decisions.md)) |
+| CONTEXT ↔ every document above | "Shared skills directory" (one group, one target, uninstall for every loader, always project-level), "Antigravity CLI" in documents and "Antigravity" / AG in the interface, "Global library", "Effective view" | True |
+| Prototypes ↔ implementation | The interface points of the worklog's UI gate table | Match: 28 screenshots against the agents-page, project-detail, install and skills-preview prototypes (worklog "UI evidence"); the review fixes add no form |
+| Dictionaries ↔ the behaviour they state | The new and changed keys (`installedShared`, `pickStale`, `pickHasSame`, `pickTarget`, `noAgMcp`, `mcpFromPlugin`, `fromMarketplace`, `inEffectGlobally`, the subagent hints, `projectGroup`, `globalGroup`, `secShared`, `secAgGlobal`, `confirmShared`, `sideJoin`) | True: each is read on screen in English by E1–E5 or #322's case — `noAgMcp` by E4 and #322's case, `inEffectGlobally`'s bare form by E4, `projectGroup` for all three directories by E2 (corrected after the test review's findings 2 and 4, which found these three unread); the Chinese values carry the same slots (`pnpm check:i18n`, `pnpm typecheck`) |
+
+### Stage 2: related declarations
+
+| Relation | Statement checked | Result |
+|---|---|---|
+| features README ↔ the six changed pages | Each page's one-line description | Made false and rewritten: Subagents view's "Both sides' subagent definitions" (three sides are read now). Still true: Agents overview, Project detail, Plugins view ("grouped by side"), Skills install, Skills view |
+| specs README ↔ the six changed specs | Their one-line descriptions | Unchanged meaning; no change |
+| Rule ↔ its gate: copy never enumerates the sides as a closed set | `pnpm check:ui` over the dictionaries; this round removed the `noneGlobal` exemption (its copy no longer names sides) and wrote no new enumeration; the gate passed (pre-review log) | Covered for the dictionaries. Not covered by the gate: an enumeration formed by joining names at run time (`sideJoin`) — the joined names are the directory's loaders, a fact about one directory rather than the side set, so the rule does not apply; recorded here as the reason |
+| A fact ↔ its other statements: the shared skills directory | CONTEXT "Shared skills directory" ↔ ADR-0037 ↔ skills-view::REQ-002 ↔ skill-install::REQ-001/REQ-002 ↔ the features pages (skills-view, skill-install, project-detail) ↔ the install and skills-preview prototypes | Agree |
+| A fact ↔ its other statements: the side card's skill count | agents-overview B2 (written back) ↔ skills-view::REQ-001/AC-05 ↔ the features page's card bullet ↔ the agents-page prototype's card line | Agree; the prototype draws counts, not their accounting |
+| A fact ↔ its other statements: the MCP row form | agents-overview REQ-003 boundaries (written back) ↔ the agents-page prototype (plugin note on Claude's plugin row) ↔ the features page's MCP bullet | Agree |
+| A fact ↔ its other statements: project detail's Subagents layout | subagents-view Implementation Decisions (written back) ↔ the features pages (subagents-view, project-detail) ↔ the project-detail prototype | Agree |
+| A fact ↔ its other statements: block-scalar descriptions | plugins-view and subagents-view boundaries ↔ plugins-view H1 and skills-view's "frontmatter description" | Agree: "the frontmatter description" is now what is shown for that form too |
+| Other tickets' sync rows ↔ the sentences this round wrote | #322's row for CONTEXT "Agent side" ("being onboarded"); #323's and #324's rows naming agents-overview and project-detail sentences | #322's row: still true (usage and sessions are not read yet), left for the closeout. The agents-overview boundary bullet now says only the usage is not read — #323's row names that sentence; project-detail's Sessions bullet untouched (#324's) |
+| The feature checklist's mapping ↔ its current verification | Every unit #325 owns has a current-verification row naming its evidence | Agree (rows written this round) |
+
+### Stage 3: events
+
+| Event | How it was enumerated | Result |
+|---|---|---|
+| The sides whose skills, subagents, plugins and MCP servers are read grew by Antigravity CLI | English: `rg -n -i "Claude and Codex\|Claude Code and Codex\|Claude Code, Codex\|both sides\|two sides\|either side\|all three\|three sides\|Codex and Grok\|and Grok\b" docs/features README.md README.en.md CONTEXT.md package.json site/src` and the six specs; Chinese (code-point escapes): `rg -n "\x{4e24}\x{4fa7}\|\x{4e09}\x{4fa7}\|\x{53cc}\x{7aef}\|\x{53cc}\x{4fa7}\|Claude Code\x{3001}Codex\|Claude \x{548c} Codex\|Claude\x{4e0e}Codex\|Codex \x{548c}" README.md README.en.md site/src`; dictionaries through `pnpm check:ui` | Made false and rewritten: the features pages' Skills, Subagents, Plugins and MCP sentences (agents-overview, subagents-view, plugins-view), the features index row for Subagents, the subagents-view spec's Solution, user stories 1 and 3 and A1, plugins-view's user story 7, E9 and sequence H's heading, skills-view A9, agents-overview A1–A3 (already false since Grok, found in this read). Still true: README and site lines (side-neutral: "Claude Code, Codex and other coding agents", "the agent sides' subagents"), problem statements written in the past tense, the Sessions and token sentences naming three sides (#323's and #324's) |
+| The side card's skill count changed meaning for Claude (its enabled plugins' skills no longer counted) | `rg -n -i "global skill\|skill count\|skills count" docs/features README.md README.en.md site/src CONTEXT.md`; Chinese `rg -n "\x{5168}\x{5c40} \?skill\|\x{6280}\x{80fd}\x{6570}" README.md site/src` | Only the agents-overview features page states it; rewritten |
+| The install picker lists stale projects (it excluded them) | `rg -n -i "stale projects excluded\|excluded stale\|stale.{0,20}excluded" docs README.md README.en.md site/src src/shared/i18n`; Chinese for the old dictionary value | No statement left (the dictionary title and the skill-install features page were rewritten this round) |
+| Claude's plugin MCP servers gain the plugin note; descriptions in block-scalar form read as text on every side | Covered by the two Stage 2 rows above | No other statement found |
+| Pending notes in range | `rg -n "Pending:"` over the six specs → none | Nothing to judge |
+| New general rules this round | Review of the decisions table and the code review's findings | None: keying a merged list's rows by source applies React's key rule; reading block scalars applies CONTEXT's sampling invariant (grounded in the sample); following a plugin agent's link follows the "admitting fails invisibly" invariant |
+| Work state changed | The feature checklist, the sync checklists, the ticket | Current verification rows written; this ticket's sync rows; the issue's checkboxes are ticked after the merge (outside the repository) |
+
+Queue empty after the fixes above; the pre-delivery scope re-check is recorded in
+[ticket-325-doc-sync.md](ticket-325-doc-sync.md).
+
 ## #326 Configuration shows CLAUDE.md and AGENTS.md (2026-10-29)
 
 Ticket: [#326](https://github.com/aloong-planet/agentshed/issues/326) · range: cbe22ca..HEAD of

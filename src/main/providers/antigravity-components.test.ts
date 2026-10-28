@@ -2,6 +2,10 @@
 // the shared skills directory in project detail, subagents, plugins and MCP. Every case goes through a reader's exported
 // function over a temporary fixture tree shaped from the samples agy itself loaded (research §10.9; the test design table
 // is in docs/.workings/antigravity-side/ticket-325-review-tests.md).
+//
+// Gaps, by design: a project that turns stale after the install picker was drawn (skill-install A5's backstop) is the
+// existing stale-target refusal of `installSkill`, tested where that refusal lives, and is not driven again here
+// through the picker; conversations listing several folders are #323's (token-stats::REQ-003/AC-08), not this file's.
 import { chmodSync, mkdtempSync, rmSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -159,6 +163,26 @@ describe("Antigravity's global library (skills-view::REQ-001)", () => {
     }
     expect(files('y')).toEqual(['SKILL.md', 'cli-only.md'])
     expect(files('z')).toEqual(['SKILL.md', 'config-only.md'])
+    // Installing y for Antigravity alone copies the CLI directory's package, not config's
+    const proj = join(dir, 'proj')
+    mkdirSync(proj)
+    expect(installSkillToProject(roots(), { skillName: 'y', sides: ['antigravity'], targetProjectPath: proj })[0].result).toEqual({ ok: true })
+    expect(readdirSync(join(proj, '.agents', 'skills', 'y')).sort()).toEqual(['SKILL.md', 'cli-only.md'])
+  })
+
+  it('a higher directory holding the name without a SKILL.md: the list, the preview and the install all take the next copy', async () => {
+    // The CLI directory holds an entry agy cannot load as a skill (no SKILL.md); config's is the copy that lists
+    mkdirSync(join(agCli(), 'x'), { recursive: true })
+    writeFileSync(join(agCli(), 'x', 'notes.md'), 'not a skill package')
+    mkSkill(agConfig(), 'x', 'the config copy', { 'config-only.md': 'c' })
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.skills.find((s) => s.name === 'x')?.description).toBe('the config copy')
+    const root = resolveSkillRoot({ side: 'antigravity', name: 'x', scope: 'global', roots: roots() })
+    expect(listSkillPackageFiles(root as string).files.map((f) => f.path)).toEqual(['SKILL.md', 'config-only.md'])
+    const proj = join(dir, 'proj')
+    mkdirSync(proj)
+    expect(installSkillToProject(roots(), { skillName: 'x', sides: ['antigravity'], targetProjectPath: proj })[0].result).toEqual({ ok: true })
+    expect(readdirSync(join(proj, '.agents', 'skills', 'x')).sort()).toEqual(['SKILL.md', 'config-only.md'])
   })
 
   it('entries in config/skills and ~/.gemini/skills are inside the known roots; a sibling directory is not', () => {
@@ -342,6 +366,13 @@ describe('Antigravity subagents (subagents-view::REQ-001)', () => {
     expect(s.antigravity?.tools).toBe('view_file')
   })
 
+  it('two definitions in one directory giving one name: the first in name order is listed', () => {
+    mkFile(join(agAgents(), 'a.md'), '---\nname: dup\ndescription: from a.md\n---\nfirst\n')
+    mkFile(join(agAgents(), 'b.md'), '---\nname: dup\ndescription: from b.md\n---\nsecond\n')
+    const dups = readGlobalSubagents(roots()).filter((s) => s.name === 'dup')
+    expect(dups.map((s) => s.description)).toEqual(['from a.md'])
+  })
+
   it('a directory without agent.md holds no definition', () => {
     mkdirSync(join(agAgents(), 'empty-dir'), { recursive: true })
     mkFile(join(agAgents(), 'sample-flat.md'), SAMPLE_FLAT)
@@ -506,7 +537,8 @@ describe('Antigravity plugins (plugins-view::REQ-001)', () => {
     // Claude's flutter plugin, enabled at the user layer, bundling the skill agy's flutter plugin bundles too
     const cpkg = join(dir, 'claude-flutter')
     mkdirSync(join(cpkg, '.claude-plugin'), { recursive: true })
-    writeFileSync(join(cpkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'flutter' }))
+    // Its manifest bundles a server too: one row form for every side, so the entry names its plugin (the bare name)
+    writeFileSync(join(cpkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'flutter', mcpServers: { 'dart-tools': { command: 'dart' } } }))
     mkSkill(join(cpkg, 'skills'), 'dart-add-unit-test', 'the Claude copy')
     mkdirSync(join(dir, '.claude', 'plugins'), { recursive: true })
     writeFileSync(
@@ -522,6 +554,9 @@ describe('Antigravity plugins (plugins-view::REQ-001)', () => {
     expect(named.map((s) => [s.sides, s.pluginName, s.pluginRoot, s.description])).toEqual([
       [['claude'], 'flutter@official', cpkg, 'the Claude copy'],
       [['antigravity'], 'flutter', aroot, 'dart-add-unit-test from flutter']
+    ])
+    expect(snap.global.mcp.filter((m) => m.side === 'claude')).toEqual([
+      { name: 'dart-tools', side: 'claude', source: 'plugin', disabled: false, plugin: 'flutter' }
     ])
   })
 
@@ -550,6 +585,38 @@ describe('Antigravity plugins (plugins-view::REQ-001)', () => {
   it('two of a plugin\'s definitions giving one name are both listed, as agy\'s directory holds them', () => {
     mkAgPlugin('flutter', { agents: { 'a.md': A11Y_AGENT, 'b.md': A11Y_AGENT } })
     expect(readAntigravityPlugins(roots())[0].contents.agents).toEqual(['flutter_a11y_agent', 'flutter_a11y_agent'])
+  })
+
+  it('a plugin is its directory: a manifest naming another name changes neither its row, its record, nor its namespaces', async () => {
+    mkAgPlugin('flutter', { manifest: { ...FLUTTER_MANIFEST, name: 'dart-tools' }, skills: ['dart-add-unit-test'], servers: { 'dart-mcp-server': { command: 'dart' } } })
+    // The record agy keeps under the directory's name disables it: found by the directory, not by the manifest
+    writeAgConfig({ flutter: { ...freshRecord('flutter'), enabled: false } })
+    let snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.antigravityPlugins.map((p) => [p.name, p.enabled])).toEqual([['flutter', false]])
+    expect(snap.global.skills.filter((s) => s.origin === 'plugin')).toEqual([])
+    writeAgConfig({ flutter: freshRecord('flutter') })
+    snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.skills.filter((s) => s.origin === 'plugin').map((s) => s.name)).toEqual(['flutter:dart-add-unit-test'])
+    expect(snap.global.mcp.filter((m) => m.side === 'antigravity').map((m) => m.name)).toEqual(['flutter_dart-mcp-server'])
+  })
+
+  it('an enabled value other than true or false reads as no key: enabled', () => {
+    for (const n of ['as-text', 'as-zero', 'as-null']) mkAgPlugin(n)
+    writeAgConfig({
+      'as-text': { ...freshRecord('as-text'), enabled: 'false' },
+      'as-zero': { ...freshRecord('as-zero'), enabled: 0 },
+      'as-null': { ...freshRecord('as-null'), enabled: null }
+    })
+    expect(readAntigravityPlugins(roots()).map((p) => [p.name, p.enabled])).toEqual([
+      ['as-null', true],
+      ['as-text', true],
+      ['as-zero', true]
+    ])
+  })
+
+  it('a bundled agent without a front matter name is named by its file', () => {
+    mkAgPlugin('flutter', { agents: { 'no-name.md': 'You help with Dart.\n', 'a11y_agent.md': A11Y_AGENT } })
+    expect(readAntigravityPlugins(roots())[0].contents.agents).toEqual(['flutter_a11y_agent', 'no-name'])
   })
 
   it('a bundled definition reached through a symbolic link is listed, as the global agents directories list one', () => {

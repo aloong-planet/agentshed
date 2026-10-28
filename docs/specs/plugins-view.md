@@ -44,8 +44,8 @@ is read-only.
 6. As a user, I want effectively enabled plugins' skills to appear in the Skills section as
    `pluginName:skillName` entries (with a source badge and no install/uninstall buttons), so that "the
    skills available to this session" can be seen whole in one place.
-7. As a user, I want the two sides' plugins grouped separately with no cross-side merging by name, so
-   that I know which side a plugin is installed on (the two sides' marketplaces and package formats
+7. As a user, I want each side's plugins grouped separately with no cross-side merging by name, so
+   that I know which side a plugin is installed on (the sides' marketplaces and package formats
    are independent).
 8. As a user, I want anomalies such as a cleaned-up install directory, a lost owning project, or a
    missing individual skill directory labelled truthfully (greyed out / a banner) rather than
@@ -80,8 +80,8 @@ is read-only.
   the highest version directory, the same directory convention as Claude; verified on disk
   2026-08-07), while the other categories' semantics are not wired up and neither expand nor
   manufacture a signal.
-- E9 No merging by name between the two groups (a name present on both sides, such as superpowers,
-  gets a row in each).
+- E9 No merging by name between the groups (a name present on two sides, such as superpowers, gets a
+  row in each).
 - E10 A single unreadable marketplace directory in the Codex cache → skip that directory only and
   enumerate the rest as usual (a single point of failure must not empty the whole group — see
   CONTEXT.md, "degradation may only hurt itself").
@@ -119,7 +119,7 @@ is read-only.
   (plugins-view::REQ-001/AC-04), Codex plugin skills **do not join** (ADR-0012).
 
 **Sequence H: plugin skill package preview** (inside the Plugins expansion's Skills tab; identical on
-both pages and both sides)
+both pages and on every side whose plugins expand)
 - H1 The Skills tab is a row list: each row = name (in namespaced form) + the frontmatter description
   + "N files · size" on the right (the stats share their source and rules with skills-view's inline
   stats: stat-only, with identical extension / junk-directory / depth filtering).
