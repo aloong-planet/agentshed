@@ -1,5 +1,65 @@
 # Session view — documentation regression
 
+## The session ID and resume — owner-requested increment (2026-10-28)
+
+- Date: 2026-10-28
+- Scope: the increment only, `git diff 7ff103f d6026e5`: the restart case in `e2e/startup-restore.spec.ts`, the
+  settings prototype's update tooltip, and the records. The owner asked for the two findings the previous section
+  left for a decision to be fixed in this change
+- Version: d6026e5; the targeted run (`evidence/session-id/identity-targeted.log`) and the independent incremental
+  check (review-tests.md, "Post-implementation check — increment 7ff103f..d6026e5", no findings)
+- Languages: the same files as the previous section's census, plus the settings prototype (Han in its head comment).
+  Searches were run in English, and, over the prototype, in Chinese for its tooltip (the Chinese words for tooltip,
+  shadow and hover, with `uptip` as written)
+
+The two questions for the feature catalogue: **what became a lie**: nothing; **what was missing**: nothing. No
+user-visible behaviour changed: the increment changes one test and a prototype's drawing, and `git diff --stat 7ff103f
+d6026e5 -- src docs/specs docs/features docs/adr CONTEXT.md` is empty.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `e2e/startup-restore.spec.ts`: the comment over the inode swap, R-text's comment, R-range's comment | the code they describe; `identity-mutations.json` (each argument dropped at both call sites turns the case red at the asserted line) | True; confirmed by the independent check's Coverage and False greens |
+| `docs/prototypes/appearance/prototype-settings.html`: the tooltip's shadow and the dated ruling in the head comment | the app's update tooltip (the floating surface's shadow under TIP_LOOK; `--float-shadow` in both appearances); `settings-tip.json` | True: 0 6px 22px at 0.18 light and 0.5 dark, as the app |
+| The records: review-tests.md (the design increment and the check), review-code.md (the increment's layers), session-id-tasks.md (T14-T16) | the code, the runs and the evidence | True |
+| Spec, features, CONTEXT, ADRs | — | Row set empty: none changed (the empty diff above) |
+
+### Stage 2: related declarations
+
+| Statement (unchanged file) | Its counterpart changed this round | Conclusion |
+|---|---|---|
+| Spec, REQ-001's testing line: "Test via the cross-process Electron scenario … including index version invalidation and source rewrite" | the restart case's rewrite | True, and now it pins the identity's text; the range is pinned in the same scenario |
+| Spec, "Failure modes and boundaries: opening restored content", first item: "invalidate saved turn identities if the underlying question mapping changed" | R-range | True; it now has a test |
+| ADR-0029 (38, 65), the restart scenario and its source rewrite | the same | True |
+| The session prototype's head comment: the tooltip's shadow "as the rail's update button tooltip has it" | the settings prototype | True of the app before; now the settings prototype draws the same |
+| CONTEXT's floating-layer invariant (a hover tooltip takes the surface's one form) ↔ what guards it in the prototypes | the settings prototype's tooltip | Both prototypes now draw the one form. No gate reads a prototype's shadow (`check:ui` passed and does not compare it), so it is held by reading, as recorded in the previous section |
+| This report's previous section: the settings prototype row (Stage 2) and "Found outside this change, needing a decision" (Stage 3) | T14, T15 | True of 7ba1806; both decided by the owner (fix here, 2026-10-28) and fixed at d6026e5. This section closes them |
+| session-id-tasks.md, the regression row "P, REQ-001 … full verification" | the owner's instruction for this increment (no full e2e) | At d6026e5 the restart case ran in the targeted run; every other case last ran in the full run on a43e77e, and nothing outside `docs/` but the restart case changed since (`git diff --name-only a43e77e d6026e5 -- . ':!docs'`). T16 records it; CI runs the full e2e on the push |
+| session-id-tasks.md (F7 bullet) and review-tests.md (the second self-check, the second incremental check): "left to the owner" | T14 | Records of d71833f, true as dated; T14 records the decision and the fix |
+| `docs/features/session-view.md` | — | True, unchanged (no user-visible change) |
+| PR #321's description, "Needs a decision" | T14, T15 | Rewritten as "Also fixed here" before the push |
+
+### Stage 3: events
+
+| Event | Lines checked | Conclusion |
+|---|---|---|
+| An enumerable dimension changed | none: no side, language, theme or surface added | None |
+| Pending notes in scope | `rg -n 'Pending:' docs/specs/session-view.md docs/features/session-view.md CONTEXT.md` — none (exit 1) | None |
+| A rule written this round | none new: the prototype ruling applies CONTEXT's tooltip-form invariant, whose canonical copy exists | None |
+| Review findings and work state | the increment's code review (no finding), its design review (no finding), the independent incremental check (no findings); the two items reported to the owner, now decided and fixed; T14-T16 | Recorded in each record; T16 closes with this report, the PR update and the push |
+| Verification state | the owner's instruction: after the fix, only the relevant tests | The targeted run covers the changed case and every repository check; the last full gate is a43e77e's, stated in the PR |
+
+### Convergence
+
+Every row above was processed. Text changed by the regression: the PR description (rewritten before the push) and
+T16 in session-id-tasks.md. Both were re-queued against the rows they touch (the PR row, the regression row) and
+changed nothing further.
+
+Pre-delivery scope re-check: the increment's facts — the owner's two decisions, the test, the prototype, the runs,
+the mutations and the independent check — against the task list, the reviews and this report; no missing item, and
+no done item resting on evidence that no longer holds.
+
 ## The session ID and resume — no ticket (2026-10-28)
 
 - Date: 2026-10-28

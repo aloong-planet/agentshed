@@ -717,3 +717,198 @@ review dimension. The gap itself was found by a mutation, though, so the same mu
 alone, is run once as the gap's own evidence (below, after the implementation).
 
 No finding.
+
+### Post-implementation check — increment 7ff103f..d6026e5 (2026-10-28)
+
+Checked 2026-10-28 by a sub-agent independent of the implementation and of this increment (it wrote neither the tests
+nor the code). No ticket: this record. Implementation version: d6026e5 (the owner-requested increment, 7ff103f..d6026e5,
+one commit; the whole change 03ff1a2..d6026e5). This is the check "after the implementation" the design review above
+points to, and it reads the mutation run promised there (Inputs).
+
+Scope, retrieved as the incremental check prescribes:
+
+- Tests the range changes: `git diff --name-only 7ff103f..d6026e5` lists one test file, `e2e/startup-restore.spec.ts`,
+  besides eight files under `docs/.workings/` and one prototype. `git diff -U0 7ff103f..d6026e5 -- e2e/` gives six
+  hunks, at 148, 160-180, 183, 186-187, 189-192 and 194-212 of the new file, all inside "restart restores viewed
+  project, questions and read answer before a new scan finishes" (9-228). Objects: R-text (166-192) and R-range
+  (194-212) in that case, and the comment over E2 (147-148).
+- Tests that depend on test helper code the range changes: the range changes no helper. The changed file exports
+  nothing (`git grep -nE "^export" d6026e5 -- e2e/startup-restore.spec.ts`: no hit, exit 1; control, the same search
+  over `e2e/close-app.ts`: three hits) and nothing imports it
+  (`git grep -nE "from ['\"]\./startup-restore(\.spec)?['\"]|import\(['\"]\./startup-restore" d6026e5`: no hit, exit 1;
+  control, `git grep -lF "from './close-app'" d6026e5`: its eight importers in `e2e/`); outside `docs/` its name occurs
+  only in its own screenshot paths (114, 193, 221). The prototype the range changes is no test helper: outside `docs/`
+  only `SettingsPane.tsx:2` names it, in a comment; `scripts/check-shared-ui.test.mjs` copies `docs/prototypes` whole
+  as its baseline tree (`COPIED`, 211), and no gate or gate test names the changed rule or its values
+  (`git grep -nE "uptip|upTip|6px 18px|6px 22px|float-shadow|prototype-settings|appearance/prototype" d6026e5 -- scripts`:
+  no hit, exit 1). No further test.
+- Test design table rows the range changes: R-text and R-range ("Test design table — the restart case, changed"), and
+  the design review of the two rows.
+
+Carried over: U1-U10 keep the post-implementation check's conclusions (2026-10-28, on 99d96c1); E1, and E2's reads
+(128-159), keep the second incremental check's (2026-10-28, on d71833f; the comment change after it, 7ba1806, was judged
+`same` by change-scope in `session-id-tasks.md`). The reads after the rewrite that check answered for (then 162-166) are
+R-text's here (183-192).
+
+Inputs, and how each was checked:
+
+- Run evidence: [identity-targeted.log](evidence/session-id/identity-targeted.log). Version: HEAD 7ff103f and ten
+  listed files. Eight hash to d6026e5's blobs (`git rev-parse d6026e5:<file>`), among them `e2e/startup-restore.spec.ts`
+  (6b7555a) and the prototype (e3ec654); nothing under `src/` is listed, and the range changes nothing there. Two
+  differ: `identity-mutations.json` (c7dc259 in the log, 0fafc47 in d6026e5 — the two differ only in durations, one
+  timestamp and the failing line, 207 then 209, so the committed one comes from a re-run on the committed case after
+  this run) and the log itself (3545d81 is an earlier run's log; d6026e5 holds this run's). Both are inert, ESLint
+  ignores `docs/`, and no reviewed test reads them, so the log stands for d6026e5's executable files and the reviewed
+  case. Commands: `pnpm typecheck`, `pnpm lint`, `pnpm exec electron-vite build`,
+  `pnpm exec playwright test e2e/startup-restore.spec.ts` (2 passed), `pnpm check:ui`, `pnpm check:lang`,
+  `pnpm check:i18n`, `pnpm check:nul`, each with its output and `exit=0`, then `overall=0`; as in the earlier logs, the
+  hash-object step is described rather than spelled out and how the codes were taken is not shown (the version list is
+  checked against d6026e5 above, independently of it). The restart case passed (line 74, 28.8 s). The build it ran on
+  was this run's own (lines 44-68): the mutation re-run, which rebuilds `out/`, began after this run ended — the scratch
+  copy of the log (outside the repository) was last written at 13:12:28Z, and the re-run's three cases, 78.8 s in all,
+  ended at 13:13:56Z (`test-results/.last-run.json`).
+- Capability declaration, parsed with Python's `tomllib`: `[mutation-testing] enabled = false`; `lint` and `e2e-suite`
+  enabled.
+- No test was re-run: every question below is answered from the code, the log and the increment's own evidence.
+  `git status --porcelain --untracked-files=all` was empty before this section was written; no source, test or data
+  file was changed.
+- The increment's own evidence: [identity-mutations.mjs](evidence/session-id/identity-mutations.mjs) replaces both
+  `questionRevision` calls in `index.ts` (each a unique match) three ways — the text `''`, the range `0, 0`, both —
+  builds, checks the bundle for the mutated calls (and the page call's original gone), runs the restart case and
+  restores the file in `finally`; [the result](evidence/session-id/identity-mutations.json): each build 0, reached, the
+  case red at the asserted line — the text and both at 192 (`"Saved question → Fresh answer"` among the received
+  pairs), the range at 209 (the turn's blocks with "Fresh answer" received for "session-not-indexed") — then
+  `identical: true` and rebuild 0. The failing lines are d6026e5's, so the re-run ran the committed case. The "both"
+  mutation stops the case at 192; R-range's red under it follows by reading, its identity then ignoring the range as
+  under the range mutation.
+- Real data, read only: Claude Code files under `~/.claude/projects`, for R-range's line (Coverage).
+
+#### Per-case consistency with the test design table
+
+| Row | Written test | Conclusion |
+|---|---|---|
+| R-text | the observer installed and read once at install (166-180); the hint not ready (181); the in-place rewrite to the equal-length literals (183); the saved answer kept, then the rewritten title and answer, then ready (185-188); the record read and asserted to hold the two pairs and not the third (189-192) | Matches |
+| R-range | `turn` returns the blocks as JSON or the error's message, `first` throws when the page gives its first question no identity (199-206); the current page read (207); a `permission-mode` line put before the questions (208); the old identity refused (209); the moved page's texts (210-211); its identity fetching "Fresh answer" (212) | Matches |
+
+Test file headers: the file's header (2) claims no gap and the range adds none to state: R-range's reason for asserting
+at the channel is in its comment (194-198). The comment over E2 (147-148) now says only what the rename holds, as F10's
+handling asked; the comments at 160-165 and 194-198 agree with the code read under Coverage.
+
+#### Coverage
+
+- R-text's input reaches the text branch only: both literal pairs keep their lengths (14 and 12 bytes) and the file is
+  rewritten in place under the inode E2 asserts (157), so the device and inode, the path and the byte range are the
+  saved revision's and only the raw line differs (`questionRevision`, source-identity.ts:24-25). The refetch with the
+  saved identity is the held scan's snapshot invalidating `turnContent` (App.tsx:184-188, query-client.ts:28-31) while
+  the page handler waits out `FETCH_DELAY_MS` (index.ts:316); the turn handler has no delay. Under the unchanged code
+  that refetch is refused (index.ts:380-381) and the display layer keeps the saved copy (display-queries.ts:20-25), so
+  the saved row keeps its saved answer until the new page re-keys the turn (SessionPane.tsx:336).
+- R-range's input reaches the range branch only: `writeFileSync` puts the line before the questions in the same file,
+  so the device and inode, the path and the raw question line are unchanged and only its start and end move; the turn
+  handler takes them from the index it rebuilds on the signature change (token-stats.ts:619-624; index.ts:374-381).
+  The mutations confirm both rows: dropping exactly the argument a row claims turns exactly that row red.
+- The regression point the range touches: the old rewrite changed the question's length, which also moved every later
+  offset; R-text's equal lengths no longer need the per-file rebuild (C4) to show the right text. R-range's insertion
+  does: read at stale offsets, the moved page could not list the two questions 211 asserts (by reading). So the case
+  still drives a source change whose offsets move. The index version invalidation (92) is unchanged.
+- Fixture shapes: R-text keeps the case's own Claude lines. R-range's line has the keys and values of a real record:
+  65 files under `~/.claude/projects` carry a `{"type":"permission-mode","permissionMode":"default","sessionId":…}`
+  line; in the one read (`bb1a8f24-….jsonl`) it is line 3, before the first question at line 9. Its `sessionId` value is
+  the fixture's own, which no reviewed read depends on (a Claude Code page's ID comes from its file name,
+  session-view::US-001/AC-01).
+- The design review's statement on the append case holds: appends change neither argument, and the function's case
+  (source-identity.test.ts:24-33) keeps it.
+
+No finding.
+
+#### Case design
+
+R-text reads the rendered list — each open row's text and its turn's answer — through a real snapshot and a real
+refetch; the observer only reads. R-range calls `getSessionPage` and `getSessionTurn` through the preload API the
+renderer uses, with an identity the page channel gave, and changes the session file as another program could. No
+internal state is written to set up either. No finding.
+
+#### False greens
+
+By the project's capability declaration, mutation-testing is not enabled, so mutation testing is skipped as a review
+dimension. When each changed assertion goes red, against the code under test and its expected values' sources (AC-04's
+words, the boundary's words, the fixture's literals):
+
+- 190: when the observer never sees the saved row over its saved answer — installed too late, a selector that finds no
+  row or no answer, the turn not open at install.
+- 191: when the observer stops before the end, or the rewritten page never shows its answer under its question.
+  `record` runs directly only at install, so this pair can come only from the observer's callback: it was running
+  through the change.
+- 192: when, at any recorded moment, the saved row shows the rewritten answer — the text dropped from the identity at
+  both handlers (the mutation's received pairs), or, by reading, the turn handler's comparison (index.ts:381) removed.
+  It is one read of everything recorded, not a retried negative, over a record 190 and 191 prove non-empty. It does
+  not go red for the byte range, which R-text keeps: that is R-range's.
+- 209: when the turn channel accepts the identity read before the move (the range mutation's received blocks), or
+  refuses it with another code. The turn path throws `session-not-indexed` in three places — the revision
+  (index.ts:381), the file changing during the call (384) and a file absent from the index (token-stats.ts:620); the
+  case does neither of the last two, and the range mutation shows the same call, in the same state, returning blocks.
+- 211: when the inserted line is listed as a question, or the questions are read at stale offsets.
+- 212: when the moved page's identity is refused, or the turn lacks the rewritten answer; an error's message holds no
+  "Fresh answer".
+- The helpers: `first` throws rather than skips when the page gives no identity; `turn` turns any failure into its
+  message, which fails 212, and 209 unless it carries the code.
+- The unit forms: no threshold, and the negative is read over a non-empty record (always-true); every expected value
+  is a fixture literal or the spec's error code, the identities being inputs the product compares (tautology); the two
+  `questionRevision` call sites are the live ones and the only ones (`git grep -n questionRevision -- src`) (stale
+  path); no conditional return, the guards throw (silent skip); every evaluate is awaited and no assertion sits in a
+  callback (unexecuted assertion).
+- Against review-code's false-greens list, the observer being a browser assertion: the "never happens" was made to
+  happen first — the text mutation put the forbidden pair into the record — and the assertion is on that record (form
+  one: text read from the rendered list; presence in the DOM can only over-count what is shown, which a negative only
+  tightens); no synthetic event, the snapshot and the refetch are the app's own (form two); the mutations' reach is
+  shown apart from the assertion (the bundle holds the mutated calls) and each failure lands on its asserted line (form
+  four); the record is read after 187 and 188 polled the end state, whose pair it must hold (form five). The range adds
+  no gate and no command-line acceptance.
+
+No finding.
+
+#### Resource reuse
+
+From the targeted log: one `electron-vite build` (main, preload, renderer; lines 44-68) before the file's two cases;
+the e2e command builds nothing (`playwright.config.ts` has no web server, and its global setup only prepares the quiet
+Electron copy). The list reporter prints no launches, so the count is from the code: the restart case launches twice
+(55, 95) and closes twice (91, 224), as before the range; R-text and R-range run inside the second launch. The two page
+reads add two fetch delays, time rather than a resource (the case took 28.8 s, against 26.8 s in f7-f9-targeted.log).
+No reviewed case clears or releases a process-wide resource (the observer lives in the case's renderer, the file in its
+home), so execution order bears on no count. No finding.
+
+#### Findings
+
+No findings.
+
+#### Document sync this check creates
+
+Scope, enumerated with `find` (no ignore rules apply; hidden and ignored files included): the root's Markdown and TOML
+files, `docs/specs`, `docs/features`, `docs/adr`, and `docs/.workings/session-view` with its evidence — 144 files (the
+previous check's 136 and the eight evidence files added since d71833f: f10-targeted.log, gate-full-a43e77e.log,
+after-full-reuse.log and the five this range adds; five PNGs, the rest text) — plus the reviewed case's header and
+comments, the range's prototype at its changed lines, and `docs/.workings/startup-restore`, where the case writes its
+screenshots (three PNGs, none tracked). Other features' working directories were searched (`grep -r -a` outside
+`session-view`): 75 files name the restart case or its file, run logs and other tickets' review records; for
+"Rewritten question/answer", "source rewrite", "questionRevision", "question identity" and a rewrite near the case's
+name, three hits, all in ticket-240's review record and about its own rows. Left out: the rest of `docs/prototypes`
+and `site/`, which state no test coverage. Searched the 139 text files with `grep -a` for "Rewritten question/answer",
+"left to the owner", "questionRevision", "does not pin", "never pinned", "pins the handler", "handler's arguments",
+"byte range(s) and text", "source rewrite", "question identity", "REQ-001/AC-04", "Fresh question/answer",
+"permission-mode", "identity-mutations", "identity-targeted", "outside the change" and "in place": 239 hits, read where
+they fall in the spec, the ADRs, `docs/features`, `CONTEXT.md` and this feature's working records; the rest are other
+subjects (in-place fills, other specs' AC-04s, run logs listing cases).
+
+Statements the range changes:
+
+| Statement | Where | Status |
+|---|---|---|
+| "the page handler's byte ranges and text in the question identity, pinned by no test"; the settings prototype's update tooltip shadow, "Not true" | `final-regression.md:52, 39`, the step-8 report on 7ba1806 | True of the version it names; at d6026e5 T14 and T15 changed both. T16's step-8 addendum, still open, is where the report is brought to d6026e5 |
+| REQ-001's regression row, checked by "full verification" | `session-id-tasks.md:27` | At d6026e5 the restart case ran in the targeted run above and the other cases last in the full run on a43e77e (`gate-full-a43e77e.log`), and nothing outside `docs/` but the restart case changed since (`git diff --name-only a43e77e d6026e5 -- . ':!docs'`); with the owner's "no full e2e", T16 is where the row says so |
+| "left to the owner" (the handler's arguments) | this record, the second self-check (157-158) and the second incremental check (613-614); `session-id-tasks.md:100-101` | Records of d71833f; the owner's increment above and T14 record the decision and the fix |
+
+Unaffected and true at d6026e5: the spec's REQ-001 testing line (session-view.md:685-687, "including … source
+rewrite") and agents-overview's startup verification decisions; ADR-0029 (38, 65); `review-code.md`'s increment
+section, read against the code under Coverage and False greens; `session-id-tasks.md`'s T14 and T15; `docs/features`
+and `CONTEXT.md`, which state nothing about the identity's arguments. No finding is a product defect. This check changed
+nothing outside this section.

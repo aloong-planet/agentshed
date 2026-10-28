@@ -151,4 +151,9 @@ relevant tests, not the full e2e suite.
   without change is refused its old identity at the turn channel. Design in review-tests.md (owner-requested
   increment); each argument dropped at both call sites turns the case red (`evidence/session-id/identity-mutations.json`)
 - [x] T15 The settings prototype's update tooltip drawn with the app's shadow (`evidence/session-id/settings-tip.json`)
-- [ ] T16 Independent incremental test check, step 8 addendum, targeted verification (owner: no full e2e), PR update
+- [x] T16 The independent incremental test check (no findings, review-tests.md); the step-8 addendum
+  (final-regression.md); the targeted verification (`identity-targeted.log`). By the owner's instruction the full e2e
+  suite was not rerun: the regression row "P, REQ-001 … full verification" rests at d6026e5 on the targeted run for the
+  restart case and on the full run at a43e77e for every other case, nothing outside `docs/` but the restart case
+  having changed since; CI runs the full e2e on the push. The PR description's "Needs a decision" rewritten as "Also
+  fixed here"
