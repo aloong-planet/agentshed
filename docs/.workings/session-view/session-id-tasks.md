@@ -39,7 +39,8 @@ prototype are the authority.
   e2e/app.spec.ts on 99d96c1 ([log](evidence/session-id/pre-review-run.log)); the rest of the verify set — test:scripts,
   test:site, check:ui, check:lang, check:i18n, check:nul, smoke — on 466d1c0, after the post-implementation check
   found them missing (its F6; [log](evidence/session-id/pre-review-run-rest.log)). All passed.
-- [ ] T9 Step 6: /review-tests post-implementation check
+- [x] T9 Step 6: /review-tests post-implementation check — three independent checks (F1-F6, F7-F9, F10), all handled; see
+  review-tests.md and the sections below
 - [ ] T10 Spec final check
 - [ ] T11 Step 7: archive
 - [ ] T12 Step 8: /features-catalog
@@ -105,3 +106,14 @@ prototype are the authority.
   `node ~/.claude/skills/implement/change-scope.mjs --base 3c37a76`, exit 1: `inert` review-tests.md; `changed`
   e2e/app.spec.ts and e2e/startup-restore.spec.ts (code changed); "verdict: run (3 files differ from the base)". The
   tests changed again: committed and handed to a second incremental review.
+
+## The second incremental check's finding (F10, 2026-10-28)
+
+- F10: the comment over E2 and the second self-check's stated cause corrected (the refetch that makes the rewritten
+  answer appear is the held scan's snapshot invalidating every turn query; the freshness check only reports
+  staleness — turn-content-query.ts and App.tsx read to confirm). No assertion changed.
+- Self-check items 6 and 7: the corrected comment and record match the code read; evidence below. No finding.
+- `node ~/.claude/skills/implement/change-scope.mjs --base d71833f`, exit 0: `inert` review-tests.md; `same`
+  e2e/startup-restore.spec.ts; "verdict: skip (2 files differ from the base)". The test's executable content is
+  unchanged, so no further review is due. lint, typecheck and check:lang on the change
+  ([log](evidence/session-id/f10-targeted.log)).

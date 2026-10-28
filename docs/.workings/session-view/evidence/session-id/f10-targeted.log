@@ -1,0 +1,76 @@
+# Gate run 2026-10-28T11:00:50Z
+
+## Version
+$ git rev-parse HEAD
+d71833f0ce2a7e23ac145353ba3f37e4cf793c15
+$ git status --porcelain --untracked-files=all
+ M docs/.workings/session-view/review-tests.md
+ M e2e/startup-restore.spec.ts
+(hash-object of each listed file, deletions marked)
+54469470fd84c2d7ec703463f83cc04f204ce821  docs/.workings/session-view/review-tests.md
+3757e7bf921620ea514835fa32b619116deda758  e2e/startup-restore.spec.ts
+(this log, /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/ee349742-dc3f-44a1-9262-23c1ba54a998/scratchpad/f10-targeted.log, is written by this run and is not in the list)
+
+## $ pnpm lint
+
+> agentshed@0.1.0-beta.2 lint /Users/loong_zhou/CascadeProjects/agentshed-session-resume
+> eslint . --max-warnings 0
+
+exit=0
+
+## $ pnpm typecheck
+
+> agentshed@0.1.0-beta.2 typecheck /Users/loong_zhou/CascadeProjects/agentshed-session-resume
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+exit=0
+
+## $ pnpm check:lang
+
+> agentshed@0.1.0-beta.2 check:lang /Users/loong_zhou/CascadeProjects/agentshed-session-resume
+> node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs
+
+✔ the seeds alone pass, one permitted line each (235.339708ms)
+✔ Chinese in an HTML copy (its header after the doctype) is reported: the copy is recognised by its header (225.206791ms)
+✔ Chinese in a JS copy (its header two comment lines) is reported: the copy is recognised by its header (233.027167ms)
+✔ Chinese in a CSS copy (its header a block comment) is reported: the copy is recognised by its header (257.095125ms)
+✔ Chinese in a copy under a name no list ever held is reported: the copy is recognised by its header (232.578583ms)
+✔ Chinese in a JS copy behind a #! line is reported: the copy is recognised by its header (235.181791ms)
+✔ Chinese in a JS copy whose marker is on the second line of its header is reported: the copy is recognised by its header (230.576208ms)
+✔ Chinese in an HTML copy whose header runs on past the marker line is reported: the copy is recognised by its header (230.314209ms)
+✔ Chinese in a CSS copy whose block header runs on past the marker line is reported: the copy is recognised by its header (229.538625ms)
+✔ Chinese in an HTML copy behind an upper-case doctype, its header indented is reported: the copy is recognised by its header (235.612291ms)
+✔ Chinese in a JS copy whose // header is indented, the marker on its second line is reported: the copy is recognised by its header (230.734ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (231.876917ms)
+✔ Chinese stays permitted in a mockup page (239.21425ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (248.858375ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (235.610458ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (250.971417ms)
+✔ Chinese stays permitted in a mockup page that quotes the marker below its first comment (234.539084ms)
+✔ Chinese stays permitted in a script whose // header ends at code, the marker quoted after it (235.77275ms)
+✔ Chinese stays permitted in a script that opens with code, the marker quoted after it (247.737166ms)
+✔ Chinese stays permitted in a stylesheet whose /* header closes without the marker, the marker quoted after it (237.771375ms)
+✔ Chinese stays permitted in a script whose // header ends at a blank line, the marker quoted after it, as the manifest is laid out (237.186875ms)
+✔ Chinese stays permitted in a script whose // header ends at a code line that quotes the marker (233.341833ms)
+✔ Chinese stays permitted in a script whose first line is code that quotes the marker (236.928666ms)
+✔ Chinese stays permitted in a script of comments only, without the marker (254.418916ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5756.016375
+✓ Working language: 2320 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the languages they scan; pattern literals only, not prose
+    rule · 1 file(s) · the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 16 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 1 file(s) · the Chinese README — a localisation is written in the language it localises into
+    rule · 2 file(s) · the language switcher rows and the selector list — a language is named in its own script
+exit=0
+
+overall=0

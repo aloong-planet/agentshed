@@ -144,8 +144,9 @@ test('restart restores viewed project, questions and read answer before a new sc
     const reveal = (file: string) => win.evaluate(async f => {
       try { await window.agentshed.revealSessionFile(f); return 'shown' } catch { return 'refused' }
     }, file)
-    // The file is moved aside and back by rename, so it keeps its inode: the rewrite below stays in place, and only
-    // the byte ranges and text the page handler passes tell the rewritten question from the saved one
+    // The file is moved aside and back by rename, so it keeps its inode: the case's later steps, the in-place rewrite
+    // among them, run on the setup they had before this check. (That rewrite does not pin the page handler's byte
+    // ranges and text in the question identity: the held scan's snapshot refetches every turn when it completes.)
     const session = join(cdir, 'saved.jsonl'), aside = join(home, 'saved-aside.jsonl')
     const inode = statSync(session).ino
     renameSync(session, aside)

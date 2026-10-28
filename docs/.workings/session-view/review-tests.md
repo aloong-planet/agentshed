@@ -148,9 +148,11 @@ back.
 - F7's premise was put to a mutation and did not hold: with the inode kept, both of the page handler's
   `questionRevision` calls given a constant byte range and text, built (the bundle holds the two mutated calls and
   none of the originals), leave the restart case green ([script](evidence/session-id/f7-mutation.mjs),
-  [result](evidence/session-id/f7-mutation.json), [reach](evidence/session-id/f7-mutation-reach.json)). The rewrite
-  changes the file's size and mtime, so the turn's freshness check refetches it whatever the revision holds; the
-  later rewrite never pinned those arguments, before E2 or since. The mutation sits on both sides of the comparison,
+  [result](evidence/session-id/f7-mutation.json), [reach](evidence/session-id/f7-mutation-reach.json)). When the held
+  scan completes, its snapshot invalidates every turn query and the refetch returns the rewritten turn, whatever the
+  revision holds; nothing in the case reads the answer between the new page and that refetch, so the later rewrite
+  never pinned those arguments, before E2 or since. (The cause first given here, the turn's freshness check, was wrong:
+  that check only reports staleness — corrected after the second incremental check's F10.) The mutation sits on both sides of the comparison,
   so its survival alone would not condemn the case; with the reach shown, the conclusion is that nothing here pins the
   handler's arguments to `questionRevision`. That gap predates this change (it concerns session-view::REQ-001/AC-04,
   not US-001) and is left to the owner. E2 keeps the inode all the same, which returns the case's later steps to the
@@ -526,3 +528,159 @@ to cover source rewrite (session-view.md:685-687): both stay true as written, an
 in-place rewrite. session-id-tasks.md's AC-02 and R1 rows, `docs/features`, the other ADRs and `CONTEXT.md` (its
 retried-negative rule, 706-713, agrees with F9's correction) are unaffected: no finding is a product defect. This
 check changed nothing outside this section.
+
+### Increment: the fixes 3c37a76..d71833f (2026-10-28)
+
+Checked 2026-10-28 by a sub-agent independent of the implementation and of the fixes. No ticket: this record.
+Implementation version: d71833f (the fixes, 3c37a76..d71833f, one commit; the whole change 03ff1a2..d71833f).
+
+Scope, retrieved as the incremental check prescribes:
+
+- Tests the range changes: `git diff --name-only 3c37a76..d71833f` lists two test files besides eight files under
+  `docs/.workings/`. `git diff -U0 3c37a76..d71833f -- e2e/` gives four hunks: `app.spec.ts` 5682, inside E1
+  (5542-5788); `startup-restore.spec.ts` 3 (the `node:fs` import, adding `renameSync` and `statSync`), 147-152 and
+  156-157, inside "restart restores viewed project, questions and read answer before a new scan finishes" (9-184),
+  where E2 sits. `git grep -nE "\b(renameSync|statSync)\b" d71833f -- e2e/startup-restore.spec.ts` finds the two
+  names, besides the import (3), only at 150, 151, 156 and 157, so the file's other case (186) uses nothing the
+  import hunk adds. Objects: E1
+  and the restart case.
+- Tests that depend on test helper code the range changes: the range changes no helper; neither file exports
+  anything (`git grep -nE "^export" d71833f -- e2e/app.spec.ts e2e/startup-restore.spec.ts`: no hit, exit 1;
+  control, the same search over `e2e/close-app.ts`: three hits). No file imports either one
+  (`git grep -nE "from ['\"]\./(app|startup-restore)\.spec" d71833f`: no hit, exit 1; control,
+  `git grep -lF "from './close-app'" d71833f`: its eight importers in `e2e/`); outside `docs/` the two names occur
+  only in comments (`e2e/app-update.spec.ts:40`, `e2e/global-search.spec.ts:39, 57, 126`) and as path strings
+  (`scripts/check-lang.mjs:238`, `scripts/check-lang.test.mjs:27`). No further test.
+- Test design table rows the range changes: the two rows of "Test design table — second increment" (E2 changed;
+  E1 changed, US-001/AC-02), and F9's corrections to the design review's False greens (79-81) and to the first
+  increment's review (117-119).
+
+Carried over: U1-U10 keep the post-implementation check's conclusions (2026-10-28, on 99d96c1); E1's reads and E2's
+reads that the range does not change keep the first incremental check's conclusions (2026-10-28, on 3c37a76).
+
+Inputs, and how each was checked:
+
+- Run evidence: [f7-f9-targeted.log](evidence/session-id/f7-f9-targeted.log). Version: HEAD 3c37a76 and three
+  modified files, whose hash-object values equal d71833f's blobs (`git rev-parse d71833f:<file>`: review-tests.md
+  a584307, app.spec.ts a1c32f0, startup-restore.spec.ts f1298a5). d71833f also changes session-id-tasks.md, which
+  records this run and so was edited after it, and adds six evidence files, absent from the list because
+  `.gitignore:4` ignores `docs/.workings/` (`git check-ignore -v --no-index`); they were written at 10:45:24Z, before
+  the run's 10:45:39Z. All seven are inert, ESLint ignores `docs/` (eslint.config.js:39), and no reviewed test reads
+  them, so the log stands for d71833f's executable files and the two reviewed cases. check:lang enumerates
+  `git ls-files --cached --others --exclude-standard` (check-lang.mjs:284), so it read none of the six ignored files
+  that d71833f force-adds; that is the full gate's to cover before delivery, and no test result here depends on it.
+  Commands: `pnpm lint`, `pnpm typecheck`, `pnpm e2e e2e/app.spec.ts e2e/startup-restore.spec.ts` (88 passed),
+  `pnpm check:lang`, each with its output and `exit=0`, then `overall=0`; as in the earlier logs, the hash-object step
+  is described rather than spelled out and how the codes were taken is not shown. E1 passed (line 146, 4.9 s), the
+  restart case passed (line 147, 26.8 s).
+- Capability declaration, parsed with smol-toml (the worktree's own dependency): `[mutation-testing] enabled = false`,
+  a shape the registry admits; `lint` and `e2e-suite` enabled.
+- No test was re-run: every question below is answered from the code, the log and the fixes' own evidence.
+  `git status --porcelain --untracked-files=all` was empty before this section was written; no source, test or data
+  file was changed.
+- The fixes' own evidence: [f7-mutation.mjs](evidence/session-id/f7-mutation.mjs) replaces both `questionRevision`
+  calls in `index.ts` (each a unique match) with a constant range and text, builds, runs the restart case, restores
+  the file in `finally` and rebuilds; [the result](evidence/session-id/f7-mutation.json): build 0, the case passed,
+  `identical: true`, rebuild 0; [the reach](evidence/session-id/f7-mutation-reach.json), from a separate build of the
+  same mutation: two mutated calls and no original in the bundle. Neither file records which version of the restart
+  case ran; the code reading under Coverage reaches the same conclusion with the inode kept, independently of it.
+  The two short e2e logs (f7-fix, f8-fix) carry no version and are superseded by the targeted log.
+
+#### Per-case consistency with the test design table
+
+| Row | Written test | Conclusion |
+|---|---|---|
+| E2 (changed) | `startup-restore.spec.ts:149-157`: the inode read (150), the file renamed aside (151) and a symlink to it put at its path (152), refused with an empty recorder (153-154), the symlink removed (155) and the file renamed back (156), its inode equal to the one read before (157); the second call, its recorder and the hint as before (158-160) | Matches. The comment over it (147-148): F10 |
+| E1 (changed) US-001/AC-02 | hover on the copy-ID and reveal buttons, each name read with `{ timeout: 500 }` (5638-5643); focus on the reveal button, read with `{ timeout: 500 }` (5647-5648); hover on the resume button, its command line read with `{ timeout: 500 }` (5681-5682), its name with the default (5683) | Matches: the resume tooltip's name and command come from one `tipBody` render (`SessionActions.tsx:75-83`), so the bounded command read bounds the tooltip that names the action; the three buttons are one map with the same hover and focus handlers (88-103), as the row says |
+
+Test file headers: E1's note (5525-5541) is unchanged by the range; startup-restore.spec.ts's header (2) and E2's
+comment (128-131) are unchanged and claim no gap. The comment the range adds (147-148) states a reason the evidence
+refutes: F10.
+
+#### Coverage
+
+- E2's inputs reach their branches as before: the symlink now points at the original file moved aside, which exists,
+  so `existsSync` still passes and the refusal can come only from the file's type under the restored allow-list
+  (security.ts:204-206); the file renamed back is the same regular file, and it is shown.
+- The inode: the rename stays inside the case's temp home and 157 asserts the inode, so the later rewrite (162) is
+  in place under the saved page's `dev:ino`, as before E2. F7 is resolved as to its handling: the row was amended and
+  reviewed first, and the case's later steps are back on the setup they had. F7's further claim, that 164 would go
+  red without the byte ranges and text the page handler passes, did not hold, and the code says why: with those
+  arguments constant the new page's question keeps its revision, so `TurnContent` stays mounted under the same key
+  (`SessionPane.tsx:336`) and its old answer stays on screen until something refetches it; when the held scan
+  completes, its snapshot invalidates every turn query (`App.tsx:184-188`, `query-client.ts:28-31`) and the refetch
+  returns the rewritten turn, which 166's retried read accepts. Nothing in the case reads the answer between the new
+  page and that refetch. That the case does not pin the handler's arguments predates this change and concerns
+  session-view::REQ-001/AC-04, outside this check's spec items; the second self-check leaves it to the owner.
+- F8 is resolved: the resume button's first read is bounded at 500 ms, and the row says what E1 reads.
+- Fixture shapes: the range adds no data another program writes. Nothing beyond F10.
+
+#### Case design
+
+E2's rename and symlink are file-system events a user or another program can cause; no internal state is written,
+and only `shell.showItemInFolder` is replaced, at the process boundary. E1's change bounds one read. No finding.
+
+#### False greens
+
+Per the project's capability declaration, mutation-testing is not enabled, so mutation testing is skipped. When each
+changed assertion goes red, against the code under test and its expected value's source:
+
+- 157 (the inode): when the case puts back a different file — a copy or a rewrite, as 3c37a76's version did. It
+  guards the case's own setup, not the product, and stops the case before its later steps can run on a changed setup.
+- 153-154 and 158-160: as the first incremental check answered. The symlink's target is now the original moved aside
+  rather than a copy, which changes nothing these reads depend on.
+- 5682: when the resume tooltip, read through its command line, comes 500 ms or more after the hover. It can pass
+  only on the resume tooltip: the copy-ID tooltip on screen before it (5676) has no `.stip-cmd`.
+- 162-166, unchanged, on the setup E2 now restores: red for a page that never shows the rewritten question, or for
+  any answer but the rewritten one once it does; not for the page handler's arguments to `questionRevision`
+  (Coverage above).
+- Against review-code's false-greens list: form five — the 500 ms read polls the expression it asserts; the inode
+  read is synchronous. The range adds no gate and no command-line acceptance.
+
+F9 is resolved: the design review's False greens (79-81) and the first increment's review (117-119) now match the
+tests — the expected values come from the spec's words, the fixtures' literals and the confirmed prototype, and
+AC-06's "no rect" is named as a retried negative that can pass only while the check shows.
+
+#### Resource reuse
+
+From the targeted log: one `electron-vite build` (main, preload, renderer; lines 35-57) for its 88 cases. The list
+reporter prints no launches, so the count is from the code: E1 launches once (5590) and closes once (5787); the
+restart case launches twice (55, 95), and E2 runs inside the second launch. The range adds no launch and no build. No
+reviewed case clears or releases a process-wide resource, so execution order bears on no count. No finding.
+
+#### Findings
+
+| # | Where | Dimension | Finding | Evidence | Handling |
+|---|---|---|---|---|---|
+| F10 | `startup-restore.spec.ts:147-148`; this record's second self-check, its F7 bullet (152-153) | Coverage | The comment d71833f put over E2 gives, as the reason for keeping the inode, that "only the byte ranges and text the page handler passes tell the rewritten question from the saved one" — saying the later rewrite pins those arguments, the premise the second self-check's mutation refuted. The self-check, for its part, names the wrong cause for the case staying green: "the turn's freshness check refetches it" on the size and mtime change, while the freshness check only reports staleness (`turn-content-query.ts:37-38`) and the refetch is the held scan's snapshot invalidating every turn query. Either statement misleads a later reader about what the case covers, or about what a case that pins the arguments has to get around | [f7-mutation.json](evidence/session-id/f7-mutation.json), [f7-mutation-reach.json](evidence/session-id/f7-mutation-reach.json); `SessionPane.tsx:336`, `App.tsx:184-188`, `query-client.ts:28-31` | Reword the comment to what the rename holds: the file keeps its inode, so the case's later steps run on the setup they had before E2 (and, if wanted, that the case does not pin the handler's arguments). Correct the self-check's cause to the snapshot's invalidation. No assertion changes |
+
+F7 to F9 are resolved, each as its paragraph above says (F7 as to its handling; its claim about 164 did not hold).
+
+#### Document sync this check creates
+
+Scope, enumerated with `find` (no ignore rules apply; hidden and ignored files included): the root's Markdown and
+TOML files, `docs/specs`, `docs/features`, `docs/adr`, and `docs/.workings/session-view` with its evidence — 136
+files (the previous check's 130 and the six evidence files this range adds; five PNGs, the rest text) — plus the two
+reviewed test files' headers and E2's comments. Left out, as before: other features' working directories,
+`docs/prototypes` (no finding concerns them) and `site/`. Searched the 131 text files with `grep -a` for "inode",
+"renam", "put back", "swapped for a symlink", "freshness check", "questionRevision", "byte range", "source rewrite",
+"left to the owner", "never pinned", "pins the" and "in place": 205 hits, read where they fall in the spec, the
+ADRs, `docs/features`, `CONTEXT.md` and this feature's working records; the rest are other subjects (test names
+saying "in place" in run logs, the byte ranges of turns, other features' in-place fills).
+
+The previous check's sync rows are done and were read against the tests: the E2 row and its review, the AC-02 row,
+and F9's two statements — true, except as F10 says of the self-check's cause.
+
+Statements the finding makes untrue:
+
+| Statement | Where | Findings |
+|---|---|---|
+| The comment over E2's swap | `e2e/startup-restore.spec.ts:147-148` | F10 |
+| "The rewrite changes the file's size and mtime, so the turn's freshness check refetches it whatever the revision holds" | this record, the second self-check | F10 |
+
+Unaffected: the spec's testing decisions (session-view.md:1019-1022 — "put back as a regular file, it is shown" holds
+for the file renamed back); the restart-scenario line (session-view.md:685-687) and ADR-0029's "verifies source
+rewrite" (line 65), as true as at 03ff1a2, since the case's rewrite steps are as they were before E2;
+session-id-tasks.md's new section, whose F7 bullet (95-98) agrees with the mutation and names no cause, and its AC-02 and R1
+rows (13, 25); `docs/features`, the other ADRs and `CONTEXT.md`, which state nothing the range changed. No finding is
+a product defect. This check changed nothing outside this section.
