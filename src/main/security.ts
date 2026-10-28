@@ -187,3 +187,22 @@ export function sessionReadTarget(
   if (typeof raw !== 'string' || raw === '') return null
   return whitelist.has(raw) ? raw : null
 }
+
+/**
+ * Showing a session's record file in Finder (session-view::US-001/AC-07, AC-10): admitted exactly as reading it
+ * is — the exact-path allow-list above, judged before the disk is touched — and then only while the file is still
+ * there, because Finder's own call reports no failure. An entry restored before the first scan is shown only while
+ * it is a regular file, as a restored artifact is opened. The probes are the handler's; tests pass the same ones
+ * against real files.
+ */
+export function sessionRevealTarget(
+  whitelist: ReadonlySet<string>,
+  raw: unknown,
+  o: { restored: boolean; exists: (file: string) => boolean; regular: (file: string) => boolean }
+): { ok: true; file: string } | { ok: false; code: typeof ERR.sessionNotWhitelisted | typeof ERR.sessionFileUnreadable } {
+  const file = sessionReadTarget(whitelist, raw)
+  if (file === null) return { ok: false, code: ERR.sessionNotWhitelisted }
+  if (!o.exists(file)) return { ok: false, code: ERR.sessionFileUnreadable }
+  if (o.restored && !o.regular(file)) return { ok: false, code: ERR.sessionNotWhitelisted }
+  return { ok: true, file }
+}

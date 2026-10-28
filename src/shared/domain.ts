@@ -394,6 +394,9 @@ export interface SessionPage {
   /** For a Codex fork whose parent is in the scan set, the parent session's title and file (for the banner's reference and jump); null otherwise */
   forkParentTitle: string | null
   forkParentFile: string | null
+  /** The ID the session's own agent side resumes it by (session-view::US-001/AC-01); **null = it cannot be
+   * read** — the record carries none, or the page was restored from a copy saved before IDs were kept */
+  sessionId: string | null
   questions: SessionQuestion[]
 }
 
