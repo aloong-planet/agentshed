@@ -9,6 +9,11 @@ agent side's global picture onto one screen.
 - A summary card per side at the top: that side's detection status, token figure, project count
   and global skill count; if one side's registry is corrupt it degrades to an error explanation while
   the other sides are unaffected
+- When the last scan could not read some of Antigravity CLI's conversations in the format the app
+  supports, the Antigravity CLI card's last line says how many, in the warning colour, and hovering it
+  explains that Antigravity CLI may have changed its conversation format in an update and that their
+  usage is not counted; the figure above still shows what could be read, and the usual line returns
+  once every conversation reads again. A corrupt registry's explanation takes precedence over it
 - Reopening the app immediately shows the last saved overview and project list while a scan runs
   in the background. The page remains usable; the title's scanning note disappears when fresh data
   arrives in place. If scanning fails, the note stops spinning, previous data stays visible and
@@ -49,6 +54,7 @@ agent side's global picture onto one screen.
   than a guessed reading
 - The global library is read-only: its contents are never added to, changed or removed via this app
 - A side that is not installed shows "not detected" rather than an error
-- The Antigravity CLI side: its card reports whether Antigravity CLI is installed and how many projects it
-  registers; its usage, skills, subagents, plugins and MCP servers are not read, so its card's figure
-  and counts read zero and its sections show nothing for it. Its memories are not shown
+- The Antigravity CLI side: its card reports whether Antigravity CLI is installed, its usage in the
+  selected window and how many projects it registers; its skills, subagents, plugins and MCP servers
+  are not read, so those counts read zero and its sections show nothing for it. Its memories are not
+  shown

@@ -618,15 +618,19 @@ _Avoid_: beta mode, insider track, update track
   producer" — which are exactly the answers nobody re-checks. Enforced by `pnpm check:nul`.
 
 - **`TokenTotals.input` does not mean the same thing on every side, so it must not be summed across
-  them (settled 2026-08-18)**: on the Claude side `input` is the genuinely new content — cache reads
-  and cache writes each have their own disjoint bucket. On the Codex and Grok sides the reported input
-  demonstrably contains the cached reads (which we subtract), and **may or may not** also contain the
-  tokens written to cache — neither side reports that quantity, so it cannot be subtracted and the
-  question cannot be settled from the data (ADR-0023). Either way the sanitised `input` on those sides
-  is not the same quantity as Claude's "new only". The same asymmetry makes
-  `cacheWrite` a Claude-only figure; summing it across sides labels one side's number as three sides'.
+  them (settled 2026-08-18; Antigravity CLI added 2026-10-29)**: on the Claude side `input` is the
+  genuinely new content — cache reads and cache writes each have their own disjoint bucket. On the
+  Antigravity CLI side the reported input already leaves the cache reads out (measured) and cache writes
+  are reported as a figure of their own; whether that input also leaves the cache writes out cannot be
+  settled from the data, since no measured call reported a write. On the Codex and Grok sides the
+  reported input demonstrably contains the cached reads (which we subtract), and **may or may not**
+  also contain the tokens written to cache — neither side reports that quantity, so it cannot be
+  subtracted and the question cannot be settled from the data (ADR-0023). Either way the sanitised
+  `input` on those sides is not the same quantity as Claude's "new only". The same asymmetry makes
+  `cacheWrite` a figure only the Claude Code and Antigravity CLI sides report; summing it across sides
+  labels two sides' numbers as every side's.
   **The three cross-side comparable buckets are `input + cacheWrite`, `output`, and `cacheRead`** —
-  these carry one meaning each on all three sides and, on each side, sum exactly to that side's total.
+  these carry one meaning each on every side and, on each side, sum exactly to that side's total.
   This is not fixable in the parser: the information is absent from the source data, so any presentation
   that needs comparability must aggregate to those three.
 

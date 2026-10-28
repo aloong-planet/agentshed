@@ -59,6 +59,65 @@ package metadata, site and prototypes): six feature pages, two specs, CONTEXT.md
 Queue empty after the fixes above; the pre-delivery scope re-check is recorded in
 [ticket-322-doc-sync.md](ticket-322-doc-sync.md).
 
+## #323 Antigravity usage in the statistics — 2026-10-29
+
+Ticket: [#323](https://github.com/aloong-planet/agentshed/issues/323) · scope: this ticket's change (branch
+`feat/antigravity-usage`, stacked on #322's `a474875`; product code as of `fc5d0b1`, tests as of the post-implementation
+check's fixes, documents in the same branch). Languages in scope, by a script count (`grep -c -P '[\x{4e00}-\x{9fff}]'` and `grep -c -P '[A-Za-z]'` per
+file): the four feature pages, the three specs, CONTEXT.md, ADR-0037 and the new postmortem with its index hold no Han
+text; README.md is Chinese
+(50 Han lines) and README.en.md English; the dictionaries hold both, the Chinese one by definition.
+
+### Stage 1: changed declarations
+
+Declaration surfaces this round changed (`git diff --stat a474875 -- docs README.md README.en.md package.json site
+src/shared/i18n docs/prototypes`, plus CONTEXT.md): four feature pages (token-stats, agents-overview, project-detail,
+projects-list), three specs (token-stats, agents-overview, projects-list), ADR-0037 (an appended note), CONTEXT.md,
+both dictionaries (the unreadable line), and a postmortem with its index row (step 7). READMEs, `package.json`, the
+site and the prototypes are unchanged.
+
+| Pair | Statement checked | Result |
+|---|---|---|
+| token-stats spec ↔ implementation | token-stats::CON-001 (the columns read, the trajectory table's cascade id added), CON-002 (usage reads), REQ-003/AC-01 … AC-09 (AC-03's difference and AC-06's no-step record rule as written back), REQ-004/AC-01 … AC-04, and the failure-mode bullets this round added or rewrote (read twice per scan, a verdict kept until the files change, the activity walk's format check, the call without identity, a deletion between listing and read, a record's bytes in memory one at a time, model names as text) | True: each has a passing case in `antigravity.test.ts` / `agy-proto.test.ts` / `token-stats.test.ts` (the checklist's current verification) — the call without identity, the two deletion windows of the usage read and the unreadable conversation agy then writes since the post-implementation check (F2–F4); the memory figures measured (research §10.11). The deletion bullet was made exact (deleted before its read: gone that scan; while read: gone the next); the walk's own deletion window and the checkpoint between the two copies are header gaps of `antigravity.test.ts` |
+| agents-overview spec ↔ implementation | agents-overview::REQ-003/AC-01 (the figure), AC-02 (line, warning colour, tooltip, zero → usual line), the two added failure modes (the error first; the count saved with the display copy) | True: e2e "Antigravity usage: the card in every window …"; the error first, the count after the repair: e2e "Antigravity usage: a corrupt settings file on the card comes before the unreadable count …" (F5); the display store case for the saved count |
+| projects-list spec ↔ implementation | The rewritten boundary: a conversation that will not open, is not in the supported format or whose record will not decode gives no activity; a failed read while agy writes keeps the last folder | True: the walk cases "a conversation in another format gives its folder no activity either" and "a walk read that fails while a log is beside the database keeps the last folder …" |
+| token-stats spec ↔ features | Every agent side aggregated; Antigravity CLI's accounting (once per call, forks, four-field total above agy's own by the reads and any writes, failed attempts, subagents, models as recorded, no-model calls); unreadable conversations and the read while agy writes; untrusted folders global; past days kept through rewinds, unreadable turns and a deleted fork parent; per-model exactness; `/btw` and the Auto-mode reviewer not counted; desktop app and IDE not read | Agree; the features page says nothing the spec does not |
+| agents-overview spec ↔ features | The unreadable line, its colour, hover text, figure kept, return to the usual line, error first; the side's card now carries its usage | Agree |
+| project-detail spec ↔ features | project-detail::REQ-002/AC-04's Overview part: usage counts in the Overview like every side's; not listed in Sessions | Agree (Sessions are #324's) |
+| projects-list spec ↔ features | A subagent conversation and one in a format the app does not support neither count nor move the time | Agree |
+| ADR-0037 ↔ specs and features | "Higher than agy's own by exactly the cache reads" | The appended note and REQ-003/AC-03 say the same: exactly the reads where no write is reported (every measured call), by any writes too otherwise; the features page says so |
+| CONTEXT ↔ every document above | "Antigravity CLI" in documents (two bare "Antigravity" in the feature pages corrected this round); the TokenTotals.input invariant amended: Antigravity CLI's input leaves the reads out, cache writes reported by Claude Code and Antigravity CLI only, the three buckets on every side | True after the fixes |
+| Dictionaries ↔ prototype | `agents.unreadableConversations`, `agents.unreadableTip` in zh and en against the agents-page prototype's `unreadableConvs` / `unreadableTip` | Same wording in both languages (en plural by the language's rules, as the prototype's `plural`) |
+| Prototypes ↔ implementation | The card's figure and its warning line, the trend switch's Antigravity, the model rows, the project Overview's per-side row | Match: window screenshots in light and dark against the agents-page and project-detail prototypes; computed colour `rgb(179, 85, 47)` (e2e) and `rgb(240, 168, 132)` (dark) — the two `--warn-fg` values |
+| Postmortem ↔ implementation and records (re-checked after the post-implementation check's fixes) | [2026-10-29](../../postmortems/2026-10-29-a-guard-read-after-the-value-it-guards.md): the four sites now guarding first, the cases named, the per-site defence and the refactor item | True against `token-stats.ts` at fc5d0b1 (the guard first in `antigravityPlan`, `sessionQuestions`, `codexPlan`, `codexShown`), the cases K1–K3 (red against the unfixed order, the code review record's Runnability 1) and K4 at 0e8f5b9 (the variant's checks, each red when removed — the postmortem says it pins no order), and the code review record's refactor list; corrected after the incremental check's F8, which found the postmortem crediting K4 with a red against the unfixed code |
+
+### Stage 2: related declarations
+
+| Relation | Statement checked | Result |
+|---|---|---|
+| features README ↔ the four changed pages | Each page's one-line description | Still true; no change |
+| specs README ↔ the three changed specs | Their one-line descriptions | Unchanged meaning; no change |
+| postmortems README ↔ the new postmortem | Its index row: date, title, the one-line account | Added with the file; the line says what the file says (a new reader and two Codex readers; a `null` entry failing every scan; no case had written one) |
+| Rule ↔ its gate: copy never enumerates the sides as a closed set | The new copy names one side's tool (agy) only; `pnpm check:ui` ran green on it (pre-review log) | Covered |
+| The unreadable count ↔ every statement of it | token-stats::REQ-004/AC-02 ↔ agents-overview::REQ-003/AC-02 ↔ the dictionaries ↔ the agents-page prototype's demo note ("comes from the conversation databases the scan could not read") ↔ the features pages | Agree |
+| The cache version ↔ statements of it | The current value and change log live only in the `CACHE_VERSION` comment (session-view's rule); `rg -n "c17\b\|\+c1[0-9]\|version 17\|v17\b\|structure version 1[0-9]\|CACHE_VERSION" docs CONTEXT.md README.md README.en.md scripts site/src` → no stale value; C16's conversion note names the 17 → 18 step | Agree |
+| The archive's e2e stamps ↔ the cache version | `+c17` literals in two e2e cases | Moved to `+c18` with the bump (the comment's own instruction) |
+| Rule ↔ its gate: the working language (English) in this feature's working records ↔ `pnpm check:lang` | The gate reads tracked and untracked-unignored files, so an ignored record is scanned only once it is added | Covered once committed: the fix's targeted run went red on Chinese quoted in this report (tracked), fixed; the ticket's ignored records were scanned with the gate's own character class before being added (none left), and the full run scans them committed |
+| Other tickets' sync rows ↔ the sentences this round rewrote | #324's row cites project-detail's boundary ("not listed in Sessions" — kept); #325's row cites agents-overview's boundary ("skills, subagents, plugins and MCP servers are not read" — kept) | Still accurate; no change |
+| The feature checklist's mapping ↔ its current verification | Every unit #323 owns gets a current-verification row naming its evidence | Written with this round (see checklist) |
+
+### Stage 3: events
+
+| Event | How it was enumerated | Result |
+|---|---|---|
+| Antigravity CLI's usage is now counted (statements that it is not, or that its figure is zero) | `rg -n -i "not read\|read zero\|reads zero\|figure stays zero\|usage is not\|usage, skills\|zero until" docs/features docs/specs CONTEXT.md README.md README.en.md site/src docs/prototypes/agents-page docs/prototypes/project-detail` (44 lines, saved in the session scratch); Chinese: README.md's line 15 (its overview sentence, which names each side's token usage) and the site's `ui.ts` overview lines read directly | Made false and rewritten: agents-overview's boundary on the side ("its usage … are not read, so its card's figure … read zero"), project-detail's ("its usage is not in the Overview's figures"), token-stats' overview ("Claude Code, Codex and Grok"). Now true without change: README.md line 15 / README.en.md line 18 ("every agent side's global picture … with its token totals") and the site's overview card ("how many tokens it has burned") — the caveat #322's regression left for this ticket is closed |
+| The trend switch gained a mode | `rg -n -i "Claude / Codex / Grok\|Claude, Codex, Grok\|Claude, Codex and Grok\|single side" docs/features docs/specs/token-stats.md docs/specs/project-detail.md`; index-aligned structures: the mode bar and the skeleton's derive from `TREND_MODE_LABEL` (a total Record) | Every statement speaks of "a single side", count-neutral; nothing aligned by index |
+| The cache structure version moved (17 → 18) | As in Stage 2 | No stale statement |
+| Pending notes in range | `rg -n "Pending:" docs/specs/token-stats.md docs/specs/agents-overview.md docs/specs/project-detail.md docs/specs/projects-list.md` → one: token-stats::REQ-003/AC-08 | Not expired: 19 of 19 conversations on this machine list one folder; kept for the closeout |
+| New general rules this round | The decisions table ([ticket-323-decisions.md](ticket-323-decisions.md)) | None at the CONTEXT/ADR level: the shape guard before a cached entry's kind applies the spec's existing cache rule (C2, Implementation Decisions "Cache"); the own-id and copy rules are this side's, written into token-stats::CON-001 and REQ-003/AC-06. The guard read after the value it guards met the three conditions for a postmortem (root cause, why no case caught it, a defence at every site): [2026-10-29](../../postmortems/2026-10-29-a-guard-read-after-the-value-it-guards.md), indexed in the postmortems README; its statements agree with the code review record's Runnability 1, the cases K1–K3 for the guard order and K4 for the variant's checks (re-checked after F8) |
+| Work state changed | The feature checklist, this ticket's sync checklist | Current verification rows for #323 written after the fix commit 0e8f5b9, every quoted case title checked against the test files (54 of 54 found); the regression row's Gate part stays unverified until the full run before delivery; this ticket's sync rows done (see [ticket-323-doc-sync.md](ticket-323-doc-sync.md)) |
+| The post-implementation check's findings resolved (F1–F7) | The statements the check listed as untrue at fc5d0b1: the code review record's Runnability 2, this report's token-stats and agents-overview rows, the test review's Dimension 1 sentence on header gaps | Each rewritten to the cases added in 0e8f5b9 (see the rows above and the test review record's increment); the token-stats deletion bullet made exact |
+
 ## #326 Configuration shows CLAUDE.md and AGENTS.md (2026-10-29)
 
 Ticket: [#326](https://github.com/aloong-planet/agentshed/issues/326) · range: cbe22ca..HEAD of

@@ -1,0 +1,17 @@
+$ node /Users/loong_zhou/.claude/skills/implement/change-scope.mjs --base 0e8f5b9
+inert   CONTEXT.md
+inert   docs/.workings/antigravity-side/checklist.md
+inert   docs/.workings/antigravity-side/final-regression.md
+inert   docs/.workings/antigravity-side/ticket-323-doc-sync.md
+inert   docs/adr/0037-antigravity-cli-as-fourth-agent-side.md
+inert   docs/features/agents-overview.md
+inert   docs/features/project-detail.md
+inert   docs/features/projects-list.md
+inert   docs/features/token-stats.md
+inert   docs/postmortems/2026-10-29-a-guard-read-after-the-value-it-guards.md
+inert   docs/postmortems/README.md
+inert   docs/specs/agents-overview.md
+inert   docs/specs/projects-list.md
+inert   docs/specs/token-stats.md
+verdict: skip (14 files differ from the base)
+exit=0

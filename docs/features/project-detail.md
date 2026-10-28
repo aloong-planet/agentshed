@@ -48,7 +48,8 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
 
 ## Boundaries and non-goals
 - The page header names the sides that registered the project with their chips, ANTIGRAVITY among
-  them; an Antigravity CLI conversation moves the project's activity in the list but is not listed
-  in Sessions, and its usage is not in the Overview's figures
+  them; an Antigravity CLI conversation moves the project's activity in the list and its usage counts
+  in the Overview's figures like every side's (see [Token statistics](token-stats.md)), but it is not
+  listed in Sessions
 - For a project not following the eight-step process, the artifacts tab shows a "nothing accumulated
   by convention" empty state, which is not treated as an error
