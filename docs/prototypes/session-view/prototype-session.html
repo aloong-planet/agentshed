@@ -47,7 +47,33 @@
        has no Sessions tab (owner's ruling, 2026-10-19; copy only, not drawn — this page's project is not
        stale).
        A session opened inside a project keeps the single back control. The demo bar's "打开来源" group
-       switches between the two; in the app the entry the session was opened from decides. -->
+       switches between the two; in the app the entry the session was opened from decides.
+     Session ID and resume (2026-10-28, owner's rulings): the header carries the session's own ID — the
+       one its agent side's resume takes — and three icon buttons at the right end of the title row (the
+       owner picked this over a two-row command strip and a single row of text links): copy the session ID,
+       show the session's record file in Finder (selected there), copy the resume command. The ID sits at
+       the end of the meta line. The command is one shell line, `cd '<project dir>' && <tool> <resume> <id>`,
+       in the session's own side's tool (Claude Code `claude --resume`, Codex `codex resume`, Grok
+       `grok --resume`), the directory single-quoted; it is not shown on the page — the resume button's
+       tooltip shows it in full. The tooltips are instant (the settings prototype's dark form; the native
+       title waits about a second). A copy turns its button's icon into a check for 1.5 s and its tooltip
+       into "已复制" / "Copied".
+       A stale project (its directory gone; its sessions are reached from global search only): the command
+       is still copyable, and the tooltip adds a line saying the cd will fail (owner's ruling: copyable, with
+       the note beside it; in this layout the tooltip is where it goes).
+       A session whose ID cannot be read (owner's ruling, 2026-10-28): its record carries none (never seen in a
+       full enumeration of this machine's sessions — a safety net), or the page was restored from a copy saved
+       before IDs were kept and the first scan has not refreshed it yet. The meta line says "会话 ID 不可用" /
+       "Session ID unavailable", and the copy-ID and resume buttons are disabled, their tooltip saying the ID
+       could not be read; showing the record file still works. The wording is neutral on purpose, true of
+       both causes (owner's ruling, the same day).
+       Failures surface as the shared error toast: the record file gone when showing it in Finder, the
+       clipboard refusing a copy.
+       Icons (owner's pick, 2026-10-28, Lucide): show in Finder = FolderOpen, chosen over FolderSearch and
+       SquareArrowOutUpRight; copy the resume command = SquareTerminal, chosen over History and Play. Copy
+       the ID = Copy, the product's settled copy icon (not a choice). The demo bar gains "Grok 会话" in
+       "会话数据", and the groups "项目目录", "会话 ID", "项目路径" and "外部操作"; what decides each in the
+       app is on its note line. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -76,7 +102,32 @@
      「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
      故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
+  .b.g{background:var(--gk-bg);color:var(--gk-fg)}
   .head .meta{font-size:11px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
+  /* The session ID at the end of the meta line: one unbreakable run, so a narrow window wraps before it,
+     never inside the ID */
+  .sid-v{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;white-space:nowrap}
+  /* The title row's buttons: the stale note's copy button geometry (a fixed 22px box, the icon centred) */
+  .sacts{margin-left:auto;display:flex;gap:6px;flex:none}
+  .sact{width:22px;height:22px;display:grid;place-items:center;border:1px solid var(--line);
+    border-radius:5px;background:var(--card);color:var(--text-2);cursor:pointer;padding:0}
+  .sact:hover{color:var(--accent);border-color:var(--line-strong)}
+  .sact svg{display:block}
+  .sact.done{color:var(--accent)}
+  .sact[aria-disabled="true"]{opacity:.45;cursor:default}
+  .sact[aria-disabled="true"]:hover{color:var(--text-2);border-color:var(--line)}
+  /* The instant tooltip under a button, right-aligned to it: the settings prototype's dark form. Fixed to
+     the viewport, so no ancestor clips it */
+  .stip{position:fixed;z-index:95;display:none;max-width:440px;padding:6px 10px;border-radius:8px;
+    background:var(--tip-bg);color:var(--tip-fg);font-size:12px;line-height:1.55;pointer-events:none;
+    box-shadow:0 6px 18px rgba(0,0,0,.28)}
+  .stip.on{display:block}
+  .stip .cmd{font-family:ui-monospace,Menlo,monospace;font-size:11px;margin-top:3px;overflow-wrap:anywhere}
+  .stip .tw{margin-top:4px;color:var(--stip-warn)}
+  /* A page token: the tooltip's ground is the same dark in both modes, so its warning line is one colour,
+     declared for light and for dark alike */
+  :root{--stip-warn:#f0bd8c}
+  html[data-demo-mode="dark"]{--stip-warn:#f0bd8c}
   /* Session-level banners: branches resolved / a fork replay stripped / an uncertain strip — three tiers of
      semantic strength */
   .banner{display:flex;gap:8px;border-radius:8px;padding:8px 12px;font-size:11.5px;
@@ -184,6 +235,8 @@
      are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
 <link rel="stylesheet" href="../_shared/startup-status.css">
 <script src="../_shared/startup-status.js"></script>
+<link rel="stylesheet" href="../_shared/toast.css">
+<script src="../_shared/toast.js"></script>
 <script src="../manifest.js"></script>
 <script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
@@ -203,6 +256,7 @@
       </div>
       <div class="h1">
         <span class="b c" id="hbadge">CC</span><b id="htitle">…</b><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span>
+        <span class="sacts" id="sacts"></span>
       </div>
       <div class="meta" id="hmeta">…</div>
     </div>
@@ -219,6 +273,8 @@
       <div class="note" id="foot"></div>
     </div>
   </div>
+  <div class="stip" id="stip" role="tooltip"></div>
+  <div class="toasts" data-shared-block="toast"></div>
 </div>
 
   <!-- The demo harness: mock state switches, not part of the design and not to be implemented -->
@@ -229,6 +285,24 @@
       <button type="button" class="dh-opt" data-ds="claude" aria-pressed="true">Claude 主会话</button>
       <button type="button" class="dh-opt" data-ds="codex" aria-pressed="false">Codex fork</button>
       <button type="button" class="dh-opt" data-ds="orphan" aria-pressed="false">Codex fork·父会话缺失</button>
+      <button type="button" class="dh-opt" data-ds="grok" aria-pressed="false">Grok 会话</button>
+    </div></div>
+    <div class="dh-group"><span class="dh-title">项目目录</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-dir="ok" aria-pressed="true">存在</button>
+      <button type="button" class="dh-opt" data-dir="gone" aria-pressed="false">已不存在(失效项目)</button>
+    </div></div>
+    <div class="dh-group"><span class="dh-title">会话 ID</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-sid="ok" aria-pressed="true">已记录</button>
+      <button type="button" class="dh-opt" data-sid="none" aria-pressed="false">记录里没有</button>
+    </div></div>
+    <div class="dh-group"><span class="dh-title">项目路径</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-path="plain" aria-pressed="true">Transfer</button>
+      <button type="button" class="dh-opt" data-path="long" aria-pressed="false">实测最长(97 字符)</button>
+    </div></div>
+    <div class="dh-group"><span class="dh-title">外部操作</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-ext="ok" aria-pressed="true">成功</button>
+      <button type="button" class="dh-opt" data-ext="gone" aria-pressed="false">记录文件已不存在</button>
+      <button type="button" class="dh-opt" data-ext="clip" aria-pressed="false">剪贴板写入失败</button>
     </div></div>
     <div class="dh-group"><span class="dh-title">取回状态</span><div class="dh-opts">
       <button type="button" class="dh-opt" data-fs="ok" aria-pressed="true">索引就绪</button>
@@ -247,6 +321,10 @@
     <p class="dh-note">取回状态在 app 里由取回前的一次签名校验(路径 + mtime + size)与该轮的读取结果决定:签名不符只重建该文件的索引,单轮读取失败只影响该轮、再点可重试;app 内没有这个开关。</p>
     <p class="dh-note">打开来源在 app 里由会话是从哪里打开的决定:从全局搜索的命中直接打开的会话是「返回搜索结果」与「进入项目」两个出口;从项目里打开的、经「进入项目」之后再打开的、顺着 fork 横幅跳到的父会话,都只有返回项目;app 内没有这个开关。</p>
     <p class="dh-note">搜索定位在 app 里由点进一条搜索命中触发(项目详情「会话」分栏的搜索,或全局搜索);app 内没有这个按钮。</p>
+    <p class="dh-note">项目目录在 app 里由扫描时项目路径是否还在决定;失效项目的会话只能从全局搜索打开,所以选「已不存在」会同时切到全局搜索来源;app 内没有这个开关。</p>
+    <p class="dh-note">会话 ID 在 app 里由会话记录本身决定:记录里没有 ID(本机全量枚举未见,这是兜底形态),或者页面是从更新前的存盘恢复的、首轮扫描还没刷新它,都是「读不到」;app 内没有这个开关。</p>
+    <p class="dh-note">项目路径在 app 里由项目所在目录决定,这里换成本机实测最长的项目路径看提示的折行;app 内没有这个开关。</p>
+    <p class="dh-note">外部操作的结果在 app 里由系统决定:记录文件在打开 Finder 时已被移动或删除、剪贴板拒绝写入;原型里点按钮不真的复制,也不真的打开 Finder;app 内没有这个开关。</p>
   </div>
 
 <script>
@@ -256,10 +334,18 @@
   // here. ──
   const pl = (n,one,other) => new Intl.PluralRules('en').select(n)==='one'?one:other;
   const EN_DAY = {'7月29日 周三':'Wed, July 29','7月30日 周四':'Thu, July 30',
-    '9月13日 周六':'Sat, September 13','9月14日 周日':'Sun, September 14'};  // the day groups' English labels
+    '9月13日 周六':'Sat, September 13','9月14日 周日':'Sun, September 14',
+    '10月26日 周一':'Mon, October 26','10月27日 周二':'Tue, October 27'};  // the day groups' English labels
   const T = {
     zh:{
       back:p=>`返回 ${p} · 会话`, backSearch:'返回搜索结果', enterProject:p=>`进入 ${p} · 会话`,
+      enterProjectStale:p=>`进入 ${p}`,
+      sessionId:'会话 ID', sessionIdNone:'会话 ID 不可用',
+      copyId:'复制会话 ID', reveal:'在 Finder 中显示记录文件', copyResume:'复制 resume 命令', copied:'已复制',
+      resumeStale:'项目目录已不存在,命令里的 cd 会失败',
+      noIdTip:'读不到这个会话的会话 ID',
+      revealFailed:d=>`无法在 Finder 中显示:${d}`,
+      copyFailed:'复制失败:剪贴板拒绝写入',
       meta:m=>`${m.side} · ${m.q} 提问 · ${m.tok} tok · ${m.mb}`+
         (m.replay!=null?`(其中 ${m.replay}% 为 fork 重放副本)`:' ')+`· 最后活动 ${m.ago} 天前`+
         (m.noThread?' · 无 thread_name,标题取首条提问':''),
@@ -288,6 +374,13 @@
     },
     en:{
       back:p=>`Back to ${p} · Sessions`, backSearch:'Back to search results', enterProject:p=>`Go to ${p} · Sessions`,
+      enterProjectStale:p=>`Go to ${p}`,
+      sessionId:'Session ID', sessionIdNone:'Session ID unavailable',
+      copyId:'Copy session ID', reveal:'Show the record file in Finder', copyResume:'Copy resume command', copied:'Copied',
+      resumeStale:'The project directory no longer exists, so this command’s cd will fail',
+      noIdTip:'This session’s ID could not be read',
+      revealFailed:d=>`Cannot show it in Finder: ${d}`,
+      copyFailed:'Copy failed: the clipboard refused it',
       meta:m=>`${m.side} · ${m.q} ${pl(m.q,'question','questions')} · ${m.tok} tok · ${m.mb}`+
         (m.replay!=null?` (${m.replay}% of it is the fork’s replayed prefix)`:'')+
         ` · last active ${new Intl.RelativeTimeFormat('en',{numeric:'auto'}).format(-m.ago,'day')}`+
@@ -331,7 +424,8 @@
 
   // ── The Claude main session: 42 questions across two days; the ★ turns have full content constructed ──
   const CLAUDE = {
-    badge:'c', side:'CC', title:'MAS 上架支持:构建线与独立 bundle id',
+    badge:'c', side:'CC', tool:'claude', id:'b6f1c2d4-5a3e-4f7b-9c21-8d0e3a7f6b12',
+    title:'MAS 上架支持:构建线与独立 bundle id',
     meta:{side:'Claude Code',q:42,tok:'312k',mb:'8.4 MB',ago:3},
     banners:[{k:'info',i:'GitFork',t:c=>c.forkPoints(2)}],
     qs:[
@@ -523,7 +617,8 @@
 
   // ── A Codex fork session: 18 questions ──
   const CODEX = {
-    badge:'x', side:'CX', title:'迁移 Claude Code skills 到 Codex',
+    badge:'x', side:'CX', tool:'codex', id:'01a0cc47-e484-73c1-889f-2151eb219999',
+    title:'迁移 Claude Code skills 到 Codex',
     meta:{side:'Codex',q:18,tok:'96k',mb:'3.1 MB',replay:54,ago:9},
     banners:[{k:'info',i:'GitFork',t:c=>c.forkedFrom('skills 目录结构与命名')}],
     qs:[
@@ -596,7 +691,8 @@
 
   // ── A Codex fork with a missing parent: 26 questions across two days ──
   const ORPHAN = {
-    badge:'x', side:'CX', title:'把 openclaw 的网关拆出来单独跑',
+    badge:'x', side:'CX', tool:'codex', id:'01a0d8e2-7b41-7f3a-a0c5-6c2e9d41b7aa',
+    title:'把 openclaw 的网关拆出来单独跑',
     meta:{side:'Codex',q:26,tok:'140k',mb:'4.6 MB',ago:10,noThread:true},
     banners:[{k:'risk',i:'GitFork',t:c=>c.stripUncertainOrphan}],
     qs:[
@@ -679,9 +775,41 @@
     ]
   };
 
-  const DATA = {claude:CLAUDE, codex:CODEX, orphan:ORPHAN};
+  // ── A Grok session: 6 questions across two days, filler turns only ──
+  const GROK = {
+    badge:'g', side:'GK', tool:'grok', id:'019fd1e2-1042-7c12-94e9-15b9d0ad23ec',
+    title:'把扫描缓存拆成按侧分片',
+    meta:{side:'Grok',q:6,tok:'58k',mb:'2.2 MB',ago:1},
+    banners:[],
+    qs:[
+      L('01','10月26日 周一','14:05','扫描缓存现在是一整个文件,能不能按 agent 侧拆开',3,0,
+        '能。按侧拆成三个文件,各自的签名与版本独立,一侧失效不连累另外两侧。',
+        [['read_file','src/main/providers/token-stats.ts'],['run_command','ls ~/Library/Application Support/agentshed']]),
+      L('02','10月26日 周一','14:31','拆开之后旧缓存怎么迁移',1,0,
+        '不迁移:版本号一变旧文件整体作废,首次启动全量重扫一次。',[['read_file','token-cache.json · 前 40 行']]),
+      L('03','10月26日 周一','15:02','全量重扫要多久',2,0,
+        '本机 3.3 GB 约 11 秒(Electron 主进程下实测)。',[['run_command','pnpm bench:scan'],['read_file','bench 输出']]),
+      L('04','10月27日 周二','09:40','那就按这个方案改',9,1,
+        '改完了:三侧各一个缓存文件,签名各自校验。',
+        [['edit_file','src/main/providers/token-stats.ts · +84 −51'],['run_command','pnpm test · 通过']]),
+      L('05','10月27日 周二','10:12','跑一下全量门禁',1,0,'全绿。',[['run_command','pnpm verify · 退出码 0']]),
+      L('06','10月27日 周二','10:20','好,收工',0,0,'好。')
+    ]
+  };
+
+  const DATA = {claude:CLAUDE, codex:CODEX, orphan:ORPHAN, grok:GROK};
   let cur='claude', fetchState='ok', order='desc'; // 默认倒序(2026-08-06 用户裁定)
   let origin='project';            // where the session was opened from: a project, or global search
+  // The header's session ID and resume (2026-10-28): the demo bar's states, and the button whose copy shows
+  // its check
+  let dirState='ok', sidState='ok', pathState='plain', extState='ok', doneAct=null, doneTimer=0;
+  const PATHS = {plain:'/Users/loong_zhou/CascadeProjects/Transfer',
+    long:'/Users/loong_zhou/trend/workshop/aws-advanced-rag/sample-advanced-rag-using-bedrock-and-sagemaker'};
+  // The resume command: change into the project's directory (single-quoted, a quote inside closed, escaped
+  // and reopened), then resume by session ID in the session's own side's tool
+  const shq = s => `'${s.replace(/'/g,`'\\''`)}'`;
+  const RESUME = {claude:id=>`claude --resume ${id}`, codex:id=>`codex resume ${id}`, grok:id=>`grok --resume ${id}`};
+  const resumeCmd = d => `cd ${shq(PATHS[pathState])} && ${RESUME[d.tool](d.id)}`;
   const loaded=new Set();          // 已取回过的轮次(索引失效只在首次取回时重建)
   const fetchingTurns=new Map();   // turns not fetched yet: 'fetching' | 'rebuilding' while the fetch runs, 'failed' after
   const openTurns=new Set();       // 已展开的轮次(跨排序切换保持)
@@ -742,6 +870,62 @@
     return `<div class="rebuild">${s==='rebuilding'?t().rebuilding:t().fetching}</div>`;
   }
 
+  // ── The title row's three buttons and their instant tooltip (2026-10-28) ──
+  const ACT_ICON = {id:'Copy', reveal:'FolderOpen', resume:'SquareTerminal'};
+  const ACT_LABEL = {id:'copyId', reveal:'reveal', resume:'copyResume'};
+  // Copying the ID and the resume command both need the ID; showing the record file does not
+  const needsId = act => act!=='reveal';
+  function renderActs(){
+    hideTip();
+    document.getElementById('sacts').innerHTML=['id','reveal','resume'].map(act=>{
+      const off=sidState!=='ok'&&needsId(act), done=doneAct===act;
+      return `<button type="button" class="sact${done?' done':''}" data-act="${act}" aria-label="${t()[ACT_LABEL[act]]}"`+
+        `${off?' aria-disabled="true"':''}>${ICONS[done?'Check':ACT_ICON[act]](12)}</button>`;
+    }).join('');
+  }
+  function tipHtml(act){
+    const d=DATA[cur];
+    if(sidState!=='ok'&&needsId(act)) return esc(t().noIdTip);
+    const head=esc(doneAct===act?t().copied:t()[ACT_LABEL[act]]);
+    if(act!=='resume') return head;
+    return head+`<div class="cmd">${esc(resumeCmd(d))}</div>`+
+      (dirState==='gone'?`<div class="tw">${esc(t().resumeStale)}</div>`:'');
+  }
+  const tip=document.getElementById('stip');
+  let tipFor=null;
+  // Under the button, right-aligned to it and kept inside the window. Measured from the window's left edge:
+  // a fixed box shrinks to the room right of where it last stood, which near the right edge squeezes the
+  // command into a narrow column
+  function showTip(btn){
+    tipFor=btn.dataset.act;
+    tip.style.left='0px'; tip.style.top='0px';
+    tip.innerHTML=tipHtml(tipFor); tip.classList.add('on');
+    const r=btn.getBoundingClientRect(), w=tip.offsetWidth;
+    tip.style.top=(r.bottom+6)+'px';
+    tip.style.left=Math.max(8,Math.min(r.right-w,innerWidth-8-w))+'px';
+  }
+  function hideTip(){ tipFor=null; tip.classList.remove('on') }
+  const sacts=document.getElementById('sacts');
+  sacts.addEventListener('mouseover',e=>{ const b=e.target.closest('.sact'); if(b&&b.dataset.act!==tipFor) showTip(b) });
+  sacts.addEventListener('mouseleave',hideTip);
+  sacts.addEventListener('focusin',e=>{ const b=e.target.closest('.sact'); if(b) showTip(b) });
+  sacts.addEventListener('focusout',hideTip);
+  sacts.addEventListener('click',e=>{
+    const b=e.target.closest('.sact'); if(!b||b.getAttribute('aria-disabled')==='true') return;
+    const act=b.dataset.act;
+    if(act==='reveal'){
+      // The app shows the file in Finder; only a failure shows here
+      if(extState==='gone') Toast.show('err',t().revealFailed(t().sessionFileUnreadable));
+      return;
+    }
+    if(extState==='clip'){ Toast.show('err',t().copyFailed); return }
+    // A copy: the button turns into a check and its tooltip says so, for 1.5 s
+    doneAct=act; clearTimeout(doneTimer);
+    renderActs(); showTip(sacts.querySelector(`[data-act="${act}"]`));
+    doneTimer=setTimeout(()=>{ const was=tipFor; doneAct=null; renderActs();
+      if(was) showTip(sacts.querySelector(`[data-act="${was}"]`)) },1500);
+  });
+
   function dayGroups(qs){
     const days=[]; qs.forEach((q,i)=>{
       const g=days[days.length-1];
@@ -756,10 +940,13 @@
     document.getElementById('hbadge').className='b '+d.badge;
     document.getElementById('hbadge').textContent=d.side;
     document.getElementById('htitle').textContent=d.title;
-    document.getElementById('hmeta').textContent=t().meta(d.meta);
+    document.getElementById('hmeta').innerHTML=esc(t().meta(d.meta))+' · '+
+      (sidState==='ok'?`${t().sessionId} <span class="sid-v">${d.id}</span>`:t().sessionIdNone);
+    renderActs();
     document.getElementById('backT').textContent=t().back('Transfer');
     document.getElementById('backSearchT').textContent=t().backSearch;
-    document.getElementById('enterProjectT').textContent=t().enterProject('Transfer');
+    document.getElementById('enterProjectT').textContent=
+      dirState==='gone'?t().enterProjectStale('Transfer'):t().enterProject('Transfer');
     // From global search: back to the results, then into the project; otherwise the single back control
     document.getElementById('backProject').style.display=origin==='search'?'none':'';
     document.getElementById('backSearch').style.display=origin==='search'?'':'none';
@@ -851,9 +1038,19 @@
   // aria-pressed
   const harness=document.querySelector('[data-demo-harness]');
   harness.addEventListener('click',e=>{
-    const b=e.target.closest('button[data-ds],button[data-fs],button[data-locate],button[data-origin]'); if(!b) return;
-    if(b.dataset.origin){ origin=b.dataset.origin;
-      harness.querySelectorAll('[data-origin]').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); render(false) }
+    const b=e.target.closest('button[data-ds],button[data-fs],button[data-locate],button[data-origin],'+
+      'button[data-dir],button[data-sid],button[data-path],button[data-ext]'); if(!b) return;
+    const press=(attr,v)=>harness.querySelectorAll(`[data-${attr}]`).forEach(x=>x.setAttribute('aria-pressed',String(x.dataset[attr]===v)));
+    if(b.dataset.origin){ origin=b.dataset.origin; press('origin',origin);
+      // A stale project has no Sessions tab: its sessions open from global search only
+      if(origin==='project'&&dirState==='gone'){ dirState='ok'; press('dir','ok') }
+      render(false) }
+    if(b.dataset.dir){ dirState=b.dataset.dir; press('dir',dirState);
+      if(dirState==='gone'&&origin!=='search'){ origin='search'; press('origin','search') }
+      render(false) }
+    if(b.dataset.sid){ sidState=b.dataset.sid; press('sid',sidState); render(false) }
+    if(b.dataset.path){ pathState=b.dataset.path; press('path',pathState) }
+    if(b.dataset.ext){ extState=b.dataset.ext; press('ext',extState) }
     if(b.dataset.ds){ cur=b.dataset.ds;
       harness.querySelectorAll('[data-ds]').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); render(true) }
     if(b.dataset.fs){ fetchState=b.dataset.fs;

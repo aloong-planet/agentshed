@@ -127,6 +127,19 @@ across every project through global search. The full specification is in
 `docs/specs/session-view.md` (fully shipped 2026-08-06; the export feature was dropped).
 _Avoid_: chat log
 
+**Session ID**:
+The identifier an agent side itself gives a session, and the one that side's own resume takes. Not the
+session's identity in this product, which is its source file path: one Codex thread the agent wrote in
+segments is several sessions here that all carry the same session ID, so a session ID never keys a
+list.
+_Avoid_: session key, conversation id; "session id" for the source file path
+
+**Resume command**:
+One shell line that reopens a session in its own agent side's command-line tool: it changes into the
+project's directory, then resumes by session ID. The product hands it over by copying; it names the
+tool by its bare command name and does not look for where that tool is installed.
+_Avoid_: continue command, launch command
+
 **Filtering** (as opposed to **searching**):
 Two things this product does that look alike on screen and are not the same. **Filtering** narrows a
 list already fully in hand — the skills lists match a typed substring against the name and hide the
