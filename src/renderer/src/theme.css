@@ -2159,10 +2159,13 @@ body {
   cursor: pointer;
   padding: 0;
 }
-.sact:hover,
-.sact.done {
+.sact:hover {
   color: var(--accent);
   border-color: var(--line-strong);
+}
+/* A copy's check recolours the icon only; the border stays at rest (the prototype) */
+.sact.done {
+  color: var(--accent);
 }
 .sact[aria-disabled='true'] {
   opacity: 0.45;

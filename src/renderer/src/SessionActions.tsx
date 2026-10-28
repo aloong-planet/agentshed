@@ -13,7 +13,7 @@ import { useEffect, useRef, useState, type JSX } from 'react'
 import type { SessionPage } from '@shared/domain'
 import { resumeCommand } from '@shared/session-resume'
 import { errorText } from '@shared/error-text'
-import { FloatingBox, type FloatingAt } from './FloatingBox'
+import { FloatingBox, TIP_LOOK, type FloatingAt } from './FloatingBox'
 import { useAnchorInvalidation } from './useAnchorInvalidation'
 import { Check, Copy, FolderOpen, SquareTerminal } from './icons'
 import { useDict, useLanguage } from './language'
@@ -109,18 +109,8 @@ export function SessionActions({
         <FloatingBox
           ref={layer}
           at={tip.at}
-          // The chart tooltip's fixed dark form, as the rail's update button tooltip has it. The buttons carry
-          // their names, so the layer is hidden from assistive technology
-          style={{
-            background: 'var(--tip-bg)',
-            color: 'var(--tip-fg)',
-            border: 0,
-            borderRadius: 8,
-            padding: '6px 10px',
-            fontSize: 12,
-            lineHeight: 1.55,
-            pointerEvents: 'none'
-          }}
+          // The shared tooltip form. The buttons carry their names, so the layer is hidden from assistive technology
+          style={{ ...TIP_LOOK, fontSize: 12, lineHeight: 1.55 }}
         >
           <div data-testid="session-tip" aria-hidden="true">
             {tipBody(tip.act)}

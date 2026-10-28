@@ -163,7 +163,9 @@ export function SessionPane({
               </span>
               <h1 className="stitle">{result.page.title}</h1>
               <StartupHint />
-              <SessionActions page={result.page} projectDir={projectDir} stale={stale} />
+              {/* Keyed by the session file, as the body is: a copy's check and an open tooltip belong to this
+                  session's page and do not follow a jump to the fork parent */}
+              <SessionActions key={result.page.file} page={result.page} projectDir={projectDir} stale={stale} />
             </div>
             <div className="smeta">
               {t.session.headMeta(
