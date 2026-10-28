@@ -1317,6 +1317,99 @@ test('the agents page with Antigravity\'s components: card counts, Skills, Subag
   await close(l)
 })
 
+// plugins-view G4 and plugins-view::REQ-001/AC-06 (no merging by name across sides), with skills-view E7 (a filter
+// keeps the rows it keeps as they were): a Claude plugin and agy's plugin bundling one skill name give two rows, and
+// the open one stays the open one when filtering removes a row above them. Found in #325's code review — the rows were
+// keyed by name alone, so the two shared one key, and filtering left a stale third row on screen.
+test('two sides\' plugins bundling one skill name: two rows, and filtering keeps the open one open', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agy-dupe-'))
+  const file = (path: string, text: string): void => {
+    mkdirSync(join(path, '..'), { recursive: true })
+    writeFileSync(path, text)
+  }
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: {} }))
+  // A row above the two, which the filter removes
+  file(join(home, '.claude', 'skills', 'aaa-first', 'SKILL.md'), '---\ndescription: first\n---\nfirst\n')
+  // Claude's flutter plugin, enabled at the user layer
+  const cpkg = join(home, 'claude-flutter')
+  file(join(cpkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'flutter' }))
+  file(join(cpkg, 'skills', 'dart-add-unit-test', 'SKILL.md'), '---\ndescription: Claude copy\n---\nClaude plugin body\n')
+  file(join(home, '.claude', 'plugins', 'installed_plugins.json'),
+    JSON.stringify({ version: 2, plugins: { 'flutter@official': [{ scope: 'user', version: '1.0.0', installPath: cpkg }] } }))
+  file(join(home, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'flutter@official': true } }))
+  // agy's flutter plugin, fresh install (enabled)
+  const apkg = join(home, '.gemini', 'config', 'plugins', 'flutter')
+  file(join(apkg, 'plugin.json'), JSON.stringify({ name: 'flutter', version: '1.0.6' }))
+  file(join(apkg, 'skills', 'dart-add-unit-test', 'SKILL.md'), '---\ndescription: agy copy\n---\nAntigravity plugin body\n')
+  mkdirSync(join(home, '.gemini', 'antigravity-cli'), { recursive: true })
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const rows = win.locator('.sk-card > .rel')
+  const named = rows.filter({ has: win.locator('.nm', { hasText: /^flutter:dart-add-unit-test$/ }) })
+  await expect(named).toHaveCount(2)
+  const agRow = named.filter({ has: win.locator('.bdg .badge.ag') })
+  const clRow = named.filter({ has: win.locator('.bdg .badge.cl') })
+  await expect(agRow).toHaveCount(1)
+  await expect(clRow).toHaveCount(1)
+  // Open agy's row, then filter away the row above
+  await agRow.locator('.sk-head').click()
+  await expect(agRow.locator('.sk')).toHaveClass(/open/)
+  await win.locator('.sbar.sk-search input').fill('flutter')
+  await expect(rows).toHaveCount(2)
+  await expect(agRow.locator('.sk')).toHaveClass(/open/)
+  await expect(clRow.locator('.sk')).not.toHaveClass(/open/)
+  await agRow.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Antigravity plugin body')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// skill-install::REQ-003/AC-02: the "Same name installed" tag is the target's state at this opening of the picker.
+// Found in #325's code review — a reopened picker first drew the tags of its previous opening, until the fresh ones
+// arrived. The stale tag lasts one round trip, so a retried assertion cannot see it: an observer in the page records
+// whether a tag is ever drawn after the reopening.
+test('the install picker\'s same-name tag is this opening\'s: reopened after the copy is gone, it is not drawn', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-held-'))
+  const proj = join(home, 'proj')
+  const copy = join(proj, '.claude', 'skills', 'tidy')
+  mkdirSync(copy, { recursive: true })
+  writeFileSync(join(copy, 'SKILL.md'), '---\ndescription: tidy, the project copy\n---\nproject\n')
+  mkdirSync(join(home, '.claude', 'skills', 'tidy'), { recursive: true })
+  writeFileSync(join(home, '.claude', 'skills', 'tidy', 'SKILL.md'), '---\ndescription: tidy\n---\nglobal\n')
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const ins = win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: /^tidy$/ }) }).locator('.ins')
+  const target = win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: /^proj$/ }) })
+  // The tag is drawn while the project holds the name
+  await ins.click()
+  await expect(target.locator('.pop-have')).toHaveText('Same name installed')
+  await ins.click()
+  await expect(win.locator('.pop')).toHaveCount(0)
+  // The copy goes; from here on no tag may be drawn, not even for a moment
+  rmSync(copy, { recursive: true })
+  await win.evaluate(() => {
+    const w = window as unknown as { tagDrawn: boolean }
+    w.tagDrawn = false
+    new MutationObserver(() => {
+      if (document.querySelector('.pop .pop-have') !== null) w.tagDrawn = true
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+  await ins.click()
+  await target.click()
+  await expect(win.locator('.toast.ok')).toHaveText('Installed tidy → proj (claude)')
+  expect(readFileSync(join(copy, 'SKILL.md'), 'utf8')).toContain('global')
+  expect(await win.evaluate(() => (window as unknown as { tagDrawn: boolean }).tagDrawn)).toBe(false)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // skill-install::REQ-001/AC-01, AC-02, AC-04, skill-install::REQ-003/AC-01, AC-02 (the picker), then
 // skills-view::REQ-002/AC-01…AC-05, skill-install::REQ-002/AC-01, subagents-view::REQ-001/AC-05,
 // plugins-view::REQ-001/AC-05, project-detail::REQ-002/AC-03 and AC-04 (project detail), in one launch.

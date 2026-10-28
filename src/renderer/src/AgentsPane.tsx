@@ -331,7 +331,10 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
       ) : (
       <div className="card sk-card">
         {shown.map((s) => (
-          <div className="rel" key={s.name}>
+          // A plugin entry can share its namespaced name with a same-named plugin's entry on another side (two rows,
+          // plugins-view G4), so the row is keyed by where it comes from as well as by name: keyed by name alone,
+          // filtering the list once left a stale third row on screen (#325's review)
+          <div className="rel" key={s.origin === 'plugin' ? `plugin:${s.sides[0]}:${s.pluginName}:${s.name}` : `disk:${s.name}`}>
             <SkillExpandBlock
               name={s.name}
               source={
@@ -356,7 +359,11 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                     onClick={(e) => {
                       e.stopPropagation()
                       trigger.current = e.currentTarget
-                      setOpenFor(openFor?.skill === s.name ? null : popAt(s.name, e.currentTarget))
+                      const opening = openFor?.skill !== s.name
+                      // A new opening draws no tags until its own arrive, never the previous opening's — an
+                      // untagged target that does hold the name is still refused at install time (A4)
+                      if (opening) setHeld(null)
+                      setOpenFor(opening ? popAt(s.name, e.currentTarget) : null)
                     }}
                   >
                     {t.agents.installTo}

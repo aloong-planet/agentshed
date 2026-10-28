@@ -56,8 +56,9 @@ function PluginExpand({
     return <div className="exp-area none">{t.plugins.installMissing}</div>
   const chips = (names: string[]): JSX.Element => (
     <div className="chips">
-      {names.map((n) => (
-        <span className="chip" key={n}>
+      {names.map((n, i) => (
+        // Two of an Antigravity plugin's definitions can give one name (it names them by their front matter): one chip each
+        <span className="chip" key={`${i}-${n}`}>
           {n}
         </span>
       ))}

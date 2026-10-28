@@ -258,8 +258,15 @@ export function agyDefinitionName(text: string | null, fallback: string): string
 function readAntigravityPluginContents(root: string, plugin: string): PluginContents {
   const agents: string[] = []
   for (const d of safeDirents(join(root, 'agents'))) {
-    if (!d.isFile() || !d.name.endsWith('.md') || d.name.startsWith('.')) continue
-    agents.push(agyDefinitionName(readTextCapped(join(root, 'agents', d.name)), basename(d.name, '.md')))
+    if (!d.name.endsWith('.md') || d.name.startsWith('.')) continue
+    const file = join(root, 'agents', d.name)
+    // Through a symbolic link as well, as the global agents directories are read (subagents.ts)
+    try {
+      if (!statSync(file).isFile()) continue
+    } catch {
+      continue
+    }
+    agents.push(agyDefinitionName(readTextCapped(file), basename(d.name, '.md')))
   }
   return {
     skills: pluginSkillSummaries(root).sort((a, b) => a.name.localeCompare(b.name)),

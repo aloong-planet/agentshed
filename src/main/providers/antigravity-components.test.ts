@@ -2,7 +2,7 @@
 // the shared skills directory in project detail, subagents, plugins and MCP. Every case goes through a reader's exported
 // function over a temporary fixture tree shaped from the samples agy itself loaded (research §10.9; the test design table
 // is in docs/.workings/antigravity-side/ticket-325-review-tests.md).
-import { chmodSync, mkdtempSync, rmSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -332,6 +332,16 @@ describe('Antigravity subagents (subagents-view::REQ-001)', () => {
     expect(s.antigravity?.error).toBeNull()
   })
 
+  it('a description written as a YAML block scalar shows its text, not the block marker', () => {
+    mkFile(
+      join(agAgents(), 'folded.md'),
+      '---\nname: folded\ndescription: >-\n  Reviews diffs\n  for obvious mistakes.\ntools:\n  - view_file\n---\nbody\n'
+    )
+    const [s] = readGlobalSubagents(roots())
+    expect(s.description).toBe('Reviews diffs for obvious mistakes.')
+    expect(s.antigravity?.tools).toBe('view_file')
+  })
+
   it('a directory without agent.md holds no definition', () => {
     mkdirSync(join(agAgents(), 'empty-dir'), { recursive: true })
     mkFile(join(agAgents(), 'sample-flat.md'), SAMPLE_FLAT)
@@ -490,6 +500,67 @@ describe('Antigravity plugins (plugins-view::REQ-001)', () => {
     expect(plugin[0].pkg.antigravity?.files).toBe(1)
     // The group itself lists both, the disabled one readable (AC-06, H4)
     expect(snap.global.antigravityPlugins.map((p) => [p.name, p.enabled])).toEqual([['flutter', true], ['gdocs', false]])
+  })
+
+  it('a Claude plugin and an Antigravity plugin bundling one skill name give two entries, one per side, never merged', async () => {
+    // Claude's flutter plugin, enabled at the user layer, bundling the skill agy's flutter plugin bundles too
+    const cpkg = join(dir, 'claude-flutter')
+    mkdirSync(join(cpkg, '.claude-plugin'), { recursive: true })
+    writeFileSync(join(cpkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'flutter' }))
+    mkSkill(join(cpkg, 'skills'), 'dart-add-unit-test', 'the Claude copy')
+    mkdirSync(join(dir, '.claude', 'plugins'), { recursive: true })
+    writeFileSync(
+      join(dir, '.claude', 'plugins', 'installed_plugins.json'),
+      JSON.stringify({ version: 2, plugins: { 'flutter@official': [{ scope: 'user', version: '1.0.0', installPath: cpkg }] } })
+    )
+    writeFileSync(join(dir, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'flutter@official': true } }))
+    const aroot = mkAgPlugin('flutter', { skills: ['dart-add-unit-test'] })
+    writeAgConfig({ flutter: freshRecord('flutter') })
+    const snap = await scan(roots(), { now: () => 1 })
+    const named = snap.global.skills.filter((s) => s.name === 'flutter:dart-add-unit-test')
+    // plugins-view G4 and plugins-view::REQ-001/AC-06: each keeps its own side, package and description
+    expect(named.map((s) => [s.sides, s.pluginName, s.pluginRoot, s.description])).toEqual([
+      [['claude'], 'flutter@official', cpkg, 'the Claude copy'],
+      [['antigravity'], 'flutter', aroot, 'dart-add-unit-test from flutter']
+    ])
+  })
+
+  it('a skill description written as a YAML block scalar, as agy\'s official flutter plugin writes five, shows its text', async () => {
+    const root = mkAgPlugin('flutter', { skills: ['dart-migrate-to-checks-package', 'dart-use-path-package'] })
+    writeAgConfig({ flutter: freshRecord('flutter') })
+    // The two shapes the sample's skills take: literal (|-) and folded (>-), with a metadata block after
+    writeFileSync(
+      join(root, 'skills', 'dart-migrate-to-checks-package', 'SKILL.md'),
+      '---\nname: dart-migrate-to-checks-package\ndescription: |-\n  Replace the usage of `expect`\n  with `package:checks`.\nmetadata:\n  model: m\n---\n# body\n'
+    )
+    writeFileSync(
+      join(root, 'skills', 'dart-use-path-package', 'SKILL.md'),
+      '---\nname: dart-use-path-package\ndescription: >-\n  Cross-platform path manipulation.\nmetadata:\n  model: m\n---\n\n# body\n'
+    )
+    // The same reader serves every side's skills: a Claude global skill written the same way reads the same
+    mkdirSync(join(dir, '.claude', 'skills', 'folded'), { recursive: true })
+    writeFileSync(join(dir, '.claude', 'skills', 'folded', 'SKILL.md'), '---\ndescription: >\n  One\n  line.\n---\nbody\n')
+    const snap = await scan(roots(), { now: () => 1 })
+    const desc = Object.fromEntries(snap.global.skills.map((s) => [s.name, s.description]))
+    expect(desc['flutter:dart-migrate-to-checks-package']).toBe('Replace the usage of `expect`\nwith `package:checks`.')
+    expect(desc['flutter:dart-use-path-package']).toBe('Cross-platform path manipulation.')
+    expect(desc['folded']).toBe('One line.')
+  })
+
+  it('two of a plugin\'s definitions giving one name are both listed, as agy\'s directory holds them', () => {
+    mkAgPlugin('flutter', { agents: { 'a.md': A11Y_AGENT, 'b.md': A11Y_AGENT } })
+    expect(readAntigravityPlugins(roots())[0].contents.agents).toEqual(['flutter_a11y_agent', 'flutter_a11y_agent'])
+  })
+
+  it('a bundled definition reached through a symbolic link is listed, as the global agents directories list one', () => {
+    const root = mkAgPlugin('flutter')
+    mkFile(join(dir, 'elsewhere', 'reviewer.md'), SAMPLE_REVIEWER)
+    mkdirSync(join(root, 'agents'), { recursive: true })
+    symlinkSync(join(dir, 'elsewhere', 'reviewer.md'), join(root, 'agents', 'reviewer.md'))
+    // A link to a directory is not a definition
+    mkdirSync(join(dir, 'elsewhere', 'folder.md'))
+    symlinkSync(join(dir, 'elsewhere', 'folder.md'), join(root, 'agents', 'folder.md'))
+    expect(readAntigravityPlugins(roots())[0].contents.agents).toEqual(['sample-reviewer'])
   })
 
   it('in project detail an enabled plugin\'s skills join as plugin-level rows on the Antigravity side; agy has no project layer', () => {
