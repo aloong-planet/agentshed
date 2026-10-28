@@ -1,5 +1,68 @@
 # Session view — documentation regression
 
+## The session ID and resume — no ticket (2026-10-28)
+
+- Date: 2026-10-28
+- Scope: this round's change only (not a closeout; no tickets): `git diff 03ff1a2` on branch `feat/session-resume`
+- Version: spec db953fd as rewritten in this step; implementation 7ba1806 plus this step's `resumeCommand` change
+  (keyed by every side), verified by the full gate before delivery
+- Languages in the searched files, counted by writing system (Han and Latin letters per file): CONTEXT.md, the
+  session-view and global-search specs, the specs and features indexes, the session-view, global-search and
+  project-detail feature entries and `en.ts` hold no Han; `README.md`, `zh.ts` and the session prototype hold
+  both; `README.en.md` 4 Han (the language switcher's name). So each search below ran in English and, over the Han
+  files, in Chinese (the Chinese words for session page, restore, session ID, record file and copy, with "resume" and
+  "Finder" as written)
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| Spec, the section "Session ID and resume" (US-001, CON-001 to CON-003, failure modes, UI and implementation decisions, testing decisions) | the implementation (the spec final check in `session-id-tasks.md`); each failure mode against a test or the gap notes in E1's header | True after this step's write-back; every boundary has a test (U1-U10, E1, E2) or a noted gap |
+| Spec, Problem Statement, Solution, Out of Scope | the same | True |
+| `docs/features/session-view.md`, the six new capability lines and two boundary lines | the spec's user-visible layer (US-001's criteria, CON-001, the failure modes on archived and segmented Codex sessions, the page-only placement) | True; no behaviour the spec lacks, and no user-visible criterion left out |
+| `docs/features/README.md`, the session view row | the entry | True |
+| CONTEXT.md: Session ID, Resume command, the static count, the record file name, the tooltip form in the floating-layer invariant | the spec and the code (one term each; "record file" now named as the interface's word for the source file) | True; no synonym left unnamed |
+| ADRs | none written this round | Row set empty: no decision this round met the threshold |
+| The session prototype | the implementation, point by point (the ID's run and size, the three 22 px buttons, their hover, check and disabled states, the tooltip's placement, size, wrapping, warning colour) | Two differences found: the meta line (11 px drawn, 12 px in the app, from before this round) and the tooltip's shadow. The owner kept the app's look for both; the prototype now draws it, its header records the rulings |
+| `zh.ts` and `en.ts`, the ten new entries | the prototype's copy, side by side, both languages | True; the unavailable wording is the owner's neutral one in both |
+| `README.md` and `README.en.md`, the new Sessions line | the feature entry | True in both languages |
+| The code comments written this round (SessionActions, FloatingBox's TIP_LOOK, security's judge, the handler, display-data's upgrade, session-resume) | the code | True; the review-time corrections (F10) included |
+
+### Stage 2: related declarations
+
+| Statement (unchanged file) | Its counterpart changed this round | Conclusion |
+|---|---|---|
+| `docs/specs/README.md`, the session-view row | the spec | True, unchanged (a link, no summary) |
+| `docs/features/project-detail.md`: Sessions "opening to the full conversation" | the session page gained a header | True |
+| `docs/features/global-search.md` (a hit opens its session; the page's exits) and `docs/specs/global-search.md` US-003 | the stale flag now reaches the page on every route; the header's buttons | True: the exits are unchanged, and nothing there describes the header |
+| The landing page's "Sessions, revisited" card (both languages) | the new capability | True: a summary beside a screenshot; extending it is a landing-page change with its own prototype, not made |
+| `docs/prototypes/appearance/prototype-settings.html`, the update button's tooltip shadow (0 6px 18px, 0.28) | the app's update tooltip, now on the shared TIP_LOOK with the floating surface's shadow | Not true, and not new: the app's update tooltip had the floating surface's shadow before this round. The owner's ruling covered the session header; this one is reported for a decision (below) |
+| The rule "agent data enters the command only quoted" ↔ what guards it | CON-002 | Held by the builder's unit tests; no gate reads the command |
+| The rule "copy never enumerates the sides" ↔ `check:ui` | the ten new entries | `check:ui` passed; no new entry names the sides |
+| The rule "a hover tooltip takes the surface's one form" ↔ what guards it | FloatingBox's TIP_LOOK | Held by both tooltips importing it; no gate. Its canonical copy now in CONTEXT's floating-layer invariant |
+
+### Stage 3: events
+
+| Event | Lines checked | Conclusion |
+|---|---|---|
+| An enumerable dimension changed | sides, languages and themes: none added (`git diff 03ff1a2 -- src/shared/domain.ts` adds a page field only). New per-side structures this round: `resumeCommand`'s commands, now a record keyed by every side (a side added later fails the typecheck); `sessionIdFromPath`, whose fallback for a side it does not know is null — the unavailable form, visible, never another side's ID; the feature entry's line naming the three commands | No member count changed; the code structure is enforced by the type system; the feature line has to be extended when a side is added, as every per-side sentence does — no gate, recorded |
+| Pending notes in scope | `rg -n 'Pending:' docs/specs/session-view.md docs/features/session-view.md CONTEXT.md` — none (exit 1) | None |
+| A rule written this round | a hover tooltip takes the surface's one form (written into CONTEXT's floating-layer invariant); the command's quoting (spec CON-002); the owner's prototype rulings (the prototype's header) | Each has its canonical copy |
+| Review findings and work state | code review F1, F2 (fixed), the refactor list (one done, two not by the owner); test checks F1-F10 (handled); this step's `resumeCommand` finding (fixed); `session-id-tasks.md`, `review-code.md`, `review-tests.md`, `checklist.md`'s Source → spec | Each recorded where it was handled; the checklist has no tickets to map |
+| Found outside this change, needing a decision | the page handler's byte ranges and text in the question identity, pinned by no test (session-view::REQ-001/AC-04; shown by the F7 mutation); the settings prototype's update tooltip shadow (Stage 2) | Reported to the owner with the delivery; neither has a lasting home in the repository until the owner decides |
+
+### Convergence
+
+Every row above was processed. Text changed by the regression: the feature entry and its index row, both READMEs,
+CONTEXT (the record file name, the tooltip form), the session prototype (the two rulings), and `resumeCommand` (code,
+verified before delivery). Each was re-queued against the rows it touches — the feature entry against the spec, the
+READMEs against the entry, CONTEXT against the spec and the code, the prototype against the app — and changed nothing
+further.
+
+Pre-delivery scope re-check: the spec, the feature entry, CONTEXT, the prototype, the READMEs and the working records
+were compared with what the change does and what its runs produced; no missing item, and no done item resting on
+evidence that no longer holds.
+
 ## Ticket #278 — a stripped Codex fork's title on every surface that names it
 
 - Date: 2026-10-20

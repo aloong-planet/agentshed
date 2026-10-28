@@ -26,6 +26,13 @@ const quoted = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`
  */
 export function resumeCommand(side: AgentSide, sessionId: string, projectDir: string): string {
   const id = /^[A-Za-z0-9._-]+$/.test(sessionId) ? sessionId : quoted(sessionId)
-  const resume = side === 'claude' ? `claude --resume ${id}` : side === 'codex' ? `codex resume ${id}` : `grok --resume ${id}`
-  return `cd ${quoted(projectDir)} && ${resume}`
+  return `cd ${quoted(projectDir)} && ${RESUME[side](id)}`
+}
+
+/** Each side's own resume, keyed by every side: a side added later fails the typecheck until it has one, rather
+ * than falling through to another side's tool */
+const RESUME: Record<AgentSide, (id: string) => string> = {
+  claude: (id) => `claude --resume ${id}`,
+  codex: (id) => `codex resume ${id}`,
+  grok: (id) => `grok --resume ${id}`
 }

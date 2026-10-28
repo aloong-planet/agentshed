@@ -71,7 +71,10 @@
        clipboard refusing a copy.
        Icons (owner's pick, 2026-10-28, Lucide): show in Finder = FolderOpen, chosen over FolderSearch and
        SquareArrowOutUpRight; copy the resume command = SquareTerminal, chosen over History and Play. Copy
-       the ID = Copy, the product's settled copy icon (not a choice). The demo bar gains "Grok 会话" in
+       the ID = Copy, the product's settled copy icon (not a choice). Owner's rulings in step 8's cross-check
+       (2026-10-28), the app's look kept and drawn here: the meta line at 12px (it was 11px here, 12px in the app
+       since before this round), and the tooltip's shadow the floating layers' shared one (0 6px 22px, the
+       float-shadow colour), as the rail's update button tooltip has it. The demo bar gains "Grok 会话" in
        "会话数据", and the groups "项目目录", "会话 ID", "项目路径" and "外部操作"; what decides each in the
        app is on its note line. -->
 <html lang="zh-CN">
@@ -103,7 +106,7 @@
      故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
-  .head .meta{font-size:11px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
+  .head .meta{font-size:12px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
   /* The session ID at the end of the meta line: one unbreakable run, so a narrow window wraps before it,
      never inside the ID */
   .sid-v{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;white-space:nowrap}
@@ -120,7 +123,7 @@
      the viewport, so no ancestor clips it */
   .stip{position:fixed;z-index:95;display:none;max-width:440px;padding:6px 10px;border-radius:8px;
     background:var(--tip-bg);color:var(--tip-fg);font-size:12px;line-height:1.55;pointer-events:none;
-    box-shadow:0 6px 18px rgba(0,0,0,.28)}
+    box-shadow:0 6px 22px var(--float-shadow)}
   .stip.on{display:block}
   .stip .cmd{font-family:ui-monospace,Menlo,monospace;font-size:11px;margin-top:3px;overflow-wrap:anywhere}
   .stip .tw{margin-top:4px;color:var(--stip-warn)}

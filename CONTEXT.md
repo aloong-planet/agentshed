@@ -109,7 +109,7 @@ _Avoid_: treating the two times as one; "unifying them while we're here" (tests 
 
 **Session**:
 One conversation record on an agent side, uniquely identified by the absolute path of its source
-file. Where a side stores a session as a **directory** rather than a single file, that identity is
+file (the interface calls it the session's record file). Where a side stores a session as a **directory** rather than a single file, that identity is
 the one file inside it that carries the conversation, the tool calls and the per-turn usage together
 — the authoritative stream (ADR-0019). The directory's other files are not sessions of their own,
 and a child session stored beside its parent rather than beneath it is still a subagent, judged by
@@ -436,7 +436,9 @@ _Avoid_: beta mode, insider track, update track
   hook watches for the events that invalidate a measured position. What the hook deliberately leaves
   to each layer is *computing coordinates* — one flips above/below its button, one right-aligns using
   its own rendered width, one clamps against the window edge, and folding those together would need a
-  parameter per difference.
+  parameter per difference. A hover tooltip on that surface takes the surface's one tooltip form — the chart
+  tooltip's fixed dark ground — rather than a look of its own (settled 2026-10-28, when a second tooltip
+  arrived): two hand-written copies of one look drift apart, as the surface's own two copies once did.
 
   **Scrolling dismisses — except the layer's own. A resize is the caller's choice.** Dismiss for a
   layer being glanced at (a hover tooltip, gone the moment the pointer moves); reposition for one the

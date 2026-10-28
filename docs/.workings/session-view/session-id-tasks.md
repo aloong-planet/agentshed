@@ -43,7 +43,9 @@ prototype are the authority.
   review-tests.md and the sections below
 - [x] T10 Spec final check
 - [x] T11 Step 7: archive
-- [ ] T12 Step 8: /features-catalog
+- [x] T12 Step 8: /features-catalog — the feature entry, its index row and both READMEs updated; the regression in
+  final-regression.md; two prototype differences ruled by the owner (the app's look kept, the prototype redrawn);
+  `resumeCommand` keyed by every side (review-code.md, F3)
 - [ ] T13 Full verification, delivery (PR)
 
 ## Targeted verification (T6), 2026-10-28, on the working tree before the implementation commit

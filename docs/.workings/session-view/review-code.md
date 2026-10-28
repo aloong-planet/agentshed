@@ -119,3 +119,12 @@ step 8's cross-check.
 
 Item 1 (product code changed by the fixes, against its spec text): not applicable — the fixes for F1-F6 change tests,
 the spec's testing decisions and the working records only; no product code.
+
+## Found in step 8 (2026-10-28)
+
+- F3 (fixed): `resumeCommand` chose the tool by a ternary whose last branch was Grok's, so a side added later would
+  silently get `grok --resume`. The review had exempted the per-side switches as mirroring the existing dispatch; that
+  exemption was wrong for a fallthrough that gives another side's tool. Now a record keyed by every side, so a new side
+  fails the typecheck until it has a command. `sessionIdFromPath` keeps its null fallback on purpose: a side it does
+  not know shows the unavailable form, never another side's ID. Class check: the other per-side code written this round
+  (the engine's three branches, each returning that side's own value) has no fallthrough to another side.

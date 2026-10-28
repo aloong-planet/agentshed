@@ -114,6 +114,24 @@ sessions, one per row, with "how many questions I asked in this conversation".
   like any other; opening it or expanding a turn takes a moment longer on a very large one (a fraction
   of a second on the largest here), and no more memory than the part being shown
 - A project with no sessions at all gets an empty state
+- **Picking a conversation back up in its own tool**: every session belongs to one agent side, and the
+  session page's header shows the ID that side gives it, at the end of the volume line. Three buttons
+  at the right of the title copy the ID, show the session's record file in Finder (selected there),
+  and copy a resume command — one line that changes into the project's directory and resumes the
+  session in its side's own command-line tool (`claude --resume`, `codex resume` or `grok --resume`,
+  followed by the ID). The directory is always quoted, and an ID with any unusual character is too, so
+  pasting the line runs exactly that and nothing else
+- **Each button names itself the moment the pointer or the keyboard reaches it**; the resume button's
+  tooltip also shows the whole command it copies. A copy turns that button into a check and its tooltip
+  into "Copied" for a moment; a copy made just before jumping to a fork's parent stays with its own page
+- For a stale project's session (reached from global search), the command is still copied, and its
+  tooltip warns that the project directory no longer exists, so the command's change of directory will
+  fail
+- A session whose ID cannot be read says "Session ID unavailable"; its copy and resume buttons are
+  greyed out and say why, while showing the record file still works. A page restored from the last run
+  before session IDs were kept shows this form for a Codex session until the page is refreshed
+- If the record file has gone by the time Finder is asked to show it, or the clipboard refuses a copy,
+  an error notice says so and nothing else changes
 
 ## Boundaries and non-goals
 - A session page left open while Codex compresses its file loses that file: the page itself shows an
@@ -134,6 +152,13 @@ sessions, one per row, with "how many questions I asked in this conversation".
   the parent outside scan scope the replayed span cannot be checked entry by entry, and the only
   available judgement is "were these written at almost the same moment". This is a deliberate
   trade-off — the other direction silently drops real questions, and that is invisible
+- The product only copies the command and asks Finder to show the file: it never runs a command, opens a
+  terminal, or resumes a session inside an agent's own app or editor extension, and it does not check
+  whether the agent's command-line tool is installed — a missing one is the shell's to report. What a
+  resume then does is the agent's own business: an archived Codex session asks to be unarchived first,
+  and a Codex conversation the agent wrote in several record files shows the same ID on each of them
+- The session ID and its buttons appear on the session page only, not on the session rows, the overview
+  card or global search hits
 - Text an agent tool writes into a session as if you had typed it is shown as a question: the summary
   written after a context compaction, a message from a subagent or another session, Codex's own
   context blocks. It is listed and counted, titles the session when it comes first, and is found by
