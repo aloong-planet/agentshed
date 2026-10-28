@@ -913,8 +913,12 @@ Applies to: opening an Antigravity session, expanding its turns and searching it
 - session-view::REQ-004/AC-08: A conversation whose transcript is missing — the empty conversation agy
   creates has none (measured) — has no question. A line that will not parse is skipped without
   discarding the rest of the file.
-- session-view::REQ-004/AC-09: A listed session's transcript path enters the read allow-list (R1);
-  the transcripts of subagent conversations do not.
+- session-view::REQ-004/AC-09: A listed session enters the read allow-list (R1) by its database's path, the
+  session's identity, and its transcript is read only through that entry: the main process derives the transcript's
+  path from the admitted database path and never takes one from the renderer. A subagent conversation's database is not
+  on the list, so neither it nor its transcript can be read or shown. (Written back 2026-10-29: the list holds the
+  identities every channel is given, which is also what keeps Finder from ever being handed a transcript,
+  session-view::US-001/AC-07.)
 
 ### session-view::REQ-005 Antigravity forks
 
@@ -960,6 +964,18 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
 - Introduced content: agy's prose holds markdown links to workspace files (`file://…`, in 10 of the 44
   assistant lines measured). Prose renders as text on every side, so they show as written and nothing
   in them can be clicked; no navigation surface is added. Titles from agy's summaries render as text.
+- A rewind back to a step inside a turn rather than to a question (not observed; the measured rewind went back to a
+  question): the undone lines stay inside that turn's byte range and are not shown when it opens. A project's
+  full-text search still counts a hit in them as a hit of that turn — the one place an undone line can be found
+  (written back 2026-10-29).
+- A subagent that sends more than one message back within its dispatch's turn: the return shows them in order
+  (written back 2026-10-29).
+- agy's summaries not there, or not in the shape titles are read from: every title falls back to the first question.
+  A read that fails while agy writes them keeps the titles last read. agy titles a conversation after its first
+  reply, without the conversation's own files changing: the title appears at the next scan, the summaries being read
+  at every one (written back 2026-10-29).
+- The fork pill on an Antigravity row says the copied history was stripped, rather than a replayed prefix — a copy
+  variant of the drawn pill (written back 2026-10-29).
 
 ## Implementation Decisions
 
@@ -1097,6 +1113,22 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
 - **Icons and copy**: FolderOpen and SquareTerminal join the icon module from Lucide's source; the
   labels, tooltips, the no-ID form and the two failure messages are new dictionary entries in both
   languages, Chinese first; "Copied" reuses the stale note's entry, a synonymous action.
+- **The Antigravity CLI side** (session-view::REQ-003 to REQ-005, landed 2026-10-29): the per-file aggregate of a
+  conversation carries, beside its calls, what its database says of it as a session — its own id as its trajectory
+  table records it, whether it is a subagent, its largest step time, and for a fork the source of its last copied step
+  — and its transcript's question index, built in the same parse (on the parse workers). The entry's signature adds
+  the transcript's modification time and size to the database's, so a transcript agy appended to is indexed again
+  (C4); the cache structure version moves with the shape. agy's titles are read from its summaries database once per
+  scan under token-stats::CON-002, keyed by the conversation's own id, not kept in the per-file entry. A session's
+  byte ranges are read from its read source — the session file, or a conversation's transcript, derived from the
+  admitted path by one function of the path, so the page and turn handlers take the source's identity before the
+  index is consulted, as before. The page's byte figure is the database's size, the record file's. The rewind rule is
+  read as: a line is undone exactly when a later line's step index is not greater than its own (equivalent to
+  session-view::REQ-004/AC-03 whenever an earlier line carries the redo's index; a line without a step index is neither
+  a redo nor undone). A turn runs to the next kept question, less a trailing run of undone lines; undone lines inside it
+  — always followed by their redo within the same range — are dropped by the block assembler applying the same rule to
+  the range, and the turn's call counts include kept lines only. A question's text is the request body normalised by
+  the shared normaliser; the other harnesses' noise shapes are not stripped from it.
 
 ## Testing Decisions
 

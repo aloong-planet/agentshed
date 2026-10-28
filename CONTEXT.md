@@ -126,7 +126,10 @@ file (the interface calls it the session's record file). Where a side stores a s
 the one file inside it that carries the conversation, the tool calls and the per-turn usage together
 — the authoritative stream (ADR-0019). The directory's other files are not sessions of their own,
 and a child session stored beside its parent rather than beneath it is still a subagent, judged by
-what the record says it is and never by how deep it sits. **A record containing no real human question at all (a warmup session the agent opened by
+what the record says it is and never by how deep it sits. On the Antigravity CLI side the session is a conversation's
+database, which holds its usage, while its questions and turns are in a transcript agy keeps in another directory: the
+session is identified, listed, admitted for reading and shown in Finder by its database, and its transcript is read
+only through it (ADR-0037). **A record containing no real human question at all (a warmup session the agent opened by
 itself, or a pure-replay fork verified to have been stripped empty) does not count as a browsable
 session**, and does not enter the list — but its tokens still count, the same rule as subagents.
 Its "last activity time" is **the largest timestamp inside the file** (same meaning on every side;
@@ -178,8 +181,8 @@ _Avoid_: cross-project search; session search (bare — a project's own search i
 
 **Turn**:
 Everything recorded from one real question up to the next (assistant prose, tool calls and returns,
-subagent dispatches). A turn is identified by a **byte range** in the source file; fetching one on
-demand reads only that range and is independent of total file size. Turn contents are normalised
+subagent dispatches). A turn is identified by a **byte range** in the source file (an Antigravity CLI conversation's transcript, see
+"Session"); fetching one on demand reads only that range and is independent of total file size. Turn contents are normalised
 through a common block model (prose / thinking / reasoning / tool / subagent / unknown-trace) for
 rendering; unknown types outside the display allow-list leave a trace and are never silently dropped.
 _Avoid_: message pair, question-answer pair
