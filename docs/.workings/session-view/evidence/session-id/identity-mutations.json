@@ -1,0 +1,43 @@
+{
+ "text": {
+  "build": 0,
+  "reached": true,
+  "test": 1,
+  "lines": [
+   "  ✘  1 e2e/startup-restore.spec.ts:9:1 › restart restores viewed project, questions and read answer before a new scan finishes (25.8s)",
+   "    Error: the saved question never shows the rewritten answer",
+   "    Expected value: not \"Saved question → Fresh answer\"",
+   "    Received array:     [\"Saved question → Saved answer\", \"Saved question → Fresh answer\", \"Fresh question → Fresh answer\"]",
+   "    > 192 |     expect(pairs, 'the saved question never shows the rewritten answer').not.toContain('Saved question → Fresh answer')",
+   "  1 failed"
+  ]
+ },
+ "range": {
+  "build": 0,
+  "reached": true,
+  "test": 1,
+  "lines": [
+   "  ✘  1 e2e/startup-restore.spec.ts:9:1 › restart restores viewed project, questions and read answer before a new scan finishes (27.1s)",
+   "    Error: expect(received).toContain(expected) // indexOf",
+   "    Expected substring: \"session-not-indexed\"",
+   "    Received string:    \"[{\\\"kind\\\":\\\"text\\\",\\\"role\\\":\\\"assistant\\\",\\\"at\\\":1793193180111,\\\"body\\\":\\\"Fresh answer\\\"}]\"",
+   "    > 209 |     expect(await turn(first(current))).toContain('session-not-indexed')",
+   "  1 failed"
+  ]
+ },
+ "both": {
+  "build": 0,
+  "reached": true,
+  "test": 1,
+  "lines": [
+   "  ✘  1 e2e/startup-restore.spec.ts:9:1 › restart restores viewed project, questions and read answer before a new scan finishes (25.9s)",
+   "    Error: the saved question never shows the rewritten answer",
+   "    Expected value: not \"Saved question → Fresh answer\"",
+   "    Received array:     [\"Saved question → Saved answer\", \"Saved question → Fresh answer\", \"Fresh question → Fresh answer\"]",
+   "    > 192 |     expect(pairs, 'the saved question never shows the rewritten answer').not.toContain('Saved question → Fresh answer')",
+   "  1 failed"
+  ]
+ },
+ "identical": true,
+ "rebuild": 0
+}

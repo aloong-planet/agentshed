@@ -140,3 +140,15 @@ prototype are the authority.
   (SessionActions, SessionPane, UpdateSlot, FloatingBox, App) enumerated — em dashes and an ellipsis in comments, and the
   meta line's ' · ' separator, which icons.tsx's header names as typography, not an icon. None found; the app beyond
   these files was not enumerated this round.
+
+## Owner-requested increment (2026-10-28)
+
+The owner, after PR #321 opened: fix both findings outside the change in this change, and after the fix run only the
+relevant tests, not the full e2e suite.
+
+- [x] T14 The page handler's question identity pinned (session-view::REQ-001/AC-04): the restart case's rewrite keeps
+  the question's length and an observer forbids the saved question over the rewritten answer; a question moved
+  without change is refused its old identity at the turn channel. Design in review-tests.md (owner-requested
+  increment); each argument dropped at both call sites turns the case red (`evidence/session-id/identity-mutations.json`)
+- [x] T15 The settings prototype's update tooltip drawn with the app's shadow (`evidence/session-id/settings-tip.json`)
+- [ ] T16 Independent incremental test check, step 8 addendum, targeted verification (owner: no full e2e), PR update

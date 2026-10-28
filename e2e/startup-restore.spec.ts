@@ -145,8 +145,7 @@ test('restart restores viewed project, questions and read answer before a new sc
       try { await window.agentshed.revealSessionFile(f); return 'shown' } catch { return 'refused' }
     }, file)
     // The file is moved aside and back by rename, so it keeps its inode: the case's later steps, the in-place rewrite
-    // among them, run on the setup they had before this check. (That rewrite does not pin the page handler's byte
-    // ranges and text in the question identity: the held scan's snapshot refetches every turn when it completes.)
+    // among them, run on the setup they had before this check.
     const session = join(cdir, 'saved.jsonl'), aside = join(home, 'saved-aside.jsonl')
     const inode = statSync(session).ino
     renameSync(session, aside)
@@ -158,15 +157,59 @@ test('restart restores viewed project, questions and read answer before a new sc
     expect(statSync(session).ino, 'the session file is back under its own inode').toBe(inode)
     expect(await reveal(session)).toBe('shown')
     expect(await revealed()).toEqual([session])
+    // An old question never shows a new answer after an in-place rewrite (session-view::REQ-001/AC-04). When the held
+    // scan completes, its snapshot refetches the open turn with the saved page's question identity while the page
+    // itself waits out the fetch delay, so for that second the list shows the saved question over whatever the turn
+    // channel accepts. The rewrite keeps the question line's length, so its byte range is the same and only its text
+    // tells it from the saved one. An observer, installed while the scan is still held, records every question row
+    // the list shows with its open turn's answer.
+    await win.evaluate(() => {
+      const g = globalThis as unknown as { __pairs: string[] }
+      g.__pairs = []
+      const record = (): void => {
+        for (const row of document.querySelectorAll('.qlist .q')) {
+          const turn = row.nextElementSibling
+          if (!turn?.classList.contains('turn')) continue
+          const answer = [...turn.querySelectorAll('.ans')].map((a) => a.textContent).join(' | ')
+          const pair = `${row.querySelector('.txt')?.textContent ?? ''} → ${answer}`
+          if (!g.__pairs.includes(pair)) g.__pairs.push(pair)
+        }
+      }
+      record()
+      new MutationObserver(record).observe(document.body, { subtree: true, childList: true, characterData: true })
+    })
     expect(await hint.getAttribute('data-state')).not.toBe('ready')
     const source = join(cdir, 'saved.jsonl')
-    writeFileSync(source, readFileSync(source, 'utf8').replaceAll('Saved question', 'Rewritten question').replaceAll('Saved answer', 'Rewritten answer'))
+    writeFileSync(source, readFileSync(source, 'utf8').replaceAll('Saved question', 'Fresh question').replaceAll('Saved answer', 'Fresh answer'))
     // The complete saved page remains usable until a current mapping arrives.
     await expect(win.locator('.turn .ans')).toHaveText(['Saved answer'])
-    await expect(win.locator('.stitle')).toHaveText('Rewritten question', { timeout: 25000 })
-    await expect(win.locator('.turn .ans')).toHaveText(['Rewritten answer'])
+    await expect(win.locator('.stitle')).toHaveText('Fresh question', { timeout: 25000 })
+    await expect(win.locator('.turn .ans')).toHaveText(['Fresh answer'])
     await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
+    const pairs = await win.evaluate(() => (globalThis as unknown as { __pairs: string[] }).__pairs)
+    expect(pairs, 'the observer read the saved page').toContain('Saved question → Saved answer')
+    expect(pairs, 'the observer read the rewritten page').toContain('Fresh question → Fresh answer')
+    expect(pairs, 'the saved question never shows the rewritten answer').not.toContain('Saved question → Fresh answer')
     await win.screenshot({ path: 'docs/.workings/startup-restore/session-refreshed.png' })
+    // A question moved without changing its line (one line put before it, a record shape seen before the first
+    // question of a real Claude Code file) changes the question mapping, so the identity read before the move is
+    // refused (session-view::REQ-001, opening restored content). Asserted at the turn channel: on screen the moved
+    // question would show its own answer either way. The page re-read after the move gives an identity the channel
+    // accepts, so the refusal is the identity's.
+    const turn = (revision: string): Promise<string> => win.evaluate(async ([file, r]) => {
+      try { return JSON.stringify((await window.agentshed.getSessionTurn({ file, i: 0, revision: r })).blocks) } catch (e) { return String((e as Error).message) }
+    }, [source, revision] as const)
+    const first = (p: { questions: { revision?: string }[] }): string => {
+      const revision = p.questions[0]?.revision
+      if (revision === undefined) throw new Error('the page gives its first question no identity')
+      return revision
+    }
+    const current = await win.evaluate(f => window.agentshed.getSessionPage(f), source)
+    writeFileSync(source, JSON.stringify({ type: 'permission-mode', permissionMode: 'default', sessionId: 'restore-session' }) + '\n' + readFileSync(source, 'utf8'))
+    expect(await turn(first(current))).toContain('session-not-indexed')
+    const moved = await win.evaluate(f => window.agentshed.getSessionPage(f), source)
+    expect(moved.questions.map(q => q.text)).toEqual(['Fresh question', 'Unread question'])
+    expect(await turn(first(moved))).toContain('Fresh answer')
     // A current detail listing retires the old exact artifact registration.
     unlinkSync(artifact)
     await win.evaluate(path => window.agentshed.getProjectDetail(path), proj)

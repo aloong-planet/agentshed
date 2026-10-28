@@ -684,3 +684,36 @@ rewrite" (line 65), as true as at 03ff1a2, since the case's rewrite steps are as
 session-id-tasks.md's new section, whose F7 bullet (95-98) agrees with the mutation and names no cause, and its AC-02 and R1
 rows (13, 25); `docs/features`, the other ADRs and `CONTEXT.md`, which state nothing the range changed. No finding is
 a product defect. This check changed nothing outside this section.
+
+## Owner-requested increment: the page handler's question identity (2026-10-28)
+
+After delivery the owner asked for the gap the F7 mutation showed to be closed in this change (no test pinned the
+byte range and text the page handler passes to the question identity, session-view::REQ-001/AC-04). Implementation
+version at the start of this increment: 7ff103f.
+
+### Test design table — the restart case, changed
+
+| # | Spec item | Seam | Input that drives the target branch | Assertion object and where its expected value comes from | Fixture shape source | Expensive resource and how provided |
+|---|---|---|---|---|---|---|
+| R-text (changed restart case) | session-view::REQ-001/AC-04 ("never show an old question with a new answer selected only by its former ordinal after the source has been rewritten") | the cross-process restart e2e the spec names for REQ-001 ("including … source rewrite") | in the second launch, its first scan held, the expanded saved question rewritten in place with text of the same byte length (`Saved question` → `Fresh question`, `Saved answer` → `Fresh answer`): the question line's start and end are unchanged, so only its text tells it from the saved one. The held scan's snapshot then refetches the expanded turn with the saved page's question identity while the page itself waits out the 1 s fetch delay | an in-page observer, installed while the scan is still held, records every pair of a question row's text and its open turn's answer text the list shows. The record holds `Saved question → Saved answer` (the state at install) and `Fresh question → Fresh answer` (the end state, so the observer ran through the change) and never `Saved question → Fresh answer`. Expected values: AC-04's words and the fixture's literals | the case's existing Claude lines | the case's second launch; nothing added |
+| R-range (added to the restart case) | session-view::REQ-001, "Failure modes and boundaries: opening restored content", first item ("invalidate saved turn identities if the underlying question mapping changed"); AC-04 | the turn channel, as the renderer calls it (the case already reads `readArtifact` and `revealSessionFile` this way) | after the rewritten page is current, the question's identity is read from the page channel; then one line is put before the question, so the question moves while its line stays the same byte for byte. The line is a `permission-mode` record, a shape a real Claude Code file on this machine has before its first question (one file read, 2026-10-28) | the turn channel refuses the identity read before the move with `session-not-indexed`; the page re-read after the move lists the same question texts, and its identity fetches the turn with `Fresh answer`, so the refusal is the identity's and not the call's. Expected values: the boundary's words and the fixture's literals | a real file's first-line shape, as above | the same launch; nothing added |
+
+### Design review of the two rows
+
+- Coverage: AC-04's rewrite is now pinned by its text alone (R-text keeps the range) and the changed mapping by its
+  range alone (R-range keeps the text). Dropping either argument at both call sites turns one of them red; dropping
+  both turns both red. The append case (an identity that survives appended questions) stays with
+  `source-identity.test.ts`, at the function, since appends do not change either argument.
+- Case design: R-text reads what the user sees, through a real snapshot and a real refetch; nothing is built by hand.
+  R-range reads the channel, because on screen a moved, unchanged question would show its own current answer either
+  way: the identity's refusal has no display of its own to assert.
+- False greens: R-text's negative assertion cannot pass on a silent observer, because the two positive pairs require
+  it to have read the list at install and after the change. R-range's refusal is paired with a positive control on
+  the same channel, in the same state.
+- Resource reuse: no launch and no build are added; both rows run inside the case's second launch.
+
+Mutation testing: by the project's capability declaration, mutation testing is not enabled, so it is skipped as a
+review dimension. The gap itself was found by a mutation, though, so the same mutation, and one for each argument
+alone, is run once as the gap's own evidence (below, after the implementation).
+
+No finding.

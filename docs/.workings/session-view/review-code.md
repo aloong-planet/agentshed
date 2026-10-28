@@ -128,3 +128,46 @@ the spec's testing decisions and the working records only; no product code.
   fails the typecheck until it has a command. `sessionIdFromPath` keeps its null fallback on purpose: a side it does
   not know shows the unavailable form, never another side's ID. Class check: the other per-side code written this round
   (the engine's three branches, each returning that side's own value) has no fallthrough to another side.
+
+## Owner-requested increment (2026-10-28)
+
+After delivery the owner asked for two findings outside the change to be fixed in it: the page handler's question
+identity arguments pinned by a test (session-view::REQ-001/AC-04), and the settings prototype's update tooltip drawn
+with the app's shadow. Implementation reviewed: the working tree on 7ff103f — `e2e/startup-restore.spec.ts` (the
+restart case) and `docs/prototypes/appearance/prototype-settings.html`. No product code changed.
+
+### ① Underlying premises — no finding
+
+- "The page waits out the fetch delay": the second launch sets `AGENTSHED_FETCH_DELAY_MS=1000`, and the page handler
+  waits it before reading (index.ts, the session page handler); the turn handler has no delay.
+- "The snapshot refetches the open turn": `invalidateOnSnapshot` covers `turnContent`, and the text mutation's run
+  shows the turn's new answer under the old row (`identity-mutations.json`), which only that refetch can produce.
+- "The rewrite keeps the question's byte range": a question record's first two fields are its line's start and end
+  (question-index.ts, the record's header), and the two texts are 14 bytes each. Confirmed by the run: with the text
+  dropped and the range kept, the old identity is accepted.
+- "The line put before the question is not a question": the moved page lists the same two texts (asserted).
+- The comment's "a record shape seen before the first question of a real Claude Code file": one file read on this
+  machine; the comment claims no more than that.
+
+### ② Runnability — no finding
+
+- The observer is installed before the existing check that the scan is still held, so the check proves it was in
+  place before the snapshot. It stays connected for the rest of the case; it only reads.
+- Under the unchanged code the turn channel refuses the old identity, so no new answer reaches the old row (the
+  passing run in `identity-targeted.log`); the two positive pairs are the state at install and the state the case
+  already waits for.
+- The two page reads add two delayed fetches to the case (about 2 s). Failure paths: an exception in the turn call is
+  returned as its message and compared, so a different error fails the `session-not-indexed` assertion rather than
+  passing it.
+
+### ③ Security — no finding
+
+Test and prototype only. The test's direct channel calls use the preload API the renderer uses, with paths the scan
+registered.
+
+### ④ Consistency — no finding
+
+The recorder follows the reveal recorder's pattern in the same case (`globalThis` cast, read back with `evaluate`). The
+comment over the inode swap no longer claims the rewrite pins nothing; the new comments say what each step pins and
+why the range is read at the channel. The prototype's note matches its head comment's language and dating; its value
+is the app's (`settings-tip.json`: 0 6px 22px at 0.18 light, 0.5 dark). Smell list: nothing touched.
