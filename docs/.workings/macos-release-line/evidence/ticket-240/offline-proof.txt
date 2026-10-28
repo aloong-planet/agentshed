@@ -1,0 +1,15 @@
+# offline proof, 2026-10-28T04:25:22Z
+$ ls -l ~/Downloads/Agentshed-0.1.0-beta.2-mac-arm64*.dmg
+-rw-r--r--@ 1 loong_zhou  staff  127729984 Oct 28 11:05 /Users/loong_zhou/Downloads/Agentshed-0.1.0-beta.2-mac-arm64.dmg
+$ xattr -p com.apple.quarantine "/Users/loong_zhou/Downloads/Agentshed-0.1.0-beta.2-mac-arm64.dmg"
+0281;6ae1668d;Chrome;44A5B432-3CAA-466E-92DB-2F5215C5E26A
+(exit 0)
+$ networksetup -getairportpower en0
+Wi-Fi Power (en0): On
+$ curl -sS -m 8 -o /dev/null https://api.apple-cloudkit.com/
+curl: (35) LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to api.apple-cloudkit.com:443 
+(exit 35: non-zero means Apple's ticket service was not reached)
+$ curl -sS -m 8 -o /dev/null https://www.apple.com/
+curl: (35) LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to www.apple.com:443 
+(exit 35)
+# done 2026-10-28T04:25:32Z

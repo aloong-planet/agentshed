@@ -630,3 +630,16 @@ The hand-back named findings 4 and 5; the record's Findings section holds the sa
   checklist's row for D9, the document sync checklist.
 
 Conclusion: no finding.
+
+## The records after the release (main agent, 2026-10-28)
+
+The records change on 92928ba (branch `docs/record-v0.1.0-beta.2`) changes `update-source.test.ts`'s header only: the
+condition of one gap (the restart, install on quit, the real package's signature check, the pre-release channel) is
+stated as met by routes 1 and 2. `change-scope.mjs` against c0da98a judges the test file `same` and everything else
+`inert`, exit 0 (`evidence/ticket-240/change-scope-records.txt`). By the post-implementation check's rule, a change
+that touches a test's comments and no test's executable content or data takes no further check, so none was run;
+the test design table is unchanged. The header's new statement is checked against the routes' evidence in the code
+review's third round (`ticket-240-review-code.md`), and the run before it is green
+(`evidence/ticket-240/pre-review-92928ba.txt`: 882 unit tests, the script, site and gate checks, smoke; its first
+attempt, `pre-review-92928ba-no-electron.txt`, failed at the smoke run because the new worktree's Electron binary was
+not installed, fixed by running Electron's install script, with no change to the tree).

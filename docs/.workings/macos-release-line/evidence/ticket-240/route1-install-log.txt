@@ -1,0 +1,111 @@
+# Route 1's install, from the unified log, info and debug levels included, captured at 2026-10-28 12:44:33 CST (the dump file's mtime)
+# ShipIt's signature checks run between "Beginning installation" (12:43:25.095) and the first move of the bundle (12:43:26.411).
+# Info-level lines age out of the log store within minutes, so this capture is their only record.
+$ /usr/bin/log show --start "2026-10-28 12:39:50" --style compact --info --debug --predicate 'process == "ShipIt" OR process == "Agentshed" OR (process == "syspolicyd" AND (eventMessage CONTAINS "RHQ28XS7D9" OR eventMessage CONTAINS[c] "agentshed"))'
+Timestamp               Ty Process[PID:TID]
+2026-10-28 12:43:25.029 Df ShipIt[63379:575a1ac] [com.apple.foundation.filecoordination:claims] Read options: 1 -- URL: <private> -- purposeID: 5D12606C-C2DD-4B2E-A5DA-D9A7DFD9D884 -- claimID: 08F0486B-12C1-4637-B6E6-6FE6B3CC52FA
+2026-10-28 12:43:25.035 Df ShipIt[63379:574ef4c] [com.apple.foundation.filecoordination:claims] Claim 08F0486B-12C1-4637-B6E6-6FE6B3CC52FA granted in client
+2026-10-28 12:43:25.035 Df ShipIt[63379:574ef4c] [com.apple.foundation.filecoordination:claims] Claim 08F0486B-12C1-4637-B6E6-6FE6B3CC52FA invoked in client
+2026-10-28 12:43:25.095 Df ShipIt[63379:575a1ac] Beginning installation
+2026-10-28 12:43:25.095 A  ShipIt[63379:574ef4c] (libsystem_info.dylib) Membership API: translate identifier
+2026-10-28 12:43:25.410 Df ShipIt[63379:575a1ac] [com.apple.xpc:connection] [0x805088000] activating connection: mach=true listener=false peer=false name=com.apple.security.syspolicy
+2026-10-28 12:43:25.419 A  ShipIt[63379:575a1ac] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.419 A  ShipIt[63379:575a1ac] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.420 Df ShipIt[63379:575a1ac] [com.apple.xpc:connection] [0x805088140] activating connection: mach=true listener=false peer=false name=com.apple.analyticsd
+2026-10-28 12:43:25.420 I  ShipIt[63379:575a1ac] [com.apple.CoreAnalytics:client] Daemon status changed from 0 to 1
+2026-10-28 12:43:25.420 A  ShipIt[63379:575a1ac] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.420 Df ShipIt[63379:575a1ac] [com.apple.securityd:keychain] Enabling System Keychain Always due to platform
+2026-10-28 12:43:25.420 Df ShipIt[63379:575a1ac] [com.apple.xpc:connection] [0x805088280] activating connection: mach=true listener=false peer=false name=com.apple.trustd.agent
+2026-10-28 12:43:25.421 A  ShipIt[63379:575a1ac] (Security) SecTrustSettingsXPCRead
+2026-10-28 12:43:25.422 A  ShipIt[63379:575a1ac] (Security) SecKeychainAddCallback
+2026-10-28 12:43:25.422 A  ShipIt[63379:575a1ac] (Security) SecTrustSettingsXPCRead
+2026-10-28 12:43:25.426 A  ShipIt[63379:575a1ac] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.427 A  ShipIt[63379:575a1ac] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1d4] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1ac] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1d6] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1d6] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1d6] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1ac] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1d4] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1ac] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1d4] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1d5] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1d5] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.438 A  ShipIt[63379:575a1d5] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d6] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d7] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d7] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d7] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d6] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d8] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d8] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d8] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d3] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.439 A  ShipIt[63379:575a1d3] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.440 A  ShipIt[63379:575a1d3] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.441 A  ShipIt[63379:575a1ac] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.441 A  ShipIt[63379:575a1ac] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.441 A  ShipIt[63379:575a1d4] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.441 A  ShipIt[63379:575a1d4] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.441 A  ShipIt[63379:575a1d5] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.442 A  ShipIt[63379:575a1d5] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.442 A  ShipIt[63379:575a1d7] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.442 A  ShipIt[63379:575a1d7] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.443 A  ShipIt[63379:575a1d8] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.443 A  ShipIt[63379:575a1d8] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.443 A  ShipIt[63379:575a1d3] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.444 A  ShipIt[63379:575a1d3] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.449 A  ShipIt[63379:575a1d0] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.449 A  ShipIt[63379:575a1d0] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.449 A  ShipIt[63379:575a1d0] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.450 A  ShipIt[63379:575a1d0] (Security) SecKeyVerifySignature
+2026-10-28 12:43:25.450 A  ShipIt[63379:575a1d0] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:25.693 Df ShipIt[63379:575a1d0] [com.apple.CoreAnalytics:client] Received configuration update from daemon (initial)
+2026-10-28 12:43:26.398 A  ShipIt[63379:575a1d3] (Security) SecKeyVerifySignature
+2026-10-28 12:43:26.398 A  ShipIt[63379:575a1d3] (Security) SecKeyVerifySignature
+2026-10-28 12:43:26.398 A  ShipIt[63379:575a1d3] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:26.399 A  ShipIt[63379:575a1d3] (Security) SecKeyVerifySignature
+2026-10-28 12:43:26.400 A  ShipIt[63379:575a1d3] (Security) SecTrustEvaluateIfNecessary
+2026-10-28 12:43:26.411 Df ShipIt[63379:575a1ac] Moving bundle from <private> to <private>
+2026-10-28 12:43:26.412 Df ShipIt[63379:575a1ac] Moving bundles directly as SquirrelMacEnableDirectContentsWrite is disabled for app: <private>
+2026-10-28 12:43:26.412 Df ShipIt[63379:575a1ac] Moved bundle contents from <private> to <private>
+2026-10-28 12:43:26.412 Df ShipIt[63379:575a1ac] Moving bundle from <private> to <private>
+2026-10-28 12:43:26.412 Df ShipIt[63379:575a1ac] Moving bundles directly as SquirrelMacEnableDirectContentsWrite is disabled for app: <private>
+2026-10-28 12:43:26.413 Df ShipIt[63379:575a1ac] Moved bundle contents from <private> to <private>
+2026-10-28 12:43:26.467 Df ShipIt[63379:575a1ac] Couldn't remove owned bundle at location <private>, error <private>
+2026-10-28 12:43:26.622 Df ShipIt[63379:575a1d3] On main thread and launching: <private>
+2026-10-28 12:43:26.622 Df ShipIt[63379:575a1d3] Bundle URL is valid
+2026-10-28 12:43:26.622 Df ShipIt[63379:575a1d3] Attempting to launch app on 11.0 or higher
+2026-10-28 12:43:26.622 Df ShipIt[63379:575a1d3] Launching new ShipIt at <private> with instructions to launch <private>
+2026-10-28 12:43:26.622 Df ShipIt[63379:575a1ac] Installation completed successfully
+2026-10-28 12:43:26.626 Df ShipIt[63379:575a1d3] New ShipIt pid: 83990
+2026-10-28 12:43:26.651 I  syspolicyd[522:57519ba] [com.apple.syspolicy.exec:default] Registered app bundle for protection: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: (null)), (bundle_id: (null))
+2026-10-28 12:43:26.651 Df syspolicyd[522:57519ba] [com.apple.syspolicy.exec:default] GK performScan: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: (null)), (bundle_id: (null))
+2026-10-28 12:43:26.651 I  syspolicyd[522:57519ba] [com.apple.syspolicy.exec:default] Skipping up front XProtect scan on: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: (null)), (bundle_id: (null))
+2026-10-28 12:43:27.927 I  syspolicyd[522:57519ba] [com.apple.syspolicy.exec:default] Skipping XProtect scan on seen software: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: (null)), (bundle_id: (null))
+2026-10-28 12:43:27.927 I  syspolicyd[522:57519ba] [com.apple.syspolicy.exec:default] GK scan complete: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: (null)), (bundle_id: (null)), 4, 4, 1
+2026-10-28 12:43:27.928 I  syspolicyd[522:57519ba] [com.apple.syspolicy.exec:default] scan finished, waking up any waiters: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-28 12:43:27.928 Df syspolicyd[522:575a25b] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 3, PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com), 0, 0, 1, 0, 4, 4, 1
+2026-10-28 12:43:27.928 I  syspolicyd[522:575a25b] [com.apple.syspolicy.exec:default] Skipping registration as it was already registered: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-28 12:43:27.947 Df syspolicyd[522:575a25b] [com.apple.syspolicy.exec:default] Found provenance data on target: TA(da308f333b894942, 2), PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-28 12:43:28.328 Df ShipIt[83990:575a226] [com.apple.xpc.bundle:] bundle /Applications/Agentshed.app/Contents/Frameworks/Squirrel.framework/Resources/ShipIt tainted with reason "missing executable"
+2026-10-28 12:43:28.333 Df ShipIt[83990:575a226] [com.apple.xpc.bundle:] bundle /Applications/Agentshed.app/Contents/Frameworks/Squirrel.framework/Resources/ShipIt tainted with reason "missing executable"
+2026-10-28 12:43:28.336 Df ShipIt[83990:575a226] Detected this as a launch request
+2026-10-28 12:43:28.343 Df ShipIt[83990:575a226] [com.apple.xpc:connection] [0x104bb63a0] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.quarantine-resolver
+2026-10-28 12:43:28.344 I  ShipIt[83990:575a226] [com.apple.launchservices:csui] Returning xpc_connection_t for CSUI; result=<xpc object>
+2026-10-28 12:43:28.344 I  ShipIt[83990:575a226] [com.apple.launchservices:csui] Returning xpc_connection_t for CSUI; result=<xpc object>
+2026-10-28 12:43:28.345 I  ShipIt[83990:575a226] [com.apple.launchservices:open] LAUNCH: Launching thru CoreServicesUIAgent with 0 items
+2026-10-28 12:43:28.345 A  ShipIt[83990:575a226] (LaunchServices) LaunchServices.launchViaCSUA
+2026-10-28 12:43:28.345 Df ShipIt[83990:575a226] [com.apple.launchservices:open] LAUNCH: Asking CSUI to launch 0 items
+2026-10-28 12:43:28.345 I  ShipIt[83990:575a226] [com.apple.launchservices:csui] Returning xpc_connection_t for CSUI; result=<xpc object>
+2026-10-28 12:43:28.443 Df ShipIt[83990:575a226] Successfully launched application at <private>
+2026-10-28 12:43:28.444 Df ShipIt[83990:575a226] ShipIt quitting
+2026-10-28 12:43:28.446 Df ShipIt[63379:575a1d3] ShipIt status 0
+2026-10-28 12:43:28.446 Df ShipIt[63379:575a1d3] New ShipIt exited
+2026-10-28 12:43:28.447 Df ShipIt[63379:575a1d3] [com.apple.CoreAnalytics:client] Entering exit handler.
+2026-10-28 12:43:28.447 Df ShipIt[63379:575a1d3] [com.apple.CoreAnalytics:client] Queueing exit procedure onto XPC queue. Any further messages sent will be discarded. activeSendTransactions=0
+2026-10-28 12:43:28.447 Df ShipIt[63379:575a1ac] [com.apple.CoreAnalytics:client] Cancelling XPC connection. Any further reply handler invocations will not retry messages
+2026-10-28 12:43:28.447 Df ShipIt[63379:575a1ac] [com.apple.xpc:connection] [0x805088140] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-10-28 12:43:28.447 Df ShipIt[63379:575a1d3] [com.apple.CoreAnalytics:client] Exiting exit handler.
+2026-10-28 12:43:28.447 Df ShipIt[63379:575a1d3] ShipIt quitting

@@ -458,11 +458,9 @@ Seams confirmed by the owner on 2026-10-13:
   main process installed and reads its label after a language switch. What the native menu actually
   draws is accepted by hand — a known gap, as for the rest of the menu (i18n).
 - **Not automatable, accepted by evidence**: the real electron-updater ↔ GitHub ↔ system-updater path,
-  channel selection on real releases, and install on quit. These are first verifiable once two
-  releases exist; channel selection for a formal-release installation, once a pre-release is published
-  after a formal release (Failure E3).
-
-  > Pending: two releases exist, so an installation of the first has been updated to the second.
+  channel selection on real releases, and install on quit, accepted on an installation of one release
+  updating to the next by each install route; channel selection for a formal-release installation, once
+  a pre-release is published after a formal release (Failure E3).
 
 Prior art: the rescan and scan-delay environment seams, the preference store's per-field cases, and the
 menu template's tests.

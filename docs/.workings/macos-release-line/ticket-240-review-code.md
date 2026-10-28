@@ -141,3 +141,56 @@ Conclusion: no finding.
   not speculative generality; `UpdaterLoad` names what it is. No other smell.
 
 Conclusion: no finding.
+
+## Third round: the records after the release (2026-10-28)
+
+- Version: the working tree on c0da98a, branch `docs/record-v0.1.0-beta.2` (`git diff c0da98a -- src docs/specs`)
+- Scope: `src/main/update-source.test.ts`'s header (one gap's condition stated as met; six comment lines, no code) and
+  the app-update spec's Testing Decisions (the Pending note's condition met, its sentence rewritten). The rest of the
+  change is records and evidence
+
+### Underlying premises
+
+- The header now says that the restart, install on quit without relaunch, the system updater's signature check on a
+  real package and channel selection for a pre-release installation are accepted by evidence from an installation of
+  one release that updated to the next by each install route. Each against the evidence: the restart from the ready
+  button (`route1-installed.txt`: a new process at 12:43:28 running 0.1.0-beta.2), install on quit with no launch
+  request (`route2-watch.txt`, `route2-who-launched.txt`), both of the system updater's checks passing on the
+  published package (`artifact-check.txt`'s designated-requirement check with its control; ShipIt's checks before the
+  move in `route1-install-log.txt` and `route2-install-log.txt`), and v0.1.0-beta offered v0.1.0-beta.2 on the real
+  feed (`route1-staged.txt`). The installs ran v0.1.0-beta's source, whose adapter differs from fa809ba's by the loader
+  only (the second round); the loader's own evidence stays D9's, which the header's first gap already names.
+- The spec's rewritten sentence says the same, without the ticket's evidence paths (a persistent document).
+- No other comment or statement claims a cause.
+
+Conclusion: no finding.
+
+### Runnability
+
+No code changes: every changed line in `src/` is a comment (`git diff -U0 -- src/`, each added and removed line
+beginning `// `). Nothing runs differently.
+
+Conclusion: no finding.
+
+### Security
+
+No code, credential or workflow changes.
+
+Conclusion: no finding.
+
+### Consistency
+
+- Finding R3-1, fixed in place: the rewritten clause pushed the header's eighth line to 137 characters, where the
+  comment wraps at about 115 (the file's longer lines are code). Lines 8–12 rewrapped at the block's width, the words
+  unchanged (checked by joining both versions). As a class (a rewritten line overrunning its block's wrap): every line
+  this round added to wrapped prose measured — the spec's three (at most 103, the paragraph's own lines reaching 106)
+  and the header's six (at most 116); none other overruns.
+- The header and the spec's Testing Decisions now agree (both state the condition as met by each install route), and
+  agree with the coverage checklist's rows of 2026-10-28.
+- The smells baseline: no code is introduced or touched, so none applies.
+
+Conclusion: one finding (R3-1), fixed.
+
+### Refactoring list
+
+None.
