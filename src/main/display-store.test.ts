@@ -109,6 +109,67 @@ it('restores a project detail saved before its memory carried the main file entr
   expect(restored.data.memory.main?.text).toBe('Saved main body')
 })
 
+// project-detail::REQ-002/AC-02 across an update: every project detail in this machine's display cache on 2026-10-29
+// (27 of them) holds `configs: { claudeMd, agentsMd, settingsSummary }`, the two files as contents with no path
+// ({ text, truncated } or null) and the summary as a string or null. They restore with each present file given its
+// path in the project — the only place the project's own two files live — and without the summary, until the live
+// read replaces them (the 2026-10-21 postmortem's rule). A malformed one is still dropped.
+it('restores a project detail saved before configuration entries carried their paths', () => {
+  const root = dir()
+  const saved = (path: string, configs: Record<string, unknown>) => ({ kind: 'projectDetail', path, data: {
+    path, skills: [], subagents: [], memory: { main: null, mainFile: null, topics: [] }, plugins: [], mcp: [],
+    configs, stats: null, artifacts: []
+  } })
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
+    ...emptyDisplayData(), reads: [
+      saved('/w/p', { claudeMd: { text: '# Saved conventions', truncated: false }, agentsMd: null, settingsSummary: '{\n  "allowedTools": []\n}' }),
+      saved('/w/q', { claudeMd: 7, agentsMd: null, settingsSummary: null })
+    ]
+  } }))
+  const reads = new DisplayStore(root).get().reads
+  expect(reads.map((r) => r.kind === 'projectDetail' && r.path)).toEqual(['/w/p'])
+  const restored = reads[0]
+  if (restored.kind !== 'projectDetail') throw new Error('expected the saved project detail')
+  expect(restored.data.configs).toEqual({
+    claudeMd: { file: '/w/p/CLAUDE.md', content: { text: '# Saved conventions', truncated: false } },
+    agentsMd: null
+  })
+})
+
+// agents-overview::REQ-004 across an update: the snapshot in this machine's display cache on 2026-10-29 holds
+// `global.claudeGlobalMd` and `global.codexAgentsMd` as contents with no path, and `global.codexConfigSummary`. The
+// main process knows where those two files are, so it restores them as the two entries' files, at its own paths,
+// and drops the summary. The parts of the snapshot this change does not touch come from the current type, so another
+// change to them cannot turn this case red for a reason that is not this one.
+it('restores a snapshot saved before configuration entries carried their paths, at the paths the main process gives', () => {
+  const root = dir()
+  const paths = { claudeMd: '/h/.claude/CLAUDE.md', codexAgentsMd: '/h/.codex/AGENTS.md' }
+  const savedSnapshot = (claudeGlobalMd: unknown, codexAgentsMd: unknown): unknown => {
+    const snap = emptySnapshot(77) as unknown as { global: Record<string, unknown> }
+    delete snap.global.claudeMd
+    delete snap.global.agentsMd
+    return { ...snap, global: { ...snap.global, claudeGlobalMd, codexAgentsMd,
+      codexConfigSummary: { model: 'gpt-5.5-codex', projectCount: 18, mcpCount: 2 } } }
+  }
+  const writeCache = (snapshot: unknown): void => writeFileSync(join(root, 'display-cache.json'),
+    JSON.stringify({ version: 1, data: { ...emptyDisplayData(), snapshot } }))
+
+  writeCache(savedSnapshot({ text: '# Global rules', truncated: false }, { text: '# Codex global', truncated: true }))
+  const restored = new DisplayStore(root, paths).get().snapshot
+  expect(restored?.scannedAt).toBe(77)
+  expect(restored?.global.claudeMd).toEqual({ file: '/h/.claude/CLAUDE.md', content: { text: '# Global rules', truncated: false } })
+  expect(restored?.global.agentsMd).toEqual([{ file: '/h/.codex/AGENTS.md', content: { text: '# Codex global', truncated: true } }])
+  for (const k of ['claudeGlobalMd', 'codexAgentsMd', 'codexConfigSummary']) expect(restored?.global).not.toHaveProperty(k)
+  // Without the paths (the preload's parse, which only ever sees what the main process already converted) the old
+  // shape cannot be completed, and is dropped rather than shown without its headings
+  expect(new DisplayStore(root).get().snapshot).toBeNull()
+
+  writeCache(savedSnapshot(null, null))
+  const none = new DisplayStore(root, paths).get().snapshot
+  expect(none?.global.claudeMd).toBeNull()
+  expect(none?.global.agentsMd).toEqual([])
+})
+
 // session-view::CON-003: session pages saved before the session ID was kept (the shape of the seven saved pages in
 // this machine's display cache on 2026-10-28 — no sessionId) restore with it filled in: a Claude Code or Grok page by
 // its path, a Codex page with none, so it shows the unavailable form until the live page replaces it. A malformed ID

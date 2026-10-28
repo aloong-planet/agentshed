@@ -70,25 +70,72 @@ export function validSavedRead(v: unknown): v is SavedRead {
   }
 }
 
+/** A file of a Configuration entry saved before entries carried their paths: its contents (or null, then absent),
+ * given the path it was read from. A malformed one stays malformed, for validation to drop. */
+const pathed = (file: string, saved: unknown): unknown => (saved === null ? null : { file, content: saved })
+
 /** A project detail saved before its memory carried the main file's entry restores with none listed; the live
- * read replaces it (ADR-0029's upgrade case; spec memory-view, Implementation Decisions). A session page saved
+ * read replaces it (ADR-0029's upgrade case; spec memory-view, Implementation Decisions). One saved before its
+ * configuration entries carried their paths — `configs` held the two files' contents and a settings summary —
+ * restores with each file at its place in the project, the only place the project's own two files live, and
+ * without the summary (project-detail::REQ-002/AC-02). A session page saved
  * before the session ID was kept restores with the ID its path holds — Claude Code's and Grok's — and none for
  * Codex, whose ID is in its record, until the live page replaces it (session-view::CON-003). Only an absent field
  * is filled in: a present but malformed one is left for validation to drop. */
 function upgradeSavedRead(v: unknown): unknown {
   if (!object(v) || !object(v.data)) return v
-  if (v.kind === 'projectDetail' && object(v.data.memory) && !('mainFile' in v.data.memory))
-    return { ...v, data: { ...v.data, memory: { ...v.data.memory, mainFile: null } } }
+  if (v.kind === 'projectDetail') {
+    let data: Record<string, unknown> = v.data
+    if (object(data.memory) && !('mainFile' in data.memory))
+      data = { ...data, memory: { ...data.memory, mainFile: null } }
+    if (object(data.configs) && 'settingsSummary' in data.configs && typeof data.path === 'string') {
+      const dir = data.path.endsWith('/') ? data.path : `${data.path}/`
+      data = { ...data, configs: {
+        claudeMd: pathed(`${dir}CLAUDE.md`, data.configs.claudeMd),
+        agentsMd: pathed(`${dir}AGENTS.md`, data.configs.agentsMd)
+      } }
+    }
+    return data === v.data ? v : { ...v, data }
+  }
   if (v.kind === 'sessionPage' && !('sessionId' in v.data) && typeof v.data.file === 'string' && AGENT_SIDES.has(String(v.data.side)))
     return { ...v, data: { ...v.data, sessionId: sessionIdFromPath(v.data.side as AgentSide, v.data.file) } }
   return v
 }
 
-/** Independent entries degrade independently; corrupt envelope metadata is handled by the store. */
-export function parseDisplayData(v: unknown): DisplayData {
+/** Where the two global configuration files a snapshot saved before entries carried their paths had been read from
+ * — `~/.claude/CLAUDE.md` and Codex's `~/.codex/AGENTS.md`. Only the main process knows them (its roots), so only
+ * its parse can restore that shape (agents-overview::REQ-004). */
+export interface SavedConfigPaths {
+  claudeMd: string
+  codexAgentsMd: string
+}
+
+/** A snapshot saved before configuration entries carried their paths held `claudeGlobalMd` and `codexAgentsMd` as
+ * contents and a `codexConfigSummary`: with the paths given, they become the two entries' files and the summary
+ * goes; the two agy files that version never read are not there until the live scan replaces it. Without the
+ * paths the old shape is left for validation to drop. */
+function upgradeSavedSnapshot(v: unknown, paths: SavedConfigPaths | undefined): unknown {
+  if (paths === undefined || !object(v) || !object(v.global)) return v
+  const old = v.global
+  if (!('claudeGlobalMd' in old) || !('codexAgentsMd' in old) || 'claudeMd' in old || 'agentsMd' in old) return v
+  const global: Record<string, unknown> = {
+    ...old,
+    claudeMd: pathed(paths.claudeMd, old.claudeGlobalMd),
+    agentsMd: old.codexAgentsMd === null ? [] : [pathed(paths.codexAgentsMd, old.codexAgentsMd)]
+  }
+  delete global.claudeGlobalMd
+  delete global.codexAgentsMd
+  delete global.codexConfigSummary
+  return { ...v, global }
+}
+
+/** Independent entries degrade independently; corrupt envelope metadata is handled by the store. `paths` is the
+ * main process's, for restoring a snapshot saved before configuration entries carried their paths. */
+export function parseDisplayData(v: unknown, paths?: SavedConfigPaths): DisplayData {
   const d = emptyDisplayData()
   if (!object(v)) return d
-  if (finiteNumbers(v.snapshot) && validateSnapshot(v.snapshot).ok && displaySnapshotValid(v.snapshot)) d.snapshot = v.snapshot as Snapshot
+  const snapshot = upgradeSavedSnapshot(v.snapshot, paths)
+  if (finiteNumbers(snapshot) && validateSnapshot(snapshot).ok && displaySnapshotValid(snapshot)) d.snapshot = snapshot as Snapshot
   if (Array.isArray(v.stats)) d.stats = v.stats.filter((p): p is [string, ProjectStats] =>
     Array.isArray(p) && p.length === 2 && path(p[0]) && finiteNumbers(p[1]) && validateProjectStats(p[1]).ok && displayStatsValid(p[1]))
   if (strings(v.sessionFiles)) d.sessionFiles = v.sessionFiles

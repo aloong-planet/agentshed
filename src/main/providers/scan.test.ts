@@ -14,6 +14,7 @@ function roots(overrides: Partial<ScanRoots> = {}): ScanRoots {
     claudeHome: join(dir, '.claude'),
     claudeConfigFile: join(dir, '.claude.json'),
     codexHome: join(dir, '.codex'),
+    geminiHome: join(dir, '.gemini'),
     grokHome: join(dir, '.grok'),
     agentsSkillsDir: join(dir, '.agents', 'skills'),
     ...overrides

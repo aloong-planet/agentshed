@@ -9,12 +9,13 @@ import type {
   GlobalSkill,
   McpServerEntry,
   PluginEntry,
-  SkillPkgStats, CodexConfigSummary } from '@shared/domain'
+  SkillPkgStats } from '@shared/domain'
+import type { SavedConfigPaths } from '@shared/display-data'
 import type { ScanRoots } from './types'
 import { readGlobalSubagents } from './subagents'
 import { readClaudePlugins, readCodexPlugins } from './plugins'
 import { readCodexMemoriesEnabled } from './memory'
-import { fmField, readCapped, readTextCapped } from './read-utils'
+import { fmField, readConfigFile, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
@@ -29,9 +30,8 @@ export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
     plugins,
     codexPlugins: readCodexPlugins(roots.codexHome),
     mcp: readGlobalMcp(roots, plugins),
-    claudeGlobalMd: readCapped(join(roots.claudeHome, 'CLAUDE.md')),
-    codexAgentsMd: readCapped(join(roots.codexHome, 'AGENTS.md')),
-    codexConfigSummary: summarizeCodexConfig(join(roots.codexHome, 'config.toml'))
+    claudeMd: readConfigFile(claudeMdPath(roots)),
+    agentsMd: globalAgentsMdPaths(roots).flatMap((file) => readConfigFile(file) ?? [])
   }
 }
 
@@ -172,14 +172,27 @@ function readGlobalMcp(roots: ScanRoots, plugins: PluginEntry[]): McpServerEntry
 
 // ── Read-only configuration ──
 
-/** Emits structured fields only; the renderer assembles the sentence (including quantifiers such as
- * "entries" and "sections") in the current language (ticket 07) */
-function summarizeCodexConfig(configFile: string): CodexConfigSummary | null {
-  const raw = readTextCapped(configFile)
-  if (raw === null) return null
-  return {
-    model: /^model\s*=\s*"(.+)"\s*$/m.exec(raw)?.[1] ?? null,
-    projectCount: raw.split('\n').filter((l) => /^\s*\[projects\."/.test(l)).length,
-    mcpCount: raw.split('\n').filter((l) => MCP_HEADER.test(l)).length
-  }
+/** The Configuration section's CLAUDE.md (agents-overview::REQ-004/AC-02) */
+const claudeMdPath = (roots: ScanRoots): string => join(roots.claudeHome, 'CLAUDE.md')
+const codexAgentsMdPath = (roots: ScanRoots): string => join(roots.codexHome, 'AGENTS.md')
+
+/**
+ * The global AGENTS.md files the Configuration section's AGENTS.md entry shows, in the order shown
+ * (agents-overview::REQ-004/AC-03): Codex's, then the two agy loads together, the root one first (measured with
+ * agy, ADR-0037). Only the ones a side was observed to load: Grok's is not read, there being no sample of it, and
+ * agy's GEMINI.md files and rules are read nowhere (AC-05) — the exclusion is by construction, as this is the only
+ * list.
+ */
+function globalAgentsMdPaths(roots: ScanRoots): string[] {
+  return [
+    codexAgentsMdPath(roots),
+    join(roots.geminiHome, 'AGENTS.md'),
+    join(roots.geminiHome, 'config', 'AGENTS.md')
+  ]
+}
+
+/** The two files a snapshot saved before configuration entries carried their paths had read, for restoring it
+ * (display-data's SavedConfigPaths) */
+export function savedConfigPaths(roots: ScanRoots): SavedConfigPaths {
+  return { claudeMd: claudeMdPath(roots), codexAgentsMd: codexAgentsMdPath(roots) }
 }

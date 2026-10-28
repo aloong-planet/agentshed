@@ -57,6 +57,14 @@ function isCapped(v: unknown): boolean {
 function isAppErr(v: unknown): boolean {
   return isRecord(v) && typeof v['code'] === 'string' && isRecord(v['params'])
 }
+/** ConfigFile: { file: non-empty string; content: CappedText | null } — a Configuration entry's file, whose path the
+ * renderer shows as its heading (agents-overview::REQ-004, project-detail::REQ-002/AC-02) */
+function configFileFailure(v: unknown, at: string): ValidateResult | null {
+  if (!isRecord(v)) return failType(at, 'ConfigFile')
+  if (typeof v['file'] !== 'string' || v['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
+  if (v['content'] !== null && !isCapped(v['content'])) return failType(`${at}.content`, 'CappedText|null')
+  return null
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -100,12 +108,12 @@ export function validateSnapshot(v: unknown): ValidateResult {
   for (const arr of ['skills', 'subagents', 'memory', 'plugins', 'codexPlugins', 'mcp'] as const) {
     if (!Array.isArray(g[arr])) return failType(`global.${arr}`, 'array')
   }
-  for (const capped of ['claudeGlobalMd', 'codexAgentsMd'] as const) {
-    if (g[capped] !== null && !isCapped(g[capped]))
-      return failType(`global.${capped}`, 'CappedText|null')
+  if (g['claudeMd'] !== null) {
+    const r = configFileFailure(g['claudeMd'], 'global.claudeMd')
+    if (r) return r
   }
-  if (g['codexConfigSummary'] !== null && !isRecord(g['codexConfigSummary']))
-    return failType('global.codexConfigSummary', 'object|null')
+  const agentsMd = eachOf(g['agentsMd'], 'global.agentsMd', (f, at) => configFileFailure(f, at))
+  if (agentsMd) return agentsMd
   if (typeof g['codexMemoriesEnabled'] !== 'boolean')
     return failType('global.codexMemoriesEnabled', 'boolean')
 
@@ -530,9 +538,11 @@ export function validateProjectDetail(v: unknown): ValidateResult {
   const cfg = v['configs']
   if (!isRecord(cfg)) return failType('detail.configs', 'object')
   for (const k of ['claudeMd', 'agentsMd'] as const) {
-    if (cfg[k] !== null && !isCapped(cfg[k])) return failType(`detail.configs.${k}`, 'CappedText|null')
+    if (cfg[k] !== null) {
+      const r = configFileFailure(cfg[k], `detail.configs.${k}`)
+      if (r) return r
+    }
   }
-  if (!strOrNull(cfg['settingsSummary'])) return failType('detail.configs.settingsSummary', 'string|null')
 
   const artifacts = eachOf(v['artifacts'], 'detail.artifacts', (a, at) => {
     if (!ARTIFACT_TYPES.has(a['type'] as string)) return failEnum(`${at}.type`, a['type'])

@@ -1181,6 +1181,28 @@ body {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+/* A Configuration entry's file is headed by its path (agents-overview::REQ-004, project-detail::REQ-002/AC-02);
+   the AGENTS.md entry can hold several files in one card, each after a rule. A class of its own: it is a chrome
+   line inside a card that carries rendered markdown, and a descendant selector would reach the rendered body
+   (CONTEXT, "Rendered markdown goes through one carrier and one rule set"). Long paths wrap inside the card. */
+.cfg-path {
+  font-size: 11px;
+  color: var(--text-2);
+  margin: 16px 0 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.cfg-path:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+/* "None", and an unreadable file's sentence, sit inside the Configuration card as the prototypes draw them: the
+   empty-state line without a frame of its own, the card being the frame */
+.cfg-files > .none {
+  border: 0;
+}
 .md {
   background: var(--card);
   border: 1px solid var(--line);

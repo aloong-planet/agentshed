@@ -11,6 +11,10 @@ export interface ScanRoots {
   claudeConfigFile: string
   /** Codex's data root (production: ~/.codex; the registry is in its config.toml) */
   codexHome: string
+  /** The directory holding Antigravity CLI's data root (antigravity-cli/) and the configuration it loads
+   * (config/) — production: ~/.gemini (ADR-0037). Named for the directory, which Gemini CLI also uses; this
+   * product reads it for the Antigravity CLI side only */
+  geminiHome: string
   /** Grok's data root (production: ~/.grok; the registry is its trusted_folders.toml, ADR-0019) */
   grokHome: string
   /** The Codex / shared global skills directory (production: ~/.agents/skills) */

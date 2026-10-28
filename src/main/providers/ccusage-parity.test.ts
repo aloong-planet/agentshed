@@ -80,6 +80,7 @@ describe.skipIf(!run)('ccusage reconciliation', () => {
       claudeHome: join(home, '.claude'),
       claudeConfigFile: join(home, '.claude.json'),
       codexHome: join(home, '.codex'),
+      geminiHome: join(home, '.gemini'),
       grokHome: join(home, '.grok'),
       agentsSkillsDir: join(home, '.agents', 'skills')
     }

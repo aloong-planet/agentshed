@@ -76,8 +76,6 @@ export const en: Locale = {
   },
 
   skillDeepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
-  codexConfig: (model, projects, mcp) =>
-    `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   agents: {
     sideSummary: (projects, skills, subagents) =>
       `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })} · ${skills} global ${plural('en', skills, { one: 'skill', other: 'skills' })} · ${subagents} ${plural('en', subagents, { one: 'subagent', other: 'subagents' })}`,
@@ -99,9 +97,12 @@ export const en: Locale = {
     srcGlobalConfig: 'global config', srcPlugin: 'bundled with plugin',
     globalMcp: 'Global MCP',
     noGlobalMcp: 'No global MCP (project-level .mcp.json belongs to the project details)',
-    noMcpSection: 'config.toml has no mcp_servers section',
-    cfgClaudeMd: 'Global CLAUDE.md', cfgAgentsMd: 'Global AGENTS.md', cfgToml: 'config.toml summary',
-    tomlMissing: 'config.toml does not exist', fileMissing: 'File does not exist'
+    noMcpSection: 'config.toml has no mcp_servers section'
+  },
+
+  config: {
+    none: 'None',
+    unreadable: 'The file cannot be read (permissions or I/O error)'
   },
 
   shell: {
@@ -333,10 +334,7 @@ export const en: Locale = {
     filterAll: 'All',
     noArtifacts: 'Nothing captured under the convention (not an eight-step project; not an error)',
     noArtifactsOfType: 'No artifacts of this type',
-    openInBrowser: 'HTML → browser',
-    settingsSummary: 'settings summary',
-    noSettings: 'No displayable settings under the project key',
-    fileMissing: 'File does not exist'
+    openInBrowser: 'HTML → browser'
   },
   projects: {
     searchPlaceholder: 'Search projects…',
@@ -388,7 +386,6 @@ export const en: Locale = {
     untitledSession: '(untitled session)',
     unknownTool: '(unknown tool)',
     unknown: '(unknown)',
-    notSet: 'Not set',
     codexGlobalMemory: '(Codex global memory)',
     truncated: '…(truncated)'
   },

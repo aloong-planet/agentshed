@@ -19,7 +19,7 @@ import { readArtifacts } from './artifacts'
 import { readEffectiveSubagents } from './subagents'
 import { readProjectMemory } from './memory'
 import { readProjectPlugins } from './plugins'
-import { fmField, readCapped, readTextCapped } from './read-utils'
+import { fmField, readConfigFile, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 /** G1 (the detail page's rule): the bundled skills of this project's effectively enabled plugins →
@@ -60,10 +60,11 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
     memory: readProjectMemory(roots, projectPath),
     plugins,
     mcp: readProjectMcp(roots, projectPath),
+    // project-detail::REQ-002/AC-02: the project's own two files, each with its path; the project's AGENTS.md
+    // is read by Codex and Antigravity CLI alike and is shown once
     configs: {
-      claudeMd: readCapped(join(projectPath, 'CLAUDE.md')),
-      agentsMd: readCapped(join(projectPath, 'AGENTS.md')),
-      settingsSummary: settingsSummary(roots, projectPath)
+      claudeMd: readConfigFile(join(projectPath, 'CLAUDE.md')),
+      agentsMd: readConfigFile(join(projectPath, 'AGENTS.md'))
     },
     stats: null,
     artifacts: readArtifacts(projectPath)
@@ -181,12 +182,7 @@ function readProjectMcp(roots: ScanRoots, projectPath: string): ProjectMcpEntry[
   }))
 }
 
-// ── Configuration ──
-
-/** The fields worth displaying from a project key in ~/.claude.json (statistics and internal markers are
- * not shown) */
-const SETTINGS_KEYS = ['allowedTools', 'enabledMcpjsonServers', 'disabledMcpjsonServers'] as const
-
+/** The project's key in ~/.claude.json (the source of the .mcp.json switches above) */
 function projectSettings(roots: ScanRoots, projectPath: string): Record<string, unknown> | null {
   try {
     const raw: unknown = JSON.parse(readFileSync(roots.claudeConfigFile, 'utf8'))
@@ -198,17 +194,6 @@ function projectSettings(roots: ScanRoots, projectPath: string): Record<string, 
   } catch {
     return null
   }
-}
-
-function settingsSummary(roots: ScanRoots, projectPath: string): string | null {
-  const s = projectSettings(roots, projectPath)
-  if (!s) return null
-  const picked: Record<string, unknown> = {}
-  for (const k of SETTINGS_KEYS) {
-    if (s[k] !== undefined) picked[k] = s[k]
-  }
-  if (Object.keys(picked).length === 0) return null
-  return JSON.stringify(picked, null, 2)
 }
 
 function asStringArray(v: unknown): string[] {
