@@ -8,7 +8,7 @@
 // is erased at compile time and never reaches a bundler.
 import type * as Sqlite from 'node:sqlite'
 
-const sqlite = process.getBuiltinModule('node:sqlite') as typeof Sqlite
+const sqlite = process.getBuiltinModule('node:sqlite')
 
 export const DatabaseSync = sqlite.DatabaseSync
 export type DatabaseSync = Sqlite.DatabaseSync

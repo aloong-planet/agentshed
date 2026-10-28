@@ -19,7 +19,8 @@ function malformed(what: string): Error {
   return new Error(`agy record: ${what}`)
 }
 
-/** A base-128 varint as a number (exact up to 2^53, which every field read here stays far below) */
+/** A base-128 varint as a number: exact up to 2^53. The one value read from a varint is nesting_depth, judged only as
+ * zero or not, which a loss of precision in a huge (or negative int32) value cannot change */
 function readVarint(c: Cursor): number {
   let value = 0
   let scale = 1
@@ -59,7 +60,8 @@ function* fieldsOf(buf: Uint8Array): Generator<Field> {
       if (c.pos + n > buf.length) throw malformed(`field ${field} runs past the end`)
       c.pos += n
     } else {
-      // Groups (3, 4) are proto2-only and absent from agy's descriptors; anything else is not protobuf
+      // Groups (3, 4): none of the 196 messages reachable from CortexTrajectoryMetadata declares one (agy 1.4.9's
+      // descriptors hold a single group field, elsewhere); 6 and 7 are not protobuf wire types at all
       throw malformed(`wire type ${wire}`)
     }
   }

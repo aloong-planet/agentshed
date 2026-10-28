@@ -85,7 +85,8 @@ function listing(d: string): string[] {
 }
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'agentshed-agy-'))
+  // A prefix of its own: the reader's temporary copies are 'agentshed-agy-…', and a leftover must not pass for a home
+  dir = mkdtempSync(join(tmpdir(), 'agentshed-agyhome-'))
 })
 afterEach(() => {
   for (const w of writers.splice(0)) w.close()

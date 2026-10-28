@@ -7,12 +7,13 @@
 //
 // **Reading writes nothing under agy's directories** (token-stats::CON-002). An ordinary read-only SQLite open of a
 // database in WAL mode leaves `-shm` and `-wal` files behind (measured 2026-10-28), so a database with no log beside
-// it is opened in place as immutable — SQLite then takes no lock and creates nothing — and one with a log (agy has it
-// open) is copied, log first, into a temporary directory of this application's own, read there, and the copy
-// removed. The log goes first so that agy merging it into the database between the two copies leaves a database copy
-// that already holds everything; a log gone before it could be copied means the merge is done, and the database alone
-// is the conversation.
-import { copyFileSync, constants, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+// it is opened in place as immutable — SQLite then takes no lock and creates nothing (measured 2026-10-29) — and one
+// with a log (agy has it open) is copied, log first, into a temporary directory of this application's own, read
+// there, and the copy removed. The log goes first for agy exiting between the two copies: its last connection merges
+// the log into the database before deleting it, so a log already gone means the database copied after it holds
+// everything. A checkpoint agy runs while it keeps writing could still land between the two copies (not observed; the
+// mechanism allows it): a read of such a pair that fails contributes nothing, and the next scan reads it again.
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -41,14 +42,14 @@ export function readConversationDb<T>(file: string, read: (db: DatabaseSync) => 
   try {
     const copy = join(dir, 'conversation.db')
     try {
-      // A clone where the volume can make one (APFS): no data is copied, and the snapshot is atomic
-      copyFileSync(`${file}-wal`, `${copy}-wal`, constants.COPYFILE_FICLONE)
+      copyFileSync(`${file}-wal`, `${copy}-wal`)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
     }
-    copyFileSync(file, copy, constants.COPYFILE_FICLONE)
-    // Read-write: the copy is this application's own, and only a writable connection can rebuild the log's index
-    // (the `-shm` file is not copied — it belongs to agy's running connection)
+    copyFileSync(file, copy)
+    // The copy is this application's own, so it is opened like any database. agy's `-shm` — the index its running
+    // connection keeps over the log — is not copied; SQLite builds the copy's own from the copied log (measured: a row
+    // only the log holds reads back)
     const db = new DatabaseSync(copy)
     try {
       return read(db)
