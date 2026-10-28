@@ -9,6 +9,12 @@
 // - agy exiting between the log's copy and the database's — the window the log-first order is for: the same kind of
 //   race, invisible after the read, and closed the same way.
 // - agy starting to write a database while it is read in place: the same race, the other way round.
+// - A checkpoint agy runs while it keeps writing, landing between the copy of the log and the copy of the database
+//   (token-stats failure modes; the mechanism allows it, not observed): the pair cannot be staged without a pause
+//   between the two copies, and an injectable step there would make it testable. What follows a failing read of such a
+//   pair — not counted, the last result kept, read again — is driven below through a copy that cannot be made.
+// - A conversation deleted between the walk's look at its signature and its read: no seam between the two. The rule it
+//   shares with the usage read (a database gone is no format change) is driven below through the usage read's window.
 // - A read killed half-way leaving its copy behind: killing the process is outside this seam. What the copy is left
 //   in — a directory only the user can read — is asserted while a read runs.
 // - Usage agy never writes to a database (the /btw side question, the Auto mode's command reviewer): there is nothing
@@ -538,6 +544,25 @@ describe('usage: each model call once (token-stats::REQ-003)', () => {
     expect(agyTotal(await build())).toBe(110 + 220 + 440 + 1100)
   })
 
+  it('a call carrying no identity counts once where it is, its model joined through the step its record names, and is never matched across databases (AC-01)', async () => {
+    const p = mkProject('p')
+    trust([p])
+    // No id at all (none of the 51 measured calls lacks one: a derived shape). Each call is still its step and the
+    // generator record naming that step, as agy writes them
+    usageConversation('conv-a', [p], [
+      { usage: { input: 100, output: 10 }, at: oct(26), model: 'gemini-3.6-flash' },
+      { usage: { input: 200, output: 20 }, at: oct(26), model: 'gemini-3.8-flash-n' }
+    ])
+    // Equal in every field to conv-a's first call: nothing says it is the same call
+    usageConversation('conv-b', [p], [{ usage: { input: 100, output: 10 }, at: oct(26), model: 'gemini-3.6-flash' }])
+    const r = await build()
+    expect(agyTotal(r)).toBe(110 + 220 + 110)
+    expect(r.global.byModel.map((m) => [m.model, m.total])).toEqual([
+      ['gemini-3.6-flash', 220],
+      ['gemini-3.8-flash-n', 220]
+    ])
+  })
+
   describe('a fork (AC-01, AC-06)', () => {
     // The parent: two calls and one generator record attached to no step. The fork holds a copy of all of it, as agy
     // copies the database — its copied steps and records name the parent (measured on the fork 8c07e920) — and one
@@ -610,6 +635,8 @@ describe('usage: each model call once (token-stats::REQ-003)', () => {
     })
     const r = await build()
     expect(agyTotal(r)).toBe(770 + 400)
+    // One row: the call and the 503 attempt share its day and model; the failed call adds none, not even a zero one
+    expect(agyRows(r).map((x) => [x.day, x.model, x.total])).toEqual([['2026-10-26', 'gemini-3.6-flash', 1170]])
     expect(r.antigravityUnreadable).toBe(0)
   })
 
@@ -760,6 +787,61 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     expect(agyTotal(await build())).toBe(330 + 1100)
   })
 
+  describe('a conversation deleted between the scan\'s listing and its read is not unreadable', () => {
+    function two(): string {
+      const p = mkProject('p')
+      trust([p])
+      usageConversation('stays', [p], [{ usage: { messageId: 'm-s', input: 100, output: 10 }, at: oct(26) }])
+      return usageConversation('goes', [p], [{ usage: { messageId: 'm-g', input: 1000, output: 100 }, at: oct(26) }])
+    }
+
+    it('deleted after the walk listed it: it leaves the figures in that scan', async () => {
+      const goes = two()
+      expect(agyTotal(await build())).toBe(1210)
+      const walked = walkSessions(roots())
+      rmSync(goes)
+      const r = await new TokenEngine(cacheDir()).build(roots(), [], undefined, walked)
+      expect([agyTotal(r), r.antigravityUnreadable]).toEqual([110, 0])
+    })
+
+    it('deleted while its read is under way: that scan keeps its last result, and the next leaves it out', async () => {
+      const goes = two()
+      expect(agyTotal(await build())).toBe(1210)
+      // Its time moves, so the next scan reads it again; the database goes just before that read
+      utimesSync(goes, new Date(), new Date())
+      const deleting: ParseRunner = {
+        run: (job) => {
+          if (job.kind === 'antigravity' && job.file === goes) rmSync(goes)
+          return runParseJob(job)
+        },
+        concurrency: 1
+      }
+      const during = await build(deleting)
+      expect([agyTotal(during), during.antigravityUnreadable]).toEqual([1210, 0])
+      const next = await build()
+      expect([agyTotal(next), next.antigravityUnreadable]).toEqual([110, 0])
+    })
+  })
+
+  it('an unreadable conversation agy then writes is not counted while its read fails, and counted again once agy closes it (AC-03)', async () => {
+    const p = mkProject('p')
+    trust([p])
+    usageConversation('good', [p], [{ usage: { messageId: 'm-g', input: 100, output: 10 }, at: oct(26) }])
+    const file = usageConversation('version-2', [p], [{ usage: { messageId: 'm-v1', input: 5000 }, at: oct(26) }], { userVersion: 2 })
+    const closed = await build()
+    expect([existsSync(`${file}-wal`), closed.antigravityUnreadable, agyTotal(closed)]).toEqual([false, 1, 110])
+    // agy, updated, writes on in its new format: a log appears beside the database
+    const writer = new DatabaseSync(file)
+    writers.push(writer)
+    insertSteps(writer, callRows('version-2', [{ usage: { messageId: 'm-v2', input: 6000 }, at: oct(26) }], 3, 1).steps)
+    const writing = await build()
+    expect([existsSync(`${file}-wal`), writing.antigravityUnreadable, agyTotal(writing)]).toEqual([true, 0, 110])
+    // agy exits: its last connection merges the log into the database and deletes it
+    writers.pop()?.close()
+    const again = await build()
+    expect([existsSync(`${file}-wal`), again.antigravityUnreadable, agyTotal(again)]).toEqual([false, 1, 110])
+  })
+
   it('a conversation in another format gives its folder no activity either (AC-01)', () => {
     const p = mkProject('p')
     const good = mkProject('good')
@@ -855,6 +937,30 @@ describe('a corrupt cache entry for a conversation', () => {
       writeFileSync(cacheFile, JSON.stringify(cache))
       await expect(new TokenEngine(cacheDir()).sessionQuestions(roots(), file)).rejects.toSatisfy((err: unknown) => decodeAppError(err) !== null)
     }
+  })
+
+  // A sentinel call the real conversation does not hold: a build that shows it reused the entry
+  const sentinel = ['m-sentinel', oct(26), 999_000, 0, 0, 0, 'gemini-3.6-flash']
+  it.each([
+    ['projectKey', { unreadable: false, calls: [sentinel] }],
+    ['unreadable', { projectKey: '', calls: [sentinel] }],
+    ['calls', { projectKey: '', unreadable: false }],
+    ["a call's seventh element", { projectKey: '', unreadable: false, calls: [sentinel.slice(0, 6)] }]
+  ])('an entry missing %s, under the conversation\'s current signature, is read again rather than reused', async (_missing, partial) => {
+    const p = mkProject('p')
+    trust([p])
+    const file = usageConversation('conv-g', [p], [{ usage: { messageId: 'm-g', input: 100, output: 10 }, at: oct(26) }])
+    expect(agyTotal(await build())).toBe(110)
+    const cacheFile = join(cacheDir(), 'token-cache.json')
+    const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, { sig: string; agg: unknown }> }
+    const sig = cache.files[file].sig
+    // The control: a well-formed entry under that signature is reused, so the signature is the one the engine matches
+    cache.files[file] = { sig, agg: { kind: 'antigravity', file, projectKey: '', unreadable: false, calls: [sentinel] } }
+    writeFileSync(cacheFile, JSON.stringify(cache))
+    expect(agyTotal(await build())).toBe(999_000)
+    cache.files[file] = { sig, agg: { kind: 'antigravity', file, ...partial } }
+    writeFileSync(cacheFile, JSON.stringify(cache))
+    expect(agyTotal(await build())).toBe(110)
   })
 })
 

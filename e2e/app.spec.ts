@@ -1082,6 +1082,40 @@ test('Antigravity usage: the card in every window, the unreadable notice, and a 
   await close(l)
 })
 
+// agents-overview::REQ-003/AC-02 and its failure mode "the side's settings file is corrupt (A3) while conversations were
+// left unread": the card's third line explains the error, and the count shows once the error is gone
+test('Antigravity usage: a corrupt settings file on the card comes before the unreadable count, which shows once it is repaired', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agyerr-'))
+  const agy = join(home, '.gemini', 'antigravity-cli')
+  const conversations = join(agy, 'conversations')
+  mkdirSync(conversations, { recursive: true })
+  writeFileSync(join(agy, 'settings.json'), '{ not json')
+  const conversation = (id: string, usage: UsageFixture, userVersion?: number): void => {
+    const at = localDayOffset(0).getTime()
+    const { step, gen } = callRecord({ conversationId: id, stepIdx: 1, genIdx: 0, usage, createdAt: at - 5_000, completedAt: at, responseModel: 'gemini-3.6-flash' })
+    writeConversation(conversations, id, encodeTrajectoryMetadata({ folders: [home], conversationId: id }), { steps: [step], gens: [gen], userVersion })
+  }
+  conversation('c-read', { messageId: 'e-read', input: 2800, output: 200 })
+  conversation('c-new-format', { messageId: 'e-bad', input: 50000 }, 2)
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
+  const win = await l.app.firstWindow()
+  const card = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') })
+
+  // The figure shows the build that also counted the unreadable conversation; the third line is the error, not the count
+  await expect(card.locator('.v')).toHaveText('3k')
+  await expect(card.locator('.stat-err')).toHaveText(/^Failed to parse the registry: SyntaxError/)
+  await expect(card.locator('.side-warn')).toHaveCount(0)
+
+  // The settings repaired: at the next automatic scan the error goes and the count shows, the figure staying
+  writeFileSync(join(agy, 'settings.json'), settingsJson([]))
+  await expect(card.locator('.stat-err')).toHaveCount(0)
+  await expect(card.locator('.side-warn')).toHaveText('1 conversation couldn’t be read')
+  await expect(card.locator('.v')).toHaveText('3k')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // Ticket grok-side/#123 (spec C5/C7): side filtering is a single-choice dropdown. Being operated
 // rather than glanced at, it answers a resize by repositioning — and the resize answer is where
 // #122 lives: a resize makes the browser clamp a scrolled container's scrollTop and dispatch a

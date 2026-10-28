@@ -215,6 +215,10 @@ describe('the usage records, as agy wrote them (token-stats::REQ-003)', () => {
     expect(() => decodeGeneratorMetadata(measuredUsage('genApiKey').subarray(0, 300))).toThrow()
     // model_usage (9) written as a varint where the descriptor declares a message
     expect(() => decodeStepMetadata(Uint8Array.from([0x48, 0x05]))).toThrow()
+    // The other way round: input_tokens (2) inside model_usage arriving length-delimited, and fixed-width (fixed32),
+    // where the descriptor declares a varint — read as absent, the call would quietly lose its tokens
+    expect(() => decodeStepMetadata(Uint8Array.from([0x4a, 0x03, 0x12, 0x01, 0x05]))).toThrow()
+    expect(() => decodeStepMetadata(Uint8Array.from([0x4a, 0x05, 0x15, 0x01, 0x00, 0x00, 0x00]))).toThrow()
   })
 
   it('step indices read packed, as agy writes them, and unpacked, the other encoding protobuf allows', () => {
