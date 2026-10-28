@@ -2440,3 +2440,76 @@ describe('the session page of a Grok session whose stream grew', () => {
     expect(e.isFresh(f)).toBe(true)
   })
 })
+
+// session-view::US-001/AC-01, AC-09: the session page carries the ID the session's own agent side resumes it by
+describe('the session ID on the session page', () => {
+  it('a Claude Code session: the session file\'s name without its extension', async () => {
+    const id = '6b3f2a10-4c5d-4e6f-8a7b-9c0d1e2f3a4b'
+    const f = mkClaudeFile(`${id}.jsonl`, [userLine('what is this session called', '2026-07-30T02:00:00Z')])
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect((await e.sessionQuestions(roots(), f)).sessionId).toBe(id)
+  })
+
+  it('a Codex session: the id its record\'s session metadata carries, which its file name need not hold', async () => {
+    const id = '019f0000-eeee-7000-8000-000000000071'
+    const f = mkCodexRollout('rollout-main-019f071.jsonl', proj, '2026-07-30T03:00:00Z', 'gpt-5.6-sol',
+      [{ input: 10, cached: 0, output: 5 }], false, 2000, 'a codex question', { id })
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect((await e.sessionQuestions(roots(), f)).sessionId).toBe(id)
+  })
+
+  it('a Codex thread written in segments: the thread its metadata names, not the segment its file name ends with', async () => {
+    // The real shape (a segment on this machine, 2026-10-26): the name is rollout-<time>-<thread>_<segment>,
+    // the first line carries an ordinal and names the previous segment as its history base, and its id is the thread
+    const d = join(dir, '.codex', 'sessions', '2026', '10', '26')
+    mkdirSync(d, { recursive: true })
+    const THREAD = '01a1250a-7662-7e30-a170-62f43cb935cc'
+    const SEGMENT = '01a176d2-c733-7413-84b4-aea4e669827b'
+    const at = '2026-10-26T06:08:07.476Z'
+    const f = join(d, `rollout-2026-10-26T14-08-07-${THREAD}_${SEGMENT}.jsonl`)
+    writeFileSync(f, [
+      JSON.stringify({ timestamp: at, ordinal: 18569, type: 'session_meta', payload: {
+        session_id: THREAD, id: THREAD, timestamp: at, cwd: proj, source: 'vscode', thread_source: 'user', history_mode: 'paginated',
+        history_base: { thread_id: '01a138bf-4f23-7311-a898-d0b667e66cfa', end_ordinal_exclusive: 18569, end_byte_offset: 3344192094 }
+      } }),
+      JSON.stringify({ timestamp: at, ordinal: 18570, type: 'event_msg', payload: { type: 'item_completed', thread_id: THREAD, turn_id: 'u',
+        item: { type: 'UserMessage', id: 'i', content: [{ type: 'text', text: 'a question in a later segment', text_elements: [] }] },
+        started_at_ms: 1, completed_at_ms: 1 } })
+    ].join('\n') + '\n')
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect((await e.sessionQuestions(roots(), f)).sessionId).toBe(THREAD)
+  })
+
+  it('a cold rollout: the same id as its plain twin, read from the compressed record', async () => {
+    const id = '019f0000-eeee-7000-8000-000000000072'
+    const plain = mkCodexRollout('rollout-warm-019f072.jsonl', proj, '2026-07-30T03:00:00Z', 'gpt-5.6-sol',
+      [{ input: 10, cached: 0, output: 5 }], false, 2000, 'a cold question', { id })
+    const cold = join(dir, '.codex', 'sessions', '2026', '07', '30', 'rollout-cold-019f073.jsonl.zst')
+    writeFileSync(cold, zstdCompressSync(readFileSync(plain)))
+    rmSync(plain)
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect((await e.sessionQuestions(roots(), cold)).sessionId).toBe(id)
+  })
+
+  it('a Codex record whose session metadata carries no id: no session ID (US-001/AC-09)', async () => {
+    const f = mkCodexRollout('rollout-noid-019f074.jsonl', proj, '2026-07-30T03:00:00Z', 'gpt-5.6-sol',
+      [{ input: 10, cached: 0, output: 5 }], false, 2000, 'a question with no id')
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect((await e.sessionQuestions(roots(), f)).sessionId).toBeNull()
+  })
+
+  it('a Grok session: the name of the session\'s directory', async () => {
+    const id = '019fd1e2-1042-7c12-94e9-15b9d0ad23ec'
+    mkdirSync(join(dir, '.grok'), { recursive: true })
+    writeFileSync(join(dir, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+    const f = mkGrokSession(proj, id, [grokUser(1785400000, 'a grok question', 0)])
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect((await e.sessionQuestions(roots(), f)).sessionId).toBe(id)
+  })
+})

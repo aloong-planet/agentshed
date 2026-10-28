@@ -122,7 +122,7 @@ _Avoid_: treating the two times as one; "unifying them while we're here" (tests 
 
 **Session**:
 One conversation record on an agent side, uniquely identified by the absolute path of its source
-file. Where a side stores a session as a **directory** rather than a single file, that identity is
+file (the interface calls it the session's record file). Where a side stores a session as a **directory** rather than a single file, that identity is
 the one file inside it that carries the conversation, the tool calls and the per-turn usage together
 — the authoritative stream (ADR-0019). The directory's other files are not sessions of their own,
 and a child session stored beside its parent rather than beneath it is still a subagent, judged by
@@ -139,6 +139,19 @@ demand. Searchable within a project (searches questions by default) and, by its 
 across every project through global search. The full specification is in
 `docs/specs/session-view.md` (fully shipped 2026-08-06; the export feature was dropped).
 _Avoid_: chat log
+
+**Session ID**:
+The identifier an agent side itself gives a session, and the one that side's own resume takes. Not the
+session's identity in this product, which is its source file path: one Codex thread the agent wrote in
+segments is several sessions here that all carry the same session ID, so a session ID never keys a
+list.
+_Avoid_: session key, conversation id; "session id" for the source file path
+
+**Resume command**:
+One shell line that reopens a session in its own agent side's command-line tool: it changes into the
+project's directory, then resumes by session ID. The product hands it over by copying; it names the
+tool by its bare command name and does not look for where that tool is installed.
+_Avoid_: continue command, launch command
 
 **Filtering** (as opposed to **searching**):
 Two things this product does that look alike on screen and are not the same. **Filtering** narrows a
@@ -354,8 +367,8 @@ is its relationship to the surface it sits on?
   backgrounds, badge fills, the scrollbar thumb). One value per appearance, shared across themes.
   Currently 28 (measured 2026-10-23).
 - **static** — it is an opaque block carrying its own ground (a destructive button, a callout), so no
-  surrounding surface applies. One value throughout. Currently 4 (measured 2026-10-23). The name
-  follows Primer and Material, which both use *static* for exactly this.
+  surrounding surface applies. One value throughout. Currently 5 (measured 2026-10-28; the fifth is the
+  tooltip's warning line). The name follows Primer and Material, which both use *static* for exactly this.
 
 Verified by measuring, never by counting definitions: switch through every theme × appearance and
 read the resolved values — the class predicts which of them must differ and which must match. A
@@ -436,7 +449,9 @@ _Avoid_: beta mode, insider track, update track
   hook watches for the events that invalidate a measured position. What the hook deliberately leaves
   to each layer is *computing coordinates* — one flips above/below its button, one right-aligns using
   its own rendered width, one clamps against the window edge, and folding those together would need a
-  parameter per difference.
+  parameter per difference. A hover tooltip on that surface takes the surface's one tooltip form — the chart
+  tooltip's fixed dark ground — rather than a look of its own (settled 2026-10-28, when a second tooltip
+  arrived): two hand-written copies of one look drift apart, as the surface's own two copies once did.
 
   **Scrolling dismisses — except the layer's own. A resize is the caller's choice.** Dismiss for a
   layer being glanced at (a hover tooltip, gone the moment the pointer moves); reposition for one the

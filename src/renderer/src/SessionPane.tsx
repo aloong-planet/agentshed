@@ -21,6 +21,7 @@ import { formatBytes } from '@shared/format'
 import { Bot, ChevronLeft, ChevronRight, GitFork, Terminal } from './icons'
 import { useSessionPageQuery } from './session-page-query'
 import { useTurnContentQuery } from './turn-content-query'
+import { SessionActions } from './SessionActions'
 
 
 function fmtHM(ms: number | null): string {
@@ -102,6 +103,8 @@ export function SessionPane({
   file,
   focusQ,
   projectName,
+  projectDir,
+  stale,
   now,
   onBack,
   onOpenSession,
@@ -112,6 +115,10 @@ export function SessionPane({
    * index; null or omitted means no locating */
   focusQ?: number | null
   projectName: string
+  /** The project's directory and whether it is gone, from the project the page belongs to on every route —
+   * the resume command changes into it (session-view::US-001/AC-04, AC-08) */
+  projectDir: string
+  stale: boolean
   /** The baseline for relative times (the display clock, sharing its source with the list) */
   now: number
   onBack: () => void
@@ -156,6 +163,9 @@ export function SessionPane({
               </span>
               <h1 className="stitle">{result.page.title}</h1>
               <StartupHint />
+              {/* Keyed by the session file, as the body is: a copy's check and an open tooltip belong to this
+                  session's page and do not follow a jump to the fork parent */}
+              <SessionActions key={result.page.file} page={result.page} projectDir={projectDir} stale={stale} />
             </div>
             <div className="smeta">
               {t.session.headMeta(
@@ -164,6 +174,14 @@ export function SessionPane({
                 fmtTok(result.page.tokens),
                 formatBytes(lang, result.page.bytes),
                 fmtAgo(lang, result.page.at, now)
+              )}
+              {' · '}
+              {result.page.sessionId === null ? (
+                t.session.sessionIdUnavailable
+              ) : (
+                <>
+                  {t.session.sessionId} <span className="sid-v">{result.page.sessionId}</span>
+                </>
               )}
             </div>
           </>

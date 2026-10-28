@@ -108,3 +108,29 @@ it('restores a project detail saved before its memory carried the main file entr
   expect(restored.data.memory.mainFile).toBeNull()
   expect(restored.data.memory.main?.text).toBe('Saved main body')
 })
+
+// session-view::CON-003: session pages saved before the session ID was kept (the shape of the seven saved pages in
+// this machine's display cache on 2026-10-28 — no sessionId) restore with it filled in: a Claude Code or Grok page by
+// its path, a Codex page with none, so it shows the unavailable form until the live page replaces it. A malformed ID
+// is still dropped.
+it('restores session pages saved before the session ID was kept, filling the ID in from the path where the path holds it', () => {
+  const root = dir()
+  const page = (file: string, side: string, extra: Record<string, unknown> = {}) => ({ kind: 'sessionPage', file, data: {
+    revision: `rev-${side}`, file, side, title: 'Saved title', at: 1, tokens: 10, bytes: 100, forkState: 'none',
+    forkPoints: 0, forkParentTitle: null, forkParentFile: null,
+    questions: [{ revision: `q-${side}`, i: 1, text: 'Saved question', at: 1, tools: 0, subagents: 0 }], ...extra
+  } })
+  const claude = '/Users/x/.claude/projects/-Users-x-work-p/6b3f2a10-4c5d-4e6f-8a7b-9c0d1e2f3a4b.jsonl'
+  const grok = '/Users/x/.grok/sessions/%2FUsers%2Fx%2Fwork%2Fp/019fd1e2-1042-7c12-94e9-15b9d0ad23ec/updates.jsonl'
+  const codex = '/Users/x/.codex/sessions/2026/10/26/rollout-2026-10-26T14-08-07-01a1250a-7662-7e30-a170-62f43cb935cc.jsonl'
+  const malformed = '/Users/x/.claude/projects/-Users-x-work-p/0a0a0a0a-0000-4000-8000-000000000000.jsonl'
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
+    ...emptyDisplayData(), reads: [page(claude, 'claude'), page(grok, 'grok'), page(codex, 'codex'), page(malformed, 'claude', { sessionId: 7 })]
+  } }))
+  const ids = new DisplayStore(root).get().reads.map((r) => r.kind === 'sessionPage' ? [r.file, r.data.sessionId] : null)
+  expect(ids).toEqual([
+    [claude, '6b3f2a10-4c5d-4e6f-8a7b-9c0d1e2f3a4b'],
+    [grok, '019fd1e2-1042-7c12-94e9-15b9d0ad23ec'],
+    [codex, null]
+  ])
+})

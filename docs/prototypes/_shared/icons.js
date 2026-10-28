@@ -55,6 +55,12 @@
       svg(size, 2, '<path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" />'),
     LoaderCircle: (size) =>
       svg(size, 2, '<path d="M21 12a9 9 0 1 1-6.219-8.56" />'),
+    // The session page header's "show in Finder" and "copy the resume command" (owner's pick, 2026-10-28,
+    // Lucide 1.63.0)
+    FolderOpen: (size) =>
+      svg(size, 2, '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />'),
+    SquareTerminal: (size) =>
+      svg(size, 2, '<path d="m7 11 2-2-2-2" /><path d="M11 13h4" /><rect width="18" height="18" x="3" y="3" rx="2" ry="2" />'),
   }
 
   // Static slots declare themselves: <span class="ri" data-icon="Folder" data-icon-size="17"></span>.

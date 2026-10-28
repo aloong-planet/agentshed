@@ -1,7 +1,7 @@
 # Session view
 
-> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0037 (Antigravity CLI side)
-> Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1); amended 2026-09-12 for atomic opening and cached revisits (P, UI decisions).
+> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side)
+> Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1); amended 2026-09-12 for atomic opening and cached revisits (P, UI decisions); amended 2026-10-28 for the session ID and resume (session-view::US-001, session-view::CON-001 to session-view::CON-003; prototype gate passed the same day).
 
 > Startup restoration uses the original page prototypes confirmed on 2026-09-14.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
@@ -18,6 +18,11 @@ and the questions people actually care about are a small fraction of it (re-meas
 human question lines account for **9.5%** of the bytes in the largest project; the 3.8% figure
 recorded during step 1 research had no stated basis, so this number is authoritative).
 
+Having found the conversation, the next step is often to carry on with it. Each agent side reopens a
+session by its own ID, from its own command-line tool, and expects to be in the project's directory —
+but the page shows neither the ID nor where the session's record lives, and the user has to remember
+which tool a session belongs to and how that tool spells resume.
+
 ## Solution
 
 **Questions are the primary index, answers are fetched on demand**: project detail gains a "Sessions"
@@ -25,6 +30,11 @@ section listing sessions → opening a session shows the **question list** (the 
 question fetches that turn's full contents on demand (including tool calls and subagents). Search
 looks at questions by default. Everything is read-only (~~export to Markdown~~ dropped by the user's
 ruling on 2026-08-06, see Out of Scope).
+
+The session page's header carries the session's own ID and three buttons: copy the ID, show the
+session's record file in Finder, and copy a resume command — one shell line that changes into the
+project's directory and resumes the session in the tool of the agent side it belongs to. The product
+hands the command over; it never runs it.
 
 ## User Stories
 
@@ -678,6 +688,162 @@ invalidation and source rewrite. P1–P8, C4, C7, R1/R3 and the existing range-r
 boundaries are in-scope regressions. Parsing/source-format coverage outside those interactions is
 unchanged; export remains outside scope.
 
+## Session ID and resume
+
+Every session belongs to exactly one agent side — the side whose data directory holds its record — and
+that side gives it an ID its own command-line tool resumes it by (CONTEXT: session ID, resume command).
+The session ID is not the session's identity here, which stays its source file path (A, B).
+
+### session-view::US-001 Pick a session back up in the tool it belongs to
+
+As a user whose sessions come from different agent sides, I want each session page to show the
+session's own ID, hand me the command that reopens it in its own side's tool, and show me its record
+file, so that I can carry on with a conversation in a terminal, or find its file, without remembering
+which tool it belongs to or how that tool spells resume.
+
+- session-view::US-001/AC-01: The session page's header shows the session ID at the end of its meta
+  line, after a "Session ID" label: for Claude Code the session file's name without its extension, for
+  Codex the ID its record's opening session-metadata entry carries, for Grok the name of the session's
+  directory, for Antigravity CLI the conversation ID, which is the name of the conversation's database
+  without its extension (owner's ruling 2026-10-28).
+- session-view::US-001/AC-02: The right end of the title row holds three buttons, in this order: copy
+  the session ID, show the record file in Finder, copy the resume command. Each one's tooltip names its
+  action, appears at once on pointer hover and on keyboard focus, and goes when the pointer or the focus
+  leaves.
+- session-view::US-001/AC-03: Copying the session ID puts the session ID on the clipboard, and nothing
+  else.
+- session-view::US-001/AC-04: Copying the resume command puts one line on the clipboard:
+  `cd <project directory> && <resume>`, where `<resume>` is `claude --resume <id>` for a Claude Code
+  session, `codex resume <id>` for a Codex session, `grok --resume <id>` for a Grok session and
+  `agy --conversation <id>` for an Antigravity session, and the project directory is the path of the
+  project the page belongs to, quoted under
+  session-view::CON-002.
+- session-view::US-001/AC-05: The resume button's tooltip shows, below its name, the whole command it
+  copies.
+- session-view::US-001/AC-06: After a copy succeeds, that button's icon becomes a check and its tooltip
+  reads "Copied" for 1.5 seconds, then both return; a second copy within that time starts the 1.5
+  seconds again.
+- session-view::US-001/AC-07: Showing the record file opens Finder with the session's source file
+  selected: the Claude Code session file, the Codex rollout (its compressed file, for a cold rollout),
+  the Grok session's update stream inside its directory, the Antigravity conversation's database
+  (session-view::REQ-003/AC-01), never its transcript.
+- session-view::US-001/AC-08: For a stale project the resume command is still copied, and its tooltip
+  adds a line saying the project directory no longer exists, so the command's cd will fail. This holds
+  on every route to such a page: a global search hit, and the fork parent reached from it.
+- session-view::US-001/AC-09: When the session ID cannot be read — the record carries none, or the page
+  was restored from a copy saved before session IDs were kept and has not been replaced by a live page
+  yet (session-view::CON-003) — the meta line says "Session ID unavailable", the copy-ID and resume
+  buttons are disabled, their tooltip says the session's ID could not be read, and clicking them does
+  nothing. Showing the record file still works.
+- session-view::US-001/AC-10: When the record file is no longer there as Finder is asked to show it, or
+  the clipboard refuses a copy, the error toast says so; nothing else on the page changes.
+
+### session-view::CON-001 The product hands a command over and never runs one (direct acceptance)
+
+Applies to: everything in session-view::US-001. The product writes text to the clipboard and asks
+Finder to show a file; it does not start an agent side's tool, open a terminal, or write to any agent's
+data or configuration. The resume command names each tool by its bare command name; the product does
+not look for where a tool is installed or whether it is on the user's path.
+
+### session-view::CON-002 Agent data enters the command only quoted (direct acceptance)
+
+Applies to: the resume command (session-view::US-001/AC-04). The project directory is always written in
+single quotes, a single quote inside it written as `'\''`. The session ID is written as it is when every
+character in it is a letter, a digit, `-`, `_` or `.`, and in single quotes by the same rule otherwise.
+Pasting the command therefore runs the change of directory and the resume and nothing else, whatever
+characters the path or the agent's record holds.
+
+### session-view::CON-003 Pages saved before the session ID restore with it filled in (direct acceptance)
+
+Applies to: session pages in the saved display copy (session-view::REQ-001, ADR-0029). A page saved by
+a version that did not keep the session ID restores rather than being dropped: a Claude Code or Grok
+page gets its ID from its file path by the same rule as a live page, and a Codex page gets none, so it
+shows session-view::US-001/AC-09's form until the live page replaces it.
+
+### Failure modes and boundaries: session ID and resume
+
+Measured 2026-10-28 over every session on this machine: 1048 of 1048 Claude Code session files named by
+a UUID carry that UUID as their only session ID (the 1471 `agent-*` files are subagents and the 75 files
+with no session ID at all have no question; neither is listed). All 2525 non-empty Codex rollouts carry
+a session-metadata ID; 7 are thread segments named `<thread>_<segment>`, whose ID is the thread's. All
+14 Grok sessions are directories named by a UUID. All 19 Antigravity conversations (agy 1.4.9) are
+databases named by a UUID, the conversation ID agy's own summary index records for each, forks and
+subagents included.
+
+**Opening the page**
+- First open, cached revisit, restore before the first scan (P1, P4, session-view::REQ-001): the ID and
+  the buttons come with the page; a restored page's buttons act on its saved data. A transfusion while a
+  tooltip is open (P5) redraws the tooltip from the refreshed page.
+- Opened from the Sessions tab, the overview card, a global search hit or a fork banner: the same
+  header. Whether the project is stale comes from the project the page belongs to, not from the route
+  (session-view::US-001/AC-08).
+- The UI language switches while a tooltip is open: the tooltip follows.
+- Jumping to the fork parent within 1.5 seconds of a copy, or with a tooltip open: the check and the
+  tooltip belong to the page they were made on and do not follow to the parent's page.
+
+**Copying**
+- The session ID: exactly the ID, no label, no line break.
+- The resume command: a directory with spaces, non-ASCII characters or a single quote is quoted per
+  session-view::CON-002; an ID with any character outside letters, digits, `-`, `_` and `.` is quoted
+  too, so a malformed record cannot turn the pasted line into a different command.
+- The clipboard refuses: the error toast (session-view::US-001/AC-10); the button shows no check.
+- Copying twice quickly: the second copy restarts the check's 1.5 seconds.
+
+**Showing the record file**
+- The file is gone (deleted, or compressed by Codex since the page was drawn — C4, P7): the error
+  toast; the page itself follows C4/P7 on its next refresh.
+- A path that is not a listed session file is refused before it is touched (session-view::R1's
+  allow-list); a restored allow-list entry is shown only while it is a regular file, as a restored
+  artifact is opened.
+
+**Pasting the command — the agent side's own behaviour, which the product does not check**
+- The tool is not installed or not on the path: the shell says so. On this machine the Codex command
+  line is bundled inside the editor extension and is not on the path (2026-10-28).
+- A Codex thread written in segments is several sessions here with one ID; resuming any of them resumes
+  the whole thread.
+- An archived Codex session: Codex asks to unarchive it, or says to run its unarchive command first —
+  both appear in its program; which one the interactive resume shows was not tried, because trying it
+  can change Codex's data.
+- A Codex session begun in Codex's app or editor extension sits in the same store and is resumed the
+  same way; resuming one from the command line was not tried here.
+- Resuming a Claude Code session from another directory makes Claude Code itself print the same
+  `cd … && claude --resume …` line, which is why the command changes directory first; Codex otherwise
+  asks whether to use the session's directory, and Grok keeps its sessions by directory.
+- agy resumes a conversation by ID with `--conversation` (its help, agy 1.4.9). What it does when the
+  conversation is resumed from a directory other than the one it ran in was not tried, because trying
+  it writes to agy's data.
+- A session still open in another terminal: the agent side decides what a second resume does.
+
+**Where the ID does not appear**
+- The Sessions tab's rows, the overview card's rows and global search hits are unchanged (owner's
+  ruling 2026-10-28: the page header only).
+
+**What agent data can do on the page**
+- The ID and the project path are drawn as text in the meta line and the tooltip; nothing in them is
+  interpreted as markup. Their only way out of the page is the copied command, bounded by
+  session-view::CON-002.
+
+### UI decisions: the session page header (prototype confirmed 2026-10-28)
+
+- **Layout**: the ID at the end of the meta line, as one unbreakable run (a narrow window wraps before
+  it, never inside it); the three buttons at the right end of the title row, after the title and the
+  startup hint. Chosen over a two-row strip that showed the command on the page and over a row of text
+  links under the meta line.
+- **The buttons**: the stale note's copy-button geometry — a fixed 22px box with a 12px icon centred,
+  the line colour as border, the secondary text colour as icon, the accent colour and the stronger line
+  colour on hover. A copy's check recolours the icon in the accent colour and leaves the border at rest.
+  A disabled button is dimmed and does not change on hover. Icons (Lucide): copy the ID = Copy, the product's
+  settled copy icon; show in Finder = FolderOpen, chosen over FolderSearch and SquareArrowOutUpRight;
+  copy the resume command = SquareTerminal, chosen over History and Play — boxed, so it stays distinct
+  from the Terminal icon on the question rows' tool counts.
+- **The tooltip**: the product's shared tooltip form — the chart tooltip's fixed dark ground, instant —
+  below its button and right-aligned to it, kept
+  inside the window, at most 440px wide, the command in the monospaced face wrapping anywhere; the stale
+  warning in a warm colour on the next line.
+- **The no-ID form and the failure toasts** as session-view::US-001/AC-09 and AC-10; the wording of the
+  no-ID form is neutral on purpose, true both when the record has no ID and while a restored page waits
+  for its live replacement (owner's ruling 2026-10-28).
+
 ## The Antigravity CLI side
 
 An Antigravity CLI session is one conversation (ADR-0037): its database holds the usage
@@ -787,6 +953,10 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   conversation the nearest copied content came from.
 - A subagent dispatched and later messaged again: its second message is a system-message line with the
   same sender, inside whichever turn it arrives in; only a dispatch's own turn shows a return.
+- The header's ID and resume command (session-view::US-001): a fork has its own conversation ID, so its
+  command resumes the fork, never its parent; a subagent conversation has no page and so no command. No
+  saved Antigravity page predates the session ID, so session-view::CON-003's restore never applies to
+  one.
 - Introduced content: agy's prose holds markdown links to workspace files (`file://…`, in 10 of the 44
   assistant lines measured). Prose renders as text on every side, so they show as written and nothing
   in them can be clicked; no navigation surface is added. Titles from agy's summaries render as text.
@@ -901,6 +1071,32 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   Page-local state is keyed by the session file, as before.
 - **Prefetching** (an optional optimisation): prefetch a few adjacent turns as the question list moves,
   turning "there when you click" into "there before you click".
+- **The session ID** (session-view::US-001): the session page payload gains the session ID, a non-empty
+  string or null, and the contract (R3) admits exactly those two. The main process produces it: for
+  Claude Code, Grok and Antigravity from the file path alone (the file name without its extension; the
+  session directory's name; the conversation database's name without its extension), by one pure
+  function that the display copy's restore also calls
+  (session-view::CON-003); for Codex from the session-metadata ID the scan already reads into its cached
+  per-file record, null where that record has none. Only an absent field is filled in on restore; a
+  present but malformed one is still dropped by validation, as for the project memory's main file.
+- **Showing the record file**: a new channel takes the session's file path and asks Finder to show it.
+  Admission is session-view::R1's exact-path allow-list with its pure judge, first, before any file
+  system call; then the path must still exist — and, for an entry restored before the first scan, be a
+  regular file — because Finder's own call reports no failure. A refusal or a missing file is a
+  structured error (ADR-0015), worded in the renderer.
+- **The resume command** is built in the renderer by one pure function of the agent side, the session
+  ID and the project directory, carrying session-view::CON-002's quoting; copying goes through the
+  existing clipboard channel. The session page is given its project's directory and stale flag by the
+  shell, from the project entry it opened in, on every route. The header's buttons are keyed by the
+  session file, as the page body is, so their state does not follow a jump to the fork parent.
+- **The tooltip** is a viewport-positioned layer, so no ancestor clips it, closed by the shared
+  anchor-invalidation hook on scroll and on resize (the CONTEXT floating-layer invariant: a layer that is
+  glanced at is dismissed). Its look is the floating surface's one tooltip form, shared with the rail's
+  update button so the two cannot drift apart. Its warning line takes a colour of the static class,
+  declared for light and for dark alike, since the tooltip's dark ground does not change with either.
+- **Icons and copy**: FolderOpen and SquareTerminal join the icon module from Lucide's source; the
+  labels, tooltips, the no-ID form and the two failure messages are new dictionary entries in both
+  languages, Chinese first; "Copied" reuses the stale note's entry, a synonymous action.
 
 ## Testing Decisions
 
@@ -936,6 +1132,26 @@ font: CI lays the rows out in another. Where a moved row starts is a pure functi
 keyword, unit-tested in the renderer: characters outside the basic plane counted once, the keyword at the
 start, several occurrences.
 
+The session ID and resume (session-view::US-001) are asserted at the e2e seam, on the session page as a
+user reaches it: the meta line shows a fixture session's ID; clicking copy-ID and copy-resume hands the
+main process's clipboard write exactly the ID and exactly the command; hovering the resume button shows
+the command in its tooltip; a Codex and a Grok fixture give their own commands; a stale project's session
+opened from global search warns about the cd; a Codex fixture whose record has no ID disables the two
+buttons and gives the reason; showing the record file hands Finder the session's source path, and after
+the file is deleted the error toast appears. The clipboard write and Finder's call are intercepted at the
+main process's Electron boundary, so a run neither overwrites the user's clipboard nor opens Finder. The
+existing stale-note copy case asserts only the confirmation; these assert what was copied. Below that
+seam: where each side's ID comes from, at the providers seam with fixtures shaped from real records — a
+Claude Code session file, a legacy and a paginated Codex rollout, a thread segment, a cold rollout, a
+Codex record with no ID, a Grok session directory; the command builder and its quoting (spaces, a single
+quote, non-ASCII, an ID with shell characters), the reveal admission's pure judge (the bypass vectors of
+R1), and the contract's two admitted shapes, as unit tests; and the restore of a saved session page in
+the previous version's shape, taken from a real saved display copy, never written by the current code
+(the 2026-10-21 postmortem's rule). That the channel treats the allow-list as restored before the first
+scan is asserted at the e2e seam of the cross-process restart (the second launch, its first scan held):
+a restored session file swapped for a symlink is refused and Finder is not called; put back as a regular
+file, it is shown.
+
 The Antigravity side (session-view::REQ-003, session-view::REQ-004, session-view::REQ-005) is tested at
 the providers seam with a fixture home holding conversation databases and transcripts shaped from the
 real ones of 2026-10-28: a conversation with tool calls and a permission-denied result; a subagent
@@ -943,7 +1159,10 @@ dispatch with its returned message and its own conversation (no row); a cancelle
 rewound and redone turn; a fork with its parent present and one with it gone; a failed first call
 with its error line; an empty conversation without a transcript; a conversation with agy's title and
 one whose summaries are missing. The offset index's fetch equals the turn a full parse yields, as on
-the other sides, and e2e opens an Antigravity fork from the Sessions tab and expands a turn.
+the other sides, and e2e opens an Antigravity fork from the Sessions tab and expands a turn. Its header
+(session-view::US-001) joins the session ID cases above: the ID read from the database's name at the
+providers seam, the `agy --conversation` form in the command builder's unit tests, and at the e2e seam
+the fork's own ID copied, its command copied, and the database handed to Finder.
 
 ## Out of Scope
 
@@ -954,7 +1173,12 @@ the other sides, and e2e opens an Antigravity fork from the Sessions tab and exp
 - Searching across projects — that is global search, a feature of its own ([global-search](global-search.md));
   this spec's search is within one project.
 - Unregistered projects' sessions.
-- Editing, deleting or resuming session contents.
+- Editing or deleting session contents, and resuming a session from inside the product: it hands over a
+  command to copy (session-view::US-001) and runs none (session-view::CON-001).
+- The session ID or its buttons on the Sessions tab's rows, the overview card or global search hits
+  (owner's ruling 2026-10-28: the page header only).
+- Finding where an agent side's tool is installed, opening a terminal, or resuming in an agent's own app
+  or editor extension.
 - Codex's reasoning body (encrypted, impossible), Claude's truncated tool result originals (the sidecar
   files have no reference chain), and the real times in a Codex replayed span (which would require
   cross-file alignment).

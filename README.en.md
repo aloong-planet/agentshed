@@ -51,6 +51,9 @@ Website: [agentshed.aloongplanet.com](https://agentshed.aloongplanet.com)
 - Search a project's sessions by question, or in full text, and jump straight to the hit.
 - A forked conversation shows only what is new since the fork, a branched one shows the branch you carried
   on, and anything that cannot be recovered is labelled.
+- A session's page shows the session's own ID and copies it in one click; it can also show its record file in
+  Finder, or copy a one-line resume command that changes into the project's directory and picks the conversation
+  up in its agent's own command-line tool.
 
 ### Global search
 

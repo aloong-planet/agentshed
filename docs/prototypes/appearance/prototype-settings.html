@@ -30,6 +30,8 @@
        · 有更新在下载时,设置页「立即检查」置灰(与检查进行中同样式):这时点了也什么都不会变,结果行已说明原因。
          可安装时这一行的按钮换成「立即安装」,与左下角按钮同一动作(安装并重启),安装中置灰;装好后变回「立即检查」。
          菜单「检查更新…」照旧可点,用 toast 回报当前状态。检查进行中再发起的检查并入那一次,不重复请求。
+     2026-10-28(所有者裁定,保留 app 的样子):更新按钮悬停提示的阴影改用浮层共用的那一种(0 6px 22px,浮层阴影色,
+       浅色 0.18、深色 0.5),与 app 一致;此前这里画的是 0 6px 18px、透明度 0.28。会话页头部按钮的提示同此。
 
      演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条,只管更新:运行方式(打包/开发运行)、
      下次检查返回什么、点击安装后(成功/失败)三组开关,四个动作(自动检查触发、菜单「检查更新…」、后台下载失败、
@@ -73,7 +75,7 @@
      otherwise cover the message where it opens */
   .uptip{position:fixed;z-index:95;display:none;padding:6px 10px;border-radius:8px;white-space:nowrap;
     background:var(--tip-bg);color:var(--tip-fg);font-size:12.5px;pointer-events:none;
-    box-shadow:0 6px 18px rgba(0,0,0,.28)}
+    box-shadow:0 6px 22px var(--float-shadow)}
   .uptip.on{display:block}
 
   .stage{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
