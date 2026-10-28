@@ -1,0 +1,125 @@
+# offline first launch and spctl, 2026-10-28T04:35:15Z
+macOS: 26.0.1 (arm64)
+
+# 1. proof.sh, run by the owner in Terminal after disconnecting (offline-proof.txt)
+# offline proof, 2026-10-28T04:25:22Z
+$ ls -l ~/Downloads/Agentshed-0.1.0-beta.2-mac-arm64*.dmg
+-rw-r--r--@ 1 loong_zhou  staff  127729984 Oct 28 11:05 /Users/loong_zhou/Downloads/Agentshed-0.1.0-beta.2-mac-arm64.dmg
+$ xattr -p com.apple.quarantine "/Users/loong_zhou/Downloads/Agentshed-0.1.0-beta.2-mac-arm64.dmg"
+0281;6ae1668d;Chrome;44A5B432-3CAA-466E-92DB-2F5215C5E26A
+(exit 0)
+$ networksetup -getairportpower en0
+Wi-Fi Power (en0): On
+$ curl -sS -m 8 -o /dev/null https://api.apple-cloudkit.com/
+curl: (35) LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to api.apple-cloudkit.com:443 
+(exit 35: non-zero means Apple's ticket service was not reached)
+$ curl -sS -m 8 -o /dev/null https://www.apple.com/
+curl: (35) LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to www.apple.com:443 
+(exit 35)
+# done 2026-10-28T04:25:32Z
+
+# 2. Wi-Fi: disconnected from Control Center, reconnected after the launch (airportd)
+Timestamp               Ty Process[PID:TID]
+2026-10-28 12:24:50.247 Df airportd[440:574148f] [com.apple.WiFiManager:] Info: <airport[440]> DISASSOC request received from pid 728 (ControlCenter)
+2026-10-28 12:24:50.268 Df airportd[440:5741493] [com.apple.WiFiManager:] Assoc: <airport[440]> [DISASSOC] Will disassociate due to user-requested disconnect
+2026-10-28 12:24:50.395 Df airportd[440:f73] [com.apple.WiFiManager:] Driver Event: <airport[440]> _bsd_80211_event_callback: LINK_CHANGED/4 (en0)
+2026-10-28 12:24:50.418 Df airportd[440:5741493] [com.apple.WiFiManager:] Info: <airport[440]> [DISASSOC] Disassociate succeeded (intf=en0, reason=2, info={
+    "DISASSOC_REASON" = 8;
+}, error=(null))
+2026-10-28 12:24:50.475 Df airportd[440:f73] [com.apple.WiFiManager:] AutoJoin: <airport[440]> _handleLinkEvent: Link down event. Triggering auto-join.
+2026-10-28 12:29:16.132 Df airportd[440:f73] [com.apple.WiFiManager:] Driver Event: <airport[440]> _bsd_80211_event_callback: LINK_CHANGED/4 (en0)
+2026-10-28 12:29:20.426 Df airportd[440:57461bd] [com.apple.WiFiManager:] Assoc: <airport[440]> [DISASSOC] Will disassociate due to new association request
+2026-10-28 12:29:20.569 Df airportd[440:57461bd] [com.apple.WiFiManager:] Info: <airport[440]> [DISASSOC] Disassociate succeeded (intf=en0, reason=2, info={
+    "DISASSOC_REASON" = 8;
+}, error=(null))
+2026-10-28 12:29:20.571 Df airportd[440:f73] [com.apple.WiFiManager:] Driver Event: <airport[440]> _bsd_80211_event_callback: LINK_CHANGED/4 (en0)
+2026-10-28 12:29:20.955 E  airportd[440:f73] (IO80211) _logTimeIfEventThresholdExceeded: '_eventRead exceeded threshold': eventCode[0x00000004/4] totalSize[72] @[1314450.487651], [0.384611] Exceeded threshold >= [0.200000], event:'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:20.955 Df airportd[440:f73] (IO80211) _eventRead:5415, tag[_writeEventBuffer:0x15e1/5601] @[1314450.487651] tid[0xf73], dq[0x20c9f1140]/'com.apple.main-thread' opaque[0xacacd6100] ioucPort[3408152688] machPort[50691], total time [0.384611], processed event totalSize[72], 4/'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:20.955 E  airportd[440:f73] (IO80211) _logTimeIfEventThresholdExceeded: '_writeEventBuffer exceeded threshold': eventCode[0x00000004/4] totalSize[72] @[1314450.487651], [0.384616] Exceeded threshold >= [0.200000], event:'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:20.955 Df airportd[440:f73] (IO80211) _writeEventBuffer:5621 @[1314450.487651] tid[0xf73], dq[0x20c9f1140]/'com.apple.main-thread' opaque[0xacacd6100] ioucPort[3408152688] machPort[50691], total time [0.384616], processed event total_size[48]/khdr->total_size[72], 4/'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:21.044 Df airportd[440:f73] [com.apple.WiFiManager:] Driver Event: <airport[440]> _bsd_80211_event_callback: LINK_CHANGED/4 (en0)
+2026-10-28 12:29:21.504 E  airportd[440:f73] (IO80211) _logTimeIfEventThresholdExceeded: '_eventRead exceeded threshold': eventCode[0x00000004/4] totalSize[72] @[1314450.961113], [0.459768] Exceeded threshold >= [0.200000], event:'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:21.504 Df airportd[440:f73] (IO80211) _eventRead:5415, tag[_writeEventBuffer:0x15e1/5601] @[1314450.961113] tid[0xf73], dq[0x20c9f1140]/'com.apple.main-thread' opaque[0xacacd6100] ioucPort[3408152688] machPort[50691], total time [0.459768], processed event totalSize[72], 4/'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:21.504 E  airportd[440:f73] (IO80211) _logTimeIfEventThresholdExceeded: '_writeEventBuffer exceeded threshold': eventCode[0x00000004/4] totalSize[72] @[1314450.961112], [0.459774] Exceeded threshold >= [0.200000], event:'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:21.504 Df airportd[440:f73] (IO80211) _writeEventBuffer:5621 @[1314450.961112] tid[0xf73], dq[0x20c9f1140]/'com.apple.main-thread' opaque[0xacacd6100] ioucPort[3408152688] machPort[50691], total time [0.459774], processed event total_size[48]/khdr->total_size[72], 4/'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:29.760 E  airportd[440:574669f] (IO80211) _logTimeIfEventThresholdExceeded: '_eventRead exceeded threshold': eventCode[0x00000004/4] totalSize[72] @[1314459.004835], [0.671793] Exceeded threshold >= [0.200000], event:'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:29.760 Df airportd[440:574669f] (IO80211) _eventRead:5415, tag[_writeEventBuffer:0x15e1/5601] @[1314459.004835] tid[0x574669f], dq[0xacb342c00]/'com.apple.corewifi.apple80211-event' opaque[0xacacd5b00] ioucPort[3408150720] machPort[37839], total time [0.671793], processed event totalSize[72], 4/'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:29.760 E  airportd[440:574669f] (IO80211) _logTimeIfEventThresholdExceeded: '_writeEventBuffer exceeded threshold': eventCode[0x00000004/4] totalSize[72] @[1314459.004835], [0.671797] Exceeded threshold >= [0.200000], event:'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:29.760 Df airportd[440:574669f] (IO80211) _writeEventBuffer:5621 @[1314459.004835] tid[0x574669f], dq[0xacb342c00]/'com.apple.corewifi.apple80211-event' opaque[0xacacd5b00] ioucPort[3408150720] machPort[37839], total time [0.671797], processed event total_size[48]/khdr->total_size[72], 4/'APPLE80211_M_LINK_CHANGED'
+2026-10-28 12:29:29.760 Df airportd[440:f73] [com.apple.WiFiManager:] Driver Event: <airport[440]> _bsd_80211_event_callback: LINK_CHANGED/4 (en0)
+
+# 3. Gatekeeper's ticket lookups and assessments in the offline window (syspolicyd)
+Timestamp               Ty Process[PID:TID]
+2026-10-28 12:25:25.702 E  syspolicyd[522:5741e5a] [com.apple.syspolicy:default] cloudkit request failed: Error Domain=NSURLErrorDomain Code=-1001 UserInfo={_kCFStreamErrorCodeKey=-2102, NSUnderlyingError=0x9b8ba2d60 {Error Domain=kCFErrorDomainCFNetwork Code=-1001 UserInfo={_kCFStreamErrorCodeKey=-2102, _kCFStreamErrorDomainKey=4}}, _NSURLErrorFailingURLSessionTaskErrorKey=<private>, _NSURLErrorRelatedURLSessionTaskErrorKey=<private>, NSLocalizedDescription=<private>, NSErrorFailingURLStringKey=<private>, NSErrorFailingURLKey=<private>, _kCFStreamErrorDomainKey=4}
+2026-10-28 12:26:45.607 E  syspolicyd[522:57435d7] [com.apple.syspolicy:default] cloudkit request failed: Error Domain=NSURLErrorDomain Code=-1001 UserInfo={_kCFStreamErrorCodeKey=-2102, NSUnderlyingError=0x9b8ba2c40 {Error Domain=kCFErrorDomainCFNetwork Code=-1001 UserInfo={_kCFStreamErrorCodeKey=-2102, _kCFStreamErrorDomainKey=4}}, _NSURLErrorFailingURLSessionTaskErrorKey=<private>, _NSURLErrorRelatedURLSessionTaskErrorKey=<private>, NSLocalizedDescription=<private>, NSErrorFailingURLStringKey=<private>, NSErrorFailingURLKey=<private>, _kCFStreamErrorDomainKey=4}
+2026-10-28 12:27:14.526 E  syspolicyd[522:5743f17] [com.apple.syspolicy:default] cloudkit request failed: Error Domain=NSURLErrorDomain Code=-1001 UserInfo={_kCFStreamErrorCodeKey=-2102, NSUnderlyingError=0x9b8ba0b40 {Error Domain=kCFErrorDomainCFNetwork Code=-1001 UserInfo={_kCFStreamErrorCodeKey=-2102, _kCFStreamErrorDomainKey=4}}, _NSURLErrorFailingURLSessionTaskErrorKey=<private>, _NSURLErrorRelatedURLSessionTaskErrorKey=<private>, NSLocalizedDescription=<private>, NSErrorFailingURLStringKey=<private>, NSErrorFailingURLKey=<private>, _kCFStreamErrorDomainKey=4}
+2026-10-28 12:27:37.202 Df syspolicyd[522:57435d9] [com.apple.syspolicy.exec:default] GK performScan: PST: (path: e1f2f6f11c8da24a), (team: RHQ28XS7D9), (id: (null)), (bundle_id: (null))
+2026-10-28 12:27:38.013 Df syspolicyd[522:57446ff] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 0, PST: (path: e1f2f6f11c8da24a), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com), 1, 0, 1, 0, 4, 4, 1
+2026-10-28 12:27:38.016 Df syspolicyd[522:57446ff] [com.apple.syspolicy.exec:default] Prompt shown (5, 0), waiting for response: PST: (path: e1f2f6f11c8da24a), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-28 12:27:40.219 E  syspolicyd[522:57435d9] [com.apple.syspolicy:default] cloudkit request failed: Error Domain=NSURLErrorDomain Code=-1001 UserInfo={_kCFStreamErrorCodeKey=-2102, NSUnderlyingError=0x9b89d6370 {Error Domain=kCFErrorDomainCFNetwork Code=-1001 UserInfo={_kCFStreamErrorCodeKey=-2102, _kCFStreamErrorDomainKey=4}}, _NSURLErrorFailingURLSessionTaskErrorKey=<private>, _NSURLErrorRelatedURLSessionTaskErrorKey=<private>, NSLocalizedDescription=<private>, NSErrorFailingURLStringKey=<private>, NSErrorFailingURLKey=<private>, _kCFStreamErrorDomainKey=4}
+2026-10-28 12:28:02.382 Df syspolicyd[522:57446ff] [com.apple.syspolicy.exec:default] Marked application as user approved: 1, PST: (path: e1f2f6f11c8da24a), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-28 12:28:02.413 Df syspolicyd[522:57446ff] [com.apple.syspolicy.exec:default] Created provenance data for target: TA(357fe899b008b632, 2), PST: (path: e1f2f6f11c8da24a), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-28 12:28:02.413 Df syspolicyd[522:57446ff] [com.apple.syspolicy.exec:default] Wrote provenance data on target: TA(357fe899b008b632, 2), PST: (path: e1f2f6f11c8da24a), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-28 12:29:17.963 Df syspolicyd[522:57435d8] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 2, PST: (path: fae9c4866c0538b2), (team: (null)), (id: (null)), (bundle_id: (null)), 0, 0, 1, 0, 0, 0, 0
+
+# 4. Every Gatekeeper scan of this team's code from the release build (01:47) to the end of the offline window
+Timestamp               Ty Process[PID:TID]
+2026-10-28 12:27:37.202 Df syspolicyd[522:57435d9] [com.apple.syspolicy.exec:default] GK performScan: PST: (path: e1f2f6f11c8da24a), (team: RHQ28XS7D9), (id: (null)), (bundle_id: (null))
+scans of team RHQ28XS7D9: 1
+## the offline launch is this Mac's only scan of the team's code since the release build: test 1 -eq 1
+(exit 0)
+ok: the offline launch is this Mac's only scan of the team's code since the release build
+
+
+# 5. The launched copy is the published build
+## version: /usr/libexec/PlistBuddy -c Print :CFBundleShortVersionString /Users/loong_zhou/Desktop/agentshed-offline-check/Agentshed.app/Contents/Info.plist
+0.1.0-beta.2
+(exit 0)
+ok: version
+
+CDHash=24cf8bc0a440915e6a7d9680eb9543dd58b1f78e (published: 24cf8bc0a440915e6a7d9680eb9543dd58b1f78e)
+## CDHash equals the published app's: test 24cf8bc0a440915e6a7d9680eb9543dd58b1f78e = 24cf8bc0a440915e6a7d9680eb9543dd58b1f78e
+(exit 0)
+ok: CDHash equals the published app's
+
+## its own stapled ticket: xcrun stapler validate /Users/loong_zhou/Desktop/agentshed-offline-check/Agentshed.app
+Processing: /Users/loong_zhou/Desktop/agentshed-offline-check/Agentshed.app
+The validate action worked!
+(exit 0)
+ok: its own stapled ticket
+
+## quarantine after the owner's approval: xattr -p com.apple.quarantine /Users/loong_zhou/Desktop/agentshed-offline-check/Agentshed.app
+03c1;6ae1668d;Chrome;44A5B432-3CAA-466E-92DB-2F5215C5E26A
+(exit 0)
+ok: quarantine after the owner's approval
+
+
+# 6. The DMG Chrome downloaded is the published one
+release asset digest: sha256:717c21715ee99f4cefab6bad32b9427b8307037fc80cbf767de5056e0cde87c2
+downloaded DMG:       sha256:717c21715ee99f4cefab6bad32b9427b8307037fc80cbf767de5056e0cde87c2
+## DMG digest equals the release asset's: test -n sha256:717c21715ee99f4cefab6bad32b9427b8307037fc80cbf767de5056e0cde87c2 -a sha256:717c21715ee99f4cefab6bad32b9427b8307037fc80cbf767de5056e0cde87c2 = sha256:717c21715ee99f4cefab6bad32b9427b8307037fc80cbf767de5056e0cde87c2
+(exit 0)
+ok: DMG digest equals the release asset's
+
+
+# 7. Task 15: spctl, now that the offline launch is done
+## spctl: the app: spctl --assess -vvv --type execute /Users/loong_zhou/Desktop/agentshed-offline-check/Agentshed.app
+/Users/loong_zhou/Desktop/agentshed-offline-check/Agentshed.app: accepted
+source=Notarized Developer ID
+origin=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+(exit 0)
+ok: spctl: the app
+
+## spctl: the DMG: spctl --assess -vvv --type open --context context:primary-signature /Users/loong_zhou/Downloads/Agentshed-0.1.0-beta.2-mac-arm64.dmg
+/Users/loong_zhou/Downloads/Agentshed-0.1.0-beta.2-mac-arm64.dmg: accepted
+source=Notarized Developer ID
+origin=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+(exit 0)
+ok: spctl: the DMG
+
+## both are Notarized Developer ID: test 2 -eq 2
+(exit 0)
+ok: both are Notarized Developer ID
+
+FAILS=0
+CHECK_EXIT=0

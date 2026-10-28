@@ -1,0 +1,21 @@
+# Route 2's download came from the cache: electron-updater's cache after route 2, 2026-10-28T05:10:23Z
+# The pending ZIP keeps route 1's time (12:34:30 CST); the copy handed to Squirrel.Mac (update.zip) was rewritten at 12:52:50, the staging of route 2.
+$ ls -la -D "%H:%M:%S" ~/Library/Caches/agentshed-updater ~/Library/Caches/agentshed-updater/pending
+/Users/loong_zhou/Library/Caches/agentshed-updater:
+total 262528
+drwxr-xr-x@   5 loong_zhou  staff        160 12:34:30 .
+drwx------  373 loong_zhou  staff      11936 13:01:43 ..
+-rw-r--r--@   1 loong_zhou  staff     127769 12:52:50 current.blockmap
+drwxr-xr-x@   5 loong_zhou  staff        160 12:34:30 pending
+-rw-r--r--@   1 loong_zhou  staff  121249705 12:52:50 update.zip
+
+/Users/loong_zhou/Library/Caches/agentshed-updater/pending:
+total 262432
+drwxr-xr-x@ 5 loong_zhou  staff        160 12:34:30 .
+drwxr-xr-x@ 5 loong_zhou  staff        160 12:34:30 ..
+-rw-r--r--@ 1 loong_zhou  staff  121249705 12:34:30 Agentshed-0.1.0-beta.2-mac-arm64.zip
+-rw-r--r--@ 1 loong_zhou  staff     127769 12:34:00 current.blockmap
+-rw-r--r--@ 1 loong_zhou  staff        182 12:34:30 update-info.json
+$ openssl dgst -sha512 -binary <zip> | base64, for both ZIPs (the metadata's sha512 is w9aY9hc70ulSz2Yos0GYmB6QalsAIHxI5+7qSCrQwM9fkTSybZ46cC8DGWpcr3LpuG4hJRE14frMpKxiYbrStg==)
+w9aY9hc70ulSz2Yos0GYmB6QalsAIHxI5+7qSCrQwM9fkTSybZ46cC8DGWpcr3LpuG4hJRE14frMpKxiYbrStg==  ~/Library/Caches/agentshed-updater/update.zip
+w9aY9hc70ulSz2Yos0GYmB6QalsAIHxI5+7qSCrQwM9fkTSybZ46cC8DGWpcr3LpuG4hJRE14frMpKxiYbrStg==  ~/Library/Caches/agentshed-updater/pending/Agentshed-0.1.0-beta.2-mac-arm64.zip

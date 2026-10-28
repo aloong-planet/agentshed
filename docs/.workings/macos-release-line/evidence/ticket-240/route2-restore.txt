@@ -1,0 +1,50 @@
+# restore v0.1.0-beta for route 2, 2026-10-28T04:48:58Z
+# <scratchpad> is /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad
+
+## nothing runs from the installed app: bash -c ! pgrep -f '^/Applications/Agentshed.app/Contents/(MacOS/Agentshed|Frameworks/Squirrel.framework/Resources/ShipIt)'
+(exit 0)
+ok: nothing runs from the installed app
+
+## the installed app is route 1's 0.1.0-beta.2: bash -c [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' '/Applications/Agentshed.app/Contents/Info.plist')" = 0.1.0-beta.2 ]
+(exit 0)
+ok: the installed app is route 1's 0.1.0-beta.2
+
+## move it aside: bash -c mkdir -p '/private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/v0.1.0-beta.2-route1' && mv '/Applications/Agentshed.app' '/private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/v0.1.0-beta.2-route1/Agentshed.app'
+(exit 0)
+ok: move it aside
+
+## copy v0.1.0-beta back: ditto /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/v0.1.0-beta-backup/Agentshed.app /Applications/Agentshed.app
+(exit 0)
+ok: copy v0.1.0-beta back
+
+## version: /usr/libexec/PlistBuddy -c Print :CFBundleShortVersionString /Applications/Agentshed.app/Contents/Info.plist
+0.1.0-beta
+(exit 0)
+ok: version
+
+CDHash=93cc81731ebf215da53330e9e1bef70acdc7b228 (v0.1.0-beta: 93cc81731ebf215da53330e9e1bef70acdc7b228)
+## CDHash is v0.1.0-beta's: test 93cc81731ebf215da53330e9e1bef70acdc7b228 = 93cc81731ebf215da53330e9e1bef70acdc7b228
+(exit 0)
+ok: CDHash is v0.1.0-beta's
+
+## signature: codesign --verify --deep --strict /Applications/Agentshed.app
+(exit 0)
+ok: signature
+
+## byte compare with the copy (diff -r, no output = identical): diff -r /Applications/Agentshed.app /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/v0.1.0-beta-backup/Agentshed.app
+(exit 0)
+ok: byte compare with the copy (diff -r, no output = identical)
+
+## extended attributes as on the copy: bash -c [ "$(xattr '/Applications/Agentshed.app')" = "$(xattr '/private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/v0.1.0-beta-backup/Agentshed.app')" ]
+(exit 0)
+ok: extended attributes as on the copy
+
+com.apple.macl
+com.apple.provenance
+com.apple.quarantine
+
+## the version record v0.1.0-beta will read on its launch
+{"version":"0.1.0-beta.2"}
+
+FAILS=0
+CHECK_EXIT=0

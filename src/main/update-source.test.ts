@@ -4,12 +4,12 @@
 // the adapter's check against GitHub, and the default loader every case here replaces, are accepted by evidence
 // from a packaged build of this code that found, downloaded and staged a real release; the restart into the new
 // version, install on quit without relaunch, the system updater's signature check on a real package (H2) and
-// channel selection for a pre-release installation are accepted by evidence once an installation of one release
-// has updated to the next; the display-cache flush on the install's quit (Failure C1) cannot be seen there, since
-// a save is written at once and nothing is pending at a click, and rests on the quit path the install takes; a
-// package the system updater rejects at install, after the app has quit, is left to Squirrel.Mac, which keeps the
-// version in place, and no test of the app reaches it (H2); channel selection for a formal installation waits for
-// a pre-release published after the first formal release (app-update Testing Decisions).
+// channel selection for a pre-release installation are accepted by evidence from an installation of one release
+// that updated to the next by each install route; the display-cache flush on the install's quit (Failure C1) cannot
+// be seen there, since a save is written at once and nothing is pending at a click, and rests on the quit path the
+// install takes; a package the system updater rejects at install, after the app has quit, is left to Squirrel.Mac,
+// which keeps the version in place, and no test of the app reaches it (H2); channel selection for a formal
+// installation waits for a pre-release published after the first formal release (app-update Testing Decisions).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'

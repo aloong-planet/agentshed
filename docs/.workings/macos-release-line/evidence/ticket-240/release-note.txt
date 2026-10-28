@@ -1,0 +1,60 @@
+# Task 19 of #240: the release note written into the v0.1.0-beta.2 pre-release, read back from GitHub
+# 2026-10-28T05:01:31Z; the owner confirmed the summary on 2026-10-28. Non-ASCII characters are escaped as \x{hex} (check:lang).
+$ gh release edit v0.1.0-beta.2 -R aloong-planet/agentshed --title v0.1.0-beta.2 --notes-file <note>
+$ gh release view v0.1.0-beta.2 -R aloong-planet/agentshed --json name,isPrerelease,isDraft  ->  name=v0.1.0-beta.2 prerelease=true draft=false
+$ gh release view v0.1.0-beta.2 -R aloong-planet/agentshed --json body --jq .body  ->  equal to <note> (trailing newline aside)
+body sha256 (UTF-8, no trailing newline): a74aa8ec0714ffcb6750150e2dcd3d7b7bb409294447ecd14a89b350f0965350
+----
+## \x{7248}\x{672c}\x{8bf4}\x{660e}
+
+- \x{6eda}\x{52a8}\x{6761}\x{6362}\x{6210}\x{66f4}\x{7ec6}\x{7684}\x{7070}\x{8272}\x{5706}\x{89d2}\x{6ed1}\x{5757}\x{ff0c}\x{4e0d}\x{518d}\x{6709}\x{8f68}\x{9053}\x{3002}\x{8fd9}\x{4e5f}\x{662f}\x{7b2c}\x{4e00}\x{4e2a}\x{80fd}\x{901a}\x{8fc7}\x{5e94}\x{7528}\x{5185}\x{66f4}\x{65b0}\x{76f4}\x{63a5}\x{88c5}\x{4e0a}\x{7684}\x{7248}\x{672c}\x{ff1a}\x{88c5}\x{7740} 0.1.0-beta \x{7684}\x{8bdd}\x{ff0c}\x{5de6}\x{4e0b}\x{89d2}\x{4f1a}\x{51fa}\x{73b0}\x{66f4}\x{65b0}\x{6309}\x{94ae}\x{ff0c}\x{70b9}\x{4e00}\x{4e0b}\x{5b89}\x{88c5}\x{5e76}\x{91cd}\x{542f}\x{ff0c}\x{6216}\x{8005}\x{7b49}\x{4e0b}\x{6b21}\x{9000}\x{51fa}\x{65f6}\x{81ea}\x{52a8}\x{5b89}\x{88c5}\x{3002}
+
+---
+
+### \x{4f18}\x{5316} / \x{53d8}\x{66f4}
+
+- \x{6240}\x{6709}\x{53ef}\x{6eda}\x{52a8}\x{7684}\x{533a}\x{57df}\x{ff0c}\x{6eda}\x{52a8}\x{6761}\x{90fd}\x{6362}\x{6210} 6 \x{50cf}\x{7d20}\x{5bbd}\x{7684}\x{4e2d}\x{6027}\x{7070}\x{5706}\x{89d2}\x{6ed1}\x{5757}\x{ff0c}\x{6ca1}\x{6709}\x{8f68}\x{9053}\x{ff1b}\x{5185}\x{5bb9}\x{8d85}\x{51fa}\x{65f6}\x{4e00}\x{76f4}\x{663e}\x{793a}\x{ff0c}\x{9f20}\x{6807}\x{79fb}\x{4e0a}\x{53bb}\x{989c}\x{8272}\x{52a0}\x{6df1}\x{3002}\x{6d45}\x{8272}\x{548c}\x{6df1}\x{8272}\x{4e0b}\x{5404}\x{7528}\x{4e00}\x{79cd}\x{7070}\x{ff0c}\x{4e0d}\x{968f}\x{4e3b}\x{9898}\x{914d}\x{8272}\x{53d8}\x{5316}\x{3002}
+
+---
+
+## \x{4e0b}\x{8f7d}\x{4e0e}\x{5b89}\x{88c5}
+
+| \x{5e73}\x{53f0} | \x{4e0b}\x{8f7d}\x{6587}\x{4ef6} | \x{8bf4}\x{660e} |
+|---|---|---|
+| macOS\x{ff08}Apple \x{82af}\x{7247}\x{ff09} | `Agentshed-0.1.0-beta.2-mac-arm64.dmg` | M \x{7cfb}\x{5217}\x{82af}\x{7247}\x{4e13}\x{7528}\x{ff0c}\x{9700}\x{8981} macOS 12 \x{6216}\x{66f4}\x{9ad8}\x{7248}\x{672c}\x{ff0c}\x{5df2}\x{901a}\x{8fc7} Apple \x{516c}\x{8bc1}\x{ff0c}\x{9996}\x{6b21}\x{6253}\x{5f00}\x{786e}\x{8ba4}\x{4e00}\x{6b21}\x{5373}\x{53ef} |
+
+\x{9996}\x{6b21}\x{4f7f}\x{7528}\x{63d0}\x{793a}
+- macOS\x{ff1a}\x{5df2}\x{901a}\x{8fc7} Apple \x{516c}\x{8bc1}\x{3002}\x{6253}\x{5f00} DMG\x{ff0c}\x{628a} Agentshed \x{62d6}\x{8fdb}\x{300c}\x{5e94}\x{7528}\x{7a0b}\x{5e8f}\x{300d}\x{6587}\x{4ef6}\x{5939}\x{ff0c}\x{518d}\x{4ece}\x{300c}\x{5e94}\x{7528}\x{7a0b}\x{5e8f}\x{300d}\x{6253}\x{5f00}\x{3002}\x{9996}\x{6b21}\x{6253}\x{5f00}\x{65f6}\x{7cfb}\x{7edf}\x{4f1a}\x{5f39}\x{4e00}\x{6b21}"\x{662f}\x{4ece}\x{4e92}\x{8054}\x{7f51}\x{4e0b}\x{8f7d}\x{7684} App\x{ff0c}\x{786e}\x{5b9a}\x{8981}\x{6253}\x{5f00}\x{5417}"\x{ff08}\x{4e0b}\x{65b9}\x{4f1a}\x{6ce8}\x{660e}"Apple \x{5df2}\x{68c0}\x{67e5}\x{ff0c}\x{672a}\x{53d1}\x{73b0}\x{6076}\x{610f}\x{8f6f}\x{4ef6}"\x{ff09}\x{ff0c}\x{70b9}"\x{6253}\x{5f00}"\x{5373}\x{53ef}\x{ff0c}\x{4ee5}\x{540e}\x{4e0d}\x{518d}\x{63d0}\x{793a}\x{2014}\x{2014}\x{8fd9}\x{662f}\x{6240}\x{6709}\x{4ece}\x{6d4f}\x{89c8}\x{5668}\x{4e0b}\x{8f7d}\x{7684} App \x{90fd}\x{6709}\x{7684}\x{4e00}\x{6b65}\x{ff0c}\x{4e0d}\x{662f}\x{5b89}\x{5168}\x{8b66}\x{544a}\x{3002}\x{76ee}\x{524d}\x{53ea}\x{6709} Apple \x{82af}\x{7247}\x{ff08}M \x{7cfb}\x{5217}\x{ff09}\x{7248}\x{672c}\x{ff0c}Intel \x{82af}\x{7247}\x{7684} Mac \x{6682}\x{4e0d}\x{652f}\x{6301}\x{ff08}\x{5de6}\x{4e0a}\x{89d2}\x{82f9}\x{679c}\x{83dc}\x{5355} \x{2192} \x{5173}\x{4e8e}\x{672c}\x{673a} \x{53ef}\x{770b}\x{82af}\x{7247}\x{578b}\x{53f7}\x{ff09}\x{3002}
+- \x{5df2}\x{7ecf}\x{88c5}\x{7740} 0.1.0-beta \x{7684}\x{8bdd}\x{4e0d}\x{7528}\x{91cd}\x{65b0}\x{4e0b}\x{8f7d}\x{ff1a}\x{5e94}\x{7528}\x{4f1a}\x{5728}\x{540e}\x{53f0}\x{4e0b}\x{597d}\x{65b0}\x{7248}\x{672c}\x{ff0c}\x{70b9}\x{5de6}\x{4e0b}\x{89d2}\x{7684}\x{66f4}\x{65b0}\x{6309}\x{94ae}\x{5b89}\x{88c5}\x{5e76}\x{91cd}\x{542f}\x{ff0c}\x{6216}\x{8005}\x{4e0b}\x{6b21}\x{9000}\x{51fa}\x{65f6}\x{81ea}\x{52a8}\x{5b89}\x{88c5}\x{3002}
+
+---
+
+**\x{5b8c}\x{6574}\x{53d8}\x{66f4}**: https://github.com/aloong-planet/agentshed/compare/v0.1.0-beta...v0.1.0-beta.2
+
+---
+
+## About this version
+
+- Scrollbars are now a slim grey rounded thumb with no track. This is also the first version that arrives through the in-app update: with 0.1.0-beta installed, an update button appears at the bottom left; click it to install and restart, or let it install the next time you quit.
+
+---
+
+### Improved / changed
+
+- Every scrolling area's scrollbar is a 6px rounded thumb in a neutral grey with no track, always shown when the content overflows and darker on hover. Light and dark each have their grey; the colour themes do not change it.
+
+---
+
+## Download and install
+
+| Platform | File | Notes |
+|---|---|---|
+| macOS (Apple Silicon) | `Agentshed-0.1.0-beta.2-mac-arm64.dmg` | For M-series Macs, macOS 12 or later. Notarized by Apple; confirm once on first open |
+
+First use
+- macOS: notarized by Apple. Open the DMG, drag Agentshed into Applications, and open it from there. The first time, macOS asks once whether to open an app downloaded from the internet, and notes that Apple checked it for malicious software and found none. Click Open; it will not ask again. Every app downloaded in a browser gets this step; it is not a security warning. Only Apple Silicon (M-series) Macs are supported for now; Intel Macs are not (Apple menu \x{2192} About This Mac shows the chip).
+- With 0.1.0-beta installed there is nothing to download by hand: the app fetches the new version in the background; click the update button at the bottom left to install and restart, or it installs the next time you quit.
+
+---
+
+**Full changelog**: https://github.com/aloong-planet/agentshed/compare/v0.1.0-beta...v0.1.0-beta.2
