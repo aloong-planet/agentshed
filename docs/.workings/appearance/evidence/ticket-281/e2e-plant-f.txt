@@ -1,5 +1,0 @@
-plant F_idle_thumb_invisible: exit 1
-  errors: ["Error: WhenScrolling: the idle thumb is black at 25% over 255,255,255, got 255,255,255"]
-  failing lines: ["> 4295 |       `${setting}: the idle thumb is black at 25% over ${rgb(list.background)}, got ${rgb(thumb)}`).toBe(true)"]
-restored byte for byte: true
-rebuilt from the restored source

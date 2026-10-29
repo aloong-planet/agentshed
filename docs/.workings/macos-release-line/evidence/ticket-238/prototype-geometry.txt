@@ -1,8 +1,0 @@
-# Section heights (CSS px), Chinese pages, of the confirmed prototype in each state and of the site with its reads answered
-# the same way (2026-10-19, Chrome 155): formal from R2, formal from GitHub, test; versions 0.2.0 and 0.1.0-beta as in the prototype
-formal-r2      1280 IDENTICAL {"top":1165.58,"features":1464.8,"install":393.56,"download":334.8}
-formal-r2      400 IDENTICAL {"top":881.38,"features":1698.67,"install":731.92,"download":405.58}
-formal-github  1280 IDENTICAL {"top":1165.58,"features":1464.8,"install":393.56,"download":334.8}
-formal-github  400 IDENTICAL {"top":881.38,"features":1698.67,"install":731.92,"download":383.19}
-test           1280 IDENTICAL {"top":1168.02,"features":1464.8,"install":393.56,"download":335.52}
-test           400 IDENTICAL {"top":904.61,"features":1698.67,"install":731.92,"download":383.91}

@@ -1,5 +1,0 @@
-# Section heights (CSS px) of the confirmed prototype, switched to the list state, and of the site (2026-10-18, Chrome 155)
-prototype 1280 {"titleToSteps":36,"sectionHeight":393.56,"features":1464.8,"download":334.8,"hero":1134.78}
-prototype 400 {"titleToSteps":36,"sectionHeight":731.92,"features":1698.67,"download":383.19,"hero":850.58}
-site      1280 {"titleToSteps":36,"sectionHeight":393.56,"features":1464.8,"download":334.8,"hero":1134.78}
-site      400 {"titleToSteps":36,"sectionHeight":731.92,"features":1698.67,"download":383.19,"hero":850.58}

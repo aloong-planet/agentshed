@@ -1,5 +1,0 @@
-plant A_corner_painted: exit 1
-  errors: ["Error: the corner shows the body's dark background 31,33,36, got 255,255,255"]
-  failing lines: ["> 2230 |   expect(near(corner, darkBody), `the corner shows the body's dark background ${darkBody}, got ${corner}`).toBe(true)"]
-restored byte for byte: true
-rebuilt from the restored source
