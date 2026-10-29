@@ -24,9 +24,10 @@ final check of `/implement` covers it.
 
 | Spec coverage unit and link | Source text and conditions | Owning ticket and role | Planned verification and boundary |
 |---|---|---|---|
-| project-detail::REQ-003/AC-01 | CONTEXT.md under `docs/`; root not an artifact | none (spec-driven) | Test: providers fixture — `docs/CONTEXT.md` listed as context, a root `CONTEXT.md` not listed, both present → only the `docs/` one |
+| project-detail::REQ-003/AC-01 | CONTEXT.md under `docs/`; root not an artifact | none (spec-driven) | Test: providers fixtures — both present → only the `docs/` one (U1); a root `CONTEXT.md` beside a `docs/` holding other artifacts → no context entry, the others listed (U4); a root file and no `docs/` → nothing (U2) |
 | project-detail::REQ-003/AC-02 | other types unchanged | none (spec-driven) | Test: the existing providers fixture cases stay green |
-| REQ-003 failure modes: link to a root CONTEXT.md | R3 notice | none (spec-driven) | Test: the e2e configuration link probe now targets `./docs/CONTEXT.md` and opens the reader |
+| REQ-003 failure modes: link to a root CONTEXT.md | R3 notice | none (spec-driven) | Test, by composition: the renderer admits a relative link only to a listed file (md-links, with its unit case refusing an unlisted target); U1 and U4 show a root file is not listed; E1's "missing doc" probe shows the notice on the user path |
+| REQ-003 failure modes: a page saved before the change | the root file listed until revalidation | none (spec-driven) | Test: E4 (startup-restore) — the restored registration admits the root file before any detail read, and the current detail retires it while the file is on disk (`artifact-not-whitelisted`); the display side is REQ-001/AC-03's restore case |
 
 ## Current verification
 

@@ -84,6 +84,18 @@ describe('readArtifacts', () => {
     expect(readArtifacts(proj)).toEqual([])
   })
 
+  it('project-detail::REQ-003/AC-01: a CONTEXT.md still at the root of a project whose docs/ holds other artifacts is not listed; the others are', () => {
+    // The layout of a repository not yet moved: a root CONTEXT.md, docs/ with adr, specs and ops, no docs/CONTEXT.md
+    w('CONTEXT.md', '# Root glossary\n', 100)
+    w('docs/adr/0001-first.md', '# ADR-0001 settle the architecture\n', 200)
+    w('docs/specs/shot.md', '# Screenshot (requirements)\n', 300)
+    w('docs/ops/runbook.md', '# Runbook\n', 400)
+    expect(readArtifacts(proj).map((i) => `${i.type}:${i.title}`)).toEqual([
+      'specs:Screenshot (requirements)',
+      'adr:ADR-0001 settle the architecture'
+    ])
+  })
+
   it('project-detail::REQ-003/AC-01: a CONTEXT.md only at the project root, with no docs directory, lists nothing', () => {
     w('CONTEXT.md', '# Root glossary\n', 100)
     expect(readArtifacts(proj)).toEqual([])

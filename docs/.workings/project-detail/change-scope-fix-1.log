@@ -1,0 +1,12 @@
+# change-scope after the fix for F1-F3, 2026-10-29T14:06:59Z
+$ git rev-parse HEAD
+d7c364d52448723e6965744db5ab81c13cc21253
+$ node ~/.claude/skills/implement/change-scope.mjs --base d7c364d
+inert   docs/.workings/context-glossary-only/tasks.md
+inert   docs/.workings/project-detail/checklist.md
+inert   docs/.workings/project-detail/review-code.md
+inert   docs/.workings/project-detail/review-tests.md
+changed e2e/startup-restore.spec.ts  (code changed)
+changed src/main/providers/artifacts.test.ts  (code changed)
+verdict: run (6 files differ from the base)
+exit code: 1

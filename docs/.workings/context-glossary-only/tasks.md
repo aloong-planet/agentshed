@@ -88,3 +88,12 @@ repositories follow later); the app reads `docs/CONTEXT.md` only; the product ch
   Other mentions name the file, not its path, and stay.
 - Targeted verification so far: typecheck 0, lint 0; unit tests of artifacts and of the five suites importing
   project-detail (found by searching the imports; no dynamic import of either module): 6 files, 103 tests, exit 0.
+- Post-implementation check (independent reviewer): F1 no case drove a root CONTEXT.md beside a populated `docs/`;
+  F2 E3's retirement step could not go red; F3 a checklist row cited the wrong test. Fix: unit case U4 (the layout of a
+  repository not yet moved), e2e case E4 (a cache saved before the move: the root file is admitted before the current
+  detail and refused after it, still on disk), E3's step removed, the checklist rows rewritten; the design increment
+  and the self-check are in docs/.workings/project-detail/review-tests.md. Hand-over self-check items 6 and 7: the
+  records named above match the change; the fix's evidence is the targeted log docs/.workings/project-detail/gate-fix-2.log; gate-fix-1.log is the first run, red at E4's held-scan assertion, which led to the revision recorded in review-tests.md.
+- Re-review decision for the fix: change-scope against the pre-fix commit d7c364d (command, full output and exit code in
+  docs/.workings/project-detail/change-scope-fix-1.log) exits 1 with e2e/startup-restore.spec.ts and
+  src/main/providers/artifacts.test.ts `changed`, so the fix is committed and handed to an incremental re-review.
