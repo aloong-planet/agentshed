@@ -152,7 +152,7 @@ Self-check before hand-over (items 2–5; items 6 and 7 below; item 1 in the cod
 
 | Item | Object | Result |
 |---|---|---|
-| 2 | T35, T36 | Expected values are literals and a hand sum (330 + 7148 + 55 + 33); red when the subagent detection is lost (R1, R2). Dropping either of the two parse guards alone leaves both green (R3, R4): a subagent's transcript is never read, and a subagent is never listed — either guard alone keeps the behaviour, so the cases watch the behaviour, not one line |
+| 2 | T35, T36 | Expected values are literals and a hand sum (330 + 7148 + 55 + 33); red when the subagent detection is lost (R1, R2). Dropping either of the two parse guards alone leaves T35 green (R3, R4, run on T35 only; for T36 it holds by reading, since the corpus takes the listed rows): a subagent's transcript is never read, and a subagent is never listed — either guard alone keeps the behaviour, so the cases watch the behaviour, not one line |
 | 2 | T37 | Literal from the real message; the case first asserts the real line carries that body (so the replacement cannot miss); red when only the last message is kept (R5) |
 | 2 | T38 | Three reads, each awaited; red when a failed read drops the titles (R6), when the build or the page's first read is not given the copy directory (R7, R8 — the read then works and shows the log's title) |
 | 2 | T39 | Literal row, count and page fields; red when a parent that cannot be read is resolved as the parent (the unreadable entry would have to carry the parent's id) or when the fork loses its row or state — answered against `agyParent` and the unreadable entry's empty id; no single line to alter |
@@ -166,7 +166,7 @@ Self-check before hand-over (items 2–5; items 6 and 7 below; item 1 in the cod
 | 3 | The page's first title read | Read works: T19; fails: T38 (a new engine's page falls back) — added to T38 by this item |
 | 3 | `check-shared-ui.mjs`'s side-count rule | The reworded note now passes the rule's default path (no side-count word); evidence: `pnpm check:ui` in the targeted verification |
 | 3 | The dictionaries' note | A string; the e2e reads of the Claude and Codex dispatches keep their phrase |
-| 4 | Data | T35/T36's question line is the measured user-input shape (the case file's `question` helper, from a real line); T37's second message is the real one with another body; T40/T41's lines carry the measured key set (T41 without the index); T39's parent is the real record at another user version; T43's corruption is T31's. Each derived shape is marked in its case |
+| 4 | Data | T35's question line is the measured user-input shape (the case file's `question` helper, from a real line); T36's is written inline in the measured key set, without the additional-metadata block the measured lines carry (the indexer takes the request body either way); T37's second message is the real one with another body; T40/T41's lines carry the measured key set (T41 without the index); T39's parent is the real record at another user version; T43's corruption is T31's. Each derived shape is marked in its case |
 | 5 | Shared helpers | `mkAgyFork` (search-sessions.test.ts) gained a parameter; its users are that file's two cases, both in the targeted run. No shared fixture module changed |
 
 - Item 6, evidence: [ticket-324-fix-reach.log](ticket-324-fix-reach.log) keeps the reach checks' scripts, each
@@ -434,3 +434,215 @@ item is listed here for the implementer to add.
   them). Not re-run here, as the rule forbids; this reviewer's own `git status` at the start of the check showed a clean
   tree at 05faa8a, which corroborates but does not replace the log. Recommended: record both exit codes in the full
   run's log before delivery, which re-establishes the version for the whole suite.
+
+## Post-implementation check: incremental, round 2
+
+Date 2026-10-29 · ticket [#324](https://github.com/aloong-planet/agentshed/issues/324) (feature `antigravity-side`) ·
+implementation version 0e9f3ea (the fix range `ef6ee8b..0e9f3ea`, which is 0e9f3ea alone; ccd60d6 after it adds one log)
+· branch `feat/antigravity-sessions` · reviewer independent of the implementation · scope: the incremental objects
+below. Every other conclusion carries over from the Post-implementation check above (round 1, 2026-10-29, at 05faa8a).
+
+### Incremental objects
+
+Searched at ccd60d6, whose tree differs from 0e9f3ea only by the log it adds:
+
+| Kind | Command | Result |
+|---|---|---|
+| Tests changed in the range | `git diff --name-only ef6ee8b..0e9f3ea -- "*.test.ts" "*.test.tsx" "*.test.mjs" "*.spec.ts"` | `e2e/app.spec.ts`, `antigravity.test.ts`, `question-corpus.test.ts`, `question-index.test.ts`, `search-sessions.test.ts`, `turn-content.test.ts` (exit 0) |
+| Their hunks | `git diff -U0 ef6ee8b..0e9f3ea -- <those six files>`, hunk headers | app.spec.ts: two import lines and +6 in the Antigravity journey (T30 → T42); antigravity.test.ts: the header (+6) and three blocks of new cases (T35; T38; T39 and T43); question-corpus.test.ts: the describe's comment and a `subagentQuestion` line, `mkAgyHome`'s subagent transcript, one assertion in T28 (T36); question-index.test.ts: T41; search-sessions.test.ts: `mkAgyFork`'s signature and its transcript line, T40; turn-content.test.ts: T37 |
+| Shared test helpers changed | `git diff --name-only ef6ee8b..0e9f3ea -- src/main/testing e2e ":(exclude)e2e/*.spec.ts"` | none (exit 0, empty) |
+| Users of the in-file helpers changed | `rg -n "mkAgyFork\(\|mkAgyHome\(\|subagentQuestion" src e2e` | `mkAgyHome` (and the line it writes): its one call, T28/T36; `mkAgyFork`: T29 (no argument, so the default — the measured fork, as before) and T40 |
+| Tests importing a test file | `rg -n "from ['\"][^'\"]*\.(test\|spec)['\"]" src e2e scripts`; control with a `-fixture` alternative added | none (exit 1); the control hits 8 files, so the pattern works |
+| Test design table rows changed | `git diff ef6ee8b..0e9f3ea -- <this record>` | additions only, after line 119: the Design review's increment (T35–T43) and round 1's section (its own rows T31–T34). T31–T34's cases lie outside every hunk above, so round 1's conclusions on them carry over; T1–T30 unchanged |
+
+Objects: T28/T36, T29, T30/T42, T35, T37, T38, T39, T40, T41, T43, and `antigravity.test.ts`'s header.
+
+### Run evidence
+
+The handed-over targeted log, [ticket-324-fix-targeted.log](ticket-324-fix-targeted.log), read in full against
+`implement/full-verification-gate.md`:
+- Version: `git rev-parse HEAD` = ef6ee8b (exit 0); `git status --porcelain --untracked-files=all` lists 15 paths (exit 0);
+  one hash per path. Each of the 12 code and test files' hashes equals its blob at 0e9f3ea (`git rev-parse
+  0e9f3ea:<path>` for each). What differs between the logged tree and 0e9f3ea is documents written after the run — this
+  record (b6e6352 at the run, 146cab9 at the commit), `checklist.md` and `ticket-324-doc-sync.md` (unmodified at the
+  run) — and the four logs 0e9f3ea adds; no test reads them. The run's tests are the commit's.
+- typecheck, lint, the list's 18 unit files (380 passed, the ccusage parity file's one skip), `check:ui`, `check:lang`,
+  `check:i18n`, `check:nul` and `pnpm e2e e2e/app.spec.ts` (the build, then 91 passed) each carry their full output and
+  `exit=0`; `OVERALL exit=0`. The reviewed files: `question-index.test.ts` 62 (round 1's 61 + T41), `turn-content.test.ts`
+  35 (+ T37), `antigravity.test.ts` 83 (+ T35, T38, T39, T43), `question-corpus.test.ts` 17 (T36 changes a case),
+  `search-sessions.test.ts` 11 (+ T40) passed; e2e #91 (T30 with T42) passed in 1.7 s.
+- Missing items: the manifest's `git hash-object` step is written as a description and carries no exit code, and three
+  test-list searches are written with placeholders rather than as run (F6).
+- [ticket-324-fix-targeted-run1.log](ticket-324-fix-targeted-run1.log), the parts the increment's item 6 rests on (its
+  version section and lines 112–125): lint failed on `'_dropped'` at `antigravity.test.ts:1348:31`, `OVERALL exit=1` —
+  as item 6 says.
+- The pre-review log is round 1's, unchanged (05faa8a, 699 lines, `OVERALL exit=0`; committed in 0e9f3ea, not re-run);
+  F5 stands for it. The targeted log carries the two exit codes F5 named (its lines 7 and 24).
+
+Measured by this check, on the objects only: `pnpm exec vitest run` on the five unit files, `-t` set to the nine
+cases' names (`--reporter=verbose`): 9 passed, 199 skipped, `tests 237ms`, exit 0; no case printed a duration, i.e. none
+reached the 300 ms slow-test threshold. Output in the session scratch directory, not kept — the figures are quoted here.
+
+### Test design table: the written tests against their rows
+
+| Row | Written as | Agreement |
+|---|---|---|
+| T35 | A "a subagent conversation that was asked something still gets no row and is not admitted (…)" | Agrees, one assertion narrower: the rows are asserted as (file, question count) pairs, not as the dispatch's literal row the table names. T14 pins that row; the pair list is what the subagent clause needs (exactly the dispatch's and the control's rows). The control's row (1 question) shows the derived line is a question |
+| T36 | G "its displayed questions are searched …", with `subagentQuestion` appended to the subagent's transcript in `mkAgyHome` | Agrees in text and position (step 7, after the measured steps 0–5). The line is written inline without the additional-metadata block every measured user-input line carries; the increment's self-check item 4 calls it the `question` helper's line, which is true of T35's only. The indexer takes the request body either way and a subagent's transcript is not read, so no conclusion changes |
+| T37 | TC "a subagent that sends two messages within its dispatch's turn: …" | Agrees; the second message's step 8 follows the answer's 7, so it is no redo |
+| T38 | A "a summaries read that fails while agy writes them keeps the titles last read (REQ-003/AC-03)" | Agrees, the widened first-read cases included |
+| T39 | A (forks) "a fork whose parent cannot be read takes the no-longer-here form …" | Agrees |
+| T40 | S "a hit in lines a rewind undid inside a turn: …" | Agrees: lines 1–2 are undone by 3–4 (hand reading of the rule), inside question 1's range, before question 2 |
+| T41 | Q "a line without a step index is neither a redo nor undone …" | Agrees |
+| T42 | e2e "Antigravity sessions: …", the meta line's figure | Agrees |
+| T43 | A (forks) "a fork's page names its parent with a corrupt cache entry ahead of it, before any build …" | Agrees |
+| T29 | S "question mode hits the kept question; …" | Unchanged: `mkAgyFork()` defaults to the measured fork |
+
+Header: `antigravity.test.ts`'s gap list now holds F2's entry (lines 26–31), the gap and what would close each half.
+Checked against `src/main/index.ts`: both handlers take `sourceIdentity` of `sessionReadSource(…)` before the index
+(lines 321–322, 378–379), check it again at the end (335, 390), and the turn handler refuses a stale
+`questionRevision` (386–387), as the entry says. The Design review's coverage row on this gap is now true. No other
+header of the changed files states a gap the objects touch.
+
+### Dimension: Coverage
+
+The spec is unchanged in the range (`git diff --name-only ef6ee8b..0e9f3ea -- docs/specs` empty); session-view's
+"Failure modes and boundaries: Antigravity sessions" and Implementation Decisions read again for the items round 1
+named:
+
+| Failure mode / statement | Driven by | Verdict |
+|---|---|---|
+| A subagent conversation gets no row, is not admitted and is not searched, its transcript asking something (F1) | T35 (with a listed control), T36 | Covered |
+| A compaction rewrite: identities that no longer match are refused (F2) | the header's gap entry | Gap recorded with its closing condition |
+| A subagent's several messages in its dispatch's turn, shown in order (F3 (a)) | T37 | Covered |
+| A summaries read failing while agy writes keeps the last titles; with none read, the first question, at a build and on a page (F3 (b)) | T38 | Covered |
+| A parent unreadable in the supported format: the no-longer-here form (F3 (c)) | T39 (the page's fields; the banner those fields give is read by T30's gone-source part) | Covered |
+| A full-text hit in undone lines inside a turn counts as that turn's (F3 (d)) | T40 | Covered |
+| A line without a step index is neither a redo nor undone (F3 (e)) | T41 | Covered; the block assembler applies the same `agyKeptLines` over `agyStepIndex` (`turn-content.ts:611`) |
+| The page's byte figure is the database's size (F3 (f)) | T42 | Covered |
+| The fork-parent lookup over a cache read from disk with a corrupt entry first (F4) | T43 | Covered |
+
+Claimed against driven inputs: each object names the input that reaches its branch — T35's control shows the derived
+line is a question; T36's line reaches the corpus once the subagent is listed (fix-reach R2: one session found); T39
+asserts the parent counted unreadable; T40's undone lines lie inside turn 1; T43 asserts the corrupt key comes before
+the parent's; T42 asserts the two files' figures differ. Fixture shapes: each derived line keeps the measured key set
+and is marked derived in its case (T36's lacks the metadata block, above); T37's second message is the real one with
+another body; T39's parent is the real record at another user version; T43's corruption is T31's. No finding.
+
+### Dimension: Case design
+
+The objects drive public seams: `build`, `sessionQuestions`, `sessionReadTarget`, the indexer through `eachJsonlLine`,
+`turnBlocksFromText`, `searchProjectSessions`, the corpus search, and the Electron journey by real clicks. T43 reads and
+writes the cache file, whose on-disk shape is its subject (T31's pattern); its key-order read is a precondition and the
+behaviour is read through `sessionQuestions`. T39 sets the parent's user version through SQLite, the state agy leaves
+when it changes format. T38's failure comes through the engine's copy directory, the seam round 1 recommended;
+production passes none (`src/main/index.ts:681`, two arguments). No state the public path cannot reach. No finding.
+
+### Dimension: False greens
+
+Mutation testing: per the project's capability declaration, `mutation-testing` is not enabled (`enabled = false`), so
+it is skipped; each object's "goes red when" is answered below against the code under test and its expected values'
+sources. The fix's reach checks ([ticket-324-fix-reach.log](ticket-324-fix-reach.log), R1–R11 and the e2e one) alter
+product code; this check reads them and changes no product code.
+
+| Case | Goes red when |
+|---|---|
+| T35 | the subagent detection is lost: its transcript is read and it is listed and admitted (R1: three rows); the derived line is no question (the control unlisted); a call leaves or doubles in the total. Not when only one of the two parse guards (`if (!c.subagent)`, `!c.subagent &&` in `listed`) is dropped (R3, R4): either keeps the behaviour, so no behaviour goes unwatched |
+| T36 | the subagent's question enters the corpus (R2); T28's other reads as in round 1 |
+| T37 | a sender's second message replaces the first (R5), is dropped, or the order flips; the real line no longer holds the body (the precondition) |
+| T38 | a failed read at a build drops the titles (R6); the build or a page's first read not given the copy directory (R7, R8); a failed read taken as no titles; the read in place without a log failing (the first read) |
+| T39 | the parent not counted unreadable or given a row; the fork losing its row or `stripped`; the page naming the unreadable parent — only if the unreadable entry carried the parent's id (`agyParent`; the unreadable aggregate's id is empty), no single line |
+| T40 | the project search drops (no group), folds (`folded` 1) or reassigns a full-text hit in lines undone inside a turn; question mode reading bodies |
+| T41 | a line without an index undone (R9) or acting as a redo (R10) |
+| T42 | the meta line shows the transcript's size (the e2e reach check: 3.7 KB against 384.0 KB) or another figure; the precondition, if the two files' figures coincide |
+| T43 | the shape guard follows the field read (R11, TypeError); the parent not found past a corrupt entry; the corrupt key not first (the precondition) |
+| T29 | as in round 1 (its input unchanged) |
+
+Forms: no always-true bound (none added); no expected value computed by the code under test (hand sums, literals, real
+texts; T42's KB figure follows the meta line's format, which is not its subject and would go red, not green, if the
+format changed); no old path (`agyTmpParent` and `.smeta` are live); no conditional skip (T38 throws without its
+writer); no assertion that may not run (T43 loops over two fixed entries; T37 dereferences its `find` result, so a
+missing block throws). T42 against `review-code/false-greens.md`: it reads the effect (the text), polls the asserted
+expression itself (`toContainText` on `.smeta`), is reached by real clicks, and the wrong file's figure was made to
+happen once (the e2e reach check); T36's absence was made to happen once too (R2).
+
+The increment's self-check item 2 says R3/R4 leave "both" T35 and T36 green; R3/R4 ran on T35 only. For T36 it holds by
+reading: the corpus takes the project's listed rows (`question-corpus.ts` lines 113, 180), and under either alteration
+the subagent is not listed. No conclusion changes. No finding.
+
+### Dimension: Resource reuse
+
+Counted from the targeted log: the e2e build, one `electron-vite build` (main, preload and renderer once each, lines
+355–379) before Playwright; T30/T42's Electron launch, #91 run once with no retry, its body holding one `launch(` (e2e
+line 6132) and one `close(` (6239) — T42 adds no launch. The unit objects use no expensive resource: each builds a
+small home in its own `beforeEach` directory, and the measured run above took 237 ms for the nine with none past
+300 ms. No object clears or releases a resource another case uses: what T38 removes (the summaries), T39 rewrites (the
+parent's user version) and T43 rewrites (the cache file) lie in that case's own directory; engines are per case; no
+process-level cache is added — so no collection order bears on the counts. The objects reuse the existing helpers
+(`dispatchHome`, `parentAndFork`, `usageConversation`, `build`, `engine`, `cacheDir`, `writeSummaries`,
+`insertSummaries`, `mkAgyFork`, `mkAgyHome`, `launch`, `close`). No finding.
+
+### Carried over
+
+From round 1 (2026-10-29, at 05faa8a): every dimension's conclusions for the cases outside the objects. Round 1's F1–F4
+are handled by the objects, as checked above; F5 stands for the pre-review log, whose two named commands the run script
+now records; the third version command is F6.
+
+### Document sync for this check
+
+Scope (2026-10-29, at 0e9f3ea and ccd60d6): this record; the targeted, reach and change-scope logs (read in full); the
+first targeted run (the parts above); the pre-review log (version lines and `OVERALL`); `checklist.md`'s #324 rows
+(lines 89–109, 138–139, 187–213; the range's diff of them read whole); `ticket-324-doc-sync.md` (whole);
+`ticket-324-decisions.md` and `ticket-324-review-code.md` (the range's additions, whole); `final-regression.md` (its
+four #324 mentions; none states a test); `docs/features/session-view.md` (the range's change); session-view's
+Antigravity sections (lines 845–982, 1119–1134, 1190–1200); issue #324 (`gh issue view`).
+`docs/.workings/antigravity-side/` enumerated with `ls -la`: 34 files, no hidden one, all tracked. Unchanged in the
+range, so not read again: `CONTEXT.md`, `docs/adr/`, `docs/specs/`, `docs/prototypes/`, the READMEs (`git diff
+--name-only ef6ee8b..0e9f3ea -- …` empty). Excluded: the other tickets' records (their own ranges) and other features'
+working directories.
+
+- The checklist's #324 rows rewritten in 0e9f3ea name the objects above and the targeted log; each case named exists,
+  passed in that log and drives what its row says. One phrase is wrong: row 187's "re-checked with the
+  post-implementation check's fix (the commit after 05faa8a; …)" — the commit after 05faa8a is ef6ee8b (the features
+  pages); the fix is 0e9f3ea. The document sync checklist's Pending row ("the fix commit's id to be named, and the
+  incremental check to agree") owns it: naming the commit must replace that phrase. Its second condition is met by
+  this section.
+- The Design review's coverage row on the compaction gap is now true (the header entry above).
+- The decisions record's F5 row has the run script record the exit codes of `git rev-parse HEAD` and `git status`,
+  citing the rule that every command has one; the manifest's `git hash-object`, the third version command, still has
+  none (F6).
+- The increment's self-check: item 4's T36 statement and item 2's "both" are inaccurate in detail and change no
+  conclusion; corrected above.
+- The features page's subagent sentence, rewritten with the note, is a product statement owned by the document sync
+  checklist's Pending row and step 8; it states no test.
+- `ticket-324-doc-sync.md` has no item for F6: one is owed ("the full run's log carries every command as it was run,
+  with its own exit code, the manifest's `git hash-object` included — before delivery", documents: the full run's log
+  and the decisions record's F5 row). This reviewer writes only this record; the item is listed here for the
+  implementer to add.
+
+### Findings
+
+- **F6 — The fix's targeted log writes four commands as descriptions, and its version manifest's `git hash-object`
+  step carries no exit code.** `implement/full-verification-gate.md` requires every command as run, the version
+  commands with their path arguments included, each with an exit code taken without a pipe. In
+  [ticket-324-fix-targeted.log](ticket-324-fix-targeted.log), line 25 reads `$ git hash-object <each file listed above>
+  (excluding this log, written by this run)` with no `exit=` line, and the test-list searches at lines 69, 86 and 96 are
+  written with placeholders (`-g test globs`, `(the dictionaries: …)`), so the log alone cannot show that the manifest
+  command succeeded for every path, or what the searches behind the list's negative conclusions matched. Not re-run
+  here, as the rule forbids. For this round no conclusion changes: the 12 code and test hashes equal 0e9f3ea's blobs,
+  checked independently, and every object ran (the case counts above). The gap repeats: the F5 handling in the
+  decisions record fixed two of the three version commands under the same rule, and the full run's log comes next.
+  Recommended now, before the full run: the run script prints each command exactly as executed — the `git hash-object`
+  call with its paths, each search with its literal globs and pattern — with its own exit code; then widen the
+  decisions record's F5 row and add the document sync item listed above.
+
+### Handling of round 2's finding (implementer, 2026-10-29)
+
+F6: the run script of the full verification now prints `git hash-object -- <the listed paths>` as it runs it, with its
+exit code, beside the two version commands F5 named; the full run's log is the evidence, and the decisions record's F5
+row is widened to the three commands and the literal form. The fix's targeted log stays as it was run (a log is not
+rewritten); the round confirmed its 12 code and test hashes against 0e9f3ea independently. The inaccurate details round
+2 noted in the increment's self-check (item 2's "both", item 4's T36 line) are corrected in place, and the checklist's
+row now names the fix commit 0e9f3ea. This handling changes only records and the run script outside the repository:
+self-check items 1–5 not applicable (no product code, test, fixture or helper changed); item 6, the full run's log;
+item 7, the four records named here. No further incremental check: nothing the tests run or read changed.

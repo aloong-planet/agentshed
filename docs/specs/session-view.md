@@ -489,7 +489,9 @@ below are archived as a decision record and are no longer requirements)**
   (with the pure judging function `sessionReadTarget` in security.ts), and the allow-list check is the
   first thing in the handler, before `stat`. **The rule = listed sessions + subagent and nested
   transcripts** — the latter are not in the list (A3/A3a) but expanding them inside a turn needs them, so
-  writing it as "only what is already listed" would block ourselves. Under exact matching, traversal,
+  writing it as "only what is already listed" would block ourselves. The Antigravity CLI side admits its
+  listed conversations' databases only, and no subagent conversation, since no turn expands one
+  (session-view::REQ-004/AC-09; written back 2026-10-29). Under exact matching, traversal,
   prefix lookalikes, encoding variants and NFD variants are all rejected because the strings are not
   equal, which is fail-closed (the worst case is refusing another spelling of the same file).
   A cold rollout's `.jsonl.zst` path enters the allow-list exactly like a plain path (2026-09-10),

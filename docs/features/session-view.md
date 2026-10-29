@@ -72,14 +72,14 @@ sessions, one per row, with "how many questions I asked in this conversation".
   messages: a guardian's transcript preamble, task notifications, delegation blocks) has been
   stripped; on the Codex side the session name it gave itself takes priority, and on the Antigravity
   CLI side the title it generated for the conversation (one it generates later appears at the next
-  refresh)
+  automatic refresh)
 - An Antigravity CLI conversation's page lists the questions you typed, without the time and settings
   notes Antigravity CLI adds to each; expanding one shows the answer, its thinking, each tool call with
-  its result (a denied or still-running call included), a subagent dispatch with the message the
-  subagent sent back (none for a dispatch you cancelled), and a model call that failed as its error
-  text. A question you undid with Antigravity CLI's rewind takes no number, does not appear and is not
-  found by a question search; the redo that replaced it does. A conversation made by `/fork` lists only
-  the questions asked after the fork, and its token figure counts only what it used itself
+  its result (a denied or still-running call included), a subagent dispatch with what the subagent
+  sent back (nothing for a dispatch you cancelled), and a model call that failed as its error text. A
+  question you undid with Antigravity CLI's rewind takes no number, does not appear and is not found by
+  a question search; the redo that replaced it does. A conversation made by `/fork` lists only the
+  questions asked after the fork, and its token figure counts only what it used itself
 - Codex sessions in the agent's newer record format list their questions and open like any other:
   the question is the human message the agent recorded, the prose is the agent's message; a session
   whose only user-side content is the agent's injected context (instructions, environment,

@@ -133,3 +133,18 @@ Failure modes the ticket settles, each traced to a case or a named gap (the test
 included): the compaction rewrite's refusal is a named gap (`antigravity.test.ts` header). Scope beyond these units,
 traced: the summaries copy-directory argument (a test seam, CON-002 unchanged); the reworded note (C3, REQ-004/AC-05).
 No code contradicts a spec statement.
+
+## Wrap-up (step 7, 2026-10-29)
+
+- ADR: none. The decisions of this ticket ([ticket-324-decisions.md](ticket-324-decisions.md)) are this side's rules
+  inside ADR-0037's decision (a session is a conversation database; turns from the transcript by byte range); what the
+  allow-list holds is written into session-view::REQ-004/AC-09 and R1. No ADR is in the proposed state.
+- CONTEXT.md: "Session" and "Turn" amended for the transcript read through the database (5a117de).
+- Postmortem: none. No defect escaped a check: the code review's two comment findings, the test review's coverage
+  findings and the lint error were each caught by the step that exists to catch them.
+- The interface's out-of-scope character icons: the icon-bearing structures of the components this ticket touches —
+  the session page's banner icon slots (four, each `GitFork` from `icons.tsx`) and the Sessions row (the side badge's
+  text chip, the fork pill's `GitFork`) — hold no emoji, Unicode or single-letter icon; the side badge's letters are the
+  confirmed chip design, not an icon. None to report.
+- Spec write-backs: session-view::REQ-004/AC-09, six failure modes and the Implementation Decisions entry (5a117de); R1
+  (this round); token-stats C16 and the cache key.
