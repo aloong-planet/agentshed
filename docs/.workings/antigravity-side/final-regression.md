@@ -304,7 +304,7 @@ switcher).
   table names, ranges expanded — 0 units without a mapping row; the 7 mapped identifiers not defined in the range are
   existing units the feature amended or cites (the Antigravity clauses of session-view::US-001/AC-01, AC-04, AC-07,
   session-view::CON-001/CON-002, global-search::REQ-001). 89 units, as the breakdown audit counted. Recorded in the
-  checklist's Two-way audit.
+  checklist's Two-way audit; the scripts and their output in [ticket-327-audits.log](ticket-327-audits.log).
 - **Every unit re-judged against the combined product**: the closeout rows of the checklist's Current verification
   (dated 2026-10-29, #327). The per-ticket rows' "Verified for #32x's path; the rest is #32y's" were each written on a
   branch that held one ticket's paths; every case they quote is in the combined tree's test files (196 of 196 titles, a
