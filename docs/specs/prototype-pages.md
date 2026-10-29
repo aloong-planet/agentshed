@@ -42,7 +42,8 @@ this shape.
 ### prototype-pages::REQ-002 The notes file
 
 Each UI prototype page has one notes file beside it, named after the page with the suffix `.md`
-(`prototype-<topic>.md` beside `prototype-<topic>.html`). It holds the notes the prototype skill requires of a
+(`prototype-<topic>.md` beside `prototype-<topic>.html`; a candidates page `candidates-<topic>.html` has
+`candidates-<topic>.md`). It holds the notes the prototype skill requires of a
 page: the question the page answers, the basis for each part whose structure was already decided, the list of
 demo scaffolding (marked as not part of the design and not to be implemented, with what decides each state in
 the product), the candidates waiting for a choice and their candidates page, the first-draw items pending the
@@ -126,10 +127,14 @@ prototypes directory stays checked.
   project's Artifacts tab; the listing of this project is unchanged.
 - **Other Markdown under the prototypes directory** (the app icon's README and previews) keeps the language check
   (prototype-pages::CON-003).
+- **A notes-named file without its page**: a `prototype-<topic>.md` whose page has been deleted, or whose same-name
+  page sits in another directory, is not a notes file; the language check treats it as other Markdown, so a notes
+  file left behind by a deleted page surfaces instead of staying exempt (prototype-pages::CON-003).
 
 ## Implementation Decisions
 
-- Pairing is by name: `prototype-<topic>.html` and `prototype-<topic>.md` in the same module directory.
+- Pairing is by name: `prototype-<topic>.html` and `prototype-<topic>.md` (or `candidates-<topic>.html` and
+  `candidates-<topic>.md`) in the same module directory.
 - The notes file's sections follow the order of the prototype skill's list of required notes; a section with
   nothing to say is left out.
 - The shared-UI check gains the rules of prototype-pages::REQ-005; the language check's prototype exemption is
