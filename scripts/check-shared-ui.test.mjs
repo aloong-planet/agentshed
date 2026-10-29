@@ -34,9 +34,10 @@ function page(header, inside = '') {
 /** Each plant replaces one string, which must occur exactly once in its file, or every match of a global pattern, which
  * must match at least once (keyed by the file's path from the root) */
 const PLANTS = {
-  // The issue's two mutations: each page's comment names the asset whose real reference goes
+  // The issue's two mutations: each page's comment names the asset whose real reference goes (the search page's own
+  // comment no longer names it, so the plant leaves one in the link's place)
   'docs/prototypes/global-search/prototype-search.html': [
-    ['<link rel="stylesheet" href="../_shared/app-window.css">\n', ''],
+    ['<link rel="stylesheet" href="../_shared/app-window.css">\n', '<!-- the window frame: ../_shared/app-window.css -->\n'],
     // A new shared stylesheet, linked without a declaration
     ['<link rel="stylesheet" href="../_shared/theme.css">\n', '<link rel="stylesheet" href="../_shared/theme.css">\n<link rel="stylesheet" href="../_shared/side-note.css">\n']
   ],
@@ -234,8 +235,8 @@ const ABSENT_FILES = {
 const COPIED = ['docs/prototypes', 'src', 'README.md', 'README.en.md', 'package.json']
 const EMPTY = ['docs/.workings']
 
-/** Pages whose own comment, not a plant, must still name the asset once its real reference is gone, or the case plants
- * nothing */
+/** Pages where a comment, the page's own or a planted one, must still name the asset once its real reference is gone, or
+ * the case plants nothing */
 const NAMED_IN_A_COMMENT = {
   'docs/prototypes/global-search/prototype-search.html': '_shared/app-window.css',
   'docs/prototypes/project-list/prototype-list.html': '_shared/project-side.js'

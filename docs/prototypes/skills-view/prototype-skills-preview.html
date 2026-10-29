@@ -1,33 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · Skills package preview — the main list expands to show a package's files, and
-     clicking a file opens a drawer to read it.
-     本页没有演示条。
-     界面语言、配色与明暗跟随设置原型(appearance)与画廊的统一设置所选,
-     本页不设开关;语言只画了中、英两种,其他语言按英文显示并有提示;评审注记(.sub 说明、分区标题、配色说明)
-     不随语言变。色值取共享主题 _shared/theme.css,本页只为自己的 token 指明
-     对应的 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。共享:md-preview。
-     2026-10-21: the drawer's frame moves into the shared _shared/file-drawer.css — the one file-drawer form the
-       plugin skill drawer and the memory drawers (Agents page, project detail) draw too. Its width now follows the
-       content-area formula, min(720px, 80% of the window minus the rail), instead of 94vw.
-     2026-08-06 更新:①行密度对齐其它模块(视觉行高约 32px);②行不展示 description(已裁定);
-     ③展开区新增「平铺」形式(默认)——不缩进、表格满宽,与旧「缩进卡片」可切换对比;
-     ④包统计(文件数/大小,不含行数)上行内右侧,展开区撤销汇总条;⑤frontmatter 深浅随页面
-     data-mode(修共享块只认 OS 的 bug)。
-     2026-10-18:展开形式定稿为平铺(与 app 现行一致),缩进卡片与切换它的演示条撤掉。
-     2026-08-10 新增「按名字过滤」:两处列表各一个搜索框——子串匹配、大小写不敏感、只匹配 skill 名;
-     命中不高亮;零额外反馈(不加计数行,列表直接变短,详情的组标题计数随之变化、空组整组消失);
-     输入框不放图标(与真代码 sessions 搜索框一致,且 app 的图标模块禁用字符图标)。
-     详情区同时补上真代码早已有、原型此前缺失的分组结构——不画出分组,「空组消失」这个形态就无从评判。
-     2026-08-12 补:插件行与磁盘行**平等展开预览**(ADR-0012 于 2026-08-07 推翻了 v1 的排除,
-     真代码与 features 早已照此实现,只有本原型停在旧形态——issue #98)。展开能力的判定
-     不再看来源,改看**有没有包**:插件行同样可能展不开(真代码里它的包根可以为空,fail-closed),
-     所以 mock 里留了一条查不到包的插件行,箭头处显示 · 。装卸按钮仍然只给磁盘行——
-     那是 ADR-0004 的 G3,ADR-0012 没有动它。
-     2026-10-28 (the fourth side, Antigravity; ADR-0037): the AG badge joins the side slots, and an Antigravity
-       library entry is added. In the detail, what used to be CODEX · 项目级 is now the shared skills directory —
-       .agents/skills, loaded by Codex and Antigravity alike — one group between the Codex and Antigravity groups,
-       followed by Antigravity's global level. Grok's badge, which read GB here where every other page reads GK,
-       now reads GK (owner's ruling). -->
+<!-- Reviewer notes: prototype-skills-preview.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -60,22 +32,16 @@
   .sub b{color:var(--text)}
   .sec-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin:18px 0 8px}
   .sec-h:first-of-type{margin-top:0}
-  /* 按名字过滤(2026-08-10):形态照搬 app 里同一个分栏正文语境中的既有搜索框,
-     不新造第二种。此处只渲染 input、不渲染 scope 切换。
-     宽度 300px,不撑满整行(2026-08-10 裁定)。先按「不该比名字列(200px)宽」试过 200px,
-     实际看下来输入区太局促,于是与名字列脱钩:搜索框的宽度按**输入舒适度**定,名字列保持 200px,
-     名字被截断改由 hover 显示全名来补偿。box-sizing 是 border-box,300px 即外框宽度。 */
+  /* box-sizing 是 border-box,300px 即外框宽度 */
   .sbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
   .sbar input{width:300px;flex:none;padding:6px 11px;border:1px solid var(--line-strong);border-radius:7px;
     background:var(--card);color:var(--text);font:inherit;font-size:12.5px;outline:none}
   .sbar input:focus{border-color:var(--accent)}
-  /* 提示行与分组标题:app 里已有的分组标题,原型此前没画,过滤时组计数变化要靠它才看得见 */
+  /* 提示行与分组标题 */
   .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px}
-  /* 名字被压缩时 hover 显示全名(2026-08-10 裁定)。
-     用 fixed 而不是 absolute:.sk-card 是 overflow:hidden 的裁剪盒,贴着行定位的 absolute 浮层
-     会被它整个切掉——实测浮层自己的中心点命中的是下面的分栏正文,那块像素上根本没有浮层。
-     fixed 不受祖先 overflow 约束,代价是坐标只能由 JS 按名字列的 rect 算,
-     且滚动时锚点就不作数了,必须隐藏。 */
+  /* 名字被截断时 hover 显示的全名提示。
+     用 fixed 而不是 absolute:.card 是 overflow:hidden 的裁剪盒,贴着行定位的 absolute 浮层会被它整个切掉。
+     fixed 不受祖先 overflow 约束,坐标由 JS 按名字列的 rect 算,滚动时锚点不作数,必须隐藏。 */
   .nm-tip{
     position:fixed;z-index:30;pointer-events:none;
     background:var(--card);color:var(--text);
@@ -83,13 +49,11 @@
     padding:4px 9px;font-size:12px;
     font-family:ui-monospace,Menlo,monospace;
     box-shadow:0 4px 14px var(--float-shadow);
-    /* skill 名不是我们写的文案,长度由外部决定:磁盘 skill 用目录名(文件系统还给了个上限),
-       插件条目则是「插件清单里的一个键」加目录名——而配置文件里的键什么都不受限。
-       单行不换行的提示会让一个超长名字横跨整个屏幕,所以限宽并换行。skill 名多是 kebab-case、没有空格,
+    /* skill 名的长度不受限,所以限宽并换行。skill 名多是 kebab-case、没有空格,
        常规的按词换行断不开,必须 anywhere。 */
     max-width:420px;overflow-wrap:anywhere;
   }
-  /* 无匹配空态:照 app 里的无匹配空态 */
+  /* 无匹配空态 */
   .none{color:var(--text-2);padding:16px;text-align:center;font-size:12px;
     border:1px dashed var(--line-strong);border-radius:10px;margin-bottom:10px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;
@@ -120,7 +84,7 @@
   .pill.lv{border:1px solid var(--line-strong);color:var(--text-2)}
   .ins{font:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);
     border-radius:7px;padding:4px 11px;cursor:pointer;flex:none}
-  /* Inline package stats (file count / line count / size): replacing the summary bar in the expanded area */
+  /* Inline package stats */
   .sk-meta{margin-left:auto;flex:none;font-size:11px;color:var(--text-2);font-variant-numeric:tabular-nums}
   .ins:hover{color:var(--accent);border-color:var(--accent)}
   /* The expanded area is flat: not indented, the table a full-width segment of the card, the file name column
@@ -428,9 +392,7 @@
     return sides.slice().sort((a, b) => SIDE_ORDER.indexOf(a) - SIDE_ORDER.indexOf(b))
   }
 
-  /** Inline package stats: the current side's file count · size (ruled 2026-08-06 to exclude the line count —
-   * implementation gets this from stat alone,
-      不读内容;快照每侧只带两个数字,行数仍在展开表格逐文件展示) */
+  /** Inline package stats: the current side's file count · size */
   function statsText(skill, side) {
     const pack = PACKAGES[`${side}:${skill}`]
     if (!pack || !pack.files) return ''
@@ -467,11 +429,9 @@
       return
     }
 
-    // The summary sits on the collapsed row (.sk-meta), so the expanded area no longer repeats it
+    // The package summary sits on the collapsed row (.sk-meta); the expanded table does not repeat it
     const rows = names.map((n) => {
       const text = pack.files[n] || ''
-      // A prototype-grade UTF-8 approximation: wide characters count as 1 code unit, which is enough to show the
-      // density
       const bytes = new TextEncoder().encode(text).length
       const lines = lineCount(text)
       return { n, bytes, lines, mtime: mockMtime(skill, side, n), kind: extKind(n) }
@@ -513,9 +473,8 @@
     const disk = s.origin === 'disk'
     const sides = sortedSides(s.sides || [])
     let side = sides[0] || 'claude'
-    // 能不能展开,看的是**有没有包**,不是来源(ADR-0012:插件行与磁盘行平等展开预览)。
-    // 插件行仍可能展不开——真代码里它的包根可以为空(fail-closed),对应这里查不到包数据。
-    // 装卸按钮则仍然只给磁盘行:那是 ADR-0004 的 G3,ADR-0012 没有动它。
+    // 能不能展开,看的是有没有包,不是来源:插件行查不到包数据时(对应包根为空)同样展不开。
+    // 装卸按钮只给磁盘行。
     const expandable = Boolean(PACKAGES[`${side}:${s.name}`])
 
     const head = document.createElement(expandable ? 'button' : 'div')
@@ -603,14 +562,11 @@
     { name: 'superpowers:brainstorming', description: '插件 · 与磁盘行平等展开预览(ADR-0012)', sides: ['claude'], origin: 'plugin', symlink: false },
     // 名字列固定 200px,这条 41 字符的名字必然被截断 —— hover 全名的形态要有被截断的行才演示得出来
     { name: 'chrome-devtools-mcp:memory-leak-debugging', description: '插件 · 长名字,演示 hover 全名;同样可展开', sides: ['claude'], origin: 'plugin', symlink: false },
-    // 极端长度:名字的长度由外部决定,不是我们能约束的(插件条目那半截来自配置文件里的键,毫无上限)。
-    // 留着它才看得出提示限宽换行的效果
+    // 极端长度:留着它才看得出提示限宽换行的效果
     { name: 'chrome-devtools-mcp:an-absurdly-long-skill-directory-name-that-nobody-should-write-but-the-filesystem-allows-it-regardless', description: '插件 · 极端长度,演示提示限宽换行', sides: ['claude'], origin: 'plugin', symlink: false }
   ]
   /**
    * Detail: a same-named github-ops lists only the project level; tdd is global only; no shadowed global row.
-   * 分组结构(2026-08-10 补):真代码按「side × level」分四组再加插件组。原型此前把详情画成平铺一列,
-   * 于是「过滤后组标题计数怎么变、整组没命中时怎么办」这两个形态无从评判——过滤要判的正是它们。
    */
   // id: the group's stable key (its title is COPY[lang].group[id], so a language change keeps the rows)
   const DETAIL_GROUPS = [
@@ -650,8 +606,7 @@
   ]
 
   /**
-   * 按名字过滤(裁定 2026-08-10):**子串**匹配、大小写不敏感、**只看 skill 名**。
-   * 不做子序列模糊(gwd ↛ grill-with-docs)、不做空格分词、命中不高亮——三条都是明确否掉的方向。
+   * 按名字过滤:**子串**匹配、大小写不敏感、**只看 skill 名**。
    * 空关键词 = 不过滤。插件行的命名空间前缀是名字的一部分,所以 brain 命中 superpowers:brainstorming。
    */
   function matches(name, kw) {
@@ -662,11 +617,10 @@
   }
 
   /**
-   * 名字被压缩时 hover 显示全名(裁定 2026-08-10)。
+   * 名字被截断时 hover 显示全名。
    *
-   * 「被压缩」的判据是 scrollWidth > clientWidth ——名字列是固定 200px + 省略号,
-   * 没溢出的行不弹提示:弹一个与眼前一模一样的内容是纯噪音。
-   * 判据必须现取,不能在挂载时算一次存起来:字体加载完成、窗口缩放都会改变它。
+   * 「被截断」的判据是 scrollWidth > clientWidth ——名字列是固定 200px + 省略号,没溢出的行不弹提示。
+   * 判据在 hover 时现取,不在挂载时算一次存起来。
    */
   let nmTip = null
   function hideNameTip() {
@@ -691,11 +645,8 @@
   }
 
   /**
-   * 按 key 复用已挂载的行,而不是每次输入都重建整段 DOM。
-   *
-   * 这不是性能优化,是**演示正确的形态**:真代码里过滤走 React 的 keyed 重渲染,所以
-   * 「仍然命中的行保住展开态,被过滤掉的行卸载、再命中时是折叠的」。原型若整段 innerHTML 重建,
-   * 连留下来的行也会折叠——那是原型自己造的行为,真代码里不存在,照着它评判就会判错。
+   * 按 key 复用已挂载的行,而不是每次输入都重建整段 DOM:
+   * 仍然命中的行保住展开态,被过滤掉的行卸载、再命中时是折叠的。整段 innerHTML 重建会连留下来的行也折叠。
    */
   function reconcile(host, entries) {
     const cache = host.__rows || (host.__rows = new Map())
@@ -745,7 +696,7 @@
     const entries = []
     DETAIL_GROUPS.forEach((g) => {
       const hits = g.items.filter((s) => matches(s.name, kw))
-      // 整组没命中 → 组标题连同卡片一起消失(与真代码「空 section 不渲染」同一条规则)
+      // 整组没命中 → 组标题连同卡片一起消失
       if (!hits.length) return
       const title = document.createElement('div')
       title.className = 'grp-t'

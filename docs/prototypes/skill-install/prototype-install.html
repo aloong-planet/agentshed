@@ -1,25 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · the install/uninstall interaction (hung off the Agents page's Skills tab,
-     which is the install source).
-     问题:「安装到…」目标选择器、同名阻止、失效项目禁用、卸载确认弹窗各自的形态与时机。
-     (原「两侧差异怎么读」已随 skills-view 拆除跨侧 diff 作废,2026-08-07 同步。)
-     交互:行内「安装到…」弹选择器(失效项目置灰;装到 Transfer 的 tdd 触发同名阻止);
-     下方"项目级副本"区演示卸载确认弹窗(含完整路径)。
-     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关:界面文案画了中、英
-     两种,其他语言按英文显示并有提示;几个页面共用的文案取自共享文案表 _shared/copy.js;区块标题与说明行是
-     评审注解,与 mock 数据一样保持原样。色值取共享主题 _shared/theme.css,本页不自定义 app token。
-     app 窗口的根样式在共享件 _shared/app-window.css 里。本页没有演示条。
-     2026-10-28 (the fourth side, Antigravity; ADR-0037): the library list gains the GK and AG badge slots (CC CX GK AG,
-       as on the Agents page). A target row now shows where the copy will land, one mark per directory: CC for
-       .claude/skills, GK for .grok/skills, and for .agents/skills the shared skills directory's mark — one
-       outlined group naming the sides that load it (CX AG) — because Codex and Antigravity load that one
-       directory: it is one landing and one result, never a Codex landing and an Antigravity landing that
-       collide (owner's ruling). Whether a row offers a directory follows the skill's sides that the project is
-       registered on; the shared mark itself always names both sides that load the directory, whatever the
-       project is registered on (owner's ruling, 2026-10-28: agy-demo, registered on Antigravity only, still
-       shows CX AG). A same-name check against the shared directory is made once. The project-level copies gain
-       a shared-directory entry, whose uninstall confirmation says the skill goes for every side that loads the
-       directory. -->
+<!-- Reviewer notes: prototype-install.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -47,9 +27,6 @@
      the sides that load it */
   .pop .lands{margin-left:auto;display:flex;align-items:center;gap:4px;flex:none}
   .pop .shared-land{display:inline-flex;gap:2px;border:1px solid var(--line-strong);border-radius:4px;padding:1px 2px}
-  /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
-     「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
-     故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
   .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none}
@@ -219,8 +196,6 @@
     if(open) document.getElementById(open).classList.add('open');
   }
   renderLib();
-  // 成败只由底色区分,文案里不带 ✓ / ⚠ —— 产品的 toast 就是这样(app 的 toast 只渲染文本)。
-  // 加个记号会让读原型的人以为产品也有。
   // msg 是按当前界面语言出句的函数,语言切换时正在显示的 toast 随之重写
   let toastMsg=null;
   function toast(msg,ok){const t=document.getElementById('toast');

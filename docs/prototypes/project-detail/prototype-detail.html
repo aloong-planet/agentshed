@@ -1,86 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · project detail (landing on the Overview tab by default).
-     问题:概览(token 卡/30、60、90天趋势/模型拆分/会话列表)作为进入项目的第一眼是否成立;
-     Skills 两层来源/遮蔽/软链、Plugins、MCP 多来源、配置只读的行密度;
-     产物「类型 chips + 平铺列表」是否清晰。
-     交互:tab 切换;概览内趋势切侧;产物 chips 筛选与阅读浮层;配置内切文件;
-       Subagents/Memory topic 点行开抽屉(Esc/点遮罩关);Plugins 点行展开内含组件。
-     v2 并入(2026-08-01,spec subagents-memory-plugin):新增 Subagents 与 Memory
-       分栏、Plugins 改有效启用集(local>project>user)+按侧分组+内含组件展开、
-       Skills 加插件内含组;详情页的组件形态以本原型为准(功能原型已收敛为
-       只演示全局页)。
-     Subagents 生效视图要点:项目级可存在(.claude/agents/*.md 与 .codex/agents/
-       *.toml); on both sides a same name means the **project level shadows** the user level — the opposite of
-     skills' Codex coexistence
-       语义相反;Codex 侧同名键取 toml name 字段,故跨文件名也遮蔽。
-     v3 并入(2026-08-02,spec session-view):新增「会话」分栏——会话列表(默认按最近
-       活动倒序,可切最早在前;排序对列表与命中分组同时生效)+ 搜索入口 + 按会话分组的
-       命中结果;点会话行跳会话页原型(session-view/session,提问索引与整轮展开在那边)。
-       概览的会话卡同步改为可点入,其「元数据即止」的旧口径由本功能推翻。
-     v3.1(2026-08-02,票 02 实现期定案,原型同步):
-       - 概览的最近会话**上限 5 条**,底部标注总数;点行进「会话」分栏(票 04 改为直达会话页)。
-       - 会话分栏的**排序选择跨分栏切换保留**:切去别的分栏再回来仍是上次的选择。
-         本原型天然如此(切 tab 只切 display,排序状态是模块级的),app 里 tab 是条件渲染、
-         组件会被卸载,故用模块级变量另行实现——两边行为一致,机制不同。
-       - 预热会话(只有一条 Warmup、无任何真实提问)不入列,token 照计:实测某项目
-         1511 个会话里 1004 个是这种,照列则三分之二的行是 uuid 文件名。
-     v3.5(2026-08-21,构成条回归):构成条以统计下方的独立元素重新出现,随选中窗口变;配色为
-       命中=蓝 / 未命中=黄 / 输出=绿(用户裁定)。⚠️ 逐窗口的构成与模型拆分一样是 mock,
-       byDay 只存标量、不分桶,要做得先改数据层。
-     v3.4(2026-08-20,时间维度):v3.3 的构成条整条撤掉,腾出的宽度改放四张同宽卡——
-       全部历史 / 本日 / 近 7 天 / 近 30 天,**这排卡同时是时间筛选器**:点选哪张,下方趋势图
-       (窗口外的日子压暗,不裁掉)与模型拆分就切到哪个窗口,各侧拆解那行也跟着变。
-       ⚠️ 模型拆分按窗口切分是 mock:逐日数据只到 provider、只存标量,做成要先改数据层。
-     v3.3(2026-08-20,token 概览重设计·方向 A):概览首屏的三张卡合为一张宽卡——左侧大号
-       累计总量,右侧一条细构成条(未命中输入/输出/cache 读,跨三侧唯一可比的切法),下方一行
-       各侧拆解。原「输入/输出」与「其中 cache」两张卡撤销:前者的副标题「各侧原生口径分列」
-       从来没兑现(卡上是跨侧求和),而 input 在三侧含义本就不同、不可相加;后者并入构成条。
-       页头徽章补上 GROK——ADR-0019 接入第三侧时漏了这里。
-       构成条是共享视觉块(_shared/totals-card.css),与 agents-page 原型一致演化。
-     v3.2(2026-08-18,token 口径修正):概览的 cache 卡此前写「不计入总量」——那是 ADR-0003
-       的规则,2026-07-30 已被 ADR-0005 废止,原型未同步,示例数字也随之自相矛盾
-       (总量 8.5M 却 cache 48.2M,而 cache 是计入总量的)。现改为「其中 cache(ccusage 口径
-       已计入总量)」,大数字取 cacheRead(与实现一致,此前误取读+写),各侧示例补上 Grok,
-       并让四个字段恰好加总为总量(见 ADR-0023:Codex/Grok 不采集 cache 写)。
-     2026-10-21 (the memory drawer previews Markdown): a topic file — clicked in the list, or reached by a link in the
-       rendered main file — opens in the file drawer, the same form as the skill file drawer and the Agents page's
-       memory drawer, drawn from the shared _shared/file-drawer.css: a close button, the project as the title with
-       the side, the file and its modified time under it, and the shared md-preview block — the file's name, the raw
-       / preview switch (preview by default), the body, front matter as a key-value card. A link to another file of
-       the memory directory, the main file included, switches the drawer to that file in preview; an external link
-       goes to the system browser (here, a new tab); anything else gets the app's error toast (shared
-       _shared/toast.css / toast.js), as a link in the main file does; [[name]] references stay plain text, a remark
-       written straight after one included, and a placeholder like <slug> shows as written. The
-       body's read states (loading, could not read, empty file) show inside the same frame.
-     演示基建(非设计的一部分,勿实现):底部悬浮条承载三组——「启动恢复」三档常驻(扫描中 / 完成 / 失败,
-       共享件 _shared/startup-status;真实判定 = 这次启动的扫描是否仍在进行与扫描的结果);「会话分栏」两态
-       (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。「Memory file read」四态(read / loading /
-       could not read / empty;真实判定 = 读取抽屉所开文件的结果)仅在 Memory 分栏出现。每组的真实判定与「app 内无此
-       开关」写在演示条的说明行里。
-     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关:界面文案(含启动提示、趋势图、
-       token 概览卡)画了中、英两种,其他语言按英文显示并有提示;两页及以上共用的文案取共享文案表
-       _shared/copy.js;评审注解、演示条与 mock 数据保持原样。
-       色值取共享主题 _shared/theme.css,本页不自定义 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。
-     项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。
-     2026-10-28 (the fourth side, Antigravity; ADR-0037): Transfer is registered on all four sides. The header gains
-       the ANTIGRAVITY chip; the overview's per-side row, trend side switch and by-model rows gain Antigravity (its
-       models as agy records them); recent sessions and the Sessions tab gain Antigravity conversations, one of
-       them a fork (the fork pill; its banner is on the session page).
-       Skills: the shared skills directory — .agents/skills, loaded by both Codex and Antigravity — is one group
-       of its own badged CX AG, placed between the Codex groups and the Antigravity groups (owner's ruling); it
-       replaces what used to be Codex's project level. Antigravity's global level follows; plugin-bundled rows
-       now carry their side's badge, since two sides contribute to that group.
-       Subagents gain Antigravity's project level (.agents/agents) and global level; Plugins and MCP gain an
-       Antigravity group (global plugins; the global mcp_config.json and plugin-bundled servers — a project's own
-       .agents/mcp_config.json is not shown: agy was not observed to load it).
-       Configuration (owner's ruling): two entries, not by side — the project's CLAUDE.md and AGENTS.md (the
-       latter read by Codex and Antigravity alike), each headed by its path, "None" when absent. The Claude
-       settings summary is removed.
-     2026-10-28 (owner's ruling): the Skills tab no longer draws tdd as a "shadows global" project row over a
-       "shadowed by project level" global row. Since skills-view (2026-08-06) the skills effective view shows only
-       the project-level entry of a same-name pair within one side, with no shadowing badge (CONTEXT, "Effective
-       view"); this page had kept the older drawing. Shadowing is still drawn for subagents, where it is the rule. -->
-<!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
+<!-- Reviewer notes: prototype-detail.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -89,10 +8,7 @@
 <link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/project-side.css">
-<!-- The sessions tab's search row and hits are a shared piece, drawn the same by global search. A question hit
-     row starts at the question's beginning; when the first occurrence of the keyword would fall past the line's
-     cut, it starts 20 characters before it, after an ellipsis (owner's calls, 2026-10-22; the notarize sample has
-     such a question). A full-text hit's snippet is already cut around its keyword and is drawn as it is -->
+<!-- The sessions tab's search row and hits are a shared piece, drawn the same by global search -->
 <link rel="stylesheet" href="../_shared/session-hits.css">
 <!-- The memory file drawer: the shared file drawer around the shared md-preview block, and the app's toast -->
 <link rel="stylesheet" href="../_shared/md-preview.css">
@@ -104,8 +20,7 @@
 <link rel="stylesheet" href="../_shared/totals-card.css">
 <style>
   /* Every app token — surfaces, text, lines, the accent family, the semantic and side colours, and the
-     composition's --tc-* (命中=蓝 / 未命中=黄 / 输出=绿, ruled 2026-08-21; the reasons are in
-     _shared/totals-card.css) — comes from _shared/theme.css for each palette and both modes. This page
+     composition's --tc-* — comes from _shared/theme.css for each palette and both modes. This page
      defines none of them. */
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -113,9 +28,6 @@
   .h1{display:flex;align-items:center;gap:9px}
   .h1 b{font-size:16px}
   .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px}
-  /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
-     「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
-     故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
   .b.a{background:var(--ag-bg);color:var(--ag-fg)}
@@ -148,7 +60,7 @@
     line-height:1.75;font-size:12.5px;max-height:52vh;overflow:auto}
   .md h3{font-size:13px;margin-bottom:6px}
   .md code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
-  /* A configuration entry's body starts with the file's path (the same form as the Agents page) */
+  /* A configuration entry's body starts with the file's path */
   .md .cfg-path{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2);margin:0 0 6px}
   .none{color:var(--text-2);padding:20px;text-align:center}
   .chart{height:96px;margin-bottom:0}
@@ -189,14 +101,13 @@
   .se .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .se .d{font-size:11px;color:var(--text-2);flex:none;font-variant-numeric:tabular-nums}
   .se .tok{font-size:11px;color:var(--text-2);flex:none;width:64px;text-align:right;font-variant-numeric:tabular-nums}
-  /* The v2 component tabs (Subagents/Memory/Plugins expansions): the same form as the Agents page */
+  /* The component tabs (Subagents/Memory/Plugins expansions) */
   .it.row-btn{cursor:pointer}
   .it.row-btn:hover{background:var(--accent-soft)}
   .pill.warn{background:var(--warn-bg);color:var(--warn-fg)}
   .pill.plg{border:1px solid var(--accent);color:var(--accent)}
   /* The drawer width = min(a fixed width, 80% of the right-hand content area); the content area = the
-     viewport minus the rail (48) minus the sidebar (230),
-     窄窗时不再盖住整个内容区(2026-08-02 bug) */
+     viewport minus the rail (48) minus the sidebar (230) */
   .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,calc((100vw - 278px) * .8));background:var(--card);
     border-left:1px solid var(--line-strong);z-index:11;padding:20px 24px;overflow:auto;
     box-shadow:-8px 0 24px rgba(0,0,0,.12);display:none}
@@ -216,7 +127,7 @@
   .note{font-size:11px;color:var(--text-2);margin:-6px 0 10px}
   .sub-list{padding:2px 14px 8px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
   .sub-list .it{padding:6px 0;border-bottom:0}
-  /* The v3 sessions tab: a search row + the session list + hits grouped by session. The search row and the
+  /* The sessions tab: a search row + the session list + hits grouped by session. The search row and the
      hits are the shared session-hits piece; the scope toggle and the list rows are this page's own */
   .scope{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;flex:none}
   .scope span{padding:5px 11px;font-size:11.5px;color:var(--text-2);cursor:pointer}
@@ -234,8 +145,6 @@
   .pill.clean{border:1px dotted var(--line-strong);color:var(--text-2)}
 
 </style>
-<!-- Startup restore: keep the original page and its mock contents. The added bottom switches
-     are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
 <link rel="stylesheet" href="../_shared/startup-status.css">
 <script src="../dimensions.js"></script>
 <script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
@@ -270,11 +179,7 @@
     </div>
     <div class="body">
       <div data-p="ov">
-        <!-- 不写「两侧」也不写「三侧」:侧数是会变的,写进文案就是下一次接侧时的另一句谎。 -->
-        <!-- 与 Agents 页同一个共享视觉块:四张同宽卡 = 四个时间窗口 = 时间筛选器本身。
-             点选哪张,下方趋势图(窗口外的日子压暗)与模型拆分就切到哪个窗口。项目级尺度。 -->
         <div data-shared-block="totals-card" id="ovTot"></div>
-        <!-- Global span proposal: inline choices, remembered across prototype pages and reloads. Drawn in Chinese and English; any other language shows as English. -->
         <div class="grp-t trend-heading"><span class="trend-span-label"><span data-i18n="trendPrefix">近</span> <span class="trend-span-options" id="ovspan" role="group" aria-label="趋势天数" data-i18n-aria="trendDays"></span> <span data-i18n="trendSuffix">天趋势</span></span><span data-i18n="trendContext">(本地时区 · 日粒度)</span>
           <span class="seg" id="ovseg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span><span>Antigravity</span></span></div>
         <div class="chart" id="ovchart" data-shared-block="trend-chart"></div>
@@ -282,8 +187,6 @@
         <div class="legend" id="ovlegend"></div>
         <div class="grp-t" id="ovmTitle">按模型拆分</div>
         <div class="models" id="ovmodels"></div>
-        <!-- v3: no longer "metadata and no further" — the overview lists the 4 most recent and a row click goes
-     straight to the session page; everything else is in the sessions tab -->
         <div class="grp-t"><span data-i18n="recentSessions">最近会话</span>(上限 5 条;subagent 与预热会话计 token 但不单独入列)</div>
         <div class="card">
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b a" style="flex:none">AG</span><span class="t">Rounding Percent Output</span><span class="tok">52k</span><span class="d" data-ago="0">今天</span></div>
@@ -327,10 +230,6 @@
           <div class="it"><span class="nm">github-ops</span><span class="pill glb" data-i18n="pillGlobal">全局</span><span class="pill ln" data-i18n="pillSymlink">软链</span>
             <span class="ds">GitHub 产出规范(无 AI 署名)</span></div>
         </div>
-        <!-- The shared skills directory: loaded by Codex and Antigravity alike, so it is one group of its own between
-             the two sides that own it (owner's ruling, 2026-10-28) rather than a Codex project level and an
-             Antigravity project level showing the same files. Its entries are project-level and uninstallable; an
-             uninstall removes the skill for both sides (the confirmation says so — see the install prototype). -->
         <div class="grp-t"><span data-i18n="secShared">共享 · .agents/skills</span> <span class="b x">CX</span> <span class="b a">AG</span>(2)</div>
         <div class="card">
           <div class="it"><span class="nm">commit-style</span><span class="pill prj" data-i18n="pillProject">项目级</span>
@@ -371,8 +270,6 @@
             <span class="pill prj" data-i18n="pillProject">项目级</span><span class="pill warn" data-i18n="overridesBuiltin">覆盖内置</span><span class="pill shadow" data-i18n="shadows">遮蔽同名</span>
             <span class="ds">项目级 explorer:覆盖内置,并遮蔽用户级同名(键取 toml name 字段)</span></div>
         </div>
-        <!-- Antigravity's definitions are Markdown with front matter; whether a project-level name shadows a global
-             one was not observed, so its rows carry no shadowing badge -->
         <div class="grp-t"><span data-i18n="secAgAgents">项目级 · .agents/agents</span>(1)</div>
         <div class="card">
           <div class="it row-btn" data-sa="7"><span class="nm">demo-agent</span><span class="b a">AG</span>
@@ -448,8 +345,6 @@
             <span class="ds" data-i18n="cacheOnly">仅缓存枚举</span></div>
         </div>
         <div class="note" data-i18n="plFoot">Codex 组仅列缓存中存在的插件;启用态与内含组件语义本期不建模;Codex 插件为全局生效,无项目级启用语义。</div>
-        <!-- Antigravity's plugins take effect globally (its own enablement record; absent = enabled); a project's own
-             .agents/plugins was not observed and is not read. Bundled rules are not listed. -->
         <div class="grp-t"><span class="b a">ANTIGRAVITY</span></div>
         <div class="card" id="plistAg">
           <div class="it row-btn" data-pg="3"><span class="nm">flutter</span>
@@ -484,8 +379,6 @@
         <div class="none" style="font-size:12px;padding:12px">非八步项目在此显示「未按约定沉淀」空态(不视为错误)</div>
       </div>
       <div data-p="cfg" style="display:none">
-        <!-- Two entries, not by side (owner's ruling, 2026-10-28): the project's own CLAUDE.md and AGENTS.md, each headed
-             by its path; AGENTS.md is read by Codex and Antigravity alike. The settings summary is removed. -->
         <div class="cfg-switch" id="cfgs">
           <span class="on" data-cfg="claude">CLAUDE.md</span><span data-cfg="agents">AGENTS.md</span>
         </div>
@@ -500,8 +393,6 @@
   <div class="file-drawer" id="mfDrawer" data-shared-block="file-drawer" data-beside="rail-side" hidden></div>
   <div class="toasts" data-shared-block="toast"></div>
 </div>
-  <!-- The demo harness: mock state switches, not part of the design and not to be implemented; the session
-     switches appear only in the sessions tab; startup switches remain available in every tab -->
   <div data-demo-harness id="harness">
     <span class="dh-tag">Demo ·</span>
     <span data-startup-controls></span>
@@ -634,10 +525,9 @@
     document.getElementById('session-demo').hidden=document.getElementById('session-demo-note').hidden=t.dataset.t!=='sessions';
     document.getElementById('mfread-demo').hidden=document.getElementById('mfread-demo-note').hidden=t.dataset.t!=='memory';
   });
-  // The trend chart: rendered by the shared piece (the same source as the Agents page)
 
 
-  // ── 概览的时间窗口:卡排本身就是筛选器,与 Agents 页同形态(项目级尺度的 mock) ──
+  // ── 概览的时间窗口:卡排本身就是筛选器(项目级尺度的 mock) ──
   const OV_SIDES = [{cls:'c',name:'CLAUDE'},{cls:'x',name:'CODEX'},{cls:'g',name:'GROK'},{cls:'a',name:'ANTIGRAVITY'}]
   const OV_RANGES = [
     { days:null, side:[38500000, 15100000, 2200000, 1860000] },   // 累计总量 · 全部历史
@@ -655,7 +545,7 @@
     { nm:'grok-4.6-build', cls:'xai',       v:[ 2200000,  21000,  186000,  640000] },
     { nm:'gemini-3.8-flash-n', cls:'google', v:[ 1860000,  52000,  320000, 1120000] }
   ]
-  // 构成三段占该窗口总量的比例,顺序对齐 OV_RANGES,每行恰好加总为 1(三段之和=总量,是这个切法的全部理由)
+  // 构成三段占该窗口总量的比例,顺序对齐 OV_RANGES,每行恰好加总为 1
   const OV_COMP = [
     { rd:0.9690, in:0.0280, ou:0.0030 },   // 全部历史
     { rd:0.9550, in:0.0380, ou:0.0070 },   // 本日
@@ -758,8 +648,7 @@
   addEventListener('keydown',e=>{if(e.key==='Escape')acls()});
   renderArts();
 
-  // ── The v2 components: the Subagents/Memory drawers and the inline Plugins expansion (the same form as
-  // the Agents page) ──
+  // ── The components: the Subagents/Memory drawers and the inline Plugins expansion ──
   // lv = 层级(项目级/全局),side = 侧名(专名,不译);fl = 层级说明的键;kv 的值为 {k} 时取界面文案
   const L=k=>({k}), val=v=>typeof v==='string'?v:T[LANG][v.k];
   const SUBAGENTS=[
@@ -889,7 +778,7 @@
       pg.insertAdjacentHTML('afterend',`<div class="exp">${pcontents(i)}</div>`); return }
   });
 
-  // ── The v3 sessions tab: the list (most recent activity first) + search (questions by default, switchable
+  // ── The sessions tab: the list (most recent activity first) + search (questions by default, switchable
   // to full text) + hits grouped by session ──
   const GOTO='data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html"';
   // d = 距今天数(按界面语言写成相对时间);p = 行内角标,随界面语言渲染
@@ -910,8 +799,7 @@
     {b:'c',s:'CC',t:'帮我把 CI 的缓存打开',n:11,tok:'61k',d:21,
      p:t=>`<span class="pill clean">${t.titleCleaned}</span>`},
   ];
-  // dup = a fork replay copy (54.7% of Codex bytes are these); body = a hit only in the answer body, visible
-  // only in full-text scope
+  // dup = a fork replay copy; body = a hit only in the answer body, visible only in full-text scope
   const CORPUS=[
     {s:0,n:'01',q:'percent 现在返回整数百分比,改成保留一位小数',d:'16:18'},
     {s:0,n:'02',q:'跑一下测试',d:'16:24'},
@@ -937,7 +825,7 @@
     {s:7,n:'01',q:'会话导出成 Markdown 的话工具调用怎么放',d:'07-10'},
     {s:8,n:'02',q:'缓存打开之后 CI 会不会拿到旧的 node_modules',d:'06-30'},
   ];
-  let sq='', scope='q', sempty=false, sorder='desc';   // desc=最近活动在前(spec A1 默认)
+  let sq='', scope='q', sempty=false, sorder='desc';   // desc=最近活动在前
   const sordSeg=()=>`<span class="seg" data-sord><span class="${sorder==='desc'?'on':''}" data-so="desc">${T[LANG].recentFirst}</span>`+
     `<span class="${sorder==='asc'?'on':''}" data-so="asc">${T[LANG].oldestFirst}</span></span>`;
   const hl=(s,k)=>!k?esc2(s):esc2(s).replace(new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<mark>${m}</mark>`);

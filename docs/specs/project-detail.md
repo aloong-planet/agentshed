@@ -146,6 +146,9 @@ never writes to any agent's registry; it tells the user what happened and hands 
   rewrite its file and resurrect the entry after cleanup. The flow is idempotent — the mitigation is
   sending the line again — and the card deliberately does not carry this caveat (the agents surface
   it themselves when relevant).
+- S10 The card is the page's whole body, so its sentences read as body text — the primary text colour
+  at the window's body text size — not as a secondary-grey footnote; the stale tag keeps its warning
+  colour and the prompt its monospace pill.
 
 **Sequence B: artifacts section**
 - B1 **Six artifact types**, displayed in a fixed order following the top-down derivation chain:

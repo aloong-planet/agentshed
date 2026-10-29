@@ -428,7 +428,8 @@ Matching the current behaviour of
 - **Markdown preview**: only `.md` / `.markdown` / `.mdx` show "raw | preview" (preview by default);
   other types have no toggle and show raw only. YAML frontmatter is split into a key-value row card
   (about 12.5px), with the body rendered after it.
-- **Side model**: N sides; no cross-side diff badge.
+- **Side model**: N sides; no cross-side diff badge. The side badges read CC (Claude Code), CX (Codex),
+  GK (Grok) and AG (Antigravity).
 - **Project detail**: same side, same name keeps the project-level entry only; no shadowing or
   coexistence badges.
 - **Interaction**: expanding / clicking files and install/uninstall do not compete.
@@ -444,6 +445,7 @@ Matching the current behaviour of
   at all, and was left behind when ADR-0012 overturned that on 2026-08-07. A row shows no stats only
   when it cannot be expanded, which for a plugin row means its package root is unknown (A4 /
   plugins-view H5, fail-closed).
+- **A row that cannot be expanded** shows a dot in place of the expansion arrow.
 - **Row density** (finalised 2026-08-06): 8px row padding, a visual row height of about 32px, aligned
   with the rows in other sections.
 

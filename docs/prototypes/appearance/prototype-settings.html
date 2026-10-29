@@ -1,46 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · appearance: the settings page's two sections —
-     语言(跟随系统 + 二选一)/ 外观(模式:跟随系统·浅色·深色 × 配色:紫·雾蓝·琥珀褐)。
-     两处「跟随系统」是同一个模型:偏好是策略,生效值由系统解析,系统变则界面变;选定具体值即锁定。
-
-     2026-10-21:界面语言减到简体中文与 English(ADR-0035),浮层只剩三项:跟随系统、分隔线、两种语言。
-       仍是下拉(所有者 2026-10-21 选定,不改分段控件);各项照旧左侧母语名、右侧英文名,选中项打勾。已确认(所有者 2026-10-21)。
-
-     明暗:本原型在浏览器里跑、没有 Electron,只能用 JS 写 <html data-demo-mode> 来模拟切换。
-     真代码不走这条路——Electron 的 nativeTheme.themeSource('system'|'light'|'dark')会直接
-     改变 prefers-color-scheme 的求值结果,现有媒体查询零改动即生效,且 macOS 窗口边框与
-     原生菜单一并跟随(纯 CSS 方案做不到这点)。此处的 data-demo-mode 仅是原型载体的替身。
-
-     2026-10-12 新增「更新」(ADR-0032 及其同日修订):
-       · 导航栏左下角(设置上方)的更新按钮,形态照 Codex(ChatGPT 26.930.61225)的 navigationRail 版:
-         36px 按钮位里一个 24px 实心圆。只在 下载中 / 安装中 / 可安装 三态出现,其余(无更新、检查中)不占位。
-         下载中 = 圆内进度环;安装中 = 转圈;可安装 = 下载图标,可点击 → 安装并重启。悬停即时显示提示。
-         无关闭动作;后台下载失败时按钮直接消失,下次检查再下(Codex 的生命周期没有失败态)。
-       · 设置页第三节「更新」:自动检查开关(开/关)、当前版本 + 立即检查 + 就地结果;
-         开发运行(未打包)时控件不可用并说明原因。
-       · 从应用菜单「检查更新…」触发的结果用 toast(已是最新 / 检查失败 / 发现新版本)。
-         原生菜单无法在 HTML 里表达,不在本页,作显式例外。
-     2026-10-13 追加(所有者答复):
-       · 点击可安装的按钮后安装失败(少见:磁盘满、权限变化)→ 错误 toast「无法安装更新」,按钮消失,
-         下次检查再下载——用户点了就要有回应。
-       · 设置页结果行跟随更新生命周期:有更新在下载 / 可安装 / 安装中时显示该状态,不论是哪次检查发现的;
-         没有更新在途时才显示设置页上次检查的结果。
-       · 更新成功、以新版本启动后(点按钮安装并重启,或退出时安装后再打开),「当前版本」是新版本号,
-         结果行显示「已是最新版本」(绿),本次运行期间保留——描述状态,不写「已更新」这种动作结果。
-       · 有更新在下载时,设置页「立即检查」置灰(与检查进行中同样式):这时点了也什么都不会变,结果行已说明原因。
-         可安装时这一行的按钮换成「立即安装」,与左下角按钮同一动作(安装并重启),安装中置灰;装好后变回「立即检查」。
-         菜单「检查更新…」照旧可点,用 toast 回报当前状态。检查进行中再发起的检查并入那一次,不重复请求。
-     2026-10-28(所有者裁定,保留 app 的样子):更新按钮悬停提示的阴影改用浮层共用的那一种(0 6px 22px,浮层阴影色,
-       浅色 0.18、深色 0.5),与 app 一致;此前这里画的是 0 6px 18px、透明度 0.28。会话页头部按钮的提示同此。
-
-     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条,只管更新:运行方式(打包/开发运行)、
-     下次检查返回什么、点击安装后(成功/失败)三组开关,四个动作(自动检查触发、菜单「检查更新…」、后台下载失败、
-     退出再打开),以及一行生效值读数与动作说明。原型无法真正重启,「重启」由页面模拟。真实来源写在演示条的说明行:
-     运行方式 = app 是否打包;检查结果 = GitHub Releases 的应答;安装结果 = 系统替换 app 是否成功;app 内没有这些控件。
-     演示条不模拟系统输入:偏好选「跟随系统」时,本页呈现当前生效的语言与明暗(画廊的统一设置在这里充当系统)。
-     语言、明暗与配色:本页与画廊的统一设置写出同一份取值(demo-dimensions.js,本页声明 data-settings),其余原型页
-     跟随;画廊的统一设置只改语言与明暗,配色只在本页改。统一设置改了语言或明暗时,本页的明确选择随之改为那个取值,
-     「跟随系统」保持不变。本页的偏好随之保存,重开本页时原样恢复。app 窗口的根样式在共享件 _shared/app-window.css 里。 -->
+<!-- Reviewer notes: prototype-settings.md -->
 <html lang="zh-CN" data-demo-theme="purple" data-demo-mode="light">
 <head>
 <meta charset="utf-8">
@@ -57,7 +16,7 @@
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC","Hiragino Sans",system-ui,sans-serif}
 
 
-  /* ── The update button (Codex's rail form): a 36px rail slot holding a 24px filled circle.
+  /* ── The update button: a 36px rail slot holding a 24px filled circle.
      The fill is the theme accent; the glyph takes the card colour, so it reads white on the light themes'
      deep accents and dark on the dark themes' light accents. Only the ready state is a button. ── */
   .ri.upd{cursor:default}
@@ -70,7 +29,7 @@
   @keyframes upd-spin{to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion: reduce){.upd-spin{animation:none}}
   /* The hover message: an instant tooltip to the right of the slot, in the chart tooltip's fixed dark
-     form (the native title waits about a second) */
+     form */
   /* Above every other layer, the demo harness included: the harness sits right of the rail and would
      otherwise cover the message where it opens */
   .uptip{position:fixed;z-index:95;display:none;padding:6px 10px;border-radius:8px;white-space:nowrap;
@@ -122,9 +81,8 @@
   .lang-opt.on .n{color:var(--accent-deep)}
   .lang-pop .sep{height:1px;background:var(--line);margin:4px 8px}
 
-  /* The segmented control: reusing the .seg form from the real code's theme.css (inline-flex + an outer frame
-     + overflow clipping +
-     选中态 accent-soft),尺寸按设置页语境略放大(真代码是图表工具栏用的 11px/3px) */
+  /* The segmented control: inline-flex in an outer frame that clips its buttons; the selected button takes
+     accent-soft */
   .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden}
   .seg button{
     font:inherit;font-size:12px;padding:5px 13px;border:0;cursor:pointer;
@@ -133,8 +91,7 @@
   .seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
   .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 
-  /* Colour schemes: small cards in a row keeping only a swatch and a name (the full-sentence description was
-     dropped when compacting) */
+  /* Colour schemes: small cards in a row keeping only a swatch and a name */
   .pal-grid{display:flex;gap:8px}
   .pal{
     display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 11px;
@@ -228,8 +185,6 @@
     <p class="dh-note">运行方式在 app 里取决于 app 是否打包;检查结果是 GitHub Releases 的应答;安装结果取决于系统替换 app 是否成功;app 内没有这些控件。语言与明暗的「跟随系统」按画廊统一设置的取值呈现,本页不模拟系统。</p>
   </div>
 <script>
-  /* ── Icons come from _shared/icons.js, the prototypes' one icon table, rather than copies on this page:
-        two copies of one icon drift apart and nothing reports it. ── */
 
   const LANGS = ['zh', 'en']
   /** The language selector's value domain = follow system + the two languages. 'system' is a preference
@@ -272,7 +227,7 @@
     }
   }
 
-  /** The updates copy, per language. Kept apart from T so the 2026-10-12 addition is one block. */
+  /** The updates copy, per language. */
   const TU = {
     zh: {
       sec: '更新', auto: '自动检查更新', on: '开', off: '关', version: '当前版本',
@@ -304,9 +259,9 @@
     }
   }
 
-  /** Palette preview samples (card / accent-soft / accent / text), in two sets by light and dark —
-      色板是所见即所得的预览,深色下若仍显示浅色取样会与实际界面不符。
-      值直接取自上方各主题变量块,改主题色须同步改这里。 */
+  /** Palette preview samples (card / accent-soft / accent / text), in two sets by light and dark.
+      The values are copied from the palette tokens in _shared/theme.css; a palette colour changed there
+      changes here too. */
   const SWATCHES = {
     light: {
       purple: ['#ffffff', '#f0ebf6', '#8a67ab', '#37352f'],
@@ -344,8 +299,8 @@
    *  system" changes no value, so it saves the preferences alone. */
   function publish(values) { DemoDimensions.set(values, prefs()) }
 
-  /* ── Updates (ADR-0032 as amended): the lifecycle Codex renders — idle / checking / downloading / ready /
-     installing. There is no failure state: a failed background download returns to idle. ── */
+  /* ── Updates: the lifecycle idle / checking / downloading / ready / installing. There is no failure
+     state: a failed background download returns to idle. ── */
   let curVersion = '0.1.0-beta'  // the running version; a played restart into an update moves it on
   let newVersion = '0.1.1'       // what the next check that finds an update finds
   let packaged = true        // demo harness: a packaged app or a development run
@@ -354,17 +309,17 @@
   let nextInstall = 'ok'     // demo harness: whether clicking the ready button installs or fails
   let upd = 'ready'          // the update lifecycle; the page opens on "ready" so the button is there to hover
   let pct = 100              // download progress, 0–100
-  let checkOut = null        // the settings page's own result: null | checking | uptodate | failed | found | ready
+  let checkOut = null        // the settings page's own result: null | checking | uptodate | failed | found
   let dlTimer = null
   let tipOpen = false
   const u = () => TU[effLang()]
 
-  /** Lucide download, copied from lucide-static 1.55.0 — the app's icon module has no such icon yet */
+  /** Lucide download */
   const ICON_DOWNLOAD = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>`
-  /** Lucide loader-circle, copied from lucide-static 1.55.0 */
+  /** Lucide loader-circle */
   const ICON_LOADER = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`
 
-  /** The download progress ring drawn inside the filled circle (Codex draws a ring there too) */
+  /** The download progress ring drawn inside the filled circle */
   function ring(p) {
     const r = 7, c = 2 * Math.PI * r
     return `<svg class="upd-ring" width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
@@ -431,7 +386,7 @@
     }, 450)
   }
 
-  /** Demo: the background download fails. As in Codex nothing is shown — the button goes and a later check retries */
+  /** Demo: the background download fails. Nothing is shown — the button goes and a later check retries */
   function failDownload() {
     if (upd !== 'downloading') { demoNote('演示：当前没有进行中的下载'); return }
     clearInterval(dlTimer)
@@ -443,8 +398,8 @@
 
   /** Clicking the ready button, or "Install now" in settings, installs and restarts; the prototype cannot
    *  restart, so it plays one.
-   *  A failed install (rare: a full disk, changed permissions) answers the click the user made: an error toast,
-   *  and the button goes as after a failed download, so the next update check downloads again. */
+   *  A failed install shows an error toast, and the button goes as after a failed download, so the next
+   *  update check downloads again. */
   function install() {
     upd = 'installing'
     renderUpdateSlot(); refreshSettingsLine()
@@ -464,8 +419,8 @@
 
   /** The prototype cannot restart, so it plays one. This run's page state goes (the result line is not kept
    *  across a restart), and an update that is ready is installed on the way out, as on any quit. A launch whose
-   *  version went up shows "up to date" in the result line for that run: the owner asked for the state, not the
-   *  action ("up to date" rather than "updated"), 2026-10-13. The lifecycle rule still wins over it. */
+   *  version went up shows "up to date" in the result line for that run; the lifecycle rule still wins over
+   *  it. */
   function relaunch(updated) {
     clearInterval(dlTimer)
     if (updated) {
@@ -531,18 +486,15 @@
   }
 
   /** The version row's button. While an update is ready it is "Install now" and does what the rail button does,
-   *  greyed while that install runs: the line beside it says the update is ready, so the row offers the install
-   *  (owner's call, 2026-10-13). Otherwise it is "Check now", unavailable in a development run, while this
-   *  page's own check runs and while an update downloads: a click could change nothing then, and looked dead
-   *  (owner's call, 2026-10-13). */
+   *  greyed while that install runs. Otherwise it is "Check now", unavailable in a development run, while this
+   *  page's own check runs and while an update downloads. */
   function rowAction() {
     if (upd === 'ready' || upd === 'installing') return { install: true, label: u().installNow, disabled: upd === 'installing' }
     return { install: false, label: u().checkNow, disabled: !packaged || checkOut === 'checking' || upd === 'downloading' }
   }
 
   /** The settings page's result line beside the check button. An update on its way or waiting is shown whichever
-   *  check found it — otherwise a settings check's "up to date" would stay up while the rail button downloads
-   *  (owner's call, 2026-10-13); only with no update in flight does the line show this page's last check. */
+   *  check found it; only with no update in flight does the line show this page's last check. */
   function checkLine() {
     if (!packaged) return { cls: '', text: '' }
     if (upd === 'downloading') return { cls: '', text: u().found(newVersion) }

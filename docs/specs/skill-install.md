@@ -141,6 +141,8 @@ at install time (A4).
   is one landing.
 - **Name validation**: path traversal is refused at both the install and uninstall ends (the caller is
   not trusted).
+- **Notices**: an install's or uninstall's success and failure notices differ only in their colour; their
+  text carries no mark such as ✓ or ⚠.
 
 ## Testing Decisions
 

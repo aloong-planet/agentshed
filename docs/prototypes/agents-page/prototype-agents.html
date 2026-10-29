@@ -1,92 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · the Agents global page (the default landing, the icon rail's Agents
-     dimension, full width).
-     问题:CC/Codex 的全局面貌(配置/skills/plugins/MCP/token 汇总)在一页里怎么分栏;
-     plugins 仅 CC 有、MCP 来源两侧异构时,分栏怎么不歪。
-     趋势图为 provider 堆叠柱(裁定见 ADR-0008;原独立的 token-stacked 原型已并入此处)。
-     交互:tab 切换;趋势切合计/单侧、悬停出各 provider 明细;配置内切文件;
-     Skills 分栏的装卸交互跳 skill-install 原型;Subagents/Memory 文件点行开抽屉
-     (Esc/点遮罩关,抽屉内切 Claude/Codex);Plugins/Memory 点行展开。
-     v2 并入(2026-08-01,spec subagents-memory-plugin;原 components-view 原型
-       已并入此处并删除):新增 Subagents 与 Memory 分栏;Plugins 改按侧分组
-       +内含组件展开+逐条安装记录;Skills 更名并加插件内含条目(命名空间、
-       只读、不参与遮蔽,ADR-0010)。详情页形态见 project-detail 原型。
-     2026-08-15 追加(第三侧 Grok 接入):Token 分栏的模式条与图例各多一项;xAI 的分段色要在
-       三套主题 × 明暗下都与橙/绿/蓝/灰分得开,且在薄分段上仍认得出。
-       2026-10-18 定稿(用户裁定):沿用共享主题 _shared/theme.css 的 --p-xai(浅 #ad98d0 / 深 #c9b3ec,即原候选
-       p10),演示条上的候选切换随之撤掉。
-     v4(2026-08-20,token 概览重设计·方向 A):累计总量提到**页头**——一张宽卡,左侧大号总量,
-       右侧一条细构成条(未命中输入/输出/cache 读),下方一行各侧拆解。三张侧卡随之**摘掉 token
-       数字**,回归「这一侧装了什么」的职责(检测状态 + 项目/skills/subagents 数);并补上原型里
-       一直缺的 GROK 侧卡。构成条为共享视觉块(_shared/totals-card.css),与 project-detail 一致演化。
-       注意一个后果:卡在页头,于是**所有分栏都看得见它**,不只 Token 分栏——这正是「提到页头」
-       的字面含义,是否可接受请一并评判。
-     v5.1(2026-08-20):各侧拆解不再单列一行,**并回三张侧卡本来就有的中间行**——同一组侧别标签在
-       相邻两行里出现两遍是纯重复。侧卡的盒型与宽度沿用既有的(三行、内容宽、不等分),
-       唯一的变化是那个数字随选中窗口走。
-       project-detail 没有侧卡,那边的 .tot-sides 一行保留——它在那一页不重复。
-     v5.2(2026-08-21,构成条回归):构成条以**统计下方的独立元素**重新出现(不裹在卡里),
-       随选中窗口变。配色改为用户裁定的命中=蓝 / 未命中=黄 / 输出=绿;⚠️ 这三个色相与下方趋势图的
-       provider 色板同屏,而 provider 已占蓝(Google)与绿(OpenAI)——取值已按离色板最远挑过
-       (实测 ΔE 见 _shared/totals-card.css),但「读者会不会去找哪一段对应哪个厂商」仍是要评判的点。
-       ⚠️ 与模型拆分同一个坑:**逐窗口的构成现有数据形状同样撑不住**——byDay 只存标量、不分桶,
-       本页的三段比例是 mock。要做,数据层这一票得同时办掉两件事。
-     v5(2026-08-20,时间维度):v4 的构成条**整条撤掉**(97/2.7/0.28 的悬殊分布在细条上读不出东西),
-       腾出的宽度改放四张同宽卡——全部历史 / 本日 / 近 7 天 / 近 30 天。**这排卡同时是时间筛选器**:
-       点选哪张,下方的趋势图与模型拆分就切到哪个窗口,各侧拆解那行也跟着变。
-       图窗可选 30 / 60 / 90 天,默认 30 天;选中子窗口时其余日子压暗而非裁掉。
-       ⚠️ 待判定的取舍在原型页顶栏里写着:**按窗口切分的模型拆分,现有数据形状撑不住**——逐日数据
-       只到 provider(四家厂商)且只存标量,不到模型;要做得先改数据层。本页的模型条是照"做成之后
-       会是什么样"摆的 mock,不代表现在能算出来。
-     2026-10-14:原「Agents 页启动骨架」原型并入本页——app 里两者也是同一位置的二选一:这次启动还没收到首个
-       快照时画骨架,收到后画正式内容。骨架回答的问题:①高保真镜像(静态文案真实渲染,数据位
-       灰块微动效)在这一页长什么样;②「正在扫描」轻提示放在标题行内是否成立——完成时它消失不引起任何纵向位移
-       (独占一行的提示消失时,下方所有内容会向上跳一次);③填充是否接近零跳变(演示条在骨架与其余三档间切换
-       对照)。骨架期间整块不可交互(tab / 时间窗卡都不可点),rail 照常。骨架照 app 的 Agents 启动骨架摆:哪个数据位
-       放什么占位、多宽多高都与它一一对应,占位样式在共享件 _shared/startup-skeleton.css 里。骨架与正式内容共用本页的中英文案;
-       原骨架页另画过的法、俄、西、日四种语言不再单独画出,与本页其余部分一样按英文显示并有提示。
-     2026-10-21 (the memory drawer previews Markdown): a memory file opens in the file drawer — the same form as the
-       skill file drawer, drawn from the shared _shared/file-drawer.css: a close button, the memory's owner as the
-       title (the project, or the Codex global memory) with the side (its short name, as the skill drawer's meta has
-       it), the file and its modified time under it, and the
-       shared md-preview block — the file's name, the raw / preview switch (preview by default), the body. The front
-       matter shows as a key-value card (a nested key folds into its parent's value). A link to another file of the
-       same memory directory switches the drawer to that file, which opens in preview again; an external link goes
-       to the system browser (here, a new tab); anything else gets the app's error toast (shared _shared/toast.css /
-       toast.js); [[name]] references stay plain text, a remark written straight after one included, and a
-       placeholder like <slug> shows as written (the shared md-preview rule for every rendered surface). The body's
-       read states (loading, could not read, empty file)
-       show inside the same frame. Mock file contents follow the shape of real memory files.
-     2026-10-28 (the fourth side, Antigravity; ADR-0037): every place a side is named gains Antigravity — its
-       side card (badge ANTIGRAVITY, Google blue), the trend chart's side switch, the by-model rows (its model names
-       as agy records them, e.g. gemini-3.8-flash-n), a fourth badge slot in the Skills list (CC CX GK AG; the GK
-       slot was already in the app and is drawn here for the first time), its global and plugin-bundled skills,
-       its subagents (Markdown definitions, AG badge; the drawer's side switch gains Antigravity), its plugins
-       (grouped like the others, enabled / not enabled, bundled skills / subagents / MCP servers — rules are not
-       shown) and its MCP servers (the global mcp_config.json, plugin-bundled ones, a disabled one marked).
-       Memory shows nothing for Antigravity: no sample exists to ground a reader on.
-       Decided by the owner (2026-10-28): when agy conversations cannot be read, the Antigravity side card's
-       third line becomes a warning-coloured line with the count, and the figure above it stays. The
-       configuration tab no longer distinguishes sides: two entries, CLAUDE.md (~/.claude/CLAUDE.md) and
-       AGENTS.md — every global AGENTS.md Codex or agy loads that exists (~/.codex/AGENTS.md, ~/.gemini/AGENTS.md,
-       ~/.gemini/config/AGENTS.md), one after another, each headed by its path; "None" when none exists. The
-       config.toml summary is removed.
-     演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
-       页面内容流)承载六组开关,按分栏出现——「Antigravity unreadable」两态常驻(none / 3 conversations;
-       真实判定 = 读 agy 会话库时失败的个数);「AGENTS.md files」三态仅在配置分栏出现(two / three / none;
-       真实判定 = 这三个路径上哪些文件存在);以及下列原有的四组——「启动」四档常驻(骨架 / 扫描中 / 完成 / 失败,共享件
-       _shared/startup-status;真实判定 = 渲染器是否已收到首个快照与扫描的结果;选骨架时其余各组隐去,它们
-       演示的都是已载入的内容);「用量」三态常驻(有数据 / 本日无用量 / 全空;
-       第二态是最容易漏掉却最常见的那个:早上打开时本日为 0 而历史不为 0,形态与全空不同——侧卡仍报
-       已检测、其余三个窗口仍有数;真实判定 = 本机记下的 token 用量);Memory 分栏是「Codex 记忆」四态
-       (真实判定 = config.toml features.memories × 目录内容),以及「Memory file read」四态(read / loading / could not
-       read / empty;真实判定 = 读取该文件的结果)。每组的真实判定与「app 内无此开关」写在演示条的
-       说明行里。
-       演示状态同时作用到趋势图:卡说本日 0 而图上今天那根柱还有高度,是自相矛盾的原型,教错东西。
-     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了中、英两种,其他语言按英文
-       显示并有提示(启动提示与趋势图两个共享块各自跟随);两页及以上共用的文案取共享文案表 _shared/copy.js;
-       色值取共享主题 _shared/theme.css。app 窗口的根样式在共享件 _shared/app-window.css 里。评审注释、演示条与 mock 数据(名字、路径、描述、文件内容)不随语言切换。 -->
-<!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
+<!-- Reviewer notes: prototype-agents.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -105,14 +18,13 @@
 <link rel="stylesheet" href="../_shared/file-drawer.css">
 <link rel="stylesheet" href="../_shared/toast.css">
 <style>
-  /* app token(含构成三段 --tc-*、侧徽章 --cl/cx/gk-*、语义 --ok/--warn-*)全部取自 _shared/theme.css,
+  /* app token(含构成三段 --tc-*、侧徽章、语义 --ok/--warn-*)全部取自 _shared/theme.css,
      本页不重定义任何 app token,故每套配色与明暗都与其余原型页一致 */
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
   .h1{font-size:16px;font-weight:700;margin-bottom:10px}
-  /* 侧卡沿用既有的三行盒(徽章行 / 数字 / 计数小字)与**内容宽**:卡按内容撑,不等分、不伸展。
-     各侧拆解不再单列一行——那一行的三个标签与这三张卡完全重复,数字回到本来就属于它的中间行。 */
+  /* 侧卡是三行盒(徽章行 / 数字 / 计数小字),**内容宽**:卡按内容撑,不等分、不伸展。 */
   .stats{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 14px;min-width:168px}
   .stat .k{font-size:10.5px;color:var(--text-2);margin-bottom:3px;display:flex;align-items:center;gap:6px}
@@ -120,9 +32,6 @@
   .stat .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
   .stat .s{font-size:10.5px;color:var(--text-2);margin-top:2px}
   .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
-  /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
-     「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
-     故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
   .b.a{background:var(--ag-bg);color:var(--ag-fg)}
@@ -171,7 +80,7 @@
   .m .tr{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
   .m .tr i{display:block;height:100%;background:var(--accent)}
   .m .num{width:70px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--text-2)}
-  /* The v2 component tabs (Subagents/Memory/Plugins expansions) */
+  /* The component tabs (Subagents/Memory/Plugins expansions) */
   .it.row-btn{cursor:pointer}
   .it.row-btn:hover{background:var(--accent-soft)}
   .pill.warn{background:var(--warn-bg);color:var(--warn-fg)}
@@ -213,8 +122,6 @@
 </style>
 <script src="../dimensions.js"></script>
 <script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
-<!-- Startup restore: keep the original page and its mock contents. The added bottom switches
-     are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
 <link rel="stylesheet" href="../_shared/startup-status.css">
 <script src="../_shared/startup-status.js"></script>
 <script src="../manifest.js"></script>
@@ -244,16 +151,14 @@
     </div>
     <div class="body">
       <div data-p="token">
-        <!-- Global span proposal: inline choices, remembered across prototype pages and reloads. Drawn in Chinese and English; other languages show as English. -->
+        <!-- Global span: inline choices, remembered across prototype pages and reloads. -->
         <div class="grp-t trend-heading"><span class="trend-span-label"><span data-i18n="trendPrefix">近</span> <span class="trend-span-options" id="tspan" role="group" aria-label="趋势天数" data-i18n-aria="trendDays"></span> <span data-i18n="trendSuffix">天趋势</span></span><span data-i18n="trendContext">(本地时区 · 日粒度 · 跨全部项目)</span>
           <span class="seg" id="tseg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span><span>Antigravity</span></span></div>
         <div class="chart" id="chart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="txaxis"></div>
         <div class="legend" id="tlegend"></div>
         <!-- Grok 侧记的是每轮实际计费的模型名(带 -build 后缀),与它在会话摘要里自称的 grok-4.5 并不是
-             同一个字符串——这里照记录里的写,不做美化;摊薄成"会话主模型"是 Codex 侧的近似,Grok 不需要。
-             ⚠️ 条形的数值按选中窗口变,这是本版要评判的形态;但逐日数据现在只到 provider、不到模型,
-             真做出来要先改数据层。见页头注释。 -->
+             同一个字符串——这里照记录里的写,不做美化。 -->
         <div class="grp-t" style="margin-top:18px" id="mTitle"></div>
         <div class="models" id="models"></div>
       </div>
@@ -261,8 +166,7 @@
         <div class="grp-t"><span data-i18n="skillsHint">合并单列 · 徽标=该侧是否存在 · 来源:全局库(可装卸)/ 插件(只读)</span>
           <span class="jump" data-goto="skill-install/install" data-goto-href="../skill-install/prototype-install.html">装卸交互演示 ↗</span></div>
         <!-- One badge slot per side, in the side order (CC CX GK AG); a dash where the side lacks the entry.
-             Antigravity's global library is two directories (its own and the one it shares with its desktop app),
-             listed as one; its built-in skills are not listed. Its plugin-bundled skills are namespaced like
+             Antigravity's built-in skills are not listed. Its plugin-bundled skills are namespaced like
              Claude's. -->
         <div class="card">
           <div class="it"><span class="nm">tdd</span>
@@ -317,9 +221,6 @@
             <span class="ds" data-i18n="cacheOnlySameName">仅缓存枚举(与 Claude 组同名条目各自成行)</span></div>
         </div>
         <div class="note" data-i18n="codexFoot">Codex 组仅列缓存中存在的插件(名称/marketplace/版本);启用态与内含组件语义本期不建模。</div>
-        <!-- Antigravity's plugins are global (installed into the configuration it shares with its desktop app);
-             enablement is its own record, absent = enabled. Bundled rules are not listed: rules are shown
-             nowhere (ADR-0037). -->
         <div class="grp-t"><span class="b a">ANTIGRAVITY</span></div>
         <div class="card" id="plistAg"></div>
       </div>
@@ -350,8 +251,8 @@
             <span class="ds" data-i18n="mcpFromFlutter">来自 flutter 插件</span></div>
         </div>
       </div>
-      <!-- Two entries, not by side (owner's ruling, 2026-10-28): CLAUDE.md, and AGENTS.md rendering every global
-           AGENTS.md that exists, each headed by its path. The file names are names, not copy. -->
+      <!-- Two entries, not by side: CLAUDE.md, and AGENTS.md rendering every global AGENTS.md that exists, each
+           headed by its path. The file names are names, not copy. -->
       <div data-p="cfg" style="display:none">
         <div class="cfg-switch" id="cfgs">
           <span class="on" data-cfg="claude">CLAUDE.md</span><span data-cfg="agents">AGENTS.md</span>
@@ -449,7 +350,7 @@
     <p class="dh-note" id="demoCxmemNote" hidden>Codex 记忆四态在 app 里由 Codex 的 config.toml features.memories 与记忆目录里的文件决定;app 内没有这个开关。</p>
   </div>
 <script>
-// ── 界面文案:中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 负责)。两页及以上共用的条目取
+// ── 界面文案:中、英两种。两页及以上共用的条目取
 //    共享文案表 _shared/copy.js,这里只留本页独有的。
 //    评审注释、演示条与 mock 数据(名字、路径、描述、文件内容)不进文案表,不随语言切换。
 const plural = (n, one, other) => n === 1 ? one : other;
@@ -540,7 +441,7 @@ function applyI18n(){
   document.querySelectorAll('[data-i18n-aria]').forEach(el=>el.setAttribute('aria-label', tr()[el.dataset.i18nAria]));
 }
 
-// ── mock:全部历史一列取自本机真实计量(2026-08-19),其余三个窗口按同一形状缩放编造。
+// ── mock:其余三个窗口按全部历史一列的形状缩放编造。
 //    形态要评判的是「同一份数据切成四个窗口后,各侧与各模型的**占比会变**」——所以四列不是等比缩放。
 //    n = 侧卡小字的三个计数(项目 / 全局 skills / subagents)
 const SIDES = [
@@ -568,7 +469,6 @@ const winLabel = (ri) => {
 };
 // 逐窗口的模型拆分。顺序对齐 RANGES;刻意让占比随窗口变(近期 fable 起量、haiku 本日无量)。
 // **每一列都与 RANGES 的 side 恰好对得上**——同侧各模型之和 = 该侧在该窗口的总量。
-// 这不是洁癖:v3.2 那次「总量 8.5M 却 cache 48.2M」的自相矛盾就是从示例数字没对账开始的。
 const MODELS = [
   { nm:'claude-fable-5',   cls:'anthropic', v:[5100000000, 37200000, 220000000, 820000000] },
   { nm:'claude-opus-5',    cls:'anthropic', v:[3400000000, 24200000, 148000000, 560000000] },
@@ -582,8 +482,8 @@ const MODELS = [
   { nm:'gemini-3.6-flash',   cls:'google',  v:[ 118400000,  2400000,  10300000,  26300000] }
 ];
 // 构成三段占该窗口总量的比例(未命中输入 / 输出 / cache 读)。顺序对齐 RANGES,每行恰好加总为 1——
-// 三段之和就是总量,这是这个切法唯一的理由,mock 里也不能破。刻意让比例随窗口变:近期 cache 命中率
-// 略低(会话更短、上下文更常重建),这正是"按窗口看构成"的价值所在。
+// 三段之和就是总量,mock 里也不能破。刻意让比例随窗口变:近期 cache 命中率
+// 略低(会话更短、上下文更常重建)。
 const COMP = [
   { rd:0.9700, in:0.0272, ou:0.0028 },   // 全部历史
   { rd:0.9580, in:0.0360, ou:0.0060 },   // 本日
@@ -591,9 +491,9 @@ const COMP = [
   { rd:0.9680, in:0.0285, ou:0.0035 }    // 近 30 天
 ];
 let RANGE = 0;       // 选中的窗口(RANGES 下标),默认「全部历史」
-// 演示状态三选一。'idle' 是最容易漏掉、却最常见的那个:早上打开时「本日」为 0 而历史不为 0。
+// 演示状态三选一。'idle':早上打开时「本日」为 0 而历史不为 0。
 // 它与「一条记录都没有」形态不同——侧卡仍报已检测、其余三个窗口仍有数,只有选中「本日」时
-// 才看得见空的样子,所以必须能单独摆出来评判,不能靠全空那一态代打。
+// 才看得见空的样子。
 let DEMO = 'full';   // 'full' | 'idle'(本日无用量) | 'none'(一条记录都没有)
 /** 该窗口在当前演示状态下是否读作 0 */
 const zeroed = r => DEMO === 'none' || (DEMO === 'idle' && RANGES[r].id === 'd1');
@@ -627,10 +527,9 @@ function renderTotals(){
        return `<button type="button" class="tot-c ${ri===RANGE?'on':''} ${v?'':'zero'}" data-r="${ri}">
                  <div class="tot-k">${winLabel(ri)}</div><div class="tot-v">${fmt(v)}</div></button>`;
      }).join('')}</div>${compBlock()}`;
-  // 各侧的量并进各自的侧卡(不再单列一行):同一个侧别标签在相邻两行出现两遍是纯重复,
-  // 而"这一侧用了多少"本就属于"这一侧装了什么"那张卡的中间行。数字随选中窗口变。
+  // 各侧的量在各自侧卡的中间行,随选中窗口变。
   // The third line carries the side's summary, or — for Antigravity with conversations it could not read —
-  // that count in the warning colour; the figure above stays (owner's ruling, 2026-10-28)
+  // that count in the warning colour; the figure above stays
   const third = (s) => !s.on ? '<div class="s">—</div>'
     : s.id === 'ag' && UNREAD > 0 ? `<div class="s side-warn" title="${tr().unreadableTip}">${tr().unreadableConvs(UNREAD)}</div>`
     : `<div class="s">${tr().sideSummary(...s.n)}</div>`;
@@ -692,7 +591,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     applyRange()
   })
 
-  // ── The v2 components: Subagents / Memory / Plugins (folded in from the subagents-memory-plugin spec) ──
+  // ── The components: Subagents / Memory / Plugins ──
   // 界面文案在 T 里:flag / err 是 T 的 key,INH 是「继承」占位,渲染时按当前语言取词
   const INH = Symbol('inherited');
   const kvv = (v) => v === INH ? tr().inherited : v;
@@ -878,7 +777,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
       <span class="ds">${tr().fromMarketplace(p.mk)}</span></div>`+(AG_OPEN.has(i)?`<div class="exp">${p.exp()}</div>`:'')).join('');
   }
   // 演示条只建一次(标记在上方),这里只改 aria-pressed 与 hidden。
-  // 「用量」一组常驻:总量卡已移入页头,所有分栏都看得见,开关也就不该随分栏出现/消失;
+  // 「用量」一组常驻:总量卡在页头,所有分栏都看得见,开关也就不该随分栏出现/消失;
   // 「Codex 记忆」只在 Memory 分栏出现;骨架期间只有启动这一组:其余各组演示的都是已载入的内容
   function syncHarness(){
     const on=document.querySelector('#tabs .tab.on')?.dataset.t, sk=!$('skMain').hidden;
@@ -905,8 +804,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     const v=e.target.closest('[data-v]')?.dataset.v; if(!v)return;
     CXMEM=v; renderMemory(); syncHarness();
   });
-  // ── 启动骨架的占位:照 app 的 Agents 启动骨架画——哪个数据位、多宽多高、错开多少都与它一一对应;
-  //    此后以本页为准。宽度与柱高取固定数组、不随机,两次打开长得一样;宽度
+  // ── 启动骨架的占位:宽度与柱高取固定数组、不随机,两次打开长得一样;宽度
   //    彼此错开,读作「长短不一的数会来」。文字行的占位一律 skLine:零宽空格撑出该行真实字体的行盒,与将要
   //    替换它的文字同高,换平台也不靠像素猜。模型行数是名义值,不承诺与载入后的行数一致 ──
   const skPh=(w,h,d)=>`<span class="sk-ph" style="width:${w}px;height:${h}px${d===undefined?'':`;animation-delay:${d}s`}"></span>`;
@@ -935,7 +833,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     $('skChart').innerHTML=Array.from({length:span},(_,i)=>
       `<span class="sk-ph-bar" style="height:${SK_BARS[i%SK_BARS.length]}%;animation-delay:${(i%8)*.1}s"></span>`).join('');
   }, true);
-  // 演示条「骨架」一档:骨架与正式内容在同一位置二选一,与 app 一致
+  // 演示条「骨架」一档:骨架与正式内容在同一位置二选一
   function showSkeleton(state){
     const sk=state==='skeleton';
     $('skMain').hidden=!sk; $('pageMain').hidden=sk;
@@ -962,7 +860,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
       if(AG_OPEN.has(i)) AG_OPEN.delete(i); else AG_OPEN.add(i);
       renderPlugins(); return }
   });
-  drawer.addEventListener('click',e=>{ // 抽屉内双端切换:原地刷新不关闭
+  drawer.addEventListener('click',e=>{ // 抽屉内切换侧:原地刷新不关闭
     const s=e.target.dataset.side; if(!s)return; SIDE=s; drawer.innerHTML=saDrawerHtml();
   });
   renderSubagents(); renderMemory(); renderPlugins();

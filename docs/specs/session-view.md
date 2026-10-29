@@ -830,7 +830,7 @@ subagents included.
 - **Layout**: the ID at the end of the meta line, as one unbreakable run (a narrow window wraps before
   it, never inside it); the three buttons at the right end of the title row, after the title and the
   startup hint. Chosen over a two-row strip that showed the command on the page and over a row of text
-  links under the meta line.
+  links under the meta line. The meta line is set at 12px.
 - **The buttons**: the stale note's copy-button geometry — a fixed 22px box with a 12px icon centred,
   the line colour as border, the secondary text colour as icon, the accent colour and the stronger line
   colour on hover. A copy's check recolours the icon in the accent colour and leaves the border at rest.

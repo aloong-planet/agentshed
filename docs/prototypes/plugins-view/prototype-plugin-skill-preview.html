@@ -1,24 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · plugins-view: previewing a plugin skill in place — direction A, four rounds of
-     revision (2026-08-07):
-     首轮 chip 群 + 表中插被反馈「乱」;二轮改 skills 行式列表;三轮:①安装记录
-     上移插件名行内 ②类目标题升权重 ③缩进砍到 14px 基线;四轮(用户指示):
-     Skills/Subagents/Hooks/MCP 改为展开区内**类目 tab**(segment 形态区别于
-     页面级 tab;空类目不出 tab,默认落首个非空类目)。
-     Skills tab 为行式列表:每 skill 一行(名 + 描述 + 文件数·大小),点行折叠
-     展开文件表,与 Skills 分栏交互语法完全统一。
-     ADR-0012:预览与启用态解耦;Codex 组仅 skills 段展开、不并入 Skills 分栏。
-     mock 边界:多安装记录 / 未启用仍可审阅 / E6 整包缺失 / 单 skill 目录缺失置灰 /
-     深度>2 提示 / Codex 探测式。
-     文件表与 prototype-skills-preview.html(skills-view)同构——演化时两处同步。
-     共享块:md-preview(抽屉正文渲染)。
-     2026-10-21: the drawer's frame is the shared _shared/file-drawer.css — the one file-drawer form the skill file
-       drawer and the memory drawers draw too (the app opens a plugin's skill files in the skill file drawer). Its
-       width follows the content-area formula instead of 80vw; its preview bar takes the skill drawer's fade.
-     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关、无演示条;语言只画了中、英两种,
-     其他语言按英文显示并有提示;评审注记(.sub 说明、页脚注、展开区里带 ADR 的注)不随语言变。
-     色值取共享主题 _shared/theme.css,本页只为自己的 token(遮罩)给出明暗两值。
-     app 窗口的根样式在共享件 _shared/app-window.css 里。 -->
+<!-- Reviewer notes: prototype-plugin-skill-preview.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -47,7 +28,7 @@
   .sub b{color:var(--text)}
   .sec-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin:16px 0 8px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:14px;overflow:hidden}
-  /* The plugin row (matching the density of the app's current list rows) */
+  /* The plugin row */
   .prow{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;
     border:0;background:none;color:inherit;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
   .prow:hover{background:var(--accent-soft)}
@@ -62,8 +43,7 @@
   .pill.src{background:var(--accent-soft);color:var(--accent);font-weight:600}
   /* The expanded area: indented onto the same 14px baseline as the row header */
   .exp{padding:2px 14px 12px 14px;background:var(--bg);border-bottom:1px solid var(--line)}
-  /* Category tabs (a segment inside the expanded area, styled apart from page-level tabs; an empty category
-     gets no tab) */
+  /* Category tabs (a segment inside the expanded area) */
   .ptabs{display:flex;gap:4px;margin:10px 0 8px}
   .ptab{font:inherit;font-size:11.5px;font-weight:600;border:1px solid var(--line-strong);background:var(--card);
     color:var(--text-2);border-radius:7px;padding:3px 10px;cursor:pointer}
@@ -75,7 +55,7 @@
     font-size:10.5px;color:var(--text-2)}
   .none{font-size:12px;color:var(--text-2);padding:10px 0}
   .note{font-size:11px;color:var(--text-2);margin-top:8px;line-height:1.5}
-  /* The skills row list: isomorphic to the Skills tab's collapse semantics */
+  /* The skills row list */
   .psk-list{margin-top:2px;border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden}
   .psk{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;
     border:0;background:none;color:inherit;padding:7px 12px;cursor:pointer;border-top:1px solid var(--line)}
@@ -91,8 +71,7 @@
   .psk.dis{cursor:not-allowed;opacity:.5}
   .psk-body{border-top:1px solid var(--line);background:var(--bg);padding:8px 12px}
   .psk-body .files-wrap{border:0;border-radius:0;background:transparent;margin:0}
-  /* The file table: isomorphic to the skills-view prototype's expanded table (flat, and the two evolve
-     together) */
+  /* The file table */
   .files-wrap{border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden}
   .files-head{display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;gap:8px;
     padding:5px 12px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
@@ -155,8 +134,7 @@
 </div>
 
 <script>
-  // ── The interface language follows the settings prototype; this page is drawn in Chinese and English
-  // (demo-dimensions.js shows any other choice as English, with a note) ──
+  // ── The interface language follows the settings prototype; this page is drawn in Chinese and English ──
   let lang = DemoDimensions.get('language')
   const HTML_LANG = { zh: 'zh-CN', en: 'en' }
   const enOne = (n) => new Intl.PluralRules('en').select(n) === 'one'
@@ -265,7 +243,7 @@
     names.forEach(n=>{ bytes+=new TextEncoder().encode(p.files[n]).length })
     return { files:names.length, bytes } }
 
-  // ── The file table (isomorphic to the skills-view prototype) ──
+  // ── The file table ──
   function renderFiles(host, key){
     const pack = FILES[key]
     host.innerHTML = ''
@@ -327,15 +305,13 @@
     const exp=document.createElement('div'); exp.className='exp'; exp.style.display='none'
     // Static segments are appended through seg() and interactive nodes with their own appendChild — the order
       // must not be reversed:
-    // an innerHTML+= after an appendChild rebuilds the DOM and wipes the listeners (a trap hit in the first
-      // version)
+    // an innerHTML+= after an appendChild rebuilds the DOM and wipes the listeners
     const seg=(html)=>{ const d=document.createElement('div'); d.innerHTML=html; while(d.firstChild) exp.appendChild(d.firstChild) }
     // A line of product copy: appended like an interactive node, and repainted on a language change
     const live=(cls, text)=>{ const d=document.createElement('div'); d.className=cls
       const paint=()=>{ d.textContent=text() }; paint(); painters.push(paint); exp.appendChild(d) }
     if(p.missing) live('none', ()=>tx().missingNone)
-    // Category tabs: an empty category gets no tab (as in E5, "a missing category is not shown"); the default
-      // lands on the first non-empty one
+    // Category tabs: an empty category gets no tab; the default lands on the first non-empty one
     const panels=[]
     if(p.skills.length){
       const list=document.createElement('div'); list.className='psk-list'

@@ -1,61 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · global search: search the questions of every project's sessions from a page of its own,
-     then go straight to the session inside its project.
-     Question: do hits grouped by project, then by session, answer "which session, in which project" at a
-       glance — with the project's own session search left as the place for answers and tool output?
-     Structure, settled before this page was drawn:
-       - the frame follows the Agents page (rail + a page header + a scrolling body, no project column); the
-         search row sits in the header, so it stays while the results scroll;
-       - the rail gains a third top item, Search, below Projects (the owner's ruling, 2026-10-19);
-       - a project's sessions are shown together (the owner's ruling, 2026-10-19, replacing the first draft's
-         flat list of sessions each carrying its project on a line of its own): the project is a section
-         heading — name, stale tag, its session and hit counts — over its session cards (picked over one
-         large card per project with the sessions as sub-sections inside it);
-       - the session cards, the search row, the results header and the hit rows are the project search's
-         own, from the shared session-hits piece, which project-detail's Sessions tab draws too.
-     What the page shows:
-       - questions only, no full-text toggle; the placeholder says how many sessions in how many projects are
-         searched (with nothing to search it names no number), and the no-hits line points to the project's
-         Sessions tab for full text;
-       - a hit row shows the question on one line from its beginning, every occurrence of the keyword marked;
-         when the first occurrence would fall past the line's cut, the row starts 20 characters before it,
-         after an ellipsis, judged at the row's width and again when it changes (owner's calls, 2026-10-22; the
-         notarize sample has such a question, with others whose keyword is already in view);
-       - search as you type; while the question texts are still being read, the header's hint slot says so
-         and the results area shows nothing — the results appear once the reading is done (owner's ruling,
-         2026-10-19: no "searching" state in the results area). The reading hint takes the slot over the
-         startup scan's hint while both are under way;
-       - the sort segment orders the projects by their most recently active session and the sessions inside
-         a project by their own last activity, newest first by default; oldest first reverses both; hits
-         inside a session stay in question order;
-       - a stale project still has its sessions searched, its heading struck through with the stale tag, as
-         the project column draws it; the heading's tooltip is the project's path (projects can share a name);
-       - with no session to search the search row stays, and the results area says there is none yet;
-       - a search that fails as a whole says so on one line where the results would be, never passing for
-         "no hits" (owner's ruling, 2026-10-19); a session that cannot be read is merely left out;
-       - clicking a session card's header opens that session; clicking a hit opens it at that question. Both
-         land on the session page inside the Projects section (session-view/session), whose header then shows
-         two exits in one row, both chevrons: first back to these results — the keyword, the results and the
-         scroll position as they were — then into the project's Sessions tab; a fork parent reached from
-         there, and a session opened after going into the project, have the project's single back control
-         (owner's rulings, 2026-10-19). The Search item brings this page back the same way.
-     Not drawn here (not a screen of this page): the Edit menu's "搜索会话… ⌘⇧F" / "Search Sessions… ⌘⇧F"
-       entry, which opens this page and focuses the box; on arrival in Projects, the project list scrolls
-       the selected project into view; the landing highlight on the session page is session-view's.
-     Settled picks (2026-10-19): the rail item's icon is Search (the magnifier), picked over TextSearch and
-       ScanSearch; the sort choice is this page's own, kept with its keyword and results, and does not
-       follow or move the sort of a project's Sessions tab.
-     Demo harness (not part of the design, do not implement): the startup restore states (the shared
-       _shared/startup-status), whether the question texts have been read yet, whether any project has a
-       session, whether the search request succeeds, and one-shot fills of the box with sample keywords. The
-       notes on the bar say what decides each state in the app.
-     The interface language, light/dark and palette follow the settings prototype and the gallery's unified
-       settings; the copy is drawn in Chinese and English, other languages show as English with a note. The
-       copy two or more pages show comes from _shared/copy.js; mock data stays as written. Colours come from
-       _shared/theme.css; the app window's root styles are in _shared/app-window.css. 
-     2026-10-28 (the fourth side, Antigravity; ADR-0037): an Antigravity conversation joins the mock (AG badge, agy's
-       own title, a fork with its copied history stripped), so its hits show how this side reads in the list.
-     -->
+<!-- Reviewer notes: prototype-search.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -67,13 +11,13 @@
 <link rel="stylesheet" href="../_shared/startup-status.css">
 <style>
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
-  /* The frame of the Agents page: a header over a scrolling body */
+  /* A header over a scrolling body */
   .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
   .h1{display:flex;align-items:baseline;gap:12px;font-size:16px;font-weight:700;margin-bottom:10px}
   .head .sbar{margin-bottom:12px}
   .body{flex:1;overflow:auto;padding:16px 22px}
-  /* Side badges, pills and the sort segment, as project detail draws them */
+  /* Side badges, pills and the sort segment */
   .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px;flex:none}
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
@@ -151,8 +95,8 @@
     <p class="dh-note">搜索请求:由这次搜索整体是否完成决定(单个会话读不了只是被跳过,不算失败);失败后改关键词或下次自动刷新会再搜一次;app 内没有这个开关。</p>
   </div>
 <script>
-  // ── Copy: drawn in Chinese and English (other languages show as English, with the note demo-dimensions.js
-  //    gives). Entries two or more pages show come from _shared/copy.js; only this page's own are here. ──
+  // ── Copy: drawn in Chinese and English. Entries two or more pages show come from _shared/copy.js; only this
+  //    page's own are here. ──
   const pl = (n, one, other) => n === 1 ? one : other
   const T = {
     zh: { ...SharedCopy.zh,

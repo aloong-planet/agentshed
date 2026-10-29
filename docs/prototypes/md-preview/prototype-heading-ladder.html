@@ -1,27 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · Markdown 预览的标题层级(h1–h6)——回答:h3 与 h4 靠什么区分,
-     以及两个预览面(skill 文件抽屉 / .md 文档卡)能否共用同一套阶梯。
-     背景:实测现状里抽屉 h3≈14.6px vs h4=12.5px 且 h4 无主题色;.md 卡 h1=h2=h3 全被压成
-     13.5px、h4=12.5px——用户报「三级四级看起来一样大」。
-     裁决(2026-08-19):V2 形状分层定稿,已折进共享块 _shared/md-preview.css 与真代码。
-     2026-10-18:落选的旧现状、V1、V3 与切换它们的演示条撤掉,本页只画定稿的 V2。
-     第二条裁决(2026-08-19,用户对照本页两栏后指定):代码块与行内代码统一取右栏(.md 文档卡)
-     的纸面样式——围栏浅底描边、内层 code 无二层框、行内 code 描边药丸;已折进共享块与真代码,
-     左栏抽屉语境此前的暗底终端式 pre 不再是 app 现状。
-     第三条裁决(2026-08-21):表格纸面样式定稿并已折进共享块与真代码——表头 accent-soft 底 +
-     accent-deep 字、外框与行线 line、**列分隔线 line-strong(加强)**、斑马纹 bg、
-     **表头单元格不换行**(宽表滚动容器)、GFM 对齐语法(:-: / --:)优先于默认左对齐,
-     全部既有 token。fixture 的「分组对照」表覆盖:三种对齐、单元格内行内 code、
-     窄容器下折行的长单元格、四行正文(斑马纹可见)。
-     定稿方案 V2 形状分层:h1 底线、h2 左条、三级色阶、h4 起转灰,字号只温和递减,押折行不糊。
-     本页没有演示条。界面语言、配色与明暗跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;
-     色值取共享主题 _shared/theme.css。
-     本页不画 app 窗口:它是一张摆放两个预览面样本的样张,页面的根样式(底色、文字色、字号、页边距)
-     写在本页自己的外框 .sheet 上,不写在 html、body 上。
-     语言只画了中、英两种,其他语言按英文显示并有提示;随语言变的只有抽屉切换钮(原文/预览,共享块
-     md-preview.js 自带两种语言),本页其余文字都是评审注记与 fixture,不随语言变。本页评判对象是标题排版,不含该钮几何。
-     mock 正文刻意覆盖:h3→正文→h4、h3/h4 紧邻无正文、h5/h6、长标题折行后紧邻的 h3/h4、
-     代码块与列表贴近标题。共享:md-preview。 -->
+<!-- Reviewer notes: prototype-heading-ladder.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -30,14 +8,14 @@
 <link rel="stylesheet" href="../_shared/md-preview.css">
 <style>
   /* Page tokens on top of the app's (_shared/theme.css), each named after the app token that plays the
-     same role, so every palette and both modes come from the shared theme. --hx3 is V2's third heading step, which
-     is the app's --md-h3. */
+     same role, so every palette and both modes come from the shared theme. --hx3 is the ladder's third heading
+     step, which is the app's --md-h3. */
   :root {
     --hx3: var(--md-h3);
   }
 
   * { box-sizing: border-box; margin: 0; font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
-  /* 样张的外框(本页不画 app 窗口):底色铺满至少一屏,与此前写在 body 上时一样 */
+  /* 样张的外框(本页不画 app 窗口):底色铺满至少一屏 */
   .sheet { background: var(--bg); color: var(--text); font-size: 13px; padding: 22px 24px 96px; min-height: 100vh; }
 
   .pg-head { max-width: 1320px; margin: 0 auto 14px; }
@@ -53,7 +31,7 @@
   .panel { flex: 1 1 560px; min-width: 480px; max-width: 640px; }
   .panel .cap { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--text-2); margin: 0 0 7px 2px; }
 
-  /* 抽屉语境:共享块自带边框/圆角;本页对它 chrome 的覆盖一律取主题 token(同 skills-view 原型的做法) */
+  /* 抽屉语境:共享块自带边框/圆角;本页对它 chrome 的覆盖一律取主题 token */
   .shell-drawer .md-preview { border-color: var(--line); background: var(--card); box-shadow: 0 4px 18px rgba(0,0,0,.06); }
   .shell-drawer .md-preview-bar { background: linear-gradient(180deg, var(--bg) 0%, var(--card) 100%); border-bottom-color: var(--line); }
   .shell-drawer .md-preview-bar .md-preview-name { color: var(--accent); }
@@ -64,18 +42,15 @@
   .shell-drawer .md-preview-body.raw { background: var(--bg); color: var(--text); }
   .shell-drawer .md-preview-body.preview { background: var(--card); color: var(--text); }
   .shell-drawer .md-preview { --md-h1: var(--accent-deep); --md-h2: var(--accent); --md-link: var(--accent); }
-  /* 表格不再本页覆盖:共享块默认已是定稿(第三条裁决,token 化 + 对齐修正 + 表头不换行 +
-     列线加强),让它直接流入 */
-  /* code/pre 不再本页覆盖:共享块默认已是定稿的纸面样式(第二条裁决),让它直接流入。
-     但共享块自带的原型级 token 着色(.tok-*)在真 app 里不存在(app 的 Markdown 预览不做语法高亮),
-     本页两栏都要反映 app 事实,故在此中和掉——右栏 .mdcard 本就无 tok 规则。 */
+  /* 共享块自带的原型级 token 着色(.tok-*)在真 app 里不存在(app 的 Markdown 预览不做语法高亮),
+     故在此中和掉——右栏 .mdcard 本就无 tok 规则。 */
   .shell-drawer .md-preview-body.preview .tok-c,
   .shell-drawer .md-preview-body.preview .tok-s,
   .shell-drawer .md-preview-body.preview .tok-k { color: inherit; }
   .shell-drawer .md-preview-body.preview strong { color: var(--text); }
   .shell-drawer .md-preview-body.preview li::marker { color: var(--accent); }
 
-  /* .md 文档卡语境:照抄 app 文档卡的容器与其 code/pre/列表规则(12.5px/1.75) */
+  /* .md 文档卡语境:文档卡的容器与其 code/pre/列表规则(12.5px/1.75) */
   .mdcard {
     background: var(--card); border: 1px solid var(--line); border-radius: 9px;
     padding: 16px 18px; line-height: 1.75; font-size: 12.5px;
@@ -85,7 +60,6 @@
   .mdcard pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; overflow-x: auto; }
   .mdcard pre code { border: 0; background: transparent; padding: 0; }
   .mdcard ul, .mdcard ol { padding-left: 20px; }
-  /* 第三条裁决后 app 文档卡的表格规则(照抄) */
   .mdcard table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 0.75em 0;
     border: 1px solid var(--line); border-radius: 6px; overflow: hidden; font-size: 12px; }
   .mdcard th, .mdcard td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line-strong);
@@ -97,7 +71,7 @@
   .mdcard td[align='center'] { text-align: center; }
   .mdcard td[align='right'] { text-align: right; }
 
-  /* ── 标题阶梯:一套结构规则,两个语境同吃;取值见下方定稿的变量 ──
+  /* ── 标题阶梯:一套结构规则,两个语境同吃;取值见下方的变量 ──
      选择器带 .shell-drawer 前缀是为了压过共享块 md-preview.css 的同名规则(0,2,1 → 0,3,1) */
   .shell-drawer .md-preview-body.preview h1, .mdcard h1,
   .shell-drawer .md-preview-body.preview h2, .mdcard h2,
@@ -134,7 +108,7 @@
     margin: var(--h6-m, var(--hd-m, 1em 0 0.4em)); letter-spacing: var(--h6-ls, normal);
   }
 
-  /* ── V2 · 形状分层(定稿):h1 底线、h2 左条、h3 三级色、h4 起转灰;字号温和递减 ── */
+  /* ── 形状分层:h1 底线、h2 左条、h3 三级色、h4 起转灰;字号温和递减 ── */
   .panel {
     --h1-fs: 1.32em; --h1-c: var(--accent-deep); --h1-bd: 2px solid var(--line-strong); --h1-pb: 0.3em;
     --h2-fs: 1.16em; --h2-c: var(--accent);      --h2-bd: 3px solid var(--accent);      --h2-pl: 10px;

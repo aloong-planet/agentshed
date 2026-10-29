@@ -1,23 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · the shell with an icon rail and two columns.
-     问题:两维度(Agents 默认落地 / Projects)rail 下,壳的骨架长什么样;
-     启动扫描态如何呈现(渐进填充前不显示"空"误导)——骨架屏模式两维度通用,
-     此处以 Projects 列表侧演示,实际启动时首先出现在 Agents 页。
-     交互:rail 的 Agents 与设置进入各自的原型;Projects 的落点就是本页,点它不跳转。
-     已失效(2026-08-21,仅扫描态这一结论;双栏壳结论不受影响):启动扫描态已演进为
-       按页面真实结构摆占位的骨架屏——本页 stage 中央那句「扫描完成前不显示空列表」的呈现
-       以及 topbar scanpill 的位置都不再是现行为。现行为以 agents-page/prototype-agents
-       与 project-list/prototype-list 两页演示条的「骨架」一档为准(spec:agents-overview A4 族、
-       projects-list A10–A13)。
-     演示基建(非设计的一部分,勿实现):底部悬浮条(data-demo-harness,独立于页面内容流)承载「扫描」一组
-       (扫描态 / 就绪空态;真实判定 = 这次启动的扫描是否已完成,说明行写明)——app 内没有这个开关。
-     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了中、英两种,
-       其他语言按英文显示并有提示;色值取共享主题 _shared/theme.css,app 窗口的根样式在共享件
-       _shared/app-window.css 里。topbar 的扫描提示是本页旧形态的文案。stage 中央两句(设计说明/占位说明)
-       是批注,与演示条一样仍为中文。
-     2026-10-14:项目栏改为共享件 _shared/project-side.{js,css}(与列表页同一个):扫描中画 app 的启动骨架,
-       扫描完成画一个项目也没有时 app 的列表(「无匹配项目」)——原先此处的「未检测到任何 agent 数据」是旧
-       形态的文案,app 里没有。 -->
+<!-- Reviewer notes: prototype-app-shell.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -73,7 +55,7 @@
 <script>
   const pill=document.getElementById('pill'),
         msg=document.getElementById('stageMsg'),bar=document.querySelector('[data-demo-harness]');
-  // 中英文案。scanning 是本页旧形态的文案。项目栏是共享件(_shared/project-side.js):扫描中画 app 的
+  // 中英文案。项目栏是共享件(_shared/project-side.js):扫描中画
   // 启动骨架,扫描完成后画一个项目也没有时的列表。stage 中央两句是设计说明与占位说明(批注),不在此列。
   const L={
     zh:{htmlLang:'zh-CN',scanning:'正在扫描 Claude Code / Codex…'},
@@ -92,7 +74,7 @@
       msg.innerHTML='<div class="big">'+ICONS.Inbox(30)+'</div><div>就绪空态:引导页占位<br><span style="font-size:12px">列表有数据时,这里显示「选择一个项目」</span></div>';
     }
   }
-  // 演示条「扫描」一组(非设计的一部分):条只建一次,选中项靠 aria-pressed 标出
+  // 演示条「扫描」一组:条只建一次,选中项靠 aria-pressed 标出
   bar.addEventListener('click',e=>{
     const b=e.target.closest('button[data-scan]');
     if(!b||(b.dataset.scan==='scanning')===scanning) return;
