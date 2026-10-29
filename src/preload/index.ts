@@ -7,6 +7,9 @@ import {
   type SessionTurnArgs,
   type SkillOpArgs,
   type SkillOpResult,
+  type SkillInstallArgs,
+  type SkillLandingResult,
+  type SkillHoldings,
   type Prefs,
   type AppearanceMode,
   type AppearanceTheme,
@@ -48,6 +51,15 @@ function checked(snap: unknown): Snapshot {
   const r = validateSnapshot(snap)
   if (!r.ok) throw contractError('snapshot', r.failure)
   return snap as Snapshot
+}
+
+/** The picker's holdings: project path → directory names. Anything else is a broken contract, not "nothing held" */
+function checkedHoldings(raw: unknown): SkillHoldings {
+  const ok =
+    typeof raw === 'object' && raw !== null && !Array.isArray(raw) &&
+    Object.values(raw).every((dirs) => Array.isArray(dirs) && dirs.every((d) => typeof d === 'string'))
+  if (!ok) throw appError(ERR.contractType, { path: 'skillHoldings', expect: 'Record<string,string[]>' })
+  return raw as SkillHoldings
 }
 
 function checkedPrefs(raw: unknown): Prefs {
@@ -185,8 +197,10 @@ const api = {
   openArtifact: (file: string): Promise<void> => ipcRenderer.invoke(CMD.openArtifact, file),
   copyText: (text: string): Promise<void> => ipcRenderer.invoke(CMD.copyText, text),
   revealSessionFile: (file: string): Promise<void> => ipcRenderer.invoke(CMD.revealSessionFile, file),
-  installSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
-    ipcRenderer.invoke(CMD.installSkill, args) as Promise<SkillOpResult>,
+  installSkill: (args: SkillInstallArgs): Promise<SkillLandingResult[]> =>
+    ipcRenderer.invoke(CMD.installSkill, args) as Promise<SkillLandingResult[]>,
+  skillHoldings: async (skillName: string): Promise<SkillHoldings> =>
+    checkedHoldings(await ipcRenderer.invoke(CMD.skillHoldings, skillName)),
   uninstallSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
     ipcRenderer.invoke(CMD.uninstallSkill, args) as Promise<SkillOpResult>,
   listSkillFiles: (args: ListSkillFilesArgs): Promise<ListSkillFilesResult> =>

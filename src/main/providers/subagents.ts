@@ -4,12 +4,12 @@
 //   Codex: ~/.codex/agents/*.toml, key = the name field inside the toml (agent_roles.rs;
 //   Codex does not load a file with no valid name or one that fails to parse, and those are listed here
 //   as degraded entries carrying an error).
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
 import type { AgentSide, ProjectSubagentEntry, SubagentEntry, SubagentSideDetail } from '@shared/domain'
-import type { ScanRoots } from './types'
-import { fmField, readCapped } from './read-utils'
+import { antigravityConfigDir, type ScanRoots } from './types'
+import { fmField, fmValue, frontMatter, readCapped } from './read-utils'
 import { ERR } from '@shared/errors'
 
 /** The Codex built-in roles (role.rs built_in::configs); a custom entry of the same name overrides the
@@ -34,6 +34,8 @@ const UNREADABLE: Omit<SubagentSideDetail, 'content'> = {
   tools: null,
   model: null,
   sandbox: null,
+  subagent: null,
+  mainAgent: null,
   error: { code: ERR.subagentUnreadable, params: {} }
 }
 
@@ -51,6 +53,8 @@ function readClaudeSide(dir: string): Map<string, SubagentSideDetail> {
       tools: fmField(content.text, 'tools'),
       model: fmField(content.text, 'model'),
       sandbox: null,
+      subagent: null,
+      mainAgent: null,
       error: null
     })
   }
@@ -77,6 +81,8 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
         tools: null,
         model: null,
         sandbox: null,
+        subagent: null,
+        mainAgent: null,
         error: { code: ERR.subagentTomlFailed, params: { detail: String(err).slice(0, 120) } }
       })
       continue
@@ -90,6 +96,8 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
         tools: null,
         model: str('model'),
         sandbox: str('sandbox_mode'),
+        subagent: null,
+        mainAgent: null,
         error: { code: ERR.subagentMissingName, params: {} }
       })
       continue
@@ -103,16 +111,76 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
       tools: null,
       model: str('model'),
       sandbox: str('sandbox_mode'),
+      subagent: null,
+      mainAgent: null,
       error: null
     })
   }
   return out
 }
 
+/**
+ * Antigravity CLI's Markdown definitions (subagents-view::REQ-001, measured with agy 2026-10-28): `<name>/agent.md`,
+ * and at the global level `<name>.md` too — a project-level flat file was not sampled and is not read (`withFlat`).
+ * The name is the front matter's, else the file's or the directory's (AC-02); a directory without an agent.md holds no
+ * definition; one that cannot be read keeps that fallback name with the unreadable label rather than disappearing (A8).
+ * Two definitions giving one name: the first in name order is kept — not measured with agy; the rule Codex's loader
+ * follows within a layer (A9).
+ */
+function readAntigravitySide(dir: string, withFlat: boolean): Map<string, SubagentSideDetail> {
+  const out = new Map<string, SubagentSideDetail>()
+  let names: string[]
+  try {
+    names = readdirSync(dir).sort()
+  } catch {
+    return out
+  }
+  for (const n of names) {
+    if (n.startsWith('.')) continue
+    let file: string
+    let fallback: string
+    try {
+      const st = statSync(join(dir, n))
+      if (withFlat && st.isFile() && n.endsWith('.md')) {
+        file = join(dir, n)
+        fallback = basename(n, '.md')
+      } else if (st.isDirectory() && existsSync(join(dir, n, 'agent.md'))) {
+        file = join(dir, n, 'agent.md')
+        fallback = n
+      } else continue
+    } catch {
+      continue
+    }
+    const content = readCapped(file)
+    if (content === null) {
+      if (!out.has(fallback)) out.set(fallback, { content: null, ...UNREADABLE })
+      continue
+    }
+    const fm = frontMatter(content.text)
+    const name = fmValue(fm, 'name') ?? fallback
+    if (out.has(name)) continue
+    out.set(name, {
+      content,
+      description: fmValue(fm, 'description'),
+      tools: fmValue(fm, 'tools'),
+      model: fmValue(fm, 'model'),
+      sandbox: null,
+      subagent: fmValue(fm, 'subagent'),
+      mainAgent: fmValue(fm, 'mainAgent'),
+      error: null
+    })
+  }
+  return out
+}
+
+/** agy's global definitions directory, `~/.gemini/config/agents` */
+const antigravityAgentsDir = (roots: ScanRoots): string => join(antigravityConfigDir(roots), 'agents')
+
 export function readGlobalSubagents(roots: ScanRoots): SubagentEntry[] {
   return mergeSides(
     readClaudeSide(join(roots.claudeHome, 'agents')),
-    readCodexSide(join(roots.codexHome, 'agents'))
+    readCodexSide(join(roots.codexHome, 'agents')),
+    readAntigravitySide(antigravityAgentsDir(roots), true)
   )
 }
 
@@ -139,12 +207,21 @@ export function readEffectiveSubagents(roots: ScanRoots, projectPath: string): P
       side: 'codex',
       project: readCodexSide(join(projectPath, '.codex', 'agents')),
       global: readCodexSide(join(roots.codexHome, 'agents'))
+    },
+    {
+      side: 'antigravity',
+      project: readAntigravitySide(join(projectPath, '.agents', 'agents'), false),
+      global: readAntigravitySide(antigravityAgentsDir(roots), true)
     }
   ]
   const out: ProjectSubagentEntry[] = []
   for (const { side, project, global } of sides) {
     const overrides = (name: string, d: SubagentSideDetail): boolean =>
       side === 'codex' && !d.error && CODEX_BUILTINS.has(name)
+    // Whether a project-level name shadows a global one in agy was not observed, so an Antigravity row carries no
+    // shadowing either way: a degraded judgement follows the target system, never an assumption
+    // (subagents-view::REQ-001/AC-05)
+    const shadowing = side !== 'antigravity'
     for (const [name, d] of [...project.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       out.push({
         name,
@@ -152,7 +229,7 @@ export function readEffectiveSubagents(roots: ScanRoots, projectPath: string): P
         level: 'project',
         description: d.description,
         detail: d,
-        shadows: global.has(name),
+        shadows: shadowing && global.has(name),
         shadowed: false,
         overridesBuiltin: overrides(name, d)
       })
@@ -165,7 +242,7 @@ export function readEffectiveSubagents(roots: ScanRoots, projectPath: string): P
         description: d.description,
         detail: d,
         shadows: false,
-        shadowed: project.has(name),
+        shadowed: shadowing && project.has(name),
         overridesBuiltin: overrides(name, d)
       })
     }
@@ -175,21 +252,25 @@ export function readEffectiveSubagents(roots: ScanRoots, projectPath: string): P
 
 function mergeSides(
   claude: Map<string, SubagentSideDetail>,
-  codex: Map<string, SubagentSideDetail>
+  codex: Map<string, SubagentSideDetail>,
+  antigravity: Map<string, SubagentSideDetail>
 ): SubagentEntry[] {
-  const names = [...new Set([...claude.keys(), ...codex.keys()])].sort()
+  const names = [...new Set([...claude.keys(), ...codex.keys(), ...antigravity.keys()])].sort()
   return names.map((name) => {
     const cl = claude.get(name) ?? null
     const cx = codex.get(name) ?? null
+    const ag = antigravity.get(name) ?? null
     const sides: AgentSide[] = []
     if (cl) sides.push('claude')
     if (cx) sides.push('codex')
+    if (ag) sides.push('antigravity')
     return {
       name,
       sides,
-      description: cl?.description ?? cx?.description ?? null,
+      description: cl?.description ?? cx?.description ?? ag?.description ?? null,
       claude: cl,
       codex: cx,
+      antigravity: ag,
       overridesBuiltin: Boolean(cx && !cx.error && CODEX_BUILTINS.has(name))
     }
   })

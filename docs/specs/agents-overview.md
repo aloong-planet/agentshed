@@ -45,11 +45,11 @@ see [appearance](appearance.md) (the rail's settings dimension).
 ## Failure modes and boundaries
 
 **Sequence A: page load**
-- A1 Neither side detected → a whole-page empty state with guidance (which agent to install), not an
+- A1 No side detected → a whole-page empty state with guidance (which agent to install), not an
   error.
-- A2 One side not detected → that side's card shows "not detected", the other behaves normally.
+- A2 One side not detected → that side's card shows "not detected", the others behave normally.
 - A3 One side's registry corrupt → that side's card shows an error explanation (in place of the stats
-  row), the other side is unaffected.
+  row), the other sides are unaffected.
 - A4 First scan of this launch not finished and no usable saved snapshot → the page renders a **skeleton** (changed 2026-08-21;
   it used to be a bare hint on an otherwise empty stage): the page's real structure with its static
   labels rendered (title, time-window card labels, side-card names, tab labels, trend title) and a
@@ -80,7 +80,10 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - B1 The set of sections = Token / Skills / Subagents / Plugins / MCP / Memory / Configuration; a new
   component type extends this list (ordered most-used first).
 - B2 A summary card's secondary row shows that side's project count, global skill count and subagent
-  count — using the same accounting as the corresponding section.
+  count — using the same accounting as the corresponding section, with one stated difference: the skill
+  count is the side's own global library (its on-disk names), never the plugin entries the Skills section
+  also lists (skills-view::REQ-001/AC-05; settled 2026-10-29 for every side, so Claude's figure no longer
+  counts the skills of its enabled plugins — one label on every card cannot count two ways).
 - B3 The Token totals **include stale projects** (this differs from the project list's default
   filtering; "hidden" left this rule with ADR-0022). The all-history card carried an explicit
   "(includes stale projects)" note until 2026-08-22, when the note was retired by user decision —
@@ -181,6 +184,11 @@ governs the project page's).
   (agents-overview::REQ-004/AC-05).
 - A global MCP file that does not parse: the Antigravity group shows no servers from it, the plugin
   servers still list, and the other sides are unaffected (the per-side degradation rule).
+- The MCP section's Antigravity group shows whenever the side is detected or lists a server; empty, it
+  says that neither the global file nor an enabled plugin brings one. A server's row is its name, its
+  source, the Disabled pill when its configuration disables it, and for a plugin's server the note
+  naming that plugin — one row form for every side's group, so Claude's plugin servers carry the note
+  too (settled 2026-10-29). A server's command or URL is shown on no row: it can carry a token.
 - Copy never enumerates the sides as a closed set: the unreadable notice names only this side's own
   conversations, and the configuration entries are named by file, not by side.
 

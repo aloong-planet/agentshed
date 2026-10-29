@@ -18,14 +18,16 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
 - Skills effective view: within one side, a same-name pair shows only the project-level entry (the
   shadowed global one is not listed alongside); anything that exists only globally is still listed;
   on-disk skills expand to preview a package's files (see [Skills view](skills-view.md)); symlinks
-  are marked; project-level entries can be uninstalled; the plugin-bundled skills group is read-only
-  and expands to preview (see [Plugins view](plugins-view.md))
-- Subagents effective view: project-level and global-layer entries side by side, with same-name pairs
-  on either side shadowed at the project level (see [Subagents view](subagents-view.md))
-- Plugins: effective enablement from this project's point of view, with bundled components expandable
-  (see [Plugins view](plugins-view.md))
+  are marked; project-level entries can be uninstalled; the folder Codex and Antigravity CLI both load
+  is one shared group badged with both sides; the plugin-bundled skills group is read-only, each row
+  badged with its plugin's side, and expands to preview (see [Plugins view](plugins-view.md))
+- Subagents effective view: grouped by level and side, with same-name pairs on Claude's and Codex's
+  sides shadowed at the project level (see [Subagents view](subagents-view.md))
+- Plugins: effective enablement from this project's point of view, with bundled components expandable;
+  Antigravity CLI's plugins are listed as in effect globally (see [Plugins view](plugins-view.md))
 - MCP: the servers in the project's `.mcp.json` and their enabled / disabled / default state; if
-  there are none, a pointer to the Agents page for the global ones
+  there are none, a pointer to the Agents page for the global ones. Antigravity CLI's global servers and
+  its enabled plugins' servers follow as a group of their own when there are any
 - Memory: this project's automatic memories in full (see [Memory view](memory-view.md))
 - Configuration: two entries, the project's own CLAUDE.md and AGENTS.md (the AGENTS.md that Codex and
   Antigravity CLI both read, shown once), each rendered for reading under its path; a missing file

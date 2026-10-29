@@ -48,8 +48,8 @@ describe('validateSnapshot', () => {
     expect(validateSnapshot('x').ok).toBe(false)
   })
 
-  it('refuses a snapshot missing the v2 component arrays (forgetting to sync subagents/memory/codexPlugins surfaces at the boundary, R1)', () => {
-    for (const field of ['subagents', 'memory', 'codexPlugins'] as const) {
+  it('refuses a snapshot missing the v2 component arrays (forgetting to sync subagents/memory/codexPlugins/antigravityPlugins surfaces at the boundary, R1)', () => {
+    for (const field of ['subagents', 'memory', 'codexPlugins', 'antigravityPlugins'] as const) {
       const snap = emptySnapshot(1) as unknown as { global: Record<string, unknown> }
       delete snap.global[field]
       const r = validateSnapshot(snap)

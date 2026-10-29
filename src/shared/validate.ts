@@ -110,7 +110,7 @@ export function validateSnapshot(v: unknown): ValidateResult {
 
   const g = v['global']
   if (!isRecord(g)) return failMissing('global')
-  for (const arr of ['skills', 'subagents', 'memory', 'plugins', 'codexPlugins', 'mcp'] as const) {
+  for (const arr of ['skills', 'subagents', 'memory', 'plugins', 'codexPlugins', 'antigravityPlugins', 'mcp'] as const) {
     if (!Array.isArray(g[arr])) return failType(`global.${arr}`, 'array')
   }
   if (g['claudeMd'] !== null) {

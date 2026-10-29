@@ -1,15 +1,18 @@
 import { useTrendSpan } from './TrendSpan'
 import { StartupHint } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
-import { useMemo, useRef, useState } from 'react'
-import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER, type SideBadgeClass } from './side-badge'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_FULL_NAME, SIDE_ORDER, type SideBadgeClass } from './side-badge'
 import { ConfigSection } from './ConfigSection'
-import type { AgentSide, Snapshot } from '@shared/domain'
+import type { AgentSide, GlobalSkill, ProjectEntry, Snapshot } from '@shared/domain'
+import type { SkillHoldings } from '@shared/ipc'
+import { skillLandings, type SkillLanding } from '@shared/skill-landing'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
 import { sliceUsage, type UsageWindow } from '@shared/usage'
 import { GlobalSubagentsTab } from './SubagentsView'
 import { GlobalMemoryTab } from './MemoryView'
 import { GlobalPluginsTab } from './PluginsView'
+import { AntigravityMcpGroup, McpServerRow } from './McpServers'
 import { toast } from './Toast'
 import { FloatingBox } from './FloatingBox'
 import { useAnchorInvalidation } from './useAnchorInvalidation'
@@ -17,7 +20,7 @@ import { SkillExpandBlock } from './SkillExpandBlock'
 import { SkillSearch } from './SkillSearch'
 import { filterByName } from './skill-filter'
 import { errorText } from '@shared/error-text'
-import { appError, type AppError } from '@shared/errors'
+import { ERR, appError, type AppError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
 import { Inbox } from './icons'
 
@@ -48,10 +51,12 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   const winLabel = useWindowLabel()
   const slice = useMemo(() => sliceUsage(snap.tokens.rows, win, now, trendSpan), [snap.tokens.rows, win, now, trendSpan])
   // One accessor over the side rather than nine hand-named variables: the card row below maps over
-  // SIDE_ORDER, so a new side gets its card (and its counts) by construction
+  // SIDE_ORDER, so a new side gets its card (and its counts) by construction. The skill count is the side's
+  // global library — its on-disk names — and not the plugin entries the Skills section also lists
+  // (skills-view::REQ-001/AC-05)
   const sideStats = (side: AgentSide): { projects: number; skills: number; subs: number } => ({
     projects: snap.projects.filter((p) => p.sides.includes(side)).length,
-    skills: snap.global.skills.filter((s) => s.sides.includes(side)).length,
+    skills: snap.global.skills.filter((s) => s.origin === 'disk' && s.sides.includes(side)).length,
     subs: snap.global.subagents.filter((s) => s.sides.includes(side)).length
   })
 
@@ -225,6 +230,24 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
   const trigger = useRef<HTMLElement | null>(null)
   // The popover element itself: it is scrollable, and scrolling **its** contents must not close it
   const popRef = useRef<HTMLDivElement | null>(null)
+  // Which projects already hold the open popover's skill, asked of the main process each time a popover opens (it
+  // probes its own project list; the renderer names only the skill). Until it answers, no row is tagged and the
+  // install itself still refuses a same name (A4)
+  const [held, setHeld] = useState<{ skill: string; holdings: SkillHoldings } | null>(null)
+  const openSkill = openFor?.skill ?? null
+  useEffect(() => {
+    if (openSkill === null) return
+    let live = true
+    window.agentshed.skillHoldings(openSkill).then(
+      (holdings) => {
+        if (live) setHeld({ skill: openSkill, holdings })
+      },
+      () => {} // The tag is advisory: without it a same-name install is still refused at install time
+    )
+    return () => {
+      live = false
+    }
+  }, [openSkill])
 
   // Repositioned rather than closed on resize: the user is part-way through choosing a target project,
   // and a window resize is not them changing their mind. (The language dropdown already behaved this
@@ -245,27 +268,44 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
     }
   })
   if (snap.global.skills.length === 0) return <Empty msg={t.agents.emptyGlobalLib} />
-  const targets = snap.projects
-    .filter((p) => !p.stale)
-    .sort((a, b) => (b.lastSessionAt ?? 0) - (a.lastSessionAt ?? 0))
+  // Every project, a stale one listed disabled and labelled rather than left out (skill-install::REQ-003/AC-01)
+  const targets = [...snap.projects].sort((a, b) => (b.lastSessionAt ?? 0) - (a.lastSessionAt ?? 0))
+  // Where this skill would land in that project: one landing per directory, of the skill's sides the project is
+  // registered on (A8); the shared skills directory is one landing naming both its loaders (skill-install::REQ-001)
+  const landingsIn = (skill: GlobalSkill, project: ProjectEntry): SkillLanding[] =>
+    skillLandings(skill.sides.filter((s) => project.sides.includes(s)))
+  // A landing that already holds the name: the same test the install refuses by (A4)
+  const heldIn = (skill: GlobalSkill, project: ProjectEntry): string[] =>
+    held?.skill === skill.name ? (held.holdings[project.path] ?? []) : []
+  /** A landing's place in a notice: its side, or for the shared directory the directory itself */
+  const where = (l: { dir: string; loaders: AgentSide[] }): string => (l.loaders.length > 1 ? l.dir : l.loaders[0])
 
-  async function install(skill: (typeof snap.global.skills)[number], projectPath: string): Promise<void> {
+  async function install(skill: GlobalSkill, project: ProjectEntry): Promise<void> {
     setOpenFor(null)
-    const project = snap.projects.find((p) => p.path === projectPath)
-    if (!project) return
-    const sides = skill.sides.filter((s) => project.sides.includes(s))
-    if (sides.length === 0) {
+    const lands = landingsIn(skill, project)
+    if (lands.length === 0) {
       toast('err', t.agents.sideMismatch(project.name))
       return
     }
-    for (const side of sides) {
-      const r = await window.agentshed.installSkill({
-        skillName: skill.name,
-        side,
-        targetProjectPath: projectPath
-      })
-      if (r.ok) toast('ok', t.agents.installed(skill.name, project.name, side))
-      else toast('err', `${skill.name} → ${project.name}(${side}):${errorText(lang, appError(r.reason, r.params))}`)
+    // "Same name installed": the blocked notice, and nothing installed into any landing (skill-install::REQ-003/AC-02)
+    const holding = lands.filter((l) => heldIn(skill, project).includes(l.dir))
+    if (holding.length > 0) {
+      for (const l of holding) toast('err', `${skill.name} → ${project.name}(${where(l)}):${errorText(lang, appError(ERR.skillConflict))}`)
+      return
+    }
+    const results = await window.agentshed.installSkill({
+      skillName: skill.name,
+      sides: lands.flatMap((l) => l.sides),
+      targetProjectPath: project.path
+    })
+    for (const r of results) {
+      if (!r.result.ok) {
+        toast('err', `${skill.name} → ${project.name}(${where(r)}):${errorText(lang, appError(r.result.reason, r.result.params))}`)
+      } else if (r.loaders.length > 1) {
+        toast('ok', t.agents.installedShared(skill.name, project.name, r.loaders.map((s) => SIDE_FULL_NAME[s]).join(t.detail.sideJoin)))
+      } else {
+        toast('ok', t.agents.installed(skill.name, project.name, r.loaders[0]))
+      }
     }
   }
 
@@ -291,20 +331,24 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
       ) : (
       <div className="card sk-card">
         {shown.map((s) => (
-          <div className="rel" key={s.name}>
+          // A plugin entry can share its namespaced name with a same-named plugin's entry on another side (two rows,
+          // plugins-view G4), so the row is keyed by where it comes from as well as by name: keyed by name alone,
+          // filtering the list once left a stale third row on screen (#325's review)
+          <div className="rel" key={s.origin === 'plugin' ? `plugin:${s.sides[0]}:${s.pluginName}:${s.name}` : `disk:${s.name}`}>
             <SkillExpandBlock
               name={s.name}
               source={
                 s.origin === 'plugin'
                   ? {
                       kind: 'plugin',
-                      side: 'claude',
+                      // A plugin entry's sides are always its plugin's own one side (plugins-view G4)
+                      side: s.sides[0],
                       pluginRoot: s.pluginRoot,
                       bareName: s.pluginSkillName ?? s.name
                     }
                   : { kind: 'global', sides: s.sides }
               }
-              symlink={s.symlink.claude || s.symlink.codex}
+              symlink={SIDE_ORDER.some((side) => s.symlink[side])}
               levelLabel={s.origin === 'plugin' ? t.agents.levelPluginPkg : t.agents.levelGlobalLib}
               pkgBySide={s.pkg}
               installSlot={
@@ -315,7 +359,11 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                     onClick={(e) => {
                       e.stopPropagation()
                       trigger.current = e.currentTarget
-                      setOpenFor(openFor?.skill === s.name ? null : popAt(s.name, e.currentTarget))
+                      const opening = openFor?.skill !== s.name
+                      // A new opening draws no tags until its own arrive, never the previous opening's — an
+                      // untagged target that does hold the name is still refused at install time (A4)
+                      if (opening) setHeld(null)
+                      setOpenFor(opening ? popAt(s.name, e.currentTarget) : null)
                     }}
                   >
                     {t.agents.installTo}
@@ -335,16 +383,38 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                 }}
               >
                 <div className="pop-t">{t.agents.pickTarget}</div>
-                {targets.map((p) => (
-                  <button className="pop-p" key={p.path} onClick={() => void install(s, p.path)}>
-                    <span className="t">{p.name}</span>
-                    <span className="bdg">
-                      {p.sides.map((side) => (
-                        <span key={side} className={`badge ${SIDE_BADGE[side].cls}`}>{SIDE_BADGE[side].label}</span>
-                      ))}
-                    </span>
-                  </button>
-                ))}
+                {targets.map((p) => {
+                  const lands = landingsIn(s, p)
+                  const has = lands.some((l) => heldIn(s, p).includes(l.dir))
+                  return (
+                    // A stale project cannot be chosen; one that went stale after this was drawn is refused at
+                    // install time (A5)
+                    <button className="pop-p" key={p.path} disabled={p.stale} onClick={() => void install(s, p)}>
+                      <span className="t">{p.name}</span>
+                      {p.stale ? (
+                        <span className="pop-why">{t.agents.pickStale}</span>
+                      ) : has ? (
+                        <span className="pop-have">{t.agents.pickHasSame}</span>
+                      ) : null}
+                      {/* One mark per landing directory; the shared one an outlined group of its loaders */}
+                      <span className="pop-lands">
+                        {lands.map((l) =>
+                          l.loaders.length > 1 ? (
+                            <span key={l.dir} className="pop-shared" title={t.detail.secShared}>
+                              {l.loaders.map((side) => (
+                                <span key={side} className={`badge ${SIDE_BADGE[side].cls}`}>{SIDE_BADGE[side].label}</span>
+                              ))}
+                            </span>
+                          ) : (
+                            <span key={l.dir} className={`badge ${SIDE_BADGE[l.loaders[0]].cls}`}>
+                              {SIDE_BADGE[l.loaders[0]].label}
+                            </span>
+                          )
+                        )}
+                      </span>
+                    </button>
+                  )
+                })}
               </FloatingBox>
             )}
           </div>
@@ -359,11 +429,6 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useDict()
   const claude = snap.global.mcp.filter((m) => m.side === 'claude')
   const codex = snap.global.mcp.filter((m) => m.side === 'codex')
-  const srcLabel = {
-    'global-config': t.agents.srcGlobalConfig,
-    plugin: t.agents.srcPlugin,
-    'config.toml': 'config.toml'
-  }
   return (
     <div>
       <div className="grp-t">
@@ -374,10 +439,7 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
       ) : (
         <div className="card">
           {claude.map((m, i) => (
-            <div className="it" key={`${m.name}-${i}`}>
-              <span className="nm mono">{m.name}</span>
-              <span className="src mono">{srcLabel[m.source]}</span>
-            </div>
+            <McpServerRow key={`${m.name}-${i}`} m={m} />
           ))}
         </div>
       )}
@@ -389,13 +451,11 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
       ) : (
         <div className="card">
           {codex.map((m, i) => (
-            <div className="it" key={`${m.name}-${i}`}>
-              <span className="nm mono">{m.name}</span>
-              <span className="src mono">config.toml</span>
-            </div>
+            <McpServerRow key={`${m.name}-${i}`} m={m} />
           ))}
         </div>
       )}
+      <AntigravityMcpGroup snap={snap} />
     </div>
   )
 }

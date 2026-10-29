@@ -18,7 +18,8 @@ const text = fields({ text: str, truncated: bool })
 const configFile = fields({ file: str, content: nullable(text) })
 const error = fields({ code: isErrorCode, params: v => obj(v) && Object.values(v).every(x => str(x) || num(x)) })
 const pkg = nullable(fields({ files: num, bytes: num }))
-const sub = fields({ content: nullable(text), description: nullable(str), tools: nullable(str), model: nullable(str), sandbox: nullable(str), error: nullable(error) })
+const sub = fields({ content: nullable(text), description: nullable(str), tools: nullable(str), model: nullable(str), sandbox: nullable(str),
+  subagent: nullable(str), mainAgent: nullable(str), error: nullable(error) })
 const memoryFile = fields({ name: str, file: str, mtimeMs: num })
 const pluginSkills = list(fields({ name: str, description: nullable(str), pkg }))
 const contents = fields({ skills: pluginSkills, agents: list(str), hooks: list(fields({ event: str, matchers: num })), mcp: list(str), missing: bool })
@@ -34,11 +35,13 @@ export const displayTokensValid: Check = fields({
 const globalLayer = fields({
   skills: list(fields({ name: str, description: nullable(str), sides: list(side), symlink: perSide(bool), pkg: perSide(pkg),
     origin: v => v === 'disk' || v === 'plugin', pluginName: nullable(str), pluginRoot: nullable(str), pluginSkillName: nullable(str) })),
-  subagents: list(fields({ name: str, sides: list(side), description: nullable(str), claude: nullable(sub), codex: nullable(sub), overridesBuiltin: bool })),
+  subagents: list(fields({ name: str, sides: list(side), description: nullable(str), claude: nullable(sub), codex: nullable(sub),
+    antigravity: nullable(sub), overridesBuiltin: bool })),
   memory: list(fields({ side, projectPath: nullable(str), projectName: nullable(str), hasMain: bool, files: list(memoryFile), lastModified: nullable(num), stale: bool })),
   codexMemoriesEnabled: bool, plugins: list(plugin),
   codexPlugins: list(fields({ name: str, marketplace: str, root: nullable(str), skills: pluginSkills, version: nullable(str), cachedVersions: num })),
-  mcp: list(fields({ name: str, side, source: str })), claudeMd: nullable(configFile), agentsMd: list(configFile)
+  antigravityPlugins: list(fields({ name: str, version: nullable(str), marketplace: nullable(str), enabled: bool, root: str, contents })),
+  mcp: list(fields({ name: str, side, source: str, disabled: bool, plugin: nullable(str) })), claudeMd: nullable(configFile), agentsMd: list(configFile)
 })
 export const displaySnapshotValid: Check = fields({
   scannedAt: num, global: globalLayer, tokens: displayTokensValid, archivedDays: list(str),

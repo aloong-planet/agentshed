@@ -1,0 +1,185 @@
+# Gate run 2026-10-29 06:48:00 +0800
+## Version
+$ git rev-parse HEAD
+99e35ee12e4f46333c8e523e79f27680d07b3c9b
+$ git status --porcelain --untracked-files=all
+ M docs/.workings/antigravity-side/checklist.md
+ M docs/.workings/antigravity-side/final-regression.md
+ M docs/.workings/antigravity-side/ticket-325-review-code.md
+ M docs/.workings/antigravity-side/ticket-325-review-tests.md
+ M docs/.workings/antigravity-side/ticket-325-worklog.md
+ M e2e/app.spec.ts
+$ git hash-object <each listed file>
+7c46a9a5097cfefec0b48c0777c7d3be3e421283  docs/.workings/antigravity-side/checklist.md
+d00b6f78cf24b69c7532215af06fbc3dad0fafb1  docs/.workings/antigravity-side/final-regression.md
+e7f02c28b88d30db5ef96fa5875af3f123bbe099  docs/.workings/antigravity-side/ticket-325-review-code.md
+4780ce17ea85f7257cb6c289bb9d2f7415f6bbba  docs/.workings/antigravity-side/ticket-325-review-tests.md
+0c7d16b875045d77ba4c9f67eb1260d419cbf14e  docs/.workings/antigravity-side/ticket-325-worklog.md
+c81d3be8939db6ebe5796280408d216a12614659  e2e/app.spec.ts
+
+## $ git diff --name-only 99e35ee -- src e2e scripts
+exit=0
+```
+e2e/app.spec.ts
+```
+
+## $ bash /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/d5777aaa-95de-42d5-be81-554573760468/scratchpad/t325/importers.sh
+exit=0
+```
+$ grep -rlE --include=*.test.* --include=*.spec.* "(from|import\() *[\x27\"][^\x27\"]*(antigravity-components\.test|app\.spec)[\x27\"]" src e2e scripts
+grep exit=1 (1 = no file imports either)
+$ grep -rnE --include=*.test.* --include=*.spec.* "antigravity-components\.test|app\.spec" src e2e scripts   (every mention)
+e2e/global-search.spec.ts:39:/** The same launcher as app.spec.ts: an isolated userData, a fixture home, the window not shown, English */
+e2e/global-search.spec.ts:57:/** A Claude session in a real session's line shape (a parent/uuid chain, as app.spec.ts's homes keep it) */
+e2e/global-search.spec.ts:126:  // in the shape mkForkHome in app.spec.ts uses
+e2e/app-update.spec.ts:40: *  switch never reaches the renderer (see launchAppearance in app.spec.ts) */
+scripts/check-lang.test.mjs:27:  'e2e/app.spec.ts': `const label = '${CN}'\n`,
+grep exit=0
+$ grep -rlE --include=*.test.* "(from|import\() *[\x27\"][^\x27\"]*(\./scan)[\x27\"]" src/main/providers | wc -l   (control: the same pattern shape finds a real import)
+      11
+```
+
+## $ pnpm typecheck
+exit=0
+```
+
+> agentshed@0.1.0-beta.2 typecheck /Users/loong_zhou/CascadeProjects/agentshed-wt-325
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+```
+
+## $ pnpm lint
+exit=0
+```
+
+> agentshed@0.1.0-beta.2 lint /Users/loong_zhou/CascadeProjects/agentshed-wt-325
+> eslint . --max-warnings 0
+
+```
+
+## $ pnpm exec electron-vite build && pnpm exec playwright test e2e/app.spec.ts
+exit=0
+```
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 552 modules transformed.
+rendering chunks...
+out/main/parse-worker.js                   0.44 kB
+out/main/chunks/token-stats-CEMikcGB.js  137.38 kB
+out/main/index.js                        222.48 kB
+out/main/chunks/main-DZ5R1KNi.js         513.19 kB
+✓ built in 841ms
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 18 modules transformed.
+rendering chunks...
+out/preload/index.cjs  54.03 kB
+✓ built in 53ms
+vite v5.4.21 building for production...
+transforming...
+✓ 151 modules transformed.
+rendering chunks...
+../../out/renderer/index.html                   0.40 kB
+../../out/renderer/assets/index-Cdf1yZkk.css   87.69 kB
+../../out/renderer/assets/index-p8D3HElY.js   707.84 kB
+✓ built in 523ms
+
+Running 92 tests using 1 worker
+
+  ✓   1 e2e/app.spec.ts:379:1 › cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors (929ms)
+  ✓   2 e2e/app.spec.ts:403:1 › an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors (633ms)
+  ✓   3 e2e/app.spec.ts:432:1 › all seven Agents page tabs render as they are switched through, with no errors (797ms)
+  ✓   4 e2e/app.spec.ts:454:1 › switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected (893ms)
+  ✓   5 e2e/app.spec.ts:473:1 › switching to Projects: the sidebar shows its empty state when there are no projects at all (633ms)
+  ✓   6 e2e/app.spec.ts:514:1 › the project list row: a side-count badge, with hovering naming the sides in full (842ms)
+  ✓   7 e2e/app.spec.ts:602:1 › a Grok-only project opens its detail page without errors (857ms)
+  ✓   8 e2e/app.spec.ts:636:1 › a stale project opens as the note page: card only, chips per recording side, copy feedback, and both staleness flips (1.3s)
+  ✓   9 e2e/app.spec.ts:736:1 › an Antigravity-registered project: its card, its row and hover name, the filter, the header and stale chips, and Memory (1.0s)
+  ✓  10 e2e/app.spec.ts:816:1 › the Antigravity badge takes its own pair in light and in dark, the same under every theme (1.2s)
+  ✓  11 e2e/app.spec.ts:927:1 › the agents page with Antigravity's components: card counts, Skills, Subagents, Plugins, MCP, and a plugin disabled (1.5s)
+  ✓  12 e2e/app.spec.ts:1057:1 › two sides' plugins bundling one skill name: two rows, and filtering keeps the open one open (887ms)
+  ✓  13 e2e/app.spec.ts:1134:1 › the install picker's same-name tag is this opening's: reopened after the copy is gone, it is not drawn (828ms)
+  ✓  14 e2e/app.spec.ts:1185:1 › the shared skills directory: one install target, stale and same-name rows, the project groups, and its uninstall (11.3s)
+  ✓  15 e2e/app.spec.ts:1343:1 › the side filter dropdown: narrows to one side, dismisses on scroll, and survives a resize (1.2s)
+  ✓  16 e2e/app.spec.ts:1431:1 › a real window resize with a scrolled list does not close the side dropdown (#122) (669ms)
+  ✓  17 e2e/app.spec.ts:1472:1 › the side filter row stays inside the sidebar column in both UI languages (1.3s)
+  ✓  18 e2e/app.spec.ts:1534:1 › the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed (740ms)
+  ✓  19 e2e/app.spec.ts:1578:1 › the sessions section: each row shows that session's real question count (708ms)
+  ✓  20 e2e/app.spec.ts:1601:1 › the sessions section: the sort choice is remembered after switching away (719ms)
+  ✓  21 e2e/app.spec.ts:1624:1 › the sessions section: a project with no sessions shows an empty state, and the overview session card clicks through to this section (698ms)
+  ✓  22 e2e/app.spec.ts:1637:1 › one click on the overview session card goes straight to the session page (701ms)
+  ✓  23 e2e/app.spec.ts:1653:1 › the session page: every question is listed with complete fields, and back returns to the sessions section (739ms)
+  ✓  24 e2e/app.spec.ts:1694:1 › the session page: a fork session shows only the questions left after stripping (769ms)
+  ✓  25 e2e/app.spec.ts:1716:1 › the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content (675ms)
+  ✓  26 e2e/app.spec.ts:1760:1 › the session page: a long question's single-line truncation happens only in the display layer, with the full text in the DOM (750ms)
+  ✓  27 e2e/app.spec.ts:1798:1 › the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it (788ms)
+  ✓  28 e2e/app.spec.ts:1835:1 › the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change (931ms)
+  ✓  29 e2e/app.spec.ts:1887:1 › the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source (4.0s)
+  ✓  30 e2e/app.spec.ts:1928:1 › the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn (786ms)
+  ✓  31 e2e/app.spec.ts:1960:1 › session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels (895ms)
+  ✓  32 e2e/app.spec.ts:2009:1 › session page rich content (Codex): the encrypted-reasoning label, tool pairing, the unattributable spawn label, and traces of unknown events (840ms)
+  ✓  33 e2e/app.spec.ts:2047:1 › session page (Codex, paginated format): the session is listed by its completed-item question, opens, and its turn shows the agent-message prose with no unknown trace (772ms)
+  ✓  34 e2e/app.spec.ts:2088:1 › session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one (768ms)
+  ✓  35 e2e/app.spec.ts:2124:1 › session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question (1.4s)
+  ✓  36 e2e/app.spec.ts:2175:1 › overlapping automatic rescans are deduplicated: the page stays coherent and the main process reports no errors (660ms)
+  ✓  37 e2e/app.spec.ts:2195:1 › the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors (594ms)
+  ✓  38 e2e/app.spec.ts:2253:1 › the archive retains a past day whose live figure fell under the same stamp (ADR-0026): the retained figure shows on both pages, with no hatching, while the archived-only day still hatches (696ms)
+  ✓  39 e2e/app.spec.ts:2320:1 › the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side's provider segments (672ms)
+  ✓  40 e2e/app.spec.ts:2350:1 › the provider colours apply: the segments and the legend match, with their own values in light and dark (658ms)
+  ✓  41 e2e/app.spec.ts:2640:1 › F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end (13.0s)
+  ✓  42 e2e/app.spec.ts:3152:1 › Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand (4.7s)
+  ✓  43 e2e/app.spec.ts:3318:1 › filtering the skills lists by name, and revealing a truncated name on hover (1.1s)
+  ✓  44 e2e/app.spec.ts:3510:1 › a filter keyword survives a refresh, and is cleared by leaving the section or switching project (909ms)
+  ✓  45 e2e/app.spec.ts:3590:1 › the install-to popover sits next to its button, and its targets can be clicked (1.1s)
+  ✓  46 e2e/app.spec.ts:3702:1 › previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group (1.0s)
+  ✓  47 e2e/app.spec.ts:3801:1 › a skill package removed after the scan: the file table shows the toast's wording in both skill lists (#209) (747ms)
+  ✓  48 e2e/app.spec.ts:3856:3 › skill file line counts follow the UI language's digit grouping [en-US] (#210) (663ms)
+  ✓  49 e2e/app.spec.ts:3887:1 › automatic refresh: a new session appears on its own, and the detail page's expansion state survives it (4.8s)
+  ✓  50 e2e/app.spec.ts:3989:3 › the trend chart [Agents page · Token tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (684ms)
+  ✓  51 e2e/app.spec.ts:3989:3 › the trend chart [project detail · Overview tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (747ms)
+  ✓  52 e2e/app.spec.ts:4093:1 › a newly adopted side: the thin xAI segment survives, and Grok mode labels only its data days (709ms)
+  ✓  53 e2e/app.spec.ts:4193:1 › three sides on one day segment together, and one project mixes all three sides' sessions by time (813ms)
+  ✓  54 e2e/app.spec.ts:4267:1 › the Agents page shows Grok's own global skills with the borrowing line, and installs one into a project (754ms)
+  ✓  55 e2e/app.spec.ts:4315:1 › a Grok session opens end to end: list, questions, an on-demand turn, search, and the allow-list boundary (1.1s)
+  ✓  56 e2e/app.spec.ts:4404:1 › the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip" (709ms)
+  ✓  57 e2e/app.spec.ts:4447:1 › settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project (1.5s)
+  ✓  58 e2e/app.spec.ts:4500:1 › project list: selection is a deeper wash with no ring, and adjacent rows keep a 1px gap (628ms)
+  ✓  59 e2e/app.spec.ts:4616:1 › appearance: one card with two rows (mode + theme); the theme cards keep only a swatch and a name (638ms)
+  ✓  60 e2e/app.spec.ts:4644:1 › appearance mode: locking light or dark changes the effective light/dark, and the palette samples follow (702ms)
+  ✓  61 e2e/app.spec.ts:4701:1 › appearance: all six combinations of 3 themes × 2 effective light/dark hold (809ms)
+  ✓  62 e2e/app.spec.ts:4833:1 › scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001) (1.0s)
+  ✓  63 e2e/app.spec.ts:4906:1 › scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05) (837ms)
+  ✓  64 e2e/app.spec.ts:4948:1 › scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2) (1.4s)
+  ✓  65 e2e/app.spec.ts:5015:1 › UI language: following the system resolves against the whole list, and applies on the first frame (617ms)
+  ✓  66 e2e/app.spec.ts:5029:1 › UI language: falls back to English when the system language is unsupported (608ms)
+  ✓  67 e2e/app.spec.ts:5040:1 › UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003) (652ms)
+  ✓  68 e2e/app.spec.ts:5063:1 › the language selector: three items including follow-system and the divider, with a switch applying immediately (704ms)
+  ✓  69 e2e/app.spec.ts:5123:1 › the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step (757ms)
+  ✓  70 e2e/app.spec.ts:5174:1 › i18n: the language-locking mechanism itself is reliable, unaffected by the development machine's system language (1.2s)
+  ✓  71 e2e/app.spec.ts:5195:1 › i18n: both languages load, with the key nodes non-empty (761ms)
+  ✓  72 e2e/app.spec.ts:5221:1 › i18n: switching languages applies immediately, changing several areas at once (685ms)
+  ✓  73 e2e/app.spec.ts:5243:1 › i18n: key layouts do not overflow horizontally in either language (713ms)
+  ✓  74 e2e/app.spec.ts:5268:1 › i18n: no label in the project-detail tab row or the skills rows wraps to a second line (927ms)
+  ✓  75 e2e/app.spec.ts:5349:1 › the time window drives all four regions at once: side figures, composition, model rows and the dimmed span (980ms)
+  ✓  76 e2e/app.spec.ts:5483:1 › startup skeleton: agents page shows placeholders, refuses input, fills in place (4.8s)
+  ✓  77 e2e/app.spec.ts:5561:1 › startup skeleton: projects dimension shows placeholder rows and fills in place (4.5s)
+  ✓  78 e2e/app.spec.ts:5629:1 › project switch (query layer): the highlight moves at once and the pane holds the previous project until the next detail arrives (2.3s)
+  ✓  79 e2e/app.spec.ts:5665:1 › project switch (query layer): rapid A → B → C never shows B, and B is still cached afterwards (2.3s)
+  ✓  80 e2e/app.spec.ts:5699:1 › opening a session (query layer): the project page holds until the session page arrives, and reopening it is instant (2.4s)
+  ✓  81 e2e/app.spec.ts:5728:1 › opening a session then returning to the project before it arrives (query layer): the project page stays, no error, and the interrupted fetch is cached (2.2s)
+  ✓  82 e2e/app.spec.ts:5758:1 › an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive (1.0s)
+  ✓  83 e2e/app.spec.ts:5798:1 › opening a session whose file was removed after the scan (query layer): the page shows its own error, no crash (748ms)
+  ✓  84 e2e/app.spec.ts:5822:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  85 e2e/app.spec.ts:5874:1 › leaving a project for a session page and coming back (query layer closeout): the project page is a cached visit landing on Sessions, then revalidates by transfusion (4.1s)
+  ✓  86 e2e/app.spec.ts:5918:1 › opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash (704ms)
+  ✓  87 e2e/app.spec.ts:5940:1 › reopening a skill file table (query layer): first expand is slow, reopening it is instant (1.5s)
+  ✓  88 e2e/app.spec.ts:5964:1 › reopening an artifact (query layer): first open is slow, reopening it is instant (3.2s)
+  ✓  89 e2e/app.spec.ts:6009:3 › selectable trend span [Agents page · Token tab]: history, independent filters, tabs and refresh (1.9s)
+  ✓  90 e2e/app.spec.ts:6009:3 › selectable trend span [project detail · Overview tab]: history, independent filters, tabs and refresh (1.9s)
+  ✓  91 e2e/app.spec.ts:6101:1 › selectable trend span: localized controls fit both pages in light and dark at minimum width (10.9s)
+  ✓  92 e2e/app.spec.ts:6191:1 › the session page header: the session ID, copying it and the resume command, and showing the record file (session-view::US-001) (4.9s)
+
+  92 passed (2.5m)
+```
+
+## Result: all commands exit 0

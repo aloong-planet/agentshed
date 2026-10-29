@@ -44,8 +44,8 @@ is read-only.
 6. As a user, I want effectively enabled plugins' skills to appear in the Skills section as
    `pluginName:skillName` entries (with a source badge and no install/uninstall buttons), so that "the
    skills available to this session" can be seen whole in one place.
-7. As a user, I want the two sides' plugins grouped separately with no cross-side merging by name, so
-   that I know which side a plugin is installed on (the two sides' marketplaces and package formats
+7. As a user, I want each side's plugins grouped separately with no cross-side merging by name, so
+   that I know which side a plugin is installed on (the sides' marketplaces and package formats
    are independent).
 8. As a user, I want anomalies such as a cleaned-up install directory, a lost owning project, or a
    missing individual skill directory labelled truthfully (greyed out / a banner) rather than
@@ -80,8 +80,8 @@ is read-only.
   the highest version directory, the same directory convention as Claude; verified on disk
   2026-08-07), while the other categories' semantics are not wired up and neither expand nor
   manufacture a signal.
-- E9 No merging by name between the two groups (a name present on both sides, such as superpowers,
-  gets a row in each).
+- E9 No merging by name between the groups (a name present on two sides, such as superpowers, gets a
+  row in each).
 - E10 A single unreadable marketplace directory in the Codex cache → skip that directory only and
   enumerate the rest as usual (a single point of failure must not empty the whole group — see
   CONTEXT.md, "degradation may only hurt itself").
@@ -119,7 +119,7 @@ is read-only.
   (plugins-view::REQ-001/AC-04), Codex plugin skills **do not join** (ADR-0012).
 
 **Sequence H: plugin skill package preview** (inside the Plugins expansion's Skills tab; identical on
-both pages and both sides)
+both pages and on every side whose plugins expand)
 - H1 The Skills tab is a row list: each row = name (in namespaced form) + the frontmatter description
   + "N files · size" on the right (the stats share their source and rules with skills-view's inline
   stats: stat-only, with identical extension / junk-directory / depth filtering).
@@ -200,6 +200,23 @@ name and shows no version, without affecting the others (E5); disabling a plugin
 skills out of the Skills section and its servers out of the MCP section at the next scan (G1); a
 plugin's MCP server that cannot start (a missing command) still lists, since listing reads the file and
 starts nothing; a manifest path pointing outside the package is refused (E11).
+
+Settled during implementation (2026-10-29):
+
+- A plugin is identified by its directory name: the key agy's configuration records it under, and the
+  namespace of its skills and servers. Its manifest is the top-level `plugin.json`, the form sampled.
+- A plugin whose record names no marketplace shows no "From" note, and on a project's page reads "In
+  effect globally" alone. An enabled value other than an explicit false reads as no key: enabled.
+- The group shows whenever the side is detected or has a plugin, saying "No plugins installed" when
+  empty: agy's plugins carry enablement, unlike Codex's probe-style cache.
+- A plugin's subagents are its `agents/*.md`, named as agy names them (the front matter's `name`, else
+  the file's name). Two giving one name are both listed, since what agy does with the pair was not
+  measured; a symbolic link to a definition is followed, as the global agents directories are read;
+  `agents.json` is not read (not sampled).
+- A skill or subagent description written as a YAML block scalar (`>-`, `|-` — five of the `flutter`
+  sample's skills are written so) shows its text, not the marker; the same reading serves every side.
+- A Claude plugin and an Antigravity plugin of one name: a row in each group (E9), and their bundled
+  skills of one name join the Skills section as two rows, one per side (G4).
 
 ## Implementation Decisions
 

@@ -7,44 +7,55 @@
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type {
+  AntigravityPluginEntry,
   ProjectDetail,
   ProjectMcpEntry,
   ProjectPluginEntry,
   ProjectSkillEntry,
   AgentSide,
+  PluginSkillSummary,
   SkillPkgStats
 } from '@shared/domain'
-import type { ScanRoots } from './types'
+import { PROJECT_SKILLS_DIR } from '@shared/domain'
+import { skillsDirLoaders } from '@shared/skill-landing'
+import { globalSkillsRoots, type ScanRoots } from './types'
+import { readSkillLibrary } from './global'
 import { readArtifacts } from './artifacts'
 import { readEffectiveSubagents } from './subagents'
 import { readProjectMemory } from './memory'
-import { readProjectPlugins } from './plugins'
+import { readAntigravityPlugins, readProjectPlugins } from './plugins'
 import { fmField, readConfigFile, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 /** G1 (the detail page's rule): the bundled skills of this project's effectively enabled plugins →
- * namespaced entries (level=plugin, not taking part in shadowing) */
-function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] {
+ * namespaced entries (level=plugin, not taking part in shadowing), each on its plugin's own side (G4). agy has no
+ * project-level enablement, so an Antigravity plugin is in effect here exactly as on the global page
+ * (plugins-view::REQ-001/AC-04, AC-05) */
+function pluginSkillEntries(plugins: ProjectPluginEntry[], antigravityPlugins: AntigravityPluginEntry[]): ProjectSkillEntry[] {
   const out: ProjectSkillEntry[] = []
+  const add = (side: AgentSide, ns: string, s: PluginSkillSummary, pluginName: string, root: string | null): void => {
+    out.push({
+      name: `${ns}:${s.name}`,
+      description: s.description,
+      level: 'plugin',
+      side,
+      symlink: false,
+      // G3 equal-footing preview (ADR-0012): the stats and the package root come from the same scan as
+      // the bundled component summary (H5)
+      pkg: s.pkg,
+      origin: 'plugin',
+      pluginName,
+      pluginRoot: root,
+      pluginSkillName: s.name
+    })
+  }
   for (const p of plugins) {
     if (!p.enabled || p.contents.missing) continue
-    const ns = p.name.split('@')[0]
-    for (const s of p.contents.skills) {
-      out.push({
-        name: `${ns}:${s.name}`,
-        description: s.description,
-        level: 'plugin',
-        side: 'claude',
-        symlink: false,
-        // G3 equal-footing preview (ADR-0012): the stats and the package root come from the same scan as
-        // the bundled component summary (H5)
-        pkg: s.pkg,
-        origin: 'plugin',
-        pluginName: p.name,
-        pluginRoot: p.installPath,
-        pluginSkillName: s.name
-      })
-    }
+    for (const s of p.contents.skills) add('claude', p.name.split('@')[0], s, p.name, p.installPath)
+  }
+  for (const p of antigravityPlugins) {
+    if (!p.enabled) continue
+    for (const s of p.contents.skills) add('antigravity', p.name, s, p.name, p.root)
   }
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -104,60 +115,51 @@ function listSkills(base: string): Map<string, RawSkill> {
   return out
 }
 
+/** The sides whose skills this list shows: Claude Code's, Codex's and Antigravity CLI's (Grok's project directory is
+ * not listed here) */
+const DETAIL_SKILL_SIDES: readonly AgentSide[] = ['claude', 'codex', 'antigravity']
+
 function readEffectiveSkills(
   roots: ScanRoots,
   projectPath: string,
   plugins: ProjectPluginEntry[]
 ): ProjectSkillEntry[] {
-  const sides: Array<{ side: AgentSide; projectDir: string; globalDir: string }> = [
-    {
-      side: 'claude',
-      projectDir: join(projectPath, '.claude', 'skills'),
-      globalDir: join(roots.claudeHome, 'skills')
-    },
-    {
-      side: 'codex',
-      projectDir: join(projectPath, '.agents', 'skills'),
-      globalDir: roots.agentsSkillsDir
-    }
-  ]
+  const libraries = globalSkillsRoots(roots)
+  const entry = (name: string, s: RawSkill, level: 'project' | 'global', side: AgentSide): ProjectSkillEntry => ({
+    name,
+    description: s.description,
+    level,
+    side,
+    symlink: s.symlink,
+    pkg: s.pkg,
+    origin: 'disk',
+    pluginName: null,
+    pluginRoot: null,
+    pluginSkillName: null
+  })
+  const sorted = (m: Map<string, RawSkill>): Array<[string, RawSkill]> => [...m.entries()].sort(([a], [b]) => a.localeCompare(b))
   // skills-view B1: within one side, a same-name pair shows only the project level (a list presentation
-  // rule; the runtime semantics are in CONTEXT)
+  // rule; the runtime semantics are in CONTEXT). A side's project level is the project skills directory it loads,
+  // and the shared skills directory — .agents/skills, loaded by Codex and Antigravity CLI alike — is one group owned
+  // by both: it hides the same name in each owner's global group (skills-view::REQ-002/AC-03). It is listed once, after
+  // its first loader's global group, so it sits between the Codex groups and the Antigravity groups (AC-01); its rows
+  // carry that first loader's side, which locates the directory for preview and uninstall. It is read whatever the
+  // project is registered on (AC-06)
   const out: ProjectSkillEntry[] = []
-  for (const { side, projectDir, globalDir } of sides) {
-    const project = listSkills(projectDir)
-    const global = listSkills(globalDir)
-    for (const [name, s] of [...project.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-      out.push({
-        name,
-        description: s.description,
-        level: 'project',
-        side,
-        symlink: s.symlink,
-        pkg: s.pkg,
-        origin: 'disk',
-        pluginName: null,
-        pluginRoot: null,
-        pluginSkillName: null
-      })
-    }
-    for (const [name, s] of [...global.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-      if (project.has(name)) continue // Covered by the project level, so not listed alongside
-      out.push({
-        name,
-        description: s.description,
-        level: 'global',
-        side,
-        symlink: s.symlink,
-        pkg: s.pkg,
-        origin: 'disk',
-        pluginName: null,
-        pluginRoot: null,
-        pluginSkillName: null
-      })
-    }
+  const projectDirs = new Map<string, Map<string, RawSkill>>()
+  for (const side of DETAIL_SKILL_SIDES) {
+    const dir = PROJECT_SKILLS_DIR[side]
+    if (!projectDirs.has(dir)) projectDirs.set(dir, listSkills(join(projectPath, dir)))
+    const project = projectDirs.get(dir) as Map<string, RawSkill>
+    const loaders = skillsDirLoaders(dir)
+    const projectRows = loaders[0] !== side ? [] : sorted(project).map(([name, s]) => entry(name, s, 'project', side))
+    const globalRows = sorted(readSkillLibrary(libraries[side]))
+      .filter(([name]) => !project.has(name)) // Covered by the project level, so not listed alongside
+      .map(([name, s]) => entry(name, s, 'global', side))
+    if (loaders.length > 1) out.push(...globalRows, ...projectRows)
+    else out.push(...projectRows, ...globalRows)
   }
-  return [...out, ...pluginSkillEntries(plugins)]
+  return [...out, ...pluginSkillEntries(plugins, readAntigravityPlugins(roots))]
 }
 
 // ── Project-level MCP ──

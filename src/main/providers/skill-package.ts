@@ -74,13 +74,26 @@ export interface ResolveSkillRootArgs {
   roots: ScanRoots
 }
 
+/**
+ * Where a side's global library keeps a skill: the first of that side's directories holding it as a skill (a SKILL.md
+ * inside) — the copy the list shows and the side itself uses (skills-view::REQ-001/AC-01) — else the first holding the
+ * entry at all, so a package broken after the scan still opens and reports its missing SKILL.md (C5). null when none
+ * does. The name is the caller's to validate.
+ */
+export function globalSkillEntry(roots: ScanRoots, side: AgentSide, name: string): string | null {
+  const entries = globalSkillsRoots(roots)[side].map((dir) => join(dir, name))
+  return entries.find((e) => existsSync(join(e, 'SKILL.md'))) ?? entries.find((e) => existsSync(e)) ?? null
+}
+
 export function resolveSkillRoot(args: ResolveSkillRootArgs): string | null {
   const { side, name, scope, projectPath, roots } = args
   if (!name || name.includes('..') || name.includes('/') || name.includes('\\')) return null
   if (name.includes(':')) return null // A plugin namespace; not previewable in v1
   let root: string
   if (scope === 'global') {
-    root = join(globalSkillsRoots(roots)[side], name)
+    const entry = globalSkillEntry(roots, side, name)
+    if (entry === null) return null
+    root = entry
   } else {
     if (typeof projectPath !== 'string' || !projectPath) return null
     root = join(projectPath, PROJECT_SKILLS_DIR[side], name)
@@ -273,7 +286,7 @@ export function isUnderKnownSkillRoots(
   } catch {
     return false
   }
-  const allowed: string[] = Object.values(globalSkillsRoots(roots))
+  const allowed: string[] = Object.values(globalSkillsRoots(roots)).flat()
   if (projectPath) {
     for (const sub of Object.values(PROJECT_SKILLS_DIR)) allowed.push(join(projectPath, sub))
   }

@@ -39,8 +39,11 @@ export const CMD = {
   /** Show a session's record file in Finder (session-view::US-001/AC-07): only a path the session read
    * allow-list admits, and only while the file is there */
   revealSessionFile: 'agentshed:reveal-session-file',
-  /** Install a skill from the global library into a project (landed as a copy) */
+  /** Install a skill from the global library into a project (landed as a copy), once per landing directory */
   installSkill: 'agentshed:install-skill',
+  /** Which landing directories of the snapshot's live projects already hold a skill name (the install picker's
+   * "Same name installed" tag, skill-install::REQ-003/AC-02); read-only, the project paths are the main process's own */
+  skillHoldings: 'agentshed:skill-holdings',
   /** Uninstall a project-level skill copy */
   uninstallSkill: 'agentshed:uninstall-skill',
   /** Read the app's preferences (theme, UI language and so on) */
@@ -118,6 +121,24 @@ export type SkillOpResult =
   // A failure carries only **a code plus parameters**, never a whole-sentence message (ADR-0015): the
   // renderer produces the wording in the current language.
   | { ok: false; reason: ErrorCode; params?: ErrorParams }
+
+/** An install: the skill's sides that the project is registered on (A8); the main process lands it once per directory */
+export interface SkillInstallArgs {
+  skillName: string
+  sides: AgentSide[]
+  targetProjectPath: string
+}
+
+/** One landing directory's outcome (skill-install::REQ-001/AC-04): the directory relative to the project, every side
+ * that loads it, and its one result */
+export interface SkillLandingResult {
+  dir: string
+  loaders: AgentSide[]
+  result: SkillOpResult
+}
+
+/** Project path → the project skills directories (relative) already holding the name */
+export type SkillHoldings = Record<string, string[]>
 
 /** Enumerate a skill package: from the global library, project level, or a plugin package
  * (plugins-view H8) */

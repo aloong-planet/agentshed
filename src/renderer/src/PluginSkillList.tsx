@@ -5,7 +5,7 @@
 // before the click); a native disabled attribute shows no
 // title, so a class name is used to grey it out while keeping the tooltip.
 import { useEffect, useState } from 'react'
-import type { PluginSkillSummary } from '@shared/domain'
+import type { AgentSide, PluginSkillSummary } from '@shared/domain'
 import type { ListSkillFilesArgs, SkillFileEntry } from '@shared/ipc'
 import { SkillFileDrawer } from './SkillFileDrawer'
 import { SkillFilesTable, formatSize } from './SkillFilesTable'
@@ -24,7 +24,7 @@ export function PluginSkillList({
 }: {
   /** The namespace prefix (the plugin name before the @) */
   ns: string
-  side: 'claude' | 'codex'
+  side: AgentSide
   /** The summary-source package root; null = the install directory is missing (the whole table is greyed out) */
   root: string | null
   skills: PluginSkillSummary[]

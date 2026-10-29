@@ -1990,6 +1990,43 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* A stale project: listed, labelled, and not choosable (skill-install::REQ-003/AC-01). The hover wash is withdrawn so
+   the row does not offer itself */
+.pop-p:disabled {
+  color: var(--text-2);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.pop-p:disabled:hover {
+  background: transparent;
+}
+/* The row's tag: why it cannot be chosen, or that the name is already there (skill-install::REQ-003) */
+.pop-why,
+.pop-have {
+  flex: none;
+  font-size: 10px;
+}
+.pop-why {
+  color: var(--warn-fg);
+}
+.pop-have {
+  color: var(--text-2);
+}
+/* Where the copy lands, one mark per directory (skill-install::REQ-001/AC-01) */
+.pop-lands {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* The shared skills directory: one landing, drawn as one outlined group of the sides that load it */
+.pop-shared {
+  display: inline-flex;
+  gap: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 1px 2px;
+}
 /* Dialog title only — child combinator for the same reason as .drawer > h2 (spec appearance E9) */
 .dlg > h2 {
   font-size: 14px;

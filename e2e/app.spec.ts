@@ -17,7 +17,7 @@
 // page, which no drawer survives; add a case when it can change with a drawer open, such as from a menu).
 // Copy follows the dictionary the language cases cover; the file, mode and scroll would survive because a
 // language change remounts nothing in the drawer.
-import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
@@ -888,7 +888,7 @@ test('an Antigravity-registered project: its card, its row and hover name, the f
   const win = await l.app.firstWindow()
 
   // The side card: the ANTIGRAVITY chip, detected, and the three projects it registers (the stale one included, as
-  // on every side's card); skills and subagents are not read on this side yet
+  // on every side's card); this home holds no Antigravity skill or subagent
   const card = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') })
   await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
   await expect(card.locator('.badge.ag')).toHaveText('ANTIGRAVITY')
@@ -900,6 +900,14 @@ test('an Antigravity-registered project: its card, its row and hover name, the f
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .it', { hasText: 'ag-and-claude' })).toBeVisible()
   expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
+
+  // #325: agy detected with no plugin and no MCP file — each group drawn, saying it is empty
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
+  await expect(win.locator('.pane-body .grp-t:has(.badge.ag) + .none')).toHaveText('No plugins installed')
+  await win.locator('.pane-head .tabs .tab', { hasText: 'MCP' }).click()
+  await expect(win.locator('.pane-body .grp-t:has(.badge.ag) + .none')).toHaveText(
+    'No MCP servers (none in mcp_config.json, and no enabled plugin brings any)'
+  )
 
   // The project list: the conversation's time on its folder, the side counted, and the side named on hover with its
   // Google-blue dot (the light --p-google)
@@ -931,6 +939,10 @@ test('an Antigravity-registered project: its card, its row and hover name, the f
   await agRow.click()
   await expect(win.locator('.det-title .badge')).toHaveCount(1)
   await expect(win.locator('.det-title .badge.ag')).toHaveText('ANTIGRAVITY')
+  // #325: on a project's page agy's MCP group appears only with servers — read after the page's own MCP heading
+  await win.locator('.pane-head .tabs .tab', { hasText: 'MCP' }).click()
+  await expect(win.locator('.pane-body .grp-t').first()).toHaveText('Project level · .mcp.json (enabled/disabled comes from project settings)')
+  expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .none')).toHaveText(
     'Memory is a Claude-side mechanism (Codex memory is global — see the Memory tab on the global page)'
@@ -1111,6 +1123,497 @@ test('Antigravity usage: a corrupt settings file on the card comes before the un
   await expect(card.locator('.stat-err')).toHaveCount(0)
   await expect(card.locator('.side-warn')).toHaveText('1 conversation couldn’t be read')
   await expect(card.locator('.v')).toHaveText('3k')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
+ * Ticket antigravity-side/#325: a fixture home holding Antigravity CLI's components in the shapes agy loaded in the
+ * samples (research §10.9): its three global skills directories — one name in all three, one also Claude's, one the
+ * shared directory of a project holds too — a built-in skill, the official `flutter` plugin (fresh install: no enabled
+ * key) with a bundled skill, agent and server, a disabled plugin, the global MCP file with a disabled server, global
+ * subagents in both forms (one not usable as a main agent, one Claude also defines), and two projects: `agy-demo`,
+ * registered on Antigravity alone, with the shared skills directory, a project-level subagent and the project MCP file
+ * agy does not load; `transfer`, registered on every side. A third registered folder is gone (stale).
+ */
+function mkAgyComponentsHome(): { home: string; agOnly: string; all: string; stale: string } {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agycomp-'))
+  const agOnly = join(home, 'agy-demo')
+  const all = join(home, 'transfer')
+  const stale = join(home, 'gone-proj')
+  mkdirSync(agOnly, { recursive: true })
+  mkdirSync(all, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [all]: {}, [stale]: {} } }))
+  mkdirSync(join(home, '.codex'), { recursive: true })
+  writeFileSync(join(home, '.codex', 'config.toml'), `[projects."${all}"]\ntrust_level = "trusted"\n`)
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${all}"]\ntrusted = true\n`)
+  const agy = join(home, '.gemini', 'antigravity-cli')
+  const cfg = join(home, '.gemini', 'config')
+  mkdirSync(join(agy, 'conversations'), { recursive: true })
+  writeFileSync(join(agy, 'settings.json'), settingsJson([agOnly, all]))
+  const file = (path: string, text: string): void => {
+    mkdirSync(join(path, '..'), { recursive: true })
+    writeFileSync(path, text)
+  }
+  const skill = (base: string, name: string, description: string, body: string): void =>
+    file(join(base, name, 'SKILL.md'), `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`)
+  // agy's three global directories, in the order it prefers a same-name copy
+  skill(join(agy, 'skills'), 'release-notes', 'Draft release notes from git log', 'Release notes, the CLI copy')
+  skill(join(cfg, 'skills'), 'release-notes', 'config copy', 'Release notes, the config copy')
+  skill(join(home, '.gemini', 'skills'), 'release-notes', 'root copy', 'Release notes, the root copy')
+  skill(join(cfg, 'skills'), 'commit-style', 'The global commit style', 'Commit style, agy global copy')
+  skill(join(home, '.gemini', 'skills'), 'tdd', 'agy tdd', 'TDD, the Antigravity copy')
+  skill(join(home, '.claude', 'skills'), 'tdd', 'Red before green', 'TDD, the Claude copy')
+  skill(join(home, '.agents', 'skills'), 'decision-form', 'Codex form', 'Decision form, Codex global')
+  skill(join(agy, 'builtin', 'skills'), 'agy-customizations', 'built in', 'Built-in body')
+  // The official flutter plugin as agy installed it, and a second plugin agy disabled
+  const flutter = join(cfg, 'plugins', 'flutter')
+  file(join(flutter, 'plugin.json'), JSON.stringify({ name: 'flutter', displayName: 'Dart and Flutter', version: '1.0.6', license: 'BSD-3-Clause' }))
+  skill(join(flutter, 'skills'), 'dart-add-unit-test', 'Write and organize unit tests', 'Dart unit tests, the plugin copy')
+  file(join(flutter, 'agents', 'a11y_agent.md'), '---\nname: flutter_a11y_agent\ndescription: "Audits Flutter code for accessibility."\ntools:\n  - view_file\n  - grep_search\nmainAgent: true\nsubagent: true\n---\n\n# Persona\n')
+  file(join(flutter, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'dart-mcp-server': { command: 'dart', args: ['mcp-server'] } } }))
+  file(join(flutter, 'rules', 'flutter-hot-reload.md'), '---\ntrigger: glob\n---\nrule\n')
+  const gdocs = join(cfg, 'plugins', 'gdocs')
+  file(join(gdocs, 'plugin.json'), JSON.stringify({ name: 'gdocs', version: '0.0.3' }))
+  skill(join(gdocs, 'skills'), 'draft-doc', 'Draft a doc', 'Draft doc, readable while disabled')
+  file(join(gdocs, 'mcp_config.json'), JSON.stringify({ mcpServers: { docs: { command: 'gdocs-mcp' } } }))
+  const fromOfficial = (name: string, version: string): object => ({
+    installedFrom: { id: `antigravity-plugins-official/plugin/${name}`, marketplace: 'antigravity-plugins-official', version }
+  })
+  file(join(cfg, 'config.json'), JSON.stringify({ plugins: { flutter: fromOfficial('flutter', '1.0.6'), gdocs: { ...fromOfficial('gdocs', '0.0.3'), enabled: false } } }))
+  file(join(cfg, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'sqlite-explorer': { command: 'node', args: ['/usr/local/bin/sqlite-mcp-server.js'] }, github: { serverUrl: 'https://api.githubcopilot.com/mcp/', disabled: true } } }))
+  // Global subagents: both forms, one not usable as a main agent, one Claude defines too
+  file(join(cfg, 'agents', 'sample-flat.md'), '---\nname: sample-flat\ndescription: Sample global subagent (flat file form).\n---\nYou answer in one sentence.\n')
+  file(join(cfg, 'agents', 'sample-reviewer', 'agent.md'), '---\nname: sample-reviewer\ndescription: Sample global subagent (directory form).\nsubagent: true\nmainAgent: false\n---\nYou review diffs.\n')
+  file(join(cfg, 'agents', 'code-reviewer', 'agent.md'), '---\nname: code-reviewer\ndescription: agy reviewer\ntools:\n  - view_file\n  - grep_search\n---\nAntigravity reviewer persona.\n')
+  file(join(home, '.claude', 'agents', 'code-reviewer.md'), '---\ndescription: Review code\ntools: Read, Grep\n---\nClaude reviewer persona.\n')
+  // agy-demo: the shared skills directory (one name agy's global library holds too), a project-level subagent, and the
+  // project MCP file agy was not observed to load
+  skill(join(agOnly, '.agents', 'skills'), 'commit-style', 'This repository\'s commit style', 'Commit style, the project copy')
+  skill(join(agOnly, '.agents', 'skills'), 'demo-skill', 'Project-level sample skill', 'Explain calc.py briefly.')
+  file(join(agOnly, '.agents', 'agents', 'demo-agent', 'agent.md'), '---\nname: demo-agent\ndescription: Project-level sample subagent.\nsubagent: true\n---\nYou explain calc.py.\n')
+  file(join(agOnly, '.agents', 'mcp_config.json'), JSON.stringify({ mcpServers: { 'demo-stdio': { command: '/usr/bin/true', disabled: true } } }))
+  // transfer: a Claude project-level skill, and in the shared directory one name of its own and one (tdd) Claude's and
+  // agy's global libraries hold too
+  skill(join(all, '.claude', 'skills'), 'ui-design', 'UI review rules', 'UI design, the project copy')
+  skill(join(all, '.agents', 'skills'), 'changelog-entry', 'Add a changelog entry', 'Changelog entry, the shared copy')
+  skill(join(all, '.agents', 'skills'), 'tdd', 'The project TDD', 'TDD, the shared project copy')
+  // transfer's own Claude and Codex subagents, so project detail heads each side's project group by its directory
+  file(join(all, '.claude', 'agents', 'proj-claude.md'), '---\ndescription: Project Claude helper\n---\nClaude project persona.\n')
+  file(join(all, '.codex', 'agents', 'proj-codex.toml'), 'name = "proj-codex"\ndescription = "Project Codex helper"\ndeveloper_instructions = "You help."\n')
+  return { home, agOnly, all, stale }
+}
+
+// skills-view::REQ-001/AC-01…AC-05, subagents-view::REQ-001/AC-01…AC-04 and AC-06, plugins-view::REQ-001/AC-01…AC-04
+// and AC-06, agents-overview::REQ-003/AC-01 (the counts), AC-03 and AC-04: the agents page with Antigravity CLI's
+// components, ending with a plugin agy disabled leaving the Skills and MCP sections at the next scan.
+test('the agents page with Antigravity\'s components: card counts, Skills, Subagents, Plugins, MCP, and a plugin disabled', async () => {
+  const { home } = mkAgyComponentsHome()
+  // A brisk rescan interval, for the last step only: disabling a plugin reaches the page through the automatic scan
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '500' })
+  const win = await l.app.firstWindow()
+  const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
+
+  // The card: two projects; three global skills — agy's three directories' names, the built-in and the plugin's not
+  // counted (skills-view::REQ-001/AC-05); three subagents — the plugin's not among them (subagents-view AC-06)
+  const card = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') })
+  await expect(card.locator('.s')).toHaveText('2 projects · 3 global skills · 3 subagents')
+
+  // Skills: one row per name, the copy agy uses
+  await tab('Skills').click()
+  const row = (name: string) => win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  await expect(row('release-notes')).toHaveCount(1)
+  // The list is on screen, so a built-in row would be too: one read, not a retried absence
+  expect(await row('agy-customizations').count()).toBe(0)
+  expect(await row('gdocs:draft-doc').count()).toBe(0)
+  // The badge slots: tdd on Claude's and Antigravity's, release-notes on Antigravity's alone
+  const slots = (name: string) => row(name).locator('.bdg .badge')
+  await expect(slots('tdd')).toHaveText(['CC', '', '', 'AG'])
+  await expect(slots('release-notes').nth(3)).toHaveText('AG')
+  await expect(slots('release-notes').nth(0)).toHaveClass(/miss/)
+  // The preview opens the copy agy uses: the CLI directory's, of the three
+  await row('release-notes').locator('.sk-head').click()
+  await row('release-notes').locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Release notes, the CLI copy')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // The drawer's side switch includes Antigravity, and switching reads agy's package
+  await row('tdd').locator('.sk-head').click()
+  await expect(row('tdd').locator('.sk-sides button')).toHaveText(['Claude', 'Antigravity'])
+  await row('tdd').locator('.sk-sides button', { hasText: 'Antigravity' }).click()
+  await row('tdd').locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('TDD, the Antigravity copy')
+  await expect(win.locator('.file-drawer .d-meta')).toContainText('Antigravity')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // The enabled plugin's skill: namespaced as agy names it, with the AG and plugin badges; previewable
+  const plug = row('flutter:dart-add-unit-test')
+  await expect(plug.locator('.bdg .badge').nth(3)).toHaveText('AG')
+  await expect(plug.locator('.pill.plg')).toBeVisible()
+  await expect(plug.locator('.ins')).toHaveCount(0)
+  await plug.locator('.sk-head').click()
+  await plug.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Dart unit tests, the plugin copy')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // Subagents: CC CX AG slots; the name Claude defines too is one row with both badges, its drawer switching sides
+  await tab('Subagents').click()
+  const sub = (name: string) => win.locator('.it.row-btn', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  await expect(sub('sample-flat')).toHaveCount(1)
+  await expect(sub('code-reviewer').locator('.bdg .badge')).toHaveText(['CC', '', 'AG'])
+  // The plugin's bundled agent shows inside the plugin only (AC-06): the list is on screen, so one read
+  expect(await sub('flutter_a11y_agent').count()).toBe(0)
+  await sub('code-reviewer').click()
+  await expect(win.locator('.drawer .sideseg button')).toHaveText(['Claude(.md)', 'Antigravity(.md)'])
+  await win.locator('.drawer .sideseg button', { hasText: 'Antigravity' }).click()
+  // agy's four keys as written, "—" where the definition has none: an absent model claims no inherited default
+  await expect(win.locator('.drawer .kv > span')).toHaveText(['tools', 'view_file, grep_search', 'subagent', '—', 'mainAgent', '—', 'model', '—'])
+  await expect(win.locator('.drawer .raw')).toContainText('Antigravity reviewer persona.')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // A definition not usable as a main agent is listed, and says so (AC-03)
+  await sub('sample-reviewer').click()
+  await expect(win.locator('.drawer .kv')).toContainText('mainAgent')
+  await expect(win.locator('.drawer .kv')).toContainText('false')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // Plugins: the Antigravity group — version, enablement, marketplace; the disabled one still readable
+  await tab('Plugins').click()
+  const agPlugin = (name: string) => win.locator('.it.row-btn', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  await expect(agPlugin('flutter')).toContainText('v1.0.6')
+  await expect(agPlugin('flutter').locator('.pill')).toHaveText('Enabled')
+  await expect(agPlugin('flutter').locator('.ds')).toHaveText('From antigravity-plugins-official')
+  await expect(agPlugin('gdocs').locator('.pill')).toHaveText('Not enabled')
+  await agPlugin('flutter').click()
+  const exp = win.locator('.exp-area').first()
+  // Skills, subagents and MCP — no rules, no hooks (plugins-view::REQ-001/AC-03)
+  await expect(exp.locator('.ptab')).toHaveText(['Skills1', 'Subagents1', 'MCP1'])
+  await exp.locator('.ptab', { hasText: 'Subagents' }).click()
+  await expect(exp.locator('.chip')).toHaveText(['flutter_a11y_agent'])
+  await exp.locator('.ptab', { hasText: 'MCP' }).click()
+  await expect(exp.locator('.chip')).toHaveText(['flutter_dart-mcp-server'])
+  await exp.locator('.ptab', { hasText: 'Skills' }).click()
+  await exp.locator('.psk', { hasText: 'flutter:dart-add-unit-test' }).click()
+  await exp.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Dart unit tests, the plugin copy')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await agPlugin('flutter').click() // Collapse, so the next expansion is the first .exp-area
+  await agPlugin('gdocs').click()
+  await win.locator('.psk', { hasText: 'gdocs:draft-doc' }).click()
+  await win.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Draft doc, readable while disabled')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // MCP: the global file's servers (the disabled one marked), the enabled plugin's under agy's name and from that
+  // plugin; neither the disabled plugin's server nor a project's own MCP file anywhere
+  await tab('MCP').click()
+  const mcp = (name: string) => win.locator('.it', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  await expect(mcp('sqlite-explorer').locator('.src')).toHaveText('mcp_config.json')
+  await expect(mcp('sqlite-explorer').locator('.pill')).toHaveCount(0)
+  await expect(mcp('github').locator('.pill.off')).toHaveText('Disabled')
+  await expect(mcp('flutter_dart-mcp-server').locator('.ds')).toHaveText('From the flutter plugin')
+  expect(await mcp('gdocs_docs').count()).toBe(0)
+  expect(await mcp('demo-stdio').count()).toBe(0)
+
+  // agy disables flutter: at the next scan its skill leaves the Skills section and its server the MCP section
+  // (plugins-view::REQ-001/AC-04, G1). The plugin row turning "Not enabled" is the proof the scan landed
+  writeFileSync(
+    join(home, '.gemini', 'config', 'config.json'),
+    JSON.stringify({ plugins: { flutter: { enabled: false }, gdocs: { enabled: false } } })
+  )
+  await tab('Plugins').click()
+  await expect(agPlugin('flutter').locator('.pill')).toHaveText('Not enabled')
+  await tab('MCP').click()
+  await expect(mcp('sqlite-explorer')).toHaveCount(1)
+  expect(await mcp('flutter_dart-mcp-server').count()).toBe(0)
+  await tab('Skills').click()
+  await expect(row('release-notes')).toHaveCount(1)
+  expect(await row('flutter:dart-add-unit-test').count()).toBe(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// plugins-view G4 and plugins-view::REQ-001/AC-06 (no merging by name across sides), with skills-view E7 (a filter
+// keeps the rows it keeps as they were): a Claude plugin and agy's plugin bundling one skill name give two rows, and
+// the open one stays the open one when filtering removes a row above them. Found in #325's code review — the rows were
+// keyed by name alone, so the two shared one key, and filtering left a stale third row on screen. The same home, where
+// agy's configuration holds a plugin and a server but agy itself is not detected, reads the plugin and MCP groups'
+// settled forms there (the test review's findings 2, 3 and 7).
+test('two sides\' plugins bundling one skill name: two rows, and filtering keeps the open one open', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agy-dupe-'))
+  const file = (path: string, text: string): void => {
+    mkdirSync(join(path, '..'), { recursive: true })
+    writeFileSync(path, text)
+  }
+  // A project Claude registered: its page shows agy's plugin as in effect globally
+  const proj = join(home, 'claude-proj')
+  mkdirSync(proj)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  // A row above the two, which the filter removes
+  file(join(home, '.claude', 'skills', 'aaa-first', 'SKILL.md'), '---\ndescription: first\n---\nfirst\n')
+  // Claude's flutter plugin, enabled at the user layer
+  const cpkg = join(home, 'claude-flutter')
+  file(join(cpkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'flutter', mcpServers: { 'dart-tools': { command: 'dart' } } }))
+  file(join(cpkg, 'skills', 'dart-add-unit-test', 'SKILL.md'), '---\ndescription: Claude copy\n---\nClaude plugin body\n')
+  file(join(home, '.claude', 'plugins', 'installed_plugins.json'),
+    JSON.stringify({ version: 2, plugins: { 'flutter@official': [{ scope: 'user', version: '1.0.0', installPath: cpkg }] } }))
+  file(join(home, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'flutter@official': true } }))
+  // agy's flutter plugin, enabled, with no record in agy's configuration (so no marketplace) and no server
+  const apkg = join(home, '.gemini', 'config', 'plugins', 'flutter')
+  file(join(apkg, 'plugin.json'), JSON.stringify({ name: 'flutter', version: '1.0.6' }))
+  file(join(apkg, 'skills', 'dart-add-unit-test', 'SKILL.md'), '---\ndescription: agy copy\n---\nAntigravity plugin body\n')
+  // agy's shared configuration holds a global server, but agy itself is not detected (no data root): its groups still
+  // show, since they have something to list (plugins-view and agents-overview, settled boundaries)
+  file(join(home, '.gemini', 'config', 'mcp_config.json'), JSON.stringify({ mcpServers: { 'sqlite-explorer': { command: 'node' } } }))
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const rows = win.locator('.sk-card > .rel')
+  const named = rows.filter({ has: win.locator('.nm', { hasText: /^flutter:dart-add-unit-test$/ }) })
+  await expect(named).toHaveCount(2)
+  const agRow = named.filter({ has: win.locator('.bdg .badge.ag') })
+  const clRow = named.filter({ has: win.locator('.bdg .badge.cl') })
+  await expect(agRow).toHaveCount(1)
+  await expect(clRow).toHaveCount(1)
+  // Open agy's row, then filter away the row above
+  await agRow.locator('.sk-head').click()
+  await expect(agRow.locator('.sk')).toHaveClass(/open/)
+  await win.locator('.sbar.sk-search input').fill('flutter')
+  await expect(rows).toHaveCount(2)
+  await expect(agRow.locator('.sk')).toHaveClass(/open/)
+  await expect(clRow.locator('.sk')).not.toHaveClass(/open/)
+  await agRow.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Antigravity plugin body')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // agy is not detected on this home
+  await expect(win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') }).locator('.k')).toContainText('Not detected')
+  // Plugins: agy's group is drawn for its plugin; the plugin, without a recorded marketplace, carries no "From" note
+  // (plugins-view, settled boundaries)
+  const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
+  await tab('Plugins').click()
+  await expect(win.locator('.pane-body .grp-t:has(.badge.ag) + .card .nm')).toHaveText(['flutter'])
+  const agPlugin = win.locator('.it.row-btn', { hasText: 'v1.0.6' })
+  await expect(agPlugin.locator('.pill')).toHaveText('Enabled')
+  await expect(agPlugin.locator('.ds')).toHaveText('')
+  // MCP: Claude's plugin server names its plugin, the row form every group shares; agy's group is drawn for its global
+  // server (agents-overview::REQ-003 boundaries)
+  await tab('MCP').click()
+  await expect(win.locator('.pane-body .it', { hasText: 'dart-tools' }).locator('.ds')).toHaveText('From the flutter plugin')
+  await expect(win.locator('.pane-body .grp-t:has(.badge.ag) + .card .nm')).toHaveText(['sqlite-explorer'])
+  // The project's page: agy's plugin takes effect globally, with no marketplace to name
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'claude-proj' }).click()
+  await tab('Plugins').click()
+  await expect(win.locator('.it.row-btn', { hasText: 'v1.0.6' }).locator('.ds')).toHaveText('In effect globally')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// skill-install::REQ-003/AC-02: the "Same name installed" tag is the target's state at this opening of the picker.
+// Found in #325's code review — a reopened picker first drew the tags of its previous opening, until the fresh ones
+// arrived. The stale tag lasts one round trip, so a retried assertion cannot see it: an observer in the page records
+// whether a tag is ever drawn after the reopening.
+test('the install picker\'s same-name tag is this opening\'s: reopened after the copy is gone, it is not drawn', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-held-'))
+  const proj = join(home, 'proj')
+  const copy = join(proj, '.claude', 'skills', 'tidy')
+  mkdirSync(copy, { recursive: true })
+  writeFileSync(join(copy, 'SKILL.md'), '---\ndescription: tidy, the project copy\n---\nproject\n')
+  mkdirSync(join(home, '.claude', 'skills', 'tidy'), { recursive: true })
+  writeFileSync(join(home, '.claude', 'skills', 'tidy', 'SKILL.md'), '---\ndescription: tidy\n---\nglobal\n')
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const ins = win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: /^tidy$/ }) }).locator('.ins')
+  const target = win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: /^proj$/ }) })
+  // The tag is drawn while the project holds the name
+  await ins.click()
+  await expect(target.locator('.pop-have')).toHaveText('Same name installed')
+  await ins.click()
+  await expect(win.locator('.pop')).toHaveCount(0)
+  // The copy goes; from here on no tag may be drawn, not even for a moment
+  rmSync(copy, { recursive: true })
+  await win.evaluate(() => {
+    const w = window as unknown as { tagDrawn: boolean }
+    w.tagDrawn = false
+    new MutationObserver(() => {
+      if (document.querySelector('.pop .pop-have') !== null) w.tagDrawn = true
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+  await ins.click()
+  await target.click()
+  await expect(win.locator('.toast.ok')).toHaveText('Installed tidy → proj (claude)')
+  expect(readFileSync(join(copy, 'SKILL.md'), 'utf8')).toContain('global')
+  expect(await win.evaluate(() => (window as unknown as { tagDrawn: boolean }).tagDrawn)).toBe(false)
+
+  // This home has no Antigravity CLI: neither its plugin group nor its MCP group is drawn (plugins-view, settled
+  // boundaries; agents-overview::REQ-003 boundaries). Each read follows the Claude group's heading on the same render
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
+  await expect(win.locator('.pane-body .grp-t:has(.badge.cl)')).toHaveCount(1)
+  expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'MCP' }).click()
+  await expect(win.locator('.pane-body .grp-t:has(.badge.cl)')).toHaveCount(1)
+  expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// skill-install::REQ-001/AC-01, AC-02, AC-04, skill-install::REQ-003/AC-01, AC-02 (the picker), then
+// skills-view::REQ-002/AC-01…AC-05, skill-install::REQ-002/AC-01, subagents-view::REQ-001/AC-05,
+// plugins-view::REQ-001/AC-05, project-detail::REQ-002/AC-03 and AC-04 (project detail), in one launch.
+test('the shared skills directory: one install target, stale and same-name rows, the project groups, and its uninstall', async () => {
+  const { home, agOnly, all, stale } = mkAgyComponentsHome()
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
+  await tab('Skills').click()
+  const row = (name: string) => win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  const target = (name: string) => win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: new RegExp(`^${name}$`) }) })
+
+  // The picker for an Antigravity-only skill: the shared directory is one mark naming both loaders, on the project
+  // agy alone registered as on the one every side registered (skill-install::REQ-001/AC-01)
+  await row('release-notes').locator('.ins').click()
+  await expect(win.locator('.pop .pop-p')).toHaveCount(3)
+  await expect(target('agy-demo').locator('.pop-lands > *')).toHaveCount(1)
+  await expect(target('agy-demo').locator('.pop-shared .badge')).toHaveText(['CX', 'AG'])
+  await expect(target('transfer').locator('.pop-shared .badge')).toHaveText(['CX', 'AG'])
+  // A stale project is listed, labelled and disabled (skill-install::REQ-003/AC-01). A forced click on it does
+  // nothing: the picker stays open for the next click — an install would have closed it first — and when that
+  // install's notice arrives it is the only one on screen
+  await expect(target('gone-proj')).toBeDisabled()
+  await expect(target('gone-proj').locator('.pop-why')).toHaveText('Stale, disabled')
+  await target('gone-proj').click({ force: true })
+  // Installing into the Antigravity-only project: one landing, one result, in the project's shared directory
+  await target('agy-demo').click()
+  await expect(win.locator('.toast.ok')).toHaveText(
+    'Installed release-notes → agy-demo’s shared directory (by copy; loaded by Codex and Antigravity)'
+  )
+  expect(await win.locator('.toast').count()).toBe(1)
+  expect(existsSync(stale)).toBe(false)
+  // The copy agy uses landed, once
+  expect(readFileSync(join(agOnly, '.agents', 'skills', 'release-notes', 'SKILL.md'), 'utf8')).toContain('Release notes, the CLI copy')
+  expect(existsSync(join(agOnly, '.claude'))).toBe(false)
+
+  // A project whose shared directory already holds the name is tagged; choosing it shows the blocked notice and
+  // installs nothing — in no landing (skill-install::REQ-003/AC-02)
+  await expect(win.locator('.toast')).toHaveCount(0) // Wait the success out, so the next notice is fresh
+  await row('commit-style').locator('.ins').click()
+  await expect(target('agy-demo').locator('.pop-have')).toHaveText('Same name installed')
+  await target('agy-demo').click()
+  await expect(win.locator('.toast.err')).toHaveText(
+    'commit-style → agy-demo(.agents/skills):Blocked: the target already has a project-level skill with this name, and nothing was overwritten'
+  )
+  expect(readFileSync(join(agOnly, '.agents', 'skills', 'commit-style', 'SKILL.md'), 'utf8')).toContain('Commit style, the project copy')
+  // tdd into the project every side registered: two landings — Claude's directory and the shared one, which already
+  // holds tdd. The tag stops both: Claude's directory, free on its own, is not written either
+  await expect(win.locator('.toast')).toHaveCount(0)
+  await row('tdd').locator('.ins').click()
+  await expect(target('transfer').locator('.pop-lands > .badge')).toHaveText(['CC'])
+  await expect(target('transfer').locator('.pop-shared .badge')).toHaveText(['CX', 'AG'])
+  await expect(target('transfer').locator('.pop-have')).toHaveText('Same name installed')
+  await expect(target('agy-demo').locator('.pop-have')).toHaveCount(0)
+  await target('transfer').click()
+  await expect(win.locator('.toast.err')).toContainText('tdd → transfer(.agents/skills)')
+  expect(await win.locator('.toast').count()).toBe(1)
+  expect(existsSync(join(all, '.claude', 'skills', 'tdd'))).toBe(false)
+  // Whether a project offers the shared directory follows the skill's sides it is registered on (A8): a Codex-only
+  // skill on the Antigravity-only project lands nowhere — no mark, and the existing notice (skill-install::REQ-001/AC-02)
+  await expect(win.locator('.toast')).toHaveCount(0)
+  await row('decision-form').locator('.ins').click()
+  await expect(target('agy-demo').locator('.pop-lands > *')).toHaveCount(0)
+  await expect(target('transfer').locator('.pop-shared .badge')).toHaveText(['CX', 'AG'])
+  await target('agy-demo').click()
+  await expect(win.locator('.toast.err')).toHaveText('agy-demo does not belong to the agent side this skill lives on')
+  expect(existsSync(join(agOnly, '.agents', 'skills', 'decision-form'))).toBe(false)
+
+  // Project detail, the Antigravity-only project: the shared group between the Codex and the Antigravity groups,
+  // headed with both loaders whatever the registration (skills-view::REQ-002/AC-01, AC-04)
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'agy-demo' }).click()
+  await tab('Skills').click()
+  const headings = win.locator('.pane-body .grp-t')
+  await expect(headings).toHaveCount(5)
+  await expect(headings.nth(0)).toHaveText('Global level · Claude(1)')
+  await expect(headings.nth(1)).toHaveText('Global level · Codex(1)')
+  await expect(headings.nth(2)).toContainText('Shared · .agents/skills')
+  await expect(headings.nth(2).locator('.badge')).toHaveText(['CX', 'AG'])
+  await expect(headings.nth(2)).toContainText('(3)')
+  // The shared directory holds commit-style and release-notes, so neither is listed under agy's global level
+  // (skills-view::REQ-002/AC-03): only tdd is
+  await expect(headings.nth(3)).toHaveText('Global level · Antigravity(1)')
+  await expect(headings.nth(4)).toContainText('Bundled in plugins')
+  const detRow = (name: string) => win.locator('.pane-body .sk', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  // A shared row carries both loaders' badges; a plugin row its own side's (AC-05)
+  await expect(detRow('demo-skill').locator('.bdg .badge').nth(1)).toHaveText('CX')
+  await expect(detRow('demo-skill').locator('.bdg .badge').nth(3)).toHaveText('AG')
+  await expect(detRow('flutter:dart-add-unit-test').locator('.bdg .badge').nth(3)).toHaveText('AG')
+  await expect(detRow('flutter:dart-add-unit-test').locator('.bdg .badge').nth(0)).toHaveClass(/miss/)
+  // Shared entries are project-level and previewable (AC-02); the drawer names both loaders
+  await expect(detRow('demo-skill').locator('.pill.prj')).toBeVisible()
+  await detRow('demo-skill').locator('.sk-head').click()
+  await detRow('demo-skill').locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Explain calc.py briefly.')
+  await expect(win.locator('.file-drawer .d-meta')).toContainText('Codex and Antigravity')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // Uninstalling from the shared directory: the full path, and both loaders lose it (skill-install::REQ-002/AC-01)
+  await detRow('commit-style').locator('.ins').click()
+  await expect(win.locator('.dlg-path')).toHaveText(`${agOnly}/.agents/skills/commit-style/`)
+  await expect(win.locator('.dlg .dlg-p').nth(1)).toHaveText(
+    'This directory is loaded by Codex and Antigravity: once it is deleted, none of them has this skill.'
+  )
+  await win.locator('.dlg .cfg-btn.danger').click()
+  await expect(win.locator('.toast.ok')).toHaveText('Uninstalled commit-style')
+  expect(existsSync(join(agOnly, '.agents', 'skills', 'commit-style'))).toBe(false)
+  // agy's global copy, hidden until then, comes back under its own group
+  await expect(headings.nth(3)).toHaveText('Global level · Antigravity(2)')
+  await expect(detRow('commit-style').locator('.pill.glb')).toBeVisible()
+
+  // Subagents: the project-level group, then the global ones; Antigravity rows carry no shadowing
+  // (subagents-view::REQ-001/AC-05)
+  await tab('Subagents').click()
+  await expect(headings).toHaveText([
+    'Effective view · project level shadows on both Claude and Codex · click a row for the full definition',
+    'Project level · .agents/agents(1)',
+    'Global level · Claude(1)',
+    'Global level · Antigravity(3)'
+  ])
+  await expect(win.locator('.pane-body .it.row-btn', { has: win.locator('.badge.ag') })).toHaveCount(4)
+  expect(await win.locator('.pane-body .it.row-btn .pill.shadow').count()).toBe(0)
+
+  // Plugins: agy's, labelled as taking effect globally (plugins-view::REQ-001/AC-05)
+  await tab('Plugins').click()
+  await expect(win.locator('.it.row-btn', { hasText: 'flutter' }).locator('.ds')).toHaveText(
+    'In effect globally · from antigravity-plugins-official'
+  )
+  // MCP: agy's global and plugin servers; the project's own file nowhere (project-detail::REQ-002/AC-03)
+  await tab('MCP').click()
+  await expect(win.locator('.pane-body .it .nm')).toHaveText(['sqlite-explorer', 'github', 'flutter_dart-mcp-server'])
+  expect(await win.locator('.pane-body', { hasText: 'demo-stdio' }).count()).toBe(0)
+
+  // The project every side registered: the shared group still sits between the Codex and the Antigravity groups
+  await win.locator('.side .row', { hasText: 'transfer' }).click()
+  await tab('Skills').click()
+  await expect(headings.nth(0)).toHaveText('Project level · .claude/skills(1)')
+  await expect(headings.nth(2)).toHaveText('Global level · Codex(1)')
+  await expect(headings.nth(3)).toContainText('Shared · .agents/skills')
+  await expect(headings.nth(3)).toContainText('(2)')
+  // The shared directory's tdd hides agy's: release-notes and commit-style remain
+  await expect(headings.nth(4)).toHaveText('Global level · Antigravity(2)')
+  // Its Subagents: each side's project group headed by the directory that side reads, then the global groups
+  await tab('Subagents').click()
+  await expect(headings).toHaveText([
+    'Effective view · project level shadows on both Claude and Codex · click a row for the full definition',
+    'Project level · .claude/agents(1)',
+    'Project level · .codex/agents(1)',
+    'Global level · Claude(1)',
+    'Global level · Antigravity(3)'
+  ])
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -4081,7 +4584,7 @@ test('the Agents page shows Grok\'s own global skills with the borrowing line, a
   await expect(strip.nth(3)).toHaveClass(/miss/)
   await expect(row.locator('.bdg .badge.miss svg')).toHaveCount(3)
   await expect(win.locator('.grp-t .hint2')).toContainText('borrowed components belong to the Claude side')
-  // Install the grok skill into the project: the popover target names the project's sides in full
+  // Install the grok skill into the project: the popover target marks where it lands, Grok's own directory
   await row.locator('.ins').click()
   await expect(win.locator('.pop .pop-p .badge.gk')).toHaveText('GK')
   await win.locator('.pop .pop-p').first().click()

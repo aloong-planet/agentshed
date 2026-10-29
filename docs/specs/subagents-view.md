@@ -12,18 +12,18 @@ are defined on this machine" or "which definition actually applies in this proje
 ## Solution
 
 Add a Subagents section to both the global page and the project detail page: the global page merges
-both sides into one column to see everything, and the detail page shows the effective view with the
+the sides into one column to see everything, and the detail page shows the effective view with the
 shadowing relationships; clicking an entry opens a drawer with the full definition as written.
 Everything is read-only.
 
 ## User Stories
 
-1. As a user, I want to see all subagents from both sides on the global page (one merged column, with
-   both-side badges), so that I know which specialised assistants are defined on this machine.
+1. As a user, I want to see all subagents from every side whose definitions are read on the global page
+   (one merged column, with side badges), so that I know which specialised assistants are defined on this machine.
 2. As a user, I want to click an entry to see the full definition (including the system prompt /
    developer_instructions) and metadata, so that I can see its persona and tool surface.
-3. As a user, I want an entry present on both sides to switch sides inside the drawer, so that I can
-   judge whether the two sides' configurations are equivalent (no machine diff signal is offered —
+3. As a user, I want an entry present on several sides to switch sides inside the drawer, so that I can
+   judge whether the sides' configurations are equivalent (no machine diff signal is offered —
    the formats differ, so a diff would be tautologically true).
 4. As a user, I want the effective view in project detail (project-level / global-level, with
    shadowing labelled), so that I know which definition actually applies in that project.
@@ -36,7 +36,7 @@ Everything is read-only.
 ## Failure modes and boundaries
 
 **Sequence A: global page → Subagents section**
-- A1 Neither side's agents directory exists or both are empty → empty-state copy, no crash.
+- A1 No side's agents directory exists, or all are empty → empty-state copy, no crash.
 - A2 Codex toml fails to parse (corrupt) → that entry shows a "parse failed" label (with the filename
   as a placeholder), and the rest behave normally.
 - A3 Codex toml has no valid `name` → marked an invalid definition (Codex itself does not load it).
@@ -103,7 +103,11 @@ Failure modes and boundaries: a definition without front matter or without a nam
 cannot be read stays with the unreadable label (A8); a file over 200 KB is truncated (A6); the
 directory form without an `agent.md` holds no definition; a project-level flat `<name>.md` was not
 sampled and is not read; a missing agents directory at either level yields an empty group, not an error
-(A1, B1).
+(A1, B1). Two definitions in one directory giving one name: the first in name order is listed (agy's
+own choice was not measured; Codex's loader keeps the first within a layer, A9). A description written
+as a YAML block scalar (`>-`, `|-`) shows its text, not the marker. The drawer's Antigravity rows are
+tools, subagent, mainAgent and model, each "—" when absent: whether an agy subagent without a model
+inherits the main one was not measured, so the drawer claims nothing.
 
 ## Implementation Decisions
 
@@ -118,6 +122,11 @@ sampled and is not read; a missing agents directory at either level yields an em
   master-detail two-column (compresses the list's information density) and "inline metadata expansion
   + overlay" (the expansion is a redundant stop on the way to the drawer).
 - **Sorting**: project level first, then by name within each group (as with skills).
+- **Project detail's layout** (settled 2026-10-29 with subagents-view::REQ-001/AC-05): the effective view
+  is grouped — each side's project-level group headed by the directory that side reads (`.claude/agents`,
+  `.codex/agents`, `.agents/agents`), then each side's global group ("Global level · <side>"), each
+  heading counted; Claude's and Codex's shadowing badges are unchanged, Antigravity's rows carry none.
+  One grouped side among flat ones would read wrong.
 
 ## Testing Decisions
 
