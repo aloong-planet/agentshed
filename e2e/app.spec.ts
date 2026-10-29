@@ -6897,9 +6897,9 @@ test('Antigravity sessions: AG rows and forks, a fork\'s page with its banner, h
  * 12:00, agy 5k at 09:00 (the measured four-question transcript, under agy's own title), Grok 3k at 06:00, Codex 2k at
  * 01:00 — a shared-directory skill, a project-level agy subagent and a Claude memory file. `agy-solo` is trusted by agy
  * alone, with a 7k conversation two days ago that asks nothing. agy's components: one name in two of its global skills
- * directories and two more names, a built-in skill, four global subagents in both forms, the `flutter` plugin with a
- * skill, an agent and a server, and the global MCP file. Claude holds one global skill and one global subagent; Codex one
- * global skill.
+ * directories and two more names, a built-in skill, five global subagents in both forms — one of them named like the
+ * project's own —, the `flutter` plugin with a skill, an agent and a server, and the global MCP file. Claude holds one
+ * global skill and one global subagent; Codex one global skill.
  */
 function mkAntigravityCloseoutHome(): { home: string; all: string } {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agyall-'))
@@ -6985,7 +6985,8 @@ function mkAntigravityCloseoutHome(): { home: string; all: string } {
   skill(join(cfg, 'skills'), 'commit-style', 'The global commit style')
   skill(join(home, '.gemini', 'skills'), 'root-notes', 'Notes from the root directory')
   skill(join(agy, 'builtin', 'skills'), 'agy-customizations', 'Built in')
-  // Four global subagents, in both forms
+  // Five global subagents, in both forms; proj-agent shares its name with the project's own definition below
+  file(join(cfg, 'agents', 'proj-agent.md'), '---\nname: proj-agent\ndescription: The global definition of that name.\n---\nGlobal persona.\n')
   file(join(cfg, 'agents', 'flat-one.md'), '---\nname: flat-one\ndescription: First flat definition.\n---\nOne.\n')
   file(join(cfg, 'agents', 'flat-two.md'), '---\nname: flat-two\ndescription: Second flat definition.\n---\nTwo.\n')
   file(join(cfg, 'agents', 'dir-one', 'agent.md'), '---\nname: dir-one\ndescription: First directory definition.\nsubagent: true\nmainAgent: false\n---\nThree.\n')
@@ -7017,7 +7018,7 @@ test('the Antigravity side whole: its card read in one pass, and a project every
 
   // The card, read whole in one DOM read, so its four parts are true of one render: the chip, detected, the figure
   // for all history (5k + 7k), two trusted folders, three library names (release-notes once; the built-in and the
-  // plugin's skill not counted) and four subagents (the plugin's agent not counted)
+  // plugin's skill not counted) and five subagents (the plugin's agent not counted)
   const card = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') })
   await expect
     .poll(() =>
@@ -7028,7 +7029,7 @@ test('the Antigravity side whole: its card read in one pass, and a project every
         el.querySelector('.s')?.textContent ?? ''
       ])
     )
-    .toEqual(['ANTIGRAVITY', 'Detected', '12k', '2 projects · 3 global skills · 4 subagents'])
+    .toEqual(['ANTIGRAVITY', 'Detected', '12k', '2 projects · 3 global skills · 5 subagents'])
 
   // The project every side registers: the four chips
   await win.locator('.rail .ri').nth(1).click()
@@ -7036,7 +7037,7 @@ test('the Antigravity side whole: its card read in one pass, and a project every
   await expect(win.locator('.det-title .badge')).toHaveText(['CLAUDE CODE', 'CODEX', 'GROK', 'ANTIGRAVITY'])
 
   // Overview: each side's figure, today's bar stacking the four providers, the Antigravity mode leaving Google's alone,
-  // and the model rows by volume with agy's model as it records it
+  // and a model row for every side's model, agy's as it records it (read as a set: no spec orders the rows)
   await tab('Overview').click()
   const sideFigure = (cls: string): ReturnType<typeof win.locator> =>
     win.locator('.pane-body .tot-sides > span', { has: win.locator(`.badge.${cls}`) }).locator('b')
@@ -7046,14 +7047,17 @@ test('the Antigravity side whole: its card read in one pass, and a project every
   await expect(sideFigure('ag')).toHaveText('5k')
   const bar = win.locator(`.pane-body .chart .col[data-day="${dayKey(localDayOffset(0))}"]`)
   for (const provider of ['anthropic', 'openai', 'xai', 'google']) await expect(bar.locator(`.sp.${provider}`)).toHaveCount(1)
-  await expect(win.locator('.pane-body .models .m .nm2')).toHaveText(['gemini-3.6-flash', 'grok-4.5-build', 'gpt-5.6-sol', 'claude-fable-5'])
+  await expect(win.locator('.pane-body .models .m .nm2')).toHaveCount(4)
+  expect((await win.locator('.pane-body .models .m .nm2').allTextContents()).sort()).toEqual(['claude-fable-5', 'gemini-3.6-flash', 'gpt-5.6-sol', 'grok-4.5-build'])
   await win.locator('.pane-body .grp-t .seg button', { hasText: 'Antigravity' }).click()
   await expect(bar.locator('.sp')).toHaveCount(1)
   await expect(bar.locator('.sp.google')).toHaveCount(1)
 
-  // Sessions: one row per side, newest first, each with its side's badge; agy's under its own title
+  // Sessions: one row per side, newest first, each with its side's badge; agy's under its own title. Read first by
+  // the question counts, which the Overview's recent-sessions card (the same rows' titles and badges) does not draw
   await tab('Sessions').click()
   const rows = win.locator('.pane-body .card .se')
+  await expect(rows.locator('.n')).toHaveText(['1 question', '4 questions', '1 question', '1 question'])
   await expect(rows.locator('.t')).toHaveText(['Claude question', 'Explaining Calc.py Functionality', 'Grok question', 'Codex question'])
   await expect(rows.locator('.badge')).toHaveText(['CC', 'AG', 'GK', 'CX'])
 
@@ -7071,16 +7075,24 @@ test('the Antigravity side whole: its card read in one pass, and a project every
   await expect(headings.nth(4)).toContainText('Bundled in plugins')
   const plugRow = win.locator('.pane-body .sk', { has: win.locator('.nm', { hasText: /^flutter:dart-add-unit-test$/ }) })
   await expect(plugRow.locator('.bdg .badge').nth(3)).toHaveText('AG')
+  // The row's four side slots stand 3px apart, as the skills-view prototype draws them (.bdg)
+  const slotGaps = await plugRow.locator('.bdg .badge').evaluateAll((els) =>
+    els.slice(1).map((el, i) => Math.round(el.getBoundingClientRect().left - els[i].getBoundingClientRect().right))
+  )
+  expect(slotGaps).toEqual([3, 3, 3])
 
-  // Subagents: the project-level .agents/agents group, then each side's global group; no AG row is marked as shadowing
+  // Subagents: the project-level .agents/agents group, then each side's global group. proj-agent is listed in both
+  // agy groups, and neither row is marked as shadowing or shadowed (subagents-view::REQ-001/AC-05), as a Claude or
+  // Codex pair of one name would be
   await tab('Subagents').click()
   await expect(headings).toHaveText([
     'Effective view · project level shadows on both Claude and Codex · click a row for the full definition',
     'Project level · .agents/agents(1)',
     'Global level · Claude(1)',
-    'Global level · Antigravity(4)'
+    'Global level · Antigravity(5)'
   ])
-  await expect(win.locator('.pane-body .it.row-btn', { has: win.locator('.badge.ag') })).toHaveCount(5)
+  await expect(win.locator('.pane-body .it.row-btn', { has: win.locator('.badge.ag') })).toHaveCount(6)
+  await expect(win.locator('.pane-body .it.row-btn', { has: win.locator('.nm', { hasText: /^proj-agent$/ }) })).toHaveCount(2)
   expect(await win.locator('.pane-body .it.row-btn .pill.shadow').count()).toBe(0)
 
   // Plugins: agy's plugin, in effect globally, naming its marketplace

@@ -93,3 +93,35 @@ the units this ticket owns (the issue's product acceptance):
 
 Scope beyond these units: the fold (no spec text names how a path is derived; below spec level, recorded as a
 decision). No code contradicts a spec statement.
+
+## Addendum — the side-badge slot gap (2026-10-29, after the post-implementation check)
+
+Reviewed: the one rule added to `src/renderer/src/theme.css` (`.bdg { display: flex; gap: 3px; flex: none }`) and C1's
+amendments, committed after `274cb00` · why: the closeout's regression (final-regression.md, #327, Stage 1) found the
+rows' side-badge slots touching in the app while the skills-view and agents-page prototypes draw them 3px apart — an
+app-versus-prototype difference in this feature's range (#328 widened the agents-page prototype's `.bdg` for the fourth
+slot), which ADR-0033 puts at the closing cross-check and features-catalog has fixed in the implementation.
+
+UI gate (implement step 4, item 0): the confirmed prototypes already draw the form (skills-view's `.bdg{gap:3px}`,
+the agents page's), so no prototype change; `/ui-design` was loaded; anchors: the theme stylesheet's header read
+(no colour or interactive state is touched, so §4–§5 bind nothing); §8 class occupancy — `.bdg` is used in two
+components' markup and had no rule anywhere in `src/renderer` or `site/src`
+([ticket-327-ui-evidence.log](ticket-327-ui-evidence.log)); §7 rendered evidence — the computed gaps `[0,0,0]` before
+and `[3,3,3]` after on the agents page's Skills rows, window screenshots of both pages' lists, and C1's gap read on
+project detail. Out-of-scope character icons in the touched rows: the slots' missing state is the `Minus` SVG from the
+icon module; none to report.
+
+- Underlying premises: the comment names the prototypes that draw the gap (skills-view, agents page) — both read; the
+  agents-page prototype also fixes the row's width at 96px, the skills-view one does not, and the rule takes the form
+  the two share (no width): the slots' widths are equal row to row, every row drawing one slot per side. No finding.
+- Runnability: a `display: flex` container of `inline` badges and an `inline-flex` missing slot — measured, the badges
+  keep their size and sit 3px apart (the screenshots; C1's read); the rows' other columns are unchanged in the
+  screenshots; the whole `app.spec.ts` (97, the narrow-window, skills-row wrap and geometry cases among them) passed on
+  the build carrying the rule ([ticket-327-fix-targeted.log](ticket-327-fix-targeted.log)). No finding.
+- Security: none touched.
+- Consistency: the rule sits beside `.badge.miss` in the shared pieces, in the theme stylesheet's own form; `check:ui`
+  passed over it. No finding.
+
+Self-check before hand-over (post-implementation-check.md item 1): the product change of the fix is this rule; it
+implements no spec sentence but the prototypes' drawing (agents-overview's and project-detail's UI points, the skills
+lists), set beside them above. No finding.
