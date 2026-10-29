@@ -86,4 +86,14 @@ record every decision), 2026-10-29.
   - step 8 (features-catalog, the full-feature closeout): the regression's three stages, the tickets' sync checklists,
     the conclusion and the open findings in [final-regression.md](final-regression.md) (#327); the checklist's closeout
     rows and audit row; [ticket-327-doc-sync.md](ticket-327-doc-sync.md)
-- [ ] T11 Full gate `pnpm verify`
+- [x] T11 Full gate: `pnpm verify` at `020a2bc` with the checklist's closeout rows uncommitted (an inert record, its
+  `git hash-object` in the manifest), [ticket-327-gate-full.log](ticket-327-gate-full.log): typecheck, lint, unit 1087
+  passed / 1 skipped, test:scripts 137, test:site (0 errors, 107 tests), check:ui, check:lang, check:i18n, check:nul,
+  e2e 168 passed (the whole suite, 5.4 min), smoke OK; `OVERALL exit=0`; no command skipped. The records written after
+  it (the checklist's gate figures, this line, the regression's conclusion) touch inert files only: reuse checked in
+  [ticket-327-gate-reuse.log](ticket-327-gate-reuse.log) (change scope against `020a2bc`, lint, typecheck)
+- [x] T12 Delivery credentials (implement "Delivery"): the code review record (version, range, layers, the addendum),
+  the test review record (design review, its increment, round 1 with four findings handled, round 2 with one) and
+  final-regression.md's #327 section (the three stages, the conclusion) read for version, scope, findings and
+  dispositions; the doc sync checklist has no Pending item. No push and no PR, by the orchestrator's instruction; nothing
+  ticked on GitHub

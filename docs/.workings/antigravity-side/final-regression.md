@@ -374,7 +374,9 @@ index, thirteen prototype files, CONTEXT.md and both dictionaries. The READMEs, 
 
 ### Closeout conclusion
 
-The full-feature closeout is complete for the combined product: every coverage unit is mapped and verified on every
+The full gate ran green on the combined product at `020a2bc` ([ticket-327-gate-full.log](ticket-327-gate-full.log):
+every `pnpm verify` command, unit 1087 passed and 1 skipped, the whole e2e suite 168 passed, smoke passed; the records
+written after it change no executable file, [ticket-327-gate-reuse.log](ticket-327-gate-reuse.log)). The full-feature closeout is complete for the combined product: every coverage unit is mapped and verified on every
 path, the two cross-ticket combinations by their own e2e case, the Pending note re-judged and kept with its reason, and
 the regression's three stages above are complete with every difference found fixed in this round or listed below for
 the owner. Waiting, and not counted as done: the merges of #329, #330, #323, #325 and #324 (each ticket's sync rows
