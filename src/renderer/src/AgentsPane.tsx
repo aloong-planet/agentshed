@@ -2,7 +2,7 @@ import { useTrendSpan } from './TrendSpan'
 import { StartupHint } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { useMemo, useRef, useState } from 'react'
-import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
+import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER, type SideBadgeClass } from './side-badge'
 import { ConfigSection } from './ConfigSection'
 import type { AgentSide, Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
@@ -91,7 +91,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
         </nav>
       </header>
       <div className="pane-body">
-        {!snap.sides.claude.detected && !snap.sides.codex.detected && !snap.sides.grok.detected && (
+        {SIDE_ORDER.every((side) => !snap.sides[side].detected) && (
           <div className="empty">
             <div className="big">
               <Inbox size={30} />
@@ -145,7 +145,7 @@ function SideCard({
   sub
 }: {
   label: string
-  cls: 'cl' | 'cx' | 'gk'
+  cls: SideBadgeClass
   detected: boolean
   error?: AppError
   total: number

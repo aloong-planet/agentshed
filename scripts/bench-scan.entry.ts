@@ -84,10 +84,10 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   console.log(`[mode] ${mode}, cache dir ${cacheDir}`)
   const roots = realRoots()
 
-  // The app's order: one walk of the Codex and Grok session trees, shared by scan() and build()
+  // The app's order: one walk of the Codex, Grok and Antigravity session lists, shared by scan() and build()
   let t0 = performance.now()
   const sessions = walkSessions(roots)
-  console.log(`[walkSessions] codex=${sessions.codex.length}, grok=${sessions.grok.length}: ${since(t0)}`)
+  console.log(`[walkSessions] codex=${sessions.codex.length}, grok=${sessions.grok.length}, antigravity=${sessions.antigravity.length}: ${since(t0)}`)
 
   t0 = performance.now()
   const snap = await scan(roots, { now: () => Date.now(), sessions })

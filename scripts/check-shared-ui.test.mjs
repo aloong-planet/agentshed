@@ -144,10 +144,10 @@ const PLANTS = {
   // A side added; copy naming it beside another side; its chip label hard-coded
   'src/renderer/src/side-badge.ts': [
     // The full name a constant the gate cannot read; the short name below still names the side
-    ["  claude: 'Claude Code',\n  codex: 'Codex',\n  grok: 'Grok'\n}", "  claude: 'Claude Code',\n  codex: 'Codex',\n  grok: 'Grok',\n  gemini: GEMINI_FULL_NAME\n}"],
+    ["  claude: 'Claude Code',\n  codex: 'Codex',\n  grok: 'Grok',\n  antigravity: 'Antigravity'\n}", "  claude: 'Claude Code',\n  codex: 'Codex',\n  grok: 'Grok',\n  antigravity: 'Antigravity',\n  gemini: GEMINI_FULL_NAME\n}"],
     // ...and a spread the gate cannot read
-    ["  claude: 'Claude',\n  codex: 'Codex',\n  grok: 'Grok'\n}", "  claude: 'Claude',\n  codex: 'Codex',\n  grok: 'Grok',\n  gemini: 'Gemini',\n  ...EXTRA_SHORT_NAMES\n}"],
-    ["  grok: 'GROK'\n}", "  grok: 'GROK',\n  gemini: 'GEMINI'\n}"]
+    ["  claude: 'Claude',\n  codex: 'Codex',\n  grok: 'Grok',\n  antigravity: 'Antigravity'\n}", "  claude: 'Claude',\n  codex: 'Codex',\n  grok: 'Grok',\n  antigravity: 'Antigravity',\n  gemini: 'Gemini',\n  ...EXTRA_SHORT_NAMES\n}"],
+    ["  antigravity: 'ANTIGRAVITY'\n}", "  antigravity: 'ANTIGRAVITY',\n  gemini: 'GEMINI'\n}"]
   ],
   'src/shared/i18n/en.ts': [['export const en: Locale = {\n', "export const en: Locale = {\n  plantedSides: 'Works with Codex and Gemini',\n"]],
   'src/renderer/src/StartupHint.tsx': [["import { RefreshCw } from './icons'\n", "import { RefreshCw } from './icons'\nconst PLANTED_CHIP = 'GEMINI'\n"]],

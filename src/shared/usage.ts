@@ -105,7 +105,8 @@ export function deriveStats(rows: UsageRow[]): TokenStats {
   const bySide: Record<AgentSide, TokenTotals> = {
     claude: emptyTotals(),
     codex: emptyTotals(),
-    grok: emptyTotals()
+    grok: emptyTotals(),
+    antigravity: emptyTotals()
   }
   const models = new Map<string, ModelUsage>()
   const days = new Map<string, DayUsage>()

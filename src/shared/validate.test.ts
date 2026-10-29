@@ -23,6 +23,15 @@ describe('validateSnapshot', () => {
     expect(validateSnapshot(snap).ok).toBe(true)
   })
 
+  it('admits a project registered on Antigravity CLI, and refuses a snapshot whose sides leave it out (ADR-0020)', () => {
+    const snap = emptySnapshot(1)
+    snap.projects.push({ path: '/Users/x/agy', name: 'agy', sides: ['antigravity'], stale: false, lastSessionAt: 1, sessionCount: 1 })
+    expect(validateSnapshot(snap).ok).toBe(true)
+    const withoutSide = JSON.parse(JSON.stringify(snap)) as { sides: Record<string, unknown> }
+    delete withoutSide.sides['antigravity']
+    expect(validateSnapshot(withoutSide)).toEqual({ ok: false, failure: { kind: 'missing', path: 'sides.antigravity' } })
+  })
+
   it('refuses a non-object', () => {
     expect(validateSnapshot(null).ok).toBe(false)
     expect(validateSnapshot('x').ok).toBe(false)

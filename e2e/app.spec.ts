@@ -17,13 +17,14 @@
 // page, which no drawer survives; add a case when it can change with a drawer open, such as from a menu).
 // Copy follows the dictionary the language cases cover; the file, mode and scroll would survive because a
 // language change remounts nothing in the drawer.
-import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { closeApp } from './close-app'
 import { ERR } from '../src/shared/errors'
+import { encodeTrajectoryMetadata, settingsJson, writeConversation } from '../src/main/testing/agy-fixture'
 
 /** Each case gets its own userData with no cross-contamination; a cache file can be seeded */
 function makeUserData(cacheContent?: string): string {
@@ -384,8 +385,12 @@ test('cold start: the Agents page is the default landing, both summary cards ren
   await expect(win.locator('.rail .ri')).toHaveCount(4)
   await expect(win.locator('.rail .ri.grfr')).toHaveCount(0)
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
-  // Three summary cards (CC / CODEX / GROK — an undetected side shows "not detected", not an error)
-  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(3)
+  // One summary card per side (an undetected side shows "not detected", not an error): this home has no
+  // Antigravity CLI data root, so that card reads not detected (agents-overview::REQ-003/AC-01)
+  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
+  const agCard = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') })
+  await expect(agCard.locator('.badge.ag')).toHaveText('ANTIGRAVITY')
+  await expect(agCard.locator('.k')).toContainText('Not detected')
   await expect(win.locator('.badge.cc, .badge.cl').first()).toBeVisible()
   // #18: the packaged build's renderer page must run on app:// rather than file:// (falling back to file://
 // silently loses
@@ -419,7 +424,7 @@ test('an old-format cache does not crash at startup (a production crash regressi
   const l = await launch(legacy, mkUsageHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
-  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(3)
+  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -841,6 +846,140 @@ test('a stale project opens as the note page: card only, chips per recording sid
   await close(l)
 })
 
+/**
+ * Ticket antigravity-side/#322: a fixture home where agy trusts three folders — one only it registered, one Claude
+ * registered too (with a Claude memory, so the Memory section has a row to read), and one whose directory is gone —
+ * and one conversation in the first, last written three days ago (projects-list::REQ-001/AC-01, AC-04). A live folder
+ * only Claude registered gives the side filter a row to remove.
+ */
+function mkAntigravityHome(): { home: string; agOnly: string; tri: string; ghost: string } {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agy-'))
+  const agOnly = join(home, 'ag-only')
+  const tri = join(home, 'ag-and-claude')
+  const ghost = join(home, 'ag-ghost')
+  const claudeOnly = join(home, 'claude-only')
+  mkdirSync(agOnly, { recursive: true })
+  mkdirSync(tri, { recursive: true })
+  mkdirSync(claudeOnly, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [tri]: {}, [claudeOnly]: {} } }))
+  const mem = join(home, '.claude', 'projects', tri.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
+  mkdirSync(mem, { recursive: true })
+  writeFileSync(join(mem, 'MEMORY.md'), '# Memory\n\n- a note\n')
+  const agy = join(home, '.gemini', 'antigravity-cli')
+  mkdirSync(join(agy, 'conversations'), { recursive: true })
+  writeFileSync(join(agy, 'settings.json'), settingsJson([agOnly, tri, ghost]))
+  const { file } = writeConversation(
+    join(agy, 'conversations'),
+    'c-ag-only',
+    encodeTrajectoryMetadata({ folders: [agOnly], conversationId: 'c-ag-only' })
+  )
+  // Three days and an hour ago, so the relative time is "3 days ago" whatever the hour of the run
+  const at = Date.now() / 1000 - 3 * 86_400 - 3_600
+  utimesSync(file, at, at)
+  return { home, agOnly, tri, ghost }
+}
+
+// agents-overview::CON-004, agents-overview::REQ-003/AC-01, agents-overview::REQ-003/AC-03,
+// projects-list::REQ-001/AC-01, project-detail::REQ-002/AC-01, project-detail::REQ-002/AC-04: the side seen from
+// every surface this ticket gives it, in one launch.
+test('an Antigravity-registered project: its card, its row and hover name, the filter, the header and stale chips, and Memory', async () => {
+  const { home } = mkAntigravityHome()
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+
+  // The side card: the ANTIGRAVITY chip, detected, and the three projects it registers (the stale one included, as
+  // on every side's card); skills and subagents are not read on this side yet
+  const card = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') })
+  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
+  await expect(card.locator('.badge.ag')).toHaveText('ANTIGRAVITY')
+  await expect(card.locator('.k')).toContainText('Detected')
+  await expect(card.locator('.s')).toHaveText('3 projects · 0 global skills · 0 subagents')
+
+  // Memory: the Claude row is there, and nothing of Antigravity's — read once the list has rendered, since a retried
+  // "none" would pass before it did
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
+  await expect(win.locator('.pane-body .it', { hasText: 'ag-and-claude' })).toBeVisible()
+  expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
+
+  // The project list: the conversation's time on its folder, the side counted, and the side named on hover with its
+  // Google-blue dot (the light --p-google)
+  await win.locator('.rail .ri').nth(1).click()
+  const agRow = win.locator('.side .row', { hasText: 'ag-only' })
+  const triRow = win.locator('.side .row', { hasText: 'ag-and-claude' })
+  await expect(agRow.locator('.meta')).toHaveText('3 days ago')
+  await expect(agRow.locator('.cnt-b')).toHaveText('1')
+  await expect(triRow.locator('.cnt-b')).toHaveText('2')
+  await triRow.locator('.cnt-b').hover()
+  const tip = win.locator('.sides-tip')
+  await expect(tip.locator('.st')).toHaveText(['Claude Code', 'Antigravity'])
+  expect(await tip.locator('.dot.antigravity').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(66, 133, 244)')
+  await win.mouse.move(5, 5)
+
+  // The side filter's fifth option names the side and narrows the list to its live folders: the Claude-only folder
+  // leaves, and the stale one stays hidden by the stale filter (C1)
+  await expect(win.locator('.side .row .nm')).toHaveText(['ag-only', 'ag-and-claude', 'claude-only'])
+  await win.locator('.opts .dd-trigger').click()
+  const opts = win.locator('.side-pop .dd-opt')
+  await expect(opts).toHaveCount(5)
+  await expect(opts.nth(4)).toHaveText('Antigravity')
+  await expect(opts.nth(4).locator('.dot.antigravity')).toHaveCount(1)
+  await opts.nth(4).click()
+  await expect(win.locator('.side .row .nm')).toHaveText(['ag-only', 'ag-and-claude'])
+  await expect(win.locator('.opts .dd-trigger')).toHaveText('Antigravity')
+
+  // The project page: one ANTIGRAVITY chip; Memory shows the empty state of a project no Claude side records (D4)
+  await agRow.click()
+  await expect(win.locator('.det-title .badge')).toHaveCount(1)
+  await expect(win.locator('.det-title .badge.ag')).toHaveText('ANTIGRAVITY')
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
+  await expect(win.locator('.pane-body .none')).toHaveText(
+    'Memory is a Claude-side mechanism (Codex memory is global — see the Memory tab on the global page)'
+  )
+  await triRow.click()
+  await expect(win.locator('.det-title .badge')).toHaveText(['CLAUDE CODE', 'ANTIGRAVITY'])
+
+  // The stale note names the recording side with its chip, in the cause and in the send line
+  await win.locator('.side input[type="checkbox"]').check()
+  await win.locator('.side .row', { hasText: 'ag-ghost' }).click()
+  await expect(win.locator('.stale-note .badge')).toHaveText(['ANTIGRAVITY', 'ANTIGRAVITY'])
+  await expect(win.locator('.stale-note .badge.ag')).toHaveCount(2)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// agents-overview::CON-004: the AG badge's pair varies with the appearance and not with the colour scheme, like the
+// other side colours — read off the side card's chip in each appearance under each theme
+test('the Antigravity badge takes its own pair in light and in dark, the same under every theme', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agy-colour-'))
+  mkdirSync(join(home, '.gemini', 'antigravity-cli'), { recursive: true })
+  const l = await launchAppearance(home)
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  const read = (): Promise<[string, string]> =>
+    win.locator('.pane-head .stats .badge.ag').evaluate((el) => {
+      const cs = getComputedStyle(el)
+      return [cs.backgroundColor, cs.color] as [string, string]
+    })
+  const want = { light: ['rgb(221, 231, 251)', 'rgb(53, 99, 181)'], dark: ['rgb(31, 46, 73)', 'rgb(150, 185, 243)'] }
+  const seen: string[] = []
+  for (const mode of ['light', 'dark'] as const) {
+    for (const theme of ['purple', 'blue', 'amber'] as const) {
+      await win.getByTitle('Settings').click()
+      await win.locator(`[data-mode-option="${mode}"]`).click()
+      await win.locator(`[data-theme-option="${theme}"]`).click()
+      await expect.poll(async () => effectiveDark(win)).toBe(mode === 'dark')
+      await expect.poll(async () => win.locator('html').getAttribute('data-theme')).toBe(theme)
+      await win.locator('.rail .ri').nth(0).click()
+      expect(await read(), `${mode} · ${theme}`).toEqual(want[mode])
+      seen.push(`${mode}-${theme}`)
+    }
+  }
+  expect(seen).toHaveLength(6)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // Ticket grok-side/#123 (spec C5/C7): side filtering is a single-choice dropdown. Being operated
 // rather than glanced at, it answers a resize by repositioning — and the resize answer is where
 // #122 lives: a resize makes the browser clamp a scrolled container's scrollTop and dispatch a
@@ -864,13 +1003,14 @@ test('the side filter dropdown: narrows to one side, dismisses on scroll, and su
   await expect(pop).toHaveCount(1)
   await expect(trig).toHaveAttribute('aria-expanded', 'true')
   const opts = pop.locator('.dd-opt')
-  await expect(opts).toHaveCount(4)
+  await expect(opts).toHaveCount(5)
   await expect(opts.nth(0)).toContainText('All')
   await expect(opts.nth(1)).toContainText('Claude Code')
   await expect(opts.nth(2)).toContainText('Codex')
   await expect(opts.nth(3)).toContainText('Grok')
-  // Dots mark the three sides, not "All"; the current choice carries the check
-  await expect(pop.locator('.dd-opt .dot')).toHaveCount(3)
+  await expect(opts.nth(4)).toContainText('Antigravity')
+  // Dots mark the sides, not "All"; the current choice carries the check
+  await expect(pop.locator('.dd-opt .dot')).toHaveCount(4)
   await expect(opts.nth(0)).toHaveAttribute('aria-selected', 'true')
 
   // The layer over the clipped list: its own centre must resolve to it (a clipped layer reports
@@ -976,20 +1116,25 @@ test('a real window resize with a scrolled list does not close the side dropdown
 // longest occupants in every UI language — the longest side name on the trigger, the stale toggle,
 // and the "filtered N stale" counter all at once.
 test('the side filter row stays inside the sidebar column in both UI languages', async () => {
-  const l = await launchWithLangs('zh-Hans-CN', mkThreeSideHome())
+  const home = mkThreeSideHome()
+  // The stale ghost is recorded by Antigravity CLI too, so the counter is present with either long side name selected
+  mkdirSync(join(home, '.gemini', 'antigravity-cli'), { recursive: true })
+  writeFileSync(join(home, '.gemini', 'antigravity-cli', 'settings.json'), settingsJson([join(home, 'ghost-proj')]))
+  const l = await launchWithLangs('zh-Hans-CN', home)
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
 
-  for (const code of ['zh', 'en']) {
+  // The widest trigger label is a side name: the two longest, Claude Code and Antigravity, are each measured
+  for (const [code, option] of [['zh', 1], ['zh', 4], ['en', 1], ['en', 4]] as const) {
     await win.locator('.ri.set').click()
     await win.getByTestId('language-trigger').click()
     await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
     await expect(win.locator('.settings-h1')).not.toBeEmpty()
 
     await win.locator('.rail .ri').nth(1).click()
-    // The widest trigger label is a side name: pick Claude Code before measuring
     await win.locator('.opts .dd-trigger').click()
-    await win.locator('.side-pop .dd-opt').nth(1).click()
+    await win.locator('.side-pop .dd-opt').nth(option).click()
+    await expect(win.locator('.opts .dd-trigger')).toHaveText(option === 1 ? 'Claude Code' : 'Antigravity')
     await expect(win.locator('.opts .cnt'), 'the stale counter must be present while measuring').toBeVisible()
 
     // The prototype's width readout was blind to two of the row's three occupants (its toggle
@@ -1012,12 +1157,12 @@ test('the side filter row stays inside the sidebar column in both UI languages',
         cntText: cnt.textContent ?? ''
       }
     })
-    expect(m.overflow, `${code}: the filter row's content overflows the row box`).toBeLessThanOrEqual(1)
-    expect(m.beyondColumn, `${code}: the filter row runs past the sidebar column`).toBeLessThanOrEqual(0)
-    expect(m.cntWidth, `${code}: the counter was squeezed out entirely`).toBeGreaterThan(40)
-    expect(m.cntTitle, `${code}: the full sentence must survive in the title`).toBe(m.cntText)
+    expect(m.overflow, `${code} · ${option}: the filter row's content overflows the row box`).toBeLessThanOrEqual(1)
+    expect(m.beyondColumn, `${code} · ${option}: the filter row runs past the sidebar column`).toBeLessThanOrEqual(0)
+    expect(m.cntWidth, `${code} · ${option}: the counter was squeezed out entirely`).toBeGreaterThan(40)
+    expect(m.cntTitle, `${code} · ${option}: the full sentence must survive in the title`).toBe(m.cntText)
 
-    // Back to all sides so the next language starts from the same state
+    // Back to all sides so the next round starts from the same state
     await win.locator('.opts .dd-trigger').click()
     await win.locator('.side-pop .dd-opt').nth(0).click()
   }
@@ -1688,7 +1833,7 @@ test('overlapping automatic rescans are deduplicated: the page stays coherent an
     JSON.stringify({ projects: { [join(home, 'demo-proj')]: {}, [extra]: {} } })
   )
   await expect(win.locator('.pane-head .stats .stat').first()).toContainText('2 projects')
-  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(3)
+  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -3792,12 +3937,13 @@ test('the Agents page shows Grok\'s own global skills with the borrowing line, a
   // ternary fall-through, recurred on this surface — the popover below was asserted, the row was not).
   // The two missing sides draw the shared Minus icon, not a text dash (#148)
   const strip = row.locator('.bdg .badge')
-  await expect(strip).toHaveCount(3)
+  await expect(strip).toHaveCount(4)
   await expect(strip.nth(0)).toHaveClass(/miss/)
   await expect(strip.nth(1)).toHaveClass(/miss/)
   await expect(strip.nth(2)).toHaveText('GK')
   await expect(strip.nth(2)).toHaveClass(/gk/)
-  await expect(row.locator('.bdg .badge.miss svg')).toHaveCount(2)
+  await expect(strip.nth(3)).toHaveClass(/miss/)
+  await expect(row.locator('.bdg .badge.miss svg')).toHaveCount(3)
   await expect(win.locator('.grp-t .hint2')).toContainText('borrowed components belong to the Claude side')
   // Install the grok skill into the project: the popover target names the project's sides in full
   await row.locator('.ins').click()
@@ -4896,7 +5042,7 @@ test('the time window drives all four regions at once: side figures, composition
   })
   expect(zeroSegments, 'a 0% bucket has a legend entry but no segment on the bar').toEqual([])
   expect(all.dimmed, 'nothing is dimmed under "all history"').toBe(0)
-  expect(all.sides.length).toBe(3)
+  expect(all.sides.length).toBe(4)
   expect(all.comp.length, 'three buckets in the legend').toBe(3)
   expect(all.models.length, 'the fixture must have model rows, or the comparison below is vacuous')
     .toBeGreaterThan(0)
@@ -4985,12 +5131,12 @@ test('startup skeleton: agents page shows placeholders, refuses input, fills in 
   const l = await launch(undefined, home, { AGENTSHED_SCAN_DELAY_MS: '4000', AGENTSHED_RESCAN_MS: '250' })
   try {
     const win = await l.app.firstWindow()
-    // Skeleton up: real static structure (title, four window cards, three side cards, seven tabs)
+    // Skeleton up: real static structure (title, four window cards, one side card per side, seven tabs)
     // plus placeholder blocks and the inline scanning hint
     await expect(win.locator('.pane-head h1')).toHaveText('Agents')
     await expect(win.locator('.scan-hint')).toBeVisible()
     await expect(win.locator('.tot-row .tot-c')).toHaveCount(4)
-    await expect(win.locator('.pane-head .stats .stat')).toHaveCount(3)
+    await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
     await expect(win.locator('.pane-head .tabs .tab')).toHaveCount(7)
     expect(await win.locator('.sk-ph').count()).toBeGreaterThan(0)
 

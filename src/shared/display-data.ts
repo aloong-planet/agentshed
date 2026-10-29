@@ -4,7 +4,7 @@ import type { CappedText, ProjectDetail, ProjectStats, SessionPage, SessionTurn,
 import type { ListSkillFilesArgs, ListSkillFilesResult } from './ipc'
 import { validateProjectDetail, validateProjectStats, validateSessionPage, validateSessionTurn, validateSnapshot, AGENT_SIDES } from './validate'
 import { sessionIdFromPath } from './session-resume'
-import type { AgentSide } from './domain'
+import { emptyTotals, type AgentSide } from './domain'
 
 export type SavedRead =
   | { kind: 'projectDetail'; path: string; data: ProjectDetail }
@@ -61,7 +61,7 @@ export function validSavedRead(v: unknown): v is SavedRead {
     case 'artifactContent': case 'skillContent': return path(v.file) && capped(v.data)
     case 'skillFiles': {
       const a = v.args, d = v.data
-      return object(a) && ['claude', 'codex', 'grok'].includes(String(a.side)) && path(a.name) &&
+      return object(a) && AGENT_SIDES.has(String(a.side)) && path(a.name) &&
         (a.scope === 'global' || (a.scope === 'project' && path(a.projectPath)) || (a.scope === 'plugin' && path(a.pluginRoot))) &&
         object(d) && typeof d.deep === 'boolean' && strings(d.deepPaths) && Array.isArray(d.files) &&
         d.files.every(f => object(f) && path(f.path) && path(f.absPath) && number(f.bytes) && number(f.lines) && number(f.mtimeMs))
@@ -86,6 +86,7 @@ function upgradeSavedRead(v: unknown): unknown {
   if (!object(v) || !object(v.data)) return v
   if (v.kind === 'projectDetail') {
     let data: Record<string, unknown> = v.data
+    if (object(data.stats)) upgradeSavedTokens(data.stats.tokens)
     if (object(data.memory) && !('mainFile' in data.memory))
       data = { ...data, memory: { ...data.memory, mainFile: null } }
     if (object(data.configs) && 'settingsSummary' in data.configs && typeof data.path === 'string') {
@@ -100,6 +101,33 @@ function upgradeSavedRead(v: unknown): unknown {
   if (v.kind === 'sessionPage' && !('sessionId' in v.data) && typeof v.data.file === 'string' && AGENT_SIDES.has(String(v.data.side)))
     return { ...v, data: { ...v.data, sessionId: sessionIdFromPath(v.data.side as AgentSide, v.data.file) } }
   return v
+}
+
+/**
+ * A payload saved before a side joined AgentSide restores with that side's empty values filled into every per-side
+ * Record (ADR-0020), rather than failing the contract that now asks for every side and being dropped — which would
+ * cost the first launch after the update every saved page. Not detected, zero totals, no symlink, no package: what a
+ * scan of a machine without that side would produce; the first scan then replaces it. Only an absent key is filled in.
+ */
+function fillAbsentSides(rec: unknown, empty: () => unknown): void {
+  if (!object(rec)) return
+  for (const side of AGENT_SIDES) if (!(side in rec)) rec[side] = empty()
+}
+function upgradeSavedTokens(tokens: unknown): void {
+  if (!object(tokens)) return
+  fillAbsentSides(tokens.bySide, emptyTotals)
+  if (Array.isArray(tokens.byDay)) for (const day of tokens.byDay) if (object(day)) fillAbsentSides(day.bySide, () => 0)
+}
+/** The per-side Records of a saved snapshot, filled in place as fillAbsentSides says */
+function fillSavedSnapshotSides(snap: unknown): void {
+  if (!object(snap)) return
+  fillAbsentSides(snap.sides, () => ({ detected: false }))
+  upgradeSavedTokens(snap.tokens)
+  const skills = object(snap.global) ? snap.global.skills : null
+  if (Array.isArray(skills)) for (const s of skills) if (object(s)) {
+    fillAbsentSides(s.symlink, () => false)
+    fillAbsentSides(s.pkg, () => null)
+  }
 }
 
 /** Where the two global configuration files a snapshot saved before entries carried their paths had been read from
@@ -134,8 +162,11 @@ function upgradeSavedSnapshot(v: unknown, paths: SavedConfigPaths | undefined): 
 export function parseDisplayData(v: unknown, paths?: SavedConfigPaths): DisplayData {
   const d = emptyDisplayData()
   if (!object(v)) return d
+  // The upgrades fill in place: the payload is freshly parsed from disk or IPC, owned by this call
   const snapshot = upgradeSavedSnapshot(v.snapshot, paths)
+  fillSavedSnapshotSides(snapshot)
   if (finiteNumbers(snapshot) && validateSnapshot(snapshot).ok && displaySnapshotValid(snapshot)) d.snapshot = snapshot as Snapshot
+  if (Array.isArray(v.stats)) for (const p of v.stats) if (Array.isArray(p) && object(p[1])) upgradeSavedTokens(p[1].tokens)
   if (Array.isArray(v.stats)) d.stats = v.stats.filter((p): p is [string, ProjectStats] =>
     Array.isArray(p) && p.length === 2 && path(p[0]) && finiteNumbers(p[1]) && validateProjectStats(p[1]).ok && displayStatsValid(p[1]))
   if (strings(v.sessionFiles)) d.sessionFiles = v.sessionFiles

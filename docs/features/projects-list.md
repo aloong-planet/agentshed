@@ -16,8 +16,8 @@ activity.
 - Sorted by activity (most recent session time) by default, with the relative time shown on the
   row; sessions from every side count toward a project's activity, including a side that did not
   register the directory
-- The search box filters by name or path; the agent side dropdown (All / Claude Code / Codex /
-  Grok) narrows the list to one side and stacks with search and the stale filter
+- The search box filters by name or path; the agent side dropdown (All, then each side by name)
+  narrows the list to one side and stacks with search and the stale filter
 - Stale projects (in the registry, directory deleted) are filtered out by default with a count
   shown; a toggle reveals them, struck through and marked "stale"
 - Clicking a project name opens its detail page; the selected row is marked by a deeper tint than
@@ -26,12 +26,19 @@ activity.
 - A project selected from a global search hit has its row scrolled into view when it sits outside the
   visible part of the list; the filters are not changed for it, so a stale project stays hidden unless
   stale projects are shown
+- On the Antigravity CLI side, a project is a folder the user agreed to trust when Antigravity CLI asked;
+  a conversation counts toward the activity of the first folder it lists, its time moving while
+  Antigravity CLI is still writing it, and a subagent's conversation neither counts nor moves the time
 - Scanning is automatic — there is no refresh control: the app rescans when the window regains focus
   (at most once a minute) and on a periodic backstop, and the list updates in place when a scan lands
 
 ## Boundaries and non-goals
 - A directory an agent has sessions in but never registered is not listed for that side — the list
-  shows registered projects, and its side count reflects registrations, not session presence
+  shows registered projects, and its side count reflects registrations, not session presence. A
+  folder Antigravity CLI ran in without being trusted is such a directory, and the projects
+  Antigravity CLI groups folders into (shared with its desktop app) are not projects here
+- Reading Antigravity CLI's conversations changes nothing in its directories; its desktop app's and
+  IDE's data are not read
 - No live file watching: data updates on the startup scan and on the automatic rescans (focus and
   timer), so a change made elsewhere shows up at the next scan rather than the moment it happens
 - No manual hiding: every registered project is listed (removed 2026-08-16, ADR-0022; projects

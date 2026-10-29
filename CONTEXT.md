@@ -1,6 +1,6 @@
 # Agentshed
 
-A desktop overview and management tool for Claude Code, Codex and Grok: see what each project has installed,
+A desktop overview and management tool for Claude Code, Codex, Grok and Antigravity CLI: see what each project has installed,
 how many tokens it has burned, and which artifacts it has accumulated — and install or remove skills
 from the global library. This file is the domain glossary.
 
@@ -365,7 +365,7 @@ is its relationship to the surface it sits on?
   lines, accent). Defined per theme × per appearance. Currently 11 variables (measured 2026-10-23).
 - **appearance-varying** — it sits *on* a surface and must stay legible against it (shadows, status
   backgrounds, badge fills, the scrollbar thumb). One value per appearance, shared across themes.
-  Currently 28 (measured 2026-10-23).
+  Currently 30 (measured 2026-10-29).
 - **static** — it is an opaque block carrying its own ground (a destructive button, a callout), so no
   surrounding surface applies. One value throughout. Currently 5 (measured 2026-10-28; the fifth is the
   tooltip's warning line). The name follows Primer and Material, which both use *static* for exactly this.
@@ -651,7 +651,7 @@ _Avoid_: beta mode, insider track, update track
   non-English languages and uppercases Latin words embedded in Chinese copy. Three micro-label
   classes keep small caps **by explicit ruling, not omission**: `.settings-sec-t` (settings section
   titles), `.files-head` (file-table column headers) and `.turn .bb .lb` (turn block labels) are
-  single-word labels, not sentences; the CLAUDE CODE / CODEX / GROK chips are uppercase brand
+  single-word labels, not sentences; the CLAUDE CODE / CODEX / GROK / ANTIGRAVITY chips are uppercase brand
   labels, equally deliberate. A new sentence-shaped surface follows the dictionary's case rather
   than reintroducing a transform.
 

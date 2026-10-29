@@ -18,10 +18,10 @@ agent side's global picture onto one screen.
   navigation rail remains usable; data fills in place and later scans never bring placeholders back
 - Token section (the default): a large daily trend chart with 30 / 60 / 90 day spans (switchable between
   combined and a single side) and a cross-project model breakdown; the totals include stale projects
-- Skills section: every side's global library merged into one column, with side badges showing which
-  sides have each entry and symlinks marked; no cross-side content diff; on-disk skills expand to
-  preview a package's files (see [Skills view](skills-view.md)); global library entries can start an
-  "Install to…" action; plugin entries are read-only and expand to preview the package (see
+- Skills section: the Claude Code, Codex and Grok global libraries merged into one column, with side
+  badges showing which sides have each entry and symlinks marked; no cross-side content diff; on-disk
+  skills expand to preview a package's files (see [Skills view](skills-view.md)); global library
+  entries can start an "Install to…" action; plugin entries are read-only and expand to preview the package (see
   [Plugins view](plugins-view.md))
 - Subagents section: the Claude and Codex sides' subagent definitions in one view (see
   [Subagents view](subagents-view.md))
@@ -49,3 +49,6 @@ agent side's global picture onto one screen.
   than a guessed reading
 - The global library is read-only: its contents are never added to, changed or removed via this app
 - A side that is not installed shows "not detected" rather than an error
+- The Antigravity CLI side: its card reports whether Antigravity CLI is installed and how many projects it
+  registers; its usage, skills, subagents, plugins and MCP servers are not read, so its card's figure
+  and counts read zero and its sections show nothing for it. Its memories are not shown

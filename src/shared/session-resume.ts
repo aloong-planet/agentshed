@@ -34,5 +34,6 @@ export function resumeCommand(side: AgentSide, sessionId: string, projectDir: st
 const RESUME: Record<AgentSide, (id: string) => string> = {
   claude: (id) => `claude --resume ${id}`,
   codex: (id) => `codex resume ${id}`,
-  grok: (id) => `grok --resume ${id}`
+  grok: (id) => `grok --resume ${id}`,
+  antigravity: (id) => `agy --conversation ${id}`
 }

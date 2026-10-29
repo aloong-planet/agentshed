@@ -17,6 +17,9 @@ export interface ScanRoots {
   geminiHome: string
   /** Grok's data root (production: ~/.grok; the registry is its trusted_folders.toml, ADR-0019) */
   grokHome: string
+  /** Antigravity CLI's data root (production: ~/.gemini/antigravity-cli; the registry is trustedWorkspaces in its
+   * settings.json, ADR-0037). The desktop app's and the IDE's roots beside it are never read (token-stats::CON-001) */
+  antigravityHome: string
   /** The Codex / shared global skills directory (production: ~/.agents/skills) */
   agentsSkillsDir: string
 }
@@ -29,6 +32,8 @@ export function globalSkillsRoots(roots: ScanRoots): Record<AgentSide, string> {
   return {
     claude: join(roots.claudeHome, 'skills'),
     codex: roots.agentsSkillsDir,
-    grok: join(roots.grokHome, 'skills')
+    grok: join(roots.grokHome, 'skills'),
+    // agy's own CLI library, the first of the three it loads (skills-view::REQ-001/AC-01 widens this to all three)
+    antigravity: join(roots.antigravityHome, 'skills')
   }
 }

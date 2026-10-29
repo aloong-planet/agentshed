@@ -5,8 +5,8 @@
 ## Overview
 
 "Which project is burning my quota, and what has it been burning lately" had no ready answer. This
-feature aggregates every side's session records into a project-level and a global view, whose numbers
-share a source and reconcile against each other.
+feature aggregates the session records of Claude Code, Codex and Grok into a project-level and a global
+view, whose numbers share a source and reconcile against each other.
 
 ## Capabilities
 - A time window row at the top of both the Agents page and the project overview: four cards — total

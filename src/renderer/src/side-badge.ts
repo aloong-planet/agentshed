@@ -3,10 +3,14 @@
 // exactly how Grok sessions briefly wore the CX badge (#125 review).
 import type { AgentSide } from '@shared/domain'
 
-export const SIDE_BADGE: Record<AgentSide, { cls: 'cl' | 'cx' | 'gk'; label: string }> = {
+/** The badge's colour class: one pair of --<cls>-bg / --<cls>-fg per side in theme.css */
+export type SideBadgeClass = 'cl' | 'cx' | 'gk' | 'ag'
+
+export const SIDE_BADGE: Record<AgentSide, { cls: SideBadgeClass; label: string }> = {
   claude: { cls: 'cl', label: 'CC' },
   codex: { cls: 'cx', label: 'CX' },
-  grok: { cls: 'gk', label: 'GK' }
+  grok: { cls: 'gk', label: 'GK' },
+  antigravity: { cls: 'ag', label: 'AG' }
 }
 
 /** The display order, derived from the Record's keys rather than written out again: the Record is
@@ -17,14 +21,16 @@ export const SIDE_ORDER = Object.keys(SIDE_BADGE) as AgentSide[]
 export const SIDE_FULL_NAME: Record<AgentSide, string> = {
   claude: 'Claude Code',
   codex: 'Codex',
-  grok: 'Grok'
+  grok: 'Grok',
+  antigravity: 'Antigravity'
 }
 
 /** The side's short display name for compact chrome (side-switch buttons, drawer and list meta) */
 export const SIDE_SHORT_NAME: Record<AgentSide, string> = {
   claude: 'Claude',
   codex: 'Codex',
-  grok: 'Grok'
+  grok: 'Grok',
+  antigravity: 'Antigravity'
 }
 
 /** The uppercase brand-chip label (the side cards' form; deliberate caps, see CONTEXT's text-case
@@ -32,5 +38,6 @@ export const SIDE_SHORT_NAME: Record<AgentSide, string> = {
 export const SIDE_CHIP_LABEL: Record<AgentSide, string> = {
   claude: 'CLAUDE CODE',
   codex: 'CODEX',
-  grok: 'GROK'
+  grok: 'GROK',
+  antigravity: 'ANTIGRAVITY'
 }

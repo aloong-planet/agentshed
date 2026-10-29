@@ -14,6 +14,7 @@ export function realRoots(): ScanRoots {
     codexHome: join(home, '.codex'),
     geminiHome: join(home, '.gemini'),
     grokHome: join(home, '.grok'),
+    antigravityHome: join(home, '.gemini', 'antigravity-cli'),
     agentsSkillsDir: join(home, '.agents', 'skills')
   }
 }

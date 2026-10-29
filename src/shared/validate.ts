@@ -2,7 +2,7 @@
 // renderer receives,
 // so contract drift surfaces at the boundary rather than rendering as undefined. Hand-written structural
 // validation, zero dependencies.
-import type { Snapshot } from './domain'
+import type { AgentSide, Snapshot } from './domain'
 import { ERR, appError } from './errors'
 import { ARTIFACT_ORDER } from './domain'
 
@@ -25,8 +25,10 @@ export type ValidateFailure =
 export type ValidateResult = { ok: true } | { ok: false; failure: ValidateFailure }
 
 /** Exported for runtime argument guards: a hand-enumerated side check is exactly what typecheck
- * cannot see, and it is how skill installs silently refused the third side (#126). */
-export const AGENT_SIDES = new Set(['claude', 'codex', 'grok'])
+ * cannot see, and it is how skill installs silently refused the third side (#126). So the set is read off a Record
+ * that is total over AgentSide: a side added to the type is a compile error here until it joins the set (ADR-0020). */
+const SIDE_MEMBERS: Record<AgentSide, true> = { claude: true, codex: true, grok: true, antigravity: true }
+export const AGENT_SIDES: ReadonlySet<string> = new Set(Object.keys(SIDE_MEMBERS))
 
 const failMissing = (path: string): ValidateResult => ({ ok: false, failure: { kind: 'missing', path } })
 const failType = (path: string, expect: string): ValidateResult => ({

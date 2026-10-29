@@ -12,7 +12,12 @@ import { useAnchorInvalidation } from './useAnchorInvalidation'
  * Side names in full — product names, identical in every language, so they live here rather than
  * in the dictionaries (the same rule as PROVIDER_LABEL's proper nouns).
  */
-const SIDE_NAME: Record<AgentSide, string> = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok' }
+const SIDE_NAME: Record<AgentSide, string> = {
+  claude: 'Claude Code',
+  codex: 'Codex',
+  grok: 'Grok',
+  antigravity: 'Antigravity'
+}
 
 /** The gap between the count badge and the layer below it */
 const TIP_OFFSET = 6
