@@ -4,8 +4,8 @@ This directory describes **each feature's full requirements and boundaries in th
 written for whoever is about to change that code.
 
 - **Invariants**: one document per feature, with **slugs corresponding one-to-one to
-  `docs/features/`**, except a spec whose subject the feature catalogue leaves out (distribution), which
-  has no entry there; it describes the present and is **rewritten in place** (no change history —
+  `docs/features/`**, except a spec whose subject the feature catalogue leaves out (distribution, the
+  prototype pages), which has no entry there; it describes the present and is **rewritten in place** (no change history —
   that lives in git); removing a feature deletes the file (in the same batch as its features entry).
 - **Why it persists**: "Failure modes and boundaries" is the only place in the whole documentation set
   that records *which boundaries this feature enumerated and which things are explicitly not done* —
@@ -40,6 +40,7 @@ written for whoever is about to change that code.
 | [appearance](appearance.md) | [Appearance](../features/appearance.md) |
 | [app-update](app-update.md) | [App updates](../features/app-update.md) |
 | [mac-distribution](mac-distribution.md) | None: the feature catalogue leaves distribution out |
+| [prototype-pages](prototype-pages.md) | None: the feature catalogue leaves the prototypes out |
 | [landing-page](landing-page.md) | [Landing page](../features/landing-page.md) |
 
 > Note on reconstruction: this directory was created on 2026-08-01 (when specs became persistent
