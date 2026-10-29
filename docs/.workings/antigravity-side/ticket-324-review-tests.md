@@ -646,3 +646,8 @@ rewritten); the round confirmed its 12 code and test hashes against 0e9f3ea inde
 row now names the fix commit 0e9f3ea. This handling changes only records and the run script outside the repository:
 self-check items 1–5 not applicable (no product code, test, fixture or helper changed); item 6, the full run's log;
 item 7, the four records named here. No further incremental check: nothing the tests run or read changed.
+
+The full verification run before delivery: [ticket-324-gate-full.log](ticket-324-gate-full.log), at 994535d with a
+clean tree — the version commands with their exit codes, typecheck, lint, the unit suite (1024 passed, the ccusage
+parity file's one skip), `test:scripts`, `test:site`, `check:ui`, `check:lang`, `check:i18n`, `check:nul`, the whole
+e2e suite (161 passed) and smoke, each `exit=0`; `OVERALL exit=0`.
