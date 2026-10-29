@@ -11,6 +11,8 @@ import { TokenEngine } from './token-stats'
 import { QuestionCorpus, corpusProjects, type CorpusProject, type CorpusOptions } from './question-corpus'
 import { readRanges } from './range-read'
 import type { ScanRoots } from './types'
+import { callRecord, encodeTrajectoryMetadata, writeConversation } from '../testing/agy-fixture'
+import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, writeTranscript } from '../testing/agy-transcript-fixture'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Global search's question corpus (global-search spec, ADR-0034), over fixture homes through the
@@ -439,5 +441,46 @@ describe('nothing is written to disk (CON-001)', () => {
     expect(snapshot()).toEqual(before)
     // And the build's own cache holds no question text that is not also a title
     for (const n of readdirSync(cache)) expect(readFileSync(join(cache, n), 'utf8')).not.toContain('how do I staple')
+  })
+})
+
+describe('an Antigravity conversation joins as its page shows it (REQ-001)', () => {
+  // The measured transcripts: a conversation of four questions, a fork rewound once (its first question undone), and a
+  // subagent whose transcript opens with the dispatch message its parent sent — and, derived, a question a user asked it
+  // after resuming it by its ID (no measured subagent transcript holds one)
+  const subagentQuestion = JSON.stringify({ step_index: 7, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:30:00Z', content: '<USER_REQUEST>\nWhich of them is the longest?\n</USER_REQUEST>' })
+  function mkAgyHome(): Record<string, string> {
+    const home = roots().antigravityHome
+    const conversations = join(home, 'conversations')
+    mkdirSync(conversations, { recursive: true })
+    const f: Record<string, string> = {}
+    const write = (id: string, record: Uint8Array, lines: readonly string[]): string => {
+      const { step, gen } = callRecord({ conversationId: id, stepIdx: 1, genIdx: 0, usage: { messageId: `m-${id}`, input: 10, output: 1 }, createdAt: Date.parse(TS(1)), completedAt: Date.parse(TS(1)) })
+      writeConversation(conversations, id, record, { steps: [step], gens: [gen] })
+      writeTranscript(home, id, lines)
+      return join(conversations, `${id}.db`)
+    }
+    f.main = write(MEASURED_TRANSCRIPT_ID.main, encodeTrajectoryMetadata({ folders: [alpha], conversationId: MEASURED_TRANSCRIPT_ID.main }), MEASURED_TRANSCRIPT.main)
+    f.fork = write(MEASURED_TRANSCRIPT_ID.forkRewound, encodeTrajectoryMetadata({ folders: [alpha], conversationId: MEASURED_TRANSCRIPT_ID.forkRewound }), MEASURED_TRANSCRIPT.forkRewound)
+    f.sub = write(
+      MEASURED_TRANSCRIPT_ID.subagent,
+      encodeTrajectoryMetadata({ folders: [alpha], conversationId: MEASURED_TRANSCRIPT_ID.subagent, parentConversationId: MEASURED_TRANSCRIPT_ID.dispatch, nestingDepth: 1, subagentSpec: true }),
+      [...MEASURED_TRANSCRIPT.subagent, subagentQuestion]
+    )
+    return f
+  }
+
+  it('its displayed questions are searched with their numbers; an undone question and a subagent\'s are not', async () => {
+    const f = mkAgyHome()
+    const { corpus } = await corpusOver()
+    await corpus.load()
+    const r = await corpus.search('simplest')
+    expect(r.sessions.map((s) => [s.file, s.side, s.hits.map((h) => [h.i, h.text])]).sort((x, y) => String(x[0]).localeCompare(String(y[0])))).toEqual([
+      [f.main, 'antigravity', [[4, 'In one short sentence, which test in test_calc.py is the simplest?']]],
+      [f.fork, 'antigravity', [[1, 'In one short sentence, which function in calc.py is the simplest?']]]
+    ])
+    expect((await corpus.search('exactly one word')).sessions).toEqual([])
+    expect((await corpus.search('list the names of all functions')).sessions).toEqual([])
+    expect((await corpus.search('which of them is the longest')).sessions).toEqual([])
   })
 })

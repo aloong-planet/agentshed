@@ -487,10 +487,6 @@ const GLOBAL_RULES = [
           why: 'contrasts the two memory mechanisms verified today; Grok memory has no real sample yet (spec agents-overview G2)'
         },
         {
-          key: 'unlinkedNote',
-          why: 'records a measurement made on those two sides; the Grok dispatch is unattributed by the same rule'
-        },
-        {
           key: 'reasoningNote',
           why: "a statement about two specific sides' formats (Codex encrypted vs Claude thinking), true regardless of the side count"
         }

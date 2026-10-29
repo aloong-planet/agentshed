@@ -23,10 +23,17 @@
 //   read counts it unreadable (driven below), while the walk, which reads only the trajectory record, still gives its
 //   folder the database's time — activity is the file's time by design (CONTEXT "Activity"); not driven as a case of
 //   its own, since it adds no rule beyond the two reads each driven here.
+// - A transcript agy rewrites (its context compaction) while a session page is open: a turn the page asks for under its
+//   old revision is refused (session-view::REQ-001/AC-04) by the IPC handlers, whose question revision and end-of-read
+//   identity check are taken on the transcript, the session's read source, not on the database. No case here reaches
+//   the handlers, and a rewrite in the middle of a read is a race no fixture can stage without a pause. An e2e that
+//   replaces the open fork's transcript by rename, bytes unchanged, then expands a turn and sees it refused would
+//   close the first half; an injectable pause between the read and the check, the second.
 // - The real-data reconciliation (the reader over copies of agy's own conversations against the descriptor-based
 //   decoder of the research record) needs real agy data and stays out of the default gate; run 2026-10-29 for #323:
 //   43 calls, identical figures (research record §10.11).
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -51,8 +58,14 @@ import { TokenEngine, runParseJob, type ParseRunner, type TokenBuildResult } fro
 import { UsageArchive } from './archive'
 import type { ScanRoots } from './types'
 import { DatabaseSync } from './sqlite'
+import { readRanges } from './range-read'
+import { questionTextOfRange } from './question-index'
+import { sessionReadTarget } from '../security'
+import type { SessionMeta } from '@shared/domain'
+import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTranscript } from '../testing/agy-transcript-fixture'
 import {
   MEASURED_FOLDER,
+  MEASURED_TITLE,
   MEASURED_USAGE_CONVERSATION,
   callRecord,
   encodeGeneratorMetadata,
@@ -60,10 +73,12 @@ import {
   encodeTrajectoryMetadata,
   insertGens,
   insertSteps,
+  insertSummaries,
   measured,
   measuredUsage,
   settingsJson,
   writeConversation,
+  writeSummaries,
   type ConversationOptions,
   type GenRow,
   type StepRow,
@@ -730,14 +745,6 @@ describe('usage: each model call once (token-stats::REQ-003)', () => {
     expect(agyTotal(await build())).toBe(110)
   })
 
-  it('an Antigravity conversation has no session page yet', async () => {
-    const p = mkProject('p')
-    trust([p])
-    const file = usageConversation('conv-s', [p], [{ usage: { messageId: 'm-s', input: 1 }, at: oct(26) }])
-    const e = new TokenEngine(cacheDir())
-    await e.build(roots(), [], undefined, walkSessions(roots()))
-    await expect(e.sessionQuestions(roots(), file)).rejects.toSatisfy((err: unknown) => decodeAppError(err)?.code === ERR.sessionNotIndexed)
-  })
 })
 
 describe('conversations that cannot be read (token-stats::REQ-004)', () => {
@@ -926,6 +933,7 @@ describe('a corrupt cache entry for a conversation', () => {
     const p = mkProject('p')
     trust([p])
     const file = usageConversation('conv-c', [p], [{ usage: { messageId: 'm-c', input: 100, output: 10 }, at: oct(26) }])
+    writeTranscript(agyRoot(), 'conv-c', MEASURED_TRANSCRIPT.dispatch)
     expect(agyTotal(await build())).toBe(110)
     const cacheFile = join(cacheDir(), 'token-cache.json')
     const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }
@@ -935,18 +943,39 @@ describe('a corrupt cache entry for a conversation', () => {
       expect(agyTotal(await build())).toBe(110)
       cache.files[file] = entry
       writeFileSync(cacheFile, JSON.stringify(cache))
-      await expect(new TokenEngine(cacheDir()).sessionQuestions(roots(), file)).rejects.toSatisfy((err: unknown) => decodeAppError(err) !== null)
+      const page = new TokenEngine(cacheDir()).sessionQuestions(roots(), file)
+      // A corrupt entry is read again for the page; an absent one is a session the scan never indexed (every side's rule)
+      if (entry === null) await expect(page).rejects.toSatisfy((err: unknown) => decodeAppError(err)?.code === ERR.sessionNotIndexed)
+      else expect((await page).questions).toHaveLength(1)
     }
   })
 
   // A sentinel call the real conversation does not hold: a build that shows it reused the entry
   const sentinel = ['m-sentinel', oct(26), 999_000, 0, 0, 0, 'gemini-3.6-flash']
+  const wellFormed = {
+    projectKey: '',
+    unreadable: false,
+    calls: [sentinel],
+    conversationId: 'conv-g',
+    subagent: false,
+    listed: false,
+    at: null,
+    forkOf: null,
+    title: null,
+    questions: []
+  }
   it.each([
-    ['projectKey', { unreadable: false, calls: [sentinel] }],
-    ['unreadable', { projectKey: '', calls: [sentinel] }],
-    ['calls', { projectKey: '', unreadable: false }],
-    ["a call's seventh element", { projectKey: '', unreadable: false, calls: [sentinel.slice(0, 6)] }]
-  ])('an entry missing %s, under the conversation\'s current signature, is read again rather than reused', async (_missing, partial) => {
+    ['projectKey'],
+    ['unreadable'],
+    ['calls'],
+    ['conversationId'],
+    ['subagent'],
+    ['listed'],
+    ['at'],
+    ['forkOf'],
+    ['title'],
+    ['questions']
+  ])('an entry missing %s, under the conversation\'s current signature, is read again rather than reused', async (missing) => {
     const p = mkProject('p')
     trust([p])
     const file = usageConversation('conv-g', [p], [{ usage: { messageId: 'm-g', input: 100, output: 10 }, at: oct(26) }])
@@ -955,10 +984,28 @@ describe('a corrupt cache entry for a conversation', () => {
     const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, { sig: string; agg: unknown }> }
     const sig = cache.files[file].sig
     // The control: a well-formed entry under that signature is reused, so the signature is the one the engine matches
-    cache.files[file] = { sig, agg: { kind: 'antigravity', file, projectKey: '', unreadable: false, calls: [sentinel] } }
+    cache.files[file] = { sig, agg: { kind: 'antigravity', file, ...wellFormed } }
     writeFileSync(cacheFile, JSON.stringify(cache))
     expect(agyTotal(await build())).toBe(999_000)
+    const partial: Record<string, unknown> = { ...wellFormed }
+    delete partial[missing]
     cache.files[file] = { sig, agg: { kind: 'antigravity', file, ...partial } }
+    writeFileSync(cacheFile, JSON.stringify(cache))
+    expect(agyTotal(await build())).toBe(110)
+  })
+
+  it.each([
+    ["a call's seventh element", { calls: [sentinel.slice(0, 6)] }],
+    ['a question record of another arity', { questions: [[0, 1, 2, null, 0, 0]] }],
+    ['a title that is not a string', { title: 7 }]
+  ])('an entry with %s is read again rather than reused', async (_what, change) => {
+    const p = mkProject('p')
+    trust([p])
+    const file = usageConversation('conv-g', [p], [{ usage: { messageId: 'm-g', input: 100, output: 10 }, at: oct(26) }])
+    expect(agyTotal(await build())).toBe(110)
+    const cacheFile = join(cacheDir(), 'token-cache.json')
+    const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, { sig: string; agg: unknown }> }
+    cache.files[file] = { sig: cache.files[file].sig, agg: { kind: 'antigravity', file, ...wellFormed, ...change } }
     writeFileSync(cacheFile, JSON.stringify(cache))
     expect(agyTotal(await build())).toBe(110)
   })
@@ -1016,5 +1063,313 @@ describe('the archive keeps what a scan saw (token-stats C10)', () => {
     const live = (await build()).rows
     expect(pastDay(live)).toBe(110)
     expect(pastDay(archive.merge(live, anchor).rows)).toBe(330)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// Sessions (session-view::REQ-003, REQ-004, REQ-005, US-001): a conversation database is the session, its transcript
+// holds the questions and turns, and agy's summaries database the title. The transcripts are agy's own
+// (agy-transcript-fixture.ts); the summaries rows copy the real titles.
+describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004, REQ-005)', () => {
+  const T = MEASURED_TRANSCRIPT
+  const ID = MEASURED_TRANSCRIPT_ID
+  const sessionsOf = (r: TokenBuildResult, folder: string): SessionMeta[] => r.perProject.get(mergeKey(folder))?.sessions ?? []
+  const engine = (): TokenEngine => new TokenEngine(cacheDir())
+  /** The page's question texts, read from the session's read source by range as the session page reads them */
+  async function questionTexts(e: TokenEngine, file: string): Promise<Array<string | null>> {
+    const q = await e.sessionQuestions(roots(), file)
+    const { texts } = await readRanges(q.source, q.questions.map((r) => ({ start: r[0], end: r[1] })))
+    return texts.map((t) => questionTextOfRange(q.side, t))
+  }
+  /** A step agy records for a user's input: its creation time and no call */
+  const inputStep = (conversationId: string, idx: number, at: number): StepRow => ({
+    idx,
+    type: 14,
+    metadata: encodeStepMetadata({ conversationId, stepIndex: idx, createdAt: at })
+  })
+  /** The derived question line: the measured user-input shape at a later step */
+  const question = (step: number, text: string): string =>
+    JSON.stringify({ step_index: step, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:30:00Z', content: `<USER_REQUEST>\n${text}\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nThe current local time is: 2026-10-28T16:30:00+08:00.\n</ADDITIONAL_METADATA>` })
+
+  /** A trusted folder with the measured dispatching conversation (two calls and a later input step; its db's time set
+   * apart from its steps'), its subagent, the conversation agy creates when opened, and one that asked nothing */
+  function dispatchHome(): { p: string; main: string; sub: string; empty: string; silent: string } {
+    const p = mkProject('demo')
+    trust([p])
+    const main = usageConversation(ID.dispatch, [p], [
+      { usage: { messageId: 'm-d1', input: 100, output: 10 }, at: oct(26, 10) },
+      { usage: { messageId: 'm-d2', input: 200, output: 20 }, at: oct(26, 11) }
+    ], { steps: [inputStep(ID.dispatch, 5, oct(26, 12))] })
+    utimesSync(main, oct(20) / 1000, oct(20) / 1000)
+    writeTranscript(agyRoot(), ID.dispatch, T.dispatch)
+    const sub = usageConversation(ID.subagent, [p], [{ usage: { messageId: 'm-s1', input: 6984, output: 164 }, at: oct(26, 10) }], {
+      record: encodeTrajectoryMetadata({ folders: [p], conversationId: ID.subagent, parentConversationId: ID.dispatch, nestingDepth: 1, subagentSpec: true })
+    })
+    writeTranscript(agyRoot(), ID.subagent, T.subagent)
+    const empty = conversation('438a6b76-5f66-490d-8506-613ed88f6d68', [p], oct(26) / 1000)
+    const silent = usageConversation('conv-silent', [p], [{ usage: { messageId: 'm-q1', input: 50, output: 5 }, at: oct(26) }])
+    writeTranscript(agyRoot(), 'conv-silent', [T.main[5]])
+    writeSummaries(agyRoot(), [{ id: ID.dispatch, title: MEASURED_TITLE[ID.dispatch] }, { id: ID.subagent, title: '' }])
+    return { p, main, sub, empty, silent }
+  }
+
+  it('one row per conversation that asked something: agy\'s title, its largest step time, its own tokens (REQ-003/AC-01 to AC-05)', async () => {
+    const { p, main } = dispatchHome()
+    const r = await build()
+    expect(sessionsOf(r, p)).toEqual([
+      { side: 'antigravity', title: 'List Calc.py Function Names', at: oct(26, 12), tokens: 330, file: main, questionCount: 1, forkState: 'none' }
+    ])
+    // The subagent, the opened-and-left conversation and the one that asked nothing have no row; their tokens count
+    expect(agyTotal(r)).toBe(330 + 7148 + 55)
+    expect(r.antigravityUnreadable).toBe(0)
+  })
+
+  it('the page: the session ID is the database\'s name, the questions come from the transcript (US-001/AC-01, REQ-004/AC-01)', async () => {
+    const { main } = dispatchHome()
+    await build()
+    const e = engine()
+    const q = await e.sessionQuestions(roots(), main)
+    expect([q.side, q.sessionId, q.source, q.title, q.forkState]).toEqual([
+      'antigravity', '78543117-17bd-4161-bc47-c256f29f31eb', transcriptFile(agyRoot(), ID.dispatch), 'List Calc.py Function Names', 'none'
+    ])
+    expect(await questionTexts(e, main)).toEqual([
+      'Use the invoke_subagent tool to start one subagent of type self. Its task: list the names of the functions defined in calc.py. Wait for its answer and then report the list in one line.'
+    ])
+  })
+
+  it('opening a session reads only its questions\' ranges, never the whole transcript (REQ-004/AC-02)', async () => {
+    const { main } = dispatchHome()
+    writeTranscript(agyRoot(), ID.dispatch, [
+      ...T.dispatch,
+      JSON.stringify({ step_index: 8, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:10:20Z', content: 'z'.repeat(1024 * 1024) })
+    ])
+    await build()
+    const q = await engine().sessionQuestions(roots(), main)
+    const { bytesRead } = await readRanges(q.source, q.questions.map((r) => ({ start: r[0], end: r[1] })))
+    expect(bytesRead).toBeGreaterThan(0)
+    expect(bytesRead).toBeLessThan(5_000)
+    expect(statSync(q.source).size).toBeGreaterThan(1024 * 1024)
+  })
+
+  it('the read allow-list holds the listed conversation\'s database alone — never a transcript path, nor a subagent (REQ-004/AC-09)', async () => {
+    const { main, sub } = dispatchHome()
+    const r = await build()
+    expect(sessionReadTarget(r.sessionFiles, main)).toBe(main)
+    expect(sessionReadTarget(r.sessionFiles, sub)).toBeNull()
+    expect(sessionReadTarget(r.sessionFiles, transcriptFile(agyRoot(), ID.subagent))).toBeNull()
+    expect(sessionReadTarget(r.sessionFiles, transcriptFile(agyRoot(), ID.dispatch))).toBeNull()
+    expect([...r.sessionFiles]).toEqual([main])
+  })
+
+  it('a subagent conversation that was asked something still gets no row and is not admitted (REQ-003/AC-01, REQ-004/AC-09, token-stats::REQ-003/AC-07)', async () => {
+    const { p, main, sub } = dispatchHome()
+    // Derived: no subagent transcript measured holds a user-input line; a user resuming a subagent by its ID would
+    // write one. The control: the same transcript in a conversation whose record names no parent is listed
+    const asked = [...T.subagent, question(7, 'Which of them is the longest?')]
+    writeTranscript(agyRoot(), ID.subagent, asked)
+    const control = usageConversation('conv-control', [p], [{ usage: { messageId: 'm-k', input: 30, output: 3 }, at: oct(25) }])
+    writeTranscript(agyRoot(), 'conv-control', asked)
+    const r = await build()
+    expect(sessionsOf(r, p).map((s) => [s.file, s.questionCount])).toEqual([
+      [main, 1],
+      [control, 1]
+    ])
+    expect(agyTotal(r)).toBe(330 + 7148 + 55 + 33)
+    expect(sessionReadTarget(r.sessionFiles, sub)).toBeNull()
+    expect([...r.sessionFiles].sort()).toEqual([main, control].sort())
+  })
+
+  it.each([
+    ['no summaries database', (): void => undefined],
+    ['an empty title, as agy leaves a fork\'s', (): void => void writeSummaries(agyRoot(), [{ id: ID.dispatch, title: '' }])],
+    ['a summaries file that is no database', (): void => writeFileSync(join(agyRoot(), 'conversation_summaries.db'), 'not a database')],
+    [
+      'a summaries database of another shape',
+      (): void => void writeSummaries(agyRoot(), [], { alterSchema: (sql) => sql.replace('`title` text', '`name` text') })
+    ]
+  ])('the title falls back to the first question with %s (REQ-003/AC-03)', async (_case, summaries) => {
+    const p = mkProject('demo')
+    trust([p])
+    const main = usageConversation(ID.dispatch, [p], [{ usage: { messageId: 'm-d1', input: 100, output: 10 }, at: oct(26, 10) }])
+    writeTranscript(agyRoot(), ID.dispatch, T.dispatch)
+    summaries()
+    const r = await build()
+    const want = 'Use the invoke_subagent tool to start one subagent of type s…'
+    expect(sessionsOf(r, p).map((s) => s.title)).toEqual([want])
+    expect((await engine().sessionQuestions(roots(), main)).title).toBe(want)
+  })
+
+  it('reading the summaries writes nothing there, and reads the titles only a log holds (token-stats::CON-002)', async () => {
+    const { p } = dispatchHome()
+    const before = listing(agyRoot())
+    await build()
+    expect(listing(agyRoot())).toEqual(before)
+    // agy holds the summaries open and retitles the conversation: the new title is only in the log
+    rmSync(join(agyRoot(), 'conversation_summaries.db'))
+    const { writer } = writeSummaries(agyRoot(), [], { keepOpen: true })
+    if (!writer) throw new Error('no writer')
+    writers.push(writer)
+    insertSummaries(writer, [{ id: ID.dispatch, title: 'Retitled While Running' }])
+    const during = listing(agyRoot())
+    expect(during.map((l) => l.split(' ')[0])).toContain('conversation_summaries.db-wal')
+    const r = await build()
+    expect(sessionsOf(r, p).map((s) => s.title)).toEqual(['Retitled While Running'])
+    expect(listing(agyRoot())).toEqual(during)
+  })
+
+  it('a summaries read that fails while agy writes them keeps the titles last read (REQ-003/AC-03)', async () => {
+    const { p, main } = dispatchHome()
+    // The copy a read makes while a log is beside the summaries cannot be made: a read while agy writes that fails
+    const e = new TokenEngine(cacheDir(), undefined, join(dir, 'no-such-dir'))
+    const rebuild = (): Promise<TokenBuildResult> => e.build(roots(), [], undefined, walkSessions(roots()))
+    expect(sessionsOf(await rebuild(), p).map((s) => s.title)).toEqual(['List Calc.py Function Names'])
+    rmSync(join(agyRoot(), 'conversation_summaries.db'))
+    const { writer } = writeSummaries(agyRoot(), [], { keepOpen: true })
+    if (!writer) throw new Error('no writer')
+    writers.push(writer)
+    insertSummaries(writer, [{ id: ID.dispatch, title: 'Retitled While Running' }])
+    // Neither the log's title (a read that worked) nor the first question (the titles dropped)
+    expect(sessionsOf(await rebuild(), p).map((s) => s.title)).toEqual(['List Calc.py Function Names'])
+    // With no titles read before, the same failure falls back to the first question: at a build, and on a page asked
+    // for before any build
+    const fallback = 'Use the invoke_subagent tool to start one subagent of type s…'
+    const fresh = (): TokenEngine => new TokenEngine(cacheDir(), undefined, join(dir, 'no-such-dir'))
+    expect((await fresh().sessionQuestions(roots(), main)).title).toBe(fallback)
+    expect(sessionsOf(await fresh().build(roots(), [], undefined, walkSessions(roots())), p).map((s) => s.title)).toEqual([fallback])
+  })
+
+  it('a changed transcript is indexed again for that conversation alone, its database untouched (C4)', async () => {
+    const { p, main } = dispatchHome()
+    await build()
+    const e = engine()
+    expect(e.isFresh(main)).toBe(true)
+    const db = statSync(main)
+    appendFileSync(transcriptFile(agyRoot(), ID.dispatch), `${question(8, 'And which one is the longest?')}\n`)
+    expect(e.isFresh(main)).toBe(false)
+    expect(await questionTexts(e, main)).toEqual([
+      'Use the invoke_subagent tool to start one subagent of type self. Its task: list the names of the functions defined in calc.py. Wait for its answer and then report the list in one line.',
+      'And which one is the longest?'
+    ])
+    expect(e.isFresh(main)).toBe(true)
+    expect([statSync(main).mtimeMs, statSync(main).size]).toEqual([db.mtimeMs, db.size])
+    expect(sessionsOf(await build(), p).map((s) => s.questionCount)).toEqual([2])
+  })
+
+  it('a conversation that cannot be read is listed nowhere and has no page, its transcript notwithstanding (token-stats::REQ-004/AC-01)', async () => {
+    const p = mkProject('demo')
+    trust([p])
+    const file = usageConversation(ID.main, [p], [{ usage: { messageId: 'm-v', input: 100 }, at: oct(26) }], { userVersion: 2 })
+    writeTranscript(agyRoot(), ID.main, T.main)
+    const r = await build()
+    expect([sessionsOf(r, p), r.antigravityUnreadable, [...r.sessionFiles]]).toEqual([[], 1, []])
+    await expect(engine().sessionQuestions(roots(), file)).rejects.toSatisfy((err: unknown) => decodeAppError(err)?.code === ERR.sessionParseFailed)
+  })
+
+  describe('forks (REQ-005)', () => {
+    // The parent: the measured main conversation, two calls; a fork holds a copy of the parent's steps — their source
+    // naming the parent (measured) — and steps of its own, its transcript the measured fork rewound once
+    function parentAndFork(withParent: boolean): { p: string; parent: string; fork: string; silentFork: string } {
+      const p = mkProject('demo')
+      trust([p])
+      const copied = callRows(ID.main, [
+        { usage: { messageId: 'm-p1', input: 1000, output: 100 }, at: oct(26, 9) },
+        { usage: { messageId: 'm-p2', input: 2000, output: 200 }, at: oct(26, 10) }
+      ])
+      const parent = join(conversations(), `${ID.main}.db`)
+      if (withParent) {
+        usageConversation(ID.main, [p], [], { steps: copied.steps, gens: copied.gens })
+        writeTranscript(agyRoot(), ID.main, T.main)
+      }
+      const own = callRows(ID.forkRewound, [{ usage: { messageId: 'm-f1', input: 500, output: 50 }, at: oct(27, 9) }], 19, 2)
+      const fork = usageConversation(ID.forkRewound, [p], [], { steps: [...copied.steps, ...own.steps], gens: [...copied.gens, ...own.gens] })
+      writeTranscript(agyRoot(), ID.forkRewound, T.forkRewound)
+      // A fork that asked nothing of its own: a notice is all its transcript holds
+      const ownSilent = callRows('conv-silent-fork', [{ usage: { messageId: 'm-sf', input: 40, output: 4 }, at: oct(27, 9) }], 19, 2)
+      const silentFork = usageConversation('conv-silent-fork', [p], [], { steps: [...copied.steps, ...ownSilent.steps], gens: [...copied.gens, ...ownSilent.gens] })
+      writeTranscript(agyRoot(), 'conv-silent-fork', [T.main[5]])
+      writeSummaries(agyRoot(), [{ id: ID.main, title: MEASURED_TITLE[ID.main] }, { id: ID.forkRewound, title: '' }])
+      return { p, parent, fork, silentFork }
+    }
+    const forkTitle = 'In one short sentence, which function in calc.py is the simp…'
+
+    it('a fork is listed as one with only its own questions and tokens; its page names its parent (AC-01 to AC-03, AC-05)', async () => {
+      const { p, parent, fork } = parentAndFork(true)
+      const r = await build()
+      expect(sessionsOf(r, p).map((s) => [s.file, s.title, s.tokens, s.questionCount, s.forkState])).toEqual([
+        [fork, forkTitle, 550, 1, 'stripped'],
+        [parent, 'Explaining Calc.py Functionality', 3300, 4, 'none']
+      ])
+      // The silent fork has no row; its own call counts, and the copied calls once, with the parent
+      expect(agyTotal(r)).toBe(3300 + 550 + 44)
+      const e = engine()
+      const q = await e.sessionQuestions(roots(), fork)
+      expect([q.forkState, q.forkParentFile, q.forkParentTitle, q.title, q.sessionId]).toEqual([
+        'stripped', parent, 'Explaining Calc.py Functionality', forkTitle, '8c07e920-698c-4969-a30b-0226832da747'
+      ])
+      expect(await questionTexts(e, fork)).toEqual(['In one short sentence, which function in calc.py is the simplest?'])
+    })
+
+    it('a fork whose parent is no longer here is still a fork, never uncertain, and names no parent (AC-04, AC-05)', async () => {
+      const { p, fork } = parentAndFork(false)
+      const r = await build()
+      expect(sessionsOf(r, p).map((s) => [s.title, s.tokens, s.forkState])).toEqual([[forkTitle, 550, 'stripped']])
+      const q = await engine().sessionQuestions(roots(), fork)
+      expect([q.forkState, q.forkParentFile, q.forkParentTitle]).toEqual(['stripped', null, null])
+    })
+
+    it('the parent deleted after a scan: the next scan\'s page names no parent (the "parent deleted" failure mode)', async () => {
+      const { parent, fork } = parentAndFork(true)
+      await build()
+      expect((await engine().sessionQuestions(roots(), fork)).forkParentFile).toBe(parent)
+      rmSync(parent)
+      await build()
+      const q = await engine().sessionQuestions(roots(), fork)
+      expect([q.forkState, q.forkParentFile, q.forkParentTitle]).toEqual(['stripped', null, null])
+    })
+
+    it('a fork whose parent cannot be read takes the no-longer-here form (the "parent that cannot be read" failure mode)', async () => {
+      const { p, parent, fork } = parentAndFork(true)
+      // Derived: agy rewriting the parent in a format the app does not support, the fork itself still readable
+      const db = new DatabaseSync(parent)
+      db.exec('PRAGMA user_version = 2')
+      db.close()
+      const r = await build()
+      expect([sessionsOf(r, p).map((s) => [s.file, s.forkState]), r.antigravityUnreadable]).toEqual([[[fork, 'stripped']], 1])
+      const q = await engine().sessionQuestions(roots(), fork)
+      expect([q.forkState, q.forkParentFile, q.forkParentTitle]).toEqual(['stripped', null, null])
+    })
+
+    it('a fork\'s page names its parent with a corrupt cache entry ahead of it, before any build (the cache rule)', async () => {
+      const { parent, fork, silentFork } = parentAndFork(true)
+      await build()
+      const cacheFile = join(cacheDir(), 'token-cache.json')
+      const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }
+      for (const entry of [{ sig: '1:1', agg: null }, null]) {
+        // The corrupt entry first, so the parent lookup meets it before the parent
+        const rest = { ...cache.files }
+        delete rest[silentFork]
+        writeFileSync(cacheFile, JSON.stringify({ ...cache, files: { [silentFork]: entry, ...rest } }))
+        const keys = Object.keys((JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }).files)
+        expect(keys.indexOf(silentFork)).toBeLessThan(keys.indexOf(parent))
+        const q = await engine().sessionQuestions(roots(), fork)
+        expect([q.forkParentFile, q.forkParentTitle]).toEqual([parent, 'Explaining Calc.py Functionality'])
+      }
+    })
+
+    it('a fork of a fork names the conversation its last copied step came from (the "fork of a fork" failure mode)', async () => {
+      // Derived from the measured mechanism: B copies A; C copies A's steps and B's own, B's last
+      const p = mkProject('demo')
+      trust([p])
+      const a = callRows('conv-a', [{ usage: { messageId: 'm-a', input: 100, output: 10 }, at: oct(26, 9) }])
+      usageConversation('conv-a', [p], [], { steps: a.steps, gens: a.gens })
+      const b = callRows('conv-b', [{ usage: { messageId: 'm-b', input: 200, output: 20 }, at: oct(26, 10) }], 3, 1)
+      const bFile = usageConversation('conv-b', [p], [], { steps: [...a.steps, ...b.steps], gens: [...a.gens, ...b.gens] })
+      const c = callRows('conv-c', [{ usage: { messageId: 'm-c', input: 300, output: 30 }, at: oct(26, 11) }], 5, 2)
+      const cFile = usageConversation('conv-c', [p], [], { steps: [...a.steps, ...b.steps, ...c.steps], gens: [...a.gens, ...b.gens, ...c.gens] })
+      for (const id of ['conv-a', 'conv-b', 'conv-c']) writeTranscript(agyRoot(), id, [question(0, `question of ${id}`)])
+      await build()
+      const q = await engine().sessionQuestions(roots(), cFile)
+      expect([q.forkState, q.forkParentFile, q.forkParentTitle]).toEqual(['stripped', bFile, 'question of conv-b'])
+    })
   })
 })

@@ -17,14 +17,15 @@
 // page, which no drawer survives; add a case when it can change with a drawer open, such as from a menu).
 // Copy follows the dictionary the language cases cover; the file, mode and scroll would survive because a
 // language change remounts nothing in the drawer.
-import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { closeApp } from './close-app'
 import { ERR } from '../src/shared/errors'
-import { callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation, type UsageFixture } from '../src/main/testing/agy-fixture'
+import { MEASURED_TITLE, callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation, writeSummaries, type UsageFixture } from '../src/main/testing/agy-fixture'
+import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTranscript } from '../src/main/testing/agy-transcript-fixture'
 
 /** Each case gets its own userData with no cross-contamination; a cache file can be seeded */
 function makeUserData(cacheContent?: string): string {
@@ -2549,7 +2550,7 @@ test('the archive retains a past day whose live figure fell under the same stamp
   // is a literal here on purpose: a bump turns this case red (the seeded pair reads as another stamp and
   // the decrease is accepted) instead of silently passing — update it together with CACHE_VERSION.
   const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }
-  const stamp = `${pkg.version}+c18`
+  const stamp = `${pkg.version}+c19`
   const retainedRow = {
     day,
     side: 'claude',
@@ -6718,5 +6719,174 @@ test('the session page header: the session ID, copying it and the resume command
   expect(l.errors).toHaveLength(2)
   expect(l.errors.some((e) => e.includes('the clipboard refused it'))).toBe(true)
   expect(l.errors.some((e) => e.includes(ERR.sessionFileUnreadable))).toBe(true)
+  await close(l)
+})
+
+/**
+ * Ticket antigravity-side/#324: a folder agy trusts, holding the measured conversations (agy-transcript-fixture.ts) —
+ * a conversation of four questions; a fork of it, rewound once, whose database holds the parent's steps copied (their
+ * source naming the parent, as agy writes them) and a call of its own; a fork whose source conversation is gone; a
+ * dispatching conversation and its subagent; and the conversation agy creates when opened and left. Titles from agy's
+ * summaries for the first and the dispatcher; the forks have none.
+ */
+function mkAntigravitySessionsHome(): { home: string; proj: string; parent: string; fork: string } {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agysess-'))
+  const proj = join(home, 'agy-sessions')
+  mkdirSync(proj, { recursive: true })
+  const agy = join(home, '.gemini', 'antigravity-cli')
+  const conversations = join(agy, 'conversations')
+  mkdirSync(conversations, { recursive: true })
+  writeFileSync(join(agy, 'settings.json'), settingsJson([proj]))
+  const ID = MEASURED_TRANSCRIPT_ID
+  const record = (id: string, extra: Partial<Parameters<typeof encodeTrajectoryMetadata>[0]> = {}): Uint8Array =>
+    encodeTrajectoryMetadata({ folders: [proj], conversationId: id, ...extra })
+  const callOf = (conversationId: string, stepIdx: number, genIdx: number, messageId: string, daysAgo: number): ReturnType<typeof callRecord> =>
+    callRecord({
+      conversationId,
+      stepIdx,
+      genIdx,
+      usage: { messageId, input: 1000, output: 100 },
+      createdAt: localDayOffset(daysAgo).getTime() - 5_000,
+      completedAt: localDayOffset(daysAgo).getTime(),
+      responseModel: 'gemini-3.6-flash'
+    })
+  const copied = [callOf(ID.main, 1, 0, 'e-p1', 3), callOf(ID.main, 3, 1, 'e-p2', 3)]
+  const write = (id: string, rec: Uint8Array, calls: Array<ReturnType<typeof callRecord>>, lines?: readonly string[]): string => {
+    const { file } = writeConversation(conversations, id, rec, { steps: calls.map((c) => c.step), gens: calls.map((c) => c.gen) })
+    if (lines) writeTranscript(agy, id, lines)
+    return file
+  }
+  const parent = write(ID.main, record(ID.main), copied, MEASURED_TRANSCRIPT.main)
+  const fork = write(ID.forkRewound, record(ID.forkRewound), [...copied, callOf(ID.forkRewound, 19, 2, 'e-f1', 1)], MEASURED_TRANSCRIPT.forkRewound)
+  // A fork whose source conversation is no longer here: its copied steps name a database that does not exist
+  const gone = 'a7c3e9f1-0b2d-4e6f-8a1c-3d5e7f9b1c2a'
+  const goneSource = 'f0e1d2c3-b4a5-4968-8776-655443322110'
+  const question = JSON.stringify({ step_index: 19, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:30:00Z', content: '<USER_REQUEST>\nWhat does percent(1, 4) return now?\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nThe current local time is: 2026-10-28T16:30:00+08:00.\n</ADDITIONAL_METADATA>' })
+  const answer = JSON.stringify({ step_index: 20, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:30:05Z', input_tokens: 1000, cache_read_tokens: 0, output_tokens: 100, content: 'It returns `25.0`.' })
+  write(gone, record(gone), [callOf(goneSource, 1, 0, 'e-g0', 2), callOf(gone, 19, 1, 'e-g1', 2)], [question, answer])
+  write(ID.dispatch, record(ID.dispatch), [callOf(ID.dispatch, 1, 0, 'e-d1', 4)], MEASURED_TRANSCRIPT.dispatch)
+  write(ID.subagent, record(ID.subagent, { parentConversationId: ID.dispatch, nestingDepth: 1, subagentSpec: true }), [callOf(ID.subagent, 1, 0, 'e-s1', 4)], MEASURED_TRANSCRIPT.subagent)
+  write('438a6b76-5f66-490d-8506-613ed88f6d68', record('438a6b76-5f66-490d-8506-613ed88f6d68'), [])
+  writeSummaries(agy, [
+    { id: ID.main, title: MEASURED_TITLE[ID.main] },
+    { id: ID.dispatch, title: MEASURED_TITLE[ID.dispatch] },
+    { id: ID.forkRewound, title: '' }
+  ])
+  return { home, proj, parent, fork }
+}
+
+// session-view::REQ-003/AC-06, REQ-004/AC-04, REQ-005/AC-01, AC-04, AC-05, US-001/AC-01, AC-04, AC-07 (the Antigravity
+// clauses), project-detail::REQ-002/AC-04 (Sessions), global-search::REQ-001: an Antigravity user's sessions along the
+// user's path, in one launch. Finder's call and the clipboard are intercepted at the main process's Electron boundary,
+// as the session header case does, so the run neither opens Finder nor overwrites the clipboard.
+test('Antigravity sessions: AG rows and forks, a fork\'s page with its banner, header and turn, its parent, a gone source, and global search', async () => {
+  const { home, proj, parent, fork } = mkAntigravitySessionsHome()
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await l.app.evaluate(({ clipboard, shell }) => {
+    const g = globalThis as unknown as { __copied: string[]; __revealed: string[] }
+    g.__copied = []
+    g.__revealed = []
+    clipboard.writeText = (text: string) => {
+      g.__copied.push(text)
+    }
+    shell.showItemInFolder = (p: string) => {
+      g.__revealed.push(p)
+    }
+  })
+  const copied = (): Promise<string[]> => l.app.evaluate(() => (globalThis as unknown as { __copied: string[] }).__copied)
+  const revealed = (): Promise<string[]> => l.app.evaluate(() => (globalThis as unknown as { __revealed: string[] }).__revealed)
+  const btn = (act: string) => win.locator(`.pane-head .sact[data-act="${act}"]`)
+  const tip = win.locator('[data-testid="session-tip"]')
+  const forkTitle = 'In one short sentence, which function in calc.py is the simp…'
+  const FORK_ID = MEASURED_TRANSCRIPT_ID.forkRewound
+
+  // The Sessions tab: four AG rows, newest first — the subagent and the opened-and-left conversation have none; the
+  // two forks carry the fork pill, whose tooltip names the copied history
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'agy-sessions' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  const rows = win.locator('.pane-body .card .se')
+  await expect(rows.locator('.t')).toHaveText([forkTitle, 'What does percent(1, 4) return now?', 'Explaining Calc.py Functionality', 'List Calc.py Function Names'])
+  await expect(rows.locator('.badge.ag')).toHaveText(['AG', 'AG', 'AG', 'AG'])
+  await expect(rows.locator('.n')).toHaveText(['1 question', '1 question', '4 questions', '1 question'])
+  await expect(rows.nth(0).locator('.pill.fork')).toHaveAttribute('title', 'This session was forked from another; the copied history has been stripped')
+  await expect(rows.nth(1).locator('.pill.fork')).toHaveCount(1)
+  expect(await rows.locator('.pill.fork').count()).toBe(2)
+
+  // The fork's page: its banner names its parent, linked; the meta line and the conversation ID
+  await rows.nth(0).click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText(forkTitle)
+  await expect(win.locator('.pane-head .det-title .badge.ag')).toHaveText('AG')
+  await expect(win.locator('.pane-head .smeta')).toContainText('Antigravity · 1 question ·')
+  await expect(win.locator('.pane-head .smeta .sid-v')).toHaveText(FORK_ID)
+  // The byte figure is the fork's database's size — the record file Finder shows — not its transcript's: each written
+  // as the meta line writes a size in KB, and the two told apart
+  const kb = (file: string): string => `${(statSync(file).size / 1024).toFixed(1)} KB`
+  const forkTranscript = transcriptFile(join(home, '.gemini', 'antigravity-cli'), FORK_ID)
+  expect(kb(fork)).not.toBe(kb(forkTranscript))
+  await expect(win.locator('.pane-head .smeta')).toContainText(` tok · ${kb(fork)} · last active`)
+  const banner = win.locator('.pane-body .banner.info')
+  await expect(banner).toHaveText(
+    'This session was forked from “Explaining Calc.py Functionality”— the copied history has been stripped, so only what follows this fork is shown below. See that session for the earlier history.'
+  )
+  await expect(banner.locator('a')).toHaveText('“Explaining Calc.py Functionality”')
+
+  // Its one question — the rewind's undone question takes no row — and its turn: the thinking block and the prose,
+  // whose markdown link to a workspace file is plain text
+  const q = win.locator('.pane-body .q')
+  await expect(q.locator('.txt')).toHaveText(['In one short sentence, which function in calc.py is the simplest?'])
+  await q.first().click()
+  const turn = win.locator('.pane-body .turn')
+  await expect(turn.locator('.blk.think .nm')).toHaveText('Thinking')
+  await expect(turn.locator('.ans')).toContainText('[`calc.py`](file:///Users/sample/work/agy-fixture-project-x12/calc.py)')
+  expect(await turn.locator('.ans a').count()).toBe(0)
+
+  // The header: the conversation ID copied, the agy resume command copied, and Finder handed the database
+  await btn('id').click()
+  await expect.poll(copied).toEqual([FORK_ID])
+  await btn('resume').hover()
+  const cmd = `cd '${proj}' && agy --conversation ${FORK_ID}`
+  await expect(tip.locator('.stip-cmd')).toHaveText(cmd)
+  await btn('resume').click()
+  await expect.poll(copied).toEqual([FORK_ID, cmd])
+  await btn('reveal').click()
+  await expect.poll(revealed).toEqual([fork])
+  await win.mouse.move(5, 5)
+
+  // The banner's link opens the parent: its first turn shows a tool call and thinking
+  await banner.locator('a').click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Explaining Calc.py Functionality')
+  await expect(win.locator('.pane-head .smeta .sid-v')).toHaveText(MEASURED_TRANSCRIPT_ID.main)
+  await expect(win.locator('.pane-body .banner')).toHaveCount(0)
+  await win.locator('.pane-body .q', { hasText: 'In one sentence, what does calc.py in this folder do?' }).click()
+  await expect(win.locator('.pane-body .turn .blk .nm')).toHaveText(['read_file', 'Thinking'])
+  await btn('reveal').click()
+  await expect.poll(revealed).toEqual([fork, parent])
+
+  // The fork whose source is gone: the banner says so, with nothing to follow
+  await win.locator('.pane-head .sback').click()
+  await rows.nth(1).click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('What does percent(1, 4) return now?')
+  await expect(win.locator('.pane-body .banner.info')).toHaveText(
+    'This session was forked from a session that is no longer on this machine — the copied history has been stripped, so only what follows this fork is shown below.'
+  )
+  expect(await win.locator('.pane-body .banner a').count()).toBe(0)
+
+  // Global search: the fork's group wears AG and the fork pill; the parent's question hits too
+  await win.locator('.rail .ri').nth(2).click()
+  await win.locator('.gsearch .sbar input').fill('simplest')
+  const card = (title: string) => win.locator('.gsearch .grp', { has: win.locator('.gh .t', { hasText: title }) })
+  await expect(card(forkTitle).locator('.hit')).toHaveCount(1)
+  await expect(card(forkTitle).locator('.gh .badge.ag')).toHaveText('AG')
+  await expect(card(forkTitle).locator('.gh .pill.fork')).toHaveCount(1)
+  await expect(card('Explaining Calc.py Functionality').locator('.hit')).toHaveText(/In one short sentence, which test in test_calc\.py is the simplest\?/)
+  await expect(card('Explaining Calc.py Functionality').locator('.gh .pill')).toHaveCount(0)
+  // The rewind's undone question is not searched: the no-hit line, read once it has replaced the results
+  await win.locator('.gsearch .sbar input').fill('exactly one word')
+  await expect(win.locator('.gsearch .pane-body .shead')).toContainText('No hits.')
+  expect(await win.locator('.gsearch .grp').count()).toBe(0)
+
+  expect(l.errors).toEqual([])
   await close(l)
 })

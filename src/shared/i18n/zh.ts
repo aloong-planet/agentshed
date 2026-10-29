@@ -299,6 +299,10 @@ export const zh = {
      * the two must agree */
     parentTitle: (title: string) => `《${title}》`,
     forkedFromTail: '——重放前缀已剥离,下面只展示本次 fork 之后的新内容。**更早的历史见该会话**。',
+    /** An Antigravity fork (session-view::REQ-005): agy copies the history rather than replaying it, and marks every
+     * copied step, so the stripping is certain; with its source gone the banner says so instead of naming it */
+    forkedFromCopiedTail: '——复制来的历史已剥离,下面只展示本次 fork 之后的新内容。**更早的历史见该会话**。',
+    forkedFromGone: '本会话 fork 自一个**已不在本机**的会话——复制来的历史已剥离,下面只展示本次 fork 之后的新内容。',
     stripUncertainOrphan:
       '**重放前缀剥离不确定**:本会话 fork 自一个**不在扫描集内**的父会话(父文件已被清理,或属未注册项目),只能按启发式剥离——**可能多剥(丢消息)或少剥(重复)**,请对照原文核对。不静默剥错是这里唯一能给的保证。',
     stripUncertainMismatch: (parent: string) =>
@@ -358,7 +362,7 @@ export const zh = {
     dispatchPrompt: '派发 prompt',
     innerSteps: '内部步骤',
     unlinkedNote:
-      '这次派发的内部步骤在记录中**没有稳定引用链**可归位到此处(两侧实测皆然)——未展示,不做猜测性配对;完整转写在其独立文件中(如有)。',
+      '这次派发的内部步骤未在此展示——要么记录中**没有稳定引用链**可把它们归位到这次派发之下,要么它们在 subagent 自己的记录里,而那份记录不被读取;不做猜测性配对,完整转写在其独立文件中(如有)。',
     backToMain: '返回主会话',
     noReturn: '(未返回)',
     unknownRecords: (count: number, types: string) =>
@@ -402,6 +406,8 @@ export const zh = {
     descending: '倒序',
     ascending: '正序',
     forkTip: '本会话 fork 自另一个会话,开头的重放前缀已剥离',
+    /** The same pill on an Antigravity fork, whose copied history is stripped rather than a replayed prefix */
+    forkTipCopied: '本会话 fork 自另一个会话,复制来的历史已剥离',
     forkUncertainTip: '父会话不在扫描集内或与父校验不符,重放前缀只能按启发式剥离——可能少剥(重复)',
     questionCount: (n: number) => `${n} 提问`,
     sessionsFoot: '只列已注册项目的会话;subagent 与预热会话不单独入列,但 token 仍计入统计——故此处条数与上方 token 卡的分母不是同一个。',

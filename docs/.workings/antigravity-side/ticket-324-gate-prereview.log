@@ -1,0 +1,699 @@
+# Verification run, started 2026-10-28T23:08:30Z
+$ git rev-parse HEAD
+05faa8a8b74b80b61655674a11fc1517c7073e40
+$ git status --porcelain --untracked-files=all  (each file with git hash-object; deleted files marked)
+(end of version manifest)
+
+$ pnpm typecheck
+
+> agentshed@0.1.0-beta.2 typecheck /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+exit=0
+
+$ pnpm lint
+
+> agentshed@0.1.0-beta.2 lint /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> eslint . --max-warnings 0
+
+exit=0
+
+$ pnpm test
+
+> agentshed@0.1.0-beta.2 test /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> vitest run
+
+
+ RUN  v2.1.9 /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+
+ ✓ src/shared/validate.test.ts (47 tests) 10ms
+ ✓ src/main/providers/turn-content.test.ts (34 tests) 51ms
+ ✓ src/main/providers/question-index.test.ts (61 tests) 75ms
+ ✓ src/main/providers/activity.test.ts (18 tests) 95ms
+ ✓ src/main/update-controller.test.ts (17 tests) 12ms
+ ✓ src/main/providers/plugins.test.ts (19 tests) 171ms
+ ✓ src/main/providers/archive.test.ts (17 tests) 48ms
+ ✓ src/main/display-store.test.ts (12 tests) 33ms
+ ✓ src/shared/usage.test.ts (18 tests) 4ms
+ ✓ src/main/providers/subagents.test.ts (15 tests) 79ms
+ ✓ src/main/security.test.ts (26 tests) 6ms
+ ✓ src/main/providers/search-sessions.test.ts (10 tests) 163ms
+ ✓ src/main/providers/agy-proto.test.ts (17 tests) 102ms
+ ✓ src/main/prefs-store.test.ts (29 tests) 45ms
+ ✓ src/main/providers/memory.test.ts (13 tests) 64ms
+ ✓ src/main/update-source.test.ts (24 tests) 1071ms
+ ✓ src/shared/i18n/distinctions.test.ts (10 tests) 15ms
+ ✓ src/main/providers/global.test.ts (9 tests) 84ms
+ ✓ src/main/providers/skill-package.test.ts (11 tests) 85ms
+ ✓ src/shared/trend.test.ts (14 tests) 11ms
+ ✓ src/main/providers/question-corpus.test.ts (17 tests) 1132ms
+ ✓ src/shared/i18n/index.test.ts (11 tests) 5ms
+ ✓ src/main/providers/jsonl.test.ts (14 tests) 370ms
+   ✓ eachJsonlLine — byte offsets > a long file whose line lengths vary byte by byte: every line slices back verbatim 313ms
+ ✓ src/main/providers/range-read.test.ts (12 tests) 158ms
+ ✓ src/main/prefs-handlers.test.ts (9 tests) 30ms
+ ✓ src/main/app-menu.test.ts (10 tests) 4ms
+ ✓ src/shared/axis.test.ts (11 tests) 13ms
+ ✓ src/main/providers/registry.test.ts (10 tests) 37ms
+ ✓ src/main/providers/project-detail.test.ts (8 tests) 51ms
+ ↓ src/main/providers/ccusage-parity.test.ts (1 test | 1 skipped)
+ ✓ src/main/providers/install.test.ts (10 tests) 45ms
+ ✓ src/shared/format.test.ts (14 tests) 33ms
+ ✓ src/main/settings-check.test.ts (10 tests) 5ms
+ ✓ src/main/providers/session-title.test.ts (16 tests) 3ms
+ ✓ src/shared/i18n/counted-nouns.test.ts (5 tests) 9ms
+ ✓ src/shared/update.test.ts (10 tests) 4ms
+ ✓ src/renderer/src/skill-filter.test.ts (15 tests) 30ms
+ ✓ src/main/appearance-mode.test.ts (5 tests) 7ms
+ ✓ src/shared/i18n/zh-script.test.ts (3 tests) 3ms
+ ✓ src/shared/errors.test.ts (9 tests) 5ms
+ ✓ src/renderer/src/global-search-groups.test.ts (4 tests) 4ms
+ ✓ src/main/providers/artifacts.test.ts (6 tests) 20ms
+ ✓ src/main/providers/antigravity.test.ts (79 tests) 2246ms
+ ✓ src/renderer/src/global-search-query.test.ts (6 tests) 291ms
+ ✓ src/shared/contract-error.test.ts (6 tests) 5ms
+ ✓ src/shared/i18n/plural.test.ts (6 tests) 12ms
+ ✓ src/renderer/src/version-row.test.ts (6 tests) 3ms
+ ✓ src/renderer/src/prefs-backfill.test.ts (7 tests) 3ms
+ ✓ src/main/providers/search-bytes.test.ts (6 tests) 18ms
+ ✓ src/main/providers/token-stats.test.ts (107 tests) 2501ms
+   ✓ resuming a grown Codex rollout > wherever the file is cut, scanning the first part and then the grown file gives the cold result 539ms
+   ✓ resuming a grown Codex rollout > after 50 resumes the next growth is parsed whole, bounding an edit no cheap check sees 400ms
+ ✓ src/renderer/src/turn-content-query.test.ts (7 tests) 3ms
+ ✓ src/main/parse-pool.test.ts (6 tests) 687ms
+   ✓ ParsePool > reuses an idle worker within its idle time and stops it after 303ms
+ ✓ src/shared/prefs.test.ts (13 tests) 4ms
+ ✓ src/renderer/src/question-groups.test.ts (6 tests) 19ms
+ ✓ src/shared/provider.test.ts (8 tests) 3ms
+ ✓ src/shared/error-text.test.ts (6 tests) 6ms
+ ✓ src/renderer/src/display-queries.test.ts (3 tests) 7ms
+ ✓ src/renderer/src/md-links.test.ts (8 tests) 2ms
+stderr | src/main/run-version.test.ts > recordRunVersion > a record that cannot be written does not stop the launch, and the answer still stands
+[run-version] could not record this run's version: Error: EISDIR: illegal operation on a directory, open '/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/run-version-lLIc5p/.last-run-version.json.tmp-18981'
+    at Proxy.writeFileSync (node:fs:2483:20)
+    at Module.recordRunVersion (/Users/loong_zhou/CascadeProjects/agentshed-wt-324/src/main/run-version.ts:24:5)
+    at /Users/loong_zhou/CascadeProjects/agentshed-wt-324/src/main/run-version.test.ts:56:12
+    at file:///Users/loong_zhou/CascadeProjects/agentshed-wt-324/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/loong_zhou/CascadeProjects/agentshed-wt-324/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/loong_zhou/CascadeProjects/agentshed-wt-324/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/loong_zhou/CascadeProjects/agentshed-wt-324/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///Users/loong_zhou/CascadeProjects/agentshed-wt-324/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/loong_zhou/CascadeProjects/agentshed-wt-324/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  errno: -21,
+  code: 'EISDIR',
+  syscall: 'open',
+  path: '/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/run-version-lLIc5p/.last-run-version.json.tmp-18981'
+}
+
+ ✓ src/shared/session-resume.test.ts (3 tests) 2ms
+ ✓ src/main/run-version.test.ts (12 tests) 23ms
+ ✓ src/main/providers/scan.test.ts (4 tests) 7ms
+ ✓ src/main/app-protocol.test.ts (7 tests) 4ms
+ ✓ src/renderer/src/skill-files-query.test.ts (6 tests) 2ms
+ ✓ src/renderer/src/update-toasts.test.ts (5 tests) 2ms
+ ✓ src/main/source-identity.test.ts (2 tests) 4ms
+ ✓ src/renderer/src/hit-window.test.ts (6 tests) 2ms
+ ✓ src/renderer/src/RichText.test.ts (7 tests) 5ms
+ ✓ src/renderer/src/session-search-query.test.ts (5 tests) 5ms
+ ✓ src/shared/appearance.test.ts (6 tests) 2ms
+ ✓ src/renderer/src/artifact-content-query.test.ts (4 tests) 2ms
+ ✓ src/main/system-language.test.ts (2 tests) 2ms
+ ✓ src/renderer/src/subagent-error-label.test.ts (3 tests) 2ms
+ ✓ src/renderer/src/fmt-tok.test.ts (4 tests) 2ms
+ ✓ src/main/rescan.test.ts (2 tests) 2ms
+ ✓ src/renderer/src/project-detail-query.test.ts (4 tests) 4ms
+ ✓ src/renderer/src/session-page-query.test.ts (4 tests) 2ms
+ ✓ src/shared/i18n/stale-note-copy.test.ts (4 tests) 2ms
+ ✓ src/renderer/src/query-client.test.ts (3 tests) 2ms
+ ✓ src/main/read-registrations.test.ts (1 test) 1ms
+ ✓ src/renderer/src/md.test.ts (13 tests) 38ms
+
+ Test Files  79 passed | 1 skipped (80)
+      Tests  1017 passed | 1 skipped (1018)
+   Start at  07:08:46
+   Duration  4.75s (transform 2.12s, setup 0ms, collect 6.40s, tests 10.12s, environment 635ms, prepare 4.64s)
+
+exit=0
+
+$ pnpm test:scripts
+
+> agentshed@0.1.0-beta.2 test:scripts /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/release-workflow.test.mjs scripts/workflow-actions.test.mjs
+
+[mac] could not remove the temporary extraction /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-xbAVg0: ENOTEMPTY, Directory not empty: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-xbAVg0 '/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-xbAVg0'
+[mac] could not remove the temporary extraction /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-XawnXN: ENOTEMPTY, Directory not empty: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-XawnXN '/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-XawnXN'
+▶ configuration
+  ✔ reads the DMG target architectures in config order (0.940333ms)
+  ✔ fails on no dmg target (0.273917ms)
+  ✔ fails on an unknown arch (0.104041ms)
+  ✔ fails on an arch listed twice (0.078042ms)
+  ✔ product name, version, output directory and arches come from the project files (0.242542ms)
+  ✔ a zip target with the dmg target's arches opts the ZIP in, in whatever order it lists them (0.187875ms)
+  ✔ the ZIP opt-in is refused before building with a zip target for other arches (0.1125ms)
+  ✔ the ZIP opt-in is refused before building with a zip target without an arch list (0.08025ms)
+  ✔ the ZIP opt-in is refused before building with no mac.artifactName (0.26575ms)
+  ✔ the ZIP opt-in is refused before building with another mac.artifactName (0.685667ms)
+  ✔ the ZIP opt-in is refused before building with the DMG still written into the update metadata (0.303417ms)
+  ✔ an output directory using a macro other than ${version} is refused rather than guessed (0.21625ms)
+  ✔ the DMG name pattern is required, and the error says what to write (0.16975ms)
+  ✔ the DMG must be signed, and the error says what to write (0.112334ms)
+  ✔ a config without productName is refused (0.081125ms)
+  ✔ js-yaml comes from electron-builder's dependency tree, and its absence is explained (8.972417ms)
+✔ configuration (13.964875ms)
+▶ certificate source check
+  ✔ a Developer ID Application identity in the keychain is accepted (0.245875ms)
+  ✔ no Developer ID Application identity fails with the install hint (0.228416ms)
+  ✔ CSC_LINK is accepted without reading the keychain, since the builder imports it (0.131959ms)
+  ✔ an empty CSC_LINK does not count as a certificate (0.094042ms)
+✔ certificate source check (0.852ms)
+▶ locating the built apps
+  ✔ identifies each app by its binary architectures, whatever its directory is called (5.769792ms)
+  ✔ fails when nothing has been built (0.513959ms)
+  ✔ fails when an arch is missing (4.365792ms)
+  ✔ fails when a binary has unexpected architectures (6.173417ms)
+  ✔ fails when a crashed universal build left its arm64 temp app behind (5.653ms)
+  ✔ fails on a leftover app for an arch the config no longer lists (4.217583ms)
+✔ locating the built apps (26.953333ms)
+▶ one build, local profile
+  ✔ builds the apps and DMGs in one builder call with notarization off and no hook, then checks every signature (5.187333ms)
+  ✔ fails before building anything when there is no certificate (0.467709ms)
+  ✔ fails on an ad-hoc signature instead of shipping it (6.548291ms)
+  ✔ fails on an App Store signature instead of shipping it (7.795208ms)
+  ✔ fails when the builder left no DMG for an arch (7.852583ms)
+  ✔ fails when a DMG is signed by a different team from the app inside it (7.186333ms)
+✔ one build, local profile (35.300041ms)
+▶ one build, release profile
+  ✔ adds this file as the afterSign hook to the same builder call, and confirms every app carries its ticket (5.765708ms)
+  ✔ refuses to build without every Apple credential (0.646667ms)
+  ✔ fails when an app came out of the build without a stapled ticket (the hook did not run on it) (3.396ms)
+✔ one build, release profile (10.687875ms)
+▶ one build with the ZIP electron-updater installs from
+  ✔ local packaging checks the app inside each ZIP in a temporary extraction, which it removes, and asks for no ticket (9.240375ms)
+  ✔ release packaging also requires the app inside each ZIP to carry its stapled ticket (7.182083ms)
+  ✔ a ZIP whose app has no stapled ticket fails the release, even though the built app has one (9.721417ms)
+  ✔ a ZIP whose app has no Developer ID Application authority fails, even though the built app is signed correctly (5.366166ms)
+  ✔ a ZIP whose app has another Team ID fails, even though the built app is signed correctly (14.776209ms)
+  ✔ a ZIP whose app has no secure timestamp fails, even though the built app is signed correctly (5.214041ms)
+  ✔ an extraction that cannot be fully removed leaves the outcome of a check that passed as it is (7.031166ms)
+  ✔ an extraction that cannot be fully removed leaves the outcome of a check that failed as it is (5.863375ms)
+  ✔ a ZIP that holds more than the app fails (5.259083ms)
+  ✔ the ZIP is never written: its bytes and time are the builder's, and only the extraction names it (6.146917ms)
+  ✔ fails when the builder left no ZIP for an arch (5.977292ms)
+✔ one build with the ZIP electron-updater installs from (82.171583ms)
+▶ a rebuild leaves nothing from an earlier run behind
+  ✔ a DMG left over from an earlier run does not pass as this run's output (3.139875ms)
+  ✔ build output directories from an earlier run are cleared before the build, so a leftover app never reaches the hook (7.089333ms)
+  ✔ with the ZIP, leftover ZIPs and update metadata are cleared before the build (7.626625ms)
+  ✔ DMG-only, ZIPs and update metadata are left as they are (3.150167ms)
+  ✔ the notarization logs of the apps and DMGs being rebuilt are removed (3.360458ms)
+✔ a rebuild leaves nothing from an earlier run behind (24.46975ms)
+▶ afterSign hook: notarize each signed app before its DMG is built
+  ✔ zips, submits, keeps the log, staples and validates the app it is called for (2.753125ms)
+  ✔ does nothing for a Mac App Store build (1.251458ms)
+  ✔ fails without every Apple credential instead of skipping (2.387833ms)
+  ✔ a rejected app fails the build with the original error, unstapled (2.727333ms)
+✔ afterSign hook: notarize each signed app before its DMG is built (9.225917ms)
+▶ DMG gate: which DMGs
+  ✔ selects exactly the expected DMG for each configured arch, in config order (0.19225ms)
+  ✔ a missing DMG fails before any submission (0.087042ms)
+  ✔ a leftover DMG (another version, another name) fails rather than slipping past (0.074208ms)
+  ✔ the app inside a mounted DMG is looked up by the product name (0.409917ms)
+✔ DMG gate: which DMGs (0.826917ms)
+▶ the artifact set the DMG gate runs on
+  ✔ with the ZIP: the DMGs and ZIPs in config order, once the one update metadata file vouches for exactly those ZIPs; nothing is written (8.89075ms)
+  ✔ fails before any submission when a DMG is missing (4.869875ms)
+  ✔ fails before any submission when a ZIP is missing (4.284666ms)
+  ✔ fails before any submission when a ZIP under electron-builder's default name is left over (4.441875ms)
+  ✔ fails before any submission when a ZIP of another version is left over (5.890375ms)
+  ✔ fails before any submission when there is no update metadata (4.972875ms)
+  ✔ fails before any submission when there are several update metadata files (5.478625ms)
+  ✔ fails before any submission when the update metadata is for another version (4.317041ms)
+  ✔ fails before any submission when the update metadata lists a DMG (5.01ms)
+  ✔ fails before any submission when the update metadata leaves a ZIP out (5.263083ms)
+  ✔ fails before any submission when the update metadata lists a ZIP twice (5.030542ms)
+  ✔ fails before any submission when the update metadata records another size (5.022084ms)
+  ✔ fails before any submission when the update metadata records another sha512 (5.149292ms)
+  ✔ DMG-only: ZIPs and update metadata are not part of the set (5.906917ms)
+✔ the artifact set the DMG gate runs on (74.979667ms)
+▶ DMG gate: signature and Apple results
+  ✔ accepts a Developer ID Application DMG with the right Team ID and a secure timestamp (0.1705ms)
+  ✔ refuses a DMG with no Developer ID Application authority (0.067708ms)
+  ✔ refuses a DMG with another Team ID (0.038375ms)
+  ✔ refuses a DMG with the timestamp turned off (0.037625ms)
+  ✔ an Accepted log must belong to this submission and carry no error (0.140083ms)
+  ✔ a submission must be Accepted with an id, and malformed output never passes (0.11075ms)
+✔ DMG gate: signature and Apple results (0.644541ms)
+▶ DMG gate: one DMG
+  ✔ runs verify → submit → log → staple → Gatekeeper → the app inside, then detaches and removes the mount point (0.262791ms)
+  ✔ a DMG without a secure timestamp fails before it is submitted (0.110333ms)
+  ✔ a rejection fetches the log for diagnosis but throws the original error (0.111958ms)
+  ✔ a failure inside the mounted image still detaches (forcing if needed), and cleanup never hides the cause (0.127417ms)
+✔ DMG gate: one DMG (0.662167ms)
+▶ command line
+  ✔ an unknown subcommand prints the usage (0.134166ms)
+  ✔ outside the project root it says so instead of guessing (0.253333ms)
+  ✔ the DMG gate checks the artifact set before running any command (5.786959ms)
+✔ command line (6.220958ms)
+✔ a formal release's DMGs go to releases/v<version>/ with immutable caching, and nothing else is written (4.129625ms)
+✔ the pointer is written last, naming the version and each file with its download URL (2.610042ms)
+✔ the update files in the artifact stay off R2: only the DMGs are mirrored, and the pointer names only them (4.022042ms)
+✔ a mirrored file the download host cannot serve leaves the pointer unwritten (2.083291ms)
+✔ a file the download host serves with other bytes than the gated file leaves the pointer unwritten (3.233792ms)
+✔ a file the download host misses once is read again after a pause, and then the pointer is written (1.63025ms)
+✔ an upload that fails partway fails the mirror (1.609292ms)
+✔ the aws-cli adapter copies each object with its headers to the bucket on the R2 endpoint (0.962917ms)
+[mirror] uploaded releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg
+[mirror] https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg serves the gated file (38 bytes, sha256 fbde74630a7f47b9198ec75012154b1ecc506123c7c3b17b0024ec4e0751a4a8)
+[mirror] latest.json now points at 0.2.0
+✔ the HTTP probe reports the status, and the size and sha256 of the bytes it read (29.727917ms)
+✔ the entry point refuses a missing setting or an unknown step before any command (0.663ms)
+✔ the entry point uploads to the bucket on the account endpoint, and points at the download host (3.848209ms)
+✔ a pre-release tag is refused before the bucket or the download host is touched (1.700417ms)
+[release] uploading Agentshed-0.2.0-mac-arm64.dmg, Agentshed-0.2.0-mac-arm64.zip, Agentshed-0.2.0-mac-arm64.zip.blockmap, latest-mac.yml to a draft of v0.2.0
+[release] published v0.2.0 (Latest) with Agentshed-0.2.0-mac-arm64.dmg, Agentshed-0.2.0-mac-arm64.zip, Agentshed-0.2.0-mac-arm64.zip.blockmap, latest-mac.yml
+[release] uploading Agentshed-0.2.0-mac-arm64.dmg, Agentshed-0.2.0-mac-arm64.zip, Agentshed-0.2.0-mac-arm64.zip.blockmap, latest-mac.yml to a draft of v0.2.0
+[release] published v0.2.0 (pre-release) with Agentshed-0.2.0-mac-arm64.dmg, Agentshed-0.2.0-mac-arm64.zip, Agentshed-0.2.0-mac-arm64.zip.blockmap, latest-mac.yml
+✔ a formal tag publishes the whole set once, the update files with the DMG, titled for a release, marked Latest (8.53325ms)
+✔ a pre-release tag after a formal release is published as a pre-release, and Latest stays on the formal one (2.863ms)
+✔ a tag whose release is already public is refused, and nothing is created or deleted (3.412084ms)
+✔ an earlier attempt's drafts for the tag are removed first, so only this run's files go public (4.604041ms)
+▶ an upload that did not land in full leaves nothing public
+  ✔ the release holds fewer files than were sent (0.904167ms)
+  ✔ the create command fails after one upload (0.535542ms)
+✔ an upload that did not land in full leaves nothing public (7.540667ms)
+✔ a file whose stored bytes differ from the gated file leaves nothing public (4.018333ms)
+✔ an artifact with no DMG, with another version's directory, or with a DMG of another version fails before the release store is touched (3.143292ms)
+✔ an artifact without every update file fails before the release store is touched (20.024208ms)
+✔ a formal release that does not end up Latest fails the run where it can be seen (5.553375ms)
+✔ a release another run made public while this one uploaded is left alone, and this run publishes nothing (4.879875ms)
+✔ the GitHub CLI adapter sends each operation as the gh command that performs it (0.364041ms)
+✔ the adapter reads gh's JSON into the fields publishing checks (0.145958ms)
+✔ a failed gh command fails the operation that sent it (0.126084ms)
+✔ the entry point refuses an environment it cannot classify, before any gh command (0.238375ms)
+✔ the classification in the environment reaches gh: "false" publishes Latest, "true" a pre-release (5.948334ms)
+✔ a tag matching the package version passes and gives the version (0.541959ms)
+✔ a tag that differs from the package version fails, naming the tag the version needs (0.258209ms)
+✔ a version with build metadata, or one that is not semver, is refused even when the tag matches (0.178ms)
+✔ the command passes a matching tag, and fails with both versions on a mismatch or with no tag (167.553125ms)
+✔ the workflow runs on a v* tag push and on a manual dispatch with the verify switch, and on nothing else (0.969ms)
+✔ the tier follows the trigger: every tag and a dispatch with the switch run the release profile, any other dispatch the local one (6.159458ms)
+✔ publishing runs only on a tag push, after the gate job passed; a manual run cannot reach it under any input (0.635208ms)
+✔ publishing marks every suffixed tag a pre-release, -beta.2 included, and a plain version formal (0.2735ms)
+✔ a missing certificate fails every tier at once, naming the secrets, before anything is checked out or built (23.714583ms)
+✔ missing Apple credentials fail the release tiers before packaging, and leave the local tier alone (14.52825ms)
+✔ a tag push checks the tag against the package version before packaging; a dispatch does not (1.033083ms)
+✔ the gate job's time limit leaves room for two submissions of up to 30 minutes and the build (0.098625ms)
+✔ the packages, the update files and Apple's logs are kept with the run, and publishing takes exactly that artifact (0.272792ms)
+✔ credentials reach only the packaging steps and the two R2 steps, the local packaging never gets Apple credentials, and no run block interpolates (0.858208ms)
+✔ after a failed requirement nothing else runs: no later step in the gate job overrides the stop with a status function (0.316083ms)
+✔ the mirror and the pointer run for a formal tag push only: never for a pre-release, a dispatch or a pull request (1.160833ms)
+✔ the mirror follows the published GitHub release, and the pointer follows the mirror; a failed job before them skips them (0.16475ms)
+✔ a missing R2 credential fails the mirror and the pointer first, naming the four secrets (CON-003) (19.420458ms)
+✔ the mirror and the pointer read the gate job's artifact and the download host the certificate check settled (0.192083ms)
+✔ every action in every workflow is pinned to a full commit (0.638792ms)
+✔ each action's line names its release in a comment, and the lines account for every action (0.649834ms)
+✔ an action is at one commit, and a commit names one release, in every workflow (0.417209ms)
+ℹ tests 137
+ℹ suites 13
+ℹ pass 137
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 358.5745
+exit=0
+
+$ pnpm test:site
+
+> agentshed@0.1.0-beta.2 test:site /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> pnpm --dir site check && pnpm --dir site test
+
+
+> agentshed-site@0.0.0 check /Users/loong_zhou/CascadeProjects/agentshed-wt-324/site
+> astro check
+
+07:08:55 [types] Generated 93ms
+07:08:55 [check] Getting diagnostics for Astro files in /Users/loong_zhou/CascadeProjects/agentshed-wt-324/site...
+Result (27 files): 
+- 0 errors
+- 0 warnings
+- 0 hints
+
+
+> agentshed-site@0.0.0 test /Users/loong_zhou/CascadeProjects/agentshed-wt-324/site
+> vitest run
+
+
+ RUN  v5.0.5 /Users/loong_zhou/CascadeProjects/agentshed-wt-324/site
+
+
+ Test Files  7 passed (7)
+      Tests  107 passed (107)
+   Start at  07:08:59
+   Duration  1.93s (import 68%, tests 22%, transform 9%, worker 1%)
+
+exit=0
+
+$ pnpm check:ui
+
+> agentshed@0.1.0-beta.2 check:ui /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs
+
+✔ the planted run fails, and only on what was planted (1.425583ms)
+✔ a page without its asset's link is reported, though its comment names the asset (0.135041ms)
+✔ a page without its asset's script is reported, though a script comment names the asset (0.081292ms)
+✔ a page without its asset's script is reported, though a comment after code on the same line names the asset (0.064084ms)
+✔ a // inside a string is not a comment: the code after it on the line is read (0.063375ms)
+✔ a // inside a regular expression is not a comment: the code after it on the line is read (0.053667ms)
+✔ a /* inside a string opens no comment: the code after it is read (0.162417ms)
+✔ a template's line that starts with // is read (0.08325ms)
+✔ a declaration left only in a comment does not declare the block (0.074292ms)
+✔ a mount point's id left only in a comment does not count (0.1205ms)
+✔ an asset named in a comment on a page that does not declare its block is not reported (0.084791ms)
+✔ a tab identity script left only in a comment does not count (0.047666ms)
+✔ a chart without its own declaration is reported, though its page declares the block on another chart (0.033709ms)
+✔ a chart whose declaration is only in a comment is reported (0.029042ms)
+✔ a chart written in a script template is judged as well (0.034125ms)
+✔ a declaration that names no shared block is reported (0.033667ms)
+✔ an empty declaration is reported (0.032375ms)
+✔ a block known only by its files is checked: totals-card's stylesheet removed (0.0555ms)
+✔ a block known only by its files is checked: md-preview's stylesheet removed, its declaration in a script template (0.037209ms)
+✔ a new shared stylesheet is a block: a page linking it without a declaration is reported (0.027875ms)
+✔ a file added to a block joins its contract: a page declaring the block without referencing the file is reported (0.027292ms)
+✔ trend-chart's style invariant is still checked (0.031208ms)
+✔ trend-chart's style invariant is still checked in the app's sheet (0.034166ms)
+✔ trend-chart's app component is still checked for its required prop (0.027042ms)
+✔ a common library with no file in _shared is reported (0.036375ms)
+✔ a provider colour is reported in any renderer file, --p-xai included (0.043584ms)
+✔ a provider colour's dark value is reported (0.032ms)
+✔ a provider colour added to theme.css is reported without changing the gate (0.037875ms)
+✔ dark blue's accent is reported (0.028792ms)
+✔ a value of the accent family other than --accent is reported (0.038375ms)
+✔ the settings page's swatches are not reported by the accent rule (0.041667ms)
+✔ a theme added is checked: its swatch row against its theme.css block (0.032709ms)
+✔ a side added is counted in copy that names it beside another side (0.029167ms)
+✔ a side added has its chip label checked (0.0365ms)
+✔ a language added has its dictionary checked for side enumerations (0.032042ms)
+✔ a language added has its dictionary checked for rail controls named verbatim (0.032917ms)
+✔ a README added is reported by the READMEs that do not link it (0.04175ms)
+✔ a link to a README that is not at the root is reported (0.044042ms)
+✔ a rail item added has its route on a page checked (0.028625ms)
+✔ a ticket number in the English README is reported (0.516833ms)
+✔ a ticket number in a new docs/ directory is reported (0.082417ms)
+✔ a ticket number in a new document at the root is reported (0.149791ms)
+✔ a ticket number in the construction records is not reported (0.134958ms)
+✔ a source array with a member the gate cannot read is reported (0.037166ms)
+✔ a source record with a member the gate cannot read is reported (0.028459ms)
+✔ a source record with a spread member is reported (0.038334ms)
+✔ a component in a subdirectory of the renderer's source is checked (0.029458ms)
+✔ a provider colour in a renderer .ts module is reported (0.02525ms)
+✔ a ticket number in package.json is reported (0.033375ms)
+✔ the run on missing sources fails, after every rule has run (0.161625ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.027333ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.017417ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.016833ms)
+✔ a missing source is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.015958ms)
+✔ a missing source is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.0165ms)
+✔ a missing source is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.015917ms)
+✔ a missing source is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.015834ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.015792ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.017209ms)
+✔ a missing source is reported: no README*.md at the root — the README rule reads them (0.022875ms)
+✔ the run on absent source files fails, after every rule has run (0.031333ms)
+✔ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.02375ms)
+✔ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.016042ms)
+✔ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.031209ms)
+✔ an absent source file is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.017667ms)
+✔ an absent source file is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.016916ms)
+✔ an absent source file is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.016542ms)
+✔ an absent source file is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.015833ms)
+✔ an absent source file is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.023375ms)
+✔ an absent source file is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.016917ms)
+ℹ tests 70
+ℹ suites 0
+ℹ pass 70
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6990.165459
+✓ shared block app-rail — all 11 usage site(s) compliant
+✓ shared block app-window — all 11 usage site(s) compliant
+✓ shared block file-drawer — all 4 usage site(s) compliant
+✓ shared block md-preview — all 5 usage site(s) compliant
+✓ shared block project-side — all 5 usage site(s) compliant
+✓ shared block session-hits — all 2 usage site(s) compliant
+✓ shared block startup-status — all 5 usage site(s) compliant
+✓ shared block toast — all 3 usage site(s) compliant
+✓ shared block totals-card — all 2 usage site(s) compliant
+✓ shared block trend-chart — all 2 usage site(s) compliant
+✓ every list the checks mirror from the product is read from a source that names its members
+✓ persistent documents must not reference ticket numbers (they outlive the tickets)
+✓ every README links every other, and none links a README that is not there (i18n::CON-001)
+✓ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+✓ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+✓ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+✓ provider colours must not be hard-coded in components (use CSS variables)
+✓ components must not hard-code theme accent colours (use the --accent family)
+✓ side chip labels have one source: no hard-coded SIDE_CHIP_LABEL label outside side-badge.ts
+✓ every chart container in a prototype declares its own shared block (otherwise consistency cannot be checked)
+✓ every declaration on a prototype page names a shared block (a _shared/<id>.css or .js that is not a common library)
+✓ the gate's common libraries and block contracts name files and blocks that exist
+✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+✓ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+✓ prototype pages draw the shared app rail, never their own
+✓ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+✓ prototype pages draw the shared project column, never their own
+
+Shared-UI consistency check passed
+exit=0
+
+$ pnpm check:lang
+
+> agentshed@0.1.0-beta.2 check:lang /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs
+
+✔ the seeds alone pass, one permitted line each (289.168333ms)
+✔ Chinese in an HTML copy (its header after the doctype) is reported: the copy is recognised by its header (280.202667ms)
+✔ Chinese in a JS copy (its header two comment lines) is reported: the copy is recognised by its header (278.409958ms)
+✔ Chinese in a CSS copy (its header a block comment) is reported: the copy is recognised by its header (260.961458ms)
+✔ Chinese in a copy under a name no list ever held is reported: the copy is recognised by its header (263.133083ms)
+✔ Chinese in a JS copy behind a #! line is reported: the copy is recognised by its header (255.268708ms)
+✔ Chinese in a JS copy whose marker is on the second line of its header is reported: the copy is recognised by its header (281.601542ms)
+✔ Chinese in an HTML copy whose header runs on past the marker line is reported: the copy is recognised by its header (259.670166ms)
+✔ Chinese in a CSS copy whose block header runs on past the marker line is reported: the copy is recognised by its header (279.822542ms)
+✔ Chinese in an HTML copy behind an upper-case doctype, its header indented is reported: the copy is recognised by its header (272.511ms)
+✔ Chinese in a JS copy whose // header is indented, the marker on its second line is reported: the copy is recognised by its header (278.833584ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (254.421917ms)
+✔ Chinese stays permitted in a mockup page (288.773541ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (279.496708ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (270.84875ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (288.858375ms)
+✔ Chinese stays permitted in a mockup page that quotes the marker below its first comment (256.463708ms)
+✔ Chinese stays permitted in a script whose // header ends at code, the marker quoted after it (346.656125ms)
+✔ Chinese stays permitted in a script that opens with code, the marker quoted after it (277.601459ms)
+✔ Chinese stays permitted in a stylesheet whose /* header closes without the marker, the marker quoted after it (325.749708ms)
+✔ Chinese stays permitted in a script whose // header ends at a blank line, the marker quoted after it, as the manifest is laid out (255.086ms)
+✔ Chinese stays permitted in a script whose // header ends at a code line that quotes the marker (246.931708ms)
+✔ Chinese stays permitted in a script whose first line is code that quotes the marker (253.932542ms)
+✔ Chinese stays permitted in a script of comments only, without the marker (255.882833ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6664.00575
+✓ Working language: 2393 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the languages they scan; pattern literals only, not prose
+    rule · 1 file(s) · the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 16 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 1 file(s) · the Chinese README — a localisation is written in the language it localises into
+    rule · 2 file(s) · the language switcher rows and the selector list — a language is named in its own script
+exit=0
+
+$ pnpm check:i18n
+
+> agentshed@0.1.0-beta.2 check:i18n /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> node scripts/check-i18n.mjs
+
+✓ Copy gate: no Chinese literals outside the dictionary
+    allow-list · the dictionaries themselves — the source language (zh) is Chinese by definition
+    allow-list · test files — case names, fixtures and assertions never reach the product UI
+exit=0
+
+$ pnpm check:nul
+
+> agentshed@0.1.0-beta.2 check:nul /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs
+
+✔ accepts real PNG and ICNS artwork under new filenames (230.051875ms)
+✔ rejects NUL-bearing source even alongside valid artwork (122.797709ms)
+✔ does not exempt unrecognised content in pretend.png (87.343625ms)
+✔ does not exempt unrecognised content in pretend.icns (77.011792ms)
+✔ does not exempt unrecognised content in binary.dat (88.976875ms)
+✔ accepts searchable source with an escaped NUL (146.951125ms)
+✔ rejects a NUL in a new file that is not staged yet (140.674208ms)
+✔ does not scan a git-ignored file, such as build output (132.740792ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1089.080583
+✓ Raw NUL bytes: none in 1240 file(s) (131 binary-format file(s) exempt by signature)
+exit=0
+
+$ pnpm e2e e2e/app.spec.ts e2e/token-span.spec.ts
+
+> agentshed@0.1.0-beta.2 e2e /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> electron-vite build && playwright test "e2e/app.spec.ts" "e2e/token-span.spec.ts"
+
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 551 modules transformed.
+rendering chunks...
+out/main/parse-worker.js                   0.44 kB
+out/main/chunks/token-stats-Dn13n4Rx.js  149.25 kB
+out/main/index.js                        221.61 kB
+out/main/chunks/main-DZ5R1KNi.js         513.19 kB
+✓ built in 1.15s
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 18 modules transformed.
+rendering chunks...
+out/preload/index.cjs  52.39 kB
+✓ built in 55ms
+vite v5.4.21 building for production...
+transforming...
+✓ 149 modules transformed.
+rendering chunks...
+../../out/renderer/index.html                   0.40 kB
+../../out/renderer/assets/index-uhVw1iVs.css   86.98 kB
+../../out/renderer/assets/index-BddZyT90.js   698.06 kB
+✓ built in 656ms
+
+Running 100 tests using 1 worker
+
+  ✓    1 e2e/app.spec.ts:380:1 › cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors (2.1s)
+  ✓    2 e2e/app.spec.ts:404:1 › an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors (744ms)
+  ✓    3 e2e/app.spec.ts:433:1 › all seven Agents page tabs render as they are switched through, with no errors (919ms)
+  ✓    4 e2e/app.spec.ts:455:1 › switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected (986ms)
+  ✓    5 e2e/app.spec.ts:474:1 › switching to Projects: the sidebar shows its empty state when there are no projects at all (683ms)
+  ✓    6 e2e/app.spec.ts:515:1 › the project list row: a side-count badge, with hovering naming the sides in full (889ms)
+  ✓    7 e2e/app.spec.ts:603:1 › a Grok-only project opens its detail page without errors (1.0s)
+  ✓    8 e2e/app.spec.ts:637:1 › a stale project opens as the note page: card only, chips per recording side, copy feedback, and both staleness flips (1.3s)
+  ✓    9 e2e/app.spec.ts:737:1 › an Antigravity-registered project: its card, its row and hover name, the filter, the header and stale chips, and Memory (1.1s)
+  ✓   10 e2e/app.spec.ts:805:1 › the Antigravity badge takes its own pair in light and in dark, the same under every theme (1.3s)
+  ✓   11 e2e/app.spec.ts:884:1 › Antigravity usage: the card in every window, the unreadable notice, and a project Overview with two sides on one day (1.1s)
+  ✓   12 e2e/app.spec.ts:939:1 › Antigravity usage: a corrupt settings file on the card comes before the unreadable count, which shows once it is repaired (833ms)
+  ✓   13 e2e/app.spec.ts:977:1 › the side filter dropdown: narrows to one side, dismisses on scroll, and survives a resize (1.2s)
+  ✓   14 e2e/app.spec.ts:1065:1 › a real window resize with a scrolled list does not close the side dropdown (#122) (666ms)
+  ✓   15 e2e/app.spec.ts:1106:1 › the side filter row stays inside the sidebar column in both UI languages (1.3s)
+  ✓   16 e2e/app.spec.ts:1168:1 › the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed (728ms)
+  ✓   17 e2e/app.spec.ts:1212:1 › the sessions section: each row shows that session's real question count (730ms)
+  ✓   18 e2e/app.spec.ts:1235:1 › the sessions section: the sort choice is remembered after switching away (789ms)
+  ✓   19 e2e/app.spec.ts:1258:1 › the sessions section: a project with no sessions shows an empty state, and the overview session card clicks through to this section (687ms)
+  ✓   20 e2e/app.spec.ts:1271:1 › one click on the overview session card goes straight to the session page (724ms)
+  ✓   21 e2e/app.spec.ts:1287:1 › the session page: every question is listed with complete fields, and back returns to the sessions section (746ms)
+  ✓   22 e2e/app.spec.ts:1328:1 › the session page: a fork session shows only the questions left after stripping (733ms)
+  ✓   23 e2e/app.spec.ts:1350:1 › the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content (700ms)
+  ✓   24 e2e/app.spec.ts:1394:1 › the session page: a long question's single-line truncation happens only in the display layer, with the full text in the DOM (739ms)
+  ✓   25 e2e/app.spec.ts:1432:1 › the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it (818ms)
+  ✓   26 e2e/app.spec.ts:1469:1 › the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change (917ms)
+  ✓   27 e2e/app.spec.ts:1521:1 › the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source (4.0s)
+  ✓   28 e2e/app.spec.ts:1562:1 › the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn (785ms)
+  ✓   29 e2e/app.spec.ts:1594:1 › session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels (861ms)
+  ✓   30 e2e/app.spec.ts:1643:1 › session page rich content (Codex): the encrypted-reasoning label, tool pairing, the unattributable spawn label, and traces of unknown events (864ms)
+  ✓   31 e2e/app.spec.ts:1681:1 › session page (Codex, paginated format): the session is listed by its completed-item question, opens, and its turn shows the agent-message prose with no unknown trace (762ms)
+  ✓   32 e2e/app.spec.ts:1722:1 › session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one (763ms)
+  ✓   33 e2e/app.spec.ts:1758:1 › session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question (1.4s)
+  ✓   34 e2e/app.spec.ts:1809:1 › overlapping automatic rescans are deduplicated: the page stays coherent and the main process reports no errors (684ms)
+  ✓   35 e2e/app.spec.ts:1829:1 › the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors (620ms)
+  ✓   36 e2e/app.spec.ts:1887:1 › the archive retains a past day whose live figure fell under the same stamp (ADR-0026): the retained figure shows on both pages, with no hatching, while the archived-only day still hatches (677ms)
+  ✓   37 e2e/app.spec.ts:1954:1 › the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side's provider segments (664ms)
+  ✓   38 e2e/app.spec.ts:1984:1 › the provider colours apply: the segments and the legend match, with their own values in light and dark (634ms)
+  ✓   39 e2e/app.spec.ts:2274:1 › F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end (12.9s)
+  ✓   40 e2e/app.spec.ts:2786:1 › Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand (4.7s)
+  ✓   41 e2e/app.spec.ts:2952:1 › filtering the skills lists by name, and revealing a truncated name on hover (1.2s)
+  ✓   42 e2e/app.spec.ts:3144:1 › a filter keyword survives a refresh, and is cleared by leaving the section or switching project (944ms)
+  ✓   43 e2e/app.spec.ts:3224:1 › the install-to popover sits next to its button, and its targets can be clicked (1.2s)
+  ✓   44 e2e/app.spec.ts:3336:1 › previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group (1.1s)
+  ✓   45 e2e/app.spec.ts:3435:1 › a skill package removed after the scan: the file table shows the toast's wording in both skill lists (#209) (800ms)
+  ✓   46 e2e/app.spec.ts:3490:3 › skill file line counts follow the UI language's digit grouping [en-US] (#210) (784ms)
+  ✓   47 e2e/app.spec.ts:3521:1 › automatic refresh: a new session appears on its own, and the detail page's expansion state survives it (4.8s)
+  ✓   48 e2e/app.spec.ts:3623:3 › the trend chart [Agents page · Token tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (758ms)
+  ✓   49 e2e/app.spec.ts:3623:3 › the trend chart [project detail · Overview tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (800ms)
+  ✓   50 e2e/app.spec.ts:3727:1 › a newly adopted side: the thin xAI segment survives, and Grok mode labels only its data days (709ms)
+  ✓   51 e2e/app.spec.ts:3827:1 › three sides on one day segment together, and one project mixes all three sides' sessions by time (832ms)
+  ✓   52 e2e/app.spec.ts:3901:1 › the Agents page shows Grok's own global skills with the borrowing line, and installs one into a project (757ms)
+  ✓   53 e2e/app.spec.ts:3949:1 › a Grok session opens end to end: list, questions, an on-demand turn, search, and the allow-list boundary (1.2s)
+  ✓   54 e2e/app.spec.ts:4038:1 › the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip" (709ms)
+  ✓   55 e2e/app.spec.ts:4081:1 › settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project (1.5s)
+  ✓   56 e2e/app.spec.ts:4134:1 › project list: selection is a deeper wash with no ring, and adjacent rows keep a 1px gap (629ms)
+  ✓   57 e2e/app.spec.ts:4250:1 › appearance: one card with two rows (mode + theme); the theme cards keep only a swatch and a name (650ms)
+  ✓   58 e2e/app.spec.ts:4278:1 › appearance mode: locking light or dark changes the effective light/dark, and the palette samples follow (705ms)
+  ✓   59 e2e/app.spec.ts:4335:1 › appearance: all six combinations of 3 themes × 2 effective light/dark hold (838ms)
+  ✓   60 e2e/app.spec.ts:4467:1 › scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001) (1.3s)
+  ✓   61 e2e/app.spec.ts:4540:1 › scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05) (841ms)
+  ✓   62 e2e/app.spec.ts:4582:1 › scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2) (1.4s)
+  ✓   63 e2e/app.spec.ts:4649:1 › UI language: following the system resolves against the whole list, and applies on the first frame (632ms)
+  ✓   64 e2e/app.spec.ts:4663:1 › UI language: falls back to English when the system language is unsupported (621ms)
+  ✓   65 e2e/app.spec.ts:4674:1 › UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003) (648ms)
+  ✓   66 e2e/app.spec.ts:4697:1 › the language selector: three items including follow-system and the divider, with a switch applying immediately (721ms)
+  ✓   67 e2e/app.spec.ts:4757:1 › the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step (736ms)
+  ✓   68 e2e/app.spec.ts:4808:1 › i18n: the language-locking mechanism itself is reliable, unaffected by the development machine's system language (1.2s)
+  ✓   69 e2e/app.spec.ts:4829:1 › i18n: both languages load, with the key nodes non-empty (734ms)
+  ✓   70 e2e/app.spec.ts:4855:1 › i18n: switching languages applies immediately, changing several areas at once (668ms)
+  ✓   71 e2e/app.spec.ts:4877:1 › i18n: key layouts do not overflow horizontally in either language (713ms)
+  ✓   72 e2e/app.spec.ts:4902:1 › i18n: no label in the project-detail tab row or the skills rows wraps to a second line (924ms)
+  ✓   73 e2e/app.spec.ts:4983:1 › the time window drives all four regions at once: side figures, composition, model rows and the dimmed span (1.1s)
+  ✓   74 e2e/app.spec.ts:5117:1 › startup skeleton: agents page shows placeholders, refuses input, fills in place (4.8s)
+  ✓   75 e2e/app.spec.ts:5195:1 › startup skeleton: projects dimension shows placeholder rows and fills in place (4.5s)
+  ✓   76 e2e/app.spec.ts:5263:1 › project switch (query layer): the highlight moves at once and the pane holds the previous project until the next detail arrives (2.3s)
+  ✓   77 e2e/app.spec.ts:5299:1 › project switch (query layer): rapid A → B → C never shows B, and B is still cached afterwards (2.3s)
+  ✓   78 e2e/app.spec.ts:5333:1 › opening a session (query layer): the project page holds until the session page arrives, and reopening it is instant (2.4s)
+  ✓   79 e2e/app.spec.ts:5362:1 › opening a session then returning to the project before it arrives (query layer): the project page stays, no error, and the interrupted fetch is cached (2.3s)
+  ✓   80 e2e/app.spec.ts:5392:1 › an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive (980ms)
+  ✓   81 e2e/app.spec.ts:5432:1 › opening a session whose file was removed after the scan (query layer): the page shows its own error, no crash (767ms)
+  ✓   82 e2e/app.spec.ts:5456:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.1s)
+  ✓   83 e2e/app.spec.ts:5508:1 › leaving a project for a session page and coming back (query layer closeout): the project page is a cached visit landing on Sessions, then revalidates by transfusion (4.2s)
+  ✓   84 e2e/app.spec.ts:5552:1 › opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash (747ms)
+  ✓   85 e2e/app.spec.ts:5574:1 › reopening a skill file table (query layer): first expand is slow, reopening it is instant (1.6s)
+  ✓   86 e2e/app.spec.ts:5598:1 › reopening an artifact (query layer): first open is slow, reopening it is instant (3.2s)
+  ✓   87 e2e/app.spec.ts:5643:3 › selectable trend span [Agents page · Token tab]: history, independent filters, tabs and refresh (1.8s)
+  ✓   88 e2e/app.spec.ts:5643:3 › selectable trend span [project detail · Overview tab]: history, independent filters, tabs and refresh (2.0s)
+  ✓   89 e2e/app.spec.ts:5735:1 › selectable trend span: localized controls fit both pages in light and dark at minimum width (10.7s)
+  ✓   90 e2e/app.spec.ts:5825:1 › the session page header: the session ID, copying it and the resume command, and showing the record file (session-view::US-001) (4.8s)
+  ✓   91 e2e/app.spec.ts:6130:1 › Antigravity sessions: AG rows and forks, a fork's page with its banner, header and turn, its parent, a gone source, and global search (1.8s)
+  ✓   92 e2e/token-span.spec.ts:64:1 › a theme chosen while the initial preference read is in flight survives that read landing (6.0s)
+  ✓   93 e2e/token-span.spec.ts:82:1 › global span defaults an older or invalid preference without resetting valid appearance and language (2.2s)
+  ✓   94 e2e/token-span.spec.ts:106:1 › global span links exact totals and active breakdowns on both entries, and survives full restarts (5.4s)
+  ✓   95 e2e/token-span.spec.ts:175:3 › global span 30: saved preference survives an unusable display cache and skeleton fill (3.9s)
+  ✓   96 e2e/token-span.spec.ts:175:3 › global span 60: saved preference survives an unusable display cache and skeleton fill (3.9s)
+  ✓   97 e2e/token-span.spec.ts:175:3 › global span 90: saved preference survives an unusable display cache and skeleton fill (3.9s)
+  ✓   98 e2e/token-span.spec.ts:196:1 › global span save failure keeps live views consistent and reopens the last successful value (1.4s)
+  ✓   99 e2e/token-span.spec.ts:226:1 › global span includes archived and retained older rows in both charts and fourth cards (770ms)
+  ✓  100 e2e/token-span.spec.ts:254:1 › global span numeric choices support keyboard activation and retain every card and side identity (4.0s)
+
+  100 passed (2.9m)
+exit=0
+
+$ pnpm smoke
+
+> agentshed@0.1.0-beta.2 smoke /Users/loong_zhou/CascadeProjects/agentshed-wt-324
+> bash scripts/smoke.sh
+
+(existing instance detected, pid=51279  — userData is isolated, so they do not affect each other and none will be killed by mistake)
+scripts/smoke.sh: line 149: 26383 Killed: 9               AGENTSHED_NO_FOREGROUND=1 pnpm dev -- --user-data-dir="$SMOKE_UD" > "$LOG" 2>&1
+SMOKE_OK: startup 1693ms · first scan 31217ms · self-exit after parent kill 536ms; no errors, no orphans
+exit=0
+
+OVERALL exit=0  (finished 2026-10-28T23:12:50Z)

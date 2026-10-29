@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeGrokQuestionIndexer, makeQuestionIndexer, type QuestionRec } from './question-index'
+import { makeAntigravityQuestionIndexer, makeGrokQuestionIndexer, makeQuestionIndexer, type QuestionRec } from './question-index'
+import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { readRanges } from './range-read'
 import { turnBlocksFromText } from './turn-content'
 import type { TurnBlock } from '@shared/domain'
@@ -520,5 +521,121 @@ describe('the Grok block model (ticket #125)', () => {
     const unknown = blocks[1] as { types: string[]; count: number }
     expect(unknown.types).toEqual(['update/brand_new_thing'])
     expect(unknown.count).toBe(1)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// Antigravity CLI (session-view::REQ-004): a turn's lines → blocks. The transcripts are agy's own
+// (agy-transcript-fixture.ts, every transcript on the machine enumerated: five line types); a shape no transcript
+// shows is marked derived.
+describe('the Antigravity block model (session-view::REQ-004)', () => {
+  const T = MEASURED_TRANSCRIPT
+  /** A turn's text: the lines after its question, as the range read hands them over */
+  const turn = (lines: readonly string[], from: number, to: number): TurnBlock[] =>
+    turnBlocksFromText('antigravity', transcriptText(lines.slice(from, to)))
+  const field = (line: string, key: string): unknown => (JSON.parse(line) as Record<string, unknown>)[key]
+  const argsOf = (line: string): unknown => (field(line, 'tool_calls') as Array<{ args: unknown }>)[0].args
+
+  test('prose, plain-text thinking, and each tool call paired in order with the result line after it — a denied one too (AC-04)', () => {
+    // The second question's turn of the measured main conversation: a server notice, three calls, the last denied
+    const bs = turn(T.main, 5, 12)
+    expect(bs.map((b) => b.kind)).toEqual(['tool', 'tool', 'think', 'tool'])
+    const tools = bs.filter((b): b is Extract<TurnBlock, { kind: 'tool' }> => b.kind === 'tool')
+    expect(tools.map((b) => b.name)).toEqual(['run_command', 'read_file', 'edit_file'])
+    expect(tools.map((b) => JSON.parse(b.input) as unknown)).toEqual([argsOf(T.main[6]), argsOf(T.main[8]), argsOf(T.main[10])])
+    expect(tools.map((b) => b.output)).toEqual([field(T.main[7], 'content'), field(T.main[9], 'content'), field(T.main[11], 'content')])
+    expect(tools[2].output).toContain('user denied permission for write_file')
+    expect((bs[2] as { body: string }).body).toBe(field(T.main[10], 'thinking'))
+    // The last turn: its notice renders nothing, its answer's thinking comes before its prose
+    const last = turn(T.main, 20, 22)
+    expect(last.map((b) => b.kind)).toEqual(['think', 'text'])
+    expect((last[1] as { body: string }).body).toBe(field(T.main[21], 'content'))
+  })
+
+  test('a subagent dispatch is a sub block whose return is the message its subagent sent back, never the creation echo (AC-05)', () => {
+    const bs = turn(T.dispatch, 1, 7)
+    expect(bs.map((b) => b.kind)).toEqual(['think', 'sub', 'think', 'tool', 'text'])
+    const sub = bs[1] as Extract<TurnBlock, { kind: 'sub' }>
+    expect(sub.name).toBe('self')
+    expect(sub.prompt).toBe('Please list the names of all functions defined in calc.py located in the workspace.')
+    expect(sub.result).toBe('The functions defined in `calc.py` are:\n1. `add`\n2. `average`\n3. `percent`')
+    expect([sub.steps, sub.unlinked]).toEqual([[], true])
+    const tool = bs[3] as Extract<TurnBlock, { kind: 'tool' }>
+    expect([tool.name, tool.output]).toEqual(['manage_subagents', field(T.dispatch[4], 'content')])
+    expect((bs[4] as { body: string }).body).toBe('The functions defined in `calc.py` are `add`, `average`, and `percent`.')
+  })
+
+  test('a cancelled dispatch shows no return; a call still running shows its running result; a timer\'s message renders nothing (AC-04, AC-05, AC-06)', () => {
+    const bs = turn(T.cancelledDispatch, 4, 20)
+    expect(bs.map((b) => b.kind)).toEqual(['think', 'tool', 'think', 'sub', 'tool', 'text', 'think', 'tool', 'tool', 'tool', 'think', 'text'])
+    const sub = bs[3] as Extract<TurnBlock, { kind: 'sub' }>
+    expect([sub.name, sub.result]).toEqual(['research', null])
+    const schedule = bs[4] as Extract<TurnBlock, { kind: 'tool' }>
+    expect([schedule.name, schedule.output]).toEqual(['schedule', field(T.cancelledDispatch[9], 'content')])
+    expect(schedule.output).toContain('Tool is running as a background task')
+  })
+
+  test('a failed model call\'s error line is prose; a line of another type leaves the unknown trace (AC-06)', () => {
+    expect(turn(T.failedFirstCall, 1, 2)).toEqual([
+      { kind: 'text', role: 'assistant', at: Date.parse('2026-10-28T07:54:02Z'), body: field(T.failedFirstCall[1], 'error') }
+    ])
+    // Derived: no measured line has another type
+    const invented = JSON.stringify({ step_index: 2, source: 'MODEL', type: 'BRAND_NEW', status: 'DONE', created_at: '2026-10-28T07:54:03Z' })
+    expect(turnBlocksFromText('antigravity', transcriptText([T.failedFirstCall[1], invented]))).toEqual([
+      { kind: 'text', role: 'assistant', at: Date.parse('2026-10-28T07:54:02Z'), body: field(T.failedFirstCall[1], 'error') },
+      { kind: 'unknown', count: 1, types: ['BRAND_NEW'] }
+    ])
+  })
+
+  test('a subagent that sends two messages within its dispatch\'s turn: the return holds both, in order (the "more than one message" failure mode)', () => {
+    // Derived: the measured message again, after the answer, with another body
+    const first = JSON.parse(T.dispatch[5]) as { content: string }
+    const body = 'The functions defined in `calc.py` are:\n1. `add`\n2. `average`\n3. `percent`'
+    expect(first.content).toContain(`content=${body}\n</SYSTEM_MESSAGE>`)
+    const second = JSON.stringify({ ...first, step_index: 8, content: first.content.replace(body, 'Also: `average` returns 0 for an empty list.') })
+    const sub = turnBlocksFromText('antigravity', transcriptText([...T.dispatch.slice(1, 7), second])).find((b) => b.kind === 'sub') as Extract<TurnBlock, { kind: 'sub' }>
+    expect(sub.result).toBe(`${body}\n\nAlso: \`average\` returns 0 for an empty list.`)
+  })
+
+  test('a subagent\'s later message, in a turn of its own, renders nothing there (the "messaged again" failure mode)', () => {
+    // Derived: the measured message, arriving after the next question
+    const again = JSON.stringify({ ...(JSON.parse(T.dispatch[5]) as Record<string, unknown>), step_index: 9 })
+    expect(turnBlocksFromText('antigravity', transcriptText([again]))).toEqual([])
+  })
+
+  test('a rewind inside a turn: the undone call and its result are not shown, the redo is (AC-03)', () => {
+    // Derived position of the measured mechanism: the redo reuses the index of a call within the turn
+    const line = (step: number, type: string, extra: Record<string, unknown>): string =>
+      JSON.stringify({ step_index: step, source: 'MODEL', type, status: 'DONE', created_at: '2026-10-28T08:06:23Z', ...extra })
+    const bs = turnBlocksFromText('antigravity', transcriptText([
+      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }),
+      line(2, 'GENERIC', { content: 'undone' }),
+      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }),
+      line(2, 'GENERIC', { content: 'redone' })
+    ]))
+    expect(bs.map((b) => b.kind === 'tool' && [b.name, b.output])).toEqual([['run_command', 'redone']])
+  })
+
+  test('the offset path == the whole-file path, and one turn reads far below the file (AC-02)', async () => {
+    const pad = JSON.stringify({ step_index: 22, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:20:20Z', content: 'y'.repeat(2 * 1024 * 1024) })
+    await withFile(transcriptText([...T.main, pad]), async (file) => {
+      const idx = makeAntigravityQuestionIndexer()
+      let fileEnd = 0
+      await eachJsonlLine(file, (obj, start, end) => {
+        idx.line(obj, start, end)
+        fileEnd = end
+      })
+      const recs = idx.done(fileEnd)
+      expect(recs).toHaveLength(4)
+      const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
+      for (let i = 0; i < recs.length; i++) {
+        const { texts } = await readRanges(file, [{ start: recs[i][1], end: recs[i][2] }])
+        expect(turnBlocksFromText('antigravity', texts[0])).toEqual(turnBlocksFromText('antigravity', whole.texts[i]))
+      }
+      expect(turnBlocksFromText('antigravity', whole.texts[0]).map((b) => b.kind)).toEqual(['tool', 'think', 'text'])
+      const one = await readRanges(file, [{ start: recs[0][1], end: recs[0][2] }])
+      expect(one.bytesRead).toBeLessThan(20_000)
+      expect(statSync(file).size).toBeGreaterThan(2 * 1024 * 1024)
+    })
   })
 })

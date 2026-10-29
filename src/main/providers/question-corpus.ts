@@ -115,9 +115,10 @@ export class QuestionCorpus {
     await mapLimit(sessions, READ_CONCURRENCY, async (s) => {
       try {
         const q = await this.engine.sessionQuestions(roots, s.file)
-        const identity = indexIdentity(s.file, q.questions)
+        // The file the question ranges are in: the session file, or an Antigravity conversation's transcript
+        const identity = indexIdentity(q.source, q.questions)
         if (this.texts.get(s.file)?.identity === identity) return
-        this.texts.set(s.file, await this.read(s.file, q, identity))
+        this.texts.set(s.file, await this.read(q, identity))
       } catch {
         // An unreadable session only hurts itself: it is left out of the results and the counts
         this.texts.delete(s.file)
@@ -152,8 +153,8 @@ export class QuestionCorpus {
     return { sessions }
   }
 
-  private async read(file: string, q: SessionIndex, identity: string): Promise<SessionTexts> {
-    const { texts } = await (this.opts.read ?? readRanges)(file, q.questions.map((r) => ({ start: r[0], end: r[1] })), 1)
+  private async read(q: SessionIndex, identity: string): Promise<SessionTexts> {
+    const { texts } = await (this.opts.read ?? readRanges)(q.source, q.questions.map((r) => ({ start: r[0], end: r[1] })), 1)
     const questions: SessionTexts['questions'] = []
     q.questions.forEach((rec, idx) => {
       const text = questionTextOfRange(q.side, texts[idx])
@@ -165,8 +166,8 @@ export class QuestionCorpus {
 }
 
 /**
- * A session's question-index identity: the file (device and inode, so a file replaced under the same path
- * is a new one) and the byte ranges of its displayed questions. An answer appended to a session leaves it
+ * A session's question-index identity: the file its questions are read from (device and inode, so a file replaced
+ * under the same path is a new one) and the byte ranges of its displayed questions. An answer appended to a session leaves it
  * unchanged; a new question, a rewritten index or a different set after fork stripping changes it.
  */
 function indexIdentity(file: string, questions: readonly QuestionRec[]): string {

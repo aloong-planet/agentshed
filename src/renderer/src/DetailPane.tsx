@@ -421,7 +421,7 @@ function SessionsTab({
             <span className={`badge ${SIDE_BADGE[s.side].cls}`}>{SIDE_BADGE[s.side].label}</span>
             <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
             {s.forkState === 'stripped' && (
-              <span className="pill fork" title={t.detail.forkTip}>
+              <span className="pill fork" title={s.side === 'antigravity' ? t.detail.forkTipCopied : t.detail.forkTip}>
                 <GitFork size={10} /> fork
               </span>
             )}

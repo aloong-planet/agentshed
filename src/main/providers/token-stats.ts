@@ -41,6 +41,7 @@ import { isColdRollout, rolloutStem } from './cold-rollout'
 import { mapLimit, readRanges } from './range-read'
 import { eachJsonlLine } from './jsonl'
 import {
+  makeAntigravityQuestionIndexer,
   makeGrokQuestionIndexer,
   makeQuestionIndexer,
   stripReplayPrefix,
@@ -49,7 +50,7 @@ import {
 import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
 import { walkSessions, type SessionWalk } from './scan'
-import { conversationSignature, readAntigravityUsage, type AgyCall } from './antigravity'
+import { agySessionSignature, agyTranscriptPath, readAgySummaryTitles, readAntigravityUsage, type AgyCall } from './antigravity'
 import type { UsageRow } from './archive'
 
 /** One Claude usage entry (encoded into the cache as a compact array): [mid, rid, sc, in, out, cr, cw, model, day] */
@@ -151,11 +152,12 @@ interface GrokFileAgg {
 }
 
 /**
- * One Antigravity CLI conversation's usage (ADR-0037): its model calls, each once within the database, with the calls a
- * fork copied from its parent already left out. Calls are matched across databases only in the combine stage, since a
- * call's identity spans databases (token-stats::REQ-003/AC-01). A conversation that cannot be read in the supported
- * format is kept as `unreadable`, so the count of such conversations survives a scan that serves it from the cache.
- * No session list yet: the side's sessions arrive with #324.
+ * One Antigravity CLI conversation (ADR-0037): its model calls, each once within the database, with the calls a fork
+ * copied from its parent already left out; and the conversation as a session — what its database says (its own id,
+ * whether it is a subagent, its last activity, the conversation a fork came from) and its transcript's question index.
+ * Calls are matched across databases only in the combine stage, since a call's identity spans databases
+ * (token-stats::REQ-003/AC-01). A conversation that cannot be read in the supported format is kept as `unreadable`, so
+ * the count of such conversations survives a scan that serves it from the cache; it is listed nowhere.
  */
 interface AntigravityFileAgg {
   kind: 'antigravity'
@@ -165,6 +167,22 @@ interface AntigravityFileAgg {
   projectKey: string
   unreadable: boolean
   calls: AgyCall[]
+  /** Its own id as its trajectory table records it — the key agy's summaries and a fork's copied steps use; '' when
+   * unreadable */
+  conversationId: string
+  /** A subagent conversation gets no row (token-stats::REQ-003/AC-07) */
+  subagent: boolean
+  /** Listed: readable, no subagent, and at least one question (session-view::REQ-003/AC-02) */
+  listed: boolean
+  /** The largest step timestamp in the database (session-view::REQ-003/AC-04) */
+  at: number | null
+  /** For a fork, the id of the conversation its last copied step came from (session-view::REQ-005/AC-02) */
+  forkOf: string | null
+  /** The first question clipped as a title — the fallback for a conversation agy did not title (REQ-003/AC-03); agy's
+   * own title is read at each scan from its summaries, not kept here */
+  title: string | null
+  /** The question index over its transcript (with no question text, see question-index.ts) */
+  questions: QuestionRec[]
 }
 
 type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg | AntigravityFileAgg
@@ -223,6 +241,11 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg | AntigravityFileAgg
  *      variant). Its entries are keyed by the conversation's signature — the database's modification time and the
  *      log's presence, time and size, never the database's size (token-stats Implementation Decisions) — rather than
  *      by (mtime, size).
+ * v19: AntigravityFileAgg gained the conversation as a session (#324): its own id, the subagent flag, listed, its last
+ *      activity, the conversation a fork came from, the title fallback and the question index over its transcript —
+ *      **a shape change**, bumped with it as this comment's rule asks (the shape guard below, which now requires the new
+ *      fields, would also turn every v18 entry away one by one); and its signature now covers the transcript too, so a
+ *      transcript agy appended to is indexed again.
  * v13: cacheWrite stopped being parsed on the Codex and Grok sides and is written as 0 (ADR-0023).
  *      **A computation change, not a shape change** — which is exactly the case this comment's rule
  *      above exists for: without the bump, an entry cached under v12 keeps its parsed value while
@@ -239,7 +262,7 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg | AntigravityFileAgg
  * rules. Production code must not **branch** on it: the only version comparison is in loadCache, and a
  * second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 18
+export const CACHE_VERSION = 19
 
 /**
  * The archive rows a cache snapshot implies, through the same aggregation the scan uses (spec C16: a
@@ -400,15 +423,54 @@ export async function runParseJob(job: ParseJob): Promise<ParseResult> {
   }
 }
 
-/** One Antigravity conversation's usage read (token-stats::REQ-003, token-stats::REQ-004); synchronous underneath */
-function parseAntigravityFile(file: string, tmpParent?: string): Promise<ParseResult> {
+/**
+ * One Antigravity conversation: its usage read (token-stats::REQ-003, token-stats::REQ-004) and, for a readable one
+ * that is not a subagent, its transcript's question index (session-view::REQ-004). A transcript not there — the empty
+ * conversation agy creates has none (measured) — or one that will not open gives no question, so the conversation is
+ * not listed while its tokens count (session-view::REQ-004/AC-08).
+ */
+async function parseAntigravityFile(file: string, tmpParent?: string): Promise<ParseResult> {
   const read = readAntigravityUsage(file, tmpParent)
-  if (read.kind === 'failed') return Promise.resolve(null)
-  const agg: AntigravityFileAgg =
-    read.kind === 'read'
-      ? { kind: 'antigravity', file, projectKey: read.folder === null ? '' : mergeKey(read.folder), unreadable: false, calls: read.calls }
-      : { kind: 'antigravity', file, projectKey: '', unreadable: true, calls: [] }
-  return Promise.resolve({ agg })
+  if (read.kind === 'failed') return null
+  if (read.kind === 'unreadable') {
+    const agg: AntigravityFileAgg = {
+      kind: 'antigravity', file, projectKey: '', unreadable: true, calls: [],
+      conversationId: '', subagent: false, listed: false, at: null, forkOf: null, title: null, questions: []
+    }
+    return { agg }
+  }
+  const { conversation: c } = read
+  let questions: QuestionRec[] = []
+  let first: string | null = null
+  if (!c.subagent) {
+    const idx = makeAntigravityQuestionIndexer()
+    let fileEnd = 0
+    try {
+      await eachJsonlLine(agyTranscriptPath(file), (obj, start, end) => {
+        idx.line(obj, start, end)
+        fileEnd = end
+      })
+      questions = idx.done(fileEnd)
+      first = idx.firstQuestionText()
+    } catch {
+      // No transcript, or one that will not open: no question
+    }
+  }
+  const agg: AntigravityFileAgg = {
+    kind: 'antigravity',
+    file,
+    projectKey: read.folder === null ? '' : mergeKey(read.folder),
+    unreadable: false,
+    calls: read.calls,
+    conversationId: c.id,
+    subagent: c.subagent,
+    listed: !c.subagent && questions.length > 0,
+    at: c.at,
+    forkOf: c.forkOf,
+    title: first === null ? null : clipTitle(first),
+    questions
+  }
+  return { agg }
 }
 
 /** Where a build's parses run, and how many at once */
@@ -437,12 +499,19 @@ export class TokenEngine {
   private readonly cacheFile: string
   private cache: CacheShape
   private readonly runner: ParseRunner
+  /** agy's own conversation titles as last read (session-view::REQ-003/AC-03): at every build, since agy titles a
+   * conversation after the fact without the conversation itself changing, and on a page's first need before any */
+  private agyTitles: Map<string, string> | null = null
+  /** Where the summaries are copied when a log is beside them; the system's temporary directory unless given, as a
+   * parse job's `tmpParent` is */
+  private readonly agyTmpParent: string | undefined
 
-  constructor(cacheDir: string, runner: ParseRunner = INLINE) {
+  constructor(cacheDir: string, runner: ParseRunner = INLINE, agyTmpParent?: string) {
     this.cacheDir = cacheDir
     this.cacheFile = join(cacheDir, 'token-cache.json')
     this.cache = this.loadCache()
     this.runner = runner
+    this.agyTmpParent = agyTmpParent
   }
 
   private loadCache(): CacheShape {
@@ -549,8 +618,13 @@ export class TokenEngine {
     }
 
     // ── Antigravity CLI: every conversation database, attributed by its own trajectory record ──
-    // No session list on this side yet (#324), so nothing joins the read allow-list
-    for (const s of walked.antigravity) slots.push(this.antigravityPlan(s.file))
+    // Listed conversations only join the read allow-list, by their database's path — the session's identity; the
+    // transcript a page reads is derived from it on the main process (session-view::REQ-004/AC-09). A subagent's
+    // transcript is never expanded in a parent turn on this side (its return is the parent's own system message).
+    for (const s of walked.antigravity) {
+      const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && listedOf(agg)
+      slots.push(this.antigravityPlan(s.file, admit))
+    }
 
     const misses = slots.filter((slot) => slot.plan !== undefined)
     await mapLimit(misses, this.runner.concurrency, async (slot) => {
@@ -565,7 +639,9 @@ export class TokenEngine {
 
     this.cache = { version: CACHE_VERSION, files: seen }
     this.persist()
-    const result = combine(aggs)
+    // agy's titles: a failed read while agy writes its summaries keeps the last ones read
+    this.agyTitles = readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? this.agyTitles ?? new Map()
+    const result = combine(aggs, this.agyTitles)
     result.sessionFiles = sessionFiles
     await retitleStripped(result.retitle)
     return result
@@ -593,16 +669,15 @@ export class TokenEngine {
    * and size, never the database's size — still matches; read whole otherwise, as agy rewrites and truncates rows in
    * place. Its last readable entry stands by in case the read fails while agy writes (token-stats::REQ-004/AC-03).
    */
-  private antigravityPlan(file: string): Slot {
-    const admit = (): boolean => false
-    const signature = conversationSignature(file)
-    if (signature === null) return { file, entry: null, admit }
+  private antigravityPlan(file: string, admit: Slot['admit']): Slot {
+    const sig = agySessionSignature(file)
+    if (sig === null) return { file, entry: null, admit }
     const cached = this.cache.files[file]
     // The shape guard first: within one cache version a corrupt entry is read again, never dereferenced
     const usable = cached !== undefined && isWellFormedAgg(cached?.agg) && cached.agg.kind === 'antigravity'
-    if (usable && cached.sig === signature.sig) return { file, entry: cached, admit }
+    if (usable && cached.sig === sig) return { file, entry: cached, admit }
     const fallback = usable && cached.agg.kind === 'antigravity' && !cached.agg.unreadable ? cached : undefined
-    return { file, entry: null, admit, fallback, plan: { job: { kind: 'antigravity', file }, st: { sig: signature.sig, ino: 0, size: 0 } } }
+    return { file, entry: null, admit, fallback, plan: { job: { kind: 'antigravity', file }, st: { sig, ino: 0, size: 0 } } }
   }
 
   /**
@@ -652,9 +727,9 @@ export class TokenEngine {
    */
   isFresh(file: string): boolean {
     const cached = this.cache.files[file]
-    if (!cached) return false
-    const sig = sigOf(file)
-    return sig !== null && cached.sig === sig && isWellFormedAgg(cached.agg)
+    if (!cached || !isWellFormedAgg(cached.agg)) return false
+    const sig = cached.agg.kind === 'antigravity' ? agySessionSignature(file) : sigOf(file)
+    return sig !== null && cached.sig === sig
   }
 
   /**
@@ -687,18 +762,25 @@ export class TokenEngine {
     forkParentFile: string | null
     /** The ID the session's own side resumes it by (session-view::US-001/AC-01); null when its record has none */
     sessionId: string | null
+    /** The file the questions' and turns' byte ranges are in: the session file itself, or for an Antigravity
+     * conversation its transcript (session-view::REQ-004/AC-02) — derived here, never taken from the renderer */
+    source: string
   }> {
     const cached = this.cache.files[file]
-    // An Antigravity conversation has no session page until the side's session list arrives (#324)
-    if (!cached || (isWellFormedAgg(cached.agg) && cached.agg.kind === 'antigravity')) throw appError(ERR.sessionNotIndexed)
-    const sig = sigOf(file)
+    if (!cached) throw appError(ERR.sessionNotIndexed)
+    // The side is judged from the data root, not trusted to a possibly corrupt cache entry
+    const agyConversation = isAgyConversation(roots, file)
+    const sig = agyConversation ? agySessionSignature(file) : sigOf(file)
     if (sig === null) throw appError(ERR.sessionFileUnreadable)
     let agg: FileAgg = cached.agg
     if (cached.sig !== sig || !isWellFormedAgg(agg)) {
-      // The side is judged from the data root, not trusted to a possibly corrupt cache entry
       const claudeRoot = join(roots.claudeHome, 'projects')
       let fresh: FileAgg | null
-      if (file.startsWith(claudeRoot)) {
+      if (agyConversation) {
+        // The database and the transcript read again, for this conversation alone (C4); a read that fails while agy
+        // writes is this page's failure, and the next fetch tries again
+        fresh = (await runParseJob({ kind: 'antigravity', file }))?.agg ?? null
+      } else if (file.startsWith(claudeRoot)) {
         // Top level = a session (listable), deeper = a subagent or other nested transcript — the same
         // rule as listJsonl.
         // projectKey keeps its old value: it only affects attribution statistics and the next full scan
@@ -728,7 +810,27 @@ export class TokenEngine {
       if (fresh.kind !== 'codex') this.cache.files[file] = { sig, agg }
       this.persist()
     }
-    if (agg.kind === 'antigravity') throw appError(ERR.sessionNotIndexed)
+    if (agg.kind === 'antigravity') {
+      // A conversation that cannot be read in the supported format is listed nowhere and has no page
+      if (agg.unreadable) throw appError(ERR.sessionParseFailed)
+      const parent = this.agyParent(agg)
+      // Read once when no build has yet: the titles the list shows, so the page and the banner agree with it
+      this.agyTitles ??= readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? new Map()
+      return {
+        side: 'antigravity',
+        questions: agg.questions,
+        // A fork's copied history is never in its transcript (measured): nothing is stripped, and its state is
+        // certain whether its parent is still here or not (session-view::REQ-005/AC-03, AC-05)
+        forkState: agg.forkOf === null ? 'none' : 'stripped',
+        title: this.agyTitles.get(agg.conversationId) ?? agg.title,
+        at: agg.at,
+        forkPoints: 0,
+        forkParentTitle: parent ? (this.agyTitles.get(parent.conversationId) ?? parent.title) : null,
+        forkParentFile: parent?.file ?? null,
+        sessionId: sessionIdFromPath('antigravity', file),
+        source: sessionReadSource(roots, file)
+      }
+    }
     if (agg.kind === 'claude') {
       // Claude's branches are resolved by the last-leaf walk-back at indexing time, so there is no such
       // thing as a "replay prefix" here
@@ -741,7 +843,8 @@ export class TokenEngine {
         forkPoints: agg.forkPoints,
         forkParentTitle: null,
         forkParentFile: null,
-        sessionId: sessionIdFromPath('claude', file)
+        sessionId: sessionIdFromPath('claude', file),
+        source: file
       }
     }
     if (agg.kind === 'grok') {
@@ -755,7 +858,8 @@ export class TokenEngine {
         forkPoints: 0,
         forkParentTitle: null,
         forkParentFile: null,
-        sessionId: sessionIdFromPath('grok', file)
+        sessionId: sessionIdFromPath('grok', file),
+        source: file
       }
     }
     const shown = await this.codexShown(agg)
@@ -771,8 +875,25 @@ export class TokenEngine {
       forkParentTitle: shown.parent ? (await this.codexShown(shown.parent)).title : null,
       forkParentFile: shown.parent?.file ?? null,
       // Codex keeps the ID in its record's session metadata, read by the scan
-      sessionId: agg.sessionId
+      sessionId: agg.sessionId,
+      source: file
     }
+  }
+
+  /**
+   * The conversation an Antigravity fork came from, when it is still on this machine: the readable conversation in the
+   * cache whose own id is the one the fork's last copied step names (session-view::REQ-005/AC-02, AC-04). The cache is
+   * the scan set, so a parent deleted since the last scan is gone from it at the next one.
+   */
+  private agyParent(agg: AntigravityFileAgg): AntigravityFileAgg | undefined {
+    if (agg.forkOf === null) return undefined
+    for (const v of Object.values(this.cache.files)) {
+      // Before the first build the cache is as read from disk, a corrupt entry included: the shape guard comes first
+      if (isWellFormedAgg(v?.agg) && v.agg.kind === 'antigravity' && !v.agg.unreadable && v.agg.conversationId === agg.forkOf && v.agg !== agg) {
+        return v.agg
+      }
+    }
+    return undefined
   }
 
   /**
@@ -811,6 +932,22 @@ export class TokenEngine {
   }
 }
 
+
+/** Whether a session file is an Antigravity CLI conversation: a database in agy's conversations directory */
+function isAgyConversation(roots: ScanRoots, file: string): boolean {
+  return file.startsWith(join(roots.antigravityHome, 'conversations') + sep)
+}
+
+/**
+ * The file a session's question and turn byte ranges are read from: the session file itself, or for an Antigravity
+ * conversation its transcript (session-view::REQ-004/AC-02). Derived by the main process from the session file the
+ * read allow-list admitted — never taken from the renderer — so a transcript is read only through its listed
+ * conversation (session-view::REQ-004/AC-09). The session page's handlers take the source's identity before the index
+ * is consulted, as they always have, so this is a function of the path alone.
+ */
+export function sessionReadSource(roots: ScanRoots, file: string): string {
+  return isAgyConversation(roots, file) ? agyTranscriptPath(file) : file
+}
 
 /**
  * The title a stripped Codex fork takes from its first question left: that line read live by byte range,
@@ -901,7 +1038,9 @@ function dedupeClaude(files: Array<{ agg: ClaudeFileAgg; fileIdx: number }>): Ke
   return kept
 }
 
-function combine(aggs: FileAgg[]): TokenBuildResult {
+/** `agyTitles`: agy's own conversation titles by conversation id (session-view::REQ-003/AC-03); none for a restore,
+ * which needs the rows alone */
+function combine(aggs: FileAgg[], agyTitles: ReadonlyMap<string, string> = new Map()): TokenBuildResult {
   const retitle: TokenBuildResult['retitle'] = []
   // Accumulate archive rows: keyed day|side|project|model
   const rowMap = new Map<string, UsageRow>()
@@ -1151,19 +1290,31 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       antigravityUnreadable++
       continue
     }
+    /** The conversation's own usage: the calls it keeps after the match across databases (session-view::REQ-003/AC-05,
+     * the rule the Claude rows follow) — a fork's copies were already left out by the read */
+    let fileTokens = 0
     for (const [identity, at, input, output, cacheRead, cacheWrite, model] of a.calls) {
       if (identity !== null) {
         if (seenCalls.has(identity)) continue
         seenCalls.add(identity)
       }
-      addRow(at === null ? null : localDay(at), 'antigravity', a.projectKey, model ?? '', {
-        input,
-        output,
-        cacheRead,
-        cacheWrite,
-        total: input + output + cacheRead + cacheWrite
-      })
+      const total = input + output + cacheRead + cacheWrite
+      fileTokens += total
+      addRow(at === null ? null : localDay(at), 'antigravity', a.projectKey, model ?? '', { input, output, cacheRead, cacheWrite, total })
       if (a.projectKey) projectOf(a.projectKey)
+    }
+    // The session row (session-view::REQ-003): a subagent, a conversation that asked nothing and one in an unregistered
+    // folder have none, their tokens counted above. A fork is marked as one, its state never uncertain (REQ-005/AC-05)
+    if (a.projectKey && a.listed) {
+      projectOf(a.projectKey).sessions.push({
+        side: 'antigravity',
+        title: agyTitles.get(a.conversationId) ?? a.title,
+        at: a.at,
+        tokens: fileTokens,
+        file: a.file,
+        questionCount: a.questions.length,
+        forkState: a.forkOf === null ? 'none' : 'stripped'
+      })
     }
   }
 
@@ -1245,9 +1396,9 @@ function listJsonl(root: string): Array<{ file: string; nested: boolean }> {
   return out
 }
 
-/** Whether a session is listed; an Antigravity conversation has no session list yet (#324) */
+/** Whether a session is listed */
 function listedOf(agg: FileAgg): boolean {
-  return agg.kind !== 'antigravity' && agg.listed
+  return agg.listed
 }
 
 /** Whether a cache entry matches the current FileAgg shape (the array fields the aggregation layer depends on must be present) */
@@ -1260,16 +1411,6 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // only catches across versions,
   // and manual corruption or drift within one version is caught only by this guard.
   if (typeof a['file'] !== 'string' || a['file'] === '') return false
-  // No question index on this side yet (#324); a missing `unreadable` would drop the conversation from the count, a
-  // call of another arity would misread its fields
-  if (a['kind'] === 'antigravity') {
-    return (
-      typeof a['projectKey'] === 'string' &&
-      typeof a['unreadable'] === 'boolean' &&
-      Array.isArray(a['calls']) &&
-      (a['calls'] as unknown[]).every((c) => Array.isArray(c) && c.length === 7)
-    )
-  }
   const qs = a['questions']
   if (!Array.isArray(qs)) return false
   // The record's **arity** needs guarding too: the version number only catches across versions, and
@@ -1277,6 +1418,23 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // One element short degrades the fingerprint comparison into undefined === undefined, which is always
   // true, and so strips blindly.
   if (qs.length > 0 && (!Array.isArray(qs[0]) || (qs[0] as unknown[]).length !== 7)) return false
+  // A missing `unreadable` would drop the conversation from the count, a call of another arity would misread its
+  // fields; a missing `listed` or `subagent` would hide a session or list a subagent, a missing `forkOf` would unmark
+  // a fork, a missing `conversationId` would lose its title and its parent
+  if (a['kind'] === 'antigravity') {
+    return (
+      typeof a['projectKey'] === 'string' &&
+      typeof a['unreadable'] === 'boolean' &&
+      Array.isArray(a['calls']) &&
+      (a['calls'] as unknown[]).every((c) => Array.isArray(c) && c.length === 7) &&
+      typeof a['conversationId'] === 'string' &&
+      typeof a['subagent'] === 'boolean' &&
+      typeof a['listed'] === 'boolean' &&
+      (a['at'] === null || typeof a['at'] === 'number') &&
+      (a['forkOf'] === null || typeof a['forkOf'] === 'string') &&
+      (a['title'] === null || typeof a['title'] === 'string')
+    )
+  }
   // A missing forkPoints (undefined) gives the banner judgement a false value, and corruption within one
   // version is caught only by this gate
   if (a['kind'] === 'claude') return Array.isArray(a['entries']) && typeof a['forkPoints'] === 'number'

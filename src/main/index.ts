@@ -29,7 +29,7 @@ import { searchProjectSessions } from './providers/search-sessions'
 import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
 import { readProjectDetail } from './providers/project-detail'
 import { savedConfigPaths } from './providers/global'
-import { CACHE_VERSION, TokenEngine, projectStatsFromRows } from './providers/token-stats'
+import { CACHE_VERSION, TokenEngine, projectStatsFromRows, sessionReadSource } from './providers/token-stats'
 import { ParsePool } from './parse-pool'
 import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
@@ -325,10 +325,12 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   if (!tokenEngine) throw appError(ERR.engineNotReady)
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
-  const identity = sourceIdentity(file)
+  // The ranges are in the session file, or in an Antigravity conversation's transcript, derived from the admitted path
+  const source = sessionReadSource(realRoots(), file)
+  const identity = sourceIdentity(source)
   const q = await tokenEngine.sessionQuestions(realRoots(), file)
   // The text is read live by range (spec D2a: the index holds no text); readRanges never reads whole
-  const { texts } = await readRanges(file, q.questions.map((r) => ({ start: r[0], end: r[1] })))
+  const { texts } = await readRanges(source, q.questions.map((r) => ({ start: r[0], end: r[1] })))
   const questions = q.questions.map((rec, idx) => {
     // A single bad line only hurts itself: that entry shows a placeholder without affecting the other
     // questions or dragging down the page
@@ -338,7 +340,7 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     return { revision: questionRevision(identity, file, rec[0], rec[1], texts[idx]), i: idx + 1, text, at: rec[3], tools: rec[4], subagents: rec[5] }
   })
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
-  if (sourceIdentity(file) !== identity) throw appError(ERR.sessionNotIndexed)
+  if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
   const page: SessionPage = {
     revision: pageRevision(identity, q.questions),
     file,
@@ -346,6 +348,7 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     title: q.title,
     at: q.at,
     tokens: sessionTokens.get(file) ?? 0,
+    // The record file's size — the one Finder shows (an Antigravity conversation's database, not its transcript)
     bytes: statSync(file).size,
     forkState: q.forkState,
     forkPoints: q.forkPoints,
@@ -380,18 +383,19 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   // given question"
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
   const readStarted = performance.now()
-  const identity = sourceIdentity(file)
+  const source = sessionReadSource(realRoots(), file)
+  const identity = sourceIdentity(source)
   const q = await tokenEngine.sessionQuestions(realRoots(), file)
   if (a.i >= q.questions.length) throw appError(ERR.turnOutOfRange, { i: a.i, total: q.questions.length })
   const rec = q.questions[a.i]
   // A whole turn = from after the question up to the next one ([turn start, turn end); the page already
   // has the question in full; re-read that selected question only to validate its source identity)
-  const { texts, bytesRead } = await readRanges(file, [{ start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] }])
+  const { texts, bytesRead } = await readRanges(source, [{ start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] }])
   const revision = questionRevision(identity, file, rec[0], rec[1], texts[0])
   if (a.revision !== undefined && a.revision !== revision) throw appError(ERR.sessionNotIndexed)
   const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, texts[1]), bytesRead }
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
-  if (sourceIdentity(file) !== identity) throw appError(ERR.sessionNotIndexed)
+  if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
   assertSessionTurn(turn)
   remember({ kind: 'turnContent', file, i: a.i, revision, ms: Math.max(1, Math.round(performance.now() - readStarted)), data: turn })
   return turn

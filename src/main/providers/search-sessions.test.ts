@@ -7,6 +7,8 @@ import type { SessionMeta } from '@shared/domain'
 import { TokenEngine } from './token-stats'
 import { searchProjectSessions } from './search-sessions'
 import type { ScanRoots } from './types'
+import { callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation } from '../testing/agy-fixture'
+import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, writeTranscript } from '../testing/agy-transcript-fixture'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Ticket 08: searching this project's sessions (spec D1–D4).
@@ -197,5 +199,48 @@ describe('a cold rollout (.jsonl.zst) is searched in one streaming pass, in ques
     const byFile = new Map(r.groups.map((g) => [g.file, g.hits]))
     expect(byFile.get(cold)).toEqual(byFile.get(plain))
     expect(byFile.get(cold)?.[0]?.inBody).toBe(true)
+  })
+})
+
+// An Antigravity conversation (session-view::REQ-004): its questions are read from its transcript — the measured fork,
+// rewound once — while its identity is the database. The question a rewind undid is neither a hit nor reachable.
+describe('an Antigravity conversation is searched in its transcript', () => {
+  function mkAgyFork(lines: readonly string[] = MEASURED_TRANSCRIPT.forkRewound): string {
+    const home = roots().antigravityHome
+    mkdirSync(join(home, 'conversations'), { recursive: true })
+    writeFileSync(join(home, 'settings.json'), settingsJson([proj]))
+    const id = MEASURED_TRANSCRIPT_ID.forkRewound
+    const { step, gen } = callRecord({ conversationId: id, stepIdx: 22, genIdx: 0, usage: { messageId: 'm-f', input: 10, output: 1 }, createdAt: Date.parse(TS), completedAt: Date.parse(TS) })
+    writeConversation(join(home, 'conversations'), id, encodeTrajectoryMetadata({ folders: [proj], conversationId: id }), { steps: [step], gens: [gen] })
+    writeTranscript(home, id, lines)
+    return join(home, 'conversations', `${id}.db`)
+  }
+
+  it('question mode hits the kept question; the undone one is not a hit, and in full text it is folded', async () => {
+    const file = mkAgyFork()
+    const q = await run('simplest', false)
+    expect(q.groups.map((g) => [g.file, g.side, g.hits.map((h) => [h.i, h.text])])).toEqual([
+      [file, 'antigravity', [[1, 'In one short sentence, which function in calc.py is the simplest?']]]
+    ])
+    expect((await run('exactly one word', false)).groups).toEqual([])
+    const full = await run('exactly one word', true)
+    expect([full.groups, full.folded]).toEqual([[], 1])
+  })
+
+  it('a hit in lines a rewind undid inside a turn: no question hit, and in full text a hit of that turn (the in-turn rewind failure mode)', async () => {
+    // Derived position of the measured mechanism: the redo reuses the index of a call within the first turn
+    const line = (step: number, type: string, extra: Record<string, unknown>): string =>
+      JSON.stringify({ step_index: step, source: type === 'USER_INPUT' ? 'USER_EXPLICIT' : 'MODEL', type, status: 'DONE', created_at: '2026-10-28T08:06:23Z', ...extra })
+    const file = mkAgyFork([
+      line(0, 'USER_INPUT', { content: '<USER_REQUEST>\nfirst question\n</USER_REQUEST>' }),
+      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }),
+      line(2, 'GENERIC', { content: 'an undone result naming a zebra' }),
+      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }),
+      line(2, 'GENERIC', { content: 'the redone result' }),
+      line(3, 'USER_INPUT', { content: '<USER_REQUEST>\nsecond question\n</USER_REQUEST>' })
+    ])
+    expect((await run('zebra', false)).groups).toEqual([])
+    const full = await run('zebra', true)
+    expect([full.groups.map((g) => [g.file, g.hits.map((h) => [h.i, h.inBody])]), full.folded]).toEqual([[[file, [[1, true]]]], 0])
   })
 })

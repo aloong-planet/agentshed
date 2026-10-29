@@ -5,13 +5,16 @@ import type { AgentSide } from './domain'
 
 /**
  * The session ID a side's own resume takes, where that side names the session's files by it: Claude Code's
- * session file is `<id>.jsonl`, and a Grok session is the directory `<id>/` holding its update stream. A Codex
+ * session file is `<id>.jsonl`, a Grok session is the directory `<id>/` holding its update stream, and an Antigravity
+ * CLI conversation is the database `<id>.db` (19 of 19 measured, the id agy's own summaries record). A Codex
  * session's ID is in its record, not in its path (a thread written in segments names each file by the thread
  * and the segment), so it is not read here: null.
  */
 export function sessionIdFromPath(side: AgentSide, file: string): string | null {
   const parts = file.split('/')
-  const name = side === 'claude' ? parts[parts.length - 1]?.replace(/\.jsonl$/, '') : side === 'grok' ? parts[parts.length - 2] : undefined
+  const last = parts[parts.length - 1]
+  const name =
+    side === 'claude' ? last?.replace(/\.jsonl$/, '') : side === 'grok' ? parts[parts.length - 2] : side === 'antigravity' ? last?.replace(/\.db$/, '') : undefined
   return name ? name : null
 }
 

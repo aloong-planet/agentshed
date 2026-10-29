@@ -74,6 +74,34 @@ function Banners({
       </div>
     )
   }
+  // An Antigravity fork (session-view::REQ-005): agy marks every copied step with its source, so the strip is
+  // certain and the risk tier never arises; its source no longer on this machine is said, with nothing to link
+  if (page.side === 'antigravity' && page.forkState === 'stripped') {
+    return (
+      <div className="banner info">
+        <span className="bi">
+          <GitFork size={12} />
+        </span>
+        {page.forkParentFile === null ? (
+          <span>
+            <RichText text={t.session.forkedFromGone} />
+          </span>
+        ) : (
+          <span>
+            {t.session.forkedFrom}{' '}
+            {onOpenSession ? (
+              <a onClick={() => onOpenSession(page.forkParentFile as string)}>
+                {t.session.parentTitle(page.forkParentTitle ?? t.session.anotherSession)}
+              </a>
+            ) : (
+              <>{t.session.parentTitle(page.forkParentTitle ?? t.session.anotherSession)}</>
+            )}
+            <RichText text={t.session.forkedFromCopiedTail} />
+          </span>
+        )}
+      </div>
+    )
+  }
   if (page.side === 'codex' && page.forkState === 'uncertain') {
     return (
       <div className="banner risk">

@@ -246,7 +246,9 @@ next to A/B, so that no existing reference is renumbered)
   step's change to the per-file aggregate has a known value for the old entries (the 14 → 15 step did:
   every v14 Codex event was event-derived, so the boundary is the events' length; the 17 → 18 step
   does too: it adds the Antigravity CLI variant and changes no existing entry, so a v17 snapshot
-  converts by its version number alone). Automating the conversion is not planned; a snapshot a step
+  converts by its version number alone; so does the 18 → 19 step: it adds each Antigravity conversation's session
+  fields, none of which enters a row, so a v18 snapshot converts by giving each Antigravity entry those fields empty — no id, no
+  time, no fork, no question, not listed — which the rows a restore writes never read). Automating the conversion is not planned; a snapshot a step
   cannot convert exactly is unrecoverable through the script.
 - C17 A user deleting their own session files does not lower a past day: the deletion is a
   same-stamp decrease, so the archive's rows are retained and the deleted figure shows as the
@@ -757,7 +759,8 @@ Applies to: every conversation database of the side, forks and subagent conversa
   snapshot as the side's own count, present only when not zero, and is saved with the display copy, so
   the notice is back at the next launch before the first scan. A conversation's cache entry
   is keyed by its path, the database's modification time and the log's presence, modification time and
-  size — never the database's size, which a checkpoint leaves unchanged (measured); a changed
+  size — never the database's size, which a checkpoint leaves unchanged (measured) — and, since the entry also carries
+  the conversation's session index (session-view::REQ-004), its transcript's modification time and size; a changed
   conversation is re-read whole, as agy rewrites and truncates rows in place. The per-file aggregate
   gains this side's variant, so the cache structure version is bumped in the same change; the usage
   row already carries the side, so the archive format is unaffected. The side joins the agent-side

@@ -33,12 +33,13 @@ sessions, one per row, with "how many questions I asked in this conversation".
   transcript only holds the truncated version (this product does not read the sidecar file), rather
   than pretending it is complete
 - **Subagent dispatches are visible in place**: both the dispatch prompt and the result returned to
-  the main session are there; neither side's records contain a stable reference chain that would
-  attribute the internal steps to a specific dispatch — so we say they are not shown rather than
-  guessing at a pairing
+  the main session are there; the internal steps are not, since the records either carry no stable
+  reference chain that would attribute them to a specific dispatch or keep them in the subagent's own
+  record, which is not read — so we say they are not shown rather than guessing at a pairing
 - **Reasoning and thinking are presented honestly**: Codex has only plaintext sub-headings, and the
   body is encrypted content that can never be obtained — the UI says so rather than blurring it with
-  full reasoning; Claude's thinking is likewise only a placeholder in the records, with no body
+  full reasoning; Claude's thinking is likewise only a placeholder in the records, with no body, while
+  Antigravity CLI records its thinking as plain text, which shows in full
 - **Record types we have not seen are never silently swallowed**: when an agent update introduces a
   new type, a line appears in that turn saying "this turn has N unrecognised records (types: …)" —
   the content stays as it is in the source file, and you at least know something is not shown
@@ -57,16 +58,28 @@ sessions, one per row, with "how many questions I asked in this conversation".
   a forked session is marked "forked from «some session», replayed prefix stripped", with the parent
   title clickable to jump straight there; where the parent is not in scan scope (or does not match),
   a prominent warning style says outright "the strip may have gone too far (losing messages) or not
-  far enough (duplicates) — please check against the source" rather than offering false certainty
+  far enough (duplicates) — please check against the source" rather than offering false certainty.
+  A conversation made by Antigravity CLI's `/fork` is marked "forked from «some session», copied
+  history stripped", its parent's title linking to the parent; Antigravity CLI marks every copied step,
+  so this strip is never uncertain, and when the parent is no longer on this machine the banner says
+  so, with nothing to follow
 - The session page opens fast regardless of session size: question text is read at exact byte offsets
   rather than by reading the whole file
-- Project detail's "Sessions" section lists this project's sessions on the Claude Code, Codex and Grok
-  sides, one row = side badge (CC/CX/GK) + title + question count + token consumption + last activity
-  as a relative time
+- Project detail's "Sessions" section lists this project's sessions on every agent side, one row =
+  side badge + title + question count + token consumption + last activity as a relative time
 - The title comes from the **first real question** — harness noise (warmup messages, `[cron:…]`
   prefixes, slash command wrappers, injected skill bodies, and on the Codex side the harness's own
   messages: a guardian's transcript preamble, task notifications, delegation blocks) has been
-  stripped; on the Codex side the session name it gave itself takes priority
+  stripped; on the Codex side the session name it gave itself takes priority, and on the Antigravity
+  CLI side the title it generated for the conversation (one it generates later appears at the next
+  automatic refresh)
+- An Antigravity CLI conversation's page lists the questions you typed, without the time and settings
+  notes Antigravity CLI adds to each; expanding one shows the answer, its thinking, each tool call with
+  its result (a denied or still-running call included), a subagent dispatch with what the subagent
+  sent back (nothing for a dispatch you cancelled), and a model call that failed as its error text. A
+  question you undid with Antigravity CLI's rewind takes no number, does not appear and is not found by
+  a question search; the redo that replaced it does. A conversation made by `/fork` lists only the
+  questions asked after the fork, and its token figure counts only what it used itself
 - Codex sessions in the agent's newer record format list their questions and open like any other:
   the question is the human message the agent recorded, the prose is the agent's message; a session
   whose only user-side content is the agent's injected context (instructions, environment,
@@ -119,9 +132,10 @@ sessions, one per row, with "how many questions I asked in this conversation".
   session page's header shows the ID that side gives it, at the end of the volume line. Three buttons
   at the right of the title copy the ID, show the session's record file in Finder (selected there),
   and copy a resume command — one line that changes into the project's directory and resumes the
-  session in its side's own command-line tool (`claude --resume`, `codex resume` or `grok --resume`,
-  followed by the ID). The directory is always quoted, and an ID with any unusual character is too, so
-  pasting the line runs exactly that and nothing else
+  session in its side's own command-line tool (`claude --resume`, `codex resume`, `grok --resume` or
+  `agy --conversation`, followed by the ID). The directory is always quoted, and an ID with any unusual
+  character is too, so pasting the line runs exactly that and nothing else. An Antigravity CLI session's
+  ID is its conversation ID, and its record file is the conversation's database
 - **Each button names itself the moment the pointer or the keyboard reaches it**; the resume button's
   tooltip also shows the whole command it copies. A copy turns that button into a check and its tooltip
   into "Copied" for a moment; a copy made just before jumping to a fork's parent stays with its own page
@@ -146,9 +160,13 @@ sessions, one per row, with "how many questions I asked in this conversation".
   spanning turns) shows as having no return record, with the real return in the range of the later
   turn it physically belongs to
 - Only registered projects' sessions are listed; **subagent sessions and warmup sessions (where
-  nobody asked anything at any point) do not get their own rows, but their tokens still count toward
+  nobody asked anything at any point — on the Antigravity CLI side, the conversation it creates each
+  time its interface is opened and left) do not get their own rows, but their tokens still count toward
   the statistics** — so the session count here and the denominator on the token card are not the same
   thing, and the UI says so
+- An Antigravity CLI subagent's own steps are not shown inside the turn that dispatched it, only the
+  dispatch and what it sent back; prose that links to a file in the workspace shows the link as written,
+  not as something to click
 - A session marked **uncertain strip** **may have a few duplicated questions** at its start: with
   the parent outside scan scope the replayed span cannot be checked entry by entry, and the only
   available judgement is "were these written at almost the same moment". This is a deliberate

@@ -456,3 +456,54 @@ export function writeConversation(
 export function settingsJson(trusted: unknown): string {
   return JSON.stringify({ permissions: { allow: ['command(regex:python3 -m unittest.*)'] }, trustedWorkspaces: trusted })
 }
+
+/**
+ * agy's conversation summaries database (`<data root>/conversation_summaries.db`): the index its `/resume` list reads,
+ * one row per conversation with the title agy generated (session-view::REQ-003/AC-03). The schema is the one dumped
+ * from the real database of 2026-10-28: user version 3, the WAL journal, this table and two indexes. The measured
+ * titles are copied from its rows; agy leaves the title empty where it has none (a fork, a subagent, a conversation
+ * that never got a reply).
+ */
+const SUMMARIES_SCHEMA = [
+  'CREATE TABLE `conversation_summaries` (`conversation_id` text,`title` text NOT NULL DEFAULT "",`preview` text NOT NULL DEFAULT "",`step_count` integer NOT NULL DEFAULT 0,`last_modified_time` datetime NOT NULL,`workspace_uris` text NOT NULL,`status` text NOT NULL DEFAULT "",`source` text NOT NULL DEFAULT "",`project_id` text NOT NULL DEFAULT "",`agent_name` text NOT NULL DEFAULT "",`parent_conversation_id` text NOT NULL DEFAULT "",`nesting_depth` integer NOT NULL DEFAULT 0,`battle_id` text NOT NULL DEFAULT "",`winning_conversation_id` text NOT NULL DEFAULT "",`not_fully_idle` numeric NOT NULL DEFAULT false,`killed` numeric NOT NULL DEFAULT false,`last_user_input_time` datetime NOT NULL,`last_user_input_step_index` integer NOT NULL DEFAULT -1,`app_data_dir` text NOT NULL DEFAULT "",`raw_summary` blob,`group_id` text NOT NULL DEFAULT "",PRIMARY KEY (`conversation_id`))',
+  'CREATE INDEX `idx_conversation_summaries_last_user_input_time` ON `conversation_summaries`(`last_user_input_time`)',
+  'CREATE INDEX `idx_conversation_summaries_last_modified_time` ON `conversation_summaries`(`last_modified_time`)'
+]
+
+/** Titles copied from the real summaries rows, by conversation id */
+export const MEASURED_TITLE: Record<string, string> = {
+  '06d3cae9-60a7-485b-96d5-21857c993fdd': 'Explaining Calc.py Functionality',
+  '78543117-17bd-4161-bc47-c256f29f31eb': 'List Calc.py Function Names',
+  'd5668d1e-7234-45e4-ba2b-be124274954a': 'Python Add Function Result'
+}
+
+/** Write `<home>/conversation_summaries.db` holding one row per conversation (the title '' where agy writes none); with
+ * keepOpen, the writer stays open with checkpoints off — agy's state while it runs — and is returned */
+export function writeSummaries(
+  home: string,
+  rows: Array<{ id: string; title: string }>,
+  opts: { keepOpen?: boolean; alterSchema?: (sql: string) => string | null } = {}
+): { file: string; writer: DatabaseSync | null } {
+  const file = join(home, 'conversation_summaries.db')
+  const db = new DatabaseSync(file)
+  db.exec('PRAGMA journal_mode = WAL')
+  if (opts.keepOpen) db.exec('PRAGMA wal_autocheckpoint = 0')
+  db.exec('PRAGMA user_version = 3')
+  for (const sql of SUMMARIES_SCHEMA) {
+    const altered = opts.alterSchema ? opts.alterSchema(sql) : sql
+    if (altered !== null) db.exec(altered)
+  }
+  insertSummaries(db, rows)
+  if (opts.keepOpen) return { file, writer: db }
+  db.close()
+  return { file, writer: null }
+}
+
+/** Insert summary rows through a connection (a writer holding the database open puts them in its log) */
+export function insertSummaries(db: DatabaseSync, rows: Array<{ id: string; title: string }>): void {
+  if (rows.length === 0) return
+  const stmt = db.prepare(
+    "INSERT INTO conversation_summaries (conversation_id, title, preview, last_modified_time, workspace_uris, last_user_input_time, app_data_dir) VALUES (?, ?, ?, '2026-10-28 08:20:20.853659+00:00', '[]', '2026-10-28 08:20:12.024631+00:00', 'antigravity-cli')"
+  )
+  for (const r of rows) stmt.run(r.id, r.title, r.title)
+}
