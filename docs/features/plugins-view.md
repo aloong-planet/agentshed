@@ -36,7 +36,7 @@ package in full, in place** (review before enabling).
 - The Antigravity CLI group lists each installed plugin with its version, whether it is enabled, and the
   marketplace it came from; expanding one shows its bundled skills (previewable), subagents and MCP
   servers, the servers under the names agy gives them. A disabled plugin stays readable. An enabled
-  plugin's skills join the Skills section as "pluginName:skillName" entries badged with Antigravity, and
+  plugin's skills join the Skills section as "pluginName:skillName" entries carrying Antigravity CLI's badge, and
   leave it once the plugin is disabled. On a project's page the same plugins are labelled as in effect
   globally, since agy has no per-project enablement
 - The Codex group is probe-style: it appears only if a Codex plugin cache exists on this machine, and
@@ -49,7 +49,7 @@ package in full, in place** (review before enabling).
   enablement state
 - Codex plugins' enablement and their bundled components other than skills are not shown (the
   semantics are not wired up, and we do not give uncertain signals)
-- An Antigravity plugin's rules and hooks are not shown, and plugins installed inside a project's own
+- An Antigravity CLI plugin's rules and hooks are not shown, and plugins installed inside a project's own
   folder are not read
 - Hooks show an event summary only, never command contents; subagent / hook / MCP entries are not
   clickable and have no preview

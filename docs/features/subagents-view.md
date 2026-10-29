@@ -12,10 +12,10 @@ both the global page and project detail for viewing them together.
   dashed badge
 - Clicking an entry opens a drawer directly: metadata (tools/model on the Claude side, model/sandbox
   on the Codex side; tools, whether it may run as a subagent or as the main agent, and model on the
-  Antigravity side) and the full definition as written; an entry present on more than one side can
+  Antigravity CLI side) and the full definition as written; an entry present on more than one side can
   switch sides inside the drawer, which refreshes in place without closing
-- An Antigravity definition that agy will not offer as a main agent is listed like any other: agy still
-  loads it. Subagents bundled with an Antigravity plugin show inside that plugin's expansion instead
+- An Antigravity CLI definition that agy will not offer as a main agent is listed like any other: agy still
+  loads it. Subagents bundled with an Antigravity CLI plugin show inside that plugin's expansion instead
 - Same-name entries across sides are not compared by content (the two formats are different, so no
   "are they the same" signal is offered)
 - When a file is corrupt, unnamed or unreadable, the entry stays with the appropriate label, and the
@@ -26,7 +26,7 @@ both the global page and project detail for viewing them together.
   reads, then each side's global group, every heading with its count. On Claude's and Codex's sides
   same-name pairs are shadowed at the project level (shadowed entries greyed out and labelled); this
   differs from Skills' Codex same-name coexistence semantics, and each component's labels follow its own
-  meaning. Antigravity's rows carry no shadowing label: whether agy lets a project definition override a
+  meaning. Antigravity CLI's rows carry no shadowing label: whether agy lets a project definition override a
   global one has not been observed
 
 ## Boundaries and non-goals
