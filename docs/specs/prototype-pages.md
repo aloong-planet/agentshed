@@ -151,6 +151,14 @@ prototypes directory stays checked.
   default state, every harness option one at a time and each drawn language, each recorded as tag, attributes,
   collapsed text and laid-out box per element, comment nodes left out; the two recordings must be identical
   (prototype-pages::REQ-004/AC-01). The comparison is the evidence for the change, not a standing gate.
+- **The page source** is compared structurally before and after the change, as the verification of
+  prototype-pages::CON-002; unlike the rendered comparison it does not depend on which states are exercised. Three
+  parts must each be identical: the page's DOM as parsed with scripts disabled (comment nodes left out, adjacent text
+  joined, white space collapsed); each style block's rules as a browser parses them (each rule's text from the
+  CSSOM, not from jsdom, which drops declarations it does not know); and each script's syntax tree printed without
+  comments, by the same parser the shared-UI check uses. Collapsing white space misses regions drawn with
+  `white-space: pre`; the rendered comparison's laid-out boxes catch those. The rendered comparison and the
+  screenshots are supporting evidence for CON-002.
 - **Screenshots** of each page's default state in Chinese and English, light and dark, before and after, are kept
   for the owner to look over.
 - **Sizes**: each page's size before and after is recorded.
