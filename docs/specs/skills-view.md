@@ -604,7 +604,7 @@ nothing):
 
 ## Out of Scope
 
-- Cross-agent-side machine diff / side-by-side diff / the `differs` signal (retired, see CONTEXT).
+- Cross-agent-side machine diff / side-by-side diff / the `differs` signal (retired).
 - System-opening non-text files in a package, and asset thumbnails.
 - Rich-text preview of non-markdown files (script highlighting and so on); non-text files are still not
   listed (C4).
