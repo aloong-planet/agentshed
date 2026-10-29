@@ -3,7 +3,7 @@
 > Related: [features](../features/app-update.md) · [ADR-0032](../adr/0032-app-updates.md) (as amended
 > the same day) · [ADR-0031](../adr/0031-macos-release-line.md) (the releases this reads) ·
 > [mac-distribution](mac-distribution.md) (what each release carries) · CONTEXT: **App update**,
-> **Update check**, **Release channel**, and the invariant on outbound requests
+> **Update check**; AGENTS.md: the invariant on outbound requests
 
 ## Problem Statement
 

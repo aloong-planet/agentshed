@@ -38,7 +38,7 @@ Worktrees:
 - [x] S9 skill-policy self-check, both phases, converged
 - [x] R1 agent-rules AGENTS.md: §52 destination and the invariant line format; §16; §18 wording
 - [x] M1 memory reuse-parsers-over-regex.md pointer
-- [ ] P1 PRs (agentshed, skillshed, agent-rules); stop for merge confirmation
+- [x] P1 PRs opened: aloong-planet/agentshed#337, aloong-planet/skillshed#28, zhoulf1006/agent-rules#1
 - [ ] T1 Todo for the other six repos (user decides where it goes)
 
 ## Found, not changed here
@@ -50,3 +50,25 @@ Worktrees:
 - skillshed: the shared checkout carries uncommitted edits in features-catalog/SKILL.md (line 18),
   github-ops/SKILL.md (lines 3–67) and github-ops/checks-gate.md (line 36); this branch touches other lines of
   the same files, so a pull there waits until those edits are committed or stashed.
+
+## Round 2 (2026-10-29, same day)
+
+User decisions: apply the fourth admission test (a term needs a confusable concept named in the entry, or a meaning
+its words do not give away) and the second-sentence rule; then make every reader take the contents first and a
+single entry only when its detail is needed.
+
+- Removed six entries: Plugin-bundled components, Resume command, Data day, Past day, Structured error, Release
+  channel; each is defined where it is used (ADR-0010 and skills-view, session-view line 35, ADR-0009, ADR-0026,
+  ADR-0015, app-update spec line 25 and ADR-0032). Usage boundary stays: the rule admits a coined term.
+- Second sentences removed where they stated a property or behaviour (Effective view, Effective enabled plugins,
+  Project install, Usage boundary, Usage row, Accounting stamp, Observed value, Theme variable classes, Update
+  check; half of Transfusion and Cold rollout), each found in its spec, ADR or code comment first. Compacted window
+  keeps its second sentence: no spec or ADR states that a thread repeats its whole summarised history.
+- Title "Filtering and searching" now matches its contents entry, so a single entry can be taken by name.
+- 52 entries become 46; 349 lines become 310; 18,558 bytes become 16,330.
+- docs/specs/app-update.md line 6 still cited "the invariant on outbound requests" under CONTEXT. The first round
+  searched the lines that contain "CONTEXT", and this citation continues on the next line; a search over each
+  CONTEXT line and the two after it found no other such case.
+- Reading: the global instructions gain a section on reading CONTEXT.md (the contents through awk by section,
+  single entries by paragraph); implement, tdd and the docs-layout seed point at it. The three commands were checked on this file and
+  are silent under the truncation hook.

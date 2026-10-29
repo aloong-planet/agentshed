@@ -693,7 +693,7 @@ unchanged; export remains outside scope.
 ## Session ID and resume
 
 Every session belongs to exactly one agent side — the side whose data directory holds its record — and
-that side gives it an ID its own command-line tool resumes it by (CONTEXT: session ID, resume command).
+that side gives it an ID its own command-line tool resumes it by (CONTEXT: session ID).
 The session ID is not the session's identity here, which stays its source file path (A, B).
 
 ### session-view::US-001 Pick a session back up in the tool it belongs to

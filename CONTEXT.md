@@ -9,17 +9,16 @@ or remove skills from the global library. This file is the domain glossary; the 
 
 - **Language**
   - Projects and sides: Project, Stale project, Agent side, Side colour, Application icon
-  - Components: Global library, Compatibility-borrowed component, Shared skills directory, Project
-    install, Effective view, Subagent, Memory, Effective enabled plugins, Plugin-bundled components,
-    Artifact
-  - Sessions and search: Activity, Session, Question, Session ID, Resume command, Turn, Filtering and
-    searching, Global search
+  - Components: Global library, Compatibility-borrowed component, Shared skills directory,
+    Project install, Effective view, Subagent, Memory, Effective enabled plugins, Artifact
+  - Sessions and search: Activity, Session, Question, Session ID, Turn, Filtering and searching,
+    Global search
   - Codex data: Paginated rollout, Usage record, Usage boundary, Compacted window, Cold rollout
-  - Usage and the archive: Usage row, Data day, Live (day, side), Archived-only (day, side), Retained
-    (day, side), Observed value, Superseded value, Accounting stamp, Past day, Time window, Trend span
-  - Interface: Rail, Transfusion, Structured error, Supported language, Language preference, Effective
-    language, Source language, Appearance, Theme, Theme variable classes
-  - Updates: App update, Update check, Release channel
+  - Usage and the archive: Usage row, Live (day, side), Archived-only (day, side),
+    Retained (day, side), Observed value, Superseded value, Accounting stamp, Time window, Trend span
+  - Interface: Rail, Transfusion, Supported language, Language preference, Effective language,
+    Source language, Appearance, Theme, Theme variable classes
+  - Updates: App update, Update check
 - **Flagged ambiguities**
 
 ## Language
@@ -78,14 +77,12 @@ _Avoid_: compatibility-borrowed (each side loads it natively); Codex skills, Ant
 names only one of its owners)
 
 **Project install**:
-Landing a skill from the global library in the project's own directory as a full copy. Uninstalling
-deletes that copy, and the project never depends on the global library continuing to exist.
+Landing a skill from the global library in the project's own directory as a full copy (ADR-0004).
 _Avoid_: symlink, sync
 
 **Effective view**:
 The components in effect for a project on one side: its project-level entries together with the
-entries in effect from that side's global layer, the skills of effectively enabled plugins included. How
-a same-name pair is shown is each view's own rule (skills-view, subagents-view).
+entries in effect from that side's global layer, the skills of effectively enabled plugins included.
 _Avoid_: installed list
 
 **Subagent**:
@@ -100,14 +97,8 @@ _Avoid_: notes (too general); `CLAUDE.md` (human-authored instructions — that 
 
 **Effective enabled plugins**:
 The plugins in effect from one project's point of view: those resolving to true once `enabledPlugins` is
-merged across the local, project and user layers, the global page using the user layer. Antigravity CLI
-has a single shared layer and no per-project enablement.
+merged across the local, project and user layers, the global page using the user layer.
 _Avoid_: installed (installed ≠ enabled)
-
-**Plugin-bundled components**:
-The skills, subagents, hooks and MCP servers shipped inside a plugin package, which come and go with the
-plugin as a unit.
-_Avoid_: plugin features (too general)
 
 **Artifact**:
 One of the five kinds of document a project accumulates under the eight-step process: ADRs,
@@ -140,18 +131,13 @@ The identifier an agent side gives a session and that side's own resume takes. I
 identity here: one Codex thread written in segments is several sessions sharing one session ID.
 _Avoid_: session key, conversation id; "session id" for the source file path
 
-**Resume command**:
-One shell line that reopens a session in its own side's command-line tool: it changes into the project's
-directory, then resumes by session ID.
-_Avoid_: continue command, launch command
-
 **Turn**:
 Everything recorded from one question up to the next — assistant prose, tool calls and returns,
 subagent dispatches — identified by a byte range of the source file (on the Antigravity CLI side, of its
 transcript).
 _Avoid_: message pair, question-answer pair
 
-**Filtering** and **searching**:
+**Filtering and searching**:
 Filtering narrows a list already in hand, entirely in the renderer; searching reads file contents in the
 main process and returns hits, snippets and groups. The distinction holds in specs, ADRs and code;
 user-facing copy may say "search" for both.
@@ -179,8 +165,7 @@ _Avoid_: token record; usage event (that is the legacy per-turn event)
 
 **Usage boundary**:
 The first usage record in a rollout by line order: usage events before it count under the legacy rule,
-and from it on only usage records count. A rollout with no usage record is read by the legacy rule
-throughout.
+and from it on only usage records count.
 _Avoid_: cutover, switch point
 
 **Compacted window**:
@@ -191,20 +176,15 @@ _Avoid_: compaction (the act, not the span), truncated history
 
 **Cold rollout**:
 A rollout Codex has compressed into a `.jsonl.zst` file after seven days without writes, deleting the
-plain file. It is the same session under the same identity, readable only as a stream from its start.
+plain file. It is the same session under the same identity.
 _Avoid_: archived session (Codex's own `archived_sessions` root is a different thing), compressed session
 
 ### Usage and the archive
 
 **Usage row**:
 One day's usage at the finest grain the aggregation produces — day × side × project × model, with all
-four token fields — and the single source every token figure derives from (ADR-0007, ADR-0025). A row
-with an empty day joins the whole-history figures and no bounded window.
+four token fields — and the single source every token figure derives from (ADR-0007, ADR-0025).
 _Avoid_: archive row (names one of its roles), usage event (an event is per turn; a row is per day)
-
-**Data day**:
-A day within the trend window whose total under the current view is above zero (ADR-0009).
-_Avoid_: non-zero day, active day
 
 **Live (day, side)**:
 A day on which the current scan produced at least one usage row for that side. Liveness is judged per
@@ -224,7 +204,7 @@ _Avoid_: frozen, protected, locked (all suggest a manual act; retention is the r
 
 **Observed value**:
 The live figure a scan produced for a retained (day, side), recorded so that a later stamp change can
-tell a moved figure from the same figure under new rules. It is never shown and never enters a total.
+tell a moved figure from the same figure under new rules.
 _Avoid_: actual value, real value (both imply the retained value is the wrong one)
 
 **Superseded value**:
@@ -234,13 +214,8 @@ _Avoid_: history row, backup, old value
 
 **Accounting stamp**:
 The identity of the accounting code behind a figure — the application version and the cache structure
-version — written on every archive row. A lower figure under the same stamp means the data shrank; under
-a new stamp it may be a correction.
+version — written on every archive row (ADR-0026).
 _Avoid_: version (bare — ambiguous between its two components and the archive file's own format version)
-
-**Past day**:
-A day earlier than the scan's own local calendar day (ADR-0026).
-_Avoid_: closed day, settled day
 
 **Time window**:
 The span a token figure is scoped to — all history, today, the last 7 days or the last N days, N being
@@ -262,14 +237,9 @@ beside it)
 
 **Transfusion**:
 A refresh of a page already on screen: the new data replaces the old in place, and what the user did on
-the page — a section's expansion, a search keyword, the scroll position — survives. It is how an
-automatic rescan and a background revalidation reach a page, and it never empties the page first.
+the page — a section's expansion, a search keyword, the scroll position — survives. It never empties
+the page first.
 _Avoid_: reload, refetch (they name the fetch, not what the page does with its result)
-
-**Structured error**:
-Failure information crossing the IPC boundary as an error code and parameters, with no natural-language
-wording; the renderer words it in the current language (ADR-0015).
-_Avoid_: error message (bare — implies a finished sentence)
 
 **Supported language**:
 A language the interface can be switched to: Simplified Chinese and English, both left-to-right, with no
@@ -307,8 +277,7 @@ prose, but it is the contents of a theme, not the choice)
 **Theme variable classes**:
 Every theme variable is **theme-varying** (it constitutes the surface or the text on it; one value per
 theme × appearance), **appearance-varying** (it sits on a surface and must stay legible against it; one
-value per appearance) or **static** (an opaque block carrying its own ground; one value throughout). The
-class, decided by the variable's relationship to its surface, says where it must be defined.
+value per appearance) or **static** (an opaque block carrying its own ground; one value throughout).
 _Avoid_: judging by how many places a variable is defined in; "functional colour" for static (a functional colour can
 be appearance-varying)
 
@@ -320,16 +289,8 @@ or a transfusion changes what the app shows; an app update changes the app (ADR-
 _Avoid_: update (bare — it also reads as a rescan or a transfusion), upgrade
 
 **Update check**:
-Asking the release source whether an app update exists for this installation's release channel. An
-automatic check runs unless the user turned automatic checks off and fails silently; a manual check
-always reports an update found, up to date, or failed.
+Asking the release source whether an app update exists for this installation (app-update spec).
 _Avoid_: refresh, sync, polling
-
-**Release channel**:
-Which releases an installation is offered: a formal-release installation gets formal releases only, a
-pre-release installation gets pre-releases and formal releases. It follows the installed version and is
-never chosen by the user.
-_Avoid_: beta mode, insider track, update track
 
 ## Flagged ambiguities
 
