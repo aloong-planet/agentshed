@@ -14,6 +14,7 @@ const fields = (shape: Record<string, Check>): Check => v => obj(v) && Object.en
 const side: Check = v => typeof v === 'string' && AGENT_SIDES.has(v)
 const perSide = (check: Check): Check => fields(Object.fromEntries([...AGENT_SIDES].map(s => [s, check])))
 const text = fields({ text: str, truncated: bool })
+const configFile = fields({ file: str, content: nullable(text) })
 const error = fields({ code: isErrorCode, params: v => obj(v) && Object.values(v).every(x => str(x) || num(x)) })
 const pkg = nullable(fields({ files: num, bytes: num }))
 const sub = fields({ content: nullable(text), description: nullable(str), tools: nullable(str), model: nullable(str), sandbox: nullable(str), error: nullable(error) })
@@ -36,8 +37,7 @@ const globalLayer = fields({
   memory: list(fields({ side, projectPath: nullable(str), projectName: nullable(str), hasMain: bool, files: list(memoryFile), lastModified: nullable(num), stale: bool })),
   codexMemoriesEnabled: bool, plugins: list(plugin),
   codexPlugins: list(fields({ name: str, marketplace: str, root: nullable(str), skills: pluginSkills, version: nullable(str), cachedVersions: num })),
-  mcp: list(fields({ name: str, side, source: str })), claudeGlobalMd: nullable(text), codexAgentsMd: nullable(text),
-  codexConfigSummary: nullable(fields({ model: nullable(str), projectCount: num, mcpCount: num }))
+  mcp: list(fields({ name: str, side, source: str })), claudeMd: nullable(configFile), agentsMd: list(configFile)
 })
 export const displaySnapshotValid: Check = fields({
   scannedAt: num, global: globalLayer, tokens: displayTokensValid, archivedDays: list(str),

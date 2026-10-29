@@ -13,6 +13,7 @@ function roots(): ScanRoots {
     claudeHome: join(dir, '.claude'),
     claudeConfigFile: join(dir, '.claude.json'),
     codexHome: join(dir, '.codex'),
+    geminiHome: join(dir, '.gemini'),
     grokHome: join(dir, '.grok'),
     agentsSkillsDir: join(dir, '.agents', 'skills')
   }
@@ -175,31 +176,102 @@ describe('global MCP (three sources)', () => {
   })
 })
 
-describe('read-only global configuration', () => {
-  it('reads the global CLAUDE.md and AGENTS.md; missing files are null; the config.toml summary carries the model and the counts', async () => {
-    mkdirSync(join(dir, '.claude'), { recursive: true })
-    writeFileSync(join(dir, '.claude', 'CLAUDE.md'), '# Global rules\n- pnpm\n')
-    writeFileSync(join(dir, '.codex', 'AGENTS.md'), '# Codex global\n')
-    writeFileSync(
-      join(dir, '.codex', 'config.toml'),
-      'model = "gpt-5.5-codex"\n[projects."/a"]\ntrust_level = "trusted"\n[mcp_servers.node_repl]\ncommand="node"\n'
-    )
+// agents-overview::REQ-004: two entries, CLAUDE.md and AGENTS.md. The locations are the ones measured with agy
+// (research record §10.9): it loads ~/.gemini/AGENTS.md and ~/.gemini/config/AGENTS.md together, the root one
+// first, and GEMINI.md and rules from their own places — none of which joins the section.
+describe('the Configuration section (agents-overview::REQ-004)', () => {
+  const write = (rel: string, text: string): void => {
+    const file = join(dir, rel)
+    mkdirSync(join(file, '..'), { recursive: true })
+    writeFileSync(file, text)
+  }
+  const CODEX = join('.codex', 'AGENTS.md')
+  const AGY_ROOT = join('.gemini', 'AGENTS.md')
+  const AGY_CONFIG = join('.gemini', 'config', 'AGENTS.md')
+  // What agy also reads, and the section shows nowhere (AC-05), each with its own marker
+  const writeExcluded = (): void => {
+    write(join('.gemini', 'GEMINI.md'), '# marker-gemini-root\n')
+    write(join('.gemini', 'config', 'GEMINI.md'), '# marker-gemini-config\n')
+    write(join('.gemini', 'config', 'rules', 'house-style.md'), '# marker-global-rule\n')
+    write(join('.gemini', 'antigravity-cli', 'rules', 'sample-cli-rule.md'), '# marker-cli-rule\n')
+    write(join('.grok', 'AGENTS.md'), '# marker-grok-agents\n')
+  }
+
+  it('CLAUDE.md is ~/.claude/CLAUDE.md; AGENTS.md is every global AGENTS.md that exists, Codex first, then agy\'s root one, then its config one, each with its path', async () => {
+    write(join('.claude', 'CLAUDE.md'), '# Global rules\n- pnpm\n')
+    // Written in reverse of the order shown, so neither creation order nor directory order can produce it
+    write(AGY_CONFIG, '# Antigravity instructions\nmarker-agy-config\n')
+    write(AGY_ROOT, '# Agent rules\nmarker-agy-root\n')
+    write(CODEX, '# Codex global\nmarker-codex\n')
+    writeExcluded()
+    // The input that used to produce the config.toml summary (AC-04)
+    write(join('.codex', 'config.toml'), 'model = "gpt-5.5-codex"\n[projects."/a"]\ntrust_level = "trusted"\n[mcp_servers.node_repl]\ncommand="node"\n')
     const snap = await scan(roots(), { now: () => 1 })
-    expect(snap.global.claudeGlobalMd?.text).toContain('Global rules')
-    expect(snap.global.codexAgentsMd?.text).toContain('Codex global')
-    // The summary is structured fields now, with the renderer composing the sentence (ticket 07) —
-    // asserting fields is steadier than asserting a sentence:
-    // a wording change should not turn this red, only a wrong count should
-    expect(snap.global.codexConfigSummary).toEqual({
-      model: 'gpt-5.5-codex',
-      projectCount: 1,
-      mcpCount: 1
+    expect(snap.global.claudeMd).toEqual({
+      file: join(dir, '.claude', 'CLAUDE.md'),
+      content: { text: '# Global rules\n- pnpm\n', truncated: false }
     })
+    expect(snap.global.agentsMd).toEqual([
+      { file: join(dir, '.codex', 'AGENTS.md'), content: { text: '# Codex global\nmarker-codex\n', truncated: false } },
+      { file: join(dir, '.gemini', 'AGENTS.md'), content: { text: '# Agent rules\nmarker-agy-root\n', truncated: false } },
+      { file: join(dir, '.gemini', 'config', 'AGENTS.md'), content: { text: '# Antigravity instructions\nmarker-agy-config\n', truncated: false } }
+    ])
+    // AC-05: the payload carries file contents (the three markers above), and nothing from GEMINI.md, either
+    // rules directory or Grok's AGENTS.md
+    const payload = JSON.stringify(snap.global)
+    for (const m of ['marker-codex', 'marker-agy-root', 'marker-agy-config']) expect(payload).toContain(m)
+    for (const m of ['marker-gemini-root', 'marker-gemini-config', 'marker-global-rule', 'marker-cli-rule', 'marker-grok-agents'])
+      expect(payload, m).not.toContain(m)
+    // AC-04: no settings summary for any side; the old per-side fields are gone from the contract
+    for (const k of ['codexConfigSummary', 'codexAgentsMd', 'claudeGlobalMd']) expect(snap.global).not.toHaveProperty(k)
   })
 
-  it('everything missing → null, without throwing', async () => {
+  // Every combination of the three (the ticket's "providers fixtures for each combination")
+  it.each([
+    { present: [], shown: [] },
+    { present: [CODEX], shown: [CODEX] },
+    { present: [AGY_ROOT], shown: [AGY_ROOT] },
+    { present: [AGY_CONFIG], shown: [AGY_CONFIG] },
+    { present: [CODEX, AGY_ROOT], shown: [CODEX, AGY_ROOT] },
+    { present: [CODEX, AGY_CONFIG], shown: [CODEX, AGY_CONFIG] },
+    { present: [AGY_ROOT, AGY_CONFIG], shown: [AGY_ROOT, AGY_CONFIG] },
+    { present: [AGY_CONFIG, AGY_ROOT, CODEX], shown: [CODEX, AGY_ROOT, AGY_CONFIG] }
+  ])('present $present → shown $shown', async ({ present, shown }) => {
+    for (const rel of present) write(rel, `# ${rel}\n`)
     const snap = await scan(roots(), { now: () => 1 })
-    expect(snap.global.claudeGlobalMd).toBeNull()
-    expect(snap.global.codexAgentsMd).toBeNull()
+    expect(snap.global.agentsMd.map((f) => f.file)).toEqual(shown.map((rel) => join(dir, rel)))
+  })
+
+  it('GEMINI.md and rules exist but no AGENTS.md does → the AGENTS.md entry has no file (it shows "None")', async () => {
+    writeExcluded()
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.agentsMd).toEqual([])
+  })
+
+  it('a file that exists but cannot be read keeps its place and its path, with no contents; the others are read', async () => {
+    write(CODEX, '# Codex global\n')
+    // A directory where the file should be: the read fails (EISDIR) whoever runs the test
+    mkdirSync(join(dir, AGY_ROOT), { recursive: true })
+    write(AGY_CONFIG, '# Antigravity instructions\n')
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.agentsMd).toEqual([
+      { file: join(dir, CODEX), content: { text: '# Codex global\n', truncated: false } },
+      { file: join(dir, AGY_ROOT), content: null },
+      { file: join(dir, AGY_CONFIG), content: { text: '# Antigravity instructions\n', truncated: false } }
+    ])
+  })
+
+  it('an oversized file is truncated (B5)', async () => {
+    write(CODEX, 'x'.repeat(200_123))
+    const snap = await scan(roots(), { now: () => 1 })
+    const [codex] = snap.global.agentsMd
+    expect(codex.content?.truncated).toBe(true)
+    expect(codex.content?.text.length).toBe(200000)
+  })
+
+  it('nothing present → no CLAUDE.md and no AGENTS.md, without throwing', async () => {
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.claudeMd).toBeNull()
+    expect(snap.global.agentsMd).toEqual([])
   })
 })

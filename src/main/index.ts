@@ -25,6 +25,7 @@ import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
 import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
 import { readProjectDetail } from './providers/project-detail'
+import { savedConfigPaths } from './providers/global'
 import { CACHE_VERSION, TokenEngine, projectStatsFromRows } from './providers/token-stats'
 import { ParsePool } from './parse-pool'
 import { availableParallelism } from 'node:os'
@@ -682,7 +683,7 @@ void app.whenReady().then(() => {
   // structure version covers parser changes — together they identify the accounting code, so a lower
   // figure under the same stamp can only mean the data shrank
   archive = new UsageArchive(app.getPath('userData'), { stamp: `${app.getVersion()}+c${CACHE_VERSION}` })
-  displayStore = new DisplayStore(app.getPath('userData'))
+  displayStore = new DisplayStore(app.getPath('userData'), savedConfigPaths(realRoots()))
   const restored = displayStore.get()
   current = restored.snapshot
   perProjectStats = new Map(restored.stats)

@@ -27,9 +27,11 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
 - MCP: the servers in the project's `.mcp.json` and their enabled / disabled / default state; if
   there are none, a pointer to the Agents page for the global ones
 - Memory: this project's automatic memories in full (see [Memory view](memory-view.md))
-- Configuration: the project's CLAUDE.md and AGENTS.md rendered for reading, plus a settings summary;
-  missing files show "none"; a link to one of the project's listed documents opens it in the same
-  reading overlay as the Artifacts tab, and a link outside them shows a notice
+- Configuration: two entries, the project's own CLAUDE.md and AGENTS.md (the AGENTS.md that Codex and
+  Antigravity CLI both read, shown once), each rendered for reading under its path; a missing file
+  shows "None" and one that cannot be read says so under its path; no settings summary is shown; a
+  link to one of the project's listed documents opens it in the same reading overlay as the Artifacts
+  tab, and a link outside them shows a notice
 - Artifacts tab: the six kinds of artifact laid out flat in reverse chronological order, filterable
   by type chips; the chips are ordered by the top-down derivation chain (CONTEXT.md → ADR → specs →
   prototypes → features → postmortems); markdown opens in an overlay for reading, and prototypes'

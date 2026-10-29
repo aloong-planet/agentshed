@@ -6,14 +6,6 @@
 import type { AppError } from './errors'
 import type { Provider } from './provider'
 
-/** Codex config.toml summary: **structured fields**; the renderer composes the sentence (ticket 07) */
-export interface CodexConfigSummary {
-  /** null = not set */
-  model: string | null
-  projectCount: number
-  mcpCount: number
-}
-
 /**
  * A bounded text read result (ticket 07).
  * The main process **only reports whether it was truncated**; a marker such as "…(truncated)" is
@@ -23,6 +15,19 @@ export interface CodexConfigSummary {
 export interface CappedText {
   text: string
   truncated: boolean
+}
+
+/**
+ * One file a Configuration entry shows, headed by its path (agents-overview::REQ-004,
+ * project-detail::REQ-002/AC-02). Only a file that exists is sent: an absent one is no file at all, and an
+ * entry with no file shows "None".
+ */
+export interface ConfigFile {
+  /** The file's absolute path — the heading it is shown under */
+  file: string
+  /** The contents, truncated when oversized; **null = the file exists but could not be read**, and the
+   * renderer produces the wording */
+  content: CappedText | null
 }
 
 export type AgentSide = 'claude' | 'codex' | 'grok'
@@ -243,11 +248,11 @@ export interface GlobalLayer {
   /** Codex plugins (probe-style: an empty cache directory gives an empty array and the UI hides the whole group) */
   codexPlugins: CodexPluginEntry[]
   mcp: McpServerEntry[]
-  /** The global CLAUDE.md's contents (null when absent, truncated when oversized) */
-  claudeGlobalMd: CappedText | null
-  /** The Codex global AGENTS.md's contents */
-  codexAgentsMd: CappedText | null
-  codexConfigSummary: CodexConfigSummary | null
+  /** The Configuration section's CLAUDE.md: `~/.claude/CLAUDE.md`; null when it does not exist */
+  claudeMd: ConfigFile | null
+  /** The Configuration section's AGENTS.md: every global AGENTS.md a side was observed to load that exists, in
+   * the order shown (agents-overview::REQ-004/AC-03); empty when none does */
+  agentsMd: ConfigFile[]
 }
 
 /**
@@ -643,10 +648,11 @@ export interface ProjectDetail {
   memory: ProjectMemory
   plugins: ProjectPluginEntry[]
   mcp: ProjectMcpEntry[]
+  /** The Configuration section: the project's own CLAUDE.md and AGENTS.md, null when absent
+   * (project-detail::REQ-002/AC-02) */
   configs: {
-    claudeMd: CappedText | null
-    agentsMd: CappedText | null
-    settingsSummary: string | null
+    claudeMd: ConfigFile | null
+    agentsMd: ConfigFile | null
   }
   /** The overview tab's data (attached by the main process from the token engine; null when the engine is not ready) */
   stats: ProjectStats | null
@@ -680,9 +686,8 @@ export function emptySnapshot(scannedAt: number): Snapshot {
       plugins: [],
       codexPlugins: [],
       mcp: [],
-      claudeGlobalMd: null,
-      codexAgentsMd: null,
-      codexConfigSummary: null
+      claudeMd: null,
+      agentsMd: []
     },
     tokens: emptyTokenStats(),
     archivedDays: []
