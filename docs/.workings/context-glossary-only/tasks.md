@@ -93,7 +93,14 @@ repositories follow later); the app reads `docs/CONTEXT.md` only; the product ch
   repository not yet moved), e2e case E4 (a cache saved before the move: the root file is admitted before the current
   detail and refused after it, still on disk), E3's step removed, the checklist rows rewritten; the design increment
   and the self-check are in docs/.workings/project-detail/review-tests.md. Hand-over self-check items 6 and 7: the
-  records named above match the change; the fix's evidence is the targeted log docs/.workings/project-detail/gate-fix-2.log; gate-fix-1.log is the first run, red at E4's held-scan assertion, which led to the revision recorded in review-tests.md.
+  records named above match the change; the fix's evidence is the targeted log docs/.workings/project-detail/gate-fix-2.log, which covers the tree before the three lines of the re-review decision below were appended to this file, so check:lang and check:nul over the committed tasks.md come from the full run before delivery; gate-fix-1.log is the first run, red at E4's held-scan assertion, which led to the revision recorded in review-tests.md.
 - Re-review decision for the fix: change-scope against the pre-fix commit d7c364d (command, full output and exit code in
   docs/.workings/project-detail/change-scope-fix-1.log) exits 1 with e2e/startup-restore.spec.ts and
   src/main/providers/artifacts.test.ts `changed`, so the fix is committed and handed to an incremental re-review.
+- Incremental check (independent reviewer, 59a63b4): no finding on the tests; F4 gate-fix-2.log predates tasks.md's
+  last three lines; F5 the design review kept U2's wrong source and the old Dimension 1 beside the increment. Fix:
+  the tasks.md evidence pointer qualified; the design review's U2 row, E3 row and Dimension 1 corrected in place, the
+  increment's duplicates turned into pointers. Hand-over self-check items 6 and 7: the fix makes no new test evidence
+  (records only, so no targeted run); the records named above now state one conclusion each. Re-review decision:
+  change-scope against 59a63b4 in docs/.workings/project-detail/change-scope-fix-2.log.
+  Result: exit 0, every file inert, so no further re-review; step 6 is closed.

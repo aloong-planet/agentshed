@@ -50,3 +50,5 @@ No findings. Refactoring list: empty.
 ## Hand-over self-check after the post-implementation findings (2026-10-29)
 
 Item 1 (product code changed by the fix): not applicable — the fix for F1–F3 changes tests and records only.
+
+Item 1 for the fix of the incremental check's F4 and F5: not applicable — records only.
