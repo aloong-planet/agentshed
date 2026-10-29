@@ -3,7 +3,7 @@ import { StartupHint } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { useMemo, useRef, useState } from 'react'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER, type SideBadgeClass } from './side-badge'
-import { MarkdownBody } from './MarkdownBody'
+import { ConfigSection } from './ConfigSection'
 import type { AgentSide, Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
 import { sliceUsage, type UsageWindow } from '@shared/usage'
@@ -391,59 +391,25 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
   )
 }
 
+/**
+ * The Configuration section (agents-overview::REQ-004): CLAUDE.md, and AGENTS.md holding every global AGENTS.md a
+ * side loads that exists, in the order the main process sends them. No settings summary for any side.
+ */
 function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
-  const t = useDict()
   const lang = useLanguage()
-  const [which, setWhich] = useState<'cl' | 'cx' | 'toml'>('cl')
-  const md =
-    which === 'cl' ? snap.global.claudeGlobalMd : which === 'cx' ? snap.global.codexAgentsMd : null
-  // The truncation marker is appended by the renderer in the current language (ticket 07): the main
-  // process only reports whether it was truncated
-  const cfgText = md === null ? null : md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text
   return (
-    <div>
-      <div className="cfg-switch">
-        {(
-          [
-            ['cl', t.agents.cfgClaudeMd],
-            ['cx', t.agents.cfgAgentsMd],
-            ['toml', t.agents.cfgToml]
-          ] as const
-        ).map(([w, label]) => (
-          <button key={w} className={which === w ? 'on' : ''} onClick={() => setWhich(w)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      {which === 'toml' ? (
-        snap.global.codexConfigSummary === null ? (
-          <Empty msg={t.agents.tomlMissing} />
-        ) : (
-          <pre className="md mono">
-            {t.codexConfig(
-              snap.global.codexConfigSummary.model ?? t.placeholder.notSet,
-              snap.global.codexConfigSummary.projectCount,
-              snap.global.codexConfigSummary.mcpCount
-            )}
-          </pre>
-        )
-      ) : cfgText === null ? (
-        <Empty msg={t.agents.fileMissing} />
-      ) : (
-        <MarkdownBody
-          className="md"
-          text={cfgText}
-          links={{
-            // The global configuration card has no in-app targets wired, so every relative link gets
-            // the explicit out-of-scope notice (the invariant's fallback) — onInternal is unreachable
-            baseDir: '',
-            readable: [],
-            onInternal: () => {},
-            onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
-          }}
-        />
-      )}
-    </div>
+    <ConfigSection
+      claudeMd={snap.global.claudeMd === null ? [] : [snap.global.claudeMd]}
+      agentsMd={snap.global.agentsMd}
+      links={{
+        // The global configuration card has no in-app targets wired, so every relative link gets
+        // the explicit out-of-scope notice (the invariant's fallback) — onInternal is unreachable
+        baseDir: '',
+        readable: [],
+        onInternal: () => {},
+        onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+      }}
+    />
   )
 }
 

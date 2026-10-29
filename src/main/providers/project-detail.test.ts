@@ -15,6 +15,7 @@ function roots(): ScanRoots {
     claudeHome: join(dir, '.claude'),
     claudeConfigFile: join(dir, '.claude.json'),
     codexHome: join(dir, '.codex'),
+    geminiHome: join(dir, '.gemini'),
     grokHome: join(dir, '.grok'),
     antigravityHome: join(dir, '.gemini', 'antigravity-cli'),
     agentsSkillsDir: join(dir, '.agents', 'skills')
@@ -112,10 +113,13 @@ describe('project-level MCP', () => {
   })
 })
 
-describe('read-only configuration', () => {
-  it('the project CLAUDE.md / AGENTS.md contents; the settings summary comes from the project key', () => {
+// project-detail::REQ-002/AC-02: two entries, the project's own CLAUDE.md and AGENTS.md, each with its path
+describe('the Configuration section (project-detail::REQ-002/AC-02)', () => {
+  it('the project CLAUDE.md and AGENTS.md, each with its path; no settings summary, even with a project key carrying settings', () => {
     writeFileSync(join(proj, 'CLAUDE.md'), '# Project conventions\n')
-    writeFileSync(join(proj, 'AGENTS.md'), '# Codex project notes\n')
+    // The shape of agy's demo project sample (research record, spike/samples/project/AGENTS.md)
+    writeFileSync(join(proj, 'AGENTS.md'), '# agy-demo instructions\n\nRun the tests with `python3 -m unittest` before finishing.\n')
+    // The input that used to produce the settings summary
     writeFileSync(
       join(dir, '.claude.json'),
       JSON.stringify({
@@ -123,15 +127,39 @@ describe('read-only configuration', () => {
       })
     )
     const d = readProjectDetail(roots(), proj)
-    expect(d.configs.claudeMd?.text).toContain('Project conventions')
-    expect(d.configs.agentsMd?.text).toContain('Codex project notes')
-    expect(d.configs.settingsSummary).toContain('allowedTools')
-    expect(d.configs.settingsSummary).toContain('figma')
+    expect(d.configs).toEqual({
+      claudeMd: { file: join(proj, 'CLAUDE.md'), content: { text: '# Project conventions\n', truncated: false } },
+      agentsMd: {
+        file: join(proj, 'AGENTS.md'),
+        content: { text: '# agy-demo instructions\n\nRun the tests with `python3 -m unittest` before finishing.\n', truncated: false }
+      }
+    })
+    expect(d.configs).not.toHaveProperty('settingsSummary')
   })
 
   it('missing configuration → null', () => {
     const d = readProjectDetail(roots(), proj)
     expect(d.configs.claudeMd).toBeNull()
     expect(d.configs.agentsMd).toBeNull()
+  })
+
+  it('the project\'s GEMINI.md and its .agents/rules are shown nowhere (agents-overview::REQ-004/AC-05)', () => {
+    writeFileSync(join(proj, 'AGENTS.md'), '# marker-project-agents\n')
+    writeFileSync(join(proj, 'GEMINI.md'), '# marker-project-gemini\n')
+    mkdirSync(join(proj, '.agents', 'rules'), { recursive: true })
+    writeFileSync(join(proj, '.agents', 'rules', 'house-style.md'), '# marker-project-rule\n')
+    const payload = JSON.stringify(readProjectDetail(roots(), proj))
+    expect(payload).toContain('marker-project-agents')
+    expect(payload).not.toContain('marker-project-gemini')
+    expect(payload).not.toContain('marker-project-rule')
+  })
+
+  it('a file that exists but cannot be read keeps its path with no contents; the other entry is unaffected', () => {
+    writeFileSync(join(proj, 'CLAUDE.md'), '# Project conventions\n')
+    // A directory where the file should be: the read fails (EISDIR) whoever runs the test
+    mkdirSync(join(proj, 'AGENTS.md'))
+    const d = readProjectDetail(roots(), proj)
+    expect(d.configs.agentsMd).toEqual({ file: join(proj, 'AGENTS.md'), content: null })
+    expect(d.configs.claudeMd).toEqual({ file: join(proj, 'CLAUDE.md'), content: { text: '# Project conventions\n', truncated: false } })
   })
 })

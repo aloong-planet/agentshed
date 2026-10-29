@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
+import { emptySnapshot } from '../src/shared/domain'
 
 test('restart restores viewed project, questions and read answer before a new scan finishes', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-restore-home-'))
@@ -220,6 +221,52 @@ test('restart restores viewed project, questions and read answer before a new sc
     await expect.poll(() => win.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)).toBe(true)
     await win.screenshot({ path: 'docs/.workings/startup-restore/session-dark.png' })
 
+  } finally {
+    if (app) await closeApp(app).catch(() => {})
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+
+// agents-overview::REQ-004 across an update: a display cache written by the version before configuration entries
+// carried their paths — its snapshot's global layer as this machine's cache held it on 2026-10-29, `claudeGlobalMd` and
+// `codexAgentsMd` as contents beside a `codexConfigSummary` — restores before the first scan, each file under the path
+// the main process knows it by. The scan is held, so the saved copy is the only source of what the section shows.
+test('a snapshot saved before configuration entries carried their paths restores with them, before the first scan', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-cfg-restore-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-cfg-restore-data-'))
+  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.codex'), { recursive: true })
+  writeFileSync(join(home, '.claude', 'CLAUDE.md'), '# Live rules\n')
+  const current = emptySnapshot(1)
+  current.sides.claude.detected = true
+  current.sides.codex.detected = true
+  const global: Record<string, unknown> = {
+    ...current.global,
+    claudeGlobalMd: { text: '# Saved rules\n', truncated: false },
+    codexAgentsMd: { text: '# Saved codex notes\n', truncated: false },
+    codexConfigSummary: { model: 'gpt-5.5-codex', projectCount: 0, mcpCount: 0 }
+  }
+  delete global.claudeMd
+  delete global.agentsMd
+  writeFileSync(join(userData, 'display-cache.json'), JSON.stringify({ version: 1, data: {
+    snapshot: { ...current, global }, stats: [], sessionFiles: [], registrations: [], reads: []
+  } }))
+  let app: ElectronApplication | undefined
+  try {
+    app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`], env: {
+      ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1',
+      AGENTSHED_SYSTEM_LANGUAGES: 'en-US', AGENTSHED_SCAN_DELAY_MS: '20000'
+    } })
+    const win = await app.firstWindow()
+    const paths = win.locator('.pane-body .cfg-path')
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
+    await expect(paths).toHaveText([join(home, '.claude', 'CLAUDE.md')], { timeout: 5000 })
+    await expect(win.locator('.pane-body .md')).toContainText('Saved rules')
+    await win.locator('.pane-body .cfg-switch button', { hasText: 'AGENTS.md' }).click()
+    await expect(paths).toHaveText([join(home, '.codex', 'AGENTS.md')])
+    await expect(win.locator('.pane-body .md')).toContainText('Saved codex notes')
+    expect(await win.locator('.startup-display-hint').getAttribute('data-state'), 'the first scan is still held').not.toBe('ready')
   } finally {
     if (app) await closeApp(app).catch(() => {})
     rmSync(home, { recursive: true, force: true })

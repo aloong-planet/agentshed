@@ -31,8 +31,12 @@ agent side's global picture onto one screen.
   plugin / config.toml)
 - Memory section: a summary of each project's automatic memories, with viewing (see
   [Memory view](memory-view.md))
-- Configuration section: the global CLAUDE.md and global AGENTS.md rendered for reading, and a
-  read-only config.toml summary; missing files show "none"
+- Configuration section: two entries, CLAUDE.md and AGENTS.md, rather than one set per side. CLAUDE.md
+  is the global one; AGENTS.md shows every global AGENTS.md an agent side loads — Codex's, then
+  Antigravity CLI's two, its root one first — one after another, each headed by its path. Files are
+  rendered for reading in a card that scrolls past about half the window; an entry with no file shows
+  "None", a file that cannot be read says so under its path, and overly long files are truncated. No
+  side's settings summary is shown, and Antigravity CLI's GEMINI.md files and rules are not shown
 
 ## Boundaries and non-goals
 - Every restart opens Agents. Previously viewed content is remembered, but the last selected project,

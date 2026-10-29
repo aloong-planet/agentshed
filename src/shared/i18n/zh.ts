@@ -110,10 +110,6 @@ export const zh = {
   /** The skill reference-depth hint (ticket 07: the main process sends only the verdict, the wording lives
    * here) */
   skillDeepHint: '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill',
-  /** The Codex config.toml summary: the main process sends only the fields, the sentence is assembled here
-   * (ticket 07) */
-  codexConfig: (model: string, projects: number, mcp: number) =>
-    `model = ${model}\nprojects: ${projects} 条\nmcp_servers: ${mcp} 段`,
   /** The global Agents page and the application shell (ticket 11) */
   agents: {
     sideSummary: (projects: number, skills: number, subagents: number) =>
@@ -140,12 +136,17 @@ export const zh = {
     srcPlugin: 'plugin 自带',
     globalMcp: '全局 MCP',
     noGlobalMcp: '无全局 MCP(项目级 .mcp.json 的归属在项目详情)',
-    noMcpSection: 'config.toml 无 mcp_servers 段',
-    cfgClaudeMd: '全局 CLAUDE.md',
-    cfgAgentsMd: '全局 AGENTS.md',
-    cfgToml: 'config.toml 摘要',
-    tomlMissing: 'config.toml 不存在',
-    fileMissing: '文件不存在'
+    noMcpSection: 'config.toml 无 mcp_servers 段'
+  },
+
+  /** The Configuration section, on the agents page and on a project's page (agents-overview::REQ-004,
+   * project-detail::REQ-002/AC-02). Its two entries are named by their files, CLAUDE.md and AGENTS.md — names,
+   * not copy */
+  config: {
+    /** An entry none of whose files exists */
+    none: '无',
+    /** Under a file's path, when the file exists but could not be read */
+    unreadable: '文件不可读(权限或 IO 异常)'
   },
 
   /** The application shell (ticket 11) */
@@ -410,10 +411,7 @@ export const zh = {
     filterAll: '全部',
     noArtifacts: '未按约定沉淀(非八步项目;不视为错误)',
     noArtifactsOfType: '该类无产物',
-    openInBrowser: 'HTML → 浏览器',
-    settingsSummary: 'settings 摘要',
-    noSettings: '项目键无可展示设置',
-    fileMissing: '文件不存在'
+    openInBrowser: 'HTML → 浏览器'
   },
   /** The project list (ticket 08) */
   projects: {
@@ -473,7 +471,6 @@ export const zh = {
     untitledSession: '(无标题会话)',
     unknownTool: '(未知工具)',
     unknown: '(未知)',
-    notSet: '未设置',
     codexGlobalMemory: '(Codex 全局记忆)',
     truncated: '…(已截断)'
   },

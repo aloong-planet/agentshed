@@ -64,7 +64,7 @@ is read-only; the one write operation is uninstalling a project-level skill.
   E), a background revalidation, a page-local change — is a **transfusion**: the rendered content stays
   and the new data replaces it on arrival, so a section's local state (expansion, search, scroll
   position) survives the refresh (settled 2026-08-08). Sequence T below owns the switch.
-- A4 Configuration section: a missing project CLAUDE.md / AGENTS.md shows "none" rather than an error;
+- A4 Configuration section: a missing project CLAUDE.md / AGENTS.md shows "None" rather than an error;
   oversized files are truncated.
 - A5 The detail drawer's width = min(a fixed width, **the right-hand content area's** width × 80%) —
   where the content area = the viewport minus the fixed elements on the left (the rail; and in the
@@ -215,7 +215,9 @@ Applies to: the project detail page.
 
 Failure modes and boundaries: a project registered only on Antigravity opens with the ANTIGRAVITY chip
 alone and its own sessions; a configuration file that cannot be read shows the read error under its
-path, the other entry unaffected; the configuration previews keep R3's link destinations.
+path, the other entry unaffected — in the "None" line's form under the path heading, the same declared
+prototype exemption as the agents page's (agents-overview::REQ-004 failure modes); the configuration
+previews keep R3's link destinations.
 
 ## Cross-restart page restoration
 
@@ -289,6 +291,12 @@ regressions within this round; artifact collection rules and unrelated section l
 - **The `{sides}` slot is a checked contract**: a unit guard asserts every language's cause and send
   sentences carry exactly one slot and the prompt embeds its path — the type alignment cannot see
   string content, so a dropped slot would otherwise fail silently.
+- **Configuration entries carry their paths** (project-detail::REQ-002/AC-02): the detail sends each of
+  the project's two files with its path and its contents, or none for a file that exists but cannot be
+  read, and null for an absent one; the agents page's section and this page's share one section
+  component. A project detail saved before the files carried their paths restores with each file at its
+  place in the project and without the settings summary (CONTEXT: a saved page restores across an
+  update).
 
 ## Testing Decisions
 
@@ -318,8 +326,10 @@ No renderer unit test mounts a page (none does today), so the query layer has no
 main-process side of the knob is a one-line read and is not unit tested.
 
 project-detail::REQ-002 is asserted at the e2e seam over a fixture home with a project registered on
-Antigravity only and one on every side: the header chips, the two configuration entries with their
-path headings and "None", the absence of a settings summary, and the Antigravity MCP group.
+Antigravity only and one on every side: the header chips and the Antigravity MCP group. The two
+configuration entries with their path headings, "None", an unreadable file and the absence of a settings
+summary are asserted over any project — the files are read by path, whatever the registration — and
+the restore of a detail saved before the paths at the display store's filesystem seam.
 
 ## Out of Scope
 

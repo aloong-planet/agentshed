@@ -444,6 +444,155 @@ test('all seven Agents page tabs render as they are switched through, with no er
   await close(l)
 })
 
+/**
+ * agents-overview::REQ-004 and project-detail::REQ-002/AC-02: a home holding the global CLAUDE.md, the three global
+ * AGENTS.md at the locations measured with agy (research record §10.9), and what the section leaves out — agy's
+ * GEMINI.md files and rules, and Grok's AGENTS.md — each with a marker; plus two projects, one with a CLAUDE.md
+ * and an AGENTS.md that cannot be read (a directory at its path), one with neither.
+ */
+function mkConfigHome(): string {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-cfg-'))
+  const put = (rel: string, text: string): void => {
+    mkdirSync(join(home, rel, '..'), { recursive: true })
+    writeFileSync(join(home, rel), text)
+  }
+  const withFiles = join(home, 'cfg-proj')
+  const bare = join(home, 'bare-proj')
+  mkdirSync(withFiles, { recursive: true })
+  mkdirSync(bare, { recursive: true })
+  // The project key carries settings: the input that used to produce the settings summary
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [withFiles]: { allowedTools: ['Bash'] }, [bare]: {} } }))
+  // Past the 200,000-character read cap, so the entry carries the truncation marker
+  put(join('.claude', 'CLAUDE.md'), '# Global rules\nmarker-claude-global\n\n' + 'Filler line.\n'.repeat(16_000))
+  put(join('.codex', 'AGENTS.md'), '# Codex global\nmarker-codex-agents\n\nSee [the guide](./guide.md).\n')
+  // The input that used to produce the config.toml summary
+  put(join('.codex', 'config.toml'), 'model = "gpt-5.5-codex"\n[mcp_servers.node_repl]\ncommand = "node"\n')
+  put(join('.gemini', 'AGENTS.md'), '# Agent rules\nmarker-agy-root\n')
+  put(join('.gemini', 'config', 'AGENTS.md'), '# Antigravity instructions\nmarker-agy-config\n')
+  put(join('.gemini', 'GEMINI.md'), 'marker-gemini-root\n')
+  put(join('.gemini', 'config', 'GEMINI.md'), 'marker-gemini-config\n')
+  put(join('.gemini', 'config', 'rules', 'house-style.md'), 'marker-agy-rule\n')
+  put(join('.gemini', 'antigravity-cli', 'rules', 'sample-cli-rule.md'), 'marker-agy-cli-rule\n')
+  put(join('.grok', 'AGENTS.md'), 'marker-grok-agents\n')
+  put(join('cfg-proj', 'CLAUDE.md'), '# Project conventions\nmarker-project-claude\n')
+  mkdirSync(join(withFiles, 'AGENTS.md'))
+  put(join('cfg-proj', 'GEMINI.md'), 'marker-project-gemini\n')
+  return home
+}
+
+// One launch for every state: the files change on disk and the automatic rescan (a 250 ms interval) brings each
+// state in, the page refreshing by transfusion with the selected entry kept.
+test('the Configuration section: CLAUDE.md and AGENTS.md on both pages, each file under its path, unreadable and absent files, and nothing from GEMINI.md or rules (agents-overview::REQ-004, project-detail::REQ-002/AC-02)', async () => {
+  const home = mkConfigHome()
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
+  const win = await l.app.firstWindow()
+  const body = win.locator('.pane-body')
+  const paths = body.locator('.cfg-path')
+  const labels = (): Promise<string[]> => body.locator('.cfg-switch button').allTextContents()
+  const unreadable = 'The file cannot be read (permissions or I/O error)'
+  const codex = join(home, '.codex', 'AGENTS.md')
+  const agyRoot = join(home, '.gemini', 'AGENTS.md')
+  const agyConfig = join(home, '.gemini', 'config', 'AGENTS.md')
+  const excluded = ['marker-gemini-root', 'marker-gemini-config', 'marker-agy-rule', 'marker-agy-cli-rule', 'marker-grok-agents', 'marker-project-gemini']
+
+  // The agents page opens on CLAUDE.md: ~/.claude/CLAUDE.md under its path, truncated past the cap (AC-02, B5)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
+  await expect(paths).toHaveText([join(home, '.claude', 'CLAUDE.md')])
+  await expect(body.locator('.md')).toContainText('marker-claude-global')
+  await expect(body.locator('.md')).toContainText('…(truncated)')
+  // The card keeps the prototype's height (52% of the window) and scrolls inside: the oversized file would
+  // otherwise make it thousands of pixels tall
+  const card = await body.locator('.md').evaluate((e) => ({
+    height: e.getBoundingClientRect().height, cap: window.innerHeight * 0.52, overflows: e.scrollHeight > e.clientHeight
+  }))
+  expect(card.height).toBeLessThanOrEqual(card.cap + 1)
+  expect(card.overflows).toBe(true)
+  // Two entries named by their files, not grouped by side, and no settings summary (AC-01, AC-04) — read once the
+  // body above is in place
+  expect(await labels()).toEqual(['CLAUDE.md', 'AGENTS.md'])
+  expect(await body.locator('.badge').count()).toBe(0)
+
+  // AGENTS.md: the three files one after another in the spec's order, each body under its own path (AC-03)
+  await body.locator('.cfg-switch button', { hasText: 'AGENTS.md' }).click()
+  await expect(paths).toHaveText([codex, agyRoot, agyConfig])
+  const following = await paths.evaluateAll((els) => els.map((e) => e.nextElementSibling?.textContent ?? ''))
+  expect(following[0]).toContain('marker-codex-agents')
+  expect(following[1]).toContain('marker-agy-root')
+  expect(following[2]).toContain('marker-agy-config')
+  // AC-05: the pane shows file contents (the markers above) and nothing from GEMINI.md, rules or Grok's AGENTS.md
+  const shown = (await body.textContent()) ?? ''
+  for (const m of excluded) expect(shown, m).not.toContain(m)
+  // The path line's form, from the prototype: monospace, 11px, the secondary text colour; a rule above every file
+  // but the first
+  const form = await paths.evaluateAll((els) => {
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--text-2)'
+    els[0].parentElement?.appendChild(probe)
+    const text2 = getComputedStyle(probe).color
+    probe.remove()
+    return els.map((e) => {
+      const s = getComputedStyle(e)
+      return { mono: s.fontFamily.includes('monospace'), size: s.fontSize, secondary: s.color === text2, rule: s.borderTopWidth }
+    })
+  })
+  expect(form).toEqual([
+    { mono: true, size: '11px', secondary: true, rule: '0px' },
+    { mono: true, size: '11px', secondary: true, rule: '1px' },
+    { mono: true, size: '11px', secondary: true, rule: '1px' }
+  ])
+  // A relative link in a global file gets the out-of-scope notice and does not navigate the window (CONTEXT: a link
+  // inside rendered content never navigates the whole window)
+  const urlBefore = win.url()
+  await body.locator('.md a', { hasText: 'the guide' }).click()
+  await expect(win.locator('.toast')).toBeVisible()
+  expect(win.url()).toBe(urlBefore)
+
+  // agy's root file goes: Codex's and agy's config one remain, in order
+  rmSync(agyRoot)
+  await expect(paths).toHaveText([codex, agyConfig])
+  // agy's config one cannot be read: it keeps its place under its path with the unreadable sentence, and Codex's
+  // still renders
+  rmSync(agyConfig)
+  mkdirSync(agyConfig)
+  await expect(body.locator('.md .none')).toHaveText(unreadable)
+  await expect(paths).toHaveText([codex, agyConfig])
+  expect(await body.locator('.md .none').evaluate((e) => e.previousElementSibling?.textContent)).toBe(agyConfig)
+  await expect(body.locator('.md')).toContainText('marker-codex-agents')
+  // None left, GEMINI.md and the rules still there: "None" (AC-03, AC-05) — inside the card, with no frame of its
+  // own, as the prototype draws it
+  rmSync(codex)
+  rmSync(agyConfig, { recursive: true })
+  await expect(body.locator('.md .none')).toHaveText(['None'])
+  expect(await paths.count()).toBe(0)
+  expect(await body.locator('.md .none').evaluate((e) => [
+    getComputedStyle(e).borderTopWidth, getComputedStyle(e.parentElement as HTMLElement).borderTopWidth
+  ])).toEqual(['0px', '1px'])
+
+  // A project's page: its own CLAUDE.md under its path; its AGENTS.md cannot be read; two entries, no summary
+  // (project-detail::REQ-002/AC-02)
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'cfg-proj' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
+  await expect(paths).toHaveText([join(home, 'cfg-proj', 'CLAUDE.md')])
+  await expect(body.locator('.md')).toContainText('marker-project-claude')
+  expect(await labels()).toEqual(['CLAUDE.md', 'AGENTS.md'])
+  await body.locator('.cfg-switch button', { hasText: 'AGENTS.md' }).click()
+  await expect(paths).toHaveText([join(home, 'cfg-proj', 'AGENTS.md')])
+  await expect(body.locator('.md .none')).toHaveText(unreadable)
+  expect((await body.textContent()) ?? '').not.toContain('marker-project-gemini')
+  // A project with neither file: "None" under each entry (A4)
+  await win.locator('.side .row', { hasText: 'bare-proj' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
+  await expect(body.locator('.cfg-switch button.on')).toHaveText('CLAUDE.md')
+  await expect(body.locator('.md .none')).toHaveText(['None'])
+  await body.locator('.cfg-switch button', { hasText: 'AGENTS.md' }).click()
+  await expect(body.locator('.cfg-switch button.on')).toHaveText('AGENTS.md')
+  await expect(body.locator('.md .none')).toHaveText(['None'])
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // This used to be one if/else: with real projects it took branch A, without them branch B. The
 // consequence was **undefined coverage**
 // — a development machine always took A and CI always took B, so no single machine ever exercised both;

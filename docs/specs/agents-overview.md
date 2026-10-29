@@ -89,8 +89,9 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - B4 Sections where the sides' concepts are asymmetric (the Codex group under Plugins, the Codex
   global entry under Memory) follow their own spec's probe-style rules, and no false signal is
   manufactured for the sake of symmetry.
-- B5 Configuration section: a missing file shows "none" rather than an error; oversized files are
-  truncated.
+- B5 Configuration section: an entry with no file shows "None" in its card rather than an error;
+  oversized files are truncated; the card keeps about half the window's height and its files scroll
+  inside it, as the prototypes draw it.
 
 **Cross-cutting**
 - R1 Component-level boundaries live in each section's own spec and are not repeated here; adding a
@@ -168,7 +169,9 @@ governs the project page's).
 - An automatic update of agy breaks the format: the card's third line turns into the unreadable count
   at the next scan and back once the count returns to zero; the usage figure shows what could be read.
 - One of the three global AGENTS.md files cannot be read: its slot shows the read error under its path
-  and the others render (B5); all three absent → "None".
+  and the others render (B5); all three absent → "None". The read error takes the "None" line's form
+  under the file's path heading: the prototypes draw no unreadable state, so the slot is made of two
+  forms they do draw — declared as the prototype exemption (no new form).
 - `~/.gemini/GEMINI.md` exists and no AGENTS.md does: the AGENTS.md entry shows "None"
   (agents-overview::REQ-004/AC-05).
 - A global MCP file that does not parse: the Antigravity group shows no servers from it, the plugin
@@ -277,6 +280,14 @@ registration admission and replacement. No prototype mock is implementation evid
   uses); placeholder blocks take the separator-line grey with a subtle opacity pulse that honours
   reduced-motion preferences (settled in the prototype, 2026-08-21). Placeholder geometry matches
   the loaded content's line boxes so the fill is shift-free (A4b).
+- **Configuration files carry their paths** (agents-overview::REQ-004): each file the section shows
+  travels with its absolute path, which heads it, and with its contents — or none, for a file that
+  exists but cannot be read; an absent file is not sent, so an entry with no file shows "None". The
+  global AGENTS.md files are a fixed list in AC-03's order, which keeps GEMINI.md, rules and Grok's
+  AGENTS.md out by construction (AC-05). A snapshot saved before the files carried their paths restores
+  with the two files that version read — CLAUDE.md and Codex's AGENTS.md — at the paths the main
+  process knows them by, and without its settings summary (CONTEXT: a saved page restores across an
+  update).
 
 ## Testing Decisions
 
@@ -290,7 +301,9 @@ tested on the same seams: the providers layer over a fixture home holding agy's 
 unreadable conversation, a global MCP file with a disabled server and an enabled plugin's servers, and
 any subset of the three global AGENTS.md files; e2e reads the side card's third line in both states
 and the AGENTS.md entry with two files, three and none. The badge pair's values in both appearances
-are asserted where the other side colours are.
+are asserted where the other side colours are. The restore of a snapshot saved before the
+configuration files carried their paths is asserted at the display store's filesystem seam and, for
+the main process's own paths, by an e2e case that holds the first scan.
 
 The skeleton (A4 family) is tested at the e2e seam: an environment-injected delay holds the first
 scan open (the same injection family as the rescan intervals), so the skeleton window is a stable

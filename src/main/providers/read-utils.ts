@@ -2,9 +2,13 @@
 // Four places used to hold their own copy (review-code refactor items #2/#3); the truncation rule now
 // changes in one place only.
 import { existsSync, readFileSync } from 'node:fs'
-import type { CappedText } from '@shared/domain'
+import type { CappedText, ConfigFile } from '@shared/domain'
 
 export const MAX_TEXT_BYTES = 200_000
+
+function capped(raw: string, max: number): CappedText {
+  return raw.length > max ? { text: raw.slice(0, max), truncated: true } : { text: raw, truncated: false }
+}
 
 /** Read text and truncate at a cap; null when the file is missing or unreadable */
 /**
@@ -15,10 +19,23 @@ export const MAX_TEXT_BYTES = 200_000
 export function readCapped(file: string, max = MAX_TEXT_BYTES): CappedText | null {
   if (!existsSync(file)) return null
   try {
-    const raw = readFileSync(file, 'utf8')
-    return raw.length > max ? { text: raw.slice(0, max), truncated: true } : { text: raw, truncated: false }
+    return capped(readFileSync(file, 'utf8'), max)
   } catch {
     return null
+  }
+}
+
+/**
+ * A file for a Configuration entry: null when it does not exist; when it exists but the read fails (a permission
+ * or I/O error, a directory at the path), it keeps its path with no contents, so its slot can say so rather
+ * than read as absent (agents-overview::REQ-004 failure modes; project-detail::REQ-002).
+ */
+export function readConfigFile(file: string, max = MAX_TEXT_BYTES): ConfigFile | null {
+  if (!existsSync(file)) return null
+  try {
+    return { file, content: capped(readFileSync(file, 'utf8'), max) }
+  } catch {
+    return { file, content: null }
   }
 }
 

@@ -1,0 +1,45 @@
+# targeted verification of the Post-implementation check Finding 1 fix, 2026-10-29 01:17:59 +0800
+## version
+$ git rev-parse HEAD
+a9c382f53523a52f9457421aada0a0b3b50d3eb4
+$ git status --porcelain --untracked-files=all
+ M docs/.workings/antigravity-side/ticket-326-review-code.md
+ M docs/.workings/antigravity-side/ticket-326-review-tests.md
+ M docs/features/agents-overview.md
+ M docs/features/project-detail.md
+ M src/main/display-store.test.ts
+## version list (git hash-object per reported file)
+52564946eece3b7c616003033bbe2b27dbf07c36  docs/.workings/antigravity-side/ticket-326-review-code.md
+65aa15bb19e587b9a45373c734bb6806e39dd6d5  docs/.workings/antigravity-side/ticket-326-review-tests.md
+b0dc7b110b9bde54eff04e5a243fe7ddcfa396b2  docs/features/agents-overview.md
+4da0028224c78e766212bfd67703bd109be69b3e  docs/features/project-detail.md
+bdd768c9561a2496355048d14dbfd26aee93c0bd  src/main/display-store.test.ts
+## test list: the changed test file; files importing it (search below; exit 1 = none)
+$ rg -l display-store.test src e2e scripts
+bash: line 9: rg: command not found
+(rg exit 127)
+## command: pnpm typecheck
+
+> agentshed@0.1.0-beta.2 typecheck /Users/loong_zhou/CascadeProjects/agentshed-wt-326
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+## exit: 0 (pnpm typecheck)
+## command: pnpm lint
+
+> agentshed@0.1.0-beta.2 lint /Users/loong_zhou/CascadeProjects/agentshed-wt-326
+> eslint . --max-warnings 0
+
+## exit: 0 (pnpm lint)
+## command: pnpm vitest run src/main/display-store.test.ts
+
+ RUN  v2.1.9 /Users/loong_zhou/CascadeProjects/agentshed-wt-326
+
+ ✓ src/main/display-store.test.ts (11 tests) 17ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  01:18:16
+   Duration  343ms (transform 66ms, setup 0ms, collect 72ms, tests 17ms, environment 0ms, prepare 74ms)
+
+## exit: 0 (pnpm vitest run src/main/display-store.test.ts)
+## overall: PASS
