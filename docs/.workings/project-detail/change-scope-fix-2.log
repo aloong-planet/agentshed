@@ -1,9 +1,0 @@
-# change-scope after the fix for the incremental check's F4 and F5, 2026-10-29T14:21:01Z
-$ git rev-parse HEAD
-59a63b4b57703bd1ecafaf6dd549bae708749c89
-$ node ~/.claude/skills/implement/change-scope.mjs --base 59a63b4
-inert   docs/.workings/context-glossary-only/tasks.md
-inert   docs/.workings/project-detail/review-code.md
-inert   docs/.workings/project-detail/review-tests.md
-verdict: skip (3 files differ from the base)
-exit code: 0

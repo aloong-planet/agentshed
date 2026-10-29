@@ -1,8 +1,0 @@
-✓ Working language: 2374 line(s) of Chinese, each permitted by a stated rule
-    rule · 1 file(s) · side-count detection patterns quote the six languages they scan; pattern literals only, not prose
-    rule · 2 file(s) · the source-language and Japanese dictionaries — the values are the copy itself, while the comments are English like the rest of the repository
-    rule · 9 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
-    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
-    rule · 35 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
-    rule · 2 file(s) · the Chinese and Japanese READMEs — a localisation is written in the language it localises into
-    rule · 5 file(s) · the language switcher rows and the selector list — a language is named in its own script

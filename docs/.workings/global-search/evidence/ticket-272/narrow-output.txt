@@ -1,4 +1,0 @@
-wide {"paneHeadWidth":780,"rowRight":1078,"contentRight":1078,"rowHeight":21,"exits":[{"buttonRight":442,"spanClient":72,"spanScroll":72,"cut":false,"lines":1},{"buttonRight":598,"spanClient":124,"spanScroll":124,"cut":false,"lines":1}]}
-width 640 {"paneHeadWidth":320,"rowRight":618,"contentRight":618,"rowHeight":21,"exits":[{"buttonRight":442,"spanClient":72,"spanScroll":72,"cut":false,"lines":1},{"buttonRight":598,"spanClient":124,"spanScroll":124,"cut":false,"lines":1}]}
-width 560 {"paneHeadWidth":240,"rowRight":538,"contentRight":538,"rowHeight":21,"exits":[{"buttonRight":419,"spanClient":52,"spanScroll":72,"cut":true,"lines":1},{"buttonRight":538,"spanClient":90,"spanScroll":124,"cut":true,"lines":1}]}
-width 500 {"paneHeadWidth":180,"rowRight":478,"contentRight":478,"rowHeight":21,"exits":[{"buttonRight":396,"spanClient":32,"spanScroll":72,"cut":true,"lines":1},{"buttonRight":478,"spanClient":57,"spanScroll":124,"cut":true,"lines":1}]}

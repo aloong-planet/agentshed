@@ -1,3 +1,0 @@
-# REQ-004/AC-07 control (2026-10-18): the language switch with session storage blocked must not keep the place
-normal:         {"current":2,"top":327,"scrollY":1684} → {"current":2,"top":328,"scrollY":1655} KEPT
-storage blocked: {"current":2,"top":327,"scrollY":1684} → {"current":0,"top":1983,"scrollY":0} NOT KEPT

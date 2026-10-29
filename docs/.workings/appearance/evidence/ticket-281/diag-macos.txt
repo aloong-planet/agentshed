@@ -1,3 +1,0 @@
-# The temporary diagnostic case run on macOS (2026-10-23, before it was pushed to CI), on this change's build: the thumb at rest and under the pointer
-DIAG-281 {"platform":"darwin","area":{"overflow":826,"width":6,"columnX":316,"thumbY":183.01191362620997,"trackY":597,"background":[255,255,255]},"rest":"191,191,191","hit":"list","rowUnderPointerBg":"rgb(240, 235, 246)","hovered":"153,153,153","listMatchesHover":true,"hoveredAfterAnotherMove":"153,153,153","pressed":"153,153,153"}
-  1 passed (4.1s)

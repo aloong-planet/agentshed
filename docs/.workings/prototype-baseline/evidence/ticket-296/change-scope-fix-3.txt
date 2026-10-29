@@ -1,8 +1,0 @@
-# Does the third fix change what the tests run? (change-scope.mjs against the commit before it)
-$ node ~/.claude/skills/implement/change-scope.mjs --base 5852bf6
-inert   docs/.workings/prototype-baseline/ticket-296-review-code.md
-inert   docs/.workings/prototype-baseline/ticket-296-review-tests.md
-inert   docs/.workings/prototype-baseline/ticket-296-tasks.md
-changed scripts/check-lang.test.mjs  (code changed)
-verdict: run (4 files differ from the base)
-EXIT=1
