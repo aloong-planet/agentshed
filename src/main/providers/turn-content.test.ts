@@ -13,8 +13,8 @@ import type { TurnBlock } from '@shared/domain'
 // Ticket 05 established the prose model and ticket 07 completed it (tool / thinking / reasoning /
 // subagent / unknown trace).
 //
-// The rules are grounded in a full enumeration (prose on 2026-08-05, rich content on 2026-08-06; a
-// CONTEXT invariant):
+// The rules are grounded in a full enumeration (prose on 2026-08-05, rich content on 2026-08-06; an
+// AGENTS.md invariant):
 // - Claude, 2131 files: 18 top-level types in the whole spectrum; the assistant segment spectrum is
 //   text/tool_use/thinking
 //   (all 3312 main-chain thinking segments in the repository are empty, so the think block mechanism is

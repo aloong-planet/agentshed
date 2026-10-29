@@ -2137,7 +2137,7 @@ describe('usage rows are the one source the projections derive from (ADR-0025)',
         total: sum('total')
       })
     }
-    // The three cross-side comparable buckets sum **exactly** to the total (CONTEXT.md's invariant).
+    // The three cross-side comparable buckets sum **exactly** to the total (the AGENTS.md invariant).
     // Asserted over whatever fixture is supplied rather than for one hand-picked case: a rounding
     // rule that only drifts on lopsided data would survive a per-case assertion.
     const b = r.rows.reduce(

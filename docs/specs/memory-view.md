@@ -50,7 +50,7 @@ section (a topic row, or a link in the rendered main file).
   time (relative, R2); and under it the preview frame — a bar with the file name and the raw / preview
   switch, then the body.
 - memory-view::US-001/AC-02: A file opens in preview: the body is the file rendered through the shared
-  markdown carrier (CONTEXT: one carrier and one rule set on every surface). A leading front matter
+  markdown carrier (AGENTS.md: one carrier on every surface). A leading front matter
   block (`---` … `---`) shows as a card of key-value rows before the body; a nested key's indented
   lines fold into its parent's value (`metadata:` over `type: feedback` shows as one row,
   `metadata` · `type: feedback`). Every listed memory file is Markdown (only top-level `.md` files
@@ -89,7 +89,7 @@ where the file is read from and in what the title block names.
 ### memory-view::CON-002 What rendered text keeps (direct acceptance)
 
 Applies to every rendered-markdown surface — the file drawer, the main memory file, configuration
-documents and the artifact reader — since they share one carrier (CONTEXT: one carrier and one rule set).
+documents and the artifact reader — since they share one carrier (AGENTS.md: one carrier).
 Two things an agent writes as text stay text: a `[[…]]` reference, with whatever follows it (so
 `[[name]](remark)` is not a link), and a tag-like `<name>` whose name is not an HTML element (placeholders
 such as `<slug>`, `<spec-slug>`, `<id>`), which shows as written instead of being dropped by the sanitiser.
@@ -121,8 +121,8 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
     section and the `features.memories` dotted key are equivalent forms and both must be recognised),
     and must not be misled by a `[memories]` configuration section or a same-named key elsewhere; it
     goes through a TOML parse, and **a parse failure counts as not enabled** (Codex itself cannot read
-    that config either, and salvaging semantics from a broken file is a false signal — see CONTEXT.md,
-    "degraded judgements follow the target system's behaviour").
+    that config either, and salvaging semantics from a broken file is a false signal — see the AGENTS.md
+    invariant on degraded judgements).
 - C7 Clicking a row **expands the file list inline** (main file + topics, with modification times)
   without navigating to a detail page; clicking a file → the memory file drawer (memory-view::US-001).
   The Codex global row expands the same way (directory enumeration + reading the source, with no

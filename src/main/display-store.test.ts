@@ -209,8 +209,8 @@ it('restores session pages saved before the session ID was kept, filling the ID 
 // A display cache written before Antigravity CLI joined the side set (the key sets of this machine's real cache on
 // 2026-10-29: every per-side Record — the snapshot's sides, every token block's bySide and its days' bySide, each
 // global skill's symlink and pkg — holds claude, codex and grok only). The contract now asks for every side, so
-// without filling the new one in, the first launch after the update would drop every saved page (CONTEXT, "a page
-// switch is atomic": a field added to a saved type is filled in on restore). A malformed entry is still dropped.
+// without filling the new one in, the first launch after the update would drop every saved page (the AGENTS.md invariant on
+// page switches: a field added to a saved type is filled in on restore). A malformed entry is still dropped.
 function withoutSide<T>(v: T, side: string): T {
   return JSON.parse(JSON.stringify(v), (k, val: unknown) => (k === side ? undefined : val)) as T
 }

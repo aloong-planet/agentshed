@@ -198,7 +198,7 @@ next to A/B, so that no existing reference is renumbered)
   on — stays queryable, for the existing hatching and note. Retained (day, side) pairs are **not**
   exposed to the interface: retention is accounting-only (ADR-0026, amended 2026-09-10), and a day
   on which one side is archived-only while another is live carries no marking either.
-- C10 **A past (day, side) never falls silently** (ADR-0026, the invariant in CONTEXT.md). Every
+- C10 **A past (day, side) never falls silently** (ADR-0026, the invariant in AGENTS.md). Every
   archive row carries the accounting stamp it was written under — the application version and the
   cache structure version, combined. When a past (day, side) is live and its live total is **lower**
   than the archive's: under a **different** stamp the live rows are accepted (a correction of ours),
@@ -360,7 +360,7 @@ overnight froze `scannedAt` and today's data was not shown)**
   on all three, so the change is neutral on today's data and load-bearing the day it is not.
 - G8 The composition cuts the selected window's total into the three cross-side comparable buckets —
   `input + cacheWrite` / `output` / `cacheRead` — which carry one meaning each on every side and
-  sum exactly to the total (the invariant in CONTEXT.md). It is rendered **below the totals and
+  sum exactly to the total (the invariant in AGENTS.md). It is rendered **below the totals and
   outside any card**: it decomposes the same number the side figures decompose, by a different axis,
   so the two are siblings rather than one being contained in the other.
 - G9 The smallest bucket is a fraction of a percent of the total on real data (output at 0.28%,
@@ -629,7 +629,7 @@ Applies to: every conversation database of the side, forks and subagent conversa
 - A model id with a routing suffix (`-n`): kept as recorded (token-stats::REQ-003/AC-04), so the per-model
   list can show names no other tool shows; accepted.
 - A model call agy runs on a Claude model reports cache writes; the four-field total includes them, and
-  CONTEXT.md's `TokenTotals.input` invariant counts cache writes among the figures the Claude Code and
+  ADR-0037 counts cache writes among the figures the Claude Code and
   Antigravity CLI sides report.
 - Usage agy never writes to a database — the `/btw` side question (deleted once answered) and the Auto
   mode's command reviewer — is not counted; this under-count is stated in the features page, not in the

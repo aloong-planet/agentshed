@@ -5,7 +5,7 @@
 // then cannot read the name — so hovering a truncated name shows it in full. Only a truncated one:
 // repeating a name that is already legible is noise.
 //
-// **The two obligations of a floating layer over this list** (CONTEXT's invariant):
+// **The two obligations of a floating layer over this list** (the floating-layer invariant in AGENTS.md):
 //
 //  1. *Escape the clipping.* The skills card clips its overflow. `position: fixed` discharges this on its
 //     own — such an element's containing block is the viewport, so no ancestor's overflow reaches it, and

@@ -3,8 +3,8 @@
 // unified into a common message model (TurnBlock), and the renderer knows only that model rather than
 // one per side.
 //
-// The rules are grounded in a full enumeration (2026-08-05/06; the CONTEXT invariant "a set of shapes
-// must come from a full enumeration"):
+// The rules are grounded in a full enumeration (2026-08-05/06; the AGENTS.md invariant that a set of
+// shapes comes from a full enumeration):
 // - Claude (2131 files): 18 top-level types in the whole spectrum (the KNOWN set); the whole assistant
 //   segment spectrum is
 //   text/tool_use/thinking (all 3312 main-chain thinking segments in the repository are **empty**, with
@@ -19,7 +19,7 @@
 //   dispatch lines have no promptId (0/202); outputFile points at a background task's output, not a
 //   transcript; a sidechain's
 //   first-line text equals the dispatch prompt in 0/1299 cases. No grouping rule is written without a
-//   sample (a CONTEXT invariant),
+//   sample (an AGENTS.md invariant),
 //   so the sub block is unified on both sides: the dispatch arguments + the return + an unattributed
 //   label, with sidechain lines not rendered (a known type,
 //   whose full transcript is in the source or a nested file).
@@ -39,8 +39,8 @@
 //   unlinked (the user ruled on 2026-08-06 against forcing a heuristic pairing).
 // - Unknown types outside the allow-list always leave a trace (an unknown block placed at the end of the
 //   block order) — spec C8:
-//   allow-list failures are invisible, so nothing is ever silently dropped (the CONTEXT invariant
-//   "strictness follows the direction of failure").
+//   allow-list failures are invisible, so nothing is ever silently dropped (the AGENTS.md invariant
+//   that admitting may not follow the sample).
 import type {
   AgentSide,
   TurnBlock,
@@ -406,7 +406,7 @@ function codexAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
  * 2026-08-16: 17 types in total). State records, deliberately stripped — and deliberately NOT
  * breaking a prose/thought merge, because a single assistant message measures as split MID-WORD
  * across chunk records with these state records between the fragments. Anything outside the
- * enumeration leaves a trace (the CONTEXT allow-list invariant).
+ * enumeration leaves a trace (the AGENTS.md allow-list invariant).
  */
 const GROK_STATE_TYPES = new Set([
   'turn_completed',

@@ -215,7 +215,7 @@ both footnotes, every result line and every toast.
 
 Applies to: the app's own code, in the main process and the renderer. The update check, and the
 download of an update it found, are the only outbound requests the app makes, and both go to GitHub
-Releases (ADR-0032, CONTEXT's outbound-request invariant). The renderer's content security policy
+Releases (ADR-0032, the AGENTS.md outbound-request invariant). The renderer's content security policy
 keeps allowing no remote origin. The app shows no statement about this request (ADR-0032 option 10,
 declined).
 

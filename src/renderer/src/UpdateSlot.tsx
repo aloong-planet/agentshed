@@ -4,7 +4,7 @@
 // also answers the update notices with toasts (update-toasts.ts): a failed install after the click
 // (app-update::REQ-002/AC-03) and the outcome of a check from the application menu (US-003/AC-01, AC-04).
 //
-// The tooltip is a floating layer and owes CONTEXT's two obligations: the shared surface's viewport
+// The tooltip is a floating layer and owes a floating layer's two obligations: the shared surface's viewport
 // positioning escapes clipping, and the shared hook dismisses it when a scroll or a resize makes its
 // measured position stale. It is instant, because the native title waits about a second.
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'

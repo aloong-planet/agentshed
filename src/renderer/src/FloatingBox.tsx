@@ -32,7 +32,7 @@ export interface FloatingAt {
 /**
  * `fixed` is load-bearing, not a style choice: it is what carries the layer out of the list's overflow
  * clipping. A fixed element's containing block is the viewport, which lies inside no ancestor, so no
- * ancestor's `overflow` reaches it — see CONTEXT's floating-layer invariant, and the postmortem for what
+ * ancestor's `overflow` reaches it — see the floating-layer invariant in AGENTS.md, and the postmortem for what
  * it looks like when this is got wrong (an element with a perfectly normal bounding box, painting
  * nowhere).
  */

@@ -1,5 +1,5 @@
 // Gap: what the chunk size does to speed is not observable here. The cost it exists to avoid only
-// shows under Electron (CONTEXT.md, "Main-process file I/O is measured under Electron"); measure it
+// shows under Electron (the AGENTS.md invariant on main-process measurements); measure it
 // with `pnpm bench:scan`. These tests pin the chunk size only to place boundaries deliberately — the
 // output is the same at any size, so whether production's size is honoured by the stream cannot be
 // asserted from outside either.

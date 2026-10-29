@@ -32,7 +32,7 @@ export const USAGE_WINDOW_DAYS: Record<UsageWindow, number | null> = {
 /**
  * The three cross-side comparable buckets. `input` and `cacheWrite` do **not** each carry one meaning
  * across sides, but their sum does, and the three together sum exactly to the total on every side —
- * see the invariant in CONTEXT.md before reaching for either on its own.
+ * see the invariant in AGENTS.md before reaching for either on its own.
  */
 export interface UsageComposition {
   /** Everything the model had to read fresh this turn, cache writes included */

@@ -1,815 +1,349 @@
 # Agentshed
 
-A desktop overview and management tool for Claude Code, Codex, Grok and Antigravity CLI: see what each project has installed,
-how many tokens it has burned, and which artifacts it has accumulated — and install or remove skills
-from the global library. This file is the domain glossary.
+A desktop overview and management tool for Claude Code, Codex, Grok and Antigravity CLI: see what each
+project has installed, how many tokens it has burned and which artifacts it has accumulated, and install
+or remove skills from the global library. This file is the domain glossary; the invariants are in
+`AGENTS.md`.
+
+## Contents
+
+- **Language**
+  - Projects and sides: Project, Stale project, Agent side, Side colour, Application icon
+  - Components: Global library, Compatibility-borrowed component, Shared skills directory, Project
+    install, Effective view, Subagent, Memory, Effective enabled plugins, Plugin-bundled components,
+    Artifact
+  - Sessions and search: Activity, Session, Question, Session ID, Resume command, Turn, Filtering and
+    searching, Global search
+  - Codex data: Paginated rollout, Usage record, Usage boundary, Compacted window, Cold rollout
+  - Usage and the archive: Usage row, Data day, Live (day, side), Archived-only (day, side), Retained
+    (day, side), Observed value, Superseded value, Accounting stamp, Past day, Time window, Trend span
+  - Interface: Rail, Transfusion, Structured error, Supported language, Language preference, Effective
+    language, Source language, Appearance, Theme, Theme variable classes
+  - Updates: App update, Update check, Release channel
+- **Flagged ambiguities**
 
 ## Language
 
-**Application icon**:
-The native macOS identity of Agentshed: the cyan reactor in production, the yellow reactor during
-development. Both use an evenly dark graphite-gray casing and subdued support highlights, without overhead
-illumination or a top-to-bottom background gradient. Its artwork is fixed across UI themes and
-appearances. This raster brand asset is
-distinct from the renderer's control icons, which follow ADR-0018's inline SVG convention.
-Icon acceptance and distribution trust are separate: a correct native icon does not establish that
-an unsigned package can launch on macOS. A local ad-hoc-signed verification copy proves neither
-Developer ID signing nor notarisation.
-_Avoid_: theme icon (it does not follow the selected theme)
+### Projects and sides
 
 **Project**:
-Any working directory recorded in an agent side's registry; the sides are unioned, one directory to
-one project. A **registry** is the per-project record a side keeps because the user decided
-something about that directory — not a by-product of wherever that side happens to store its session
-files (ADR-0019). A directory with sessions but no registry record is therefore not a project: its
-tokens still count toward global totals, it simply does not appear in the list.
+Any working directory recorded in an agent side's **registry**, the sides unioned one directory to one
+project; a registry is the per-project record a side keeps because the user decided something about that
+directory (ADR-0019). A directory with sessions but no registry record is not a project, though its
+tokens still count toward global totals.
 _Avoid_: repository, workspace
 
 **Stale project**:
-A project still recorded in a registry whose directory no longer exists on disk; filtered out by
-default, can be toggled on.
+A project still recorded in a registry whose directory no longer exists on disk.
 _Avoid_: dead project, invalid project
 
 **Agent side**:
-A data source. Enumerated: Claude Code, Codex, Grok and Antigravity CLI (ADR-0037). Antigravity CLI's
-command is `agy`: documents use that name where a sentence speaks of the tool itself acting — what agy
-loads, writes or labels — and "Antigravity CLI" where it speaks of the side.
-_Avoid_: tool, CLI, platform; `grok-build` (that is the name of a profile *inside* the Grok side, not
-the side); "Gemini" for the Antigravity CLI side (Gemini CLI is a different tool and not a side);
-"Antigravity" bare in documents (it names a product family whose desktop app and IDE keep data this
-product does not read). The interface itself labels this side "Antigravity" (ADR-0037): the
-distinction matters to documents about what is read, not to the person choosing a side
+A data source: Claude Code, Codex, Grok or Antigravity CLI (ADR-0037). Documents name the side
+"Antigravity CLI" and use its command name `agy` only where the tool itself acts; the interface labels
+the side "Antigravity".
+_Avoid_: tool, CLI, platform; `grok-build` (a profile inside the Grok side); "Gemini" (Gemini CLI is a
+different tool); "Antigravity" bare in documents (it names a product family whose desktop app and IDE this
+product does not read)
+
+**Side colour**:
+The single colour that identifies one agent side wherever it is named — a badge, a legend swatch, a
+stacked segment — and is that side's provider colour (ADR-0021). It is distinct from the accent, which
+means "selected" rather than "which side".
+_Avoid_: badge colour (names one of its uses), brand colour (these are ours, not the vendors')
+
+**Application icon**:
+The native macOS identity of Agentshed, fixed across themes and appearances: a raster brand asset,
+distinct from the interface's control icons (ADR-0018).
+_Avoid_: theme icon (it does not follow the selected theme)
+
+### Components
 
 **Global library**:
-The set of skills at an agent's global layer, and the only source for a project install. Read-only
-as far as this product is concerned — its contents are never added to, changed, or removed via the app.
-A side's global layer holds what lives under **that side's own** configuration root; what it reads
-out of another side's at runtime is not part of it (see "Compatibility-borrowed component").
+The skills at an agent side's global layer, meaning what lives under that side's own configuration
+root, and the only source of a project install. Read-only to this product: nothing in it is added,
+changed or removed through the app.
 _Avoid_: marketplace, store
 
 **Compatibility-borrowed component**:
-A skill, subagent, plugin or MCP server that one agent side loads from **another** side's
-configuration at runtime. It belongs to the side that owns it on disk and never joins the borrowing
-side's lists; instead the borrowing side's grouping says in copy that the borrowing happens, so what
-is left out stays visible rather than silent (ADR-0019).
-_Avoid_: shared component (nothing is shared — one side is reading the other's files); inherited
+A skill, subagent, plugin or MCP server that one side loads at runtime from another side's
+configuration. It belongs to the side that owns it on disk and never joins the borrowing side's lists
+(ADR-0019).
+_Avoid_: shared component (nothing is shared — one side reads the other's files); inherited
 
 **Shared skills directory**:
-A project-level skills directory that more than one agent side loads as its own — `.agents/skills`,
-loaded by both Codex and Antigravity CLI. It belongs to no single side: it is shown once, as a group of
-its own naming the sides that load it, it is one install target rather than one per side, and
-removing a skill from it removes it for every side that loads it (ADR-0037). It is always
-project-level: the global directory agy itself labels "Shared skills" (`~/.gemini/skills`) is one of
-Antigravity CLI's global libraries, not a shared skills directory.
-_Avoid_: compatibility-borrowed (neither side is reading the other's files — each loads the directory
-natively); Codex skills, Antigravity skills (each names only one of its owners)
+A project-level skills directory that more than one side loads as its own — `.agents/skills`, loaded by
+Codex and Antigravity CLI — and so belongs to no single side (ADR-0037). It is always project-level: the global directory agy labels
+"Shared skills" is one of Antigravity CLI's global libraries.
+_Avoid_: compatibility-borrowed (each side loads it natively); Codex skills, Antigravity skills (each
+names only one of its owners)
 
 **Project install**:
-Landing a skill from the global library into the project's own directory as a full copy. Uninstalling
-deletes the in-project copy; the project is self-contained and does not depend on the global library
-continuing to exist.
+Landing a skill from the global library in the project's own directory as a full copy. Uninstalling
+deletes that copy, and the project never depends on the global library continuing to exist.
 _Avoid_: symlink, sync
 
 **Effective view**:
-The component listing shown on the project detail page. Skills and subagents diverge here
-(skills-view B1) — subagents: project-level entries are shown alongside the effective entries from
-that side's global layer, with same-name entries marked as shadowed; skills: within one side, a
-same-name pair shows only the project-level entry, with no shadowed global row and no
-shadowing/coexistence badge (this is a list *presentation* rule and does not change either side's
-runtime loading semantics). The skills effective view also includes skills bundled with effectively
-enabled plugins (namespace-isolated, not participating in same-name shadowing).
+The components in effect for a project on one side: its project-level entries together with the
+entries in effect from that side's global layer, the skills of effectively enabled plugins included. How
+a same-name pair is shown is each view's own rule (skills-view, subagents-view).
 _Avoid_: installed list
 
 **Subagent**:
-A specialised assistant described by an agent definition file (Claude: `agents/*.md`;
-Codex: `agents/*.toml`; Antigravity CLI: `agents/<name>.md` or `agents/<name>/agent.md`), which runs in its
-own context when delegated a subtask. Strictly distinct
-from "agent side": a side is a data source, a subagent is a kind of component within a side.
-_Avoid_: agent (bare, confusable with agent side)
+A specialised assistant, described by an agent definition file, that runs in its own context when
+delegated a subtask. It is a kind of component within a side, never the side itself.
+_Avoid_: agent (bare — confusable with agent side)
 
 **Memory**:
-Cross-session notes generated automatically by an agent. Generated content — this product only
-displays it. Per-project on the Claude side (`MEMORY.md` + topic files); a global directory on the
-Codex side, shown probe-style (only when non-empty).
+Cross-session notes an agent generates on its own, which this product only displays: per project on the
+Claude side, one global directory on the Codex side.
 _Avoid_: notes (too general); `CLAUDE.md` (human-authored instructions — that is configuration)
 
 **Effective enabled plugins**:
-The set of plugins actually in effect from a given project's point of view: those resolving to true
-after `enabledPlugins` is merged across the local > project > user layers. The global page uses the
-user layer. Antigravity CLI has one layer, its shared configuration, and no per-project enablement: a
-plugin is in effect everywhere unless that configuration disables it (plugins-view::REQ-001/AC-02).
+The plugins in effect from one project's point of view: those resolving to true once `enabledPlugins` is
+merged across the local, project and user layers, the global page using the user layer. Antigravity CLI
+has a single shared layer and no per-project enablement.
 _Avoid_: installed (installed ≠ enabled)
 
 **Plugin-bundled components**:
-The skills / subagents / hooks / MCP servers shipped inside a plugin package, which come and go with
-the plugin as a unit. The discovery path is the union of the directory convention and the fields
-declared in the manifest.
+The skills, subagents, hooks and MCP servers shipped inside a plugin package, which come and go with the
+plugin as a unit.
 _Avoid_: plugin features (too general)
 
 **Artifact**:
-The five kinds of document a project accumulates under the eight-step process: ADRs, `CONTEXT.md`,
-the feature catalogue (`features`), postmortems, and prototypes. Working documents (`.scratch`) are
-not artifacts.
+One of the five kinds of document a project accumulates under the eight-step process: ADRs,
+`CONTEXT.md`, the feature catalogue, postmortems and prototypes. Working documents are not artifacts.
 _Avoid_: docs (too general)
 
+### Sessions and search
+
 **Activity**:
-The default sort dimension of the project list, composed of most-recent-session time and session
-count. "Most-recent-session time" here is **the session file's mtime**, which is a **separate
-pipeline** from a session's own "last activity time"; "session count", however, **shares its source
-with the session list** (counting only real sessions, not warmups or subagents). Time diverges,
-count converges — the asymmetry is deliberate. The other pipeline takes the largest timestamp inside
-the file (see "Session"). The two are deliberately not unified: mtime is a cheap approximation over
-nearly two thousand files, and reading contents instead would push the project list's first-paint
-cost up to the level of a full scan. The price is that the two disagree when a file is touched
-without its contents changing. Accepted.
-_Avoid_: treating the two times as one; "unifying them while we're here" (tests pin the boundary)
+The default sort of the project list, from its most recent session file's modification time and its
+count of sessions. That time is not a session's last activity time, which is the largest timestamp
+inside the file (session-view spec).
+_Avoid_: treating the two times as one
 
 **Session**:
-One conversation record on an agent side, uniquely identified by the absolute path of its source
-file (the interface calls it the session's record file). Where a side stores a session as a **directory** rather than a single file, that identity is
-the one file inside it that carries the conversation, the tool calls and the per-turn usage together
-— the authoritative stream (ADR-0019). The directory's other files are not sessions of their own,
-and a child session stored beside its parent rather than beneath it is still a subagent, judged by
-what the record says it is and never by how deep it sits. On the Antigravity CLI side the session is a conversation's
-database, which holds its usage, while its questions and turns are in a transcript agy keeps in another directory: the
-session is identified, listed, admitted for reading and shown in Finder by its database, and its transcript is read
-only through it (ADR-0037). **A record containing no real human question at all (a warmup session the agent opened by
-itself, or a pure-replay fork verified to have been stripped empty) does not count as a browsable
-session**, and does not enter the list — but its tokens still count, the same rule as subagents.
-Its "last activity time" is **the largest timestamp inside the file** (same meaning on every side;
-a separate pipeline from project activity, which uses mtime — see "Activity").
-The session page is **indexed primarily by question** (every real question listed once; fork replay
-prefixes and abandoned branches do not enter the trunk). A real question is any user entry the noise
-rules do not strip, including text an agent tool writes into the session as the user, such as the
-summary after a context compaction or a message from another session (ADR-0036); clicking a question fetches that **turn** on
-demand. Searchable within a project (searches questions by default) and, by its questions only,
-across every project through global search. The full specification is in
-`docs/specs/session-view.md` (fully shipped 2026-08-06; the export feature was dropped).
+One conversation record on an agent side, identified by the absolute path of its source file: for a side
+that stores a session as a directory, the one file carrying the conversation, the tool calls and the
+per-turn usage together, and on the Antigravity CLI side the conversation's database (ADR-0019,
+ADR-0037). A record with no question at all — a warmup the agent opened itself, or a replay fork stripped
+empty — is not a session one can browse, though its tokens still count.
 _Avoid_: chat log
 
+**Question**:
+A user entry in a session that the noise rules do not strip, including text an agent tool writes as the
+user, such as a compaction summary or a message from another session (ADR-0036). Each counts once in a
+session; fork replay prefixes and abandoned branches add none.
+
 **Session ID**:
-The identifier an agent side itself gives a session, and the one that side's own resume takes. Not the
-session's identity in this product, which is its source file path: one Codex thread the agent wrote in
-segments is several sessions here that all carry the same session ID, so a session ID never keys a
-list.
+The identifier an agent side gives a session and that side's own resume takes. It is not the session's
+identity here: one Codex thread written in segments is several sessions sharing one session ID.
 _Avoid_: session key, conversation id; "session id" for the source file path
 
 **Resume command**:
-One shell line that reopens a session in its own agent side's command-line tool: it changes into the
-project's directory, then resumes by session ID. The product hands it over by copying; it names the
-tool by its bare command name and does not look for where that tool is installed.
+One shell line that reopens a session in its own side's command-line tool: it changes into the project's
+directory, then resumes by session ID.
 _Avoid_: continue command, launch command
 
-**Filtering** (as opposed to **searching**):
-Two things this product does that look alike on screen and are not the same. **Filtering** narrows a
-list already fully in hand — the skills lists match a typed substring against the name and hide the
-rest, entirely in the renderer, with nothing crossing IPC. **Searching** goes and looks: the sessions
-search crosses IPC, reads file contents on the main side, and comes back with hit counts, snippets
-and folded groups. The distinction is worth naming because the resemblance is inviting: a search box
-above a list suggests "make these consistent", and routing a filter through IPC would buy nothing
-while costing a round trip per keystroke. When adding a box above a list, decide which of the two it
-is first — the answer determines whether the contract changes at all.
-
-That question is one for **specs, ADRs and code**. User-facing copy is free to say "search" — it is
-the word people look for, and the placeholder does say it.
-_Avoid_: treating the two as one mechanism because they share a visual form
-
-**Global search**:
-Searching the questions of every project's sessions at once, from a page of its own, and going from a
-hit straight to that session inside its project. "Every project" is the project list's set, stale
-projects included; a session in a directory that is not a project is not searched. It matches
-questions only — answers and tool output are reached through the project's own session search.
-"Global" here means across all projects; it has nothing to do with an agent side's global layer or
-the global library, and searching the global layer is not something this does.
-_Avoid_: cross-project search; session search (bare — a project's own search is a session search too)
-
 **Turn**:
-Everything recorded from one real question up to the next (assistant prose, tool calls and returns,
-subagent dispatches). A turn is identified by a **byte range** in the source file (an Antigravity CLI conversation's transcript, see
-"Session"); fetching one on demand reads only that range and is independent of total file size. Turn contents are normalised
-through a common block model (prose / thinking / reasoning / tool / subagent / unknown-trace) for
-rendering; unknown types outside the display allow-list leave a trace and are never silently dropped.
+Everything recorded from one question up to the next — assistant prose, tool calls and returns,
+subagent dispatches — identified by a byte range of the source file (on the Antigravity CLI side, of its
+transcript).
 _Avoid_: message pair, question-answer pair
 
+**Filtering** and **searching**:
+Filtering narrows a list already in hand, entirely in the renderer; searching reads file contents in the
+main process and returns hits, snippets and groups. The distinction holds in specs, ADRs and code;
+user-facing copy may say "search" for both.
+_Avoid_: treating the two as one mechanism because they look alike
+
+**Global search**:
+Searching the questions of every project's sessions at once, stale projects included. "Global" means
+across projects, not an agent side's global layer; answers and tool output are searched only by a
+project's own session search.
+_Avoid_: cross-project search; session search (bare — a project's own search is a session search too)
+
+### Codex data
+
 **Paginated rollout**:
-A Codex session file written, or rewritten in place, in the paginated-history format (every legacy
-rollout on this machine was promoted on 2026-09-09, keeping its path and mtime): its first line
-carries an ordinal, its per-response usage is carried by usage records, and the human's messages by
-completed-item events rather than user-message events. A **legacy rollout** is one still in the
-earlier format.
+A Codex session file in the paginated-history format: its first line carries an ordinal, its
+per-response usage comes in usage records, and the human's messages in completed-item events. A
+**legacy rollout** is one still in the earlier format.
 _Avoid_: new format, migrated file (both say when, not what)
 
 **Usage record**:
-Codex's own per-response accounting entry in a rollout: one per model response, identified by its
-response id, carrying that response's usage together with the turn's and the thread's running
-totals. Never copied into a fork or a subagent thread. The primary usage source wherever it exists
-(ADR-0027); the per-turn **usage event** is the legacy source.
-_Avoid_: token record, usage event (that is the legacy per-turn event)
+Codex's per-response accounting entry, identified by its response id and carrying that response's usage
+with the turn's and the thread's running totals; it is never copied into a fork or a subagent thread. It
+is the primary usage source wherever it exists, the per-turn usage event being the legacy one (ADR-0027).
+_Avoid_: token record; usage event (that is the legacy per-turn event)
 
 **Usage boundary**:
-The first usage record in a rollout, by line order. Usage events before it count under the legacy
-rule; from it on, only usage records count. A rollout with no usage record has no boundary and is
-read by the legacy rule throughout.
+The first usage record in a rollout by line order: usage events before it count under the legacy rule,
+and from it on only usage records count. A rollout with no usage record is read by the legacy rule
+throughout.
 _Avoid_: cutover, switch point
 
 **Compacted window**:
-A span of a Codex thread that the agent has replaced by a summary: the rollout keeps the summary and
-the span's messages, and has lost the span's usage records for good. A thread can carry several
-windows, each repeating the whole summarised history so far.
+A span of a Codex thread the agent has replaced by a summary: the rollout keeps the summary and the
+span's messages but has lost the span's usage records for good. A thread can carry several, each
+repeating the whole summarised history so far.
 _Avoid_: compaction (the act, not the span), truncated history
 
 **Cold rollout**:
-A rollout Codex has compressed into a `.jsonl.zst` file after seven days without writes, deleting
-the plain file. The same session, the same contents, the same identity rules — but readable only as
-a stream from its start, never by byte range directly.
-_Avoid_: archived session (Codex's own `archived_sessions` root is a different thing), compressed
-session
+A rollout Codex has compressed into a `.jsonl.zst` file after seven days without writes, deleting the
+plain file. It is the same session under the same identity, readable only as a stream from its start.
+_Avoid_: archived session (Codex's own `archived_sessions` root is a different thing), compressed session
 
-**Data day**:
-A day within the trend window whose total under the current view is > 0. The x axis only emits date
-labels for data days (see ADR-0009).
-_Avoid_: non-zero day, active day
-
-**Supported language**:
-A language the app UI can be switched to. Enumerated: Simplified Chinese and English (ADR-0035). Both
-are left-to-right; this product makes no RTL commitment (see ADR-0013).
-_Avoid_: the six languages (the set before 2026-10-19); locale (too general)
-
-**Language preference**:
-The value the user selects in settings, which is persisted. Either "follow system" or one specific
-supported language; defaults to "follow system". "Follow system" is a **continuously applied policy**,
-not a snapshot of the language at the moment of selection — if the system language changes later,
-the UI changes with it.
-_Avoid_: current language, selected language (neither distinguishes the preference from its resolution)
-
-**Effective language**:
-The language the UI is actually using right now; always one specific supported language. Derived
-from the language preference: if the preference names a language, that one; if it is "follow system",
-resolve the system's preferred-language list in order, take the first supported one, and fall back to
-English if none match. Never persisted itself.
-_Avoid_: default language
-
-**Source language**:
-Simplified Chinese; the single source of truth for UI copy. New copy is written in the source
-language first, and English is derived from it and aligned entry by entry — there is no
-"temporarily blank" intermediate state. Strictly distinct from "effective language": the source
-language is where copy is **authored**, regardless of which language a user is looking at.
-_Avoid_: default language, primary language
-
-**Appearance**:
-The user's preference for a light or dark UI. Either "follow system", "light", or "dark"; defaults to
-follow system. Orthogonal to the **theme** — any combination is valid. Structurally identical to
-"language preference": "follow system" is a continuously applied policy, not a snapshot, and the
-**effective appearance** it produces together with the system appearance is what actually renders.
-The effective appearance is never persisted itself.
-
-The word follows Apple, which calls light and dark the two *appearances*; the platform this product
-ships on is the one whose vocabulary a user already has.
-_Avoid_: dark mode (states only half of it), theme (that names the other axis here), day/night
-
-**Theme**:
-Which palette the UI renders in. Enumerated: purple (default), mist blue, amber brown. Orthogonal to
-the **appearance** — all combinations are valid, and choosing one leaves the other alone.
-
-The word follows Primer, whose structure is the same as ours: several themes, each rendering in
-either appearance. **Deliberately not "colour scheme"** — CSS's `prefers-color-scheme` and SwiftUI's
-`ColorScheme` both mean *light/dark*, so that name is already spoken for by the other axis, and
-`theme.css` would otherwise read as if `prefers-color-scheme` and `data-scheme` were the same
-dimension. They are not.
-
-The code says `theme` too — identifiers, the DOM attribute `data-theme`, and the persisted preference
-key. The rename deliberately shipped **without** reading the old `scheme` key: the cost, accepted at
-the time, is that anyone who had already chosen a theme falls back to purple once after upgrading.
-`language` and `mode` kept their key names and are unaffected. Recorded so that a later reader finds
-a decision here rather than a missing migration.
-_Avoid_: colour scheme (means light/dark elsewhere), skin, palette (fine in prose, but it is the
-*contents* of a theme rather than the choice itself)
-
-**Side colour**:
-The single colour that identifies one agent side wherever it is named — a list badge, a legend swatch,
-a stacked segment. It is that side's **provider** colour, so the same value serves both (ADR-0021).
-Distinct from the **accent**, which says "selected" rather than "which side"; the two being the same
-value is the defect ADR-0021 was written about, not a resemblance to preserve.
-_Avoid_: badge colour (names one of its uses), brand colour (these are ours, not the vendors')
+### Usage and the archive
 
 **Usage row**:
-One day's usage at the finest grain the aggregation produces — day × side × project × model, carrying
-all four token fields. One shape serves three roles: the archive's persisted grain (ADR-0007), part of
-the wire contract, and the single source every token figure derives from (ADR-0025) — the totals, the
-trend, and whatever a selected **time window** needs. A row with an empty day is on record but
-attributable to no day: it joins the whole-history figures and no bounded window.
+One day's usage at the finest grain the aggregation produces — day × side × project × model, with all
+four token fields — and the single source every token figure derives from (ADR-0007, ADR-0025). A row
+with an empty day joins the whole-history figures and no bounded window.
 _Avoid_: archive row (names one of its roles), usage event (an event is per turn; a row is per day)
 
+**Data day**:
+A day within the trend window whose total under the current view is above zero (ADR-0009).
+_Avoid_: non-zero day, active day
+
 **Live (day, side)**:
-A day on which the current scan produced at least one usage row for that agent side. Liveness is
-judged per side, never per day alone: another side's activity on the same day says nothing about
-whether this side's source files still exist (settled 2026-09-09).
-_Avoid_: live day (the per-day reading, under which one side's activity let another side's vanished
-history be overwritten)
+A day on which the current scan produced at least one usage row for that side. Liveness is judged per
+side, never per day alone (ADR-0026).
+_Avoid_: live day (the retired per-day reading, see Flagged ambiguities)
 
 **Archived-only (day, side)**:
-A (day, side) the archive holds rows for but the current scan produced none: the source files are
-gone and the archive's values stand in for them. Carries the archived marking.
+A (day, side) the archive holds rows for but the current scan produced none for, so the archive's values
+stand in for source files that are gone.
 _Avoid_: historical day, hatched day, cleaned-up day
 
 **Retained (day, side)**:
 A past (day, side) whose live rows add up to less than the archive holds under the same accounting
-stamp — so the data shrank, not the rules — and whose archive values are therefore kept while the
-live figure is recorded only as the observed value. An accounting state, not a display state: the
-interface draws a retained day like any other (ruled 2026-09-10).
+stamp, so the archive's values are kept and the live figure is recorded only as the observed value. It
+is an accounting state, never a display state.
 _Avoid_: frozen, protected, locked (all suggest a manual act; retention is the rule's own verdict)
 
 **Observed value**:
-The live figure a scan produced for a retained (day, side), recorded in the archive so that a later
-stamp change can tell "the figure moved" from "the same figure under new rules". It is never shown
-and never enters a total.
+The live figure a scan produced for a retained (day, side), recorded so that a later stamp change can
+tell a moved figure from the same figure under new rules. It is never shown and never enters a total.
 _Avoid_: actual value, real value (both imply the retained value is the wrong one)
 
 **Superseded value**:
-A past day's archive value that an accepted change replaced — a change under a new accounting
-stamp, or an increase — kept together with the stamp and scan time that replaced it. The trail a
-restore works from.
+A past day's archive value that an accepted change replaced, kept with the stamp and scan time that
+replaced it; the trail a restore works from.
 _Avoid_: history row, backup, old value
 
 **Accounting stamp**:
-The identity of the accounting code that produced a figure, written on every archive row. Two
-figures under the same stamp came from the same rules, so a lower figure under the same stamp
-means the data shrank; a lower figure under a new stamp may be a correction and is accepted.
-Composed of the application version and the cache structure version.
-_Avoid_: version (bare — ambiguous between the two components and the archive file's own format
-version)
+The identity of the accounting code behind a figure — the application version and the cache structure
+version — written on every archive row. A lower figure under the same stamp means the data shrank; under
+a new stamp it may be a correction.
+_Avoid_: version (bare — ambiguous between its two components and the archive file's own format version)
 
 **Past day**:
-A day earlier than the scan's own local calendar day. Retention and superseded values apply to past
-days only; the scan's own day is rewritten freely on every scan, because its rows change on every
-scan while a session is active.
+A day earlier than the scan's own local calendar day (ADR-0026).
 _Avoid_: closed day, settled day
 
 **Time window**:
-The span a token figure is scoped to: all history, today, the last 7 days, or the last N days — four
-card roles, selected by clicking the card that shows that window's total. The fourth card derives N
-from the global trend span, including when inactive. Its active breakdowns follow the same N.
-Cut against the same current
-display-time anchor as the trend, so "today" always means the trend chart's last bar. The observation
-time of saved data is a separate concept. Active-card identity remains separate from the persisted
-trend span and is not restored on restart. A narrower active window dims bars; it does not remove them.
-_Avoid_: date range (suggests arbitrary endpoints, which are out of scope), period (ambiguous between
-this and the chart's span)
+The span a token figure is scoped to — all history, today, the last 7 days or the last N days, N being
+the trend span. It is cut against the
+trend's display-time anchor, so "today" is always the trend chart's last bar.
+_Avoid_: date range (suggests arbitrary endpoints), period (ambiguous between this and the chart's span)
 
 **Trend span**:
-The number of consecutive local calendar days drawn by the daily trend chart: 30, 60 or 90, ending
-on the current display day. One application-owned preference applies to the global chart and every
-project chart, drives the fourth totals card, and survives navigation, refresh and restart. Missing
-or invalid values default to 30 without resetting other valid preferences. Changing the span preserves
-the active-card identity and chart side filter; it leaves the other three windows unchanged.
+The number of consecutive local calendar days the daily trend chart draws — 30, 60 or 90, ending on the
+current display day; it is also the N of the time window.
 
-**Theme variable classes**:
-Every variable declared in a theme block belongs to exactly one of three classes, and the class —
-not a count — decides where it has to be defined. Which class it is follows from one question: what
-is its relationship to the surface it sits on?
+### Interface
 
-- **theme-varying** — it *constitutes* the surface or the text on it (page background, card, text,
-  lines, accent). Defined per theme × per appearance. Currently 11 variables (measured 2026-10-23).
-- **appearance-varying** — it sits *on* a surface and must stay legible against it (shadows, status
-  backgrounds, badge fills, the scrollbar thumb). One value per appearance, shared across themes.
-  Currently 30 (measured 2026-10-29).
-- **static** — it is an opaque block carrying its own ground (a destructive button, a callout), so no
-  surrounding surface applies. One value throughout. Currently 5 (measured 2026-10-28; the fifth is the
-  tooltip's warning line). The name follows Primer and Material, which both use *static* for exactly this.
-
-Verified by measuring, never by counting definitions: switch through every theme × appearance and
-read the resolved values — the class predicts which of them must differ and which must match. A
-count cannot see the failure that matters, because a variable defined for light and forgotten for
-dark still *resolves* in dark, having inherited the light value.
-_Avoid_: judging by how many places a variable is defined in (see above); "functional colour" for the
-static class (measured: `--warn-*` is functional yet appearance-varying, so the two do not line up)
-
-**Structured error**:
-Failure information crossing the IPC boundary, composed of an error code and parameters, containing
-no natural-language wording at all. The wording is produced in the renderer in the current language
-(see ADR-0015).
-_Avoid_: error message (bare, implies a finished sentence)
+**Rail**:
+The vertical strip of icon buttons down the window's left edge; an internal name, since nothing in the
+interface is labelled "rail".
+_Avoid_: "rail" in user-facing copy (describe the position instead); sidebar (that is the project list
+beside it)
 
 **Transfusion**:
-A refresh of a page that is already on screen: the new data replaces the old in place, and what the
-user has done on the page (a section's expansion, a search keyword, the scroll position) survives it.
-It is how an automatic rescan and a background revalidation reach a page; a transfusion never
-empties the page first.
+A refresh of a page already on screen: the new data replaces the old in place, and what the user did on
+the page — a section's expansion, a search keyword, the scroll position — survives. It is how an
+automatic rescan and a background revalidation reach a page, and it never empties the page first.
 _Avoid_: reload, refetch (they name the fetch, not what the page does with its result)
 
+**Structured error**:
+Failure information crossing the IPC boundary as an error code and parameters, with no natural-language
+wording; the renderer words it in the current language (ADR-0015).
+_Avoid_: error message (bare — implies a finished sentence)
+
+**Supported language**:
+A language the interface can be switched to: Simplified Chinese and English, both left-to-right, with no
+RTL commitment (ADR-0035, ADR-0013).
+_Avoid_: the six languages (retired, see Flagged ambiguities); locale (too general)
+
+**Language preference**:
+The persisted setting: "follow system" (the default) or one supported language. Following the system is
+a continuously applied policy, not a snapshot, so the interface follows a later change of the system
+language.
+_Avoid_: current language, selected language (neither tells the preference from its resolution)
+
+**Effective language**:
+The supported language the interface is using now, never persisted: the one the preference names, or
+else the first supported language in the system's preference list, with English as the fallback.
+_Avoid_: default language
+
+**Source language**:
+Simplified Chinese: the language all interface copy is authored in first and every other language is
+derived from.
+_Avoid_: default language, primary language
+
+**Appearance**:
+The preference for a light or dark interface: "follow system" (the default), light or dark, orthogonal
+to the theme. Like the language preference, following the system is a continuously applied policy, and
+the effective appearance it resolves to is never persisted.
+_Avoid_: dark mode (states only half of it), theme (that names the other axis), day/night
+
+**Theme**:
+Which palette the interface renders in: purple (the default), mist blue or amber brown, orthogonal to
+the appearance.
+_Avoid_: colour scheme (in CSS and SwiftUI it means light/dark, the other axis), skin, palette (fine in
+prose, but it is the contents of a theme, not the choice)
+
+**Theme variable classes**:
+Every theme variable is **theme-varying** (it constitutes the surface or the text on it; one value per
+theme × appearance), **appearance-varying** (it sits on a surface and must stay legible against it; one
+value per appearance) or **static** (an opaque block carrying its own ground; one value throughout). The
+class, decided by the variable's relationship to its surface, says where it must be defined.
+_Avoid_: judging by how many places a variable is defined in; "functional colour" for static (a functional colour can
+be appearance-varying)
+
+### Updates
+
 **App update**:
-A newer version of Agentshed itself, published as a release and offered to an installed copy of the app.
-A rescan or a transfusion changes what the app shows; an app update changes the app (ADR-0032).
-_Avoid_: update (bare — in this product it also reads as a rescan or a transfusion), upgrade
+A newer version of Agentshed itself, published as a release and offered to an installed copy. A rescan
+or a transfusion changes what the app shows; an app update changes the app (ADR-0032).
+_Avoid_: update (bare — it also reads as a rescan or a transfusion), upgrade
 
 **Update check**:
 Asking the release source whether an app update exists for this installation's release channel. An
-**automatic** check runs on its own while the user has not turned automatic checks off, and its failure
-is silent; a **manual** check is one the user asked for, and it always reports its outcome — an app
-update found, already up to date, or the check failed.
+automatic check runs unless the user turned automatic checks off and fails silently; a manual check
+always reports an update found, up to date, or failed.
 _Avoid_: refresh, sync, polling
 
 **Release channel**:
-Which releases an installation is offered. A formal-release installation is offered formal releases
-only; a pre-release installation is offered pre-releases and formal releases. The channel follows the
-version installed and is never chosen by the user.
+Which releases an installation is offered: a formal-release installation gets formal releases only, a
+pre-release installation gets pre-releases and formal releases. It follows the installed version and is
+never chosen by the user.
 _Avoid_: beta mode, insider track, update track
-
-## Invariants
-
-- **The decision layer of every host security guard must be a testable pure function (settled
-  2026-08-02)**: navigation allow/deny, external-link allow-listing, IPC sender validation, the CSP
-  policy, protocol path resolution — all extracted as pure functions with unit tests covering
-  **bypass vectors** (origin prefix lookalikes, casing, userinfo, encoded traversal). Rationale:
-  there is no reliable automated gate for this class of defect (Electron's official runtime warnings
-  do not cover navigation / new windows / webviews; the mainstream SAST tools are unmaintained and
-  have demonstrated blind branches), so our own tests are the only line of defence. The current state
-  item by item is in `docs/ops/electron-security.md`; the checklist and criteria are in the
-  electron-scaffold skill.
-
-- **A floating layer over a clipped list owes two separate obligations (settled 2026-08-10)**: it must
-  **escape the ancestors' overflow clipping**, and it must be **positioned from its anchor's measured
-  rect and answer for that position once the rect goes stale** (scroll, resize, or the anchor row being
-  filtered away — what the answer *is* differs per event, see below). The two are not interchangeable —
-  escaping the clip is what makes it visible at all; re-measuring or dismissing is what stops it lying
-  about where it points. Satisfying one and assuming
-  the other is covered is precisely how this goes wrong.
-
-  **Viewport positioning discharges the first obligation on its own**: a viewport-positioned element's
-  containing block is the viewport, which is not inside any ancestor, so no ancestor's overflow clips
-  it — it does **not** additionally need to be portalled out of the list. (Stated the other way round
-  once, which would have forced a pointless portal; the install popover disproves it by sitting inside
-  the clipping card and rendering fine.) What does still clip such an element is an ancestor that
-  creates a containing block for it — a transform, filter or perspective — so that, not nesting, is
-  what to check. It already went wrong once:
-  the install popover hung off a wrapper whose class no rule defined, fell back to the initial
-  containing block, and landed below the bottom of the window, so installing looked like a dead
-  button (fixed 2026-08-10). **Note the shape of that failure — the popover was in the DOM with a
-  perfectly ordinary bounding box the whole time.** A clipped or mislaid layer reports geometry
-  exactly like a working one, so "the element exists" and "the element is visible" prove nothing here;
-  the check that distinguishes them is hit-testing the layer's own centre and confirming the point
-  belongs to the layer. Applies to the install popover, the skill-name tooltip and the language
-  selector's dropdown today, and to any further such layer.
-
-  **Both obligations now have code carriers**, so a new layer inherits them rather than reimplements
-  them: the shared surface carries viewport positioning (hence the escape from clipping), and a shared
-  hook watches for the events that invalidate a measured position. What the hook deliberately leaves
-  to each layer is *computing coordinates* — one flips above/below its button, one right-aligns using
-  its own rendered width, one clamps against the window edge, and folding those together would need a
-  parameter per difference. A hover tooltip on that surface takes the surface's one tooltip form — the chart
-  tooltip's fixed dark ground — rather than a look of its own (settled 2026-10-28, when a second tooltip
-  arrived): two hand-written copies of one look drift apart, as the surface's own two copies once did.
-
-  **Scrolling dismisses — except the layer's own. A resize is the caller's choice.** Dismiss for a
-  layer being glanced at (a hover tooltip, gone the moment the pointer moves); reposition for one the
-  user is operating (a menu they are choosing from — a resize is not them changing their mind).
-
-  **A scroll hard on a resize's heels is the browser's, not the user's (settled 2026-08-16, #122).**
-  A resize makes the browser clamp a scrolled container's scrollTop back into its new range and
-  dispatch a scroll event for the clamp — indistinguishable at the event level from a user scroll,
-  so without attribution it dismisses the layer and overrides the reposition the resize handler just
-  performed; the 'reposition' choice never survived in practice. The shared hook attributes by
-  ordering (a scroll within a short window after a resize is the resize's), at the documented cost
-  of swallowing a wheel scroll performed while dragging the window edge. Tests that dispatch both
-  events must keep their scroll cases clear of that window or they assert the swallowing, not the
-  dismissal.
-
-  The scroll exception is not a detail: a document-level capture listener hears the layer scrolling
-  its **own** contents too, and a scrollable layer that closes on that makes everything below its fold
-  unreachable — reaching for an option dismisses the thing you were reaching into. Only one of these
-  layers is scrollable today, which is why the pattern was safe in the layer it was copied *from* and
-  wrong in the one it was copied *to*. Getting either of these wrong is
-  invisible in tests that only check the layer appears, so it is stated here as the rule rather than
-  left to each author's judgement.
-
-- **A link inside rendered content must never navigate the whole window (settled 2026-08-02)**:
-  for any content rendered into the app through markdown (memories, configuration, artifacts), links
-  must be intercepted and their destination decided by us — allow-listed ones open inside the app,
-  external ones go to the system browser, anything else gets an explicit notice. Letting the default
-  behaviour through navigates the entire renderer window and loses all app state. The main process's
-  `will-navigate` / `setWindowOpenHandler` are a backstop; a new render site need not re-wire them,
-  but must not bypass them either.
-
-- **Rendered markdown goes through one carrier and one rule set on every surface (settled
-  2026-08-19, carrier settled 2026-08-20)**: all markdown render sites (the file drawer for skill and
-  memory files, the memory/configuration document cards, the artifact reader) render through the shared
-  MarkdownBody component, which by construction applies the sanitising exit, the link interception
-  above, the text it keeps as written (`[[…]]` references and non-element `<name>` placeholders,
-  memory-view::CON-002), and
-  the single content rule set — the shape-layered heading ladder specified in the appearance spec's
-  sequence E, the paper-style code rules (bordered inline pill, bordered fenced inset, no inner box
-  on the code element inside a fence), the paper-style tables (framed, non-wrapping tinted header,
-  GFM alignment honoured), list indentation and the shared body line-height. A new render surface
-  uses the component rather than writing its own rendering or styles.
-  Two traps this guards: adjacent levels must
-  never be distinguished by font size alone (a wrapped heading's taller block swamps a small size
-  difference), and a container's own chrome-heading rule (`overlay h2` style descendant selectors)
-  ties with the ladder on specificity and wins on source order, silently restyling headings inside
-  the rendered body — chrome headings are scoped with a child combinator or a dedicated class.
-
-- **When reading agent-generated data, a rule may only be grounded in a sample or in a mechanism
-  (settled 2026-08-03)**: to write a rule that recognises, strips, or admits some data shape, the
-  grounds must be **a real sample you have looked at** or **a mechanism you can articulate** — a name
-  alone (from a research list, from documentation, from memory) is not grounds. Where a mechanism
-  exists, extrapolating along it is allowed (e.g. `<local-command-*>`: caveat and stdout were both
-  observed, both are the harness wrapping a `!` command, so match by family prefix). With only a name,
-  the regex you write is a one-in-three guess, and the fixture can only be built on the same guess —
-  the test passes without having verified anything.
-  **Corollary: "listing every shape of X" is a negative conclusion in positive disguise (added
-  2026-08-03).** "Codex tool calls come in these kinds" reads as positive enumeration but
-  actually asserts "there are no others" — a negative judgement, which per the global AGENTS.md's
-  "negative conclusions require a different method" cannot rest on sampling. Case in point: a 120-file sample
-  gave `custom_tool_call` + `function_call`, looking clean and complete; a full enumeration over
-  278 files / 62,912 lines turned up a third, `tool_search_call` (25 occurrences). It never appeared
-  once in the sample, and the consequence of missing it would be a permanently undercounted tool
-  count that **no test would ever go red on** — the fixtures are built from the same sample.
-  **Criterion**: any set of shapes destined for a `Set` / `switch` / allow-list must come from a
-  **full enumeration** (scan the whole data directory and count), not from "the ones I happened to
-  look at". A full enumeration over local data usually takes seconds; there is no reason to skip it.
-
-  Rationale: the divergence between a research-phase list and real data goes **both ways**. Measuring
-  297 sessions showed the list had missed a shape accounting for 63% of them (`Warmup`), while
-  `Conversation info`, which was on the list, did not appear in my sample — the latter is worse,
-  because I wrote an assertion into the spec that it "does not exist" (a recheck proved it does; it
-  was simply outside a sample ordered by mtime). On method for negative conclusions, see the global
-  AGENTS.md.
-
-- **Stripping may follow the sample strictly; allow-listing may not — strictness follows the
-  direction of failure (settled 2026-08-03)**: the same rule "only handle shapes we have seen" has
-  opposite consequences in the two cases.
-  **Stripping / filtering** (no match → keep) fails **visibly** — missing one kind of noise makes a
-  title ugly at worst, and the user sees it immediately. So it may follow the sample strictly and
-  err on the side of doing nothing.
-  **Allow-listing / admitting** (no match → discard) fails **invisibly** — missing one type means
-  content silently disappears and nobody knows what is gone. This class **must not follow the sample
-  only**: an unknown type outside the allow-list must leave a discoverable trace, never be silently
-  dropped.
-  A further reason: this product is local-first, and **each user's own data is their entire
-  universe**; the coverage of a sample taken on a dev machine over someone else's machine is unknown.
-  For stripping logic that does not matter; for an allow-list it means someone else cannot see
-  content they should.
-
-- **Degraded judgements follow the target system's behaviour (settled 2026-08-01)**: for any
-  judgement of the form "is this feature on / is this configuration in effect", when reading fails or
-  the content cannot be parsed, the degraded conclusion must match **what the target agent actually
-  does at that moment** (it cannot read the file → we report not in effect). Do not salvage semantics
-  out of unparseable content — a salvaged "enabled" is a false signal the target system itself cannot
-  see. (Case in point: C6, a line-scanning fallback for a failed Codex `config.toml` parse; removed.)
-- **Degradation may only hurt itself (fault escape surface criterion, settled 2026-08-01)**: when
-  reading or parsing any one entry fails, the degradation may only affect that entry's own display.
-  It must not escape **sideways** (emptying or polluting other entries, including cross-entry
-  computations such as same-name shadowing) and must not escape **upward** (dragging down an
-  aggregate view or an entire scan). The primary criterion for whether such a defect is worth fixing
-  is **the escape surface**, not its frequency: anything that escapes needs fixing, anything that
-  only hurts itself may be recorded and deferred. (Cases in point: A8, an unreadable subagent
-  silently disappearing and polluting the same-name shadowing judgement; E10, a single marketplace
-  failure emptying an entire group.)
-
-- **Light and dark each get their own declaration, identical values included (settled 2026-08-15)**:
-  a value being the same in both appearances is not a reason to write it once and let the other
-  inherit. Rationale: inheritance is silent, so "deliberately the same" and "the second one was
-  forgotten" look identical in the source, and the forgotten one still *resolves* — it inherits —
-  rather than showing up as missing. With both present, "what is this colour in dark?" is answered by
-  reading the dark block, without first having to work out whether anything overrode it. This governs
-  the light/dark dimension only; whether a variable needs a declaration per *theme* still follows
-  what that variable's relationship to its surface says (see "Theme variable classes"). The
-  cross-project rule in the ui-design skill was amended to match on the same day, so the two no
-  longer disagree.
-
-- **Copy names a control, it never shows the control's glyph (settled 2026-08-15)**: a sentence that
-  points at a button writes the button's name — taken from that button's own label, in that language —
-  rather than reproducing its icon inside the string. Rationale: a glyph written into prose is a copy
-  of something that lives elsewhere, and it goes stale the moment the icon changes, silently and in
-  every language at once. This was learnt three times in one round: `docs/features/` named six
-  controls by glyph and all six became lies when the icons became SVG; `notDetectedHint` pointed at
-  `↻` mid-sentence in six dictionaries; three code comments referred to pills by `⑂` / `⑂?`. Where
-  the label itself is needed at runtime, pass it in rather than writing it down, so that renaming the
-  control cannot leave the sentence naming something that no longer exists. **Parameterising survives
-  a rename, not a removal** (learnt 2026-08-23): `notDetectedHint` took the refresh button's label as
-  an argument, and when that button was removed the sentence still sent users to a control that had
-  ceased to exist — the parameter kept the *name* right while the *instruction* went false. It now
-  names no control at all, which is the form that cannot rot; naming one is worth it only when the
-  reader genuinely has to find it. **`pnpm check:ui` enforces the rail half of this**: a rail
-  control's label appearing verbatim in any other copy fails the check, so deleting a control turns
-  those sentences red instead of leaving them pointing at nothing. Its exemptions are by rail key
-  (today's four labels are ordinary words), which means a control with a distinctive label is
-  covered by default — the case that actually rotted.
-
-- **`rail` is an internal term and must not appear in user-facing copy (settled 2026-08-15)**: the
-  48px vertical strip of icon buttons down the left edge. The word is useful in code, comments and
-  `docs/features/` and stays there — but a user has no way to learn it, because nothing in the
-  interface is labelled "rail" (its buttons' tooltips read Agents / Projects / Search / Settings, and `rail`
-  survives only as a CSS class name). Copy that needs to point at it describes
-  the position instead ("at the bottom left"). Note that "sidebar" is **not** an alternative name for
-  it: the project list beside it is the sidebar. This is the same failure as naming a control by its
-  glyph, one level up — copy referring to something by a name the reader cannot resolve.
-
-- **User-facing copy never enumerates the agent sides as an exhaustive set (settled 2026-08-16)**:
-  a sentence that means "all sides" says so side-count-neutrally ("the agent sides");
-  naming one specific side is fine. Rationale: the side set grows, and an enumeration written into
-  copy is a sentence that becomes a lie the moment a side is added — silently, in every language at
-  once, on a surface no side-onboarding diff touches. It happened twice in one onboarding round
-  (the totals card's "both sides", the scanning state's "Claude Code / Codex"), and the rule had
-  already been written down — in a prototype comment, where it constrained nobody. Enforced by a
-  shared-UI check over the dictionaries; copy that must enumerate (because its surface genuinely
-  judges only those sides today) is allow-listed there by dictionary key with the reason it may name
-  them.
-
-- **Non-printing characters are written as escapes in source, never as raw bytes (settled
-  2026-08-13)**: `\x00` rather than a literal NUL. Identical at runtime; the difference is that a raw
-  NUL makes recursive `grep`/`ripgrep` **skip the entire file in silence** — empty output and exit 1,
-  indistinguishable from an honest miss. A 1028-line file returned nothing for every search, which
-  produced a wrong count of the producers writing `DayUsage.byProvider` (one instead of three) and
-  nearly shipped a change covering a third of what it claimed to. Note the direction of the failure:
-  it corrupts answers about **absence** — "nothing else references this", "there is no other
-  producer" — which are exactly the answers nobody re-checks. Enforced by `pnpm check:nul`.
-
-- **`TokenTotals.input` does not mean the same thing on every side, so it must not be summed across
-  them (settled 2026-08-18; Antigravity CLI added 2026-10-29)**: on the Claude side `input` is the
-  genuinely new content — cache reads and cache writes each have their own disjoint bucket. On the
-  Antigravity CLI side the reported input already leaves the cache reads out (measured) and cache writes
-  are reported as a figure of their own; whether that input also leaves the cache writes out cannot be
-  settled from the data, since no measured call reported a write. On the Codex and Grok sides the
-  reported input demonstrably contains the cached reads (which we subtract), and **may or may not**
-  also contain the tokens written to cache — neither side reports that quantity, so it cannot be
-  subtracted and the question cannot be settled from the data (ADR-0023). Either way the sanitised
-  `input` on those sides is not the same quantity as Claude's "new only". The same asymmetry makes
-  `cacheWrite` a figure only the Claude Code and Antigravity CLI sides report; summing it across sides
-  labels two sides' numbers as every side's.
-  **The three cross-side comparable buckets are `input + cacheWrite`, `output`, and `cacheRead`** —
-  these carry one meaning each on every side and, on each side, sum exactly to that side's total.
-  This is not fixable in the parser: the information is absent from the source data, so any presentation
-  that needs comparability must aggregate to those three.
-
-  The interface holds this invariant: the composition bar cuts a total into exactly these three
-  buckets, and no surface sums `input` or `cacheWrite` across sides on its own. The former violation —
-  a card set summing both, with a secondary line claiming a per-side breakdown it never rendered — was
-  retired on 2026-08-21 when the totals became the four-window card row.
-
-- **A metric only some sides report does not join `TokenTotals` (settled 2026-08-18)**: reasoning
-  tokens are a case in point — Codex reports `reasoning_output_tokens` and Grok `reasoningTokens`
-  (verified subsets of output: 50791/50791 and 380/380, so no volume is lost by ignoring them), while
-  the Claude side has no equivalent — 57 of 51753 usage records carry `output_tokens_details`, all
-  reading zero. Adding the field would put a real number beside a structural blank, which reads as
-  breakage on the side that has none rather than as an honest absence. This is the same judgement
-  ADR-0019 made about Grok's `costUsdTicks`, and it is recorded here so the next reader does not
-  re-derive it from a fresh scan. The bar for admitting a new field is that **every** side can answer
-  it, or that the view showing it is explicitly single-side.
-
-- **Sentence-shaped chrome takes its case from the dictionary; no uppercase transform over copy
-  (settled 2026-08-22)**: the `.grp-t` description rows (the trend title, the by-model line, section
-  hints, MCP headings) render the dictionary's sentence case — all-caps reads poorly in the
-  non-English languages and uppercases Latin words embedded in Chinese copy. Three micro-label
-  classes keep small caps **by explicit ruling, not omission**: `.settings-sec-t` (settings section
-  titles), `.files-head` (file-table column headers) and `.turn .bb .lb` (turn block labels) are
-  single-word labels, not sentences; the CLAUDE CODE / CODEX / GROK / ANTIGRAVITY chips are uppercase brand
-  labels, equally deliberate. A new sentence-shaped surface follows the dictionary's case rather
-  than reintroducing a transform.
-
-- **The archive never lets a past day's figure fall silently (settled 2026-09-09)**: a past
-  (day, side) figure lower than the archive's is accepted only under a new accounting stamp, and
-  whatever it replaces is kept as a superseded value; under the same stamp the archive's value is
-  retained and the lower figure is recorded as the observed value. Rationale: on 2026-09-09 Codex
-  rewrote 1329 of its rollouts into a compacted format, the live Codex figures fell to between 1%
-  and 74% of their real values for every day from 2026-08-11 to 2026-09-08, and the previous
-  overwrite rule wrote that loss into the archive within one scan, keeping no trace; the only reason
-  it could be quantified was a cache snapshot that happened to exist. The rule tells a correction
-  from a loss by mechanism, not magnitude: the same rules over the same data never produce a lower
-  figure, so a drop under the same stamp is the data's doing. Increases are always accepted, and
-  the scan's own day is exempt.
-
-- **Main-process file I/O is measured under Electron, never under Node (settled 2026-09-09)**: the
-  stream loop that reads session files (`eachJsonlLine`) took 3.5 s over an 839 MB file under Node
-  and 44.6 s in the Electron main process — the same code, the same file, already in the page
-  cache. Under Electron each 64 KB stream chunk costs about 3 ms more than under Node (the
-  mechanism was not profiled; a worker thread in the same process paid the same), so at the
-  stream's default chunk size a gigabyte costs a minute, and two live Codex sessions of that size
-  made the startup scan, and any rescan after they had been written to, take minutes. Nothing that
-  runs under `node` can see this: vitest cannot, and the scan timings the specs record could only
-  have been taken there — at the main-process rate their 288 MB would have needed over eight
-  seconds, not 2.9 — which is how a twelvefold slowdown on the startup path went unnoticed while
-  the data grew. Two consequences. Session files stream in 1 MB chunks (`JSONL_CHUNK_BYTES`), and
-  the tests pin the chunk size explicitly instead of guessing the runtime's default. The size was
-  chosen on the **whole** cold scan, not on the big file alone: the big file keeps getting faster
-  as chunks grow (2.0 s at 1 MB, 1.4 s at 8 MB) while the whole set — mostly small files, each
-  paying for a chunk-sized buffer per read — is fastest at 1 MB (3.3 GB in 3947 files: 15.5 s at
-  256 KB, 12.5 s at 512 KB, 11.3 s at 1 MB, 12.5 s at 2 MB, 17.6 s at 4 MB, 49.8 s at 16 MB, against
-  90.5 s at the 64 KB default; the parse output is identical at every size). And a figure about
-  reading files from the main process counts as evidence only when the run was under `electron` —
-  `pnpm bench:scan` bundles the scan and runs it under the Electron binary (and under Node with
-  `--node`, for the comparison this invariant is about); a Node figure is quoted as "measured under
-  Node" and decides nothing about the main process.
-
-- **A page switch is atomic and a revisit is instant (settled 2026-09-12)**: selecting another
-  project or opening another session never shows an intermediate frame — no empty pane, no loading
-  label, no old body under a new header. The page on screen stays whole until the next one can be
-  drawn whole; only the selection highlight moves at once. A project or session seen earlier in the
-  run, or restored from a saved successful page, is drawn from what was last shown and then
-  refreshed by transfusion; a visit without a saved page waits (holding the previous page).
-  Saved page contents survive a full restart; navigation and expansion state do not.
-  Display copies have their own format version and never feed accounting or archive updates
-  (ADR-0029). Restoring a saved page runs the live contract, so a field added to a saved type is filled
-  in on restore when absent, and one whose shape changes is converted from the old shape — or the first
-  launch after the update drops every page saved before it (as the project memory's main-file entry is
-  filled in; as the configuration files were given their paths, 2026-10-29; postmortem 2026-10-21). A
-  conversion that needs a fact the saved copy lacks takes it from the main process, never invents it
-  (the snapshot's global configuration files take their paths from its roots). Previously read previews and answers are included; unread bodies are not prefetched.
-  Restored exact-path registrations are checked against current targets and replaced per owning
-  scan/detail/enumeration. Every automatic rescan
-  marks every cached page stale, and a change made from a page
-  (uninstalling a skill) marks that page stale. Rationale: a detail arrives within a frame or two,
-  so anything drawn between two pages is a flicker with nothing to read; and a cache that is
-  invalidated on every rescan is cheaper than a wait that has to be explained. The mechanism is
-  ADR-0028's, with cross-restart lifetime governed by ADR-0029.
-
-- **A concurrent React root does not need `startTransition` to hold already-revealed content
-  (measured 2026-09-13)**: once a Suspense boundary rendered under `createRoot` has committed real
-  content, a later update that suspends it — a plain `setState` or one wrapped in `startTransition`
-  alike — keeps that content on screen and is preemptible by a still-later update, with no visible
-  flash of the fallback in between. A `startTransition` around such an update is still worth writing
-  (it is React's documented pattern, it costs nothing, and it is the seam that would matter against
-  a competing high-priority update), but its removal cannot be relied on as a mutation that turns a
-  "the previous page holds" test red — confirmed by rebuilding without it and running that test,
-  which stayed green. Do not write or trust such a mutation without re-measuring first.
-
-- **A "does not appear" check can never be red if it is retried for longer than the thing lives (settled
-  2026-10-23)**: a retried negative assertion — `toHaveCount(0)`, `not.toBeVisible()` — waits until its
-  condition holds, so a toast or any element that appears and goes by itself within the timeout passes
-  it anyway. A toast lives 3.2 s and Playwright retries for 5 s: a planted toast on a failure path, and
-  one at startup, passed two such checks every time (#254). A check that something did not appear reads
-  against a later event that arrives in order behind it (a later notice on the same channel), or counts
-  once at a point where the thing would still be on screen. A retried negative read is right only for
-  waiting a thing out on purpose, before a new one or a screenshot.
-
-- **An e2e case closes its app through the shared bounded teardown (settled 2026-10-23)**: under CPU load the app's
-  own quit takes milliseconds, but Electron's native shutdown after it can take minutes, and Playwright waits for the
-  process and its pipes with no bound, so a case timed out in its teardown (#227). Every case closes through `closeApp`
-  (`e2e/close-app.ts`): past 10 s it kills the app's process group — the main process alone is not enough, since the
-  rest of the group keeps the pipes open — notes it on the case and prints a warning. The trade-off: a quit that hangs
-  no longer fails a case; it shows only as that warning, so a warning on an unloaded run is a defect to look into, not
-  noise. A new launch site closes through the helper rather than `app.close()`.
-
-- **Every action in every workflow runs at a full commit, with its release in a comment (settled 2026-10-26)**: a
-  tag can be moved to other code, and the workflows hold what must not run moved code — the release workflow the
-  signing certificate, Apple's credentials and write access to releases (2026-10-18), and the CI and message-language
-  jobs the checks a pull request needs to merge into `main` (#253). An action is written
-  `owner/repo@<40-hex commit> # v<x.y.z>`, at the same commit in every workflow that uses it; an upgrade resolves the
-  release's tag to its commit in the action's own repository and moves every workflow together.
-  `scripts/workflow-actions.test.mjs` holds the form for every file in `.github/workflows/`; which release a commit is,
-  and whether it is the current major, no offline check can tell.
-
-- **Agentshed's own code makes no outbound network request other than an update check and the download
-  of the app update it finds (settled 2026-10-12; download wording 2026-10-13)**: the product is
-  local-first — everything it shows is read from files on the user's machine — and updating is the one
-  deliberate exception (ADR-0032, as amended). While automatic checks are turned off, the app starts no
-  outbound request unless the user asks for a manual check. The one exception is a download already
-  under way when the switch is turned off, which is finished: the switch governs automatic checks only.
-  A link opened in the system browser is the browser's request, not the app's. A new feature that would
-  reach the network changes this invariant and needs its own decision; it is not an addition to the
-  update check. Checkable by searching the main process for network APIs and by the renderer's content
-  security policy, which allows no remote origin.
-
-- **A development run writes into the installed copy's userData (observed 2026-10-14)**: the
-  development name is `agentshed` and the packaged one `Agentshed`, and on macOS's default
-  case-insensitive volume the two are one directory — every file a run keeps there (preferences, the
-  display cache, the usage archive, the token cache, the version record) is shared by a working build
-  and the installed app. A record that must describe the installed copy alone is kept out of
-  development runs: the version record behind the post-update line is read and written only by a run
-  that checks for updates (app-update Implementation Decisions). A new userData file decides the same
-  question when it is added.
 
 ## Flagged ambiguities
 
-- **Antigravity's own "project" is not a Project (2026-10-28)**: Antigravity groups folders into
-  projects of its own, shared with its desktop app and created automatically, and calls a folder a
-  "workspace". Neither is a **Project** here: on the Antigravity CLI side a Project is a folder in its
-  trust ledger, the same per-folder decision record as on the other sides (ADR-0037).
-
-- **"Live day" is retired (2026-09-09)**: liveness was a property of a day, so a side whose
-  history had vanished still counted as live because another side had activity that day, and its
-  archived rows were overwritten with nothing. It is now a property of a (day, side); see "Live
-  (day, side)". Spec and ADR text written before this date reads "live day" in the old sense.
-- **"AgentDex" (former name) is retired**: the product was originally positioned as a read-only
-  catalogue; on 2026-07-29 requirements analysis ruled it a hands-on "overview + install/remove
-  management" tool, which triggered the naming-fallback clause and produced the name Agentshed.
-  "Catalogue" is no longer used to position the product; "overview" is used instead.
-- **"The six official UN languages" is retired (2026-08-08)**: the requirement as originally stated
-  named the six official UN languages, which include Arabic; the ruling replaced Arabic with
-  Japanese, keeping the count at six with all of them left-to-right, and RTL outside the support
-  commitment (rationale and options in ADR-0013). Do not use the shorthand.
-- **"Six languages" is retired (2026-10-19)**: the set ADR-0013 ruled was reduced to Simplified
-  Chinese and English before the first release (ADR-0035). Spec and ADR text written before this date
-  reads "six languages" in the old sense; describe the current support by naming the two languages.
-- **"Dual view / artifact aggregation" is retired (2026-07-30)**: aggregating artifacts by type
-  across projects was ruled a false requirement — artifacts are in-project context documents and are
-  shown only within project detail. Cross-project retrieval belongs to global search, not to an
-  aggregation page; global search (ruled 2026-10-19) searches session questions only, so artifacts are
-  still shown only within project detail.
-- **Codex same-name semantics differ per component and must not be extrapolated by analogy**
-  (2026-08-01, both verified at source level): two same-name skills across layers **coexist**
-  (`root_loader.rs` deduplicates by path only), whereas two same-name subagents **shadow at the
-  project level** (`agent_roles.rs` overrides by config layer; within one layer the first wins).
-  These are **runtime semantics**; the shadowing badges in the subagents effective view still follow
-  them, but the skills **list presentation** has, since skills-view (2026-08-06), uniformly shown
-  "only the project-level entry for a same-name pair" and no longer badges by runtime semantics
-  (see the "Effective view" entry).
+- **Antigravity's own "project" and "workspace" are not a Project**: Antigravity groups folders into
+  projects shared with its desktop app and calls a folder a workspace; on the Antigravity CLI side a
+  Project is a folder in its trust ledger, as on the other sides (ADR-0037).
+- **"Live day" is retired**: liveness belongs to a (day, side), not a day; ADR and spec text written
+  before 2026-09-09 uses "live day" in the old sense.
+- **"AgentDex" is retired**: it was the name while the product was a read-only catalogue; the product is
+  Agentshed, positioned as an overview, not a catalogue.
+- **"Six languages" and "the six official UN languages" are retired**: the supported set is Simplified
+  Chinese and English (ADR-0035); text written before 2026-10-19 uses the old sets (ADR-0013).
+- **Cross-project artifact aggregation is retired**: artifacts are shown only within project detail;
+  cross-project retrieval belongs to global search, which searches session questions only.
+- **Codex same-name semantics differ per component**: two same-name skills across layers coexist, while
+  two same-name subagents shadow at the project level. Those are runtime semantics; how each list
+  presents a same-name pair is that view's own rule (skills-view, subagents-view).

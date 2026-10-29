@@ -541,7 +541,7 @@ test('the Configuration section: CLAUDE.md and AGENTS.md on both pages, each fil
     { mono: true, size: '11px', secondary: true, rule: '1px' },
     { mono: true, size: '11px', secondary: true, rule: '1px' }
   ])
-  // A relative link in a global file gets the out-of-scope notice and does not navigate the window (CONTEXT: a link
+  // A relative link in a global file gets the out-of-scope notice and does not navigate the window (AGENTS.md: a link
   // inside rendered content never navigates the whole window)
   const urlBefore = win.url()
   await body.locator('.md a', { hasText: 'the guide' }).click()
@@ -660,7 +660,7 @@ function mkThreeSideHome(): string {
 // Ticket grok-side/#123 (spec C6, stories 1/1a): the row carries how many sides use it as a single
 // count, and the sides themselves are named in full on hover. The hover layer sits over the clipped,
 // scrollable list, so its visibility is proved by hit-testing its own centre — a clipped layer
-// reports the same bounding box and loses exactly that (CONTEXT's floating-layer invariant).
+// reports the same bounding box and loses exactly that (the floating-layer invariant in AGENTS.md).
 test('the project list row: a side-count badge, with hovering naming the sides in full', async () => {
   const l = await launch(undefined, mkThreeSideHome())
   const win = await l.app.firstWindow()
@@ -3730,7 +3730,7 @@ test('filtering the skills lists by name, and revealing a truncated name on hove
   await expect(win.locator('.nm-tip')).toHaveCount(0)
 
   // Anything that moves the anchor invalidates the coordinates measured from it, so all three dismiss.
-  // These are the second of the floating layer's two obligations (CONTEXT's invariant) — the layer is
+  // These are the second of the floating layer's two obligations (useAnchorInvalidation.ts) — the layer is
   // fixed, so without them it would hang in place over unrelated content.
   // Each of the three needs the pointer parked away first: `hover()` on an element the pointer already
   // sits on fires no `mouseenter`, so the tooltip would never reappear and the next assertion would pass
@@ -6617,7 +6617,7 @@ test('the session page header: the session ID, copying it and the resume command
   await expect(tip.locator('.stip-cmd')).toHaveText(claudeCmd, { timeout: 500 })
   await expect(tip).toContainText('Copy resume command')
   await expect(tip.locator('.stip-warn')).toHaveCount(0)
-  // Visible where it is, not only present: its own centre hit-tests to it (CONTEXT's floating-layer invariant)
+  // Visible where it is, not only present: its own centre hit-tests to it (the floating-layer invariant in AGENTS.md)
   expect(await tip.evaluate((el) => {
     const box = el.parentElement as HTMLElement
     const r = box.getBoundingClientRect()

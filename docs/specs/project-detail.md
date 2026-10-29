@@ -55,8 +55,8 @@ is read-only; the one write operation is uninstalling a project-level skill.
   project's own token history is no longer reachable from its page was accepted; the global totals
   still include it (see agents-overview B3). Sequence S below owns the card.
 - A3 Detail is fetched on demand (it does not enter the overview snapshot), and **a project switch is
-  atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the CONTEXT.md invariant of
-  that date): the page on screen stays whole until the next project's page can be drawn whole, then
+  atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the invariant of that date,
+  now in AGENTS.md): the page on screen stays whole until the next project's page can be drawn whole, then
   the pane switches in one frame — no empty pane, no loading label, no new header over an old body.
   Only the list highlight moves at once. A project with a saved successful page is a **cached visit**: its
   page is drawn immediately from what was last shown and refreshed in the background. A refetch that
@@ -296,7 +296,7 @@ regressions within this round; artifact collection rules and unrelated section l
   the project's two files with its path and its contents, or none for a file that exists but cannot be
   read, and null for an absent one; the agents page's section and this page's share one section
   component. A project detail saved before the files carried their paths restores with each file at its
-  place in the project and without the settings summary (CONTEXT: a saved page restores across an
+  place in the project and without the settings summary (AGENTS.md: a saved page restores across an
   update).
 
 ## Testing Decisions

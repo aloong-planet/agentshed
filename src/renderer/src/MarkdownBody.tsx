@@ -1,5 +1,5 @@
 // The single React carrier for rendered markdown: every surface renders through it, so the
-// sanitising exit (renderMarkdown) and the link-interception invariant (CONTEXT: a rendered link
+// sanitising exit (renderMarkdown) and the link-interception invariant (AGENTS.md: a rendered link
 // never navigates the whole window) hold by construction instead of by every call site remembering
 // to wire them. The link context is deliberately required: a surface with no in-app targets passes
 // an empty readable list, which routes every relative link to the explicit out-of-scope notice.
