@@ -1,7 +1,7 @@
 // Exercise the working-language gate's CLI in real temporary Git repositories, as check-raw-nul.test.mjs does
 // for its sibling gate. Covers the prototype exemption: the prototype skill's verbatim copies, recognised by the
-// marker in their first comment whatever they are called, are checked like any other tooling, while mockups and
-// this project's own registries stay exempt.
+// marker in their first comment whatever they are called, are checked like any other tooling, while mockups, their
+// pages' notes files and this project's own registries stay exempt.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'

@@ -154,6 +154,13 @@ function isSkillCopy(text) {
 }
 
 /**
+ * Whether the file is a page's notes file (the prototype skill's notes-file rule): `prototype-<topic>.md` with
+ * `prototype-<topic>.html` beside it, or `candidates-<topic>.md` with `candidates-<topic>.html`
+ */
+const isNotesFile = (file) =>
+  /(^|\/)(prototype|candidates)-[^/]+\.md$/.test(file) && existsSync(file.replace(/\.md$/, '.html'))
+
+/**
  * A prototype is a mockup of a Chinese interface shown to a Chinese-reading reviewer, so both its content
  * and its annotations address that reader. The tooling living beside it is not a mockup and gets no
  * exemption — that is what keeps this a rule with teeth rather than a blanket pass on a directory.
@@ -166,14 +173,9 @@ function isSkillCopy(text) {
  * it. `manifest.js` and `dimensions.js` stay exempt: the names, questions and labels they carry address the
  * reviewer, like a mockup's annotations.
  *
- * A page's notes file holds the annotations its header used to carry (the prototype skill's notes-file rule), so it
- * is exempt like the page. It is recognised by its name and by its page beside it: `prototype-<topic>.md` next to
- * `prototype-<topic>.html`, `candidates-<topic>.md` next to `candidates-<topic>.html`. Other Markdown in the
- * directory is not a mockup's annotation and stays checked.
+ * A page's notes file holds the annotations its header used to carry, so it is exempt like the page. Other
+ * Markdown in the directory is not a mockup's annotation and stays checked.
  */
-const isNotesFile = (file) =>
-  /(^|\/)(prototype|candidates)-[^/]+\.md$/.test(file) && existsSync(file.replace(/\.md$/, '.html'))
-
 function mockupOnly(text, file) {
   if (/\.(html|mmd|css|js)$/.test(file) && !isSkillCopy(text)) return []
   if (isNotesFile(file)) return []
