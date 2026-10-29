@@ -41,7 +41,7 @@
 // It cannot judge whether the English is *correct* — no gate can. It only guarantees that unapproved
 // Chinese cannot enter the repository.
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import ts from 'typescript'
 // What counts as Chinese, and the quoting spans prose uses to cite it, are shared with the message gate
@@ -154,6 +154,13 @@ function isSkillCopy(text) {
 }
 
 /**
+ * Whether the file is a page's notes file (the prototype skill's notes-file rule): `prototype-<topic>.md` with
+ * `prototype-<topic>.html` beside it, or `candidates-<topic>.md` with `candidates-<topic>.html`
+ */
+const isNotesFile = (file) =>
+  /(^|\/)(prototype|candidates)-[^/]+\.md$/.test(file) && existsSync(file.replace(/\.md$/, '.html'))
+
+/**
  * A prototype is a mockup of a Chinese interface shown to a Chinese-reading reviewer, so both its content
  * and its annotations address that reader. The tooling living beside it is not a mockup and gets no
  * exemption — that is what keeps this a rule with teeth rather than a blanket pass on a directory.
@@ -165,9 +172,13 @@ function isSkillCopy(text) {
  * they are called: a list of their names missed every copy the skill added or renamed until someone updated
  * it. `manifest.js` and `dimensions.js` stay exempt: the names, questions and labels they carry address the
  * reviewer, like a mockup's annotations.
+ *
+ * A page's notes file holds the annotations its header used to carry, so it is exempt like the page. Other
+ * Markdown in the directory is not a mockup's annotation and stays checked.
  */
 function mockupOnly(text, file) {
   if (/\.(html|mmd|css|js)$/.test(file) && !isSkillCopy(text)) return []
+  if (isNotesFile(file)) return []
   return text
     .split('\n')
     .map((line, i) => [i + 1, line])
@@ -264,7 +275,7 @@ const RULES = [
   {
     match: (f) => f.startsWith('docs/prototypes/'),
     test: mockupOnly,
-    why: 'UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption'
+    why: 'UI prototypes and their notes files — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption'
   },
   {
     match: (f) => f === 'README.md',
