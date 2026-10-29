@@ -77,7 +77,7 @@ pnpm verify   # 完整检查：类型、lint、单元测试、脚本与网站测
 - [`docs/features/`](docs/features/README.md)：应用现在能做什么，按功能分篇。
 - [`docs/specs/`](docs/specs/README.md)：每个功能背后的需求与边界情况。
 - [`docs/adr/`](docs/adr/README.md)：架构决策。
-- [`CONTEXT.md`](CONTEXT.md)：代码与文档共用的术语表。
+- [`docs/CONTEXT.md`](docs/CONTEXT.md)：代码与文档共用的术语表。
 - [`site/`](site/README.md)：网站，一个独立的项目。
 
 ## 许可

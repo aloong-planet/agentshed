@@ -8,7 +8,8 @@ import type { ArtifactEntry, ArtifactType } from '@shared/domain'
 export function readArtifacts(projectPath: string): ArtifactEntry[] {
   const out: ArtifactEntry[] = []
 
-  const context = join(projectPath, 'CONTEXT.md')
+  // Only docs/CONTEXT.md: a CONTEXT.md left at the project root is not an artifact (project-detail::REQ-003)
+  const context = join(projectPath, 'docs', 'CONTEXT.md')
   if (existsSync(context)) out.push(mdEntry('context', context))
 
   collectMd(out, 'adr', join(projectPath, 'docs', 'adr'))

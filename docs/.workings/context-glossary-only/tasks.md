@@ -72,3 +72,19 @@ single entry only when its detail is needed.
 - Reading: the global instructions gain a section on reading CONTEXT.md (the contents through awk by section,
   single entries by paragraph); implement, tdd and the docs-layout seed point at it. The three commands were checked on this file and
   are silent under the truncation hook.
+
+## Round 3 (2026-10-29, same day): CONTEXT.md moves to docs/
+
+Owner decisions: every project keeps its glossary at `docs/CONTEXT.md` (the skills' convention changes, the other six
+repositories follow later); the app reads `docs/CONTEXT.md` only; the product change rides in #337.
+
+- Spec: project-detail::REQ-003 (from B2), its failure modes, B1's wording, the Testing Decisions line and the
+  prototype-gate exemption; source check in docs/.workings/project-detail/checklist.md.
+- Test design review: docs/.workings/project-detail/review-tests.md (no findings).
+- Code: the artifact reader takes `docs/CONTEXT.md`; two new unit cases (both files → the `docs/` one; root only →
+  nothing) and the six-type case's fixture moved; five e2e fixture sites moved, the config-card link probe now
+  targets `./docs/CONTEXT.md`.
+- Repository: `git mv CONTEXT.md docs/CONTEXT.md`; README.md, README.en.md and AGENTS.md point at the new path.
+  Other mentions name the file, not its path, and stay.
+- Targeted verification so far: typecheck 0, lint 0; unit tests of artifacts and of the five suites importing
+  project-detail (found by searching the imports; no dynamic import of either module): 6 files, 103 tests, exit 0.

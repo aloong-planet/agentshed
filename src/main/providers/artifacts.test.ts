@@ -1,5 +1,5 @@
-// Ticket 05: scanning the eight-step artifacts — recognising the six types (specs added 2026-08-01),
-// title extraction, reverse chronological order,
+// Ticket 05: scanning the eight-step artifacts — recognising the six types (specs added 2026-08-01; CONTEXT.md
+// read from docs/ only, project-detail::REQ-003), title extraction, reverse chronological order,
 // excluding README and vendor, and the missing-directory empty state; the type order is itself a contract
 // (spec project-detail B1).
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs'
@@ -40,8 +40,16 @@ describe('readArtifacts', () => {
     expect(items.map((i) => `${i.type}:${i.title}`)).toEqual(['specs:Memory view'])
   })
 
+  it('project-detail::REQ-003/AC-01: CONTEXT.md is read from docs/, and a root CONTEXT.md beside it is not an artifact', () => {
+    w('docs/CONTEXT.md', '# Docs glossary\n', 200)
+    w('CONTEXT.md', '# Root glossary\n', 300)
+    const contexts = readArtifacts(proj).filter((i) => i.type === 'context')
+    expect(contexts.map((i) => i.title)).toEqual(['Docs glossary'])
+    expect(contexts[0].file).toBe(join(proj, 'docs', 'CONTEXT.md'))
+  })
+
   it('recognises all six types, takes the first # heading as the title, orders globally by time descending, and excludes README', () => {
-    w('CONTEXT.md', '# Glossary\n', 100)
+    w('docs/CONTEXT.md', '# Glossary\n', 100)
     w('docs/adr/0001-first.md', '# ADR-0001 settle the architecture\n', 500)
     w('docs/adr/README.md', '# Index\n', 900)
     w('docs/specs/shot.md', '# Screenshot (requirements)\n', 600)
@@ -73,6 +81,11 @@ describe('readArtifacts', () => {
   })
 
   it('no docs directory → an empty array (the empty state for a project not following the eight steps, not an error)', () => {
+    expect(readArtifacts(proj)).toEqual([])
+  })
+
+  it('project-detail::REQ-003/AC-01: a CONTEXT.md only at the project root, with no docs directory, lists nothing', () => {
+    w('CONTEXT.md', '# Root glossary\n', 100)
     expect(readArtifacts(proj)).toEqual([])
   })
 

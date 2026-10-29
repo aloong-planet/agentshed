@@ -2966,15 +2966,16 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
     join(home, '.codex', 'agents', 'code-reviewer.toml'),
     'name = "code-reviewer"\ndescription = "Review code"\ndeveloper_instructions = "You are a reviewer."\n'
   )
-  // The demo project's artifact (CONTEXT.md) carries the full heading ladder for the reader overlay
+  // The demo project's artifact (docs/CONTEXT.md) carries the full heading ladder for the reader overlay
+  mkdirSync(join(demo, 'docs'), { recursive: true })
   writeFileSync(
-    join(demo, 'CONTEXT.md'),
+    join(demo, 'docs', 'CONTEXT.md'),
     '# Context ladder\n\nIntro.\n\n## Ladder h2\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
   // The demo project's CLAUDE.md links to a listed artifact and to a path outside the list
   writeFileSync(
     join(demo, 'CLAUDE.md'),
-    '# Demo config\n\ncfg link probe: [open context](./CONTEXT.md) · [missing doc](./docs/none.md)\n'
+    '# Demo config\n\ncfg link probe: [open context](./docs/CONTEXT.md) · [missing doc](./docs/none.md)\n'
   )
   // The demo project's memory
   const enc = demo.replace(/[^A-Za-z0-9]/g, '-')
@@ -6206,7 +6207,8 @@ test('opening an artifact whose file was removed after the scan (query layer): a
   const proj = join(home, 'demo-proj')
   mkdirSync(proj, { recursive: true })
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-  const ctx = join(proj, 'CONTEXT.md')
+  mkdirSync(join(proj, 'docs'), { recursive: true })
+  const ctx = join(proj, 'docs', 'CONTEXT.md')
   writeFileSync(ctx, '# Doomed\n\nGone before it opens.\n')
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
@@ -6252,7 +6254,8 @@ test('reopening an artifact (query layer): first open is slow, reopening it is i
   const proj = join(home, 'demo-proj')
   mkdirSync(proj, { recursive: true })
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-  writeFileSync(join(proj, 'CONTEXT.md'), '# Cached artifact\n\nbody\n')
+  mkdirSync(join(proj, 'docs'), { recursive: true })
+  writeFileSync(join(proj, 'docs', 'CONTEXT.md'), '# Cached artifact\n\nbody\n')
   // A memory topic read through the same delayed channel (memory-view::US-001/AC-07, the loading state)
   const memDir = join(home, '.claude', 'projects', proj.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
   mkdirSync(memDir, { recursive: true })

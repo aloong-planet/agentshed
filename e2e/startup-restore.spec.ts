@@ -27,7 +27,8 @@ test('restart restores viewed project, questions and read answer before a new sc
   const skill = join(proj, '.claude', 'skills', 'restore-skill')
   mkdirSync(skill, { recursive: true })
   writeFileSync(join(skill, 'SKILL.md'), '---\ndescription: Restore fixture\n---\nSaved skill body')
-  writeFileSync(join(proj, 'CONTEXT.md'), '# Saved artifact\nSaved artifact body')
+  mkdirSync(join(proj, 'docs'), { recursive: true })
+  writeFileSync(join(proj, 'docs', 'CONTEXT.md'), '# Saved artifact\nSaved artifact body')
   async function previews(win: Page, timeout = 5000): Promise<void> {
     await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
     await win.locator('.it.row-btn', { hasText: 'topic.md' }).click()
@@ -114,7 +115,7 @@ test('restart restores viewed project, questions and read answer before a new sc
     expect(reads.filter(r => r.kind === 'turnContent')).toHaveLength(1)
     await win.screenshot({ path: 'docs/.workings/startup-restore/session-restored.png' })
     // A restored registration never authorizes an arbitrary path or a substituted symlink.
-    const artifact = join(proj, 'CONTEXT.md'), outside = join(home, 'outside.md')
+    const artifact = join(proj, 'docs', 'CONTEXT.md'), outside = join(home, 'outside.md')
     writeFileSync(outside, 'Unregistered secret')
     const denied = (file: string) => win.evaluate(async f => {
       try { await window.agentshed.readArtifact(f); return false } catch { return true }
