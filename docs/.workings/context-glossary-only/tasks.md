@@ -104,3 +104,24 @@ repositories follow later); the app reads `docs/CONTEXT.md` only; the product ch
   (records only, so no targeted run); the records named above now state one conclusion each. Re-review decision:
   change-scope against 59a63b4 in docs/.workings/project-detail/change-scope-fix-2.log.
   Result: exit 0, every file inert, so no further re-review; step 6 is closed.
+
+## Step 7 archive (2026-10-29, on 897faa5)
+
+- Spec final check: REQ-003/AC-01, AC-02 and each failure mode implemented as written; the spec is unchanged
+  (checklist.md, Two-way audit).
+- Decisions: no ADR. REQ-003 is easily reversed and the spec states it; no ADR is in the proposed state (37 status
+  lines `- Status:` over 38 files, README.md the one without; only ADR-0003 is not Accepted, and it is Superseded).
+- Terms: none new. Postmortem: none (the E4 precondition miss lacks a defence of its own; recorded in
+  review-tests.md). Character-icon list: not applicable, no interface change.
+- Sync scope: every path-like reference to CONTEXT.md and every citation of "CONTEXT" outside `node_modules`, `out`,
+  `.git` and `test-results`, hidden and ignored files included (`rg -uu`; a control hit in README.md). Excluded:
+  `docs/.workings/` of other features, which record past rounds and are not current statements.
+- Differences found and fixed: `site/src/styles/global.css` cited the CONTEXT invariant "Light and dark each get
+  their own declaration", which moved to the ui-design skill (citation removed; the comment states the rule and its
+  reason). AGENTS.md said every older "CONTEXT invariant" citation means a line there; three of main's 25
+  invariants moved to skills instead (light and dark declarations, a concurrent root without a Transition, a
+  retried "does not appear" check), so the line now names them. Every other citation resolves to a current entry
+  or an AGENTS.md invariant.
+- Known and not fixed here: `docs/specs/skills-view.md:607` cites a retired `differs` signal "see CONTEXT"; main's
+  CONTEXT.md had no such entry either (its one "differs" is unrelated prose), so it predates this branch. Raised to
+  the owner for a decision.

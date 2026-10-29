@@ -10,7 +10,9 @@ Cross-skill project facts are declared in `capabilities.toml` at the repository 
 
 Constraints on anyone changing this code, one line each; the reason lives where the line points. Until
 2026-10-29 these were the invariants of `CONTEXT.md`: an older document citing "the CONTEXT invariant"
-means the line here.
+means the line here, except three that hold for any project and moved to the skills that govern that work —
+light and dark each declare every token, a concurrent root holds revealed content without a Transition, and
+a retried "does not appear" check cannot prove absence.
 
 ### Reading agent data
 

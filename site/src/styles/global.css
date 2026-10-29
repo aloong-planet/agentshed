@@ -4,9 +4,9 @@
 
    The palette is the app's purple theme (src/renderer/src/theme.css), light and dark, switched by the
    visitor's system appearance (landing-page::REQ-006). Light and dark each declare every token, equal
-   values included, so a token forgotten in one block cannot pass by inheriting the other's (CONTEXT,
-   "Light and dark each get their own declaration"). A unit test holds the shared tokens to the app's
-   values; the warning pair (--warn-bg, --warn-fg) marks the test version. Five tokens are the page's own
+   values included, so a token forgotten in one block cannot pass by inheriting the other's. A unit test
+   holds the shared tokens to the app's values; the warning pair (--warn-bg, --warn-fg) marks the test
+   version. Five tokens are the page's own
    and have no app counterpart: --bg-soft (the alternate section ground), --shot-a and --shot-b (a
    screenshot frame's ground before its image loads), --shadow (the screenshot frames' shadow) and
    --icon-shadow (the hero icon's, which follows its outline). */

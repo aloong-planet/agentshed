@@ -27,14 +27,16 @@ final check of `/implement` covers it.
 | project-detail::REQ-003/AC-01 | CONTEXT.md under `docs/`; root not an artifact | none (spec-driven) | Test: providers fixtures — both present → only the `docs/` one (U1); a root `CONTEXT.md` beside a `docs/` holding other artifacts → no context entry, the others listed (U4); a root file and no `docs/` → nothing (U2) |
 | project-detail::REQ-003/AC-02 | other types unchanged | none (spec-driven) | Test: the existing providers fixture cases stay green |
 | REQ-003 failure modes: link to a root CONTEXT.md | R3 notice | none (spec-driven) | Test, by composition: the renderer admits a relative link only to a listed file (md-links, with its unit case refusing an unlisted target); U1 and U4 show a root file is not listed; E1's "missing doc" probe shows the notice on the user path |
-| REQ-003 failure modes: a page saved before the change | the root file listed until revalidation | none (spec-driven) | Test: E4 (startup-restore) — the restored registration admits the root file before any detail read, and the current detail retires it while the file is on disk (`artifact-not-whitelisted`); the display side is REQ-001/AC-03's restore case |
+| REQ-003 failure modes: a page saved before the change | the root file listed until revalidation | none (spec-driven) | Test: E4 (startup-restore) — after the first scan and before any detail read, the registration restored from the saved page admits the root file, and the current detail retires it while the file is on disk (`artifact-not-whitelisted`); the display side is REQ-001/AC-03's restore case |
 
 ## Current verification
 
 | Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
 |---|---|---|---|
-| 2026-10-29, spec uncommitted on cdf19b3 | project-detail::REQ-003/AC-01 | Not run yet | Unverified |
-| 2026-10-29, spec uncommitted on cdf19b3 | project-detail::REQ-003/AC-02 | Not run yet | Unverified |
+| 2026-10-29, spec d7c364d, implementation d7c364d and 59a63b4 | project-detail::REQ-003/AC-01 | U1 and U2 passed in gate-pre-review.log (d7c364d's tree); U4 passed in gate-fix-2.log (59a63b4's tests) | Passed in the pre-review and targeted runs; the full run after step 7 is still to come |
+| 2026-10-29, spec d7c364d, implementation d7c364d and 59a63b4 | project-detail::REQ-003/AC-02 | U3 and the other providers fixture cases passed in gate-pre-review.log | Passed in the pre-review run; the full run after step 7 is still to come |
+| 2026-10-29, spec d7c364d, implementation d7c364d and 59a63b4 | REQ-003 failure mode: link to a root CONTEXT.md | md-links unit cases and E1 (app.spec.ts) passed in gate-pre-review.log; U4 in gate-fix-2.log | Passed in the pre-review and targeted runs; the full run after step 7 is still to come |
+| 2026-10-29, spec d7c364d, implementation d7c364d and 59a63b4 | REQ-003 failure mode: a page saved before the change | E4 passed in gate-fix-2.log (it was red in gate-fix-1.log on its own wrong precondition, revised in review-tests.md) | Passed in the targeted run; the full run after step 7 is still to come |
 
 ## Two-way audit
 
@@ -45,3 +47,4 @@ final check of `/implement` covers it.
 | Prototype gate | REQ-003 | no new visible state or form; exemption declared in Further Notes (data source only) |
 | User operation sequences | open a project with root-only, docs-only, both, or no `docs/`; click a link to `./CONTEXT.md` in a configuration file; relaunch with a page saved before the change | each has a stated outcome in REQ-003's failure modes |
 | Identity | B2 → project-detail::REQ-003 (AC-02 carries B2's unchanged sources); REQ-003 never used before (`git log --all -S`) | recorded |
+| Spec final check (2026-10-29, 897faa5) | REQ-003/AC-01, AC-02 and each failure mode, against artifacts.ts, the allow-list handlers (index.ts) and md-links | every unit implemented as written; no missing or partial requirement, no unrecorded expansion, no deviation; the spec is unchanged |
