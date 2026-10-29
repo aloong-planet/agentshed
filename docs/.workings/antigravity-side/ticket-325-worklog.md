@@ -249,3 +249,7 @@ None has a durable home in the repository; each is reported to the owner to deci
 | The app has no `.bdg` rule, so a row's side badges touch; every confirmed prototype draws `.bdg{display:flex;gap:3px}` (agents page, skills preview, install) | A visual deviation from the prototypes on every badge row, older than this ticket | Another task: add the rule to `theme.css`, verify each badge row by screenshot and the e2e geometry cases |
 | Three existing cases skip under root with a silent `return` (`plugins.test.ts:321`, `subagents.test.ts:134`, `:149`) instead of an explicit skip | Run as root, they report green without asserting | Another task: `it.skipIf(process.getuid?.() === 0)`, as this ticket's unreadable-file case does |
 | From the code review's refactoring list: project detail's skill row key collides for two enabled Claude plugins of one bare name; `PROJECT_AGENTS_DIR` restates the reader's directories; the picker's tags are not refreshed by a rescan while open; front matter is read by a hand subset of YAML | Self-only or Claude-only edge cases (details in [ticket-325-review-code.md](ticket-325-review-code.md)) | As listed there: do not do, or fold into a later change of the same code |
+
+2026-10-29, at the feature's closeout (#327): the table above is collected into one list for the owner in
+[final-regression.md](final-regression.md) (#327, open findings O2, O3, O5, O13); the `.bdg` row is fixed there
+(`9762152`, the slot gap the prototypes draw), since #328 had changed the prototype's slot row for the fourth side.

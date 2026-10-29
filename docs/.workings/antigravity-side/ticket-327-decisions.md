@@ -66,6 +66,20 @@ record every decision), 2026-10-29.
     ```
 
     The test file changed, so the fix is committed and handed to an independent sub-agent for an incremental check
-- [ ] T10 Step 7 archive; step 8 full-feature closeout (features-catalog): checklist current verification, the
-  regression's three stages, the doc sync checklist, CONTEXT, ADR-0037's status
+- [x] T10 Step 7 archive and step 8 (2026-10-29):
+  - decisions: none reaches the ADR threshold (each is a closeout choice inside ADR-0037's decision); ADR-0037 gains a
+    dated closeout note (the first-folder presumption still unconfirmed; the CONTEXT amendment made) and stays Accepted;
+    no ADR is in the proposed state;
+  - CONTEXT.md: the onboarding note retired, the agy naming rule, the Subagent and effective-enabled-plugins entries;
+  - spec write-backs: project-detail A1; token-stats (two failure modes, Testing Decisions, Out of Scope); projects-list's
+    session count note — each a statement the combination made untrue, none a requirement change;
+  - postmortem: none. The slot gap has a root cause (the app never had the `.bdg` rule the prototypes draw) and now a
+    defence (the combined case's gap read), but the per-ticket cross-checks did look and judged the rows a match by eye —
+    a spacing of 3px against touching slots — which ui-design's rule already answers (verify "a rule took effect" by
+    computed values, not by the screenshot alone); nothing new to learn beyond this record;
+  - `/ui-design`'s out-of-scope character icons: the rows the rule touches hold the `Minus` SVG for a missing slot and
+    text badges; none to report;
+  - step 8 (features-catalog, the full-feature closeout): the regression's three stages, the tickets' sync checklists,
+    the conclusion and the open findings in [final-regression.md](final-regression.md) (#327); the checklist's closeout
+    rows and audit row; [ticket-327-doc-sync.md](ticket-327-doc-sync.md)
 - [ ] T11 Full gate `pnpm verify`
