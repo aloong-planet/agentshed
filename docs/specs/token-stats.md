@@ -604,7 +604,9 @@ Applies to: every conversation database of the side, forks and subagent conversa
   A conversation that changed is read twice in one scan — once for its folder (the activity walk) and
   once for its usage — so one agy is writing is copied twice. A conversation whose database time and
   log did not change since its last read is not read again, and a conversation found unreadable keeps
-  that verdict, counted at every scan, until its database or its log changes.
+  that verdict, counted at every scan, until its database or its log changes. The activity walk keeps
+  only successful reads, so it opens an unreadable conversation again at every scan — in place, or
+  through a copy while a log is beside it — and finds it unreadable again.
 - A read cut short by the application being killed leaves its copy in a temporary directory only the
   user can read; nothing is left under agy's directories.
 - A conversation is credited to the first of its trajectory metadata's workspace URIs or, in a record
