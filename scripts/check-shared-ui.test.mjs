@@ -26,6 +26,11 @@ import { fileURLToPath } from 'node:url'
 
 const repo = fileURLToPath(new URL('..', import.meta.url))
 
+/** A planted prototype page: the doctype, the header comments given, the root element, and comments inside the page */
+function page(header, inside = '') {
+  return `<!doctype html>\n${header}<html lang="zh-CN">\n<head>\n${inside}<meta charset="utf-8">\n<title>Planted</title>\n</head>\n<body></body>\n</html>\n`
+}
+
 /** Each plant replaces one string, which must occur exactly once in its file, or every match of a global pattern, which
  * must match at least once (keyed by the file's path from the root) */
 const PLANTS = {
@@ -175,7 +180,25 @@ const FILES = {
   'docs/guides/notes.md': 'See ticket 12.\n',
   'docs/.workings/notes/notes.md': 'See ticket 12.\n',
   // A component in a new subdirectory: a provider colour, and a <TrendChart> without its required prop
-  'src/renderer/src/panes/Planted.tsx': "const PLANTED = '#10a37f'\nexport const Planted = ({ days }) => <TrendChart days={days} />\n"
+  'src/renderer/src/panes/Planted.tsx': "const PLANTED = '#10a37f'\nexport const Planted = ({ days }) => <TrendChart days={days} />\n",
+  // UI prototype pages and their notes files (prototype-pages::REQ-005), each head in the real pages' form. Without a
+  // notes file: a prototype page, a candidates page, and a page whose same-name notes file is in another directory
+  'docs/prototypes/planted/prototype-lone.html': page('<!-- Notes: prototype-lone.md -->\n'),
+  'docs/prototypes/planted/candidates-lone.html': page('<!-- Notes: candidates-lone.md -->\n'),
+  'docs/prototypes/planted-b/prototype-moved.html': page('<!-- Notes: prototype-moved.md -->\n'),
+  'docs/prototypes/planted/prototype-moved.md': '# prototype-moved\n',
+  // In shape: a one-line header naming the notes file beside it, and a comment after the root element
+  'docs/prototypes/planted/prototype-paired.html': page('<!-- Notes: prototype-paired.md -->\n', '<!-- a comment inside the page, not its header -->\n'),
+  'docs/prototypes/planted/prototype-paired.md': '# prototype-paired\n',
+  // A logic page is no UI page: no notes file, and a header of two comments
+  'docs/prototypes/planted/logic/index.html': page('<!-- A logic prototype -->\n<!-- its question -->\n'),
+  // Headers out of shape, each beside its notes file: two comments, one over three lines, one naming no notes file
+  'docs/prototypes/planted/prototype-two.html': page('<!-- Notes: prototype-two.md -->\n<!-- Question: how the list sorts -->\n'),
+  'docs/prototypes/planted/prototype-two.md': '# prototype-two\n',
+  'docs/prototypes/planted/prototype-tall.html': page('<!-- A UI prototype · the list.\n     Question: how the list sorts.\n     Notes: prototype-tall.md -->\n'),
+  'docs/prototypes/planted/prototype-tall.md': '# prototype-tall\n',
+  'docs/prototypes/planted/prototype-unnamed.html': page('<!-- A UI prototype · the list -->\n'),
+  'docs/prototypes/planted/prototype-unnamed.md': '# prototype-unnamed\n'
 }
 
 /** The second tree: every source the gate derives a list from, renamed away or emptied */
@@ -289,6 +312,43 @@ test('the planted run fails, and only on what was planted', () => {
   // The common-library list lives in the gate, so a library with no file is reported there
   const planted = [...Object.keys(PLANTS), ...Object.keys(FILES), 'scripts/check-shared-ui.mjs']
   for (const p of problems) assert.ok(planted.some((path) => p.startsWith(`${path}:`)) || CAUSED_ELSEWHERE.includes(p), p)
+})
+
+/** The lines the two prototype-pages::REQ-005 rules report about one page */
+const shapeLines = (path) => problems.filter((p) => p.startsWith(`${path}: has no notes file`) || p.startsWith(`${path}: its header`))
+
+test('a UI prototype page without its notes file is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-lone.html: has no notes file prototype-lone.md beside it'), run.out)
+})
+
+test('a candidates page without its notes file is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/candidates-lone.html: has no notes file candidates-lone.md beside it'), run.out)
+})
+
+test('a notes file in another directory is not the page\'s notes file', () => {
+  assert.ok(reported('docs/prototypes/planted-b/prototype-moved.html: has no notes file prototype-moved.md beside it'), run.out)
+})
+
+test('a page with its notes file and a one-line header naming it is not reported, whatever comments it holds inside', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-lone.html: has no notes file prototype-lone.md beside it'), run.out)
+  assert.deepEqual(shapeLines('docs/prototypes/planted/prototype-paired.html'), [], run.out)
+})
+
+test('a logic page is not a UI prototype page', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-two.html: its header holds 2 comments; it may hold one, on one line, naming prototype-two.md'), run.out)
+  assert.deepEqual(shapeLines('docs/prototypes/planted/logic/index.html'), [], run.out)
+})
+
+test('a header of two comments is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-two.html: its header holds 2 comments; it may hold one, on one line, naming prototype-two.md'), run.out)
+})
+
+test('a header comment over more than one line is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-tall.html: its header comment spans 3 lines; it may hold one, on one line, naming prototype-tall.md'), run.out)
+})
+
+test('a header comment that does not name the notes file is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-unnamed.html: its header comment does not name prototype-unnamed.md'), run.out)
 })
 
 test("a page without its asset's link is reported, though its comment names the asset", () => {
