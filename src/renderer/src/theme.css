@@ -887,6 +887,11 @@ body {
   color: var(--text-2);
   margin-top: 2px;
 }
+/* The third line when the side has conversations it could not read: the count in the warning colour, in place of
+   the side's counts (agents-overview::REQ-003/AC-02) */
+.stat .s.side-warn {
+  color: var(--warn-fg);
+}
 /* ── The time-window row and the composition bar (token-stats sequence G) ── */
 
 /* The four window cards **are** the selector: each shows that window's total and clicking it selects

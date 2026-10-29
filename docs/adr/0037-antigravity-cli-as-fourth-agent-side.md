@@ -126,6 +126,13 @@ We adopt **option 1**:
 > desktop app and the IDE. The shared skills directory's group sits between the Codex groups and the
 > Antigravity groups, and the count of unreadable conversations is shown on the Antigravity side card.
 
+> **The total against agy's own (2026-10-29, during implementation)**: the four-field total exceeds
+> agy's own `total_tokens` (input + output) by the cache reads and by the cache writes of a call that
+> reports any. Every measured call reported none, so on the measured data the difference is exactly the
+> cache reads, as written above and in the consequences below; a Claude model run through agy, which
+> reports cache writes, would widen it by those too. The total itself is unchanged: the four fields
+> summed.
+
 ## Consequences
 
 - Positive: individual Gemini users' usage is counted from a source that records background calls,

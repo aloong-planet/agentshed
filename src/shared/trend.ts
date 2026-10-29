@@ -7,7 +7,7 @@ import { PROVIDER_ORDER, type Provider } from './provider'
 import { localDay } from './format'
 
 /** The values are language-independent identifiers; for the UI text see TREND_MODE_LABEL */
-export type TrendMode = 'total' | 'Claude' | 'Codex' | 'Grok'
+export type TrendMode = 'total' | 'Claude' | 'Codex' | 'Grok' | 'Antigravity'
 
 /**
  * Display names. Claude / Codex are product names and are the same in every language;
@@ -18,14 +18,16 @@ export const TREND_MODE_LABEL: Record<TrendMode, string | null> = {
   total: null,
   Claude: 'Claude',
   Codex: 'Codex',
-  Grok: 'Grok'
+  Grok: 'Grok',
+  Antigravity: 'Antigravity'
 }
 
 /** Which side each single-side mode reads (typecheck-complete over the non-total modes) */
 const MODE_SIDE: Record<Exclude<TrendMode, 'total'>, AgentSide> = {
   Claude: 'claude',
   Codex: 'codex',
-  Grok: 'grok'
+  Grok: 'grok',
+  Antigravity: 'antigravity'
 }
 
 /** A side's primary provider, for the degenerate single-segment colour (ADR-0021: the side's

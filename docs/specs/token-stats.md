@@ -244,9 +244,10 @@ next to A/B, so that no existing reference is renumbered)
   cache structure bump orphans the snapshots written before it, and a restore across a bump needs
   the snapshot converted first, by hand, per version step — a conversion is exact only when the
   step's change to the per-file aggregate has a known value for the old entries (the 14 → 15 step did:
-  every v14 Codex event was event-derived, so the boundary is the events' length). Automating the
-  conversion is not planned; a snapshot a step cannot convert exactly is unrecoverable through the
-  script.
+  every v14 Codex event was event-derived, so the boundary is the events' length; the 17 → 18 step
+  does too: it adds the Antigravity CLI variant and changes no existing entry, so a v17 snapshot
+  converts by its version number alone). Automating the conversion is not planned; a snapshot a step
+  cannot convert exactly is unrecoverable through the script.
 - C17 A user deleting their own session files does not lower a past day: the deletion is a
   same-stamp decrease, so the archive's rows are retained and the deleted figure shows as the
   observed value. This is ADR-0007's purpose (history survives the source files) applied to a
@@ -513,7 +514,8 @@ roots (`~/.gemini/antigravity`, `~/.gemini/antigravity-ide`) are never read. A c
 `.db` file directly in the conversations directory (subagent conversations sit there too, measured);
 the log and shared-memory files beside it are not conversations. Only the supported format is read:
 user version 1, with the tables and columns usage is read from (the steps' index and metadata, the
-generator metadata's index and data, the trajectory metadata). Any other shape is unreadable
+generator metadata's index and data, the trajectory metadata, and the trajectory table's cascade id —
+the conversation's own id, one row per database). Any other shape is unreadable
 (token-stats::REQ-004).
 
 ### token-stats::CON-002 Reading agy's files writes nothing (direct acceptance)
@@ -541,19 +543,24 @@ Applies to: every conversation database of the side, forks and subagent conversa
 - token-stats::REQ-003/AC-03: The four fields are taken as recorded: input = input tokens, output =
   output tokens, cache read = cache-read tokens, cache write = cache-write tokens. Thinking is already
   inside output and is never added again; input already excludes cache reads and nothing is subtracted
-  from it. The total is the four fields summed, higher than agy's own total by exactly the cache reads
-  (ADR-0037), and the composition buckets keep G8's meanings.
+  from it. The total is the four fields summed, so it is higher than agy's own total (input + output) by
+  the cache reads — exactly so on every measured call, none of which reported a cache write — and by the
+  cache writes of a call that reports any (ADR-0037); the composition buckets keep G8's meanings.
 - token-stats::REQ-003/AC-04: The model is the generator metadata's `response_model` as agy records it,
   never normalised (`gemini-3.8-flash-n` stays `gemini-3.8-flash-n`). A call without one counts toward
   the total and enters no model bucket (the rule A6 and F3 apply on the other sides).
 - token-stats::REQ-003/AC-05: A call's day is its step's completion time, else its creation time, in
   local time. A call with neither — a generator record with no step — is an undated row (G7).
 - token-stats::REQ-003/AC-06: A conversation made by `/fork` (or by switching the custom agent, which
-  forks) holds a copy of its parent's database. A step whose source names another conversation, and a
-  generator record attached only to such steps, is that conversation's usage and never the fork's: a
-  fork's figures hold only what it generated itself. When the conversation it was copied from is no
-  longer on this machine, those calls count nowhere live; past days keep them through the archive
-  (C10, C17) and the own day shows the lower figure.
+  forks) holds a copy of its parent's database. A step whose source names another conversation, a
+  generator record attached only to such steps, and a generator record attached to no step of the
+  database whose own record names another conversation as the one that made the call, are that
+  conversation's usage and never the fork's: a fork's figures hold only what it generated itself.
+  "Another conversation" is one other than the conversation's own id, as its trajectory table records
+  it (token-stats::CON-001) — equal to its database's name on every measured conversation, but read from
+  the database, so that a renamed file cannot make every step look copied. When the conversation it was
+  copied from is no longer on this machine, those calls count nowhere live; past days keep them through
+  the archive (C10, C17) and the own day shows the lower figure.
 - token-stats::REQ-003/AC-07: A subagent conversation is one whose own trajectory metadata names a
   parent conversation, or carries a nesting depth or a subagent spec. It is never recognised by where
   its file sits, nor by its trajectory source, which is the same for subagents and main conversations
@@ -592,8 +599,10 @@ Applies to: every conversation database of the side, forks and subagent conversa
   and a read of it that fails is retried at the next scan.
 - While a conversation has a log, every scan that reads it copies the database and the log in full: no
   copy-on-write clone is made through the runtime on macOS (measured 2026-10-29: 400 MB in 0.4–0.7 s).
-  A conversation whose database time and log did not change since its last successful read is not
-  read again.
+  A conversation that changed is read twice in one scan — once for its folder (the activity walk) and
+  once for its usage — so one agy is writing is copied twice. A conversation whose database time and
+  log did not change since its last read is not read again, and a conversation found unreadable keeps
+  that verdict, counted at every scan, until its database or its log changes.
 - A read cut short by the application being killed leaves its copy in a temporary directory only the
   user can read; nothing is left under agy's directories.
 - A conversation is credited to the first of its trajectory metadata's workspace URIs or, in a record
@@ -622,13 +631,28 @@ Applies to: every conversation database of the side, forks and subagent conversa
   mode's command reviewer — is not counted; this under-count is stated in the features page, not in the
   interface.
 - The generator metadata holds each call's full prompt and can reach hundreds of megabytes in one
-  database: decoding skips those fields by their length prefix, and a scan never materialises them.
+  database: decoding skips those fields by their length prefix and never decodes them. The runtime's
+  SQLite module returns a record whole, so one record's bytes are in memory while it is read; the
+  records are read one at a time (measured 2026-10-29: thirty 20 MB records peak at 132 MB, against
+  713 MB read at once).
 - A zero-byte or non-SQLite `.db` file fails to open in the supported format and is counted as
   unreadable (token-stats::REQ-004/AC-01).
 - The settings file or the data root is missing or corrupt: projects-list A1–A3 and A9 apply to this
   side as to the others.
-- External content: the side's figures are numbers this application computes; no content from agy's
-  files is rendered by this feature (G14 holds).
+- A conversation in another format gives its folder no activity either: the activity walk applies the
+  same format check. One whose format and trajectory record read but one of whose usage records will
+  not decode is left out of the figures and counted, while its folder still takes the database's time —
+  activity is the file's time, a separate pipeline (projects-list). A read that fails while agy writes
+  keeps the conversation's last folder as well as its last usage.
+- A call carrying no identity (none of the 51 measured): it counts where it is — within its database
+  its step and its generator record are joined through the step the record names — and is never matched
+  across databases.
+- A conversation deleted between the scan's listing and its read is not unreadable: deleted before its
+  read starts, it leaves the figures in that scan; deleted while it is read, that scan keeps its last
+  result, as for a read that fails while agy writes, and it leaves the figures at the next scan.
+- External content: the side's figures are numbers this application computes, and its model names are
+  shown as plain text in the existing model rows, as every side's are; nothing read from agy's files
+  is rendered or loaded at a new point (G14 holds).
 
 ## Implementation Decisions
 
@@ -723,9 +747,15 @@ Applies to: every conversation database of the side, forks and subagent conversa
 - **Antigravity usage** (ADR-0037): the databases are opened through the runtime's built-in SQLite
   module (available in Electron 43), under token-stats::CON-002. The records are decoded by field number
   against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and skipping
-  the prompt fields by their length prefix; the extraction script and the descriptor set stay with the
-  research record so a drift can be re-checked. Calls are de-duplicated after the per-file results are
-  combined, since identity spans databases (token-stats::REQ-003/AC-01). A conversation's cache entry
+  the prompt fields by their length prefix; a field the reader reads arriving in another wire type than
+  its descriptor declares is a record that will not decode. The extraction script and the descriptor set
+  stay with the research record so a drift can be re-checked. Within a database a call's three records
+  are joined by identity — the step brings the time, the generator record the model; calls are
+  de-duplicated across databases after the per-file results are combined, since identity spans
+  databases (token-stats::REQ-003/AC-01), the first in scan order kept. The reads run on the parse
+  workers like the other sides'. The scan's count of unreadable conversations travels with the
+  snapshot as the side's own count, present only when not zero, and is saved with the display copy, so
+  the notice is back at the next launch before the first scan. A conversation's cache entry
   is keyed by its path, the database's modification time and the log's presence, modification time and
   size — never the database's size, which a checkpoint leaves unchanged (measured); a changed
   conversation is re-read whole, as agy rewrites and truncates rows in place. The per-file aggregate

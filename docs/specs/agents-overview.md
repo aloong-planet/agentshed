@@ -168,6 +168,11 @@ governs the project page's).
   detected with zero usage and zero counts (A9 in the projects-list spec).
 - An automatic update of agy breaks the format: the card's third line turns into the unreadable count
   at the next scan and back once the count returns to zero; the usage figure shows what could be read.
+- The side's settings file is corrupt (A3) while conversations were left unread: the third line explains
+  the error, and the count shows once the error is gone — an error says the side's data is empty, which
+  explains the figure more than the count does.
+- The count is part of the saved snapshot (agents-overview::REQ-001): after a restart the notice is back
+  before the first scan, which then replaces it.
 - One of the three global AGENTS.md files cannot be read: its slot shows the read error under its path
   and the others render (B5); all three absent → "None". The read error takes the "None" line's form
   under the file's path heading: the prototypes draw no unreadable state, so the slot is made of two

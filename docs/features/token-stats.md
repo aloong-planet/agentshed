@@ -1,12 +1,12 @@
 # Token statistics
 
-> Related decision: ADR-0005 (accounting aligned with ccusage) · ADR-0027 (Codex usage from its own records) · ADR-0019 (the Grok side's rules) · ADR-0021 (side colour) · ADR-0025 (one source for every figure) · ADR-0026 (a past day's figure never falls silently)
+> Related decision: ADR-0005 (accounting aligned with ccusage) · ADR-0027 (Codex usage from its own records) · ADR-0019 (the Grok side's rules) · ADR-0037 (the Antigravity CLI side) · ADR-0021 (side colour) · ADR-0025 (one source for every figure) · ADR-0026 (a past day's figure never falls silently)
 
 ## Overview
 
 "Which project is burning my quota, and what has it been burning lately" had no ready answer. This
-feature aggregates the session records of Claude Code, Codex and Grok into a project-level and a global
-view, whose numbers share a source and reconcile against each other.
+feature aggregates every agent side's usage records into a project-level and a global view, whose
+numbers share a source and reconcile against each other.
 
 ## Capabilities
 - A time window row at the top of both the Agents page and the project overview: four cards — total
@@ -33,6 +33,19 @@ view, whose numbers share a source and reconcile against each other.
   have none — so a response the events under-report is still counted, and a session Codex forked or
   spawned in the newer format is counted from its own file alone. Alignment with ccusage holds for
   sessions without such records; where they exist the third-party meter reads lower
+- Antigravity CLI accounting: each model call counts once, although Antigravity CLI records every call
+  several times in a conversation and a forked conversation carries a copy of its parent's history —
+  a fork counts only what it made itself. The total sums all four fields, so it reads higher than
+  Antigravity CLI's own figures by the cache reads its own leave out (and by any cache writes a call
+  reports); a failed attempt without
+  token counts adds nothing, and a subagent's usage counts. Models are named as Antigravity CLI records
+  them (a name such as `gemini-3.8-flash-n` is kept as it is), and a call that names no model counts in
+  the totals without a model row
+- A conversation the app cannot read in the format it supports — after an Antigravity CLI update
+  changes its format, say — is left out of every figure and every list, and the Antigravity CLI card
+  on the Agents page says how many there are (see [Agents overview](agents-overview.md)). A
+  conversation Antigravity CLI is still writing when a refresh reads it is not among them: it keeps its
+  last reading and is read again at the next refresh
 - A daily trend with inline **30/60/90** choices without spaces in its heading; the selected number is highlighted, bold and persistently underlined
   and each number supports mouse and keyboard activation (30 by default; local time zone; in combined mode each bar is stacked by provider, with bar
   height = that day's total and segments = each provider's share, and hovering shows each provider's
@@ -62,7 +75,8 @@ view, whose numbers share a source and reconcile against each other.
 - Subagent consumption counts toward the statistics but does not appear in the session list;
   double-billed lines (a subagent replaying its parent's messages) are deduplicated automatically
 - The statistics cover every session in the agent data directories — including historical projects
-  already cleared from the registry (counted globally, not listed separately)
+  already cleared from the registry and folders Antigravity CLI ran in without being trusted (counted
+  globally, not listed separately)
 - History archive: every refresh files away each day's aggregate, so the historical trend survives
   the agents cleaning up or rewriting old session files; archived spans are drawn as hatched bars
   with a note, and their usage counts inside every figure a time window reports — the totals, the
@@ -73,9 +87,11 @@ view, whose numbers share a source and reconcile against each other.
   agent cut short is left out rather than counted in part (a cut that happens to land exactly on a
   line end is the one case that reads as a shorter session)
 - A past day's figure never falls silently: when an agent's records for a past day shrink — rewritten
-  by the agent, or deleted by hand — the day's figure is retained as it was counted before; only a
-  correction that arrives with an application update replaces it. Today's figure is exempt and still
-  moves with every refresh while sessions are being written
+  by the agent, deleted by hand, rewound in Antigravity CLI, or left out because they can no longer be
+  read — the day's figure is retained as it was counted before; only a correction that arrives with an
+  application update replaces it. Today's figure is exempt and still moves with every refresh while
+  sessions are being written. Deleting a forked conversation's parent takes the calls the fork copied
+  with it: a past day keeps them, today does not
 - Projects with no sessions show zeros and an empty state rather than an error
 
 ## Boundaries and non-goals
@@ -85,7 +101,13 @@ view, whose numbers share a source and reconcile against each other.
 - Deleting session files by hand does not lower a past day's figure either — the application cannot
   tell a deletion from the agent's own cleanup, and keeps the day as counted
 - The Codex per-model breakdown is an approximation at the level of the session's primary model;
-  the Claude and Grok breakdowns are exact (Grok lists the model that was actually billed)
+  the Claude, Grok and Antigravity CLI breakdowns are exact (Grok lists the model that was actually
+  billed, Antigravity CLI the model each call reported)
+- Usage Antigravity CLI never writes into a conversation is not counted: the side question asked with
+  `/btw`, which it deletes once answered, and the command reviewer of its Auto mode. Calls a rewind
+  removed before any refresh saw them cannot be recovered
+- Only Antigravity CLI's own conversations are read; the Antigravity desktop app's and IDE's are not
+  counted, and Gemini CLI is not a side
 - No dollar cost estimation
 - The archive can only accumulate from the first day this application ran; sessions older than that
   and already cleaned up cannot be recovered, and neither can history on a machine whose agent

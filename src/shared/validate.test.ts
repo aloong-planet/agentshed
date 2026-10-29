@@ -32,6 +32,17 @@ describe('validateSnapshot', () => {
     expect(validateSnapshot(withoutSide)).toEqual({ ok: false, failure: { kind: 'missing', path: 'sides.antigravity' } })
   })
 
+  it('carries the count of Antigravity conversations that could not be read, and refuses a count that is not one (token-stats::REQ-004/AC-02)', () => {
+    const snap = emptySnapshot(1)
+    snap.sides.antigravity = { detected: true, unreadable: 3 }
+    expect(validateSnapshot(snap).ok).toBe(true)
+    for (const bad of ['3', -1, 1.5]) {
+      const v = JSON.parse(JSON.stringify(snap)) as { sides: { antigravity: Record<string, unknown> } }
+      v.sides.antigravity['unreadable'] = bad
+      expect(validateSnapshot(v)).toEqual({ ok: false, failure: { kind: 'type', path: 'sides.antigravity.unreadable', expect: 'number|undefined' } })
+    }
+  })
+
   it('refuses a non-object', () => {
     expect(validateSnapshot(null).ok).toBe(false)
     expect(validateSnapshot('x').ok).toBe(false)

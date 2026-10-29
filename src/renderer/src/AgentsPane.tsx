@@ -76,6 +76,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
                 cls={SIDE_BADGE[side].cls}
                 detected={snap.sides[side].detected}
                 error={snap.sides[side].error}
+                unreadable={snap.sides[side].unreadable ?? 0}
                 total={slice.bySide[side]}
                 sub={t.agents.sideSummary(st.projects, st.skills, st.subs)}
               />
@@ -141,6 +142,7 @@ function SideCard({
   cls,
   detected,
   error,
+  unreadable,
   total,
   sub
 }: {
@@ -148,6 +150,8 @@ function SideCard({
   cls: SideBadgeClass
   detected: boolean
   error?: AppError
+  /** Sessions the scan could not read in the supported format (only the Antigravity CLI side counts any) */
+  unreadable: number
   total: number
   sub: string
 }): JSX.Element {
@@ -160,8 +164,13 @@ function SideCard({
         {detected ? t.agents.detected : t.agents.undetected}
       </div>
       <div className="v">{fmtTok(total)}</div>
+      {/* The third line: the side's error explanation (A3) first; else the count of conversations the scan could not
+          read, in the warning colour with its reason on hover, the figure above staying (agents-overview::REQ-003/AC-02,
+          the owner's ruling of 2026-10-28); else the side's counts */}
       {error ? (
         <div className="stat-err">{errorText(lang, appError(error.code, error.params))}</div>
+      ) : unreadable > 0 ? (
+        <div className="s side-warn" title={t.agents.unreadableTip}>{t.agents.unreadableConversations(unreadable)}</div>
       ) : (
         <div className="s">{sub}</div>
       )}

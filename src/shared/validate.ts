@@ -84,6 +84,9 @@ export function validateSnapshot(v: unknown): ValidateResult {
     if (typeof s['detected'] !== 'boolean') return failType(`sides.${side}.detected`, 'boolean')
     if (s['error'] !== undefined && !isAppErr(s['error']))
       return failType(`sides.${side}.error`, 'AppError|undefined')
+    const unreadable = s['unreadable']
+    if (unreadable !== undefined && !(typeof unreadable === 'number' && Number.isInteger(unreadable) && unreadable >= 0))
+      return failType(`sides.${side}.unreadable`, 'number|undefined')
   }
 
   const projects = v['projects']

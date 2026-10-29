@@ -28,6 +28,9 @@ import { sessionReadTarget } from '../security'
 import { ERR, decodeAppError } from '@shared/errors'
 import type { ScanRoots } from './types'
 import { walkSessions } from './scan'
+import { AGENT_SIDES } from '@shared/validate'
+import type { AgentSide } from '@shared/domain'
+import { callRecord, encodeTrajectoryMetadata, writeConversation, type UsageFixture } from '../testing/agy-fixture'
 
 let dir: string
 let proj: string
@@ -351,6 +354,19 @@ function grokUser(tsSec: number, text: string, promptIndex: number): string {
     content: { type: 'text', text },
     _meta: { modelId: 'grok-4.5', promptIndex }
   })
+}
+
+/** An Antigravity CLI conversation in `cwd`, one call per entry (the step and generator record agy writes for each) */
+function mkAgyConversation(id: string, cwd: string, calls: Array<{ usage: UsageFixture; at: number; model?: string }>): string {
+  const d = join(dir, '.gemini', 'antigravity-cli', 'conversations')
+  mkdirSync(d, { recursive: true })
+  const rows = calls.map((c, i) =>
+    callRecord({ conversationId: id, stepIdx: 1 + i * 2, genIdx: i, usage: c.usage, createdAt: c.at, completedAt: c.at, responseModel: c.model ?? 'gemini-3.6-flash' })
+  )
+  return writeConversation(d, id, encodeTrajectoryMetadata({ folders: [cwd], conversationId: id }), {
+    steps: rows.map((r) => r.step),
+    gens: rows.map((r) => r.gen)
+  }).file
 }
 
 function writeIndex(entries: Array<{ id: string; name: string }>): void {
@@ -1246,6 +1262,31 @@ describe('cache version migration (a real bug regression)', () => {
     expect(r.global.bySide.grok.total).toBe(110)
   })
 
+  it('a same-version Codex entry gone null is recomputed, not dereferenced by the resume check', async () => {
+    const f = mkCodexRollout('rollout-null-agg-019fd02.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }])
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    for (const entry of [{ sig: '1:1', agg: null }, null]) {
+      writeFileSync(join(dir, 'cache', 'token-cache.json'), JSON.stringify({ version: CACHE_VERSION, files: { [f]: entry } }))
+      const r = await engine().build(roots(), [proj])
+      expect(r.global.bySide.codex.total).toBe(110)
+    }
+  })
+
+  it('a same-version entry gone null elsewhere in the cache does not break a Codex fork\'s session page before the first scan', async () => {
+    const parent = mkCodexFork('rollout-p-019fd03.jsonl', proj, { id: 'p-1', parentId: 'none', forkedAtIso: '2026-07-30T01:00:00Z' }, 'gpt-5.6-sol', [{ input: 10, cached: 0, output: 1 }])
+    const child = mkCodexFork('rollout-c-019fd04.jsonl', proj, { id: 'c-1', parentId: 'p-1', forkedAtIso: '2026-07-30T02:00:00Z' }, 'gpt-5.6-sol', [{ input: 20, cached: 0, output: 2 }])
+    await engine().build(roots(), [proj])
+    const cacheFile = join(dir, 'cache', 'token-cache.json')
+    const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }
+    for (const entry of [{ sig: '1:1', agg: null }, null]) {
+      cache.files[join(dir, 'gone.jsonl')] = entry
+      writeFileSync(cacheFile, JSON.stringify(cache))
+      // A new engine reads the cache from disk, as at startup, and serves the page before any build has run
+      const page = await engine().sessionQuestions(roots(), child)
+      expect(page.forkParentFile).toBe(parent)
+    }
+  })
+
   it('a same-version grok entry missing subagent → recompute that file only (isWellFormedAgg)', async () => {
     const f = mkGrokSession(proj, '019f-guard', [grokTurn(1786088656, { input: 100, output: 10 })])
     const st = statSync(f)
@@ -1407,6 +1448,7 @@ describe('cache version migration (a real bug regression)', () => {
     mkCodexRollout('rollout-shape-019fd01.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
       { input: 10, cached: 0, output: 5 }
     ])
+    mkAgyConversation('agy-shape', proj, [{ usage: { messageId: 'm-shape', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
     await engine().build(roots(), [proj])
     const cache = JSON.parse(readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')) as {
       files: Record<string, { agg: Record<string, unknown> }>
@@ -1422,6 +1464,7 @@ describe('cache version migration (a real bug regression)', () => {
     expect(keysOf('codex')).toEqual([
       'at', 'boundary', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'paginated', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
     ])
+    expect(keysOf('antigravity')).toEqual(['calls', 'file', 'kind', 'projectKey', 'unreadable'])
   })
 
   // Ticket 03a's founding premise (spec D2a): the index **stores offsets only, not even a truncated
@@ -2080,7 +2123,7 @@ describe('usage rows are the one source the projections derive from (ADR-0025)',
    * reconciliation is for.
    */
   function reconcile(r: Awaited<ReturnType<TokenEngine['build']>>): void {
-    for (const side of ['claude', 'codex', 'grok'] as const) {
+    for (const side of AGENT_SIDES as ReadonlySet<AgentSide>) {
       const mine = r.rows.filter((x) => x.side === side)
       const sum = (f: 'input' | 'output' | 'cacheRead' | 'cacheWrite' | 'total'): number =>
         mine.reduce((a, x) => a + x[f], 0)
@@ -2107,7 +2150,7 @@ describe('usage rows are the one source the projections derive from (ADR-0025)',
     expect(b.uncached + b.output + b.cacheRead, 'the three buckets must sum to the total').toBe(rowTotal)
     // Every day the projection knows about must be a day the rows know about, and with the same value
     for (const d of r.global.byDay) {
-      for (const side of ['claude', 'codex', 'grok'] as const) {
+      for (const side of AGENT_SIDES as ReadonlySet<AgentSide>) {
         const fromRows = r.rows.filter((x) => x.day === d.day && x.side === side).reduce((a, x) => a + x.total, 0)
         expect(d.bySide[side], `byDay ${d.day}/${side}`).toBe(fromRows)
       }
@@ -2124,7 +2167,7 @@ describe('usage rows are the one source the projections derive from (ADR-0025)',
     ).toEqual(Object.fromEntries(models))
   }
 
-  it('three sides, several days: every projection equals the rows', async () => {
+  it('every side, several days, two sides on one day: every projection equals the rows', async () => {
     mkClaudeFile('a.jsonl', [
       userLine('a claude question'),
       usageLine('claude-fable-5', '2026-07-29T10:00:00Z', 100, 50, { cacheRead: 7000, cacheWrite: 300 }),
@@ -2140,9 +2183,18 @@ describe('usage rows are the one source the projections derive from (ADR-0025)',
       grokUser(1753900000, 'a grok question', 0),
       grokTurn(1753900000, { input: 200, cached: 150, output: 40, model: 'grok-4.6-build' })
     ])
+    // At the very instant of the first Claude call, so the two land on one local day in any time zone
+    mkAgyConversation('agy-1', proj, [
+      { usage: { messageId: 'm-a1', input: 300, output: 30, cacheRead: 900 }, at: Date.parse('2026-07-29T10:00:00Z') },
+      { usage: { messageId: 'm-a2', input: 50, output: 5 }, at: Date.parse('2026-07-30T12:00:00Z'), model: 'gemini-3.8-flash-n' }
+    ])
     const r = await engine().build(roots(), [proj])
     reconcile(r)
-    expect(r.rows.length, 'the fixture must actually produce rows on all three sides').toBeGreaterThan(3)
+    expect(new Set(r.rows.map((x) => x.side)), 'the fixture must actually produce rows on every side').toEqual(new Set(AGENT_SIDES))
+    // A per-side keying mistake is invisible while only one side has data on a day (Testing Decisions)
+    const shared = r.global.byDay.find((d) => d.day === r.rows.find((x) => x.side === 'antigravity' && x.total === 1230)?.day)
+    expect(shared?.bySide.antigravity).toBe(1230)
+    expect(shared?.bySide.claude).toBeGreaterThan(0)
   })
 
   it("a session spanning midnight splits its four fields by what each day measured, not by that day's share of the total (B8)", async () => {

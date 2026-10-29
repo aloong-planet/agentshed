@@ -255,3 +255,18 @@ it('still drops a saved snapshot whose entry for the side is present but malform
   writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: saved }))
   expect(new DisplayStore(root).get().snapshot).toBeNull()
 })
+
+// The count of Antigravity conversations a scan could not read is part of the saved snapshot, so the side card's
+// notice is back at the next launch before its first scan (token-stats::REQ-004/AC-02, ADR-0029); a malformed count is
+// a corrupt leaf and drops the snapshot
+it('restores a saved snapshot carrying the count of unreadable Antigravity conversations, and drops one whose count is malformed', () => {
+  const root = dir()
+  const snap = emptySnapshot(700)
+  snap.sides.antigravity = { detected: true, unreadable: 2 }
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: { ...emptyDisplayData(), snapshot: snap } }))
+  expect(new DisplayStore(root).get().snapshot?.sides.antigravity).toEqual({ detected: true, unreadable: 2 })
+  const bad = JSON.parse(JSON.stringify(snap)) as { sides: { antigravity: Record<string, unknown> } }
+  bad.sides.antigravity['unreadable'] = 'x'
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: { ...emptyDisplayData(), snapshot: bad } }))
+  expect(new DisplayStore(root).get().snapshot).toBeNull()
+})

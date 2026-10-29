@@ -20,6 +20,8 @@ describe('English counted nouns', () => {
     expect(d.skills.pkgSummary(2, '2 kB')).toBe('2 files · 2 kB')
     expect(d.plugins.cachedVersions(1)).toBe('(1 cached version)')
     expect(d.plugins.cachedVersions(3)).toBe('(3 cached versions)')
+    expect(d.agents.unreadableConversations(1)).toBe('1 conversation couldn’t be read')
+    expect(d.agents.unreadableConversations(2)).toBe('2 conversations couldn’t be read')
   })
 
   it('the session and turn counts', () => {

@@ -28,7 +28,8 @@ activity.
   stale projects are shown
 - On the Antigravity CLI side, a project is a folder the user agreed to trust when Antigravity CLI asked;
   a conversation counts toward the activity of the first folder it lists, its time moving while
-  Antigravity CLI is still writing it, and a subagent's conversation neither counts nor moves the time
+  Antigravity CLI is still writing it; a subagent's conversation, and one in a format the app does not
+  support, neither counts nor moves the time
 - Scanning is automatic — there is no refresh control: the app rescans when the window regains focus
   (at most once a minute) and on a periodic backstop, and the list updates in place when a scan lands
 

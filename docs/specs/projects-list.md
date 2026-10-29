@@ -180,7 +180,10 @@ sending anything creates a conversation (token-stats::REQ-003/AC-09), which move
 recent time, as any session file's modification would. The side's name in the dropdown and the hover
 layer follows [agents-overview::CON-004](agents-overview.md). An entry of the ledger that is not a path is
 skipped and the others kept; a ledger that is not a list is a corrupt settings file (projects-list::REQ-001/AC-05).
-A conversation that cannot be read, or whose first folder is not a local one, gives no folder its activity.
+A conversation that cannot be read — it will not open, it is not in the supported format
+([token-stats::CON-001](token-stats.md)), or its trajectory record will not decode — or whose first folder
+is not a local one, gives no folder its activity; a read that fails while agy is writing the conversation
+keeps its last folder ([token-stats::REQ-004/AC-03](token-stats.md)).
 
 ## Startup restoration
 

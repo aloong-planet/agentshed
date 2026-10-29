@@ -8,6 +8,7 @@ const obj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' 
 const str: Check = v => typeof v === 'string'
 const num: Check = v => typeof v === 'number' && Number.isFinite(v)
 const bool: Check = v => typeof v === 'boolean'
+const count: Check = v => typeof v === 'number' && Number.isInteger(v) && v >= 0
 const nullable = (check: Check): Check => v => v === null || check(v)
 const list = (check: Check): Check => v => Array.isArray(v) && v.every(check)
 const fields = (shape: Record<string, Check>): Check => v => obj(v) && Object.entries(shape).every(([k, check]) => check(v[k]))
@@ -41,7 +42,7 @@ const globalLayer = fields({
 })
 export const displaySnapshotValid: Check = fields({
   scannedAt: num, global: globalLayer, tokens: displayTokensValid, archivedDays: list(str),
-  sides: perSide(v => obj(v) && bool(v.detected) && (v.error === undefined || error(v.error)))
+  sides: perSide(v => obj(v) && bool(v.detected) && (v.error === undefined || error(v.error)) && (v.unreadable === undefined || count(v.unreadable)))
 })
 export const displayStatsValid: Check = fields({ tokens: displayTokensValid })
 export const displayDetailValid: Check = fields({
