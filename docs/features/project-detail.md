@@ -55,3 +55,5 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
   Sessions with the AG badge
 - For a project not following the eight-step process, the artifacts tab shows a "nothing accumulated
   by convention" empty state, which is not treated as an error
+- CONTEXT.md is listed only from the project's docs folder: one still at the project root is not listed
+  (the other artifacts are), and a link to it shows the notice rather than opening it

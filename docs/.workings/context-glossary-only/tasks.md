@@ -125,3 +125,15 @@ repositories follow later); the app reads `docs/CONTEXT.md` only; the product ch
 - Known and not fixed here: `docs/specs/skills-view.md:607` cites a retired `differs` signal "see CONTEXT"; main's
   CONTEXT.md had no such entry either (its one "differs" is unrelated prose), so it predates this branch. Raised to
   the owner for a decision.
+
+## Full run and step 8 (2026-10-29)
+
+- Full run: docs/.workings/project-detail/gate-full.log on 67ae3d8 with a clean tree, overall 0. The whole e2e
+  suite is left to the PR's CI (`.github/workflows/ci.yml:68` runs `xvfb-run -a pnpm e2e`); locally the two e2e files
+  the change touches ran, 101 passed. One unit test skipped by its own `describe.skipIf(!run)`, as on main.
+- Step 8: docs/features/project-detail.md gains the boundary line for a root CONTEXT.md; the three stage tables are
+  in docs/.workings/project-detail/final-regression.md.
+- Reuse of the full run after step 8: docs/.workings/project-detail/reuse-full-2.log — change-scope against 67ae3d8
+  exits 0 (every changed file inert), lint and typecheck pass, check:lang and check:nul pass over the staged
+  documents. reuse-full.log is the first try, red on Chinese search terms in the step 8 report, since written as
+  code-point escapes.
