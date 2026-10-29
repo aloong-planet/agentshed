@@ -15,7 +15,7 @@ record every decision), 2026-10-29.
 | The combined acceptance's test shape | One e2e case, one launch, a home of its own (`mkAntigravityCloseoutHome`); the card's four parts read as one tuple in a single DOM read; the project registered on all four sides walked section by section, MCP and the header chips included | Two cases (one launch each) over one home; extending #324's or #325's homes | The suite's rule is one launch per distinct fixture home; extending another ticket's home would change that ticket's expectations. One DOM read makes "the card whole" true of one render, not of four retried reads |
 | Values in the combined home | Distinct numbers everywhere (2 projects, 3 skills, 4 subagents — 5 since the post-implementation check; 1k, 2k, 3k, 5k, 7k, 12k), each hand-computed from the fixture | Reusing #325's counts | A count read from the wrong slot, or a figure from another side, fails rather than matching by coincidence |
 | token-stats::REQ-003/AC-08's Pending note | Kept: 19 of 19 conversations on this machine list one folder, re-checked read-only on 2026-10-29 ([ticket-327-pending-check.log](ticket-327-pending-check.log)) | Remove the note (the rule is implemented); confirm by making a multi-folder conversation with agy | The note's condition is a product fact not yet observed; running agy is outside this closeout's permissions (only `--help`/`--version`) and would write to agy's data. The re-check copies the databases and reads the copies with the product's own decoder; the source listing is unchanged |
-| The rows' side-badge slots touching, against the prototypes' 3px gap | Fixed in this round: `.bdg { display: flex; gap: 3px; flex: none }` in `theme.css`, read by C1 (`[3, 3, 3]`, red `[0, 0, 0]` without it) | Report it for the owner (as #325's worklog did); also fix the width (the agents-page prototype's 96px) | It is an app-versus-prototype difference in this feature's range — #328 changed the agents-page prototype's `.bdg` for the fourth slot — and features-catalog has such a difference fixed in the implementation within the round (ADR-0033 puts it at the closing cross-check); the confirmed prototypes already draw the form, so no prototype change. The width is left out: the skills-view prototype, the specific one for both skills lists, draws no width, and every row's slots are equal in width |
+| The rows' side-badge slots touching, against the prototypes' 3px gap | Fixed in this round: `.bdg { display: flex; gap: 3px; flex: none }` in `theme.css`, read by C1 (`[3, 3, 3]`, red `[0, 0, 0]` without it: [ticket-327-gap-red.log](ticket-327-gap-red.log)) | Report it for the owner (as #325's worklog did); also fix the width (the agents-page prototype's 96px) | It is an app-versus-prototype difference in this feature's range — #328 changed the agents-page prototype's `.bdg` for the fourth slot — and features-catalog has such a difference fixed in the implementation within the round (ADR-0033 puts it at the closing cross-check); the confirmed prototypes already draw the form, so no prototype change. The width is left out: the skills-view prototype, the specific one for both skills lists, draws no width, and every row's slots are equal in width |
 | The memory card's 52vh bound (#326's open finding) | Not changed; listed for the owner (O4) | Fix it here like the gap | Neither end is in this feature's range: the prototype's bound and the app's card predate the feature, and no interface point of the feature is that card — the regression's range ends there (features-catalog: no repository-wide audit) |
 | The post-implementation check's Finding 1 (C1's no-shadow read could not go red) | Give the home a same-name pair (agy's global `proj-agent` beside the project's), so the read reaches subagents-view::REQ-001/AC-05 | Drop the read and cite the unit case alone | One more file makes the e2e hold the rule end to end — the unit case holds the flags, the renderer draws the pill from them — and the counts stay distinct (2, 3, 5) |
 | Finding 3 (the model rows' order was the implementation's sort) | Read the rows as a set | Name the sort as the source | No spec states the order; an expected value taken from the implementation is a tautology (review-tests, Dimension 3) |
@@ -47,7 +47,8 @@ record every decision), 2026-10-29.
     `git hash-object` in the manifest): typecheck, lint, the search for tests reading `theme.css`
     (`scripts/check-shared-ui.test.mjs`, run by `pnpm check:ui`), `pnpm check:ui`, the unit suite, `app.spec.ts`
     whole on a fresh build (97 passed), `OVERALL exit=0`;
-  - the gap read red against the build without the rule (`[0, 0, 0]`, at that read alone), green with it; screenshots
+  - the gap read red against the build without the rule (`[0, 0, 0]`, at that read alone —
+    [ticket-327-gap-red.log](ticket-327-gap-red.log)), green with it; screenshots
     and computed gaps before and after: [ticket-327-ui-evidence.log](ticket-327-ui-evidence.log);
   - self-check items 6 and 7: the evidence files are named for what they hold and kept whole (the targeted log, the UI
     evidence log with its throwaway spec's path); the records the fix touches — C1's design row and its increment, the
@@ -65,7 +66,10 @@ record every decision), 2026-10-29.
     change-scope exit=1
     ```
 
-    The test file changed, so the fix is committed and handed to an independent sub-agent for an incremental check
+    The test file changed, so the fix is committed and handed to an independent sub-agent for an incremental check.
+    Round 2 (range `274cb00..9762152`, the fix's targeted log): one finding (5, records: the gap read's red run was
+    kept nowhere the records cite) — handled by keeping it, [ticket-327-gap-red.log](ticket-327-gap-red.log), and citing
+    it; change scope against `9762152` says skip (records only), so the check ends with round 2
 - [x] T10 Step 7 archive and step 8 (2026-10-29):
   - decisions: none reaches the ADR threshold (each is a closeout choice inside ADR-0037's decision); ADR-0037 gains a
     dated closeout note (the first-folder presumption still unconfirmed; the CONTEXT amendment made) and stays Accepted;

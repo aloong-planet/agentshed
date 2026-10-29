@@ -90,7 +90,9 @@ test file was edited in the same step as the row, before the case was run. The c
   Sessions read anchored by the question counts, which only the Sessions section draws (Finding 2) — the Case design
   sentence below is then true as written; the slot gap `[3, 3, 3]` from the skills-view prototype (the closeout's
   `.bdg` fix). Went red against the build without the `.bdg` rule with `[0, 0, 0]`, at that read alone (every read
-  before it passed with the amended home): the red is the gap's, not the setup's.
+  before it passed with the amended home): the red is the gap's, not the setup's
+  ([ticket-327-gap-red.log](ticket-327-gap-red.log): the command, the build it ran on and the whole output — kept after
+  round 2's Finding 5).
 - Dimensions over the changed row: coverage — AC-05's no-shadow half now driven end to end (the unit case
   `antigravity-components.test.ts:407` still holds the flags); case design — reads through the window only, each after
   its section's own anchor; false greens — the set read fails on a missing, extra or normalised model, the count read
@@ -293,3 +295,222 @@ The hand-back's four titles match the four findings above (numbers and subjects)
 The increment to the design (the amended row and its review) is in the Design review section above. The fix's targeted
 run and change scope are in the decisions record's work log; the fix changes a test file, so an incremental check
 follows.
+
+## Post-implementation check — incremental, round 2
+
+Date 2026-10-29 · ticket: [#327](https://github.com/aloong-planet/agentshed/issues/327) (aloong-planet/agentshed,
+feature `antigravity-side`) · implementation: `9762152`; the fix's range `274cb00..9762152` (one commit, `9762152`) on
+the original range `dc80aa2..4e6a3c4` · incremental round, handed over by `/implement` step 6, done by an independent
+sub-agent. No product code, test or test data was changed; no test was run and the app was not built for this round:
+each "when does it go red" below is answered from the code and the expected value's source.
+
+### Objects of this round
+
+- The range's files (`git diff --name-status 274cb00 9762152`): `e2e/app.spec.ts`, `src/renderer/src/theme.css`, and
+  six records under `docs/.workings/antigravity-side/` (decisions, code review and this record changed; the pre-review
+  log, the fix's targeted log and the UI evidence log added).
+- Tests the range changes: `git diff 274cb00..9762152 -- e2e/app.spec.ts` has hunks only in `mkAntigravityCloseoutHome`
+  (:6894-7006) and C1 (:7013-7115). Object: C1.
+- Tests depending on test helper code the range changes:
+  `git diff --name-only 274cb00 9762152 -- e2e src scripts site test tests playwright.config.ts vitest.config.ts package.json`
+  lists `e2e/app.spec.ts` and `src/renderer/src/theme.css` (product code, not a helper). The one helper changed is
+  `mkAntigravityCloseoutHome`, local to `app.spec.ts`: `rg -n -uu "mkAntigravityCloseoutHome" --glob '!node_modules'
+  --glob '!out' .` finds its definition (:6904), its one call in C1 (:7014) and records. Importers of `app.spec.ts`:
+  `rg -n -uu "from ['\"]\.\.?/(e2e/)?app\.spec" --glob '!node_modules' .` finds none (exit 1); the same form for
+  `close-app` finds its eight importers (control). No further test.
+- Test design table rows the range changes: this record's diff in the range changes the C1 row (with the Design
+  review's Dimension 1 and Dimension 3 sentences and the new increment subsection). Object: C1's row.
+
+Everything else carries round 1 (the "Post-implementation check" section above, at `4e6a3c4`): the coverage of the
+units and failure modes the fix does not touch, the fixture independence of the unchanged inputs, the safety-net cases
+of `db5aecf`, and the reads of C1 the fix leaves as they were (chips, per-side figures, today's bar, the Antigravity
+mode, Skills headings, Plugins, MCP, Memory, errors; only their line numbers moved).
+
+The closeout's T10 ran in parallel in the same worktree: during this round it committed `e66b9fa`, `06228a6`,
+`7429f83` and `d00cd4e` after the range (records, one audit log and one features sentence on Antigravity CLI forks; no
+test or product code, by `git diff --stat 9762152..HEAD`), and `checklist.md` stayed modified and uncommitted. This
+round reviews the range only; it reads T10's records only where the document sync check below says so, and changes
+none of them.
+
+### Run evidence
+
+[ticket-327-fix-targeted.log](ticket-327-fix-targeted.log), the fix's targeted run of 09:32:35-09:35:43:
+
+- Version: `git rev-parse HEAD` is `274cb00`, with three files modified (:5-9); their `git hash-object` (:10-13,
+  `063c3e5…`, `e606c48…`, `82b35cb…`) equal the blobs of `9762152` at the same paths (`git rev-parse 9762152:<path>`).
+  The other five paths `9762152` changes are records under `docs/` that neither the build nor C1 reads: the decisions
+  and code review records (unmodified at run time, changed after), the targeted log (written by the run), and the
+  pre-review and UI evidence logs (git-ignored then, added in the commit). The run's code is the range's end for
+  everything C1 and its build read. Matches the range.
+- Every command carries its full output and an exit code taken without a pipe: typecheck, lint, the search for tests
+  reading `theme.css` (its code `grep-exit=0` read after `;`), `check:ui`, the unit suite, and build + Playwright on
+  `e2e/app.spec.ts`; all `exit=0`, `OVERALL exit=0`.
+- The reviewed test ran: case 97, `e2e/app.spec.ts:7013`, passed (1.0 s), in 97 passed on one fresh build (:268-397).
+
+Conclusion: the log carries every item full-verification-gate.md requires, and its version is the range's end. No
+finding.
+
+### Per-case consistency with the test design table (C1's amended row)
+
+| C1 column | Written test | Against the row |
+|---|---|---|
+| Spec units | the comment above the case (:7008-7012) | Matches |
+| Seam | `launch(undefined, home)` (:7015) | Matches |
+| Input | `mkAntigravityCloseoutHome` (:6904-7006) | Matches: five global agy subagents in both forms (:6989-6993), `proj-agent` among them (:6989), the project-level `proj-agent` (:7004), `codex-helper` (:6951); the other inputs as round 1 found them |
+| Assertion object, expected value source | :7019-7113 | Matches: the card tuple with `5 subagents` (:7032); the model rows as the set of four (:7050-7051); Sessions read first by the counts `1 question, 4 questions, 1 question, 1 question` (:7060), then titles and badges; the plugin row's gaps `[3, 3, 3]` (:7078-7082); Subagents headings with `Antigravity(5)`, `proj-agent` in two rows (:7095) and no shadow pill (:7096). Written beyond the row, as round 1 found for the five rows then: the six AG rows (:7094), spec-sourced (subagents-view's "Project detail's layout") |
+| Fixture shape source | :6989 | Matches: the new global definition is the flat form (`<name>.md` with `name` and `description`) of the four beside it, #325's research sample |
+| Resource | one `launch` (:7015), one `close` (:7114) | Matches |
+
+Test file header: the range does not change `e2e/app.spec.ts`'s head, and the fix adds no untestable path. No finding.
+
+### Coverage
+
+- subagents-view::REQ-001/AC-05, its no-shadowing half, is now driven by C1. Both `proj-agent` definitions are keyed
+  `proj-agent` (`readAntigravitySide` keys by the front matter's `name`, `subagents.ts:159-161`), so the side's rule
+  (`shadowing = side !== 'antigravity'`, `subagents.ts:224`) decides both rows' flags: were agy judged as Claude is,
+  the project row would carry `shadows` and the global one `shadowed` (:232, :245), each drawn as `.pill.shadow`
+  (`SubagentsView.tsx:105-106`). Round 1's Finding 1 is resolved; `antigravity-components.test.ts:407` still holds
+  the flags.
+- agents-overview::REQ-003/AC-01, the subagent count: 5 is the five global definition files, the plugin's agent not
+  counted (subagents-view::REQ-001/AC-06); a project-level definition does not enter the global count.
+- token-stats::REQ-003/AC-04 on the project page: the set read holds agy's id as recorded; the routing-suffix form
+  (`gemini-3.8-flash-n`) is held by `antigravity.test.ts:539` and #323's e2e case (`app.spec.ts:1083`), not by C1.
+- project-detail::REQ-002/AC-04, Sessions: the question counts are now read. Expected values from the fixture: one
+  question in each of the Claude, Codex and Grok lines; four in `MEASURED_TRANSCRIPT.main` (its four `USER_INPUT`
+  lines, steps 0, 4, 12 and 19; `agy-transcript-fixture.ts:12` says so). The words are `en.ts:323`'s.
+- The slot gap is not a spec unit: no spec, features page or CONTEXT.md sentence states the slots' spacing (search
+  below). Its expected value is the skills-view prototype's `.bdg{display:flex;gap:3px;flex:none}`
+  (`prototype-skills-preview.html:110`; the agents-page prototype's `:144` has the same gap with a 96px width), the
+  interface baseline (ADR-0033). The rule is one selector, so C1's read goes red if it is removed or its gap changed
+  for every use; the class's other use on the agents page (`SubagentsView.tsx:43`, and `SkillExpandBlock.tsx:121` on
+  that page's Skills rows) is read by no case, its evidence being the UI evidence log. A prototype drawing rather than
+  a spec behaviour, it is outside this review's findings.
+
+No finding.
+
+### Case design
+
+- The new input is a file agy reads (`~/.gemini/config/agents/<name>.md`, subagents-view::REQ-001/AC-01), in the form
+  of the four beside it; one name at two levels is a state a user makes. No cast, no internal state.
+- The Sessions read now waits on `.n` (`DetailPane.tsx:433`), drawn only by the Sessions section's rows (:418-437);
+  the Overview's recent-sessions card (:258-267) draws none, so the read cannot pass on the Overview's DOM. Round 1's
+  Finding 2 is resolved, and the design review's Case design sentence holds as written.
+- The model read waits for four rows (`toHaveCount(4)`), then reads their text once.
+- The gap read measures the rendered geometry through the window, after the auto-waiting read of the same row's
+  fourth slot (:7077), drawn in the same render. The gap is a CSS length, not a font metric, so it does not move with
+  the platform's fonts.
+
+No finding.
+
+### False greens
+
+Per the project's capability declaration, mutation-testing is not enabled (`enabled = false`), so mutation testing is
+skipped. Each read the range adds or changes, and when it goes red:
+
+| Read (line) | Goes red when |
+|---|---|
+| Card tuple (:7023-7032) | as round 1, with the count now 5: the global `proj-agent` dropped or merged with the project's (4), the plugin's agent counted (6), a form not read |
+| Model rows (:7050-7051) | a model is missing, added, duplicated or changed from the recorded id (agy's `gemini-3.6-flash`): the count fails on a fifth row, the sorted list on any other difference. The order is not read |
+| Sessions counts (:7060) | the Sessions section is not the one drawn (no `.n` on the Overview), a count is wrong (agy's 4 from its transcript), or the rows are not newest first (the 4 moves) |
+| Sessions titles and badges (:7061-7062) | as round 1, now on the Sessions section's rows |
+| Slot gap (:7078-7082) | the slots touch — without the rule `.bdg` is an inline span whose badge spans have no whitespace between them (`SkillExpandBlock.tsx:121-133`), so 0 — or stand at a distance that rounds to anything but 3, or a slot is missing (fewer than three gaps), or the row is absent (an empty list). `evaluateAll` does not wait; it follows :7077 |
+| Subagents headings and AG rows (:7088-7094) | a group is missing or miscounted: the plugin's agent listed gives `Antigravity(6)` and 7 rows, the global `proj-agent` dropped gives 4 and 5 |
+| The `proj-agent` pair (:7095) | either row is dropped |
+| No shadow pill (:7096) | the agy pair is judged as Claude's or Codex's would be (`subagents.ts:224`): two pills. A one-shot count after the auto-waiting reads of the same render; rows and pills are drawn together (`SubagentsView.tsx:88-108`) |
+
+No constant truth (5 and 6 are distinct from the other counts; touching slots cannot give 3), no tautology (every
+expected value is a literal from the fixture, a spec or the prototype; the sorted list is the expected set written in
+order, not computed by product code), no old path (`.n`, `.bdg .badge`, `.pill.shadow` and `.models .m .nm2` are the
+live components' and matched in the targeted run), no conditional skip, and every assertion is awaited or made on an
+awaited value.
+
+The records state that C1's gap read was run red without the rule; that statement's evidence: Finding 5.
+
+### Resource reuse
+
+Counted from the targeted log: one `electron-vite build` (:268-295, its main, preload and renderer bundles) before
+the one Playwright command, 97 cases in one worker, C1 case 97: 1 build, as designed. From the code, C1 has one
+`launch` (:7015) and one `close` (:7114). The range adds no deletion, launch or close in `e2e/`
+(`git diff 274cb00 9762152 -- e2e | rg -n "^[+-].*(rmSync|unlinkSync|rm -rf|launch\(|close\()"`: none, exit 1), so
+round 1's finding that no case clears a resource another uses carries. No finding.
+
+### Findings
+
+5. **C1's gap read is recorded as run red without the rule, but that run's output is kept nowhere the records cite**
+   (inaccurate record). The design review's increment ("Went red against the build without the `.bdg` rule with
+   `[0, 0, 0]`, at that read alone (every read before it passed with the amended home): the red is the gap's, not the
+   setup's") and the decisions record (the `.bdg` row, "red `[0, 0, 0]` without it"; T9, "the gap read red against
+   the build without the rule (`[0, 0, 0]`, at that read alone)") state a run of C1 and cite no output for it. T9's
+   link, [ticket-327-ui-evidence.log](ticket-327-ui-evidence.log), holds the throwaway screenshot spec's gaps on the
+   agents page's Skills rows (`[0,0,0]` before, `[3,3,3]` after), not a run of C1; the targeted log is green. The
+   output exists only in the session's scratchpad (`c1-red-before-css.log`, 09:31: C1 failing at `app.spec.ts:7082`
+   with `[0, 0, 0]` against `[3, 3, 3]`), which is temporary and carries neither its command nor the build it ran on.
+   document-sync.md requires original evidence a current conclusion rests on to be kept and cited. The test is not in
+   question: the read goes red without the rule by the markup (False greens above). Required: keep that output in the
+   ticket's records with its command and the build it ran on, and cite it from both records; or reword both records
+   to what their cited evidence shows (the agents page's computed gaps, and the reasoning from the markup).
+
+### Document sync this check creates
+
+Facts the range changes: C1's home gains a global `proj-agent`, so the card reads 5 subagents, Antigravity's global
+group 5 and the AG rows 6, and C1 drives AC-05's no-shadow half; the model rows are read as a set; the Sessions read
+is anchored on the question counts; the `.bdg` rule and C1's gap read; the targeted run (97 passed).
+
+Scope (document-sync.md): the handed specs' parts these facts touch (subagents-view::REQ-001/AC-01 to AC-06 and its
+"Project detail's layout", token-stats::REQ-003/AC-04), and agents-overview, project-detail, skills-view,
+subagents-view, `docs/features/` and CONTEXT.md searched for any statement of the slots' spacing (`slot`, `apart`,
+`spacing`, `gap`: none about the badge slots); the two handed prototypes' `.bdg` rules; the range's diff; every entry
+of `docs/.workings/antigravity-side/` (`ls -A`: 65, none hidden; 65 tracked; `git ls-files --others --ignored
+--exclude-standard`: none), reading in full this record, the targeted log, the UI evidence log and the decisions
+record, the code review record's addendum, T10's closeout rows of checklist.md (:252-256, uncommitted), its doc sync
+row for the gap (ticket-327-doc-sync.md:14) and final-regression.md's #327 headings; the issue body of
+#327 (`gh issue view 327 --json body`, searched for the facts' terms: one hit, the AC-01 acceptance line, which states
+no count); and an `rg -uu` search of `docs/` (logs and prototypes excluded: the logs are original evidence, the
+prototypes were read directly), CONTEXT.md, AGENTS.md, README.md and README.en.md for statements resting on the facts
+(`4 subagents`, `Antigravity(4)`, `shadow pill`, `no-shadow`, `.bdg`, `3px apart`, `slot gap`, `touching`,
+`fix-targeted`, `ui-evidence`, `AG rows`, among others): 80 lines; outside this feature's records only unrelated
+uses of the words, inside them this ticket's records, #325's worklog rows on the gap and the closeout's rows.
+
+- Untrue: Finding 5 (the design review's increment in this record, and the decisions record's `.bdg` row and T9).
+- Not true at `9762152`, made true by T10 after it: the increment's "final-regression.md, #327 Stage 1" (the #327
+  section from :287, Stage 1 at :319, committed in `e66b9fa`); the design review's Coverage sentence ("the
+  checklist's closeout row cites it") and the Handling of Finding 4 hold in the worktree only — the closeout rows
+  (:252-256; :254 cites the pending-check log) are not committed yet, and the sentences hold in the repository once
+  they are. The checklist's rows :252-253 agree with the amended C1 (five subagents; `proj-agent` in both agy groups
+  with no shadow pill; slots 3px apart; four questions; a model row per side).
+- The code review record's addendum agrees with the case, and T10's doc sync row for the gap (no features or spec
+  sentence states the spacing) agrees with the search above.
+
+No spec, features, ADR or CONTEXT.md statement changes: the facts concern the test, and a prototype drawing that no
+document states.
+
+### Handling of round 2's finding (main agent, 2026-10-29)
+
+The hand-back's one title matches Finding 5 above. Handled by keeping the evidence:
+[ticket-327-gap-red.log](ticket-327-gap-red.log) holds the run of C1 against the build without the `.bdg` rule — its
+command, the build it ran on (the pre-review run's, at `4e6a3c4`, whose `theme.css` holds no `.bdg` rule; a control rule
+found), the whole output (C1 failing at the gap read, `[0, 0, 0]` against `[3, 3, 3]`) and its exit code — and the design
+review's increment and the decisions record's `.bdg` row and T9 cite it.
+
+The round's document-sync notes on T10 hold once T10's records are committed: the checklist's closeout rows (which the
+design review's Coverage sentence and Finding 4's handling point to) are committed with the full gate's figures, and
+final-regression.md's #327 section is committed (`e66b9fa`).
+
+No further round: the fix changes records only. Change scope against `9762152` (the fix uncommitted,
+`node ~/.claude/skills/implement/change-scope.mjs --base 9762152`):
+
+```
+inert   docs/.workings/antigravity-side/checklist.md
+inert   docs/.workings/antigravity-side/final-regression.md
+inert   docs/.workings/antigravity-side/ticket-325-worklog.md
+inert   docs/.workings/antigravity-side/ticket-327-audits.log
+inert   docs/.workings/antigravity-side/ticket-327-decisions.md
+inert   docs/.workings/antigravity-side/ticket-327-doc-sync.md
+inert   docs/.workings/antigravity-side/ticket-327-review-tests.md
+inert   docs/features/session-view.md
+verdict: skip (8 files differ from the base)
+change-scope exit=0
+```
+
+(The gap-red log is new and git-ignored until added, so change-scope does not list it; it is a record.) The
+post-implementation check ends with round 2's hand-back.

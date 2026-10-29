@@ -1,0 +1,55 @@
+# #327: the combined case's slot-gap read run against a build without the .bdg rule (2026-10-29, 09:31)
+#
+# Worktree at the run: HEAD 274cb00 with C1's amendment in e2e/app.spec.ts (the gap read added) and the .bdg rule in
+# src/renderer/src/theme.css, both uncommitted — committed together as 9762152. No build was made for this run: the
+# Playwright command reads out/, which held the pre-review run's build (ticket-327-gate-prereview.log :565-592, at
+# 4e6a3c4, a clean tree; its stylesheet out/renderer/assets/index-Bjv5hL5X.css, listed at :590). Immediately before
+# the run, 'ls -l out/renderer/assets/*.css' listed that file alone (89296 bytes, 09:10).
+# That build has no .bdg rule: 4e6a3c4's theme.css holds none (control: its .badge.miss rule is found):
+$ git show 4e6a3c4:src/renderer/src/theme.css > theme-4e6a3c4.css; grep -c "^\.bdg" theme-4e6a3c4.css; grep -c "^\.badge\.miss" theme-4e6a3c4.css
+0  (exit 1: no match)
+1
+#
+# The run (its output kept whole below; the command's exit code was 1):
+$ ./node_modules/.bin/playwright test e2e/app.spec.ts -g "the Antigravity side whole"
+
+Running 1 test using 1 worker
+
+  ✘  1 e2e/app.spec.ts:7013:1 › the Antigravity side whole: its card read in one pass, and a project every side registers, section by section (1.3s)
+
+
+  1) e2e/app.spec.ts:7013:1 › the Antigravity side whole: its card read in one pass, and a project every side registers, section by section 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 3
+    + Received  + 3
+
+      Array [
+    -   3,
+    -   3,
+    -   3,
+    +   0,
+    +   0,
+    +   0,
+      ]
+
+      7080 |     els.slice(1).map((el, i) => Math.round(el.getBoundingClientRect().left - els[i].getBoundingClientRect().right))
+      7081 |   )
+    > 7082 |   expect(slotGaps).toEqual([3, 3, 3])
+           |                    ^
+      7083 |
+      7084 |   // Subagents: the project-level .agents/agents group, then each side's global group. proj-agent is listed in both
+      7085 |   // agy groups, and neither row is marked as shadowing or shadowed (subagents-view::REQ-001/AC-05), as a Claude or
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt-327/e2e/app.spec.ts:7082:20
+
+    Error Context: test-results/app-the-Antigravity-side-w-8e921-egisters-section-by-section/error-context.md
+
+  1 failed
+    e2e/app.spec.ts:7013:1 › the Antigravity side whole: its card read in one pass, and a project every side registers, section by section 
+exit=1
+#
+# Reading: every read before the gap read passed with the amended home (the card's 5 subagents, the chips, the per-side
+# figures, the model set, the Sessions counts, the Skills headings and the AG slot); the case failed at
+# app.spec.ts:7082, the gap read, received [0, 0, 0] against [3, 3, 3]. The same case passed on the build carrying the
+# rule: ticket-327-fix-targeted.log (case 97).
