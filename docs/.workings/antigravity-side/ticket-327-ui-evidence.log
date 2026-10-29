@@ -1,0 +1,46 @@
+# #327 UI evidence: the side-badge slot gap (.bdg) and the combined product's screens, 2026-10-29
+# Worktree HEAD 274cb00c6c7e275d33a1c507a546d17f2e937312; theme.css with the uncommitted .bdg rule (git hash-object: 82b35cbb101c1f6cd398f9f45fb90f21cd8981e0)
+# Screenshot spec (throwaway, outside the repository): /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/d5777aaa-95de-42d5-be81-554573760468/scratchpad/shots/zz-closeout-shots.spec.ts, run with
+#   ./node_modules/.bin/playwright test --config /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/d5777aaa-95de-42d5-be81-554573760468/scratchpad/shots/playwright.config.ts zz-closeout-shots
+# against the built app (out/), fixture home of its own (AGENTSHED_HOME_OVERRIDE), English, window 1280x860.
+
+## Class occupancy before adding the rule (ui-design §8)
+$ git grep -n "bdg" 274cb00 -- src/renderer site/src
+274cb00:src/renderer/src/SkillExpandBlock.tsx:121:        <span className="bdg">
+274cb00:src/renderer/src/SubagentsView.tsx:43:            <span className="bdg">
+exit=0  (markup only: no stylesheet rule anywhere)
+
+## Before the rule: the build of 09:13 (out/renderer/assets/index-Bjv5hL5X.css, no .bdg rule)
+
+Running 1 test using 1 worker
+
+agents Skills first row slot gaps: [0,0,0]
+  ✓  1 ../../../../private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/d5777aaa-95de-42d5-be81-554573760468/scratchpad/shots/zz-closeout-shots.spec.ts:84:5 › closeout screenshots (1.8s)
+
+  1 passed (2.2s)
+screenshots: 01-agents-cards.png 02-agents-skills.png 03-agents-subagents.png 04-project-overview.png 05-project-sessions.png 06-project-skills.png 07-project-subagents.png 
+
+## After the rule: the build of the fix's targeted run (out/renderer/assets/index-DQJtVc_2.css)
+$ grep -n -A4 "^\.bdg" out/renderer/assets/index-DQJtVc_2.css
+1135:.bdg {
+1136-  display: flex;
+1137-  gap: 3px;
+1138-  flex: none;
+1139-}
+
+Running 1 test using 1 worker
+
+agents Skills first row slot gaps: [3,3,3]
+  ✓  1 ../../../../private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/d5777aaa-95de-42d5-be81-554573760468/scratchpad/shots/zz-closeout-shots.spec.ts:84:5 › closeout screenshots (1.2s)
+
+  1 passed (1.6s)
+screenshots: 01-agents-cards.png 02-agents-skills.png 03-agents-subagents.png 04-project-overview.png 05-project-sessions.png 06-project-skills.png 07-project-subagents.png 
+
+## Read off the screenshots (after)
+- 01/02 agents page: the four side cards (ANTIGRAVITY Detected 12k, 2 projects · 3 global skills · 2 subagents in this home); the Skills rows' four slots 3px apart
+- 03 agents page Subagents: three slots (CC CX AG) 3px apart
+- 04 project all-sides Overview: chips CLAUDE CODE CODEX GROK ANTIGRAVITY; CC 1k CX 2k GK 3k AG 5k; today's bar Anthropic, OpenAI, Google, xAI; model rows gemini-3.6-flash, grok-4.5-build, gpt-5.6-sol, claude-fable-5
+- 05 Sessions: CC, AG (Explaining Calc.py Functionality, 4 questions), GK, CX rows. Seen in passing, not this change's: the question-count column wraps '4 questions' onto two lines
+- 06 Skills: Global level · Claude(1), Codex(1), Shared · .agents/skills CX AG (1), Global level · Antigravity(3), Bundled in plugins (1), every row's slots 3px apart
+- 07 Subagents: the project-level and global groups
+Against the prototypes: agents-page (side card, three counts; .bdg slots), skills-preview (both lists' .bdg slots, the detail's group order with the shared group between Codex's and Antigravity's), project-detail (four header chips, per-side row, mixed-side session rows)

@@ -6890,3 +6890,226 @@ test('Antigravity sessions: AG rows and forks, a fork\'s page with its banner, h
   expect(l.errors).toEqual([])
   await close(l)
 })
+
+/**
+ * Ticket antigravity-side/#327 (the closeout): one home where every part of the Antigravity CLI side holds data at once.
+ * `all-sides` is registered by Claude Code, Codex, Grok and agy, with one session of each side today — Claude 1k at
+ * 12:00, agy 5k at 09:00 (the measured four-question transcript, under agy's own title), Grok 3k at 06:00, Codex 2k at
+ * 01:00 — a shared-directory skill, a project-level agy subagent and a Claude memory file. `agy-solo` is trusted by agy
+ * alone, with a 7k conversation two days ago that asks nothing. agy's components: one name in two of its global skills
+ * directories and two more names, a built-in skill, five global subagents in both forms — one of them named like the
+ * project's own —, the `flutter` plugin with a skill, an agent and a server, and the global MCP file. Claude holds one
+ * global skill and one global subagent; Codex one global skill.
+ */
+function mkAntigravityCloseoutHome(): { home: string; all: string } {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agyall-'))
+  const all = join(home, 'all-sides')
+  const solo = join(home, 'agy-solo')
+  mkdirSync(all, { recursive: true })
+  mkdirSync(solo, { recursive: true })
+  const file = (path: string, text: string): void => {
+    mkdirSync(join(path, '..'), { recursive: true })
+    writeFileSync(path, text)
+  }
+  const skill = (base: string, name: string, description: string): void =>
+    file(join(base, name, 'SKILL.md'), `---\nname: ${name}\ndescription: ${description}\n---\n\n${description}\n`)
+  const today = (h: number): Date => {
+    const d = localDayOffset(0)
+    d.setHours(h)
+    return d
+  }
+
+  // Claude Code: the registration, one session today at 12:00 (1k), a memory file, a global skill and subagent
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [all]: {} } }))
+  const cdir = join(home, '.claude', 'projects', all.replace(/[^a-zA-Z0-9]/g, '-'))
+  file(
+    join(cdir, 'c.jsonl'),
+    [
+      JSON.stringify({ type: 'user', timestamp: today(12).toISOString(), message: { role: 'user', content: 'Claude question' } }),
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: today(12).toISOString(),
+        message: { id: 'msg-c1', model: 'claude-fable-5', usage: { input_tokens: 800, output_tokens: 200, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+      })
+    ].join('\n') + '\n'
+  )
+  file(join(cdir, 'memory', 'MEMORY.md'), '# Memory\n\n- the all-sides note\n')
+  skill(join(home, '.claude', 'skills'), 'claude-helper', 'A Claude global skill')
+  file(join(home, '.claude', 'agents', 'claude-reviewer.md'), '---\ndescription: Claude global reviewer\n---\nClaude persona.\n')
+
+  // Codex: the registration, one session today at 01:00 (2k), a global skill
+  file(join(home, '.codex', 'config.toml'), `[projects."${all}"]\ntrust_level = "trusted"\n`)
+  file(
+    join(home, '.codex', 'sessions', '2026', '01', '01', 'rollout-019fb0c0-3333-7af3-af7d-8505cedf1ec3.jsonl'),
+    [
+      JSON.stringify({ timestamp: today(1).toISOString(), type: 'session_meta', payload: { cwd: all } }),
+      JSON.stringify({ timestamp: today(1).toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: all } }),
+      JSON.stringify({ timestamp: today(1).toISOString(), type: 'event_msg', payload: { type: 'user_message', message: 'Codex question' } }),
+      JSON.stringify({ timestamp: today(1).toISOString(), type: 'event_msg', payload: { type: 'token_count', info: { last_token_usage: { input_tokens: 1500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 500, total_tokens: 2000 } } } })
+    ].join('\n') + '\n'
+  )
+  skill(join(home, '.agents', 'skills'), 'codex-helper', 'A Codex global skill')
+
+  // Grok: the registration, one session today at 06:00 (3k)
+  file(join(home, '.grok', 'trusted_folders.toml'), `[folders."${all}"]\ntrusted = true\n`)
+  const gdir = join(home, '.grok', 'sessions', encodeURIComponent(all), '019f-closeout')
+  file(join(gdir, 'summary.json'), JSON.stringify({ info: { id: '019f-closeout', cwd: all } }))
+  const gts = Math.floor(today(6).getTime() / 1000)
+  file(
+    join(gdir, 'updates.jsonl'),
+    [
+      JSON.stringify({ timestamp: gts, method: '_x.ai/session/update', params: { sessionId: 's', update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Grok question' }, _meta: { promptIndex: 0 } } } }),
+      JSON.stringify({ timestamp: gts, method: '_x.ai/session/update', params: { sessionId: 's', update: { sessionUpdate: 'turn_completed', usage: { inputTokens: 2500, outputTokens: 500, totalTokens: 3000, cachedReadTokens: 0, cacheCreationTokens: 0, costUsdTicks: 1, modelUsage: { 'grok-4.5-build': { inputTokens: 2500, outputTokens: 500, cachedReadTokens: 0, cacheCreationTokens: 0 } } } } } })
+    ].join('\n') + '\n'
+  )
+
+  // Antigravity CLI: both folders trusted; the measured conversation in all-sides today at 09:00 (5k), under agy's
+  // title; a conversation in agy-solo two days ago (7k) that asks nothing
+  const agy = join(home, '.gemini', 'antigravity-cli')
+  const cfg = join(home, '.gemini', 'config')
+  const conversations = join(agy, 'conversations')
+  mkdirSync(conversations, { recursive: true })
+  writeFileSync(join(agy, 'settings.json'), settingsJson([all, solo]))
+  const ID = MEASURED_TRANSCRIPT_ID.main
+  const allCall = callRecord({ conversationId: ID, stepIdx: 1, genIdx: 0, usage: { messageId: 'e-all', input: 4000, output: 1000 }, createdAt: today(9).getTime() - 5_000, completedAt: today(9).getTime(), responseModel: 'gemini-3.6-flash' })
+  writeConversation(conversations, ID, encodeTrajectoryMetadata({ folders: [all], conversationId: ID }), { steps: [allCall.step], gens: [allCall.gen] })
+  writeTranscript(agy, ID, MEASURED_TRANSCRIPT.main)
+  writeSummaries(agy, [{ id: ID, title: MEASURED_TITLE[ID] }])
+  const soloAt = localDayOffset(2).getTime()
+  const soloCall = callRecord({ conversationId: 'c-agy-solo', stepIdx: 1, genIdx: 0, usage: { messageId: 'e-solo', input: 6000, output: 1000 }, createdAt: soloAt - 5_000, completedAt: soloAt, responseModel: 'gemini-3.6-flash' })
+  writeConversation(conversations, 'c-agy-solo', encodeTrajectoryMetadata({ folders: [solo], conversationId: 'c-agy-solo' }), { steps: [soloCall.step], gens: [soloCall.gen] })
+  // agy's three global skills directories: release-notes in the first two (one name), commit-style, root-notes; a
+  // built-in skill
+  skill(join(agy, 'skills'), 'release-notes', 'Release notes, the CLI copy')
+  skill(join(cfg, 'skills'), 'release-notes', 'Release notes, the config copy')
+  skill(join(cfg, 'skills'), 'commit-style', 'The global commit style')
+  skill(join(home, '.gemini', 'skills'), 'root-notes', 'Notes from the root directory')
+  skill(join(agy, 'builtin', 'skills'), 'agy-customizations', 'Built in')
+  // Five global subagents, in both forms; proj-agent shares its name with the project's own definition below
+  file(join(cfg, 'agents', 'proj-agent.md'), '---\nname: proj-agent\ndescription: The global definition of that name.\n---\nGlobal persona.\n')
+  file(join(cfg, 'agents', 'flat-one.md'), '---\nname: flat-one\ndescription: First flat definition.\n---\nOne.\n')
+  file(join(cfg, 'agents', 'flat-two.md'), '---\nname: flat-two\ndescription: Second flat definition.\n---\nTwo.\n')
+  file(join(cfg, 'agents', 'dir-one', 'agent.md'), '---\nname: dir-one\ndescription: First directory definition.\nsubagent: true\nmainAgent: false\n---\nThree.\n')
+  file(join(cfg, 'agents', 'dir-two', 'agent.md'), '---\nname: dir-two\ndescription: Second directory definition.\n---\nFour.\n')
+  // The official flutter plugin, as agy installed it (no enabled key), with its skill, agent and server
+  const flutter = join(cfg, 'plugins', 'flutter')
+  file(join(flutter, 'plugin.json'), JSON.stringify({ name: 'flutter', displayName: 'Dart and Flutter', version: '1.0.6' }))
+  skill(join(flutter, 'skills'), 'dart-add-unit-test', 'Write and organize unit tests')
+  file(join(flutter, 'agents', 'a11y_agent.md'), '---\nname: flutter_a11y_agent\ndescription: "Audits Flutter code for accessibility."\n---\n\n# Persona\n')
+  file(join(flutter, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'dart-mcp-server': { command: 'dart', args: ['mcp-server'] } } }))
+  file(join(cfg, 'config.json'), JSON.stringify({ plugins: { flutter: { installedFrom: { id: 'antigravity-plugins-official/plugin/flutter', marketplace: 'antigravity-plugins-official', version: '1.0.6' } } } }))
+  file(join(cfg, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'sqlite-explorer': { command: 'node' } } }))
+  // all-sides' own: a skill in the shared skills directory and a project-level agy subagent
+  skill(join(all, '.agents', 'skills'), 'changelog-entry', 'Add a changelog entry')
+  file(join(all, '.agents', 'agents', 'proj-agent', 'agent.md'), '---\nname: proj-agent\ndescription: Project-level agy subagent.\n---\nProject persona.\n')
+  return { home, all }
+}
+
+// agents-overview::REQ-003/AC-01 (the side card whole: detection, the usage figure, the project, global skill and
+// subagent counts — #322's, #323's and #325's parts together) and project-detail::REQ-002/AC-04 (a project's page
+// showing the side in Overview, Sessions, Skills, Subagents, Plugins and Memory at once — #322's to #325's parts), with
+// project-detail::REQ-002/AC-01 (the header chips) and AC-03 (MCP) on the same page. The closeout's combination case:
+// each ticket's own cases read their part alone.
+test('the Antigravity side whole: its card read in one pass, and a project every side registers, section by section', async () => {
+  const { home } = mkAntigravityCloseoutHome()
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
+
+  // The card, read whole in one DOM read, so its four parts are true of one render: the chip, detected, the figure
+  // for all history (5k + 7k), two trusted folders, three library names (release-notes once; the built-in and the
+  // plugin's skill not counted) and five subagents (the plugin's agent not counted)
+  const card = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.ag') })
+  await expect
+    .poll(() =>
+      card.evaluate((el) => [
+        el.querySelector('.badge')?.textContent ?? '',
+        el.querySelector('.k')?.textContent?.replace(el.querySelector('.badge')?.textContent ?? '', '') ?? '',
+        el.querySelector('.v')?.textContent ?? '',
+        el.querySelector('.s')?.textContent ?? ''
+      ])
+    )
+    .toEqual(['ANTIGRAVITY', 'Detected', '12k', '2 projects · 3 global skills · 5 subagents'])
+
+  // The project every side registers: the four chips
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'all-sides' }).click()
+  await expect(win.locator('.det-title .badge')).toHaveText(['CLAUDE CODE', 'CODEX', 'GROK', 'ANTIGRAVITY'])
+
+  // Overview: each side's figure, today's bar stacking the four providers, the Antigravity mode leaving Google's alone,
+  // and a model row for every side's model, agy's as it records it (read as a set: no spec orders the rows)
+  await tab('Overview').click()
+  const sideFigure = (cls: string): ReturnType<typeof win.locator> =>
+    win.locator('.pane-body .tot-sides > span', { has: win.locator(`.badge.${cls}`) }).locator('b')
+  await expect(sideFigure('cl')).toHaveText('1k')
+  await expect(sideFigure('cx')).toHaveText('2k')
+  await expect(sideFigure('gk')).toHaveText('3k')
+  await expect(sideFigure('ag')).toHaveText('5k')
+  const bar = win.locator(`.pane-body .chart .col[data-day="${dayKey(localDayOffset(0))}"]`)
+  for (const provider of ['anthropic', 'openai', 'xai', 'google']) await expect(bar.locator(`.sp.${provider}`)).toHaveCount(1)
+  await expect(win.locator('.pane-body .models .m .nm2')).toHaveCount(4)
+  expect((await win.locator('.pane-body .models .m .nm2').allTextContents()).sort()).toEqual(['claude-fable-5', 'gemini-3.6-flash', 'gpt-5.6-sol', 'grok-4.5-build'])
+  await win.locator('.pane-body .grp-t .seg button', { hasText: 'Antigravity' }).click()
+  await expect(bar.locator('.sp')).toHaveCount(1)
+  await expect(bar.locator('.sp.google')).toHaveCount(1)
+
+  // Sessions: one row per side, newest first, each with its side's badge; agy's under its own title. Read first by
+  // the question counts, which the Overview's recent-sessions card (the same rows' titles and badges) does not draw
+  await tab('Sessions').click()
+  const rows = win.locator('.pane-body .card .se')
+  await expect(rows.locator('.n')).toHaveText(['1 question', '4 questions', '1 question', '1 question'])
+  await expect(rows.locator('.t')).toHaveText(['Claude question', 'Explaining Calc.py Functionality', 'Grok question', 'Codex question'])
+  await expect(rows.locator('.badge')).toHaveText(['CC', 'AG', 'GK', 'CX'])
+
+  // Skills: Claude's and Codex's global groups, the shared directory headed by both its loaders, Antigravity's global
+  // group after it, then the plugin group with the AG row
+  await tab('Skills').click()
+  const headings = win.locator('.pane-body .grp-t')
+  await expect(headings).toHaveCount(5)
+  await expect(headings.nth(0)).toHaveText('Global level · Claude(1)')
+  await expect(headings.nth(1)).toHaveText('Global level · Codex(1)')
+  await expect(headings.nth(2)).toContainText('Shared · .agents/skills')
+  await expect(headings.nth(2).locator('.badge')).toHaveText(['CX', 'AG'])
+  await expect(headings.nth(2)).toContainText('(1)')
+  await expect(headings.nth(3)).toHaveText('Global level · Antigravity(3)')
+  await expect(headings.nth(4)).toContainText('Bundled in plugins')
+  const plugRow = win.locator('.pane-body .sk', { has: win.locator('.nm', { hasText: /^flutter:dart-add-unit-test$/ }) })
+  await expect(plugRow.locator('.bdg .badge').nth(3)).toHaveText('AG')
+  // The row's four side slots stand 3px apart, as the skills-view prototype draws them (.bdg)
+  const slotGaps = await plugRow.locator('.bdg .badge').evaluateAll((els) =>
+    els.slice(1).map((el, i) => Math.round(el.getBoundingClientRect().left - els[i].getBoundingClientRect().right))
+  )
+  expect(slotGaps).toEqual([3, 3, 3])
+
+  // Subagents: the project-level .agents/agents group, then each side's global group. proj-agent is listed in both
+  // agy groups, and neither row is marked as shadowing or shadowed (subagents-view::REQ-001/AC-05), as a Claude or
+  // Codex pair of one name would be
+  await tab('Subagents').click()
+  await expect(headings).toHaveText([
+    'Effective view · project level shadows on both Claude and Codex · click a row for the full definition',
+    'Project level · .agents/agents(1)',
+    'Global level · Claude(1)',
+    'Global level · Antigravity(5)'
+  ])
+  await expect(win.locator('.pane-body .it.row-btn', { has: win.locator('.badge.ag') })).toHaveCount(6)
+  await expect(win.locator('.pane-body .it.row-btn', { has: win.locator('.nm', { hasText: /^proj-agent$/ }) })).toHaveCount(2)
+  expect(await win.locator('.pane-body .it.row-btn .pill.shadow').count()).toBe(0)
+
+  // Plugins: agy's plugin, in effect globally, naming its marketplace
+  await tab('Plugins').click()
+  await expect(win.locator('.pane-body .it.row-btn', { hasText: 'flutter' }).locator('.ds')).toHaveText(
+    'In effect globally · from antigravity-plugins-official'
+  )
+
+  // MCP: agy's global server and its plugin's, under the name agy gives it
+  await tab('MCP').click()
+  await expect(win.locator('.pane-body .it .nm')).toHaveText(['sqlite-explorer', 'flutter_dart-mcp-server'])
+
+  // Memory: Claude's memory file, and nothing of Antigravity's — read once the file has rendered
+  await tab('Memory').click()
+  await expect(win.locator('.pane-body .md')).toContainText('the all-sides note')
+  expect(await win.locator('.pane-body .badge.ag').count()).toBe(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})

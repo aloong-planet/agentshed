@@ -92,7 +92,8 @@ sessions, one per row, with "how many questions I asked in this conversation".
   title comes from the first real question after stripping (a session name Codex gave itself still
   takes priority and is not displaced). A Codex session forked in the newer record format carries
   no replayed history: every question in it is its own, nothing is stripped, and it carries no fork
-  marking
+  marking. An Antigravity CLI fork lists only the questions asked after the fork, with nothing to strip, and is
+  titled as any Antigravity CLI conversation is (both described above)
 - A session that produced **no new question at all** after the fork (its content being entirely a
   replay of the parent's history, verified entry by entry) does not enter the list — it has no
   question to find, the same rule as warmup sessions, and its tokens still count

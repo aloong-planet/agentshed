@@ -1130,6 +1130,13 @@ body {
   display: inline-flex;
   align-items: center;
 }
+/* A row's side-badge slots (the Skills lists and the global Subagents list): one slot per side, 3px apart, as the
+   skills-view and agents-page prototypes draw them */
+.bdg {
+  display: flex;
+  gap: 3px;
+  flex: none;
+}
 .pill {
   font-size: 10px;
   border-radius: 4px;

@@ -283,3 +283,132 @@ The declaration files this round changed: `docs/specs/agents-overview.md`, `docs
 Pre-delivery scope re-check (document-sync.md), 2026-10-29: the changes of this round (two specs, two features pages,
 CONTEXT.md, the dictionaries, the working records) were set against the doc-sync checklist's rows; one item the
 checklist lacked was added (the CONTEXT amendment), none marked done rested on a basis that no longer holds.
+
+## #327 Closeout: the full-feature regression — 2026-10-29
+
+Ticket: [#327](https://github.com/aloong-planet/agentshed/issues/327), the feature's closeout ticket (its issue says so) ·
+scope: **the whole feature**, `7fe3588..HEAD` of `feat/antigravity-closeout` — #328's specification commit `cbe22ca`
+(ADR-0037, CONTEXT.md, the eleven specs, the prototypes), the five implementation tickets as the landing rehearsal
+combined them (`dc80aa2`: #329 for #326, #330 for #322, #323, #325, #324), and this ticket's commits (`db5aecf` the
+`~/.gemini` path fold, `87ec0b3` the combined e2e case, `9762152` the side-badge slot gap with the case's review fixes, and the
+documents and records in between and after — `git log dc80aa2..HEAD`). The tree is the combined
+product the feature will be on main once the five land and this branch is rebased onto them. Languages in scope, by a
+script count per file (`grep -c -P '[\x{4e00}-\x{9fff}]'` and `grep -c -P '[A-Za-z]'`): the eleven feature pages, the
+eleven specs, CONTEXT.md and ADR-0037 hold no Han text; README.md (50 Han lines), `site/src/i18n/ui.ts` (47) and the
+Chinese dictionary (376) hold Chinese and were searched with Chinese terms too; README.en.md holds one (the language
+switcher).
+
+### Full-feature checklist reconciliation (features-catalog, the full-feature closeout)
+
+- **The mapping, both ways** (`/to-tickets` "The feature checklist"): a script lists every coverage unit the eleven
+  specs define on a line the feature added (86) and every identifier the checklist's "Spec → tickets → verification"
+  table names, ranges expanded — 0 units without a mapping row; the 7 mapped identifiers not defined in the range are
+  existing units the feature amended or cites (the Antigravity clauses of session-view::US-001/AC-01, AC-04, AC-07,
+  session-view::CON-001/CON-002, global-search::REQ-001). 89 units, as the breakdown audit counted. Recorded in the
+  checklist's Two-way audit; the scripts and their output in [ticket-327-audits.log](ticket-327-audits.log).
+- **Every unit re-judged against the combined product**: the closeout rows of the checklist's Current verification
+  (dated 2026-10-29, #327). The per-ticket rows' "Verified for #32x's path; the rest is #32y's" were each written on a
+  branch that held one ticket's paths; every case they quote is in the combined tree's test files (196 of 196 titles, a
+  script over the rows' quotes) and ran green in this tree's full gate ([ticket-327-gate-full.log](ticket-327-gate-full.log)),
+  so each unit's paths are now verified together. The two cross-ticket units the issue names have their own evidence:
+  agents-overview::REQ-003/AC-01 (the card read whole) and project-detail::REQ-002/AC-04 (one all-sides project, every
+  section) by the e2e case "the Antigravity side whole: …"; token-stats::REQ-003/AC-08's Pending note re-judged and
+  kept ([ticket-327-pending-check.log](ticket-327-pending-check.log)).
+- No unit is unmapped, unverified or failing; no acceptance criterion was narrowed or removed.
+
+### Stage 1: changed declarations
+
+Declaration surfaces the whole feature changed (`git diff --stat 7fe3588 HEAD -- docs/features docs/specs docs/adr
+docs/postmortems docs/prototypes CONTEXT.md README.md README.en.md package.json site src/shared/i18n`): eleven feature
+pages with the index, ten specs (global-search's is unchanged), ADR-0037 with the ADR index, a postmortem with its
+index, thirteen prototype files, CONTEXT.md and both dictionaries. The READMEs, `package.json` and the site are unchanged
+(that command lists none of them).
+
+| Pair | Statement checked | Result |
+|---|---|---|
+| specs ↔ implementation | The eleven specs' Antigravity sections, unit by unit, against the combined tree: each ticket's spec final check (the five code review records) holds for its paths; the closeout's spec final check ([ticket-327-review-code.md](ticket-327-review-code.md)) for the two combined units; every failure mode each ticket's test review traced to a case or a named header gap (the header gaps all present in the combined tree's test files — read for this regression) | True after this round's fixes: project-detail A1 listed eight sections and the page has nine (Sessions added); token-stats said the CONTEXT.md cache-write invariant "is amended when this side ships" (it was, by #323) — rewritten to the present; its Testing Decisions said the ccusage comparison covers "all three sides" — it covers Claude Code, Codex and Grok, and the Antigravity CLI baseline is the 2026-10-28 reconciliation (written); its Out of Scope called "the Claude and Grok sides" the exact ones (every side but Codex is); projects-list said the session count backfill "covers all three sides" (it covers every side's listed sessions); token-stats said a conversation found unreadable "is not read again" — true of the usage reads, which cache the verdict since #323, not of the activity walk, which keeps only successful reads (#322 had left that to #323): the failure mode now says the walk opens such a conversation at every scan |
+| spec ↔ features, per slug | The eleven pairs, every features sentence the feature wrote or rewrote against its spec, read in the combined state | Agree after this round's fixes: agents-overview's Skills line listed the four libraries by name (now "every side's global library") and its Antigravity CLI boundary said the card reports "its global skills and subagents" (it reports how many); memory-view's explanation listed "Codex only, Antigravity CLI only, or both", which leaves out Grok-only projects that get it too (now side-neutral); the subagents-view, plugins-view and skills-view pages named the side "Antigravity" bare seven times, a term CONTEXT.md keeps out of documents (now "Antigravity CLI"); session-view's fork paragraph said a fork "replays the parent's history at its start" and is titled from its first question after stripping, untrue of an Antigravity CLI fork, which #324 described in another paragraph (now pointed to it) |
+| ADR-0037 ↔ specs and features | Every decision bullet and the three appended notes against the specs' Antigravity sections and the features pages | No contradiction. The ADR's "presumed to be the launch directory — to be confirmed … during implementation" had no answer once implementation ended: a dated closeout note now says it is still unconfirmed and where the Pending note carries it, and that the CONTEXT.md amendment its consequences call for was made. Status reviewed: Accepted stands — nothing supersedes or narrows a decision beyond the notes already appended |
+| CONTEXT ↔ every document above | The terms the feature added or amended (Agent side, Shared skills directory, Session, Turn, the TokenTotals invariant, the saved-page invariant, the flagged ambiguity) against every document in range; synonyms | True after this round's fixes: "Agent side" said Antigravity CLI is "being onboarded" — retired; `agy` stood beside "Antigravity CLI" in nine features sentences and many spec ones with no rule for which is which — the entry now says documents use `agy` for the tool acting and "Antigravity CLI" for the side (the nine features uses read against it: each is the tool acting); "Subagent" named only Claude's and Codex's definition forms (Antigravity CLI's added); "Effective enabled plugins" defined only Claude's layers while plugins-view::REQ-001/AC-04 applies the term to agy's plugins (its one layer added) |
+| Prototypes ↔ implementation | The combination's interface points, which no ticket could see together: the Antigravity card with detection, figure and its three counts; a project registered on every side — the four header chips in side order, the Overview's per-side row with four figures and a four-provider bar, the Sessions list mixing the four badges, the Skills groups in order, Subagents grouped, Plugins and MCP groups | Match, against the agents-page and project-detail prototypes, read off the e2e case's rendered DOM and window screenshots of the combined build before and after this round's fix ([ticket-327-ui-evidence.log](ticket-327-ui-evidence.log)). One mismatch, in this round's range: the side-badge slots (both Skills lists, the global Subagents list) touched in the app, while the skills-view and agents-page prototypes draw them 3px apart (`.bdg`, whose agents-page width #328 widened for the fourth slot) — fixed in the implementation this round (`9762152`, the `.bdg` rule; computed gaps `[0,0,0]` → `[3,3,3]`; read by the combined case). Not in range and listed for the owner: the memory card's bound (O4). Each ticket's own interface points keep their per-ticket screenshot checks (the sections above) |
+| Dictionaries ↔ behaviour | The keys the five tickets added or changed, in both languages | Unchanged by this round; `pnpm check:i18n` and `pnpm check:ui` green in the full gate |
+| Postmortem ↔ implementation | [2026-10-29](../../postmortems/2026-10-29-a-guard-read-after-the-value-it-guards.md): "the four sites now guard first" | True in the combined tree: every read of a cached entry's kind in `token-stats.ts` follows `isWellFormedAgg` (enumerated: lines 280, 663, 677–679, 691–697, 730–731, 776, 892, 913), including #324's fork-parent lookup written after the postmortem |
+
+### Stage 2: related declarations
+
+| Relation | Statement checked | Result |
+|---|---|---|
+| features README ↔ the eleven touched pages | Each page's one-line description | True; the Agents overview row's "every agent sides'" corrected to "every agent side's" |
+| specs README, ADR README, postmortems README ↔ their touched files | Rows (spec links; ADR-0037 "Accepted"; the postmortem's account) | True; no change |
+| Rule ↔ its gate: copy never enumerates the sides ↔ `pnpm check:ui` | The gate's count words and its exemption rule, against the combined dictionaries | Covered for the two-side forms only; a "three sides" / "four sides" form passes it, and a key on the line after an allow-listed key is exempt by position (#324's and #325's findings) — held by hand this round (Stage 3's searches found none in the dictionaries); listed for the owner (O1, O2) |
+| Rule ↔ its gate: the working language in this feature's records ↔ `pnpm check:lang` | Records added with `-f` | Covered: every record of this round is tracked and the full gate's check:lang ran over it |
+| A fact ↔ its statements: where `~/.gemini` is read | `ScanRoots`'s comments (after the fold) ↔ the specs' paths (`~/.gemini/config/…`, `~/.gemini/skills`, `~/.gemini/AGENTS.md`) ↔ CONTEXT "Shared skills directory" | Agree: the fold changed how the paths are derived, not which (no spec names a derivation) |
+| A fact ↔ its statements: the project page's sections | features "nine sections" ↔ project-detail A1 ↔ the page's tabs | Agree after A1's fix |
+| A fact ↔ its statements: the side card's counts | agents-overview B2, REQ-003/AC-01 ↔ skills-view::REQ-001/AC-05 ↔ the features card bullet ↔ the agents-page prototype's three counts ↔ the card | Agree (the combined case reads the three counts on one card) |
+| A fact ↔ its statements: the cache structure version | `CACHE_VERSION` 19 ↔ the e2e archive stamps (`+c19` ×2) ↔ token-stats C16's 17 → 18 → 19 steps | Agree |
+| A fact ↔ its statements: the multi-folder presumption | ADR-0037's "to be confirmed" ↔ token-stats::REQ-003/AC-08's Pending note ↔ #322's and #323's checklist rows | Agree after the ADR's closeout note |
+| The feature checklist's mapping ↔ its current verification | Every unit has a current row covering every path | Agree: the closeout rows |
+| The tickets' sync checklists ↔ the closeout | Table below | — |
+| The tickets' open findings ↔ a durable home | The decisions records, review-code refactoring lists, test review records and #325's worklog | Collected below (Open findings for the owner); #326's "two roots for one tree" resolved by `db5aecf`, and #326's decisions record now points its other two rows at this list |
+
+### Stage 3: events
+
+| Event | How it was enumerated | Result |
+|---|---|---|
+| The agent sides grew from three to four (the whole feature) | English: `rg -n -i "both sides\|all three\|three sides\|two sides\|every side\|each side\|all sides\|all four\|four sides\|claude code, codex\|claude and codex\|claude code and codex\|codex and grok\|and grok\b\|claude code / codex\|CC/CX/GK\|CC / CX / GK\|either side\|neither side\|both global\|the two sides\|both of the\|three agent\|four agent" docs/features docs/specs/{the eleven}.md CONTEXT.md README.md README.en.md site/src src/shared/i18n/en.ts package.json` (128 lines, read whole); Chinese (code-point escapes): `rg -n "\x{4e24}\x{4fa7}\|\x{4e09}\x{4fa7}\|\x{56db}\x{4fa7}\|\x{53cc}\x{7aef}\|\x{53cc}\x{4fa7}\|\x{5404}\x{4fa7}\|\x{6bcf}\x{4e00}\x{4fa7}\|\x{6bcf}\x{4fa7}\|\x{6240}\x{6709}\x{4fa7}\|\x{5168}\x{90e8}\x{4fa7}\|Claude Code\x{3001}Codex\|Claude \x{548c} Codex\|Claude\x{548c}Codex\|Codex \x{548c}\|Codex\x{548c}\|Grok\|Antigravity\|\x{4e24}\x{4e2a}\x{4fa7}\|\x{4e09}\x{4e2a}" README.md README.en.md site/src/i18n/ui.ts src/shared/i18n/zh.ts` (13 lines); index-aligned structures: `rg -n "\['claude', ?'codex'\|'cl', ?'cx'\|\['cc', ?'cx'" src scripts` outside tests | Made false and rewritten: agents-overview features (the four libraries listed), memory-view features, token-stats spec (ccusage "all three sides", "the Claude and Grok sides are exact"), projects-list spec ("all three sides"), CONTEXT "Subagent". Still true: dated measurements ("Measured 2026-08-21 … across all three sides", G7), two-side statements about Claude and Codex (subagent shadowing, `projectHint`), the READMEs' and site's "Claude Code, Codex and other coding agents" and the Chinese `\x{5404}\x{4fa7}` ("each side") and `Claude Code\x{3001}Codex \x{7b49}` ("Claude Code, Codex and others"), side-neutral, plugins-view's "A group per side — Claude Code, Codex and Antigravity CLI" (the groups that exist; Grok's plugins are not read, said on the agents page). Index-aligned: one hit, `DETAIL_SKILL_SIDES` (project detail's skill sides, Grok deliberately absent — O3); the side arrays elsewhere derive from total Records |
+| Pending notes in range | `rg -n "Pending:" docs/specs docs/features CONTEXT.md docs/adr/0037-…` → one, token-stats::REQ-003/AC-08 | Not expired: 0 of 19 conversations list more than one folder (re-read 2026-10-29, read-only). Kept as written; its condition stays a product fact |
+| New general rules this round | The decisions record ([ticket-327-decisions.md](ticket-327-decisions.md)) | One terminology rule — documents name the tool `agy` when it acts and the side "Antigravity CLI" — with its canonical text in CONTEXT.md ("Agent side"). The fold's "every location under `~/.gemini` derives from `geminiHome`" is a property of one type, stated on the type |
+| The cache structure version moved 17 → 19 across the feature | Stage 2's row | Agree |
+| Work state changed | The feature checklist, the six sync checklists, #326's decisions record, the issue | Checklist closeout rows and audit row written; #322's CONTEXT row and #327's rows done in this branch; #326's open-findings rows point here; the issue's boxes are not ticked here (the orchestrator's instruction: nothing is ticked on GitHub) |
+
+### The tickets' document sync checklists
+
+| Ticket | Rows | Pending | State for the closeout |
+|---|---|---|---|
+| [#322](ticket-322-doc-sync.md) | 8 | 0 | Seven done, each "completed with this PR's merge" — #330 not merged yet: Waiting for that merge. The CONTEXT "being onboarded" row is done in this branch (the closeout's rewrite) |
+| [#323](ticket-323-doc-sync.md) | 9 | 0 | All done in its branch; Waiting for its PR's merge |
+| [#324](ticket-324-doc-sync.md) | 7 | 0 | All done in its branch; Waiting for its PR's merge |
+| [#325](ticket-325-doc-sync.md) | 6 | 0 | All done in its branch; Waiting for its PR's merge |
+| [#326](ticket-326-doc-sync.md) | 5 | 0 | All done in its branch; Waiting for #329's merge |
+| [#327](ticket-327-doc-sync.md) | see it | 0 | Done in this branch, completed with this branch's merge |
+
+### Closeout conclusion
+
+The full gate ran green on the combined product at `020a2bc` ([ticket-327-gate-full.log](ticket-327-gate-full.log):
+every `pnpm verify` command, unit 1087 passed and 1 skipped, the whole e2e suite 168 passed, smoke passed; the records
+written after it change no executable file, [ticket-327-gate-reuse.log](ticket-327-gate-reuse.log)). The full-feature closeout is complete for the combined product: every coverage unit is mapped and verified on every
+path, the two cross-ticket combinations by their own e2e case, the Pending note re-judged and kept with its reason, and
+the regression's three stages above are complete with every difference found fixed in this round or listed below for
+the owner. Waiting, and not counted as done: the merges of #329, #330, #323, #325 and #324 (each ticket's sync rows
+complete with them) and of this branch after its rebase onto them; the owner's acceptance of the feature; the issue's
+acceptance boxes on GitHub.
+
+### Open findings for the owner
+
+Every finding the feature's records leave without a durable home, in one list. Searched: the five tickets' decisions
+records and code review records (their refactoring lists included), the five test review records (read whole for this
+list), #325's worklog, the six sync checklists, and this closeout's own regression. Not repeated here: findings whose
+home is already a spec, a test file's header, CONTEXT.md or an ADR (each ticket's header gaps, all present in the
+combined tree's test files; the fork banner's inexact wording for an unreadable parent, a session-view failure mode;
+the twice-per-scan read, a token-stats failure mode), and findings already resolved (#326's two roots for one tree, by
+`db5aecf`; #325's touching badge slots, by `9762152`). None blocks the
+feature. None has a durable home in the repository: each needs the decision in its last column, and a ticket or a
+written decision is its home once taken.
+
+| # | Finding (source) | Impact | Recommended handling | Decision needed |
+|---|---|---|---|---|
+| O1 | The shared-UI gate's side-count words cover the two-side forms only ("both sides", "two sides", the Chinese for "two sides", `\x{4e24}\x{4fa7}`): "three sides", "all four" and the Chinese for "four sides", `\x{56db}\x{4fa7}`, pass (#324's regression, Stage 2) | A dictionary value enumerating the sides by count passes `pnpm check:ui`; held by hand meanwhile | Another task: match any number word with "side(s)" in both languages, with red cases for three and four | Open a ticket, or accept "held by people" |
+| O2 | `scripts/check-shared-ui.mjs` exempts a line when an allow-listed key is on the previous line (`prev.includes`, line 511) — any key that follows an allow-listed one is exempt (#325's worklog) | The gate stays green over an enumeration written on the line after an allow-listed key; it hid `subagents.globalHint`'s "Both sides…" until #325 | Another task: exempt the continuation only when the previous line opens that key's value without closing it; add a red case for the neighbour | Open a ticket |
+| O3 | Project detail's Skills section lists no Grok skill — neither `.grok/skills` nor Grok's global library (`DETAIL_SKILL_SIDES` is Claude, Codex, Antigravity CLI) — while the project-detail and skills-view features say anything that exists only globally is still listed (#325's worklog) | A Grok skill installed into a project does not appear on its page; the features sentence over-claims for Grok | Another task, through the prototype gate (a new group); or state the boundary in both features pages and the spec until then | Implement, or document as a boundary |
+| O4 | The project page's memory card grows with MEMORY.md; the project-detail prototype bounds that card at 52vh, as it bounds the configuration card #326 aligned (#326's decisions; outside this feature's interface points) | A long MEMORY.md lengthens the page instead of scrolling inside its card | A one-rule change scoped to the memory card, as the configuration card's was | Adopt the prototype's bound, or keep the app's form (then the prototype changes, with the owner's confirmation) |
+| O5 | Three unit cases skip under root with a silent `return` (`plugins.test.ts:322`, `subagents.test.ts:135`, `:150`), while subagents-view's Testing Decisions says such cases are explicitly skipped (#325's worklog) | Run as root they report green without asserting | `it.skipIf(process.getuid?.() === 0)`, as `antigravity-components.test.ts` does | Open a ticket (a three-line change) |
+| O6 | `pnpm bench:scan` and `pnpm restore:archive` run in no gate; #322's first SQLite loader broke both, found only by running them by hand (#322's code review, refactoring list) | A construct valid in the app can break the developer scripts silently; a broken restore is found when it is needed | Another task: run each script's usage path in `pnpm test:scripts` | Open a ticket |
+| O7 | Each reader of a cached entry calls the shape guard itself; the guard-after-read defect was fixed site by site (#323's code review, refactoring list; the 2026-10-29 postmortem names it) | If a future reader reads a field first, a corrupt entry fails every scan until the cache file is deleted (upper escape) | Another task: one accessor returning a well-formed entry or nothing, replacing the direct reads | Open a ticket |
+| O8 | A named pipe at a capped-read path — now including `~/.gemini/AGENTS.md` and `~/.gemini/config/AGENTS.md` — blocks the scan (#326's code review, finding 4) | The scan hangs; never observed | Leave: a fix would change every capped read | Accept |
+| O9 | A global AGENTS.md inside a directory that cannot be searched reads as absent ("None") rather than unreadable (#326's code review, finding 5, accepted there) | That entry's wording only; agy cannot load such a file either | Write it into agents-overview's failure modes as an accepted boundary, with a unit case or a named gap | Write it down, or drop it |
+| O10 | The unreadable configuration file's form — the "None" line's form carrying the read error under the path — was declared a prototype exemption, not drawn (#326's decisions; both specs) | The form stands without the owner's confirmation | Confirm it, or draw the state in the prototypes | Owner confirmation |
+| O11 | Spec wording changed during implementation under the standing instruction, marked "(spec)" for the owner's review: four rows in #323's decisions, six in #324's | Requirement text changed without the owner's explicit look | Review those rows; nothing changes unless the owner disagrees | Owner review |
+| O12 | The specs use "Antigravity" bare about 90 times — for the side and for interface labels — against CONTEXT.md's _Avoid_ ("Antigravity" bare in documents); the features pages were brought in line this round (this closeout) | Two names for one side in requirement text; most spec sections open by naming Antigravity CLI, which keeps the bare name readable there | Either scope CONTEXT's rule (documents about what is read; interface labels quoted as such), or rewrite the specs in one pass | Which of the two |
+| O13 | Refactoring items left as their records say: the activity walk caching an unreadable conversation's verdict as the usage reads do (#322's refactoring list left it to #323, which cached it for the usage reads only — the token-stats failure mode now states it); the linked parent-title fragment shared by the Codex and Antigravity CLI banners (#324, R1); project detail's skill row key colliding for two Claude plugins of one bare name from different marketplaces, `PROJECT_AGENTS_DIR` restating the reader's directories, the picker's tags not refreshed by a rescan while open, front matter read by a hand subset of YAML (#325); the e2e home builders' duplicated helpers (#327) | Self-only or Claude-only edge cases, or test code | Fold each into a later change of the same code; no ticket | Accept |
+| O14 | Stale text older than the feature: `AgentsPane.tsx`'s comment above `notDetectedHint` says the button's label is passed in (it is not); the cold-start e2e case's title says "both summary cards" (four render) (#322's code review) | A misleading comment and title | Fix with the next change to those lines | Accept, or fix |
+| O15 | Verification gaps the test reviews accepted and recorded only in their records — among them #326's agents-page CLAUDE.md "None" not drawn in e2e and a restored "neither file" detail's entries not asserted, #325's lack of a dedicated agy symlink case, #324's titles rendering through the shared text path, #323's identity guard not exercised alone (each record lists its own) | None known; each judged acceptable where recorded | Accept as recorded | Accept |

@@ -47,8 +47,8 @@ is read-only; the one write operation is uninstalling a project-level skill.
 ## Failure modes and boundaries
 
 **Sequence A: page composition**
-- A1 The set of sections = Overview / Skills / Subagents / Plugins / MCP / Memory / Configuration /
-  Artifacts; a new component type extends this list.
+- A1 The set of sections = Overview / Skills / Subagents / Plugins / MCP / Memory / Sessions /
+  Configuration / Artifacts; a new component type extends this list.
 - A2 A stale project opens as the **stale note page** (settled 2026-08-23, superseding the earlier
   "sections show empty states" behaviour): the shell — back control, struck-through name, stale tag,
   path — plus a single note card, with **no section tabs and no data areas**. The trade-off that the

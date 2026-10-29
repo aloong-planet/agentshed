@@ -1,0 +1,194 @@
+# #327 closeout audits, 2026-10-29 09:47:21 +0800, worktree HEAD 06228a6fd36aed2ffa98d6d4038bd9a544c1b69d
+# 1. Coverage: every unit the specs define on a line the feature added, against the checklist's mapping (both ways)
+$ node coverage-audit.mjs
+units defined in the feature's spec range: 86
+agents-overview::CON-004
+agents-overview::REQ-003/AC-01
+agents-overview::REQ-003/AC-02
+agents-overview::REQ-003/AC-03
+agents-overview::REQ-003/AC-04
+agents-overview::REQ-004/AC-01
+agents-overview::REQ-004/AC-02
+agents-overview::REQ-004/AC-03
+agents-overview::REQ-004/AC-04
+agents-overview::REQ-004/AC-05
+plugins-view::REQ-001/AC-01
+plugins-view::REQ-001/AC-02
+plugins-view::REQ-001/AC-03
+plugins-view::REQ-001/AC-04
+plugins-view::REQ-001/AC-05
+plugins-view::REQ-001/AC-06
+project-detail::REQ-002/AC-01
+project-detail::REQ-002/AC-02
+project-detail::REQ-002/AC-03
+project-detail::REQ-002/AC-04
+projects-list::REQ-001/AC-01
+projects-list::REQ-001/AC-02
+projects-list::REQ-001/AC-03
+projects-list::REQ-001/AC-04
+projects-list::REQ-001/AC-05
+session-view::REQ-003/AC-01
+session-view::REQ-003/AC-02
+session-view::REQ-003/AC-03
+session-view::REQ-003/AC-04
+session-view::REQ-003/AC-05
+session-view::REQ-003/AC-06
+session-view::REQ-004/AC-01
+session-view::REQ-004/AC-02
+session-view::REQ-004/AC-03
+session-view::REQ-004/AC-04
+session-view::REQ-004/AC-05
+session-view::REQ-004/AC-06
+session-view::REQ-004/AC-07
+session-view::REQ-004/AC-08
+session-view::REQ-004/AC-09
+session-view::REQ-005/AC-01
+session-view::REQ-005/AC-02
+session-view::REQ-005/AC-03
+session-view::REQ-005/AC-04
+session-view::REQ-005/AC-05
+skill-install::REQ-001/AC-01
+skill-install::REQ-001/AC-02
+skill-install::REQ-001/AC-03
+skill-install::REQ-001/AC-04
+skill-install::REQ-001/AC-05
+skill-install::REQ-002/AC-01
+skill-install::REQ-003/AC-01
+skill-install::REQ-003/AC-02
+skills-view::REQ-001/AC-01
+skills-view::REQ-001/AC-02
+skills-view::REQ-001/AC-03
+skills-view::REQ-001/AC-04
+skills-view::REQ-001/AC-05
+skills-view::REQ-001/AC-06
+skills-view::REQ-002/AC-01
+skills-view::REQ-002/AC-02
+skills-view::REQ-002/AC-03
+skills-view::REQ-002/AC-04
+skills-view::REQ-002/AC-05
+skills-view::REQ-002/AC-06
+subagents-view::REQ-001/AC-01
+subagents-view::REQ-001/AC-02
+subagents-view::REQ-001/AC-03
+subagents-view::REQ-001/AC-04
+subagents-view::REQ-001/AC-05
+subagents-view::REQ-001/AC-06
+token-stats::CON-001
+token-stats::CON-002
+token-stats::REQ-003/AC-01
+token-stats::REQ-003/AC-02
+token-stats::REQ-003/AC-03
+token-stats::REQ-003/AC-04
+token-stats::REQ-003/AC-05
+token-stats::REQ-003/AC-06
+token-stats::REQ-003/AC-07
+token-stats::REQ-003/AC-08
+token-stats::REQ-003/AC-09
+token-stats::REQ-004/AC-01
+token-stats::REQ-004/AC-02
+token-stats::REQ-004/AC-03
+token-stats::REQ-004/AC-04
+
+units with no mapping row: 0
+
+
+mapped identifiers not defined in the feature's range (pre-existing units or ids cited as regressions): 7
+global-search::REQ-001
+session-view::CON-001
+session-view::CON-002
+session-view::US-001
+session-view::US-001/AC-01
+session-view::US-001/AC-04
+session-view::US-001/AC-07
+exit=0
+
+# 2. The current-verification rows' quoted case titles, looked up in the test files
+# This run includes the closeout rows (added after the first run): 205 quoted strings = the tickets' rows' 201 and
+# the closeout rows' 4. The first run, over the tickets' rows alone, found 196 of their 201 (the same five non-titles as
+# below); the two further non-titles here are the closeout rows' own quotes of the tickets' verdict wording, and the
+# closeout rows' other two quotes — the combined case's title and the plugin note it reads — are found.
+$ node titles-audit.mjs
+test files searched: 98
+quoted titles in Current verification: 205; found: 198; not found: 7
+NOT FOUND: the rest is #32y's
+NOT FOUND: ANTIGRAVITY · Detected · 3 projects · 0 global skills · 0 subagents
+NOT FOUND:  note without a marketplace; 
+NOT FOUND:  alone on a project's page), e2e 
+NOT FOUND:  (no group without agy or plugins), e2e 
+NOT FOUND:  (the group drawn without agy for its plugin), e2e 
+NOT FOUND: Verified for #32x's path; the rest is #32y's
+exit=0
+
+# ---- coverage-audit.mjs ----
+# | // Coverage audit for the #327 closeout: every coverage unit the feature's spec range defines (added between 7fe3588
+# | // and HEAD) against the feature checklist's "Spec → tickets → verification" table, both directions.
+# | // Run in the worktree: node coverage-audit.mjs
+# | import { execFileSync } from 'node:child_process'
+# | import { readFileSync } from 'node:fs'
+# | 
+# | const specs = ['token-stats', 'projects-list', 'session-view', 'agents-overview', 'skills-view', 'skill-install',
+# |   'subagents-view', 'plugins-view', 'project-detail', 'memory-view', 'global-search']
+# | const diff = execFileSync('git', ['diff', '-U0', '7fe3588', 'HEAD', '--', ...specs.map((s) => `docs/specs/${s}.md`)], { encoding: 'utf8', maxBuffer: 1 << 26 })
+# | // Definitions: a heading "### <id> …" (a requirement) or a list item "- <id>: …" (an acceptance criterion), on an added
+# | // or changed line of the feature's range
+# | const defined = new Set()
+# | const reqHasAc = new Set()
+# | for (const line of diff.split('\n')) {
+# |   if (!line.startsWith('+') || line.startsWith('+++')) continue
+# |   const body = line.slice(1)
+# |   let m = body.match(/^###\s+([a-z-]+::(?:REQ|US|CON|QR)-\d{3})\b/)
+# |   if (m) defined.add(m[1])
+# |   m = body.match(/^-\s+([a-z-]+::(?:REQ|US|CON|QR)-\d{3})\/(AC-\d{2})[:\s]/)
+# |   if (m) { defined.add(`${m[1]}/${m[2]}`); reqHasAc.add(m[1]) }
+# | }
+# | // A requirement with ACs is covered by its ACs; one without is a direct-acceptance unit
+# | const units = [...defined].filter((u) => u.includes('/AC-') || !reqHasAc.has(u)).sort()
+# | 
+# | // The checklist's mapping table: first column of the rows between its heading and the next heading
+# | const checklist = readFileSync('docs/.workings/antigravity-side/checklist.md', 'utf8')
+# | const table = checklist.split('## Spec → tickets → verification')[1].split('\n## ')[0]
+# | const mapped = new Set()
+# | for (const row of table.split('\n').filter((l) => l.startsWith('| ') && !l.startsWith('| Spec coverage') && !l.startsWith('|---'))) {
+# |   const first = row.split('|')[1]
+# |   // Expand "X/AC-01 … X/AC-05" and "X/AC-01 … AC-05"
+# |   const range = first.match(/([a-z-]+::(?:REQ|US|CON|QR)-\d{3})\/AC-(\d{2})\s*…\s*(?:[a-z-]+::(?:REQ|US|CON|QR)-\d{3}\/)?AC-(\d{2})/)
+# |   if (range) for (let i = Number(range[2]); i <= Number(range[3]); i++) mapped.add(`${range[1]}/AC-${String(i).padStart(2, '0')}`)
+# |   for (const m of first.matchAll(/([a-z-]+::(?:REQ|US|CON|QR)-\d{3})(?:\/(AC-\d{2}))?/g)) mapped.add(m[2] ? `${m[1]}/${m[2]}` : m[1])
+# | }
+# | const unmapped = units.filter((u) => !mapped.has(u))
+# | const extra = [...mapped].filter((u) => !defined.has(u) && !units.includes(u)).sort()
+# | console.log(`units defined in the feature's spec range: ${units.length}`)
+# | console.log(units.join('\n'))
+# | console.log(`\nunits with no mapping row: ${unmapped.length}`)
+# | console.log(unmapped.join('\n'))
+# | console.log(`\nmapped identifiers not defined in the feature's range (pre-existing units or ids cited as regressions): ${extra.length}`)
+# | console.log(extra.join('\n'))
+# ---- titles-audit.mjs ----
+# | // For the #327 closeout: every case title the checklist's "Current verification" rows quote, looked up in the test
+# | // files of the combined tree. A quote ending in "…" is a prefix. Run in the worktree: node titles-audit.mjs
+# | import { execFileSync } from 'node:child_process'
+# | import { readFileSync } from 'node:fs'
+# | 
+# | const checklist = readFileSync('docs/.workings/antigravity-side/checklist.md', 'utf8')
+# | const section = checklist.split('## Current verification')[1].split('\n## ')[0]
+# | const files = execFileSync('git', ['ls-files', 'src', 'e2e', 'scripts'], { encoding: 'utf8' })
+# |   .split('\n')
+# |   .filter((f) => /\.(test|spec)\.(ts|mjs)$/.test(f))
+# | const corpus = files.map((f) => readFileSync(f, 'utf8')).join('\n')
+# | // Titles are written in the source with straight quotes inside single-quoted or template strings, and the record
+# | // quotes them with straight double quotes; normalise typographic apostrophes the record may carry
+# | const norm = (s) => s.replace(/[’‘]/g, "'").replace(/\\'/g, "'")
+# | const source = norm(corpus)
+# | const quotes = [...section.matchAll(/"([^"\n]{12,}?)"/g)].map((m) => m[1])
+# | let found = 0
+# | const missing = []
+# | for (const q of quotes) {
+# |   let probe = norm(q).replace(/\s*(…|\.\.\.)\s*$/, '')
+# |   // A quote cut in the middle by "…" is matched by its longest piece
+# |   if (probe.includes('…')) probe = probe.split('…').sort((a, b) => b.length - a.length)[0].trim()
+# |   if (source.includes(probe)) found++
+# |   else missing.push(q)
+# | }
+# | console.log(`test files searched: ${files.length}`)
+# | console.log(`quoted titles in Current verification: ${quotes.length}; found: ${found}; not found: ${missing.length}`)
+# | for (const q of missing) console.log(`NOT FOUND: ${q}`)

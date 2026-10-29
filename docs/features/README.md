@@ -13,7 +13,7 @@ a product overview written for people.
 | Feature | In one line |
 |---|---|
 | [Application icon](app-icon.md) | A reactor identity: cyan production and yellow development |
-| [Agents overview](agents-overview.md) | The default landing page: every agent sides' global picture and total consumption at a glance |
+| [Agents overview](agents-overview.md) | The default landing page: every agent side's global picture and total consumption at a glance |
 | [Project list](projects-list.md) | The union of every side's registered projects, filterable and searchable |
 | [Project detail](project-detail.md) | What one project has installed: each component's effective view, MCP, configuration and artifacts |
 | [Subagents view](subagents-view.md) | The agent sides' subagent definitions merged into one view, showing at a glance which ones are in effect in a project |

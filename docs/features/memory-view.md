@@ -26,8 +26,8 @@ full in project detail.
   listed truthfully with a note)
 - Project detail Memory section: the main memory file (MEMORY.md) is rendered directly; topic files
   are listed and open in the same drawer, and the main file's links to them open them there
-- A project no Claude Code registry records — Codex only, Antigravity CLI only, or both — shows an
-  explanation (memory is a Claude-side mechanism, and Codex memory is global)
+- A project no Claude Code registry records shows an explanation (memory is a Claude-side mechanism,
+  and Codex memory is global)
 
 ## Boundaries and non-goals
 - Read-only: no editing or deleting memories; memory is agent-generated content

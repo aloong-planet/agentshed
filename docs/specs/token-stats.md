@@ -604,7 +604,9 @@ Applies to: every conversation database of the side, forks and subagent conversa
   A conversation that changed is read twice in one scan — once for its folder (the activity walk) and
   once for its usage — so one agy is writing is copied twice. A conversation whose database time and
   log did not change since its last read is not read again, and a conversation found unreadable keeps
-  that verdict, counted at every scan, until its database or its log changes.
+  that verdict, counted at every scan, until its database or its log changes. The activity walk keeps
+  only successful reads, so it opens an unreadable conversation again at every scan — in place, or
+  through a copy while a log is beside it — and finds it unreadable again.
 - A read cut short by the application being killed leaves its copy in a temporary directory only the
   user can read; nothing is left under agy's directories.
 - A conversation is credited to the first of its trajectory metadata's workspace URIs or, in a record
@@ -626,9 +628,9 @@ Applies to: every conversation database of the side, forks and subagent conversa
   and the two namespaces were not observed to collide.
 - A model id with a routing suffix (`-n`): kept as recorded (token-stats::REQ-003/AC-04), so the per-model
   list can show names no other tool shows; accepted.
-- A model call agy runs on a Claude model reports cache writes; the four-field total includes them and
-  the CONTEXT.md invariant that treats cache writes as a Claude-only figure is amended when this side
-  ships.
+- A model call agy runs on a Claude model reports cache writes; the four-field total includes them, and
+  CONTEXT.md's `TokenTotals.input` invariant counts cache writes among the figures the Claude Code and
+  Antigravity CLI sides report.
 - Usage agy never writes to a database — the `/btw` side question (deleted once answered) and the Auto
   mode's command reviewer — is not counted; this under-count is stated in the features page, not in the
   interface.
@@ -794,8 +796,10 @@ only one side has data; pure functions (trend/axis/provider) get their own
 unit tests covering the geometric constraints of segmentation and axis layout; e2e covers that an
 old-format cache does not crash at startup and the geometric checks on the trend chart's rendering
 (labels do not overlap, tooltips are not clipped). The reconciliation baseline: the day-by-day ccusage
-comparison, which now covers **all three sides** — the third-party meter gained Grok support, so the
-side that once had no standing external baseline has one. The comparison needs real data and a
+comparison, which covers **the Claude Code, Codex and Grok sides** — the third-party meter gained Grok
+support, so the side that once had no standing external baseline has one. The meter has no Antigravity
+CLI reader: that side's baseline is the call-by-call reconciliation of 2026-10-28 named in its testing
+decisions below. The comparison needs real data and a
 freshly generated baseline, so it stays out of the default gate; what it must not do is stay
 unrunnable, which is how a whole side's systematic drift went unnoticed for weeks. Its baseline is
 generated on demand rather than read from a fixed path — a path named after the day it was first
@@ -870,7 +874,7 @@ moved and others did not — checking them one at a time would pass on a page th
   (not an estimate) — see ADR-0019: the other sides carry none, and a metric present on only one of
   them reads as breakage on the rest.
 - An exact per-model split on the Codex side (currently an approximation at the level of the session's
-  primary model). The Claude and Grok sides are exact, so the per-model table mixes exact and
+  primary model). The other sides are exact, so the per-model table mixes exact and
   approximate figures without saying which is which; this asymmetry is known and accepted.
 - Sessions from before this application first ran that the agent has already cleaned up (unrecoverable).
 - Telling a correction from a loss by magnitude. The stamp is the only discriminator (ADR-0026);

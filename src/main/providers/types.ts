@@ -1,6 +1,6 @@
 // The data layer provider interface (seam 1): the data roots are injectable, so tests feed fixtures and
 // production takes the real locations.
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import type { AgentSide } from '@shared/domain'
 
 export interface ScanRoots {
@@ -13,28 +13,24 @@ export interface ScanRoots {
   codexHome: string
   /** The directory holding Antigravity CLI's data root (antigravity-cli/) and the configuration it loads
    * (config/) — production: ~/.gemini (ADR-0037). Named for the directory, which Gemini CLI also uses; this
-   * product reads it for the Antigravity CLI side only */
+   * product reads it for the Antigravity CLI side only. The one source of that path: every location under it
+   * outside the data root is derived from this field (antigravityConfigDir, agy's third global skills library,
+   * the global AGENTS.md files) */
   geminiHome: string
   /** Grok's data root (production: ~/.grok; the registry is its trusted_folders.toml, ADR-0019) */
   grokHome: string
-  /** Antigravity CLI's data root (production: ~/.gemini/antigravity-cli; the registry is trustedWorkspaces in its
-   * settings.json, ADR-0037). The desktop app's and the IDE's roots beside it are never read (token-stats::CON-001) */
+  /** Antigravity CLI's data root, `<geminiHome>/antigravity-cli` (production: ~/.gemini/antigravity-cli; the registry
+   * is trustedWorkspaces in its settings.json, ADR-0037) — a field of its own, like every side's data root. The
+   * desktop app's and the IDE's roots beside it are never read (token-stats::CON-001) */
   antigravityHome: string
   /** The Codex / shared global skills directory (production: ~/.agents/skills) */
   agentsSkillsDir: string
 }
 
-/**
- * The directory holding Antigravity CLI's data root, `~/.gemini`. Derived from the data root for now: #326 adds a root of
- * its own for the same directory, and the feature's closeout folds the two together (ticket #325's decisions).
- */
-export function geminiDir(roots: ScanRoots): string {
-  return dirname(roots.antigravityHome)
-}
-
-/** The configuration agy loads beside its data root, `~/.gemini/config` (ADR-0037): plugins, agents, MCP, skills */
+/** The configuration agy loads beside its data root, `~/.gemini/config` (ADR-0037): plugins, agents, MCP, skills,
+ * AGENTS.md */
 export function antigravityConfigDir(roots: ScanRoots): string {
-  return join(geminiDir(roots), 'config')
+  return join(roots.geminiHome, 'config')
 }
 
 /**
@@ -53,7 +49,7 @@ export function globalSkillsRoots(roots: ScanRoots): Record<AgentSide, readonly 
       join(roots.antigravityHome, 'skills'),
       join(antigravityConfigDir(roots), 'skills'),
       // agy labels this one "Shared"; it is one of agy's global libraries, not the shared skills directory (CONTEXT)
-      join(geminiDir(roots), 'skills')
+      join(roots.geminiHome, 'skills')
     ]
   }
 }

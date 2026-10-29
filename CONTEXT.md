@@ -31,7 +31,9 @@ default, can be toggled on.
 _Avoid_: dead project, invalid project
 
 **Agent side**:
-A data source. Enumerated: Claude Code, Codex, Grok, and Antigravity CLI (being onboarded, ADR-0037).
+A data source. Enumerated: Claude Code, Codex, Grok and Antigravity CLI (ADR-0037). Antigravity CLI's
+command is `agy`: documents use that name where a sentence speaks of the tool itself acting — what agy
+loads, writes or labels — and "Antigravity CLI" where it speaks of the side.
 _Avoid_: tool, CLI, platform; `grok-build` (that is the name of a profile *inside* the Grok side, not
 the side); "Gemini" for the Antigravity CLI side (Gemini CLI is a different tool and not a side);
 "Antigravity" bare in documents (it names a product family whose desktop app and IDE keep data this
@@ -80,7 +82,8 @@ _Avoid_: installed list
 
 **Subagent**:
 A specialised assistant described by an agent definition file (Claude: `agents/*.md`;
-Codex: `agents/*.toml`), which runs in its own context when delegated a subtask. Strictly distinct
+Codex: `agents/*.toml`; Antigravity CLI: `agents/<name>.md` or `agents/<name>/agent.md`), which runs in its
+own context when delegated a subtask. Strictly distinct
 from "agent side": a side is a data source, a subagent is a kind of component within a side.
 _Avoid_: agent (bare, confusable with agent side)
 
@@ -93,7 +96,8 @@ _Avoid_: notes (too general); `CLAUDE.md` (human-authored instructions — that 
 **Effective enabled plugins**:
 The set of plugins actually in effect from a given project's point of view: those resolving to true
 after `enabledPlugins` is merged across the local > project > user layers. The global page uses the
-user layer.
+user layer. Antigravity CLI has one layer, its shared configuration, and no per-project enablement: a
+plugin is in effect everywhere unless that configuration disables it (plugins-view::REQ-001/AC-02).
 _Avoid_: installed (installed ≠ enabled)
 
 **Plugin-bundled components**:

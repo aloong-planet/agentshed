@@ -1,0 +1,97 @@
+# token-stats::REQ-003/AC-08 Pending note: read-only re-check of this machine's agy conversations (#327 closeout)
+# 2026-10-29 09:08:03 +0800; worktree HEAD 87ec0b3f142e24ec4a540a13b641835c1ba7c224
+# Method: copy every conversation database (and its -wal when present) out of ~/.gemini/antigravity-cli/conversations into a
+# scratch directory, read only the copies, decode each copy's 'main' trajectory record with the product's decoder
+# (src/main/providers/agy-proto.ts decodeTrajectoryMetadata), and compare the source directory's (name, size, mtime)
+# listing before and after. Folder paths are counted, not printed. The script, bundled with esbuild and run with node:
+#   ./node_modules/.bin/esbuild pending-check.ts --bundle --platform=node --format=esm --outfile=pending-check.mjs
+#   node pending-check.mjs <scratch dir>
+# Control that the decoder counts several folders: agy-proto.test.ts 'a record listing two folders names the first; without workspace_uris the workspaces carry them' (line 82).
+# ---- script ----
+# | // Read-only re-check of token-stats::REQ-003/AC-08's Pending note (2026-10-29, #327 closeout).
+# | // Copies every conversation database (and its log, when present) out of agy's conversations directory into this
+# | // scratch directory first, then reads only the copies; the source directory's (name, size, mtime) listing is taken
+# | // before and after and compared. Decodes each copy's `main` trajectory record with the product's own decoder.
+# | import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+# | import { homedir } from 'node:os'
+# | import { join } from 'node:path'
+# | import { decodeTrajectoryMetadata, firstFolder, isSubagent } from '/Users/loong_zhou/CascadeProjects/agentshed-wt-327/src/main/providers/agy-proto'
+# | 
+# | const sqlite = process.getBuiltinModule('node:sqlite')
+# | const src = join(homedir(), '.gemini', 'antigravity-cli', 'conversations')
+# | const out = join(process.argv[2], 'copies')
+# | 
+# | function listing(): string {
+# |   return readdirSync(src)
+# |     .sort()
+# |     .map((n) => {
+# |       const s = statSync(join(src, n))
+# |       return `${n}\t${s.size}\t${s.mtimeMs}`
+# |     })
+# |     .join('\n')
+# | }
+# | 
+# | const before = listing()
+# | rmSync(out, { recursive: true, force: true })
+# | mkdirSync(out, { recursive: true })
+# | const dbs = readdirSync(src).filter((n) => n.endsWith('.db')).sort()
+# | for (const n of dbs) {
+# |   if (existsSync(join(src, `${n}-wal`))) copyFileSync(join(src, `${n}-wal`), join(out, `${n}-wal`))
+# |   copyFileSync(join(src, n), join(out, n))
+# | }
+# | const after = listing()
+# | 
+# | let multi = 0
+# | let subagents = 0
+# | const rows: string[] = []
+# | for (const n of dbs) {
+# |   const db = new sqlite.DatabaseSync(join(out, n))
+# |   try {
+# |     const row = db.prepare("SELECT data FROM trajectory_metadata_blob WHERE id = 'main'").get() as { data: Uint8Array } | undefined
+# |     if (!row) {
+# |       rows.push(`${n}\tno main record`)
+# |       continue
+# |     }
+# |     const m = decodeTrajectoryMetadata(row.data)
+# |     const sub = isSubagent(m)
+# |     if (sub) subagents++
+# |     if (m.folderUris.length > 1) multi++
+# |     // Folder paths are reported by count and by whether the first resolves locally — not printed, to keep the log free
+# |     // of the user's directory names
+# |     rows.push(`${n}\tfolders=${m.folderUris.length}\tfirstLocal=${firstFolder(m) !== null}\tsubagent=${sub}`)
+# |   } finally {
+# |     db.close()
+# |   }
+# | }
+# | console.log(`conversations: ${dbs.length}`)
+# | console.log(`logs present at copy time: ${readdirSync(src).filter((n) => n.endsWith('-wal')).length}`)
+# | console.log(rows.join('\n'))
+# | console.log(`listing more than one folder: ${multi} of ${dbs.length}`)
+# | console.log(`subagent conversations: ${subagents}`)
+# | console.log(`source listing unchanged by the copy: ${before === after}`)
+# | rmSync(out, { recursive: true, force: true })
+# ---- output (exit=0) ----
+conversations: 19
+logs present at copy time: 0
+06d3cae9-60a7-485b-96d5-21857c993fdd.db	folders=1	firstLocal=true	subagent=false
+0a8a27a0-7a37-4be5-90d4-893173dab8c3.db	folders=1	firstLocal=true	subagent=false
+0ccb2796-c9a0-461f-8380-6036bd9588f9.db	folders=1	firstLocal=true	subagent=false
+2bac272a-07c9-45b4-a8fd-62f9cdf3cf57.db	folders=1	firstLocal=true	subagent=false
+3c7edf23-8dca-4af3-be23-ae95814342c1.db	folders=1	firstLocal=true	subagent=false
+438a6b76-5f66-490d-8506-613ed88f6d68.db	folders=1	firstLocal=true	subagent=false
+6126685f-9d26-410d-827a-ffd4a330e6e2.db	folders=1	firstLocal=true	subagent=false
+656e8666-89f4-4c8e-b55f-2dc7ba084e6f.db	folders=1	firstLocal=true	subagent=false
+78543117-17bd-4161-bc47-c256f29f31eb.db	folders=1	firstLocal=true	subagent=false
+86602c14-63b5-4418-9385-76e73fe1b811.db	folders=1	firstLocal=true	subagent=false
+8c07e920-698c-4969-a30b-0226832da747.db	folders=1	firstLocal=true	subagent=false
+9252302d-fd15-4d99-880c-064689b6c239.db	folders=1	firstLocal=true	subagent=false
+ac655fbb-0fba-4eff-a6e7-cb560f59c0ba.db	folders=1	firstLocal=true	subagent=false
+b5ca9570-b968-4118-aaaf-2a8d78ac0a0c.db	folders=1	firstLocal=true	subagent=true
+c3511c76-a07b-4bcd-ba0f-217114cb20d7.db	folders=1	firstLocal=true	subagent=false
+d5668d1e-7234-45e4-ba2b-be124274954a.db	folders=1	firstLocal=true	subagent=false
+e7f637c9-4d6c-4e6d-9b75-e53e5bd4be28.db	folders=1	firstLocal=true	subagent=true
+eaf52773-7754-4206-838e-b919564c8eb9.db	folders=1	firstLocal=true	subagent=false
+fc99511b-e69c-426a-8dfd-b7e7a82823f5.db	folders=1	firstLocal=true	subagent=false
+listing more than one folder: 0 of 19
+subagent conversations: 2
+source listing unchanged by the copy: true
