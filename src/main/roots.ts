@@ -8,13 +8,14 @@ import type { ScanRoots } from './providers/types'
 
 export function realRoots(): ScanRoots {
   const home = process.env['AGENTSHED_HOME_OVERRIDE'] ?? homedir()
+  const gemini = join(home, '.gemini')
   return {
     claudeHome: join(home, '.claude'),
     claudeConfigFile: join(home, '.claude.json'),
     codexHome: join(home, '.codex'),
-    geminiHome: join(home, '.gemini'),
+    geminiHome: gemini,
     grokHome: join(home, '.grok'),
-    antigravityHome: join(home, '.gemini', 'antigravity-cli'),
+    antigravityHome: join(gemini, 'antigravity-cli'),
     agentsSkillsDir: join(home, '.agents', 'skills')
   }
 }

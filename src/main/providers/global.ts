@@ -227,7 +227,7 @@ function globalAgentsMdPaths(roots: ScanRoots): string[] {
   return [
     codexAgentsMdPath(roots),
     join(roots.geminiHome, 'AGENTS.md'),
-    join(roots.geminiHome, 'config', 'AGENTS.md')
+    join(antigravityConfigDir(roots), 'AGENTS.md')
   ]
 }
 
