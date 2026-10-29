@@ -292,7 +292,7 @@ scope: **the whole feature**, `7fe3588..HEAD` of `feat/antigravity-closeout` —
 combined them (`dc80aa2`: #329 for #326, #330 for #322, #323, #325, #324), and this ticket's commits (`db5aecf` the
 `~/.gemini` path fold, `87ec0b3` the combined e2e case, `a57150b`, `2e76d06`, `434cfac` and `274cb00` the documents and records, `9762152` the side-badge slot gap with the case's review fixes). The tree is the combined
 product the feature will be on main once the five land and this branch is rebased onto them. Languages in scope, by a
-script count per file (`grep -c -P '[\x{4e00}-\x{9fff}]'` and `grep -c -P '[A-Za-z]'`): the twelve feature pages, the
+script count per file (`grep -c -P '[\x{4e00}-\x{9fff}]'` and `grep -c -P '[A-Za-z]'`): the eleven feature pages, the
 eleven specs, CONTEXT.md and ADR-0037 hold no Han text; README.md (50 Han lines), `site/src/i18n/ui.ts` (47) and the
 Chinese dictionary (376) hold Chinese and were searched with Chinese terms too; README.en.md holds one (the language
 switcher).
@@ -318,7 +318,7 @@ switcher).
 ### Stage 1: changed declarations
 
 Declaration surfaces the whole feature changed (`git diff --stat 7fe3588 HEAD -- docs/features docs/specs docs/adr
-docs/postmortems docs/prototypes CONTEXT.md README.md README.en.md package.json site src/shared/i18n`): twelve feature
+docs/postmortems docs/prototypes CONTEXT.md README.md README.en.md package.json site src/shared/i18n`): eleven feature
 pages with the index, ten specs (global-search's is unchanged), ADR-0037 with the ADR index, a postmortem with its
 index, thirteen prototype files, CONTEXT.md and both dictionaries. The READMEs, `package.json` and the site are unchanged
 (that command lists none of them).
@@ -337,7 +337,7 @@ index, thirteen prototype files, CONTEXT.md and both dictionaries. The READMEs, 
 
 | Relation | Statement checked | Result |
 |---|---|---|
-| features README ↔ the twelve touched pages | Each page's one-line description | True; the Agents overview row's "every agent sides'" corrected to "every agent side's" |
+| features README ↔ the eleven touched pages | Each page's one-line description | True; the Agents overview row's "every agent sides'" corrected to "every agent side's" |
 | specs README, ADR README, postmortems README ↔ their touched files | Rows (spec links; ADR-0037 "Accepted"; the postmortem's account) | True; no change |
 | Rule ↔ its gate: copy never enumerates the sides ↔ `pnpm check:ui` | The gate's count words and its exemption rule, against the combined dictionaries | Covered for the two-side forms only; a "three sides" / "four sides" form passes it, and a key on the line after an allow-listed key is exempt by position (#324's and #325's findings) — held by hand this round (Stage 3's searches found none in the dictionaries); listed for the owner (O1, O2) |
 | Rule ↔ its gate: the working language in this feature's records ↔ `pnpm check:lang` | Records added with `-f` | Covered: every record of this round is tracked and the full gate's check:lang ran over it |
