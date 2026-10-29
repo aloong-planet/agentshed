@@ -3,7 +3,7 @@
 > Related: [features](../features/app-update.md) · [ADR-0032](../adr/0032-app-updates.md) (as amended
 > the same day) · [ADR-0031](../adr/0031-macos-release-line.md) (the releases this reads) ·
 > [mac-distribution](mac-distribution.md) (what each release carries) · CONTEXT: **App update**,
-> **Update check**, **Release channel**, and the invariant on outbound requests
+> **Update check**; AGENTS.md: the invariant on outbound requests
 
 ## Problem Statement
 
@@ -215,7 +215,7 @@ both footnotes, every result line and every toast.
 
 Applies to: the app's own code, in the main process and the renderer. The update check, and the
 download of an update it found, are the only outbound requests the app makes, and both go to GitHub
-Releases (ADR-0032, CONTEXT's outbound-request invariant). The renderer's content security policy
+Releases (ADR-0032, the AGENTS.md outbound-request invariant). The renderer's content security policy
 keeps allowing no remote origin. The app shows no statement about this request (ADR-0032 option 10,
 declined).
 

@@ -59,8 +59,8 @@ const BURST_GAP_MS = 1000
  * Strip the replay prefix from the start of a Codex fork session, keeping only what is new since this
  * fork (spec B2).
  *
- * **The direction of failure decides the conservative choice here** (the CONTEXT invariant "strictness
- * follows the direction of failure"):
+ * **The direction of failure decides the conservative choice here** (the AGENTS.md invariant that
+ * stripping may follow the sample and admitting may not):
  * stripping too much → a real question silently disappears and the user cannot tell; too little →
  * duplicates, which the user sees immediately and which have
  * an uncertainty marker to explain them. So if the check does not pass, **strip nothing** — never gamble.

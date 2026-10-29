@@ -152,7 +152,7 @@ describe('window slicing', () => {
 
   it('cache writes are counted inside uncached input, never on their own', () => {
     // The grouping the legend claims. `input` and `cacheWrite` do not each carry one meaning across
-    // sides, but their sum does — CONTEXT.md's invariant, and the reason this is the chosen cut.
+    // sides, but their sum does — the AGENTS.md invariant, and the reason this is the chosen cut.
     const rows = [real('claude', dayBack(0), { input: 10, cacheWrite: 90, output: 1, cacheRead: 899 })]
     const c = sliceUsage(rows, 'all', ANCHOR).composition
     expect(c).toEqual({ uncachedInput: 100, output: 1, cacheRead: 899 })

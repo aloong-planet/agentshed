@@ -33,7 +33,7 @@ const MUST_DIFFER: Array<{ why: string; a: (d: Locale) => string; b: (d: Locale)
     b: (d) => d.errors.skillDeleteFailed('E')
   },
   {
-    why: '“not enabled” (never turned on) is not “disabled” (turned off) — CONTEXT.md requires a degraded judgement to match what the target agent actually does, and neither agent can tell us a switch was thrown',
+    why: '“not enabled” (never turned on) is not “disabled” (turned off) — AGENTS.md requires a degraded judgement to match what the target agent actually does, and neither agent can tell us a switch was thrown',
     a: (d) => d.plugins.notEnabled,
     b: (d) => d.plugins.disabledShort
   },

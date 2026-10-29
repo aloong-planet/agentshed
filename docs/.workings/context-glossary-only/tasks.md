@@ -1,0 +1,139 @@
+# CONTEXT.md → glossary only (2026-10-29)
+
+Decisions (user, 2026-10-29):
+- CONTEXT.md keeps only Language + Flagged ambiguities; tightened writing rules.
+- Invariants leave CONTEXT.md: each surviving one becomes one line in the project AGENTS.md, pointing at
+  where its reason lives (ADR / postmortem / gate / code comment).
+- Engineering invariants: the cross-project mechanism moves up into the matching skill; the project-specific
+  remnant becomes an AGENTS.md line.
+- Global AGENTS.md:52 destination changes from "CONTEXT.md invariant" to "project AGENTS.md invariant".
+- Scope: agentshed only; the other six repos with a CONTEXT.md are listed as a todo for the user.
+
+Worktrees:
+- agentshed: ../agentshed-context-glossary, branch docs/context-glossary-only
+- skillshed: ../skillshed-wt-context-glossary, branch context-glossary-only
+- agent-rules: ~/git/zhoulf/agent-rules-wt-context-glossary, branch context-glossary-only
+
+## Tasks
+
+- [x] A1 Classify the 25 invariants. 21 became AGENTS.md lines; light/dark declarations (already in the
+      ui-design skill), the startTransition measurement and retried negative assertions (moved up into
+      review-code's false-greens) left the project; `rail` became a glossary term.
+- [x] A2 AGENTS.md Invariants section (six groups)
+- [x] A3 Language entries: 52 entries, each at most two sentences; a second pass against the tightened
+      CONTEXT-FORMAT removed UI details, procedures and identifiers after confirming each in its spec or ADR
+      (stale default, borrowing copy, shared-directory install behaviour, Activity's reason, Codex memory
+      visibility, time-window selection, trend-span charts). Added: Question (from Session), Rail.
+- [x] A4 Flagged ambiguities: six entries, the two six-language entries merged; "Dual view" no longer appears in
+      any document, the entry now names cross-project artifact aggregation, which the project-detail spec uses
+- [x] A5 Contents at the top
+- [x] A6 57 live references retargeted from CONTEXT invariants to AGENTS.md (code comments, scripts, e2e,
+      specs, ops); ADRs and postmortems left as they are, AGENTS.md's Invariants intro resolves their
+      citations. References to glossary terms checked and still resolve.
+- [x] A7 pnpm verify (typecheck, lint, test, test:scripts, test:site, check:ui, check:lang, check:i18n,
+      check:nul, e2e 168, smoke) exit 0 after installing site/'s own dependencies in the worktree; after the
+      second CONTEXT.md pass, check:lang, check:nul and check:ui rerun, exit 0
+- [x] S1–S8 skills (skillshed branch context-glossary-only); record in skillshed
+      docs/.workings/context-glossary-only/skill-policy-check.md
+- [x] S9 skill-policy self-check, both phases, converged
+- [x] R1 agent-rules AGENTS.md: §52 destination and the invariant line format; §16; §18 wording
+- [x] M1 memory reuse-parsers-over-regex.md pointer
+- [x] P1 PRs opened: aloong-planet/agentshed#337, aloong-planet/skillshed#28, zhoulf1006/agent-rules#1
+- [ ] T1 Todo for the other six repos (user decides where it goes)
+
+## Found, not changed here
+
+- docs/specs/skills-view.md:607 cites CONTEXT for the retired `differs` signal; CONTEXT.md dropped that entry in
+  #107 (7a3d262), so the citation already pointed at nothing before this change.
+- agent-rules: the shared checkout's main carries an unpushed commit (02d5f19) and uncommitted edits to
+  AGENTS.md lines 35, 38 and 58; this branch touches lines 16, 18 and 52.
+- skillshed: the shared checkout carries uncommitted edits in features-catalog/SKILL.md (line 18),
+  github-ops/SKILL.md (lines 3–67) and github-ops/checks-gate.md (line 36); this branch touches other lines of
+  the same files, so a pull there waits until those edits are committed or stashed.
+
+## Round 2 (2026-10-29, same day)
+
+User decisions: apply the fourth admission test (a term needs a confusable concept named in the entry, or a meaning
+its words do not give away) and the second-sentence rule; then make every reader take the contents first and a
+single entry only when its detail is needed.
+
+- Removed six entries: Plugin-bundled components, Resume command, Data day, Past day, Structured error, Release
+  channel; each is defined where it is used (ADR-0010 and skills-view, session-view line 35, ADR-0009, ADR-0026,
+  ADR-0015, app-update spec line 25 and ADR-0032). Usage boundary stays: the rule admits a coined term.
+- Second sentences removed where they stated a property or behaviour (Effective view, Effective enabled plugins,
+  Project install, Usage boundary, Usage row, Accounting stamp, Observed value, Theme variable classes, Update
+  check; half of Transfusion and Cold rollout), each found in its spec, ADR or code comment first. Compacted window
+  keeps its second sentence: no spec or ADR states that a thread repeats its whole summarised history.
+- Title "Filtering and searching" now matches its contents entry, so a single entry can be taken by name.
+- 52 entries become 46; 349 lines become 310; 18,558 bytes become 16,330.
+- docs/specs/app-update.md line 6 still cited "the invariant on outbound requests" under CONTEXT. The first round
+  searched the lines that contain "CONTEXT", and this citation continues on the next line; a search over each
+  CONTEXT line and the two after it found no other such case.
+- Reading: the global instructions gain a section on reading CONTEXT.md (the contents through awk by section,
+  single entries by paragraph); implement, tdd and the docs-layout seed point at it. The three commands were checked on this file and
+  are silent under the truncation hook.
+
+## Round 3 (2026-10-29, same day): CONTEXT.md moves to docs/
+
+Owner decisions: every project keeps its glossary at `docs/CONTEXT.md` (the skills' convention changes, the other six
+repositories follow later); the app reads `docs/CONTEXT.md` only; the product change rides in #337.
+
+- Spec: project-detail::REQ-003 (from B2), its failure modes, B1's wording, the Testing Decisions line and the
+  prototype-gate exemption; source check in docs/.workings/project-detail/checklist.md.
+- Test design review: docs/.workings/project-detail/review-tests.md (no findings).
+- Code: the artifact reader takes `docs/CONTEXT.md`; two new unit cases (both files → the `docs/` one; root only →
+  nothing) and the six-type case's fixture moved; five e2e fixture sites moved, the config-card link probe now
+  targets `./docs/CONTEXT.md`.
+- Repository: `git mv CONTEXT.md docs/CONTEXT.md`; README.md, README.en.md and AGENTS.md point at the new path.
+  Other mentions name the file, not its path, and stay.
+- Targeted verification so far: typecheck 0, lint 0; unit tests of artifacts and of the five suites importing
+  project-detail (found by searching the imports; no dynamic import of either module): 6 files, 103 tests, exit 0.
+- Post-implementation check (independent reviewer): F1 no case drove a root CONTEXT.md beside a populated `docs/`;
+  F2 E3's retirement step could not go red; F3 a checklist row cited the wrong test. Fix: unit case U4 (the layout of a
+  repository not yet moved), e2e case E4 (a cache saved before the move: the root file is admitted before the current
+  detail and refused after it, still on disk), E3's step removed, the checklist rows rewritten; the design increment
+  and the self-check are in docs/.workings/project-detail/review-tests.md. Hand-over self-check items 6 and 7: the
+  records named above match the change; the fix's evidence is the targeted log docs/.workings/project-detail/gate-fix-2.log, which covers the tree before the three lines of the re-review decision below were appended to this file, so check:lang and check:nul over the committed tasks.md come from the full run before delivery; gate-fix-1.log is the first run, red at E4's held-scan assertion, which led to the revision recorded in review-tests.md.
+- Re-review decision for the fix: change-scope against the pre-fix commit d7c364d (command, full output and exit code in
+  docs/.workings/project-detail/change-scope-fix-1.log) exits 1 with e2e/startup-restore.spec.ts and
+  src/main/providers/artifacts.test.ts `changed`, so the fix is committed and handed to an incremental re-review.
+- Incremental check (independent reviewer, 59a63b4): no finding on the tests; F4 gate-fix-2.log predates tasks.md's
+  last three lines; F5 the design review kept U2's wrong source and the old Dimension 1 beside the increment. Fix:
+  the tasks.md evidence pointer qualified; the design review's U2 row, E3 row and Dimension 1 corrected in place, the
+  increment's duplicates turned into pointers. Hand-over self-check items 6 and 7: the fix makes no new test evidence
+  (records only, so no targeted run); the records named above now state one conclusion each. Re-review decision:
+  change-scope against 59a63b4 in docs/.workings/project-detail/change-scope-fix-2.log.
+  Result: exit 0, every file inert, so no further re-review; step 6 is closed.
+
+## Step 7 archive (2026-10-29, on 897faa5)
+
+- Spec final check: REQ-003/AC-01, AC-02 and each failure mode implemented as written; the spec is unchanged
+  (checklist.md, Two-way audit).
+- Decisions: no ADR. REQ-003 is easily reversed and the spec states it; no ADR is in the proposed state (37 status
+  lines `- Status:` over 38 files, README.md the one without; only ADR-0003 is not Accepted, and it is Superseded).
+- Terms: none new. Postmortem: none (the E4 precondition miss lacks a defence of its own; recorded in
+  review-tests.md). Character-icon list: not applicable, no interface change.
+- Sync scope: every path-like reference to CONTEXT.md and every citation of "CONTEXT" outside `node_modules`, `out`,
+  `.git` and `test-results`, hidden and ignored files included (`rg -uu`; a control hit in README.md). Excluded:
+  `docs/.workings/` of other features, which record past rounds and are not current statements.
+- Differences found and fixed: `site/src/styles/global.css` cited the CONTEXT invariant "Light and dark each get
+  their own declaration", which moved to the ui-design skill (citation removed; the comment states the rule and its
+  reason). AGENTS.md said every older "CONTEXT invariant" citation means a line there; three of main's 25
+  invariants moved to skills instead (light and dark declarations, a concurrent root without a Transition, a
+  retried "does not appear" check), so the line now names them. Every other citation resolves to a current entry
+  or an AGENTS.md invariant.
+- Known and not fixed here: `docs/specs/skills-view.md:607` cites a retired `differs` signal "see CONTEXT"; main's
+  CONTEXT.md had no such entry either (its one "differs" is unrelated prose), so it predates this branch. Raised to
+  the owner for a decision.
+
+## Full run and step 8 (2026-10-29)
+
+- Full run: docs/.workings/project-detail/gate-full.log on 67ae3d8 with a clean tree, overall 0. The whole e2e
+  suite is left to the PR's CI (`.github/workflows/ci.yml:68` runs `xvfb-run -a pnpm e2e`); locally the two e2e files
+  the change touches ran, 101 passed. One unit test skipped by its own `describe.skipIf(!run)`, as on main.
+- Step 8: docs/features/project-detail.md gains the boundary line for a root CONTEXT.md; the three stage tables are
+  in docs/.workings/project-detail/final-regression.md.
+- Reuse of the full run after step 8: docs/.workings/project-detail/reuse-full-2.log — change-scope against 67ae3d8
+  exits 0 (every changed file inert), lint and typecheck pass, check:lang and check:nul pass over the staged
+  documents. reuse-full.log is the first try, red on Chinese search terms in the step 8 report, since written as
+  code-point escapes.

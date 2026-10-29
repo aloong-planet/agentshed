@@ -95,7 +95,7 @@ Applies to: the Subagents section of the agents page and of project detail (ADR-
 - subagents-view::REQ-001/AC-05: In project detail the project-level group is headed "Project level ·
   .agents/agents" and the global entries follow; Antigravity rows carry no shadowing badge, since
   whether a project-level name shadows a global one in agy was not observed, and a degraded judgement
-  follows the target system's behaviour rather than an assumption (CONTEXT.md).
+  follows the target system's behaviour rather than an assumption (AGENTS.md).
 - subagents-view::REQ-001/AC-06: Subagents bundled with an Antigravity plugin show inside that plugin's
   expansion ([plugins-view::REQ-001](plugins-view.md)), not in this section.
 

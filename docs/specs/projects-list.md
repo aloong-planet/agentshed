@@ -138,7 +138,7 @@ and are never written back to any agent configuration.
   title; the toggle label wraps onto a second text line only when its own natural width exceeds the
   column; nothing crosses the column's content edge.
 - C6 Hovering the side count opens a layer naming the sides in full. It is a layer over a clipped,
-  scrollable list, so it owes both floating-layer obligations (CONTEXT's invariant): it escapes the
+  scrollable list, so it owes both floating-layer obligations (the AGENTS.md invariant): it escapes the
   ancestors' clipping, and it answers for a stale anchor — dismissed on any scroll but its own, and
   dismissed on resize, because it is being glanced at rather than operated.
 - C7 The dropdown, being operated rather than glanced at, **repositions** on resize instead of

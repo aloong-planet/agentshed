@@ -110,7 +110,7 @@ see [appearance](appearance.md) (the rail's settings dimension).
   statement about a real borrowing relation).
 - G2 Agent definitions, plugins, memory and user-level MCP ship as explicit empty states: on the
   reference machine those categories have no real data (no directories, no config sections), and
-  per CONTEXT's sampling invariant no parser is written from a documentation name alone. Each
+  per the AGENTS.md sampling invariant no parser is written from a documentation name alone. Each
   category's parser lands when a real sample exists; the feature catalogue states the gap.
 - G3 The third summary card follows A2/A3 like the others; installing a Grok skill into a project
   lands in the project's own .grok/skills (the same copy semantics as the other sides).
@@ -299,7 +299,7 @@ registration admission and replacement. No prototype mock is implementation evid
   global AGENTS.md files are a fixed list in AC-03's order, which keeps GEMINI.md, rules and Grok's
   AGENTS.md out by construction (AC-05). A snapshot saved before the files carried their paths restores
   with the two files that version read — CLAUDE.md and Codex's AGENTS.md — at the paths the main
-  process knows them by, and without its settings summary (CONTEXT: a saved page restores across an
+  process knows them by, and without its settings summary (AGENTS.md: a saved page restores across an
   update).
 
 ## Testing Decisions

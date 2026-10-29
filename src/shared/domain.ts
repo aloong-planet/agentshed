@@ -304,7 +304,7 @@ export interface GlobalLayer {
  *
  * **The four fields sum to the total on every side**, which is what lets a cross-side view present
  * `input + cacheWrite` / `output` / `cacheRead` as three comparable buckets. Note that `input` and
- * `cacheWrite` do **not** each carry one meaning across sides — see the invariant in CONTEXT.md
+ * `cacheWrite` do **not** each carry one meaning across sides — see the invariant in AGENTS.md
  * before summing either of them by itself.
  */
 export interface TokenTotals {

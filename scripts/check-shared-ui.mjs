@@ -460,12 +460,12 @@ const GLOBAL_RULES = [
     }
   },
   {
-    // CONTEXT invariant (settled 2026-08-16): user-facing copy never enumerates the agent sides as
+    // AGENTS.md invariant (settled 2026-08-16): user-facing copy never enumerates the agent sides as
     // an exhaustive set — the side set grows, and an enumerated sentence becomes a lie in every
     // language at once on a surface no onboarding diff touches (it happened twice in one round).
     // Copy whose surface genuinely judges only some sides today is allow-listed by dictionary key,
     // each entry carrying the reason it may name them.
-    name: 'dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)',
+    name: 'dictionary copy must not enumerate agent sides as an exhaustive set (AGENTS.md invariant)',
     check() {
       const bad = []
       // The side names (SIDE_NAMES) and the dictionaries (DICTIONARIES) are mirrored lists
@@ -518,7 +518,7 @@ const GLOBAL_RULES = [
     }
   },
   {
-    // CONTEXT invariant, sharpened 2026-08-23: copy must not name a control the user has to find,
+    // AGENTS.md invariant, sharpened 2026-08-23: copy must not name a control the user has to find,
     // because the sentence outlives the control. Parameterising the label (what `notDetectedHint`
     // did) survives a **rename** but not a **removal** — when the global refresh was deleted, three
     // strings in six languages each still sent users to a button that no longer existed, and only a

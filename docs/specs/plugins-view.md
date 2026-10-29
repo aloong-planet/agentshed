@@ -84,7 +84,7 @@ is read-only.
   row in each).
 - E10 A single unreadable marketplace directory in the Codex cache → skip that directory only and
   enumerate the rest as usual (a single point of failure must not empty the whole group — see
-  CONTEXT.md, "degradation may only hurt itself").
+  the AGENTS.md invariant that a failure reading one entry affects only that entry).
 - E11 A manifest-declared relative path pointing outside the package (`../`) → refuse to read (closing
   the path escape hole).
 

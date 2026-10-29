@@ -328,7 +328,7 @@ hands the command over; it never runs it.
   (an unknown block placed at the end of the block order, aggregating the count and the type names,
   with the three layers distinguished by `event_msg/` and `response_item/` prefixes; a type that is not
   a string is named by its JSON, never as `[object Object]`) — allow-list
-  failures are invisible, so nothing is ever silently dropped (a CONTEXT invariant). Probes over the
+  failures are invisible, so nothing is ever silently dropped (an AGENTS.md invariant). Probes over the
   whole repository's real data: the unknown trace set is empty, and the tool pairing rate is 99.94%.
   **Paginated rollouts** (2026-09-10, full enumeration of 1391 rollouts): the completed-item event
   carries a typed item in place of the legacy events — `AgentMessage` is the prose carrier (the
@@ -600,7 +600,7 @@ below are archived as a decision record and are no longer requirements)**
   straight to the session page** (closing that interim state), with the back button landing on the
   "Sessions" section.
 - **Opening a session is atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the
-  CONTEXT.md invariant of that date): the page on screen stays until the session page can be drawn
+  invariant of that date, now in AGENTS.md): the page on screen stays until the session page can be drawn
   whole, then the stage switches in one frame; a session with a saved successful page comes back
   at once, including after restarting. No pending indicator is added — the row's press feedback is the only immediate response —
   declared here as the prototype-gate exemption: no visible state is added, and the end state is the
@@ -693,7 +693,7 @@ unchanged; export remains outside scope.
 ## Session ID and resume
 
 Every session belongs to exactly one agent side — the side whose data directory holds its record — and
-that side gives it an ID its own command-line tool resumes it by (CONTEXT: session ID, resume command).
+that side gives it an ID its own command-line tool resumes it by (CONTEXT: session ID).
 The session ID is not the session's identity here, which stays its source file path (A, B).
 
 ### session-view::US-001 Pick a session back up in the tool it belongs to
@@ -1006,8 +1006,8 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   ⚠️ **Those scan timings were taken under Node, not in the Electron main process** (noted
   2026-09-09): the same reader over the same bytes ran about twelve times slower in the main
   process at the stream's default chunk size, which is what made startup take minutes once the
-  data grew to gigabytes. Main-process figures come from `pnpm bench:scan`; see the CONTEXT.md
-  invariant "Main-process file I/O is measured under Electron, never under Node".
+  data grew to gigabytes. Main-process figures come from `pnpm bench:scan`; see the AGENTS.md
+  invariant on main-process measurements.
   **A turn's end point is "the end of the last parseable line", not the file's byte size**: an active
   session may be mid-line, and that half line neither parses nor should be sliced into a range.
   **Per-side "turn volume" criteria (full enumeration, not sampling)**:
@@ -1023,7 +1023,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
     the `event_msg` path is a UI event mirror of the same calls (and has only `*_end`, no `*_begin`),
     so counting both would double it.
     ⚠️ **`tool_search_call` was only found at review**: it never appeared once in a 120-file sample and
-    only became visible in a full enumeration of 278 files / 62,912 lines. The lesson is in CONTEXT.md's
+    only became visible in a full enumeration of 278 files / 62,912 lines. The lesson is in AGENTS.md's
     invariants.
   - Grok tools = tool_call records except spawn_subagent; a subagent dispatch = a tool_call named
     spawn_subagent (the subagent_spawned/finished records are its typed mirror and are not counted
@@ -1063,7 +1063,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   event's `AgentMessage` item and the question its `UserMessage` item (C8, B1) — the same event path,
   one generation on. Every type this ticket does not emit a block for has been
   enumerated and assigned to 07; **when 07 lands C8's display allow-list it must carry the "unknown
-  types are discoverable" trace** and never silently drop (the CONTEXT allow-list invariant).
+  types are discoverable" trace** and never silently drop (the AGENTS.md allow-list invariant).
 - **Cold rollouts**: the range reader gains a streaming implementation for `.jsonl.zst` files — one
   decompression pass per call, serving the requested ranges in ascending order and stopping after the
   last — behind the same interface as the byte-addressed reader, so the question list, the turn fetch
@@ -1111,7 +1111,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   shell, from the project entry it opened in, on every route. The header's buttons are keyed by the
   session file, as the page body is, so their state does not follow a jump to the fork parent.
 - **The tooltip** is a viewport-positioned layer, so no ancestor clips it, closed by the shared
-  anchor-invalidation hook on scroll and on resize (the CONTEXT floating-layer invariant: a layer that is
+  anchor-invalidation hook on scroll and on resize (the AGENTS.md floating-layer invariant: a layer that is
   glanced at is dismissed). Its look is the floating surface's one tooltip form, shared with the rail's
   update button so the two cannot drift apart. Its warning line takes a colour of the static class,
   declared for light and for dark alike, since the tooltip's dark ground does not change with either.

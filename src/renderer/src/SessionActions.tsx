@@ -3,7 +3,7 @@
 // The product only writes the clipboard and asks Finder to show a file (session-view::CON-001); the command is
 // built by the shared builder, which quotes the agent data it carries (session-view::CON-002).
 //
-// The tooltip is a floating layer and owes CONTEXT's two obligations, as the rail's update button tooltip does:
+// The tooltip is a floating layer and owes a floating layer's two obligations, as the rail's update button tooltip does:
 // the shared surface's viewport positioning escapes clipping, and the shared hook dismisses it when a scroll or
 // a resize makes its measured position stale (it is glanced at, so a resize dismisses rather than repositions).
 // It hangs below its button, anchored by the button's right edge — the buttons sit at the window's right, so

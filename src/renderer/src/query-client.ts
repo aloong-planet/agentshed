@@ -22,7 +22,7 @@ export function createQueryClient(): QueryClient {
 
 /**
  * Every automatic rescan marks these stale, so a page on screen refreshes by transfusion and one revisited
- * later revalidates (the CONTEXT invariant "a page switch is atomic and a revisit is instant"); global search's
+ * later revalidates (the AGENTS.md invariant on page switches); global search's
  * results among them, which also retries a failed search (global-search REQ-003/AC-02, REQ-004/AC-01).
  */
 export function invalidateOnSnapshot(client: QueryClient): void {

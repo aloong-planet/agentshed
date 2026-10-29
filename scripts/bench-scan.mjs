@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The startup-scan benchmark runner: bundles scripts/bench-scan.entry.ts with esbuild and runs the
 // bundle under the Electron binary, so the numbers are main-process numbers. That is the whole point
-// — the CONTEXT.md invariant "Main-process file I/O is measured under Electron, never under Node"
+// — the AGENTS.md invariant that main-process file figures are measured under Electron, never Node,
 // exists because the same reader measured twelve times faster under Node, and every scan timing
 // recorded before 2026-09-09 had been taken there.
 //

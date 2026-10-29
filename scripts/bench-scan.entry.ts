@@ -1,7 +1,7 @@
 // The body of the startup-scan benchmark. scripts/bench-scan.mjs bundles this file with esbuild and
 // runs the bundle under the Electron binary (the main process) or, with --node, under plain Node —
-// the same code in both, so the only variable is the runtime. Why that matters is the CONTEXT.md
-// invariant "Main-process file I/O is measured under Electron, never under Node".
+// the same code in both, so the only variable is the runtime. Why that matters is the AGENTS.md
+// invariant on main-process measurements.
 //
 // Modes (the first argument):
 //   cold          a full scan into an empty cache directory — what a first launch or a

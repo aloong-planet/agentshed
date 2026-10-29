@@ -204,7 +204,7 @@ repeats what is already legible is noise.
   ([memory-view::CON-002](memory-view.md)).
 - D3 **Links** in the preview: the in-app / file allow-list and the destination of external http(s)
   links follow the existing "a rendered link must never navigate the whole window" invariant
-  (CONTEXT); clicking inside a preview must not lose app state. Concretely (settled 2026-08-20): a
+  (AGENTS.md); clicking inside a preview must not lose app state. Concretely (settled 2026-08-20): a
   relative link resolving to one of the package's **listed files** switches the drawer to that file
   (raw for non-markdown, same as opening it from the file table); anything else relative — outside
   the package, or below the listing depth — gets the explicit out-of-scope notice, fail-closed.
@@ -340,7 +340,7 @@ name" reads as if the filesystem had already constrained it.
   makes filtering influence which rows exist, it stops being a filter.
 - R10 **The install popover and the name tooltip are both floating layers over the same clipped list**, so
   they answer to the same two obligations (G5). A third such layer must satisfy them too; this is recorded
-  as an invariant in CONTEXT rather than rediscovered each time — it was already got wrong once, in the
+  as an invariant in AGENTS.md rather than rediscovered each time — it was already got wrong once, in the
   popover, where a stale selector left it positioned against the document and it landed off-screen.
 - R11 **Subagents, Plugins, Memory and MCP do not get a search box in this change.** Adding one where the
   list is short is noise, and each list would need its own decision about what a match means.

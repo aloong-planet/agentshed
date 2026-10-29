@@ -1,6 +1,6 @@
 // A floating layer's second obligation, in one place.
 //
-// CONTEXT's floating-layer invariant says such a layer owes two things: escape the ancestors'
+// A floating layer over a clipped list owes two things: escape the ancestors'
 // clipping, and **stay honest about where it points**. The first is discharged by the shared surface
 // (viewport positioning). This hook is the second: it watches for the things that invalidate a
 // position measured from an anchor, and hands control back to the caller.

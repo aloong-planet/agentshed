@@ -221,7 +221,7 @@ document by its headings)
   override written against th as well as td re-drags the centred header.
 - E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
   elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
-  and the CONTEXT link-interception invariant).
+  and the AGENTS.md link-interception invariant).
 - E9 A container that hosts a rendered-markdown body (the artifact reader overlay today) must not
   let its own chrome-heading rules out-cascade the ladder: a descendant selector like "overlay h2"
   ties with the ladder on specificity and wins on source order, silently restyling every h2 inside

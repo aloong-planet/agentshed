@@ -55,8 +55,8 @@ is read-only; the one write operation is uninstalling a project-level skill.
   project's own token history is no longer reachable from its page was accepted; the global totals
   still include it (see agents-overview B3). Sequence S below owns the card.
 - A3 Detail is fetched on demand (it does not enter the overview snapshot), and **a project switch is
-  atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the CONTEXT.md invariant of
-  that date): the page on screen stays whole until the next project's page can be drawn whole, then
+  atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the invariant of that date,
+  now in AGENTS.md): the page on screen stays whole until the next project's page can be drawn whole, then
   the pane switches in one frame — no empty pane, no loading label, no new header over an old body.
   Only the list highlight moves at once. A project with a saved successful page is a **cached visit**: its
   page is drawn immediately from what was last shown and refreshed in the background. A refetch that
@@ -149,12 +149,10 @@ never writes to any agent's registry; it tells the user what happened and hands 
 
 **Sequence B: artifacts section**
 - B1 **Six artifact types**, displayed in a fixed order following the top-down derivation chain:
-  **CONTEXT.md → ADR → specs → prototypes → features → postmortems** (terminology and invariants →
+  **CONTEXT.md → ADR → specs → prototypes → features → postmortems** (terminology →
   architectural decisions → requirements and boundaries → UI form → current capabilities →
   after-the-fact lessons). The filter chips follow the same order, with "All" first.
-- B2 Where each type comes from: CONTEXT.md is the file of that name at the project root;
-  adr/specs/features/postmortems come from `docs/<type>/*.md`; prototypes are collected recursively
-  from `docs/prototypes/**/*.html`.
+- B2 Where each type comes from: project-detail::REQ-003.
 - B3 Index files are not artifacts: each directory's `README.md` does not count.
 - B4 Prototypes: exclude the gallery shell (the root `index.html`) and `vendor/`; an `index.html`
   inside a module is named by its directory path, everything else by its filename.
@@ -219,6 +217,24 @@ has servers, since it repeats global facts (settled 2026-10-29); a configuration
 path, the other entry unaffected — in the "None" line's form under the path heading, the same declared
 prototype exemption as the agents page's (agents-overview::REQ-004 failure modes); the configuration
 previews keep R3's link destinations.
+
+## Where artifacts come from
+
+### project-detail::REQ-003 Each artifact type is read from one place
+
+Applies to: the Artifacts section.
+
+- project-detail::REQ-003/AC-01: CONTEXT.md is the file of that name in the project's `docs/` directory; a
+  `CONTEXT.md` at the project root is not an artifact.
+- project-detail::REQ-003/AC-02: ADR, specs, features and postmortems come from `docs/<type>/*.md`;
+  prototypes are collected recursively from `docs/prototypes/**/*.html` (B3 and B4 apply).
+
+Failure modes and boundaries: a project whose CONTEXT.md is still at its root lists no CONTEXT.md artifact
+and its other artifacts as before; one with both files lists only `docs/CONTEXT.md`; a project with no
+`docs/` directory has no artifacts at all (B7), a root `CONTEXT.md` included. A relative link in a
+rendered document reaches CONTEXT.md as a listed artifact only through `docs/CONTEXT.md`, so a link to a
+root `CONTEXT.md` gets R3's notice. A page saved before this change lists a root CONTEXT.md until its
+background revalidation replaces the list (project-detail::REQ-001/AC-03).
 
 ## Cross-restart page restoration
 
@@ -296,13 +312,13 @@ regressions within this round; artifact collection rules and unrelated section l
   the project's two files with its path and its contents, or none for a file that exists but cannot be
   read, and null for an absent one; the agents page's section and this page's share one section
   component. A project detail saved before the files carried their paths restores with each file at its
-  place in the project and without the settings summary (CONTEXT: a saved page restores across an
+  place in the project and without the settings summary (AGENTS.md: a saved page restores across an
   update).
 
 ## Testing Decisions
 
 Following ADR-0002's dual seam: fixture unit tests at the providers layer cover recognising the six
-types, excluding READMEs, the prototypes recursion and exclusion rules, the title fallback, and the
+types (CONTEXT.md under `docs/`, a root one not recognised), excluding READMEs, the prototypes recursion and exclusion rules, the title fallback, and the
 no-`docs`-directory empty state; the type order is pinned as a contract in a unit test (so it is not
 changed unintentionally). The UI's chip filtering and reading overlay are not unit tested and rely on
 e2e and manual testing.
@@ -357,6 +373,8 @@ the restore of a detail saved before the paths at the display store's filesystem
 
 ## Further Notes
 
+- **Prototype gate for project-detail::REQ-003**: the change moves where one artifact type is read from
+  and adds no visible state or form; declared here as a data-source exemption.
 - **Prototype gate (2026-09-12)**: the atomic switch adds no visible state — the list highlight
   keeps its existing form, and the end state is the absence of an intermediate frame, which has no
   form to draw; declared here as the exemption rather than assumed.
