@@ -41,7 +41,7 @@
 // It cannot judge whether the English is *correct* — no gate can. It only guarantees that unapproved
 // Chinese cannot enter the repository.
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import ts from 'typescript'
 // What counts as Chinese, and the quoting spans prose uses to cite it, are shared with the message gate
@@ -165,9 +165,18 @@ function isSkillCopy(text) {
  * they are called: a list of their names missed every copy the skill added or renamed until someone updated
  * it. `manifest.js` and `dimensions.js` stay exempt: the names, questions and labels they carry address the
  * reviewer, like a mockup's annotations.
+ *
+ * A page's notes file holds the annotations its header used to carry (the prototype skill's notes-file rule), so it
+ * is exempt like the page. It is recognised by its name and by its page beside it: `prototype-<topic>.md` next to
+ * `prototype-<topic>.html`, `candidates-<topic>.md` next to `candidates-<topic>.html`. Other Markdown in the
+ * directory is not a mockup's annotation and stays checked.
  */
+const isNotesFile = (file) =>
+  /(^|\/)(prototype|candidates)-[^/]+\.md$/.test(file) && existsSync(file.replace(/\.md$/, '.html'))
+
 function mockupOnly(text, file) {
   if (/\.(html|mmd|css|js)$/.test(file) && !isSkillCopy(text)) return []
+  if (isNotesFile(file)) return []
   return text
     .split('\n')
     .map((line, i) => [i + 1, line])
@@ -264,7 +273,7 @@ const RULES = [
   {
     match: (f) => f.startsWith('docs/prototypes/'),
     test: mockupOnly,
-    why: 'UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption'
+    why: 'UI prototypes and their notes files — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption'
   },
   {
     match: (f) => f === 'README.md',

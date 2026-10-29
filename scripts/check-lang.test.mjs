@@ -213,3 +213,47 @@ for (const [what, file, text] of [
     assert.match(result.stdout, /Working language: 9 line\(s\)/)
   })
 }
+
+// A page's notes file (prototype-pages::CON-003) holds the annotations the page's header used to, so it is exempt
+// like the page; the page beside it is English, so the count rising to 9 is the notes file's line
+test('Chinese stays permitted in a notes file beside its page', () => {
+  const result = check({
+    'docs/prototypes/shell/prototype-app-shell.html': '<!doctype html>\n<p>Shell</p>\n',
+    'docs/prototypes/shell/prototype-app-shell.md': `## Question\n\n${CN}\n`
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /Working language: 9 line\(s\)/)
+})
+
+test("Chinese stays permitted in a candidates page's notes file beside it", () => {
+  const result = check({
+    'docs/prototypes/shell/candidates-app-shell.html': '<!doctype html>\n<p>Cells</p>\n',
+    'docs/prototypes/shell/candidates-app-shell.md': `## Question\n\n${CN}\n`
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /Working language: 9 line\(s\)/)
+})
+
+// A notes file is known by its name and by its page beside it; each Markdown file below misses one of the two and
+// stays checked, its Chinese on line 2
+for (const [what, file, page] of [
+  ['other Markdown in the prototypes directory, the app icon README', 'docs/prototypes/app-icon/README.md', null],
+  ['a notes-named file whose page is gone', 'docs/prototypes/shell/prototype-gone.md', null],
+  [
+    "Markdown beside a logic page's index.html",
+    'docs/prototypes/project-list/visibility/index.md',
+    'docs/prototypes/project-list/visibility/index.html'
+  ],
+  [
+    'a notes-named file whose page sits in another module',
+    'docs/prototypes/shell/prototype-app-shell.md',
+    'docs/prototypes/project-list/prototype-app-shell.html'
+  ]
+]) {
+  test(`Chinese in ${what} is reported`, () => {
+    const result = check({ [file]: `# Notes\n${CN}\n`, ...(page ? { [page]: '<!doctype html>\n<p>Page</p>\n' } : {}) })
+    assert.equal(result.status, 1, result.stdout)
+    assert.match(result.stderr, /found 1 problem\(s\)/)
+    assert.ok(result.stderr.includes(`${file}:2 `), result.stderr)
+  })
+}
