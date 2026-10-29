@@ -133,6 +133,13 @@ We adopt **option 1**:
 > reports cache writes, would widen it by those too. The total itself is unchanged: the four fields
 > summed.
 
+> **At the feature's closeout (2026-10-29)**: the side ships whole, as decided above. Two points the
+> decision left open stand as follows. The first-folder presumption is still unconfirmed: no
+> conversation on this machine lists more than one folder (all 19, re-read on 2026-10-29), so the
+> token-stats spec carries the rule with a Pending note (token-stats::REQ-003/AC-08) that settles it when
+> one is observed. The CONTEXT.md amendment the consequences call for was made when the usage landed:
+> cache writes are a figure the Claude Code and Antigravity CLI sides report.
+
 ## Consequences
 
 - Positive: individual Gemini users' usage is counted from a source that records background calls,
