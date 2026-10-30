@@ -192,14 +192,18 @@ const FILES = {
   // In shape: a one-line header naming the notes file beside it, and a comment after the root element
   'docs/prototypes/planted/prototype-paired.html': page('<!-- Notes: prototype-paired.md -->\n', '<!-- a comment inside the page, not its header -->\n'),
   'docs/prototypes/planted/prototype-paired.md': '# prototype-paired\n',
+  // In shape as well: no header comment at all ("at most one")
+  'docs/prototypes/planted/prototype-bare.html': page(''),
+  'docs/prototypes/planted/prototype-bare.md': '# prototype-bare\n',
   // A logic page is no UI page: no notes file, and a header of two comments
   'docs/prototypes/planted/logic/index.html': page('<!-- A logic prototype -->\n<!-- its question -->\n'),
-  // Headers out of shape, each beside its notes file: two comments, one over three lines, one naming no notes file
+  // Headers out of shape, each beside its notes file: two comments, one over two lines, one naming another page's notes
+  // file (as a page copied from another would)
   'docs/prototypes/planted/prototype-two.html': page('<!-- Notes: prototype-two.md -->\n<!-- Question: how the list sorts -->\n'),
   'docs/prototypes/planted/prototype-two.md': '# prototype-two\n',
-  'docs/prototypes/planted/prototype-tall.html': page('<!-- A UI prototype · the list.\n     Question: how the list sorts.\n     Notes: prototype-tall.md -->\n'),
+  'docs/prototypes/planted/prototype-tall.html': page('<!-- A UI prototype · the list.\n     Notes: prototype-tall.md -->\n'),
   'docs/prototypes/planted/prototype-tall.md': '# prototype-tall\n',
-  'docs/prototypes/planted/prototype-unnamed.html': page('<!-- A UI prototype · the list -->\n'),
+  'docs/prototypes/planted/prototype-unnamed.html': page('<!-- Notes: prototype-two.md -->\n'),
   'docs/prototypes/planted/prototype-unnamed.md': '# prototype-unnamed\n'
 }
 
@@ -336,6 +340,11 @@ test('a page with its notes file and a one-line header naming it is not reported
   assert.deepEqual(shapeLines('docs/prototypes/planted/prototype-paired.html'), [], run.out)
 })
 
+test('a page with its notes file and no header comment is not reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-two.html: its header holds 2 comments; it may hold one, on one line, naming prototype-two.md'), run.out)
+  assert.deepEqual(shapeLines('docs/prototypes/planted/prototype-bare.html'), [], run.out)
+})
+
 test('a logic page is not a UI prototype page', () => {
   assert.ok(reported('docs/prototypes/planted/prototype-two.html: its header holds 2 comments; it may hold one, on one line, naming prototype-two.md'), run.out)
   assert.deepEqual(shapeLines('docs/prototypes/planted/logic/index.html'), [], run.out)
@@ -346,10 +355,10 @@ test('a header of two comments is reported', () => {
 })
 
 test('a header comment over more than one line is reported', () => {
-  assert.ok(reported('docs/prototypes/planted/prototype-tall.html: its header comment spans 3 lines; it may hold one, on one line, naming prototype-tall.md'), run.out)
+  assert.ok(reported('docs/prototypes/planted/prototype-tall.html: its header comment spans 2 lines; it may hold one, on one line, naming prototype-tall.md'), run.out)
 })
 
-test('a header comment that does not name the notes file is reported', () => {
+test("a header comment that names another page's notes file, not its own, is reported", () => {
   assert.ok(reported('docs/prototypes/planted/prototype-unnamed.html: its header comment does not name prototype-unnamed.md'), run.out)
 })
 
