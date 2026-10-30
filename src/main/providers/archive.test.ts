@@ -296,16 +296,17 @@ describe('UsageArchive: a file a newer build wrote', () => {
     for (const s of quiet) expect(s).not.toHaveBeenCalled()
   })
 
-  it('token-stats::REQ-005: rows of such a side another writer adds between two merges are carried through, not overwritten from memory', () => {
-    const a = open()
+  it("token-stats::REQ-005: such rows another writer changes between two merges are written back as that writer left them, not from this build's stale copy", () => {
+    seed({ version: 2, rows: [row(D1, '/p1', 'm1', 100), rawRow(D0, OUT, 137_497), rawRow(D1, OUT, 283_172)], stamps: {}, observed: {}, superseded: [] })
+    const a = open() // this instance now holds both rows of the outside side
     a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
-    // The newer build, running at the same time, writes its side's row into the same file
+    // The newer build, running at the same time, rewrites its side's rows: one changed, one gone, one new
     const theirs = onDisk()
-    const added = rawRow(D0, OUT, 137_497)
-    seed({ ...theirs, rows: [...theirs.rows, added] })
+    const now = [rawRow(D0, OUT, 140_000), rawRow(OWN, OUT, 9_000)]
+    seed({ ...theirs, rows: [...theirs.rows.filter((x) => known(x.side)), ...now] })
     const r = a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
     expect(r.rows.map((x) => [x.day, x.side])).toEqual([[D1, 'claude']])
-    expect(onDisk().rows.filter((x) => !known(x.side))).toEqual([added])
+    expect(bySig(onDisk().rows.filter((x) => !known(x.side)))).toEqual(bySig(now))
   })
 
   it('token-stats::REQ-005: a restore of a known side carries rows of a side this build does not know through', () => {
@@ -350,15 +351,16 @@ describe('UsageArchive: a file a newer build wrote', () => {
     a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
     const bytes = newerFile()
     writeFileSync(storeFile(), bytes)
-    expect(a.isNewerFormat()).toBe(true)
+    // The merge is the first call after the file changed, as in a scan: it alone has to notice
     const r = a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
     expect(r.rows.map((x) => [x.day, x.total])).toEqual([[D1, 100]])
     expect(readFileSync(storeFile(), 'utf8')).toBe(bytes)
+    expect(a.isNewerFormat()).toBe(true)
     rmSync(storeFile())
-    expect(a.isNewerFormat()).toBe(false)
     a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
     const file = JSON.parse(readFileSync(storeFile(), 'utf8')) as { version: number; rows: UsageRow[] }
     expect([file.version, file.rows.map((x) => [x.day, x.total])]).toEqual([ARCHIVE_VERSION, [[D1, 100]]])
+    expect(a.isNewerFormat()).toBe(false)
   })
 
   it.each([['"3"', '3'], ['2.5', 2.5]])('a version that is not a whole number (%s) is corrupt, not newer: C8 applies', (_label, version) => {

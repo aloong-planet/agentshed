@@ -61,6 +61,14 @@ function main(): void {
   }
   const stamp = `${version}+c${CACHE_VERSION}`
 
+  const archive = new UsageArchive(userData, { stamp })
+  // An archive a newer build wrote in its own format is not this build's to write (token-stats::REQ-006): refuse
+  // before reading a snapshot that could not be restored anyway
+  if (archive.isNewerFormat()) {
+    console.error(`${join(userData, 'usage-archive.json')} is of a newer format than this build writes: nothing can be restored into it`)
+    process.exit(2)
+  }
+
   // rowsFromCacheFile refuses a snapshot of another cache structure version (spec C16)
   const all = rowsFromCacheFile(snapshot)
   const rows = all.filter((r) => r.side === (side as AgentSide) && r.day !== '' && r.day >= from && r.day <= to)
@@ -71,12 +79,6 @@ function main(): void {
     else byDay.set(r.day, [r])
   }
 
-  const archive = new UsageArchive(userData, { stamp })
-  // An archive a newer build wrote in its own format is not this build's to write (token-stats::REQ-006)
-  if (archive.isNewerFormat()) {
-    console.error(`${join(userData, 'usage-archive.json')} is of a newer format than this build writes: nothing can be restored into it`)
-    process.exit(2)
-  }
   const current = archive.rows()
   console.log(`snapshot: ${snapshot}`)
   console.log(`archive:  ${join(userData, 'usage-archive.json')}`)

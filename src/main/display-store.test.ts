@@ -410,11 +410,32 @@ it('agents-overview::REQ-005: restores what a newer build saved without the side
   ])
 })
 
-it('agents-overview::REQ-005: a saved snapshot whose project lists the side this build does not know is not restored, and the rest is', () => {
+// Each value position of a snapshot where a side is named, the side in that one position alone (besides the records
+// keyed by side, which the case above strips); most are checked only by the restore's own disk check, not by live IPC's
+const snapshotPositions: Array<[string, (snap: Snapshot) => void]> = [
+  ["a project's list of sides", (snap) => { snap.projects[0].sides = ['claude', RENAMED] }],
+  ["a global skill's list of sides", (snap) => { snap.global.skills[0].sides = ['claude', RENAMED] }],
+  ["a subagent's list of sides", (snap) => {
+    snap.global.subagents = [{ name: 'r', sides: [RENAMED], description: null, claude: null, codex: null, antigravity: null, overridesBuiltin: false }]
+  }],
+  ["a memory entry's side", (snap) => {
+    snap.global.memory = [{ side: RENAMED, projectPath: null, projectName: null, hasMain: false, files: [], lastModified: null, stale: false }]
+  }],
+  ["an MCP entry's side", (snap) => { snap.global.mcp = [{ name: 'x', side: RENAMED, source: 'global-config', disabled: false, plugin: null }] }],
+  ["a usage row's side", (snap) => { snap.tokens.rows = [usage(RENAMED, 50)] }],
+  ["a model row's side", (snap) => { snap.tokens.byModel = [{ model: 'm', side: RENAMED, total: 50 }] }]
+]
+it.each(snapshotPositions)('agents-overview::REQ-005: a saved snapshot naming the side this build does not know in %s is not restored, and the rest is', (_position, name) => {
   const root = dir()
+  const snapshot = snapshotNaming(['claude'])
+  name(snapshot)
+  // The control: before the rename the same snapshot is valid, so only the side can be what drops it below
+  const control = dir()
+  writeFileSync(join(control, 'display-cache.json'), JSON.stringify({ version: 1, data: { ...emptyDisplayData(), snapshot } }))
+  expect(new DisplayStore(control).get().snapshot?.scannedAt).toBe(900)
   const saved = savedByANewerBuild({
     ...emptyDisplayData(),
-    snapshot: snapshotNaming(['claude', RENAMED]),
+    snapshot,
     reads: [{ kind: 'artifactContent', file: '/w/p/a.md', data: { text: 'kept', truncated: false } }]
   })
   writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: saved }))
