@@ -193,12 +193,15 @@ next to A/B, so that no existing reference is renumbered)
   day (the case the per-day reading got wrong).
 - C7 Within one day, rows are split by side × project × model and do not overwrite one another.
 - C8 Archive writes are atomic with no temporary files left in the directory; a corrupt archive file
-  degrades to empty without crashing (the next scan starts accumulating again).
+  degrades to empty without crashing (the next scan starts accumulating again). A file of a newer
+  format is not corrupt: token-stats::REQ-006 governs it.
 - C9 The set of archived-only **days** — a day the archive holds rows for and no side has live rows
   on — stays queryable, for the existing hatching and note. Retained (day, side) pairs are **not**
   exposed to the interface: retention is accounting-only (ADR-0026, amended 2026-09-10), and a day
   on which one side is archived-only while another is live carries no marking either.
-- C10 **A past (day, side) never falls silently** (ADR-0026, the invariant in AGENTS.md). Every
+- C10 **A past (day, side) never falls silently** (ADR-0026, the invariant in AGENTS.md) — within an
+  archive this build reads; a corrupt one (C8) or one of a newer format (token-stats::REQ-006) gives
+  the rule nothing to hold. Every
   archive row carries the accounting stamp it was written under — the application version and the
   cache structure version, combined. When a past (day, side) is live and its live total is **lower**
   than the archive's: under a **different** stamp the live rows are accepted (a correction of ours),
@@ -658,6 +661,79 @@ Applies to: every conversation database of the side, forks and subagent conversa
   shown as plain text in the existing model rows, as every side's are; nothing read from agy's files
   is rendered or loaded at a new point (G14 holds).
 
+## An archive a newer build wrote
+
+A build can read an archive a newer build wrote: a development run and the installed copy use one
+user-data directory on macOS's default case-insensitive volume (app-update spec, Implementation
+Decisions), and an older release can be installed over a newer one by hand. A newer build that adds an
+agent side archives that side's rows; to an older build that side is outside its set of agent sides. A
+newer build that changes the archive's own shape writes a format version the older build does not
+read. The display copy's counterpart is [agents-overview::REQ-005](agents-overview.md). The accounting
+cache needs no rule here: a newer build's cache carries another structure version and is recomputed
+(C1), and within one version an entry of a kind this build does not parse is a miss.
+
+### token-stats::REQ-005 Keep a side this build does not know out of the figures and in the file
+
+Applies to: every archive row whose side is outside this build's set of agent sides — missing or not a
+string included — on any day, the scan's own day included.
+
+- token-stats::REQ-005/AC-01: The row is left out of every figure — each time window, each side's
+  figure, the composition, the model breakdown, the trend and every project's own figures — and the
+  scan completes and delivers its snapshot as if the row were absent.
+- token-stats::REQ-005/AC-02: The row makes no day archived-only: a day is archived-only (C9) only
+  through rows of sides this build knows.
+- token-stats::REQ-005/AC-03: Every write this build makes to the archive carries the row unchanged,
+  with its pair's stamp, observed value and superseded values, so the build that knows the side reads
+  its history back as that build wrote it.
+- token-stats::REQ-005/AC-04: Nothing marks the row: no notice, count or log line. This build shows
+  the side nowhere, so leaving its usage out agrees with everything else on screen.
+
+### token-stats::REQ-006 Leave an archive of a newer format alone
+
+Applies to: an archive file whose format version is a whole number above the one this build writes.
+
+- token-stats::REQ-006/AC-01: This build never writes the file: it stays byte for byte as the newer
+  build left it through every scan, and a restore (C16) reports that it cannot write and writes
+  nothing.
+- token-stats::REQ-006/AC-02: Every figure derives from the scan's live rows alone and no day is
+  archived-only, as in a user-data directory holding no archive; the scan completes and delivers its
+  snapshot.
+- token-stats::REQ-006/AC-03: The judgement follows the file as it is at each scan: a newer build
+  writing its format while this build runs is left alone from this build's next scan on, and is never
+  overwritten from what this build read earlier.
+- token-stats::REQ-006/AC-04: Nothing marks it: no notice, count or log line.
+
+### Failure modes and boundaries: an archive a newer build wrote
+
+- A newer build archives a new side's usage, then this build is launched: its first scan completes
+  with the sides it knows (token-stats::REQ-005/AC-01); its restored display copy follows
+  agents-overview::REQ-005.
+- The newer build is launched again: that side's past days read as before, since this build's writes
+  carried its rows (token-stats::REQ-005/AC-03); its own day comes from its scan as usual (C11).
+- Both builds run at once on one user-data directory: each merge re-reads a file another writer changed
+  since its last read, the mechanism C16's restore relies on, so neither writes the other's rows back
+  from stale memory; this build's writes carry the other side's rows through
+  (token-stats::REQ-005/AC-03).
+- The scan's own day holds rows of a side this build does not know: they are left out and kept like any
+  other day's. C11's replacement applies to pairs the scan produced rows for, and a build produces none
+  for a side it does not know.
+- A restore (C16) names a side this build knows: it writes that side's pairs only, and rows of a side
+  it does not know are carried through (token-stats::REQ-005/AC-03).
+- An archive of a newer format while this build runs alone: the days only the archive held read lower
+  or empty, with no hatching (token-stats::REQ-006/AC-02, token-stats::REQ-006/AC-04). This is the
+  one place besides a corrupt archive (C8) where a past day reads lower than the archive holds: C10
+  governs the archive this build writes, and this build writes none. Usage the agent deletes in that
+  time reaches the newer build's archive only if the newer build scanned it before.
+- A newer build drops a side an older one archived: to the newer build those rows are of a side it does
+  not know, and token-stats::REQ-005 applies to them there.
+- The archive file is removed while this build leaves a newer one alone: the next scan finds no file and
+  starts a new archive in this build's format (C4).
+- An archive whose version is not a whole number, or a file that is not an archive at all: corrupt, C8
+  applies.
+- Interface: no page, state, copy or control is added or changed — these rules decide which rows the
+  existing pages count (the prototype exemption, declared). No new point renders or loads external
+  content (G14 holds).
+
 ## Implementation Decisions
 
 - **Global preference and derived window**: reuse the app-owned preference store and its validated
@@ -711,6 +787,17 @@ Applies to: every conversation database of the side, forks and subagent conversa
 - **Restore**: a repository script, run by a developer, that reads a cache snapshot and applies C16
   through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
   so the restored rows are exactly what a scan of that data would have produced.
+- **An archive a newer build wrote** (token-stats::REQ-005, token-stats::REQ-006): the archive admits a
+  row's side against the agent-side set as it reads the file — the set the contract validation reads,
+  total over the side type, so a side added to the type is admitted from the build that adds it on. Rows
+  outside it are held apart from the rows the conflict rule judges: they never enter the effective row
+  set or the archived-only days, and every write puts them back as read; their pairs' stamps, observed
+  and superseded values stay in the file, since nothing this build does touches a pair it never sees
+  live. The figure derivation is not made to skip a side it has no bucket for: inside the process every
+  row's side is typed, the archive file is the one place a side enters the figures untyped, and a
+  derivation that skipped silently would hide a producer's mistake. A file of a newer format is held as
+  not this build's to write: the archive returns the live rows as the effective set and refuses every
+  write until the file on disk changes, judged again on the same re-read a restore relies on.
 - **Codex usage sources**: see ADR-0027. The parser reads both sources in one pass and applies the
   usage boundary as it goes; the per-file aggregate keeps its list of per-event increments and gains
   the boundary index beside it, so that the replay stripping can stop at the legacy span — a shape
@@ -826,6 +913,20 @@ archived-only day and reads, in one pass on the cross-project page and on a proj
 the retained day's tooltip total is the archived figure, that it carries no hatching, and that the
 archived-only day still does — the assertion that distinguishes "retained silently" from
 "overwritten silently", which look identical in every other respect.
+
+An archive a newer build wrote (token-stats::REQ-005, token-stats::REQ-006) is tested at the same unit
+seam. The side outside the set is a name generated to be absent from the agent-side set, not a
+hand-picked one a later side could take. The fixture holds rows of two known sides and the unknown
+one on one past day, an own-day row of the unknown side, and a day held only by it: the effective rows
+and the archived-only days leave the unknown rows out, and the file after two merges holds them, with
+their stamps, observed and superseded entries, as seeded. A file of the next format version stays byte
+for byte the same across merges and a restore while the effective rows are the live rows, and a file
+of that version appearing between two merges is left alone from the second on. The chain the unit seam
+cannot reach is the scan's merge feeding the figure derivation — where an unknown side would stop
+every scan and leave the first-scan skeleton up ([agents-overview](agents-overview.md) A4d) — so the seeded-archive
+e2e seeds a known side's past-day row beside a row of a side outside the set, launches, and reads that
+the agents page leaves the skeleton with the all-history figure equal to the known row, that the main
+process reports no error, and that the archive file still holds the unknown row after the scan.
 
 The Codex usage sources (B1, B7, B9–B12) are tested at the providers seam with rollout fixtures
 whose shapes come from real paginated samples (the record's key set, the interleaving of events and

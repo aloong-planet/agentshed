@@ -236,6 +236,18 @@ Every full restart opens Agents. Project selection, session selection, scroll, e
 state, search text and time-window selection are not restored by this feature. Persisted appearance
 and language preferences keep their existing behavior.
 
+### agents-overview::REQ-005 Restore a newer build's saved data without the sides this build does not know
+
+Applies to: every saved entry of the display copy — the snapshot, project statistics and every saved
+page — and every side outside this build's set of agent sides, as a newer build that adds a side saves
+them ([token-stats](token-stats.md), An archive a newer build wrote, says how a build meets one).
+
+- agents-overview::REQ-005/AC-01: A key naming such a side in a record keyed by side is removed before
+  the entry is checked against the contract, and the entry restores without it.
+- agents-overview::REQ-005/AC-02: An entry naming such a side anywhere else — a side field, a list of
+  sides, a usage row — is not restored, and every other entry restores (restart sequence, item 1).
+- agents-overview::REQ-005/AC-03: No restored entry names such a side, as a key or as a value.
+
 ### Failure modes and boundaries: restart sequence
 
 1. Read saved data before exposing it. Envelope corruption falls back under
@@ -254,6 +266,18 @@ and language preferences keep their existing behavior.
 8. Restore content containing links, markup, images or long text: route it through the existing
    rendering, sanitization, navigation and size boundaries. Display restoration grants no new
    capability to content, and it stores data rather than rendered executable HTML.
+9. Launch this build after a newer build that adds a side saved the display copy: project statistics
+   and pages naming the side only in a record keyed by side restore without it
+   (agents-overview::REQ-005/AC-01). The snapshot does not restore when a project's or a skill's list
+   of sides names the side, and the skeleton shows until the first scan (A4,
+   agents-overview::REQ-001/AC-03); a session page or a skill-file listing of that side does not
+   restore, nor do the saved answers of that page (agents-overview::REQ-005/AC-02).
+10. Launch the newer build again after this build saved: its copy holds what this build saved, without
+    the side; the newer build fills that side's empty values in as for any copy saved before the side
+    existed (ADR-0020), and its first scan replaces them.
+11. Interface: no page, state, copy or control is added or changed — the rule decides which saved
+    entries the existing pages show (the prototype exemption, declared). It restores data, never
+    rendered content, so item 8's boundaries are unchanged.
 
 ### Startup implementation decisions
 
@@ -267,6 +291,12 @@ and language preferences keep their existing behavior.
   update status. Placement and failure wording follow the original prototypes confirmed on 2026-09-14.
 - Saving only main-side statistics and allow-lists is insufficient for the session page when its
   question index is missing. The saved page payload is the startup display source in that case.
+- A side this build does not know (agents-overview::REQ-005) is removed from every record keyed by side
+  before a saved entry is checked — the mirror of the fill that gives a copy saved before a side existed
+  that side's empty values, applied to the same records. For token figures it removes only empty
+  buckets: a non-empty one derives from usage rows naming the side (ADR-0025), which fail the contract,
+  so that entry is not restored. For the side's other keyed facts — detected, symlinked, packaged — it
+  removes facts this build shows nowhere.
 
 ### Startup verification decisions
 
@@ -277,6 +307,15 @@ an incompatible accounting cache, a missing display cache and a corrupt display 
 fail the scan and inspect visible data, page anchors and current expansion state. At the existing
 filesystem and IPC contract seams, verify atomic persistence, independent versions, failed writes,
 registration admission and replacement. No prototype mock is implementation evidence.
+
+agents-overview::REQ-005 is tested at the display store's filesystem seam, the counterpart of the
+existing restore of a copy saved before a side existed: payloads of every saved kind, built as this
+build's own types require, have one known side renamed in every key and value to a name generated to be
+outside the set, and are written and read back. Nothing read back names that side
+(agents-overview::REQ-005/AC-03); an entry whose only mention was a keyed record restores with it
+removed (agents-overview::REQ-005/AC-01); one that named it in a value is dropped while the others
+restore (agents-overview::REQ-005/AC-02). The renamed side stands in for any later one, and because the
+fixture payloads are typed, a keyed record a later change adds is in them without the test being edited.
 
 ## Implementation Decisions
 
