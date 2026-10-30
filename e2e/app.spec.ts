@@ -2606,9 +2606,9 @@ test('the archive retains a past day whose live figure fell under the same stamp
 
 test('token-stats::REQ-005: an archive holding rows of a side this build does not know → the page loads with them left out of the figures and the note, and the file keeps them', async () => {
   // A newer build that adds a side archives its rows into the user-data directory this build reads. The side's
-  // name is generated outside the set, so a side added later can never take it. Counted, the rows would show
-  // 912k and make 2019-12-31 a second archived-only day — and before they were held apart, the scan threw on them
-  // and the first-scan skeleton never left.
+  // name is generated outside the set, so a side added later can never take it. Counted, the rows would raise the
+  // all-history figure and make 2019-12-31 a second archived-only day — and before they were held apart, the scan
+  // threw on them and the first-scan skeleton never left.
   let outside = 'side-from-a-newer-build'
   while (AGENT_SIDES.has(outside)) outside += '+'
   const row = (day: string, side: string, total: number): Record<string, unknown> =>

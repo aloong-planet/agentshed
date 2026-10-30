@@ -314,8 +314,10 @@ build's own types require, have one known side renamed in every key and value to
 outside the set, and are written and read back. Nothing read back names that side
 (agents-overview::REQ-005/AC-03); an entry whose only mention was a keyed record restores with it
 removed (agents-overview::REQ-005/AC-01); one that named it in a value is dropped while the others
-restore (agents-overview::REQ-005/AC-02). The renamed side stands in for any later one, and because the
-fixture payloads are typed, a keyed record a later change adds is in them without the test being edited.
+restore (agents-overview::REQ-005/AC-02). The renamed side stands in for any later one. Because the payloads
+are typed and their records keyed by side are built over the agent-side set, a record a later change adds to a
+saved type either arrives through the empty payloads the production code builds or stops the fixture compiling
+until it carries it.
 
 ## Implementation Decisions
 

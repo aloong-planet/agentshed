@@ -236,8 +236,8 @@ function outsideSide(): string {
 }
 const OUT = outsideSide()
 
-/** A row as a newer build writes it; the shape and figures follow the two real rows of the side 0.1.0-beta.2 did
- * not know, read from this machine's archive on 2026-10-30 */
+/** A row as a newer build writes it; the shape, model name and totals follow the two real rows of the side
+ * 0.1.0-beta.2 did not know, read from this machine's archive on 2026-10-30 (the four-field split is made up) */
 const rawRow = (day: string, side: unknown, total: number): Record<string, unknown> => ({
   day, side, projectKey: '/users/x/agy-demo', model: 'gemini-3.8-flash-n', input: total - 2 * Math.round(total / 50),
   output: Math.round(total / 50), cacheRead: Math.round(total / 50), cacheWrite: 0, total
@@ -339,6 +339,8 @@ describe('UsageArchive: a file a newer build wrote', () => {
     }
     expect(() => a.restore([row(D1, '/p1', 'm1', 900, 'codex')], ANCHOR)).toThrow()
     expect(readFileSync(storeFile(), 'utf8')).toBe(bytes)
+    // The restore script's dry run refuses on this answer before printing anything it would write
+    expect(a.isNewerFormat()).toBe(true)
     expect(readdirSync(join(dir, 'store'))).toEqual(['usage-archive.json'])
     for (const s of quiet) expect(s).not.toHaveBeenCalled()
   })
@@ -348,10 +350,12 @@ describe('UsageArchive: a file a newer build wrote', () => {
     a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
     const bytes = newerFile()
     writeFileSync(storeFile(), bytes)
+    expect(a.isNewerFormat()).toBe(true)
     const r = a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
     expect(r.rows.map((x) => [x.day, x.total])).toEqual([[D1, 100]])
     expect(readFileSync(storeFile(), 'utf8')).toBe(bytes)
     rmSync(storeFile())
+    expect(a.isNewerFormat()).toBe(false)
     a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
     const file = JSON.parse(readFileSync(storeFile(), 'utf8')) as { version: number; rows: UsageRow[] }
     expect([file.version, file.rows.map((x) => [x.day, x.total])]).toEqual([ARCHIVE_VERSION, [[D1, 100]]])

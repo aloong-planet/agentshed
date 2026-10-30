@@ -107,7 +107,8 @@ export class UsageArchive {
   private supersededList: SupersededEntry[]
   /** Rows of a side this build does not know, which a newer build wrote (token-stats::REQ-005): written back as
    * read on every persist, and never part of the effective rows or the archived-only days. Their pairs' stamps,
-   * observed and superseded values need no such care — nothing here touches a pair it never sees live. */
+   * observed and superseded values need no such care: merge and restore only write the pairs of the rows they are
+   * given, and those are this build's own. */
   private foreign: unknown[] = []
   /** The file is of a newer format than this build writes (token-stats::REQ-006): it is not this build's to read or
    * write, until the file on disk changes */
@@ -304,6 +305,12 @@ export class UsageArchive {
     }
     if (written > 0) this.persist()
     return { pairs: written, skippedOwnDay }
+  }
+
+  /** Whether the file on disk is of a newer format than this build writes (token-stats::REQ-006) */
+  isNewerFormat(): boolean {
+    this.reloadIfChanged()
+    return this.newer
   }
 
   /** The archive's current rows, every pair */

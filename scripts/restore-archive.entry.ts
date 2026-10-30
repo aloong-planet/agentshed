@@ -72,6 +72,11 @@ function main(): void {
   }
 
   const archive = new UsageArchive(userData, { stamp })
+  // An archive a newer build wrote in its own format is not this build's to write (token-stats::REQ-006)
+  if (archive.isNewerFormat()) {
+    console.error(`${join(userData, 'usage-archive.json')} is of a newer format than this build writes: nothing can be restored into it`)
+    process.exit(2)
+  }
   const current = archive.rows()
   console.log(`snapshot: ${snapshot}`)
   console.log(`archive:  ${join(userData, 'usage-archive.json')}`)
