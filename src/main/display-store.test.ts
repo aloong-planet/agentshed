@@ -3,8 +3,10 @@ import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { emptySnapshot } from '@shared/domain'
-import { emptyDisplayData } from '@shared/display-data'
+import { emptySnapshot, emptyTokenStats, zeroBySide } from '@shared/domain'
+import type { AgentSide, ProjectDetail, ProjectStats, SessionPage, SessionTurn, Snapshot, UsageRow } from '@shared/domain'
+import { emptyDisplayData, type DisplayData, type SavedRead } from '@shared/display-data'
+import { AGENT_SIDES } from '@shared/validate'
 import { DisplayStore } from './display-store'
 const dirs: string[] = []
 afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }) })
@@ -310,4 +312,134 @@ it('restores a saved snapshot carrying the count of unreadable Antigravity conve
   bad.sides.antigravity['unreadable'] = 'x'
   writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: { ...emptyDisplayData(), snapshot: bad } }))
   expect(new DisplayStore(root).get().snapshot).toBeNull()
+})
+
+// agents-overview::REQ-005: a display copy a newer build saved, whose side this build does not know. It is made from
+// payloads of every saved kind built as this build's types require, with one known side then renamed in every key
+// and value to a name outside the set — what a build that knows that side writes, seen from one that does not. The
+// shapes follow this machine's display cache probed that way on 2026-10-30: the side survived only as zero buckets
+// in records keyed by side, while the snapshot and the one project with real usage of it were dropped.
+const NEWER = ((): string => {
+  let s = 'side-from-a-newer-build'
+  while (AGENT_SIDES.has(s)) s += '+'
+  return s
+})()
+function renameSide(v: unknown, from: string, to: string): unknown {
+  if (v === from) return to
+  if (Array.isArray(v)) return v.map((x) => renameSide(x, from, to))
+  if (typeof v === 'object' && v !== null) return Object.fromEntries(Object.entries(v).map(([k, x]) => [k === from ? to : k, renameSide(x, from, to)]))
+  return v
+}
+function mentions(v: unknown, name: string): number {
+  if (v === name) return 1
+  if (Array.isArray(v)) return v.reduce((n: number, x) => n + mentions(x, name), 0)
+  if (typeof v === 'object' && v !== null) return Object.entries(v).reduce((n, [k, x]) => n + (k === name ? 1 : 0) + mentions(x, name), 0)
+  return 0
+}
+const RENAMED: AgentSide = 'grok'
+const DAY = '2026-10-28'
+function perSide<T>(f: (side: AgentSide) => T): Record<AgentSide, T> {
+  return Object.fromEntries([...AGENT_SIDES].map((s) => [s, f(s as AgentSide)])) as Record<AgentSide, T>
+}
+function usage(side: AgentSide, total: number): UsageRow {
+  return { day: DAY, side, projectKey: '/w/g', model: 'm', input: total, output: 0, cacheRead: 0, cacheWrite: 0, total }
+}
+function stats(rows: UsageRow[]): ProjectStats {
+  const bySide = zeroBySide()
+  for (const r of rows) bySide[r.side] += r.total
+  const tokens = emptyTokenStats()
+  for (const r of rows) tokens.bySide[r.side] = { ...tokens.bySide[r.side], input: r.input, total: r.total }
+  return { tokens: { ...tokens, rows, byDay: [{ day: DAY, bySide, byProvider: {} }] }, sessions: [] }
+}
+function detail(path: string, side: AgentSide | null, s: ProjectStats | null): ProjectDetail {
+  return {
+    path, subagents: [], memory: { main: null, mainFile: null, topics: [] }, plugins: [], mcp: [],
+    configs: { claudeMd: null, agentsMd: null }, stats: s, artifacts: [],
+    skills: side === null ? [] : [{ name: 's', description: null, level: 'project', side, symlink: false, pkg: null,
+      origin: 'disk', pluginName: null, pluginRoot: null, pluginSkillName: null }]
+  }
+}
+function sessionReads(file: string, side: AgentSide): SavedRead[] {
+  const page: SessionPage = { revision: `rev-${side}`, file, side, title: 'Saved', at: 1, tokens: 1, bytes: 1, forkState: 'none',
+    forkPoints: 0, forkParentTitle: null, forkParentFile: null, sessionId: null,
+    questions: [{ revision: `q-${side}`, i: 1, text: 'Saved question', at: 1, tools: 0, subagents: 0 }] }
+  const turn: SessionTurn = { blocks: [], bytesRead: 0 }
+  return [{ kind: 'sessionPage', file, data: page }, { kind: 'turnContent', file, i: 0, revision: `q-${side}`, ms: 1, data: turn }]
+}
+function snapshotNaming(projectSides: AgentSide[]): Snapshot {
+  const snap = emptySnapshot(900)
+  snap.sides[RENAMED] = { detected: true }
+  snap.projects = [{ path: '/w/p', name: 'p', sides: projectSides, stale: false, lastSessionAt: 1, sessionCount: 1 }]
+  snap.global.skills = [{ name: 's', description: null, sides: ['claude'], symlink: perSide((s) => s === RENAMED),
+    pkg: perSide((s) => (s === RENAMED ? { files: 3, bytes: 4 } : null)), origin: 'disk', pluginName: null, pluginRoot: null,
+    pluginSkillName: null }]
+  snap.tokens = { ...snap.tokens, byDay: [{ day: DAY, bySide: zeroBySide(), byProvider: {} }] }
+  return snap
+}
+function savedByANewerBuild(data: DisplayData): DisplayData {
+  return renameSide(data, RENAMED, NEWER) as DisplayData
+}
+
+it('agents-overview::REQ-005: restores what a newer build saved without the side this build does not know, as a key or as a value', () => {
+  const root = dir()
+  const shown = stats([])
+  const saved = savedByANewerBuild({
+    ...emptyDisplayData(),
+    snapshot: snapshotNaming(['claude']),
+    stats: [['/w/p', shown], ['/w/g', stats([usage(RENAMED, 50)])]],
+    reads: [
+      { kind: 'projectDetail', path: '/w/p', data: detail('/w/p', null, shown) },
+      { kind: 'projectDetail', path: '/w/g', data: detail('/w/g', RENAMED, null) },
+      ...sessionReads('/s/claude.jsonl', 'claude'),
+      ...sessionReads('/s/other.jsonl', RENAMED),
+      { kind: 'skillFiles', args: { side: 'claude', name: 's', scope: 'global' }, data: { files: [], deep: false, deepPaths: [] } },
+      { kind: 'skillFiles', args: { side: RENAMED, name: 's', scope: 'global' }, data: { files: [], deep: false, deepPaths: [] } },
+      { kind: 'artifactContent', file: '/w/p/a.md', data: { text: 'kept', truncated: false } }
+    ]
+  })
+  expect(mentions(saved, NEWER)).toBeGreaterThan(0)
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: saved }))
+  const restored = new DisplayStore(root).get()
+  expect(mentions(restored, NEWER)).toBe(0)
+  expect(restored.snapshot?.scannedAt).toBe(900)
+  expect(restored.snapshot?.sides[RENAMED]).toEqual({ detected: false })
+  expect(restored.stats.map(([p]) => p)).toEqual(['/w/p'])
+  expect(restored.reads.map((r) => [r.kind, 'path' in r ? r.path : 'file' in r ? r.file : r.args.side])).toEqual([
+    ['projectDetail', '/w/p'], ['sessionPage', '/s/claude.jsonl'], ['turnContent', '/s/claude.jsonl'], ['skillFiles', 'claude'],
+    ['artifactContent', '/w/p/a.md']
+  ])
+})
+
+// Each value position of a snapshot where a side is named, the side in that one position alone (besides the records
+// keyed by side, which the case above strips); most are checked only by the restore's own disk check, not by live IPC's
+const snapshotPositions: Array<[string, (snap: Snapshot) => void]> = [
+  ["a project's list of sides", (snap) => { snap.projects[0].sides = ['claude', RENAMED] }],
+  ["a global skill's list of sides", (snap) => { snap.global.skills[0].sides = ['claude', RENAMED] }],
+  ["a subagent's list of sides", (snap) => {
+    snap.global.subagents = [{ name: 'r', sides: [RENAMED], description: null, claude: null, codex: null, antigravity: null, overridesBuiltin: false }]
+  }],
+  ["a memory entry's side", (snap) => {
+    snap.global.memory = [{ side: RENAMED, projectPath: null, projectName: null, hasMain: false, files: [], lastModified: null, stale: false }]
+  }],
+  ["an MCP entry's side", (snap) => { snap.global.mcp = [{ name: 'x', side: RENAMED, source: 'global-config', disabled: false, plugin: null }] }],
+  ["a usage row's side", (snap) => { snap.tokens.rows = [usage(RENAMED, 50)] }],
+  ["a model row's side", (snap) => { snap.tokens.byModel = [{ model: 'm', side: RENAMED, total: 50 }] }]
+]
+it.each(snapshotPositions)('agents-overview::REQ-005: a saved snapshot naming the side this build does not know in %s is not restored, and the rest is', (_position, name) => {
+  const root = dir()
+  const snapshot = snapshotNaming(['claude'])
+  name(snapshot)
+  // The control: before the rename the same snapshot is valid, so only the side can be what drops it below
+  const control = dir()
+  writeFileSync(join(control, 'display-cache.json'), JSON.stringify({ version: 1, data: { ...emptyDisplayData(), snapshot } }))
+  expect(new DisplayStore(control).get().snapshot?.scannedAt).toBe(900)
+  const saved = savedByANewerBuild({
+    ...emptyDisplayData(),
+    snapshot,
+    reads: [{ kind: 'artifactContent', file: '/w/p/a.md', data: { text: 'kept', truncated: false } }]
+  })
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: saved }))
+  const restored = new DisplayStore(root).get()
+  expect(restored.snapshot).toBeNull()
+  expect(restored.reads.map((r) => r.kind)).toEqual(['artifactContent'])
 })

@@ -107,29 +107,37 @@ function upgradeSavedRead(v: unknown): unknown {
 }
 
 /**
- * A payload saved before a side joined AgentSide restores with that side's empty values filled into every per-side
- * Record (ADR-0020), rather than failing the contract that now asks for every side and being dropped — which would
- * cost the first launch after the update every saved page. Not detected, zero totals, no symlink, no package: what a
- * scan of a machine without that side would produce; the first scan then replaces it. Only an absent key is filled in.
+ * A per-side Record of a saved payload is brought to exactly this build's sides before the contract checks it.
+ *
+ * A payload saved before a side joined AgentSide restores with that side's empty values filled in (ADR-0020), rather
+ * than failing the contract that now asks for every side and being dropped — which would cost the first launch after
+ * the update every saved page. Not detected, zero totals, no symlink, no package: what a scan of a machine without that
+ * side would produce; the first scan then replaces it. Only an absent key is filled in.
+ *
+ * A payload a newer build saved loses the keys of a side this build does not know (agents-overview::REQ-005), so
+ * nothing restored names it. For token figures those are empty buckets: a non-empty one derives from usage rows naming
+ * the side (ADR-0025), which fail the contract, so that entry is not restored at all. For the side's other facts —
+ * detected, symlinked, packaged — this build shows them nowhere.
  */
-function fillAbsentSides(rec: unknown, empty: () => unknown): void {
+function alignSides(rec: unknown, empty: () => unknown): void {
   if (!object(rec)) return
   for (const side of AGENT_SIDES) if (!(side in rec)) rec[side] = empty()
+  for (const key of Object.keys(rec)) if (!AGENT_SIDES.has(key)) delete rec[key]
 }
 function upgradeSavedTokens(tokens: unknown): void {
   if (!object(tokens)) return
-  fillAbsentSides(tokens.bySide, emptyTotals)
-  if (Array.isArray(tokens.byDay)) for (const day of tokens.byDay) if (object(day)) fillAbsentSides(day.bySide, () => 0)
+  alignSides(tokens.bySide, emptyTotals)
+  if (Array.isArray(tokens.byDay)) for (const day of tokens.byDay) if (object(day)) alignSides(day.bySide, () => 0)
 }
-/** The per-side Records of a saved snapshot, filled in place as fillAbsentSides says */
-function fillSavedSnapshotSides(snap: unknown): void {
+/** The per-side Records of a saved snapshot, aligned in place as alignSides says */
+function alignSavedSnapshotSides(snap: unknown): void {
   if (!object(snap)) return
-  fillAbsentSides(snap.sides, () => ({ detected: false }))
+  alignSides(snap.sides, () => ({ detected: false }))
   upgradeSavedTokens(snap.tokens)
   const skills = object(snap.global) ? snap.global.skills : null
   if (Array.isArray(skills)) for (const s of skills) if (object(s)) {
-    fillAbsentSides(s.symlink, () => false)
-    fillAbsentSides(s.pkg, () => null)
+    alignSides(s.symlink, () => false)
+    alignSides(s.pkg, () => null)
   }
   upgradeSavedComponents(snap.global)
 }
@@ -194,7 +202,7 @@ export function parseDisplayData(v: unknown, paths?: SavedConfigPaths): DisplayD
   if (!object(v)) return d
   // The upgrades fill in place: the payload is freshly parsed from disk or IPC, owned by this call
   const snapshot = upgradeSavedSnapshot(v.snapshot, paths)
-  fillSavedSnapshotSides(snapshot)
+  alignSavedSnapshotSides(snapshot)
   if (finiteNumbers(snapshot) && validateSnapshot(snapshot).ok && displaySnapshotValid(snapshot)) d.snapshot = snapshot as Snapshot
   if (Array.isArray(v.stats)) for (const p of v.stats) if (Array.isArray(p) && object(p[1])) upgradeSavedTokens(p[1].tokens)
   if (Array.isArray(v.stats)) d.stats = v.stats.filter((p): p is [string, ProjectStats] =>
