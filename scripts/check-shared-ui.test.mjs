@@ -198,13 +198,16 @@ const FILES = {
   // A logic page is no UI page: no notes file, and a header of two comments
   'docs/prototypes/planted/logic/index.html': page('<!-- A logic prototype -->\n<!-- its question -->\n'),
   // Headers out of shape, each beside its notes file: two comments, one over two lines, one naming another page's notes
-  // file (as a page copied from another would)
+  // file (as a page copied from another would), one naming none
   'docs/prototypes/planted/prototype-two.html': page('<!-- Notes: prototype-two.md -->\n<!-- Question: how the list sorts -->\n'),
   'docs/prototypes/planted/prototype-two.md': '# prototype-two\n',
   'docs/prototypes/planted/prototype-tall.html': page('<!-- A UI prototype · the list.\n     Notes: prototype-tall.md -->\n'),
   'docs/prototypes/planted/prototype-tall.md': '# prototype-tall\n',
   'docs/prototypes/planted/prototype-unnamed.html': page('<!-- Notes: prototype-two.md -->\n'),
-  'docs/prototypes/planted/prototype-unnamed.md': '# prototype-unnamed\n'
+  'docs/prototypes/planted/prototype-unnamed.md': '# prototype-unnamed\n',
+  // ...and one naming no file at all
+  'docs/prototypes/planted/prototype-nameless.html': page('<!-- A UI prototype · the list -->\n'),
+  'docs/prototypes/planted/prototype-nameless.md': '# prototype-nameless\n'
 }
 
 /** The second tree: every source the gate derives a list from, renamed away or emptied */
@@ -338,6 +341,10 @@ test('a notes file in another directory is not the page\'s notes file', () => {
 test('a page with its notes file and a one-line header naming it is not reported, whatever comments it holds inside', () => {
   assert.ok(reported('docs/prototypes/planted/prototype-lone.html: has no notes file prototype-lone.md beside it'), run.out)
   assert.deepEqual(shapeLines('docs/prototypes/planted/prototype-paired.html'), [], run.out)
+})
+
+test('a header comment that names no notes file at all is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-nameless.html: its header comment does not name prototype-nameless.md'), run.out)
 })
 
 test('a page with its notes file and no header comment is not reported', () => {

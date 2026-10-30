@@ -73,6 +73,7 @@ describe('readArtifacts', () => {
   it("prototypes: collects .html recursively, excluding the root index.html, vendor and a page's notes file; the title is the filename", () => {
     w('docs/prototypes/index.html', '<title>Gallery</title>', 100)
     w('docs/prototypes/vendor/mermaid.min.js', 'x', 100)
+    w('docs/prototypes/vendor/demo.html', '<title>Vendored demo</title>', 100)
     w('docs/prototypes/agents/prototype-agents.html', '<title>Agents</title>', 200)
     w('docs/prototypes/agents/prototype-agents.md', '# Reviewer notes: prototype-agents.html\n', 250)
     w('docs/prototypes/list/visibility/index.html', '<title>Logic</title>', 300)
