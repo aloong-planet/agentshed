@@ -14,11 +14,13 @@ import { join } from 'node:path'
 // receives, so persistence no longer owns it.
 import type { AgentSide, UsageRow } from '@shared/domain'
 import { localDay } from '@shared/format'
+import { AGENT_SIDES } from '@shared/validate'
 export type { UsageRow }
 
 /** v2 (2026-09-10): stamps, observed values and superseded values joined the rows (ADR-0026). A v1 file
- * reads back with every pair under an unknown stamp (spec C14). */
-const ARCHIVE_VERSION = 2
+ * reads back with every pair under an unknown stamp (spec C14). Exported for tests, which build a file of the
+ * next version from it rather than from a literal that goes stale (the CACHE_VERSION precedent). */
+export const ARCHIVE_VERSION = 2
 
 /** The rows a (day, side) pair held before an accepted change replaced them (spec C13) */
 export interface SupersededEntry {
@@ -43,7 +45,8 @@ interface ObservedEntry {
 
 interface ArchiveShape {
   version: typeof ARCHIVE_VERSION
-  rows: UsageRow[]
+  /** This build's rows, then the rows of a side it does not know exactly as they were read */
+  rows: unknown[]
   /** pair key → the stamp its current rows were written under; absent = unknown (a v1 file) */
   stamps: Record<string, string>
   /** pair key → the observed value, present only while the pair is retained */
@@ -102,6 +105,13 @@ export class UsageArchive {
   private stamps: Map<string, string>
   private observed: Map<string, ObservedEntry>
   private supersededList: SupersededEntry[]
+  /** Rows of a side this build does not know, which a newer build wrote (token-stats::REQ-005): written back as
+   * read on every persist, and never part of the effective rows or the archived-only days. Their pairs' stamps,
+   * observed and superseded values need no such care — nothing here touches a pair it never sees live. */
+  private foreign: unknown[] = []
+  /** The file is of a newer format than this build writes (token-stats::REQ-006): it is not this build's to read or
+   * write, until the file on disk changes */
+  private newer = false
   /** The on-disk signature (mtime:size) this instance last read or wrote; another writer moves it */
   private diskSig: string | null = null
 
@@ -139,6 +149,8 @@ export class UsageArchive {
     this.stamps = new Map()
     this.observed = new Map()
     this.supersededList = []
+    this.foreign = []
+    this.newer = false
     this.load()
   }
 
@@ -155,10 +167,19 @@ export class UsageArchive {
         observed?: Record<string, Partial<ObservedEntry>>
         superseded?: Array<Partial<SupersededEntry>>
       }
+      // A newer build's format is not corrupt: degrading it to empty would overwrite its history at the next merge
+      if (Number.isInteger(shape?.version) && (shape.version as number) > ARCHIVE_VERSION) {
+        this.newer = true
+        return
+      }
       // v1 and v2 both carry rows; v1 has no stamps — every pair reads back under an unknown stamp (C14)
       if ((shape?.version !== 1 && shape?.version !== ARCHIVE_VERSION) || !Array.isArray(shape.rows)) return
       for (const r of shape.rows as Array<Partial<UsageRow>>) {
-        if (typeof r?.day === 'string' && typeof r?.total === 'number') this.map.set(keyOf(r as UsageRow), r as UsageRow)
+        if (typeof r?.day !== 'string' || typeof r?.total !== 'number') continue
+        // The side is admitted against the set the contract validation reads, total over the side type: a side
+        // added to the type is admitted from the build that adds it on
+        if (typeof r.side === 'string' && AGENT_SIDES.has(r.side)) this.map.set(keyOf(r as UsageRow), r as UsageRow)
+        else this.foreign.push(r)
       }
       if (shape.version === ARCHIVE_VERSION) {
         for (const [k, v] of Object.entries(shape.stamps ?? {})) if (typeof v === 'string') this.stamps.set(k, v)
@@ -184,6 +205,7 @@ export class UsageArchive {
    */
   merge(live: UsageRow[], anchorMs: number, opts: MergeOptions = {}): MergeResult {
     this.reloadIfChanged()
+    if (this.newer) return { rows: live.filter((r) => r.day), archivedOnlyDays: [] }
     // Liveness is a property of a (day, side) pair (spec C5): only pairs this scan produced rows for are
     // replaced; a side with no rows on a day keeps its archived rows whatever the other sides did that day
     const livePairs = new Map<string, UsageRow[]>()
@@ -246,6 +268,7 @@ export class UsageArchive {
    */
   restore(rows: UsageRow[], anchorMs: number): { pairs: number; skippedOwnDay: number } {
     this.reloadIfChanged()
+    if (this.newer) throw new Error(`${this.file} is of a newer format than this build writes; nothing was written`)
     const ownDay = localDay(anchorMs)
     const pairs = new Map<string, UsageRow[]>()
     for (const r of rows) {
@@ -298,7 +321,7 @@ export class UsageArchive {
     const tmp = join(this.dir, `.usage-archive.w-${process.pid}`)
     const payload: ArchiveShape = {
       version: ARCHIVE_VERSION,
-      rows: this.rows(),
+      rows: [...this.rows(), ...this.foreign],
       stamps: Object.fromEntries(this.stamps),
       observed: Object.fromEntries(this.observed),
       superseded: this.supersededList

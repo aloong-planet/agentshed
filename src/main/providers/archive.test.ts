@@ -2,11 +2,16 @@
 // source files. Granularity is day × side × project × model. The conflict rule is ADR-0026's: liveness is
 // judged per (day, side); a past day's figure never falls under the same accounting stamp; superseded
 // values are kept. The seam is the archive's public interface with the stamp and the clock injected.
+//
+// A file a newer build wrote (token-stats::REQ-005, token-stats::REQ-006) is seeded at the file boundary, the
+// only way rows of a side this build does not know can reach it. Not asserted here: that no notice appears on a
+// page (no code renders one); the log half of the two AC-04s is asserted below.
 import { mkdtempSync, rmSync, readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { UsageArchive } from './archive'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { AGENT_SIDES } from '@shared/validate'
+import { ARCHIVE_VERSION, UsageArchive } from './archive'
 import type { UsageRow } from './archive'
 
 let dir: string
@@ -220,5 +225,143 @@ describe('UsageArchive', () => {
     expect(a.rows()).toEqual([])
     a.merge([row('2026-07-01', '/p1', 'm1', 7)], ANCHOR)
     expect((JSON.parse(readFileSync(join(dir, 'store', 'usage-archive.json'), 'utf8')) as { version: number }).version).toBe(2)
+  })
+})
+
+/** A side no build of this one knows: generated rather than hand-picked, so a side added later can never take it */
+function outsideSide(): string {
+  let s = 'side-from-a-newer-build'
+  while (AGENT_SIDES.has(s)) s += '+'
+  return s
+}
+const OUT = outsideSide()
+
+/** A row as a newer build writes it; the shape and figures follow the two real rows of the side 0.1.0-beta.2 did
+ * not know, read from this machine's archive on 2026-10-30 */
+const rawRow = (day: string, side: unknown, total: number): Record<string, unknown> => ({
+  day, side, projectKey: '/users/x/agy-demo', model: 'gemini-3.8-flash-n', input: total - 2 * Math.round(total / 50),
+  output: Math.round(total / 50), cacheRead: Math.round(total / 50), cacheWrite: 0, total
+})
+
+const storeFile = (): string => join(dir, 'store', 'usage-archive.json')
+const seed = (content: unknown): void => {
+  mkdirSync(join(dir, 'store'), { recursive: true })
+  writeFileSync(storeFile(), JSON.stringify(content))
+}
+const onDisk = (): { rows: Array<Record<string, unknown>>; stamps: Record<string, string>; observed: Record<string, unknown>; superseded: Array<{ side: unknown }> } =>
+  JSON.parse(readFileSync(storeFile(), 'utf8')) as ReturnType<typeof onDisk>
+const known = (side: unknown): boolean => typeof side === 'string' && AGENT_SIDES.has(side)
+const bySig = (rows: Array<Record<string, unknown>>): string[] => rows.map((r) => JSON.stringify(r)).sort()
+
+describe('UsageArchive: a file a newer build wrote', () => {
+  const D1 = '2026-07-01' // live for claude and codex, and held for the outside side too
+  const D0 = '2026-06-20' // held only for the outside side
+  const DK = '2026-06-10' // held only for claude, live nowhere: the archived-only control
+  const OWN = '2026-08-15' // the anchor's own day
+  let quiet: Array<ReturnType<typeof vi.spyOn>>
+  beforeEach(() => {
+    quiet = (['log', 'info', 'warn', 'error'] as const).map((m) => vi.spyOn(console, m))
+  })
+  afterEach(() => {
+    for (const s of quiet) s.mockRestore()
+  })
+
+  it('token-stats::REQ-005: rows of a side this build does not know stay in the file and out of every figure, the archived-only days included', () => {
+    const outside = [rawRow(D1, OUT, 283_172), rawRow(D0, OUT, 137_497), rawRow(OWN, OUT, 9_000), rawRow(D1, undefined, 15_000)]
+    delete outside[3].side // a row with no side at all
+    const outsideStamps = { [`${D1}\x00${OUT}`]: 'v9+c99', [`${D0}\x00${OUT}`]: 'v9+c99' }
+    const outsideObserved = { [`${D0}\x00${OUT}`]: { total: 1, stamp: 'v9+c99', at: 123 } }
+    const outsideSuperseded = [{ day: D0, side: OUT, stamp: 'v8+c98', replacedBy: 'v9+c99', replacedAt: 122, rows: [rawRow(D0, OUT, 100_000)] }]
+    seed({
+      version: 2,
+      rows: [row(D1, '/p1', 'm1', 100), row(D1, '/p1', 'm1', 40, 'codex'), row(DK, '/p1', 'm1', 7), ...outside],
+      stamps: { [`${D1}\x00claude`]: 'v1+c14', [`${D1}\x00codex`]: 'v1+c14', [`${DK}\x00claude`]: 'v1+c14', ...outsideStamps },
+      observed: outsideObserved,
+      superseded: outsideSuperseded
+    })
+    const a = open()
+    const live = [row(D1, '/p1', 'm1', 100), row(D1, '/p1', 'm1', 40, 'codex'), row(OWN, '/p1', 'm1', 10)]
+    a.merge(live, ANCHOR)
+    const r = a.merge(live, ANCHOR)
+    expect(r.rows.filter((x) => !known(x.side))).toEqual([])
+    expect(r.rows.map((x) => [x.day, x.side, x.total]).sort()).toEqual([
+      [DK, 'claude', 7], [D1, 'claude', 100], [D1, 'codex', 40], [OWN, 'claude', 10]
+    ].sort())
+    expect(r.archivedOnlyDays).toEqual([DK])
+    const file = onDisk()
+    expect(bySig(file.rows.filter((x) => !known(x.side)))).toEqual(bySig(outside))
+    expect(Object.fromEntries(Object.entries(file.stamps).filter(([k]) => k.endsWith(`\x00${OUT}`)))).toEqual(outsideStamps)
+    expect(file.observed).toEqual(outsideObserved)
+    expect(file.superseded.filter((s) => !known(s.side))).toEqual(outsideSuperseded)
+    for (const s of quiet) expect(s).not.toHaveBeenCalled()
+  })
+
+  it('token-stats::REQ-005: rows of such a side another writer adds between two merges are carried through, not overwritten from memory', () => {
+    const a = open()
+    a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
+    // The newer build, running at the same time, writes its side's row into the same file
+    const theirs = onDisk()
+    const added = rawRow(D0, OUT, 137_497)
+    seed({ ...theirs, rows: [...theirs.rows, added] })
+    const r = a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
+    expect(r.rows.map((x) => [x.day, x.side])).toEqual([[D1, 'claude']])
+    expect(onDisk().rows.filter((x) => !known(x.side))).toEqual([added])
+  })
+
+  it('token-stats::REQ-005: a restore of a known side carries rows of a side this build does not know through', () => {
+    const outside = [rawRow(D0, OUT, 137_497)]
+    seed({ version: 2, rows: [row(D1, '/p1', 'm1', 30, 'codex'), ...outside], stamps: {}, observed: {}, superseded: [] })
+    const outcome = open().restore([row(D1, '/p1', 'm1', 900, 'codex')], ANCHOR)
+    expect(outcome).toEqual({ pairs: 1, skippedOwnDay: 0 })
+    const file = onDisk()
+    expect(file.rows.filter((x) => known(x.side)).map((x) => x.total)).toEqual([900])
+    expect(file.rows.filter((x) => !known(x.side))).toEqual(outside)
+  })
+
+  /** A file of the format after this build's, as a newer build that changed the archive's shape would write it:
+   * its version raised and keys this build has never seen */
+  const newerFile = (): string => JSON.stringify({
+    version: ARCHIVE_VERSION + 1, rows: [rawRow(D1, 'claude', 5_000_000)], stamps: {}, observed: {}, superseded: [],
+    retention: { policy: 'unknown to this build' }
+  })
+
+  it('token-stats::REQ-006: an archive of a newer format is never written, and the figures come from the live rows alone', () => {
+    const bytes = newerFile()
+    mkdirSync(join(dir, 'store'), { recursive: true })
+    writeFileSync(storeFile(), bytes)
+    const a = open()
+    const live = [row(D1, '/p1', 'm1', 100), row(OWN, '/p1', 'm1', 10), row('', '/p1', 'm1', 3)]
+    for (let i = 0; i < 2; i++) {
+      const r = a.merge(live, ANCHOR)
+      expect(r.rows.map((x) => [x.day, x.total])).toEqual([[D1, 100], [OWN, 10]])
+      expect(r.archivedOnlyDays).toEqual([])
+      expect(readFileSync(storeFile(), 'utf8')).toBe(bytes)
+    }
+    expect(() => a.restore([row(D1, '/p1', 'm1', 900, 'codex')], ANCHOR)).toThrow()
+    expect(readFileSync(storeFile(), 'utf8')).toBe(bytes)
+    expect(readdirSync(join(dir, 'store'))).toEqual(['usage-archive.json'])
+    for (const s of quiet) expect(s).not.toHaveBeenCalled()
+  })
+
+  it('token-stats::REQ-006: a newer build writing its format while this build runs is left alone from the next merge on; a removed file starts a new archive', () => {
+    const a = open()
+    a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
+    const bytes = newerFile()
+    writeFileSync(storeFile(), bytes)
+    const r = a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
+    expect(r.rows.map((x) => [x.day, x.total])).toEqual([[D1, 100]])
+    expect(readFileSync(storeFile(), 'utf8')).toBe(bytes)
+    rmSync(storeFile())
+    a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
+    const file = JSON.parse(readFileSync(storeFile(), 'utf8')) as { version: number; rows: UsageRow[] }
+    expect([file.version, file.rows.map((x) => [x.day, x.total])]).toEqual([ARCHIVE_VERSION, [[D1, 100]]])
+  })
+
+  it.each([['"3"', '3'], ['2.5', 2.5]])('a version that is not a whole number (%s) is corrupt, not newer: C8 applies', (_label, version) => {
+    seed({ version, rows: [row(DK, '/p1', 'm1', 7)], stamps: {}, observed: {}, superseded: [] })
+    const a = open()
+    expect(a.rows()).toEqual([])
+    a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
+    expect(onDisk().rows.map((x) => [x.day, x.total])).toEqual([[D1, 100]])
   })
 })

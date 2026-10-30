@@ -24,6 +24,7 @@ import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { closeApp } from './close-app'
 import { ERR } from '../src/shared/errors'
+import { AGENT_SIDES } from '../src/shared/validate'
 import { MEASURED_TITLE, callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation, writeSummaries, type UsageFixture } from '../src/main/testing/agy-fixture'
 import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTranscript } from '../src/main/testing/agy-transcript-fixture'
 
@@ -2599,6 +2600,41 @@ test('the archive retains a past day whose live figure fell under the same stamp
   await expect(projBar).not.toHaveClass(/\barch\b/)
   expect(errors).toEqual([])
   await closeApp(app)
+  rmSync(userData, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true })
+})
+
+test('token-stats::REQ-005: an archive holding rows of a side this build does not know → the page loads with them left out of the figures and the note, and the file keeps them', async () => {
+  // A newer build that adds a side archives its rows into the user-data directory this build reads. The side's
+  // name is generated outside the set, so a side added later can never take it. Counted, the rows would show
+  // 912k and make 2019-12-31 a second archived-only day — and before they were held apart, the scan threw on them
+  // and the first-scan skeleton never left.
+  let outside = 'side-from-a-newer-build'
+  while (AGENT_SIDES.has(outside)) outside += '+'
+  const row = (day: string, side: string, total: number): Record<string, unknown> =>
+    ({ day, side, projectKey: '/legacy', model: 'gemini-3.8-flash-n', input: total, output: 0, cacheRead: 0, cacheWrite: 0, total })
+  const theirs = [row('2019-12-31', outside, 5_000), row('2020-01-02', outside, 900_000)]
+  const userData = makeUserData()
+  writeFileSync(join(userData, 'usage-archive.json'),
+    JSON.stringify({ version: 2, rows: [row('2020-01-02', 'claude', 12_000), ...theirs], stamps: {}, observed: {}, superseded: [] }))
+  const home = mkEmptyProjectHome()
+  const errors: string[] = []
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US' }
+  })
+  app.process().stderr?.on('data', (b: Buffer) => {
+    const t = b.toString()
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]|scan failed/.test(t)) errors.push(t)
+  })
+  const win = await app.firstWindow()
+  await expect(win.locator('.arch-note')).toContainText('For 1 of those days (earliest 2020-01-02)')
+  await expect(win.locator('.sk-page')).toHaveCount(0)
+  await expect(win.locator('.pane-head .tot-row .tot-c').first().locator('.v')).toHaveText('12k')
+  expect(errors).toEqual([])
+  await closeApp(app)
+  const file = JSON.parse(readFileSync(join(userData, 'usage-archive.json'), 'utf8')) as { rows: Array<{ side: string }> }
+  expect(file.rows.filter((r) => r.side === outside)).toEqual(theirs)
   rmSync(userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
 })
