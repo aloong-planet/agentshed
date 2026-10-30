@@ -926,7 +926,10 @@ cannot reach is the scan's merge feeding the figure derivation — where an unkn
 every scan and leave the first-scan skeleton up ([agents-overview](agents-overview.md) A4d) — so the seeded-archive
 e2e seeds a known side's past-day row beside a row of a side outside the set, launches, and reads that
 the agents page leaves the skeleton with the all-history figure equal to the known row, that the main
-process reports no error, and that the archive file still holds the unknown row after the scan.
+process reports no error, and that the archive file still holds the unknown row after the scan. The restore
+script is run through its runner under `pnpm test:scripts`, as a developer runs it: against an archive of a
+newer format it refuses before reading the snapshot and leaves the file as it was, and against this build's
+format its dry run reports and writes nothing.
 
 The Codex usage sources (B1, B7, B9–B12) are tested at the providers seam with rollout fixtures
 whose shapes come from real paginated samples (the record's key set, the interleaving of events and
