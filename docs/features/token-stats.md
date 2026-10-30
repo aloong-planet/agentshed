@@ -89,7 +89,8 @@ numbers share a source and reconcile against each other.
 - A past day's figure never falls silently: when an agent's records for a past day shrink — rewritten
   by the agent, deleted by hand, rewound in Antigravity CLI, or left out because they can no longer be
   read — the day's figure is retained as it was counted before; only a correction that arrives with an
-  application update replaces it. Today's figure is exempt and still moves with every refresh while
+  application update replaces it (one exception, an archive a newer version stored in its own format, is
+  under the boundaries below). Today's figure is exempt and still moves with every refresh while
   sessions are being written. Deleting a forked conversation's parent takes the calls the fork copied
   with it: a past day keeps them, today does not
 - Projects with no sessions show zeros and an empty state rather than an error
@@ -109,6 +110,12 @@ numbers share a source and reconcile against each other.
 - Only Antigravity CLI's own conversations are read; the Antigravity desktop app's and IDE's are not
   counted, and Gemini CLI is not a side
 - No dollar cost estimation
+- Opened after a newer version of the application has used the same data — an older release installed
+  over a newer one, say — this version neither shows nor counts an agent side the newer version added,
+  and leaves that side's archived history as it found it for the newer version
+- If the newer version stored the history archive in a format this version does not read, this version
+  leaves the archive untouched and shows only what its own refreshes find: past days only the archive
+  held read lower or empty, without hatching, until the newer version is opened again
 - The archive can only accumulate from the first day this application ran; sessions older than that
   and already cleaned up cannot be recovered, and neither can history on a machine whose agent
   rewrote its records before this application ever scanned them
