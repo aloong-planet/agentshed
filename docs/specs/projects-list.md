@@ -85,7 +85,8 @@ and are never written back to any agent configuration.
   the detail area shows the scanning hint centred **in place of** the pick-a-project empty state,
   because with nothing to pick yet that guidance would be false. The hint copy is one dictionary
   entry shared with the agents overview; its old parenthetical promised the pre-skeleton behaviour
-  and is rewritten in every language.
+  and is rewritten in every language. The scanning hint appears once on the screen: while the skeleton
+  is up, the detail area shows no other scanning hint.
 - A11 The skeleton is non-interactive: search, the side dropdown, the stale toggle and the
   placeholder rows all refuse input; the rail stays live (dimension switch, settings).
 - A12 The skeleton exists only while no live or restored snapshot is available; later scans keep the
@@ -95,6 +96,8 @@ and are never written back to any agent configuration.
 - A13 First scan failure without a restored snapshot → the skeleton and hint stay; recovery rides the automatic rescan triggers
   (timer, window focus). A dedicated error state is out of scope (the agents overview spec carries
   the same rule as A4d).
+- A14 A scan that finds no project leaves the list showing the same no-match line that search and the
+  filters show when no row matches.
 
 **Sequence B: activity computation**
 - B1 The Claude side counts `*.jsonl` under the encoded directory, taking the largest mtime as the
@@ -147,6 +150,8 @@ and are never written back to any agent configuration.
   ([global-search](global-search.md) global-search::US-002/AC-01) — has its row scrolled into view when
   it is outside the list's visible part. The filters are left as they are, so a row they hide (a stale
   project, by default) stays hidden.
+- C9 The stale counter shows only while the stale toggle is off and at least one stale project is
+  filtered out; with the toggle on, or with no stale project, the filter row has no counter.
 
 ## The Antigravity CLI side
 
@@ -208,7 +213,9 @@ registrations follow A6 and project-detail's S6/S7 rather than retaining ghost l
 - **Side identity in the row**: a count, plus a hover layer naming the sides. Side colours appear
   only in that layer and in the side dropdown's options (both name sides in full), and are the side
   colours defined in ADR-0021 rather than a palette local to this list. The count itself carries no
-  side's colour — it says "how many", and colouring it would read as "which".
+  side's colour — it says "how many", and colouring it would read as "which". The count follows the
+  Bot glyph, the same glyph on every row.
+- **Row tooltip**: a row's tooltip is the project's path.
 - **Refresh**: scanning is automatic only (focus + timed backstop, in-flight deduplicated). The rail's
   global refresh control was removed on 2026-08-23 — it held ⌘R, shadowing the platform reload, and
   the automatic triggers already covered staleness. See Out of Scope for what that costs.

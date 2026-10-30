@@ -238,7 +238,9 @@ Settled during implementation (2026-10-29):
   no new arbitrary-path read hole is opened.
 - **UI**: two sections grouped by side; a row = name + version + enablement/source + installation
   record chips; the expansion = category tabs (a segmented control, distinct from page-level tabs) +
-  one category panel; the Skills tab reuses skills-view's row / file table / drawer mechanism.
+  one category panel; the Skills tab reuses skills-view's row / file table / drawer mechanism. The
+  expanded area keeps the plugin row's own left inset: its category tabs and panel start level with the
+  row's chevron, with no further indent.
 
 ## Testing Decisions
 

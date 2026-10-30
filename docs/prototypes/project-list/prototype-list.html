@@ -1,35 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · the project list (the projects dimension inside the icon rail).
-     问题:并集列表的行密度与徽标怎么摆;失效过滤开关、手动隐藏/恢复、搜索、
-     活跃度排序在纯项目栏里如何共存不打架(全局入口已移入最左 rail,不再挤在列表底部)。
-     2026-08-15 追加的问题(第三侧 Grok 接入):侧数增长后行上不再逐个列徽章,改成一个数字 + 悬浮说明,
-       过滤器改成下拉——于是问题变成:一个光秃秃的数字读不读得懂(尤其满屏都是「1」时),
-       以及两个压在 overflow:auto 列表上的浮层会不会被裁掉、锚点失效时答不答话。
-     2026-08-16:手动隐藏功能整体删除(ADR-0022),行尾不再有 hover 才浮现的控件。
-     2026-08-16(实现期裁决):过滤行在长语言下装不下——本原型的失效开关 label 与失效计数器是
-       硬编码中文(六语最短),宽度读数对这两个占位者失明,确认因此附着在一个产品里不存在的状态上
-       (复盘:docs/postmortems/2026-08-16-prototype-copy-blindspot.md)。裁决:计数器优先收缩省略
-       (全文放 title),label 只有自身自然宽超列才换行;见 spec projects-list C5。本原型未随之改造,
-       其过滤行宽度结论仅对触发器有效。
-     2026-10-14:失效开关 label 与失效计数器改为画全六种语言,宽度读数不再对它们失明;但 C5 的收缩省略/
-       换行布局仍未搬入本原型,整行装不装得下以 spec C5 与 app 为准。
-     2026-10-21:界面语言减到中英(ADR-0035),本页与项目栏共享件只画这两种语言。
-     2026-10-14:项目栏改为共享件 _shared/project-side.{js,css},行为照 app 的项目栏(搜索同时匹配名字与路径、失效计数只在有被过滤的失效项目时
-       出现、行提示为路径、徽章固定 Bot 图标),mock 项目也只有这一份,各页看到的是同一批项目。数字前图标
-       候选的对照条因此撤掉:app 已定 Bot。
-     2026-10-14:原「项目列表启动骨架」原型并入本页——app 里两者也是同一位置的二选一:这次启动还没收到首个
-       快照时画骨架,收到后画正式内容。骨架回答的问题:①项目维度的骨架长什么样——项目栏
-       (搜索框 / 过滤行 / 列表行)全部按真实几何摆灰块,搜索与过滤静态置灰不可交互;②「正在扫描」提示放在
-       右侧详情区中央(替换「选择一个项目」引导的位置)是否成立——扫描期间没有可选的项目,那句引导是假话,
-       同一个居中位换成扫描提示;③填充是否接近零跳变(演示条在骨架与其余三档间切换对照)。骨架期间主区不可
-       交互,顶栏的扫描提示让给中央那一句。
-     交互:搜索、侧别下拉、勾选"显示失效"、点行——有原型的项目(Transfer、失效的 removed-experiment-2025)
-       进入其原型,其余项目在本页只做选中。
-     演示基建(非设计的一部分,勿实现):底部悬浮条(data-demo-harness,独立于页面内容流)承载「启动」一组
-       (骨架 / 扫描中 / 完成 / 失败,共享件 _shared/startup-status;真实判定 = 渲染器是否已收到首个快照与
-       扫描的结果,说明行写明)与过滤行宽度读数——app 内没有这些开关。
-     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了中英两种语言,即全部界面语言;
-       色值取共享主题 _shared/theme.css。app 窗口的根样式在共享件 _shared/app-window.css 里。仍为中文的只有演示条。 -->
+<!-- Reviewer notes: prototype-list.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -47,14 +17,12 @@
   .empty .big{display:flex;justify-content:center;color:var(--text-2);opacity:.75}
   .empty{margin:auto;text-align:center;color:var(--text-2);line-height:2}
   /* 启动骨架:中央的扫描提示与转圈图标;主区整体拒点(项目栏的骨架由共享件
-     自己拒点,rail 与演示条不在此容器内);顶栏的扫描提示让给中央这一句,同一句话不在一屏里说两遍 */
+     自己拒点,rail 与演示条不在此容器内);顶栏的扫描提示让给中央这一句 */
   .empty .spin{display:inline-flex;justify-content:center;color:var(--accent);animation:spin 1.2s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   body.scanning .main{pointer-events:none}
   body.scanning .topbar .startup-hint{visibility:hidden}
 </style>
-<!-- Startup restore: keep the original page and its mock contents. The added bottom switches
-     are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
 <link rel="stylesheet" href="../_shared/startup-status.css">
 <script src="../dimensions.js"></script>
 <script src="../demo-dimensions.js" data-follow="language mode theme"></script>
@@ -72,7 +40,7 @@
   <div class="main">
     <div class="topbar" style="gap:12px"><b>Agentshed</b><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span></div>
     <div class="empty" id="pickStage"><div class="big" data-icon="MousePointerClick" data-icon-size="30"></div><div id="pickT"></div></div>
-    <!-- 启动骨架的详情区:扫描期间没有可选项目,「选择一个项目」是假话——同一个居中位换成扫描提示 -->
+    <!-- 启动骨架的详情区:占「选择一个项目」引导的同一个居中位 -->
     <div class="empty" id="skStage" hidden><div class="spin" data-icon="RefreshCw" data-icon-size="26"></div><div data-startup-scanning></div></div>
   </div>
 </div>
@@ -86,9 +54,9 @@
   // 项目栏是共享件(_shared/project-side.js),本页只管右侧主区的引导语与演示条。引导语画了中英两种语言。
   const PICK={zh:'选择一个项目查看详情',en:'Select a project to see its details'};
   const HTML_LANG={zh:'zh-CN',en:'en'};
-  // 演示基建(非设计的一部分,勿实现):启动各档(共享件把占位换成开关组),与过滤行宽度读数——项目栏每次
+  // 演示基建:启动各档(共享件把占位换成开关组),与过滤行宽度读数——项目栏每次
   // 重绘后量,用来实测过滤行在两种语言下装不装得下(触发器宽 · 行的内容宽/可用宽)。
-  // 演示条「骨架」一档:骨架与正式内容在同一位置二选一,与 app 一致(项目栏由共享件画它的骨架)
+  // 演示条「骨架」一档:骨架与正式内容在同一位置二选一(项目栏由共享件画它的骨架)
   let skeleton=false;
   StartupStatus.withSkeleton((state)=>{
     if((state==='skeleton')===skeleton) return;

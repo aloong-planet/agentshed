@@ -1,64 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · landing-page: Agentshed's download landing page (ADR-0031), the long-page form the
-     owner picked on 2026-10-12 ("L1", after Transfer's landing page): header → hero with the download →
-     features → install steps → download section → footer. Chinese and English only. The features (owner's calls,
-     2026-10-13, reworked 2026-10-21 after the layout of a reference page the owner supplied, "vertical card stack"):
-     on a wide screen the section pins a showcase under the header while the page scrolls by — the current step's
-     text in a narrow column on the left with its count ("01 / 06"), its screenshot large on a wider right, in the
-     page's own window frame. Each stretch of ordinary scrolling turns to the next step: the text and the
-     screenshot cross-fade in place together, nothing moving (nothing captures the wheel either). A slide up and
-     in from below was tried first and dropped the same day, at the owner's call: it made the screenshot jump.
-     The reference's cards stacked in depth were tried and dropped the same day, at the owner's call: only its
-     layout is taken, not its cards, dots, scroll hint, colours, web font or download button. Phones keep the
-     stacked steps. The downloads stay in the hero and at the bottom.
-
-     Global search (owner's calls, 2026-10-21, before this page changed; the structure is decided, so no text
-     options were drawn): a fifth step, last, after the sessions step, with its own screenshot of the search page;
-     its copy names no shortcut. The sessions step's "search" becomes search within the project, so the two steps
-     do not read as one feature. The hero is retaken so its rail shows the Search item.
-     Memory (owner's calls, 2026-10-21): a step of its own, third, after what each project has, showing a memory
-     file open in the drawer over the Agents page's Memory section. The hero paragraph is the README's opening
-     summary, word for word, and names plugins and memory. No longer in force (owner's call, 2026-10-24): the hero
-     need not match the README; the spec's landing-page::REQ-007 holds the heading only.
-
-     What it asks: does this page structure, and the three download states, read right? The page decides in the
-     visitor's browser, so a release never needs a site change (owner's calls, 2026-10-13):
-       · the R2 latest pointer reads → a formal release exists: the download goes to the R2 mirror, with GitHub as
-         the fallback link;
-       · no pointer on R2 (the first release is v0.1.0-beta, and R2 holds formal releases only), or the pointer
-         cannot be read (offline, blocked, malformed) → GitHub's public releases API is read instead: its latest
-         formal release if there is one (the formal state, every link on GitHub — this also covers the minutes
-         between a formal release and its pointer), else its newest pre-release, said plainly to be a test version;
-       · neither can be read → the download goes to GitHub's release list with no version named. The page's first
-         paint, before its script runs, is this state too.
-
-     Screenshots (shots/, 2026-10-13) are taken from the built app over the owner's own agent data, at the
-     owner's choice: 1280×800 window, light appearance, 2× pixels, one set per language. The hero keeps the whole
-     window. The feature shots are cut, at the owner's choice, to the part of the window each step is about,
-     all to one size (920×517pt, 16:9) so the text keeps one size as the steps turn: about 0.7 of its size
-     in the app, against 0.5 for the whole window. 920pt is the narrowest that holds the token page's trend chart
-     and per-model figures whole. Each cut ends between list rows, and the token cut stops short of the
-     recent-sessions list, which would show the current conversation's title.
-     The search page is cut from a window narrowed to 984pt wide, so its pane reflows into the 920pt cut and each
-     row keeps its hit count and time; the cut starts at the search box. It is taken over a made-up home of
-     projects and questions, the same projects as the memory screenshot, not over the owner's data (owner's call,
-     2026-10-21). The retaken heroes are published with the owner's approval.
-     The memory screenshot is cut the same way from a 984pt window, the drawer open over the dimmed list with a
-     memory file shown as rendered Markdown: a project with a few memory files is expanded, so other projects stay
-     in view, and the cut ends between rows of the list and between lines of the drawer. It is taken over a
-     made-up home whose projects and memory files have the real files' shape, not over the owner's data (owner's
-     call, 2026-10-21).
-     The app icon is the production artwork with its transparent exterior, the file the app itself ships; its
-     shadow follows the icon's own outline (owner's call, 2026-10-18 — a shadow around the image's square box
-     showed the transparent margin as a light tile).
-
-     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条切换下载状态(仅测试版 / 有正式版 /
-     有正式版但 R2 读不到 / 两处都读不到;四选一,分成两组以便窄屏一行放得下),它在页面上由什么决定写在演示条的
-     说明行里;页面上没有这个控件。
-     明暗跟随画廊统一设置所选,统一设置在这里代替访客系统的 prefers-color-scheme,本页不设明暗开关。
-     中 / EN 切换是设计本身(页头右上角),不属于演示基建,也不跟随统一设置里的界面语言:落地页只有中、英两种。
-     根样式写在 body 上:本页画的是一张网页而不是 app 窗口,body 上的底色、文字色与字体就是这张网页自己的根样式,
-     不是要挂到 app 窗口容器上的那种。 -->
+<!-- Reviewer notes: prototype-landing.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -81,6 +22,7 @@
     --icon-shadow:0 18px 25px rgba(0,0,0,.55);
   }
   *{box-sizing:border-box;margin:0}
+  /* Root styles sit on body: the page draws a web page, not an app window, so no app-window container carries them */
   body{background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,"PingFang SC","Hiragino Sans",system-ui,sans-serif}
   a{color:inherit}
   .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
@@ -111,7 +53,7 @@
     background:var(--warn-bg);color:var(--warn-fg);vertical-align:middle}
 
   /* ── Hero ── */
-  /* padding-block, not the padding shorthand: the shorthand zeroed the side gutter .wrap gives this element */
+  /* padding-block, not the padding shorthand: the shorthand would zero the side gutter .wrap gives this element */
   .hero{padding-block:72px 40px;text-align:center}
   /* A drop shadow, not a box shadow: it follows the icon's outline, so the transparent margin round the artwork
      stays invisible instead of reading as a tile */
@@ -129,8 +71,8 @@
     box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
   .shot .chrome{height:28px;display:flex;align-items:center;gap:6px;padding:0 12px;background:var(--card);border-bottom:1px solid var(--line)}
   .shot .chrome i{width:10px;height:10px;border-radius:50%;background:var(--line-strong)}
-  /* The tags carry width and height so the space is held before an image loads: without them, switching
-     language swapped in unloaded screenshots, everything above collapsed and the page jumped a step */
+  /* The tags carry width and height so the space is held before an image loads: without them, a language
+     switch swaps in unloaded screenshots, everything above collapses and the page jumps */
   .shot img{display:block;width:100%;height:auto}
   .hero .shot{max-width:960px;margin:48px auto 0}
 
@@ -139,21 +81,20 @@
   section.soft{background:var(--bg-soft)}
   .sec-title{font-size:28px;text-align:center;margin-bottom:8px}
   .sec-sub{color:var(--text-2);text-align:center;margin-bottom:36px}
-  /* Features (owner's calls, 2026-10-21, after the layout of a reference page the owner supplied): on a wide
-     screen the section pins a showcase under the header while the page scrolls past it — a narrow column on the
-     left with the current step's text and its count, the step's screenshot large on the right. Each 60% of a
-     screen of scrolling turns to the next step: its text and screenshot fade in where the current ones fade out,
-     together and in place. The page scrolls as usual; nothing captures the wheel. Phones keep the stacked steps,
-     each with its own screenshot. */
+  /* Features: on a wide screen the section pins a showcase under the header while the page scrolls past it —
+     a narrow column on the left with the current step's text and its count, the step's screenshot large on the
+     right. Each 60% of a screen of scrolling turns to the next step: its text and screenshot fade in where the
+     current ones fade out, together and in place. The page scrolls as usual; nothing captures the wheel. Phones
+     keep the stacked steps, each with its own screenshot. */
   .deck{position:relative;max-width:1240px;margin:0 auto;padding:0 24px;
     height:calc(100svh - 58px + (var(--n) - 1) * 60svh)}
   /* Pinned under the 58px header for as long as the deck scrolls by */
   .deck-pin{position:sticky;top:58px;height:calc(100svh - 58px);display:grid;
     grid-template-columns:minmax(0,.36fr) minmax(0,1fr);gap:40px;align-items:center}
   /* The steps' texts share one cell, and so do their screenshots: one of each shows, and the others are hidden
-     from the pointer and from assistive technology. They only fade, never move — a slide up made the screenshot
-     jump — and the text and the screenshot fade with the same timing, so they switch as one. visibility as well
-     as opacity: a transparent screenshot would still lie on top and take the pointer. */
+     from the pointer and from assistive technology. They only fade, never move, and the text and the screenshot
+     fade with the same timing, so they switch as one. visibility as well as opacity: a transparent screenshot
+     would still lie on top and take the pointer. */
   .deck-copy, .deck-stage{display:grid}
   .deck-text, .deck-shot{grid-area:1/1;opacity:0;visibility:hidden;transition:opacity .3s, visibility 0s .3s}
   .deck-text.on, .deck-shot.on{opacity:1;visibility:visible;transition:opacity .3s}
@@ -196,15 +137,14 @@
   @media (max-width:760px){
     .hero h1{font-size:32px}
     .deck{display:none}
-    /* Without a gap the next step's title sat right under the previous screenshot and read as its caption */
+    /* Without a gap the next step's title sits right under the previous screenshot and reads as its caption */
     .fs-list{display:flex;flex-direction:column;gap:44px}
     .steps{grid-template-columns:1fr}
     nav.links{display:none}
     .lang{margin-left:auto}
   }
-  /* Phones: the label takes its own line and the buttons share the full width below it, as on Transfer's
-     page. "Download the test version from GitHub" outgrew the card at 400px when it had to fit beside the
-     label (measured: 11px past the card's content edge). */
+  /* Phones: the label takes its own line and the buttons share the full width below it; beside the label,
+     "Download the test version from GitHub" overflows the card at 400px */
   @media (max-width:560px){
     .dl-row{flex-direction:column;align-items:stretch;gap:10px}
     .dl-actions .btn{flex:1;justify-content:center;white-space:normal;text-align:center}
@@ -246,7 +186,7 @@
   const ICON_DOWNLOAD = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>`
 
   const REPO = 'https://github.com/aloong-planet/agentshed'
-  /** The download host, its certificate checked from outside Cloudflare on 2026-10-17 (ADR-0031) */
+  /** The download host */
   const DL_HOST = 'https://dl.agentshed.aloongplanet.com'
   const RELEASES = {
     beta: { formal: null, pre: '0.1.0-beta' },

@@ -1,92 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · spec docs/specs/session-view.md: the session page (after opening a session).
-     问题:① 提问作为主索引、单行密排在真实长度(42/26/18 条)下是否真的可扫;
-       ② 点提问就地展开整轮(思考/正文/工具折叠/subagent)的层次是否清楚不糊;
-       ③ 两侧完整度不对等与不可还原部分的标注是否够显眼(不能假装一致、不能谎称完整);
-       ④ ~~导出入口位置~~(2026-08-06 用户裁定废弃导出功能,原型已同步移除)。
-     方向:A「两屏导航 + 就地展开时间线」——2026-08-02 用户选定,对比过
-       B 二级双栏(四栏挤正文)与 C 答案抽屉(答案与上下文割裂)。
-       提问密度选定「单行索引式」。会话列表与搜索在项目详情原型的「会话」分栏。
-     提问列表一次给全:spec B4 的「不整读」指不整读 jsonl 正文,提问文本+偏移本身
-       只有几十 KB——没有分页/续取语义,别在实现里引入。
-     默认 0 轮展开:进来全部折叠,点哪轮取哪轮。
-     交互:点提问行就地展开/收起(展开态铺提问全文);工具块二次展开看入参与返回;
-       subagent 块展开看内部步骤;日期分组行可点折叠;正序/倒序切换(序号恒为原始轮次号,
-       不随排序变;已展开的轮次跨排序保持);「返回」跳回项目详情。
-     mock 完整度:标 ★ 的轮次构造了完整入参/返回与 subagent 内部步骤,其余轮次只到
-       「一句回答 + 工具行」——展开填充轮会看到说明,不是设计的一部分。
-     演示基建(非设计的一部分,勿实现):底部悬浮条(data-demo-harness,独立于页面内容流),
-       各组在 app 里由什么决定写在条上的说明行:
-       「启动恢复」三档(扫描中 / 完成 / 失败,共享件 _shared/startup-status)——真实判定是这次启动
-         的扫描进度与结果;
-       「会话数据」三态(Claude 主会话 / Codex fork / Codex fork·父会话缺失)——
-         真实判定来自被打开的会话本身(fork 前缀剥离依赖父文件是否在扫描集内);
-       「取回状态」三态(索引就绪 / 索引失效 / 单轮失败)——真实判定是取回前按
-         路径+mtime+size 签名校验一次,不符则只重建该文件索引;单轮读取失败只自伤该轮,
-         再点可重试;
-       「搜索定位」一个动作(跳到 05 并高亮)——app 里由从项目详情「会话」分栏点进一条搜索命中触发。
-       app 内均无此控件。
-       界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了中、英两种,
-       其他语言按英文显示并有提示;色值取共享主题 _shared/theme.css,风险横幅与警示块的底色、字色和
-       搜索定位的高亮色只本页用,写在本页、明暗各一套。app 窗口的根样式在共享件 _shared/app-window.css 里。
-     状态补齐(2026-08-06,实现期回补经用户确认):① 取回中(首次取回的瞬时提示,
-       已取回的轮再展开为即时);② 单轮失败(该轮显示错误,不连累其余轮次);
-       ③ 空轮(没有正文回复的轮只出取回脚注,不造占位);④ 取回脚注含实际读取字节数。
-     语言:界面文案(含启动提示)随所选语言切换;
-       会话内容本身(标题、提问、回答、思考、工具与 subagent 的摘要/入参/返回)是 mock 数据,
-       两种语言下原样显示;mock 边界说明(填充轮)与演示条只有中文。
-     项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。
-     Global search (2026-10-19, owner's rulings): a session opened from a global search hit shows two exits
-       in one row where the back control sits: first back to the search results (a left chevron), which
-       shows the results as they were left — keyword, results, scroll position; then into the project's
-       Sessions tab (a right chevron). Leaving that session for another one drops the way back to the
-       search: a fork parent reached through the banner, and a session opened after going into the project,
-       both have the single back control (the rail's Search item still brings the results back). Clicking
-       the parent's title in the fork banner shows this here. For a stale project the second exit reads
-       "进入 <项目>" / "Go to <project>" without "· 会话", and lands on the project's stale note page, which
-       has no Sessions tab (owner's ruling, 2026-10-19; copy only, not drawn — this page's project is not
-       stale).
-       A session opened inside a project keeps the single back control. The demo bar's "打开来源" group
-       switches between the two; in the app the entry the session was opened from decides.
-     Session ID and resume (2026-10-28, owner's rulings): the header carries the session's own ID — the
-       one its agent side's resume takes — and three icon buttons at the right end of the title row (the
-       owner picked this over a two-row command strip and a single row of text links): copy the session ID,
-       show the session's record file in Finder (selected there), copy the resume command. The ID sits at
-       the end of the meta line. The command is one shell line, `cd '<project dir>' && <tool> <resume> <id>`,
-       in the session's own side's tool (Claude Code `claude --resume`, Codex `codex resume`, Grok
-       `grok --resume`), the directory single-quoted; it is not shown on the page — the resume button's
-       tooltip shows it in full. The tooltips are instant (the settings prototype's dark form; the native
-       title waits about a second). A copy turns its button's icon into a check for 1.5 s and its tooltip
-       into "已复制" / "Copied".
-       A stale project (its directory gone; its sessions are reached from global search only): the command
-       is still copyable, and the tooltip adds a line saying the cd will fail (owner's ruling: copyable, with
-       the note beside it; in this layout the tooltip is where it goes).
-       A session whose ID cannot be read (owner's ruling, 2026-10-28): its record carries none (never seen in a
-       full enumeration of this machine's sessions — a safety net), or the page was restored from a copy saved
-       before IDs were kept and the first scan has not refreshed it yet. The meta line says "会话 ID 不可用" /
-       "Session ID unavailable", and the copy-ID and resume buttons are disabled, their tooltip saying the ID
-       could not be read; showing the record file still works. The wording is neutral on purpose, true of
-       both causes (owner's ruling, the same day).
-       Failures surface as the shared error toast: the record file gone when showing it in Finder, the
-       clipboard refusing a copy.
-       Icons (owner's pick, 2026-10-28, Lucide): show in Finder = FolderOpen, chosen over FolderSearch and
-       SquareArrowOutUpRight; copy the resume command = SquareTerminal, chosen over History and Play. Copy
-       the ID = Copy, the product's settled copy icon (not a choice). Owner's rulings in step 8's cross-check
-       (2026-10-28), the app's look kept and drawn here: the meta line at 12px (it was 11px here, 12px in the app
-       since before this round), and the tooltip's shadow the floating layers' shared one (0 6px 22px, the
-       float-shadow colour), as the rail's update button tooltip has it. The demo bar gains "Grok 会话" in
-       "会话数据", and the groups "项目目录", "会话 ID", "项目路径" and "外部操作"; what decides each in the
-       app is on its note line.
-     2026-10-28 (the fourth side, Antigravity; ADR-0037): an Antigravity conversation wears the AG badge and its
-       full name in the meta line; its title is agy's own generated title (English, as agy writes it). A
-       conversation made by /fork is marked as a fork (owner's ruling, 2026-10-28): the banner names the
-       conversation it came from and says the copied history is stripped — agy marks every copied step with its
-       source, so the stripping is exact, never a guess, and there is no uncertain tier for this side. Its header
-       carries the conversation ID, the copied resume command is `agy --conversation <id>`, and showing the record
-       file selects the conversation's database (owner's ruling, 2026-10-28). When the
-       source conversation is no longer on this machine, the banner says so instead of naming it. Turns undone
-       with /rewind do not appear (nothing on the page marks them). The demo bar's 会话数据 group gains two
-       states, Antigravity fork and Antigravity fork·来源已不在本机. -->
+<!-- Reviewer notes: prototype-session.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -111,9 +24,6 @@
   .h1{display:flex;align-items:center;gap:9px}
   .h1 b{font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px;flex:none}
-  /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
-     「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
-     故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.a{background:var(--ag-bg);color:var(--ag-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
@@ -164,32 +74,29 @@
   .seg span{padding:3px 10px;font-size:11px;color:var(--text-2);cursor:pointer}
   .seg span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
   .qlist{background:var(--card);border:1px solid var(--line);border-radius:9px;overflow:hidden}
-  /* When a session spans days, a single-line index showing only HH:MM distorts → group by day, with the
-     group row clickable to collapse */
+  /* Questions grouped by day, with the group row clickable to collapse */
   .daygrp{border-top:1px solid var(--line)}
   .daygrp:first-child{border-top:0}
   .dayhd{display:flex;align-items:center;gap:7px;padding:4px 13px;font-size:10.5px;
     color:var(--text-2);background:var(--bg);cursor:pointer;letter-spacing:.3px}
   .dayhd:hover{color:var(--text)}
-  /* 图标本身进了 DOM,不再靠 ::before 的 content —— 伪元素承载不了 SVG。
-     日期分组**默认展开**,所以静息态就是旋转后的那个,.fold 才转回指右;方向与下面 .bh 相反。 */
+  /* 日期分组**默认展开**,所以静息态就是旋转后的那个,.fold 才转回指右;方向与下面 .bh 相反。 */
   .dayhd .cv{display:flex;align-items:center;flex:none;transform:rotate(90deg);transition:transform .15s}
   .daygrp.fold .dayhd .cv{transform:none}
   .daygrp.fold .daybody{display:none}
-  /* A question row = the primary index: a dense single line with the number, text, turn volume and time, so
-     twenty-odd fit on one screen */
+  /* A question row = the primary index: a dense single line with the number, text, turn volume and time */
   .q{display:flex;align-items:center;gap:9px;padding:4px 13px;border-top:1px solid var(--line);
     cursor:pointer;font-variant-numeric:tabular-nums}
   .q:hover{background:var(--accent-soft)}
   .q .cv{width:9px;flex:none;color:var(--text-2);display:flex;align-items:center;
     justify-content:center;transition:transform .15s}
-  /* 展开态靠旋转,不靠换字符。`.q.open .cv` 三个类,压过 `.q .cv` 的两个,与书写顺序无关。 */
+  /* 展开态靠旋转。`.q.open .cv` 三个类,压过 `.q .cv` 的两个,与书写顺序无关。 */
   .q.open .cv{transform:rotate(90deg);color:var(--accent)}
   .q .idx{width:20px;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2)}
   .q .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .q .c{font-size:10.5px;color:var(--text-2);flex:none}
   .q .tm{font-size:11px;color:var(--text-2);flex:none;width:44px;text-align:right}
-  /* On expansion the question row unfolds its own full text (rather than restating it below) */
+  /* On expansion the question row unfolds its own full text */
   .q.open{background:var(--accent-soft);align-items:flex-start;padding-top:8px;padding-bottom:8px}
   .q.open .txt{font-weight:600;white-space:pre-wrap;overflow:visible;line-height:1.65}
   .q.open .cv,.q.open .idx,.q.open .c,.q.open .tm{margin-top:1px}
@@ -220,7 +127,7 @@
   .step:first-of-type{border-top:0}
   .step .sn{width:18px;flex:none;color:var(--text-2);font-family:ui-monospace,Menlo,monospace}
   .rt{padding:2px 0 2px 12px;border-left:2px solid var(--line-strong);margin:3px 0;color:var(--text-2)}
-  /* Unrecoverable / truncated / encrypted: always labelled explicitly, never silently */
+  /* The label on unrecoverable / truncated / encrypted content */
   /* The border is --risk-border in both modes; the fill and the text are page-only colours, with a dark set
      below */
   .warn{border:1px dashed var(--risk-border);background:#fdf3e3;color:#7a4d1c;border-radius:6px;
@@ -230,14 +137,13 @@
     border-radius:5px;padding:5px 8px;line-height:1.6}
   .fetched{font-size:10.5px;color:var(--text-2);margin-top:8px}
   .rebuild{font-size:11.5px;color:var(--text-2);padding:12px 0}
-  /* The search locating highlight (proposal v2, 2026-08-06): a yellow background pulse plays once on arrival
-     to draw the eye
-     (mark 同族,与 hover 的紫区分),脉冲后**焦点竖条常驻**——左缘 3px accent,
-     不动布局、不与 hover/展开的背景撞;点击任意提问行即清除,离开页面自然清 */
+  /* The search locating highlight: a yellow background pulse plays once on arrival, after which the focus bar
+     stays — a 3px accent left edge, drawn as an inset shadow so it moves no layout and does not collide with the
+     hover and open backgrounds; clicking any question row clears it */
   /* A page token, kept outside the shared theme tokens: a light and a dark value */
   :root{--locate-from:#fff2a8}
   html[data-demo-mode="dark"]{--locate-from:#4d451a}
-  /* The highlight holds for 10s (the user's ruling, 2026-08-06): 8s steady, fading over the last 2s */
+  /* The highlight holds for 10s: 8s steady, fading over the last 2s */
   @keyframes locate-pulse{0%,80%{background:var(--locate-from)}100%{background:transparent}}
   .q.located{animation:locate-pulse 10s ease-out}
   .q.focused{box-shadow:inset 3px 0 0 var(--accent)}
@@ -245,8 +151,6 @@
     border-radius:7px;padding:7px 10px;margin:8px 0;line-height:1.7}
   .note{font-size:11px;color:var(--text-2);line-height:1.7;margin:12px 2px 0}
 </style>
-<!-- Startup restore: keep the original page and its mock contents. The added bottom switches
-     are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
 <link rel="stylesheet" href="../_shared/startup-status.css">
 <script src="../_shared/startup-status.js"></script>
 <link rel="stylesheet" href="../_shared/toast.css">
@@ -784,10 +688,10 @@
       L('24','9月14日 周日','12:15','帮我把这些写进 ops 文档',4,0,
         '写进 docs/ops/gateway-split.md:进程模型、socket 路径、退出回收、签名顺序。',
         [['apply_patch','docs/ops/gateway-split.md · 新建 64 行'],['read_file','docs/ops/README.md']]),
-      // An empty turn (added 2026-08-06): asked and left, so this turn has no prose reply at all —
+      // An empty turn: asked and left, so this turn has no prose reply at all —
       // expanding shows only the fetch footnote, with no invented placeholder copy
       {...L('25','9月14日 周日','12:30','好,今天收工',0,0,''), turn:[]},
-      // An unknown-type trace example (2026-08-06): a new record type outside the allow-list is not
+      // An unknown-type trace example: a new record type outside the allow-list is not
   // silently dropped
       {...L('26','9月14日 周日','12:41','顺手看下日志里有没有异常',1,0,''),
        turn:[{type:'text',body:'日志干净,没有异常。'},
@@ -856,9 +760,9 @@
   };
 
   const DATA = {claude:CLAUDE, codex:CODEX, orphan:ORPHAN, grok:GROK, agfork:AG_FORK, aggone:AG_GONE};
-  let cur='claude', fetchState='ok', order='desc'; // 默认倒序(2026-08-06 用户裁定)
+  let cur='claude', fetchState='ok', order='desc';
   let origin='project';            // where the session was opened from: a project, or global search
-  // The header's session ID and resume (2026-10-28): the demo bar's states, and the button whose copy shows
+  // The header's session ID and resume: the demo bar's states, and the button whose copy shows
   // its check
   let dirState='ok', sidState='ok', pathState='plain', extState='ok', doneAct=null, doneTimer=0;
   const PATHS = {plain:'/Users/loong_zhou/CascadeProjects/Transfer',
@@ -902,7 +806,7 @@
     if(b.type==='text') return `<div class="ans">${b.body}</div>`;
     if(b.type==='tool') return toolHtml(b);
     if(b.type==='sub')  return subHtml(b);
-    // An unknown-type trace (2026-08-06): a new type outside the display allow-list is not silently
+    // An unknown-type trace: a new type outside the display allow-list is not silently
       // dropped —
     // it leaves one discoverable line naming the type, with the content unrendered (kept as it is in the
       // source file)
@@ -929,7 +833,7 @@
     return `<div class="rebuild">${s==='rebuilding'?t().rebuilding:t().fetching}</div>`;
   }
 
-  // ── The title row's three buttons and their instant tooltip (2026-10-28) ──
+  // ── The title row's three buttons and their instant tooltip ──
   const ACT_ICON = {id:'Copy', reveal:'FolderOpen', resume:'SquareTerminal'};
   const ACT_LABEL = {id:'copyId', reveal:'reveal', resume:'copyResume'};
   // Copying the ID and the resume command both need the ID; showing the record file does not
@@ -1130,7 +1034,7 @@
     harness.querySelectorAll('[data-origin]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.origin==='project')));
     render(false);
   });
-  // The focus bar: cleared by clicking any question row (the user has moved on)
+  // The focus bar: cleared by clicking any question row
   document.getElementById('qlist').addEventListener('click',e=>{
     if(e.target.closest('.q')) document.querySelectorAll('.q.focused').forEach(x=>x.classList.remove('focused'));
   },true);

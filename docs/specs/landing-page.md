@@ -284,7 +284,8 @@ since they never reach it (mac-distribution::CON-004).
 - **The palette** is the app's purple palette, with light and dark both declared and switched by the
   system appearance. The test version's pill and note use the app's warning pair. The GitHub button
   beside Download is a secondary button: the card ground with the strong line, and the accent border on
-  the soft accent ground on hover. Icons are inline SVG copied from Lucide (download).
+  the soft accent ground on hover. Icons are inline SVG copied from Lucide (download). The text is set in
+  the system font stack; the page loads no web font.
 - **The app icon** is the production artwork with its transparent exterior. In the hero its shadow follows
   the icon's outline: a shadow round the image's square box showed the transparent margin as a tile
   (decided 2026-10-18). The browser tab shows the app icon and "Agentshed — " followed by the hero title;
@@ -303,7 +304,11 @@ since they never reach it (mac-distribution::CON-004).
   so do their screenshots; the others are hidden with visibility as well as opacity, since a transparent
   screenshot would still lie on top and take the pointer. The screenshot's width is capped by the
   window's height so that it stays whole. Below 760px the stacked steps replace the showcase.
-- **The screenshots** ship as static assets with their width and height declared.
+- **The screenshots** ship as static assets with their width and height declared. They are taken at 2×
+  pixels from a window 1280pt wide and 800pt tall. Each feature cut is 920×517pt (16:9), the narrowest that
+  holds the token page's trend chart and per-model figures whole. The search and memory screenshots are
+  taken from a window narrowed to 984pt, so that the pane reflows into the 920pt cut; the memory cut
+  expands a project with only a few memory files, so that other projects stay in view.
 
 ## Testing Decisions
 

@@ -1,6 +1,7 @@
 // Exercise the shared-UI gate's command line on a copy of the prototypes with planted faults: a comment on a page is
 // not markup, so a reference, a declaration or a mount point that exists only in a comment must count as missing; a
-// chart answers for its own declaration; a shared block is known by its files in _shared/; and every list the gate
+// chart answers for its own declaration; a shared block is known by its files in _shared/; a UI prototype page has its
+// notes file beside it and a header of at most one one-line comment naming it; and every list the gate
 // mirrors from the product — colours, themes, sides, languages, READMEs, rail items, the documents it scans — is read
 // from where its members are defined, so a member added there is checked, and a source it cannot read is reported.
 //
@@ -26,12 +27,18 @@ import { fileURLToPath } from 'node:url'
 
 const repo = fileURLToPath(new URL('..', import.meta.url))
 
+/** A planted prototype page: the doctype, the header comments given, the root element, and comments inside the page */
+function page(header, inside = '') {
+  return `<!doctype html>\n${header}<html lang="zh-CN">\n<head>\n${inside}<meta charset="utf-8">\n<title>Planted</title>\n</head>\n<body></body>\n</html>\n`
+}
+
 /** Each plant replaces one string, which must occur exactly once in its file, or every match of a global pattern, which
  * must match at least once (keyed by the file's path from the root) */
 const PLANTS = {
-  // The issue's two mutations: each page's comment names the asset whose real reference goes
+  // The issue's two mutations: each page's comment names the asset whose real reference goes (the search page's own
+  // comment no longer names it, so the plant leaves one in the link's place)
   'docs/prototypes/global-search/prototype-search.html': [
-    ['<link rel="stylesheet" href="../_shared/app-window.css">\n', ''],
+    ['<link rel="stylesheet" href="../_shared/app-window.css">\n', '<!-- the window frame: ../_shared/app-window.css -->\n'],
     // A new shared stylesheet, linked without a declaration
     ['<link rel="stylesheet" href="../_shared/theme.css">\n', '<link rel="stylesheet" href="../_shared/theme.css">\n<link rel="stylesheet" href="../_shared/side-note.css">\n']
   ],
@@ -175,7 +182,32 @@ const FILES = {
   'docs/guides/notes.md': 'See ticket 12.\n',
   'docs/.workings/notes/notes.md': 'See ticket 12.\n',
   // A component in a new subdirectory: a provider colour, and a <TrendChart> without its required prop
-  'src/renderer/src/panes/Planted.tsx': "const PLANTED = '#10a37f'\nexport const Planted = ({ days }) => <TrendChart days={days} />\n"
+  'src/renderer/src/panes/Planted.tsx': "const PLANTED = '#10a37f'\nexport const Planted = ({ days }) => <TrendChart days={days} />\n",
+  // UI prototype pages and their notes files (prototype-pages::REQ-005), each head in the real pages' form. Without a
+  // notes file: a prototype page, a candidates page, and a page whose same-name notes file is in another directory
+  'docs/prototypes/planted/prototype-lone.html': page('<!-- Notes: prototype-lone.md -->\n'),
+  'docs/prototypes/planted/candidates-lone.html': page('<!-- Notes: candidates-lone.md -->\n'),
+  'docs/prototypes/planted-b/prototype-moved.html': page('<!-- Notes: prototype-moved.md -->\n'),
+  'docs/prototypes/planted/prototype-moved.md': '# prototype-moved\n',
+  // In shape: a one-line header naming the notes file beside it, and a comment after the root element
+  'docs/prototypes/planted/prototype-paired.html': page('<!-- Notes: prototype-paired.md -->\n', '<!-- a comment inside the page, not its header -->\n'),
+  'docs/prototypes/planted/prototype-paired.md': '# prototype-paired\n',
+  // In shape as well: no header comment at all ("at most one")
+  'docs/prototypes/planted/prototype-bare.html': page(''),
+  'docs/prototypes/planted/prototype-bare.md': '# prototype-bare\n',
+  // A logic page is no UI page: no notes file, and a header of two comments
+  'docs/prototypes/planted/logic/index.html': page('<!-- A logic prototype -->\n<!-- its question -->\n'),
+  // Headers out of shape, each beside its notes file: two comments, one over two lines, one naming another page's notes
+  // file (as a page copied from another would), one naming none
+  'docs/prototypes/planted/prototype-two.html': page('<!-- Notes: prototype-two.md -->\n<!-- Question: how the list sorts -->\n'),
+  'docs/prototypes/planted/prototype-two.md': '# prototype-two\n',
+  'docs/prototypes/planted/prototype-tall.html': page('<!-- A UI prototype · the list.\n     Notes: prototype-tall.md -->\n'),
+  'docs/prototypes/planted/prototype-tall.md': '# prototype-tall\n',
+  'docs/prototypes/planted/prototype-unnamed.html': page('<!-- Notes: prototype-two.md -->\n'),
+  'docs/prototypes/planted/prototype-unnamed.md': '# prototype-unnamed\n',
+  // ...and one naming no file at all
+  'docs/prototypes/planted/prototype-nameless.html': page('<!-- A UI prototype · the list -->\n'),
+  'docs/prototypes/planted/prototype-nameless.md': '# prototype-nameless\n'
 }
 
 /** The second tree: every source the gate derives a list from, renamed away or emptied */
@@ -211,8 +243,8 @@ const ABSENT_FILES = {
 const COPIED = ['docs/prototypes', 'src', 'README.md', 'README.en.md', 'package.json']
 const EMPTY = ['docs/.workings']
 
-/** Pages whose own comment, not a plant, must still name the asset once its real reference is gone, or the case plants
- * nothing */
+/** Pages where a comment, the page's own or a planted one, must still name the asset once its real reference is gone, or
+ * the case plants nothing */
 const NAMED_IN_A_COMMENT = {
   'docs/prototypes/global-search/prototype-search.html': '_shared/app-window.css',
   'docs/prototypes/project-list/prototype-list.html': '_shared/project-side.js'
@@ -289,6 +321,52 @@ test('the planted run fails, and only on what was planted', () => {
   // The common-library list lives in the gate, so a library with no file is reported there
   const planted = [...Object.keys(PLANTS), ...Object.keys(FILES), 'scripts/check-shared-ui.mjs']
   for (const p of problems) assert.ok(planted.some((path) => p.startsWith(`${path}:`)) || CAUSED_ELSEWHERE.includes(p), p)
+})
+
+/** The lines the two prototype-pages::REQ-005 rules report about one page */
+const shapeLines = (path) => problems.filter((p) => p.startsWith(`${path}: has no notes file`) || p.startsWith(`${path}: its header`))
+
+test('a UI prototype page without its notes file is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-lone.html: has no notes file prototype-lone.md beside it'), run.out)
+})
+
+test('a candidates page without its notes file is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/candidates-lone.html: has no notes file candidates-lone.md beside it'), run.out)
+})
+
+test('a notes file in another directory is not the page\'s notes file', () => {
+  assert.ok(reported('docs/prototypes/planted-b/prototype-moved.html: has no notes file prototype-moved.md beside it'), run.out)
+})
+
+test('a page with its notes file and a one-line header naming it is not reported, whatever comments it holds inside', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-lone.html: has no notes file prototype-lone.md beside it'), run.out)
+  assert.deepEqual(shapeLines('docs/prototypes/planted/prototype-paired.html'), [], run.out)
+})
+
+test('a header comment that names no notes file at all is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-nameless.html: its header comment does not name prototype-nameless.md'), run.out)
+})
+
+test('a page with its notes file and no header comment is not reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-two.html: its header holds 2 comments; it may hold one, on one line, naming prototype-two.md'), run.out)
+  assert.deepEqual(shapeLines('docs/prototypes/planted/prototype-bare.html'), [], run.out)
+})
+
+test('a logic page is not a UI prototype page', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-two.html: its header holds 2 comments; it may hold one, on one line, naming prototype-two.md'), run.out)
+  assert.deepEqual(shapeLines('docs/prototypes/planted/logic/index.html'), [], run.out)
+})
+
+test('a header of two comments is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-two.html: its header holds 2 comments; it may hold one, on one line, naming prototype-two.md'), run.out)
+})
+
+test('a header comment over more than one line is reported', () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-tall.html: its header comment spans 2 lines; it may hold one, on one line, naming prototype-tall.md'), run.out)
+})
+
+test("a header comment that names another page's notes file, not its own, is reported", () => {
+  assert.ok(reported('docs/prototypes/planted/prototype-unnamed.html: its header comment does not name prototype-unnamed.md'), run.out)
 })
 
 test("a page without its asset's link is reported, though its comment names the asset", () => {

@@ -25,7 +25,7 @@
 // mirrored lists below), so a member added there is checked without changing this script, and a source this
 // script cannot read is reported rather than leaving its check to look at nothing.
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { basename, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import ts from 'typescript'
@@ -860,6 +860,37 @@ const GLOBAL_RULES = [
     }
   },
   {
+    // A UI prototype page's reviewer notes live in the notes file beside it, named after the page
+    // (prototype-pages::REQ-002): a page without one has its notes back in its comments, or none at all
+    name: 'every UI prototype page has its same-name notes file beside it (prototype-pages::REQ-005/AC-01)',
+    check() {
+      return uiPrototypePages()
+        .filter((f) => !existsSync(join(ROOT, notesFileOf(f))))
+        .map((f) => `${f}: has no notes file ${basename(notesFileOf(f))} beside it`)
+    }
+  },
+  {
+    // The header, before the root element, is at most one comment on one line pointing to the notes file
+    // (prototype-pages::REQ-001/AC-01): a longer header is where the notes and the rulings grew back
+    name: "a UI prototype page's header is at most one comment, on one line, naming its notes file (prototype-pages::REQ-005/AC-02)",
+    check() {
+      const bad = []
+      for (const f of uiPrototypePages()) {
+        const notes = basename(notesFileOf(f))
+        const comments = headerComments(read(f) ?? '')
+        if (comments.length > 1) {
+          bad.push(`${f}: its header holds ${comments.length} comments; it may hold one, on one line, naming ${notes}`)
+          continue
+        }
+        if (comments.length === 0) continue
+        const lines = comments[0].split('\n').length
+        if (lines > 1) bad.push(`${f}: its header comment spans ${lines} lines; it may hold one, on one line, naming ${notes}`)
+        if (!comments[0].includes(notes)) bad.push(`${f}: its header comment does not name ${notes}`)
+      }
+      return bad
+    }
+  },
+  {
     // The app has one project column; the prototypes used to draw it four ways (three widths, a selection
     // ring the app had dropped, rows with and without the side count). A column on a prototype page is the
     // shared block's mount and nothing else, and what the mount names has to exist
@@ -948,6 +979,36 @@ function prototypeHtmls(withIndex = false) {
   }
   walk(base)
   return out
+}
+
+/** The UI prototype pages: prototype-<topic>.html and candidates-<topic>.html (the Logic pages and the gallery are all
+ * named index.html) */
+function uiPrototypePages() {
+  return prototypeHtmls().filter((f) => /^(?:prototype|candidates)-.+\.html$/.test(basename(f)))
+}
+
+/** A UI prototype page's notes file: the same name with .md, in the same directory (prototype-pages::REQ-002) */
+function notesFileOf(f) {
+  return f.replace(/\.html$/, '.md')
+}
+
+/** The comments of a page's header: those before its root element, skipping the doctype and white space between them. A
+ * comment may hold a `<` of its own, so the header ends at the first markup that is neither, not at the first `<` */
+function headerComments(html) {
+  const comments = []
+  let i = 0
+  for (;;) {
+    while (i < html.length && /\s/.test(html[i])) i++
+    if (html.startsWith('<!--', i)) {
+      const end = html.indexOf('-->', i + 4)
+      const close = end < 0 ? html.length : end + 3
+      comments.push(html.slice(i, close))
+      i = close
+    } else if (/^<!doctype\b/i.test(html.slice(i, i + 10))) {
+      const end = html.indexOf('>', i)
+      i = end < 0 ? html.length : end + 1
+    } else return comments
+  }
 }
 
 function checkBlock(block) {

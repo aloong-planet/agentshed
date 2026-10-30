@@ -219,6 +219,8 @@ document by its headings)
   pins: the pre-existing prototype style pinned `text-align: left` on every cell, silently
   swallowing the alignment the parser had already delivered as attributes; and an align-attribute
   override written against th as well as td re-drags the centred header.
+- E7e Code carries no syntax colouring on any surface: a fenced block's keywords, strings and comments
+  take the same text colour as the rest of the block.
 - E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
   elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
   and the AGENTS.md link-interception invariant).
@@ -286,6 +288,9 @@ trackpad, in light or dark)
 - A selection recolours the whole app immediately (including the rail's selected state), with no save
   button.  
 - Palette samples come in two sets by effective light/dark, so the preview is what you get.  
+- **Side badges share one tier**: every side's badge colour pair — the text on its background — sits at
+  one lightness and chroma tier, so each side's badge text has its contrast in one band, in light and in
+  dark.  
 - The skill preview drawer's layout is still option A, see skills-view.  
 - **Rendered-markdown heading ladder: the shape-layered direction** (settled 2026-08-19, chosen from
   a four-way comparison against the status quo, a pure-size ladder and a dual-track form): hierarchy

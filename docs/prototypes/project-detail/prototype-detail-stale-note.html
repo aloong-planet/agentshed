@@ -1,24 +1,5 @@
 <!doctype html>
-<!-- A UI prototype · 失效项目详情页的移除提示卡(2026-08-22,需求:产品仅提示、不代操作)。
-     裁定(2026-08-22 用户):失效项目的详情页**不展示 tabs、不展示任何数据区**,壳(返回/项目名/
-       失效标/路径)之下只有这张提示卡——失效态的详情页整页即本卡。
-     裁定(2026-08-22 用户):卡不提供任何手动命令与文件细节——只按"哪些 agent 记录着它"给出对应
-       徽标,并给一句可复制的话让用户发给对应 agent,由 agent 自己删除(实测 Claude Code 会自行
-       备份、保持文件合法并提示回写竞态;竞态的兜底是幂等重发)。
-     问题:①提示卡长什么样——失效原因句开卡、影响说明、发给 agent 的一句话;②三侧全占/单侧时
-       原因句与提示句的徽标是否跟随;③两种语言的文案在此宽度下的换行形态;④复制按钮的图标——已定稿
-       (2026-08-23 选 Lucide copy)。
-     文案注:卡内全部文案是本页新写的文案(中英两种)。失效原因的表述用
-       "目录已不存在(被删除或移动)"——扫描只知道路径不存在,删除与移动无法区分,不得写死一种。
-     真实判定来源:失效 = 扫描时该路径已不存在;卡中出现哪些侧 = 该项目记录在哪些 agent 侧;
-       语言 = 设置里的语言偏好。app 内无本页 harness 的任何开关;记录侧一组的判定同时写在演示条的说明行里。
-     2026-10-21:界面语言减到中英(ADR-0035),卡内文案随之只留这两种。
-     图标注:复制按钮用 Lucide copy(已定稿);全部图标来自 _shared/icons.js。
-     演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness)——「记录侧」
-       CC+CX+GK+AG / 仅 CC / 仅 GK(2026-10-28:第四侧 Antigravity 的全名徽章 ANTIGRAVITY 加入,全部四侧一档压测徽章行的宽度)。界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关
-       (卡内文案画了中英两种语言,即全部界面语言);色值取共享主题 _shared/theme.css,
-       本页不自定义 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。
-     项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。 -->
+<!-- Reviewer notes: prototype-detail-stale-note.md -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -42,10 +23,6 @@
   .path{font-size:11px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;margin:3px 0 10px}
   .body{flex:1;overflow:auto;padding:16px 22px}
 
-  /* ── 被评判的设计:失效移除提示卡 ── */
-  /* 语域注:本卡是失效详情页的整页正文(2026-08-22 裁定),不是数据区旁的脚注——
-     正文句走 --text/13px 与 app 窗口的正文一致;次级灰只留给真正的辅注(untrust 说明),
-     琥珀警示与等宽代码各守自己的语域 */
   .stale-note{border:1px dashed var(--line-strong);border-radius:9px;padding:13px 16px;margin-bottom:16px;
     font-size:13px;line-height:1.6;color:var(--text)}
   .stale-note .cause{font-weight:600;margin-bottom:2px}
@@ -57,7 +34,7 @@
   .code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--card);
     border:1px solid var(--line);border-radius:5px;padding:3px 7px;min-width:0;
     overflow-wrap:anywhere;color:var(--text)}
-  /* 复制按钮:固定盒 + 居中(/ui-design 图标按钮规范),不靠字体撑尺寸 */
+  /* 复制按钮:固定盒 + 居中,不靠字体撑尺寸 */
   .cpy{flex:none;width:22px;height:22px;display:grid;place-items:center;border:1px solid var(--line);
     border-radius:5px;background:var(--card);color:var(--text-2);cursor:pointer;padding:0}
   .cpy:hover{color:var(--accent);border-color:var(--line-strong)}
@@ -89,14 +66,12 @@
     </div>
     <div class="body">
 
-      <!-- 被评判的设计:提示卡 -->
       <div class="stale-note" id="note"></div>
 
     </div>
   </div>
 </div>
 
-  <!-- 演示条的状态开关(data-demo-harness,非设计的一部分,勿实现):真实判定写在条内的说明行,app 内无此控件 -->
   <div data-demo-harness>
     <span class="dh-tag">Demo ·</span>
     <div class="dh-group">
@@ -111,7 +86,6 @@
   </div>
 
 <script>
-// ── 卡内文案(中英,本页新写) ──
 const PATH = '/Users/you/Projects/removed-experiment-2025';
 const T = {
   zh:{back:'返回项目列表', stale:'失效',
@@ -127,10 +101,8 @@ const T = {
     llmPrompt:(p)=>`My project "${p}" is stale (the directory no longer exists) — please remove its records from your configuration.`,
     copied:'Copied' }
 };
-// 图标已定稿(2026-08-23 选 Lucide copy),取自共享图标表 _shared/icons.js
+// 取自共享图标表 _shared/icons.js
 const COPY_SVG = ICONS.Copy(12);
-// 全名徽章(2026-08-23 用户裁定:不用 CC/CX/GK 缩写)——与 Agents 侧卡、Plugins 区标题的
-// CLAUDE CODE/CODEX/GROK chips 同款形态
 const BADGE = {cc:'<span class="b c">CLAUDE CODE</span>', cx:'<span class="b x">CODEX</span>', gk:'<span class="b g">GROK</span>', ag:'<span class="b a">ANTIGRAVITY</span>'};
 let SIDES = ['cc','cx','gk','ag'], LANG = 'zh';
 

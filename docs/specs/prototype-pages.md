@@ -6,17 +6,17 @@
 ## Problem Statement
 
 A UI prototype page is the baseline the app's interface is built from, so an agent implementing an interface
-change reads the page, or the diff a confirmed prototype change made to it. Today a page carries much more than
-the interface: the reviewer notes in its header (the question it answers, a dated log of every ruling since the
-page was created, the reasons behind them), and comments throughout its markup, styles and scripts recording past
-decisions. Measured on 2026-10-29 on the agents page, reading the whole page cost about 38,400 tokens, of which
-the header was about 4,100 and the comments in its markup and styles about 2,150 more. What an agent reads stays
-in its context and is re-read with every later call: the implementation of the fourth agent side re-read the
-prototype diffs it took in at its start about 197 times.
+change reads the page, or the diff a confirmed prototype change made to it. Whatever else the page holds is read
+with it: reviewer notes in its header (the question it answers, a dated log of rulings, the reasons behind them)
+and comments across its markup, styles and scripts recording past decisions. Measured on 2026-10-29 on the agents
+page, with its notes still in the page, reading the whole page cost about 38,400 tokens, of which the header was
+about 4,100 and the comments in its markup and styles about 2,150 more. What an agent reads stays in its context
+and is re-read with every later call: the implementation of the fourth agent side re-read the prototype diffs it
+took in at its start about 197 times.
 
-The header log also rots: its entries are appended and never removed, later entries reverse earlier ones, and
-some still warn that the data cannot support what the app has since shipped. Reading it in order gives
-contradictory answers.
+A log of rulings kept in a page also rots: its entries are appended and never removed, later entries reverse
+earlier ones, and some come to warn that the data cannot support what the app has since shipped. Reading it in
+order gives contradictory answers.
 
 ## Solution
 
@@ -26,9 +26,6 @@ found in a spec, an ADR or the feature catalogue. Nothing the page shows or does
 this shape.
 
 ## Functional Requirements
-
-> Pending: the UI prototype pages still carry their reviewer notes and past rulings in their header and inline
-> comments, no page has a notes file, and the shared-UI check holds neither rule of prototype-pages::REQ-005.
 
 ### prototype-pages::REQ-001 What a UI prototype page's comments hold
 
@@ -79,7 +76,8 @@ the page it concerns.
 The shared-UI check (`pnpm check:ui`) fails when a UI prototype page leaves this shape.
 
 - prototype-pages::REQ-005/AC-01: A UI prototype page without its same-name notes file fails the check.
-- prototype-pages::REQ-005/AC-02: A page whose header holds more than one comment of one line fails the check.
+- prototype-pages::REQ-005/AC-02: A page whose header holds more than one comment, a comment over more than one
+  line, or a comment that does not name its notes file fails the check.
 
 ## Constraints
 
