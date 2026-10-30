@@ -6,17 +6,17 @@
 ## Problem Statement
 
 A UI prototype page is the baseline the app's interface is built from, so an agent implementing an interface
-change reads the page, or the diff a confirmed prototype change made to it. Today a page carries much more than
-the interface: the reviewer notes in its header (the question it answers, a dated log of every ruling since the
-page was created, the reasons behind them), and comments throughout its markup, styles and scripts recording past
-decisions. Measured on 2026-10-29 on the agents page, reading the whole page cost about 38,400 tokens, of which
-the header was about 4,100 and the comments in its markup and styles about 2,150 more. What an agent reads stays
-in its context and is re-read with every later call: the implementation of the fourth agent side re-read the
-prototype diffs it took in at its start about 197 times.
+change reads the page, or the diff a confirmed prototype change made to it. Whatever else the page holds is read
+with it: reviewer notes in its header (the question it answers, a dated log of rulings, the reasons behind them)
+and comments across its markup, styles and scripts recording past decisions. Measured on 2026-10-29 on the agents
+page, with its notes still in the page, reading the whole page cost about 38,400 tokens, of which the header was
+about 4,100 and the comments in its markup and styles about 2,150 more. What an agent reads stays in its context
+and is re-read with every later call: the implementation of the fourth agent side re-read the prototype diffs it
+took in at its start about 197 times.
 
-The header log also rots: its entries are appended and never removed, later entries reverse earlier ones, and
-some still warn that the data cannot support what the app has since shipped. Reading it in order gives
-contradictory answers.
+A log of rulings kept in a page also rots: its entries are appended and never removed, later entries reverse
+earlier ones, and some come to warn that the data cannot support what the app has since shipped. Reading it in
+order gives contradictory answers.
 
 ## Solution
 
