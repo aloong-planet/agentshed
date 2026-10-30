@@ -51,7 +51,9 @@ can be read. It prototypes the landing page feature (`landing-page`).
 ## Invalidated conclusions
 
 - **The dashed note box at the foot of the page**: its lists are a log tied to the dates they name, not the
-  page's conclusions. Items (h) and (i) are marked 待看原型确认, though the list state and the formal state from
-  GitHub are settled, and item (o)'s word-for-word match between the hero paragraph and the README does not
-  apply (the box itself says so). Authoritative: what the rest of the page draws, and the landing-page spec for
-  the download states and the screenshots.
+  page's conclusions. In its 验收 list, ① counts 三种首屏, though the page draws four download states and ①
+  itself goes on to describe four; authoritative: the four states of landing-page::REQ-002 (formal from R2,
+  formal from GitHub, test, list). Items (h) and (i) are marked 待看原型确认, though the list state and the
+  formal state from GitHub are settled, and item (o)'s word-for-word match between the hero paragraph and the
+  README does not apply (the box itself says so). Authoritative for the rest of the box: what the rest of the
+  page draws, and the landing-page spec for the download states and the screenshots.

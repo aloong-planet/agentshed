@@ -102,3 +102,6 @@ descriptions, file contents) stay as written in every language.
 - The Memory tab's 「已隐藏」 pill on the practice-vpn row, and 「已隐藏」 in the tab's hint line: cannot be
   trusted. Authoritative: ADR-0022 (there is no manual hiding) and the memory view spec (a stale project keeps its
   「失效」 badge).
+- **Code in the rendered Markdown preview** (the shared preview piece): its keywords, strings and comments are
+  coloured; they cannot be trusted. Authoritative: the appearance spec, E7e — code takes one text colour, with
+  no syntax colouring.

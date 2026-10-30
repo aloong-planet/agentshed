@@ -212,8 +212,7 @@
   let theme = DemoDimensions.get('theme')
   let mode = DemoDimensions.get('mode')
 
-  // The interface language follows it too; this page is drawn in Chinese and English (demo-dimensions.js
-  // shows any other choice as English, with a note)
+  // The interface language follows it too; this page is drawn in Chinese and English
   let lang = DemoDimensions.get('language')
   const HTML_LANG = { zh: 'zh-CN', en: 'en' }
   const enOne = (n) => new Intl.PluralRules('en').select(n) === 'one'

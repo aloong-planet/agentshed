@@ -264,7 +264,6 @@
   <!-- Agents 启动骨架:演示条「骨架」一档用它换下上面的正式内容;数据位的占位在脚本里画 -->
   <div class="main sk-page" id="skMain" aria-hidden="true" hidden>
     <div class="head">
-      <!-- 提示与标题同行:完成时它消失,不引起纵向位移(它不独占一行) -->
       <div class="h1" style="display:flex;align-items:baseline;gap:12px">Agents<span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span></div>
       <div data-shared-block="totals-card">
         <div class="tot-row" id="skTot"></div>
@@ -488,7 +487,7 @@ const COMP = [
   { rd:0.9700, in:0.0272, ou:0.0028 },   // 全部历史
   { rd:0.9580, in:0.0360, ou:0.0060 },   // 本日
   { rd:0.9640, in:0.0310, ou:0.0050 },   // 近 7 天
-  { rd:0.9680, in:0.0285, ou:0.0035 }    // 近 30 天
+  { rd:0.9680, in:0.0285, ou:0.0035 }    // 近 N 天
 ];
 let RANGE = 0;       // 选中的窗口(RANGES 下标),默认「全部历史」
 // 演示状态三选一。'idle':早上打开时「本日」为 0 而历史不为 0。
@@ -804,8 +803,8 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     const v=e.target.closest('[data-v]')?.dataset.v; if(!v)return;
     CXMEM=v; renderMemory(); syncHarness();
   });
-  // ── 启动骨架的占位:宽度与柱高取固定数组、不随机,两次打开长得一样;宽度
-  //    彼此错开,读作「长短不一的数会来」。文字行的占位一律 skLine:零宽空格撑出该行真实字体的行盒,与将要
+  // ── 启动骨架的占位:宽度与柱高取固定数组、不随机,两次打开长得一样。
+  //    文字行的占位一律 skLine:零宽空格撑出该行真实字体的行盒,与将要
   //    替换它的文字同高,换平台也不靠像素猜。模型行数是名义值,不承诺与载入后的行数一致 ──
   const skPh=(w,h,d)=>`<span class="sk-ph" style="width:${w}px;height:${h}px${d===undefined?'':`;animation-delay:${d}s`}"></span>`;
   const skLine=(w,h,d)=>`<span class="sk-line">\u200B${skPh(w,h,d)}</span>`;

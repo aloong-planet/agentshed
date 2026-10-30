@@ -10,7 +10,7 @@ form of its three sections and of the update surfaces they work with:
   trigger, the current item ticked; the keyboard opens the overlay and cycles its three items.
 - Appearance (「外观」): one card with 「模式」 as a three-segment control (「跟随系统」「浅色」「深色」) and 「配色」 as
   three palette cards (「紫」「雾蓝」「琥珀褐」), each a swatch row sampled in the light/dark in effect and a name; a
-  choice recolours the page at once and confirms in a toast.
+  choice recolours the page at once, with no save button.
 - Updates (「更新」): 「自动检查更新」 as an 「开 / 关」 segmented control; 「当前版本」 with the running version, the
   result line and one button — 「立即检查」, or 「立即安装」 while an update is ready or installing; the footnote,
   replaced in a development run.
@@ -20,6 +20,10 @@ form of its three sections and of the update surfaces they work with:
 
 The page opens with an update ready, so the rail button is there to hover. It does not draw the application
 menu's 「检查更新…」 item, a native menu; a harness action stands in for it.
+
+The toast the page shows after a mode or palette choice (「外观模式：…」, 「配色已切换为「…」」) is not settled: no
+spec states it and the app shows none for these choices. It is a difference between the page and the app, open
+until the owner decides it.
 
 ## Structure basis
 
@@ -61,9 +65,10 @@ menu's 「检查更新…」 item, a native menu; a harness action stands in for
 - Light/dark applied as an attribute on the page's root element: the prototype's stand-in; do not implement. In
   the product the mode decides the light/dark the whole window renders in, its chrome and the native menu
   included (the appearance spec's implementation decisions).
-- The shared values: this page and the gallery's settings write the language, light/dark and palette every other
-  prototype page shows, and this page's preferences are restored when it reopens; not part of the design; do not
-  implement. In the product each preference is saved by the app and applies to the whole app at once.
+- The shared values: this page writes the language, light/dark and palette every other prototype page shows; the
+  gallery's settings write the language and light/dark only, so the palette is changed on this page alone. This
+  page's preferences are restored when it reopens. Not part of the design; do not implement. In the product each
+  preference is saved by the app and applies to the whole app at once.
 
 ## Invalidated conclusions
 

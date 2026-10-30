@@ -27,9 +27,6 @@ this shape.
 
 ## Functional Requirements
 
-> Pending: the UI prototype pages still carry their reviewer notes and past rulings in their header and inline
-> comments, no page has a notes file, and the shared-UI check holds neither rule of prototype-pages::REQ-005.
-
 ### prototype-pages::REQ-001 What a UI prototype page's comments hold
 
 - prototype-pages::REQ-001/AC-01: The page's header, before its root element, is at most one comment on one
@@ -79,7 +76,8 @@ the page it concerns.
 The shared-UI check (`pnpm check:ui`) fails when a UI prototype page leaves this shape.
 
 - prototype-pages::REQ-005/AC-01: A UI prototype page without its same-name notes file fails the check.
-- prototype-pages::REQ-005/AC-02: A page whose header holds more than one comment of one line fails the check.
+- prototype-pages::REQ-005/AC-02: A page whose header holds more than one comment, a comment over more than one
+  line, or a comment that does not name its notes file fails the check.
 
 ## Constraints
 

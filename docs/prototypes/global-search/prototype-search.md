@@ -12,7 +12,8 @@ no-session state, and the startup scan's restore states in the header's hint slo
 shared project column's, the stale `removed-experiment-2025` among them; its sessions come from Claude Code, Codex,
 Grok and Antigravity CLI, the Antigravity CLI one under agy's own English title and marked as a stripped fork; the
 `RAG` sample has a long session title, and the `notarize` sample has a question whose keyword lies past the line's
-cut, beside others whose keyword is already in view.
+cut, beside others whose keyword is already in view. The session titles and questions are mock data and show as
+written in either language.
 
 Not screens of this page, so not drawn here: the Edit menu's "搜索会话… ⌘⇧F" / "Search Sessions… ⌘⇧F" entry,
 which opens this page and puts the focus in its box; the project list scrolling the selected project into view on

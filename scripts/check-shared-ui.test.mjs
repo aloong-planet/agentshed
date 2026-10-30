@@ -1,6 +1,7 @@
 // Exercise the shared-UI gate's command line on a copy of the prototypes with planted faults: a comment on a page is
 // not markup, so a reference, a declaration or a mount point that exists only in a comment must count as missing; a
-// chart answers for its own declaration; a shared block is known by its files in _shared/; and every list the gate
+// chart answers for its own declaration; a shared block is known by its files in _shared/; a UI prototype page has its
+// notes file beside it and a header of at most one one-line comment naming it; and every list the gate
 // mirrors from the product — colours, themes, sides, languages, READMEs, rail items, the documents it scans — is read
 // from where its members are defined, so a member added there is checked, and a source it cannot read is reported.
 //

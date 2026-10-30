@@ -418,7 +418,7 @@
   </div>
 <script src="../_shared/trend-chart.js?v=linked-span-total"></script>
 <script>
-  // ── 界面文案:画了中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 给出)。两页及以上共用的条目
+  // ── 界面文案:画了中、英两种。两页及以上共用的条目
   //    取共享文案表 _shared/copy.js,这里只留本页独有的。评审注解、演示条与 mock
   //    数据(项目/skill/文件名、会话标题、描述、提问原文)不在此列,保持原样。 ──
   const pl = (n, one, other) => n === 1 ? one : other
@@ -555,7 +555,7 @@
   let OV_R = 0
   const ovFmt = n => n>=1e9 ? (n/1e9).toFixed(2)+'B' : n>=1e6 ? (n/1e6).toFixed(1)+'M' : n>=1e3 ? Math.round(n/1e3)+'k' : String(n)
 
-  /** 构成条:统计下方的独立元素,与各侧拆解是同一个数的两种切法 */
+  /** 构成条:窗口总量 G 按 OV_COMP[OV_R] 的三段比例画成条与图例 */
   function ovComp(G){
     if (!G) return ''
     const c = OV_COMP[OV_R], t = T[LANG]
@@ -610,7 +610,7 @@
     ovApply()
   })
 
-  // Artifacts: type chips plus a flat list in reverse chronological order (inline, with no separate page)
+  // Artifacts: type chips plus a flat list in reverse chronological order
   const ARTS=[
     {t:'屏幕权限 preflight 堵死授权入口',ty:'postmortems',d:'07-24'},
     {t:'CONTEXT.md(术语 14 条)',ty:'CONTEXT',d:'07-20'},

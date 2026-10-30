@@ -102,3 +102,10 @@ Other demo-only behaviour and notes, not part of the design; do not implement:
   line): a subagent's own steps cannot be attributed to its dispatch on any side, so the block shows the dispatch
   prompt, a note that the inner steps are not shown, and the return (session-view spec, C3; REQ-004/AC-05 and G4
   for the Antigravity and Grok sides).
+- The warning under the truncated tool result in the Claude Code session's turn 07 (the `xcrun notarytool log`
+  block), where it says the record has no reference chain to the original under `tool-results/`, so the original
+  cannot be located: the truncated return names the original's full path, and the product does not read the
+  original; it shows the truncated version with a label saying so (session-view spec, C7).
+- The warning in the Codex reasoning blocks, where it sets the headings against Claude Code's plain-text
+  thinking: Claude Code's records carry no thinking body (session-view spec, C6). The rest of the warning holds:
+  the reasoning body is encrypted and never obtainable, and the headings are all the record has.

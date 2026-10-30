@@ -15,9 +15,8 @@ Memory, 「会话」, 「配置」 and 「产物」, landing on 「概览」. In
 - how the effective views are grouped: Skills by level and side, with the shared `.agents/skills` group
   between the Codex and Antigravity groups and the plugin-bundled group last; Subagents by level and side,
   with project-level shadowing on the Claude and Codex sides; Plugins by side, the Claude group showing this
-  project's effective enabled set and the layer that decided it; MCP servers labelled by source; Memory's
-  main file rendered in place, with its topic files opened in the file drawer; Configuration's two files,
-  each headed by its path;
+  project's effective enabled set and the layer that decided it; Memory's main file rendered in place, with
+  its topic files opened in the file drawer; Configuration's two files, each headed by its path;
 - how the 「会话」 tab's list, its sort and its search, with hits grouped by session, read;
 - whether 「产物」 as type chips over one flat list, read in an overlay, is clear.
 
@@ -27,7 +26,8 @@ The mock project, Transfer, is registered on all four agent sides: Claude Code, 
 
 - App window, rail and project column: the shared app window, rail and project column, as in the project
   list prototype (项目图鉴列表) with the same mock projects; the rail has Projects selected and the column
-  has Transfer selected.
+  has Transfer selected. A project in the column that has a prototype of its own opens that prototype on
+  click; the others stay static.
 - The set of tabs and their order: the sections the project-detail spec's sequence A lists.
 - The time-window cards, the composition bar, the per-side row and the by-model breakdown: the shared
   totals-card block, in the same form as the Agents page prototype (Agents 全局页), at project scale.
@@ -37,9 +37,9 @@ The mock project, Transfer, is registered on all four agent sides: Claude Code, 
   project list prototypes.
 - The 「会话」 tab's search row and hit rows: the shared session-hits block, drawn the same as in the global
   search prototype (全局搜索). Session rows, recent-session rows and hit rows open the session page
-  prototype (会话页).
-- The Subagents drawer, and the Configuration entries headed by their path: the same form as the Agents page
-  prototype.
+  prototype (会话页), which draws the question index and the whole-turn expansion.
+- The Subagents and Memory rows that open a drawer, the Subagents drawer, and the Configuration entries
+  headed by their path: the same form as the Agents page prototype.
 - The Memory file drawer: the shared file drawer around the shared Markdown preview block, the same form as
   the skill file drawer of the Skills package preview prototype (Skills 包预览) and the Agents page's memory
   drawer; a link that cannot be followed shows the shared toast.
@@ -73,13 +73,6 @@ Reviewer annotations drawn inside the page are not part of the design either; do
 - remarks in parentheses inside mock text, such as 「(Codex 侧全局,与 Claude 侧各自成行)」 in a Subagents
   description, 「(mock 略)」 in drawer bodies and 「(只读渲染,滚动容器内)」 in a Configuration body.
 
-## Uncovered dimensions
-
-- Interface language: drawn in Chinese and English. Any other language shows as English, with the notice the
-  dimension script adds.
-- The demo bar, the reviewer annotations and the mock data (project, skill, file and model names, session
-  titles, descriptions, question text, file bodies) are not translated: they read the same in every language.
-
 ## Invalidated conclusions
 
 - **Skills tab, its rows**: each row is drawn as a name, a level or symlink pill and a description, with no
@@ -93,11 +86,19 @@ Reviewer annotations drawn inside the page are not part of the design either; do
   on the row itself) and the expansion (category tabs — Skills, Subagents, Hooks, MCP, with no tab for an
   empty category — whose Skills tab is a previewable row list; in the Codex group the Skills category
   expands), the form the plugin skill preview prototype (Plugins·插件 skill 原地预览) draws on the Agents page.
-- **MCP tab, the Antigravity rows**: they are drawn inside the one MCP card, with a command or a URL as the
-  description. Antigravity's servers form a group of their own, shown on a project's page only when agy has
-  servers (project-detail::REQ-002/AC-03 and its failure modes), and a server row shows its name, its
-  source, the Disabled pill and, for a plugin's server, the note naming the plugin — never a command or URL
-  (agents-overview spec, failure modes of the Antigravity side on the agents page).
+- **MCP tab, its card of servers**: the one card under 「MCP Servers(按来源标注)」 lists servers of several
+  sources, each labelled by its source — a Claude plugin's server, Codex's global `config.toml` servers and
+  Antigravity's servers, the last with a command or a URL as the description. The section lists the servers
+  of the project's own `.mcp.json` with their enabled / disabled / default state, and when there are none it
+  points to the Agents page for the global ones (features/project-detail.md, MCP); Antigravity's servers
+  follow as a group of their own, shown on a project's page only when agy has servers
+  (project-detail::REQ-002/AC-03 and its failure modes), whose rows show a server's name, its source, the
+  Disabled pill and, for a plugin's server, the note naming the plugin — never a command or URL
+  (agents-overview spec, failure modes of the Antigravity side on the agents page). Of the card's rows, only
+  the `.mcp.json` row (figma) is one the section lists.
 - **Subagents tab, the drawer of an Antigravity definition**: the drawers of demo-agent and release-checker
   leave out some of tools, subagent, mainAgent and model. Every Antigravity definition's drawer lists all
   four, each "—" when absent (subagents-view::REQ-001, failure modes).
+- **Code in the rendered Markdown preview** (the shared preview piece): its keywords, strings and comments are
+  coloured; they cannot be trusted. Authoritative: the appearance spec, E7e — code takes one text colour, with
+  no syntax colouring.

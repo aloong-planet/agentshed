@@ -42,8 +42,7 @@
   .shell-drawer .md-preview-body.raw { background: var(--bg); color: var(--text); }
   .shell-drawer .md-preview-body.preview { background: var(--card); color: var(--text); }
   .shell-drawer .md-preview { --md-h1: var(--accent-deep); --md-h2: var(--accent); --md-link: var(--accent); }
-  /* 共享块自带的原型级 token 着色(.tok-*)在真 app 里不存在(app 的 Markdown 预览不做语法高亮),
-     故在此中和掉——右栏 .mdcard 本就无 tok 规则。 */
+  /* 在此中和共享块自带的 token 着色(.tok-*),与右栏 .mdcard 一致——它本就无 tok 规则。 */
   .shell-drawer .md-preview-body.preview .tok-c,
   .shell-drawer .md-preview-body.preview .tok-s,
   .shell-drawer .md-preview-body.preview .tok-k { color: inherit; }

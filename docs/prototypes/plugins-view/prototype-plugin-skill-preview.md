@@ -49,3 +49,9 @@ prototype.
 
 - The agent sides: the page draws the Claude and Codex groups only. The Antigravity CLI group (plugins-view::REQ-001:
   the version, the enablement, "From <marketplace>", and the Skills, Subagents and MCP tabs) is not drawn here.
+
+## Invalidated conclusions
+
+- **Code in the rendered Markdown preview** (the shared preview piece): its keywords, strings and comments are
+  coloured; they cannot be trusted. Authoritative: the appearance spec, E7e — code takes one text colour, with
+  no syntax colouring.

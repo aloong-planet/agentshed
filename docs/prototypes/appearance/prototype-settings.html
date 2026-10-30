@@ -287,9 +287,9 @@
   let popOpen = false
   let cursor = 0
 
-  /* ── Demo dimensions (not part of the design): this page and the gallery's settings write the language,
-     light/dark and palette every other prototype page shows. Its preferences are kept with them, so the page
-     reopens as the reader left it. ── */
+  /* ── Demo dimensions (not part of the design): this page writes the language, light/dark and palette every
+     other prototype page shows; the gallery's settings write the language and light/dark only. Its
+     preferences are kept with them, so the page reopens as the reader left it. ── */
   const kept = DemoDimensions.state()
   if (kept && OPTIONS.includes(kept.langPref) && MODES.includes(kept.modePref) && SWATCHES.light[kept.scheme]) {
     ;({ scheme, modePref, langPref } = kept)

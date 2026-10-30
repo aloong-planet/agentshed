@@ -63,3 +63,6 @@ plugin rows that expand like on-disk rows, and a plugin row whose package cannot
   「CC 项目级与 CX 项目级整组消失」, but the page has no 「CX 项目级」 group — the project's `.agents/skills`
   is the shared group (skills-view::REQ-002/AC-01). Typing 「d」 empties the Claude Code project-level, shared
   and Antigravity global-level groups; what the lists show is authoritative.
+- **Code in the rendered Markdown preview** (the shared preview piece): its keywords, strings and comments are
+  coloured; they cannot be trusted. Authoritative: the appearance spec, E7e — code takes one text colour, with
+  no syntax colouring.
