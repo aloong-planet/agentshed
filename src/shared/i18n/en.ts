@@ -77,8 +77,9 @@ export const en: Locale = {
 
   skillDeepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
   agents: {
-    sideSummary: (projects, skills, subagents) =>
-      `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })} · ${skills} global ${plural('en', skills, { one: 'skill', other: 'skills' })} · ${subagents} ${plural('en', subagents, { one: 'subagent', other: 'subagents' })}`,
+    sideProjects: (projects) => `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })}`,
+    sideRest: (skills, subagents) =>
+      `${skills} global ${plural('en', skills, { one: 'skill', other: 'skills' })} · ${subagents} ${plural('en', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Config',
     notDetected: 'No agent side’s data directory was detected on this machine',
     notDetectedHint: 'Install and use any of the agents; the overview appears at the next automatic scan (returning to this window triggers one)',

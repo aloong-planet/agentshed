@@ -40,7 +40,7 @@ export const STATIC_TABS = [
   ['memory', 'Memory']
 ] as const
 
-export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
+export function AgentsPane({ snap, onOpenSide }: { snap: Snapshot; onOpenSide: (side: AgentSide) => void }): JSX.Element {
   const now = useDisplayClock()
   const t = useDict()
   const [tab, setTab] = useState<Tab>('token')
@@ -83,7 +83,9 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
                 error={snap.sides[side].error}
                 unreadable={snap.sides[side].unreadable ?? 0}
                 total={slice.bySide[side]}
-                sub={t.agents.sideSummary(st.projects, st.skills, st.subs)}
+                projects={st.projects}
+                onOpenProjects={() => onOpenSide(side)}
+                rest={t.agents.sideRest(st.skills, st.subs)}
               />
             )
           })}
@@ -149,7 +151,9 @@ function SideCard({
   error,
   unreadable,
   total,
-  sub
+  projects,
+  onOpenProjects,
+  rest
 }: {
   label: string
   cls: SideBadgeClass
@@ -158,7 +162,11 @@ function SideCard({
   /** Sessions the scan could not read in the supported format (only the Antigravity CLI side counts any) */
   unreadable: number
   total: number
-  sub: string
+  /** The side's project count; one or more is a control that opens them (agents-overview::REQ-007) */
+  projects: number
+  onOpenProjects: () => void
+  /** The rest of the line after the project count */
+  rest: string
 }): JSX.Element {
   const t = useDict()
   const lang = useLanguage()
@@ -177,7 +185,17 @@ function SideCard({
       ) : unreadable > 0 ? (
         <div className="s side-warn" title={t.agents.unreadableTip}>{t.agents.unreadableConversations(unreadable)}</div>
       ) : (
-        <div className="s">{sub}</div>
+        <div className="s">
+          {projects > 0 ? (
+            <button type="button" className="stat-link" onClick={onOpenProjects}>
+              {t.agents.sideProjects(projects)}
+            </button>
+          ) : (
+            t.agents.sideProjects(projects)
+          )}
+          {' · '}
+          {rest}
+        </div>
       )}
     </div>
   )
