@@ -233,6 +233,22 @@ Applies to: the tab row of a project's page. A stale project's note page has no 
   Sessions / Artifacts. Overview stays the tab a project opens on, and coming back from a session still lands on
   Sessions (T8).
 
+Failure modes and boundaries, a narrow window (the owner's decisions of 2026-11-03): the row keeps its one form at every
+window width, and no narrow form is designed. It does not move onto a second row, a sideways wheel over it does not move it,
+and the pane clips it, so the pointer cannot reach a tab past the right edge until the window is widened. The default 1100px
+window shows every tab in both languages. Measured on macOS: in English the row shows whole from about 1040px; narrower, the
+pane cuts Artifacts first, and at the 800px minimum window Memory, Sessions and Artifacts lie past the edge. In Chinese the
+row is shorter and shows whole from about 870px, but below about 940px its two-character labels wrap inside their tabs and
+the row grows taller; at 800px Sessions is cut and Artifacts lies past the edge. The agents page's seven tabs fit at the
+minimum window in both languages. This is the one exception to [i18n::QR-001](i18n.md).
+
+The keyboard does reach those tabs, and that is accepted as it is, with no product change. Measured on macOS at 800px: Tab
+moves along the row to a tab past the edge, Enter opens it, and the pane shifts sideways to bring the focused tab into view,
+its header and body together, by about 240px in English and 68px in Chinese. That cuts off the start of the project's name
+and path, and in English a short name goes whole. The shift stays through a pointer click on another project. It ends when
+Shift+Tab brings focus back to the first tab or on leaving for the agents page; widening the window shrinks it, and the
+default window ends it.
+
 ## Where artifacts come from
 
 ### project-detail::REQ-003 Each artifact type is read from one place
@@ -364,7 +380,10 @@ Antigravity only and one on every side: the header chips and the Antigravity MCP
 Instructions entries with their path headings, "None", an unreadable file and the absence of a settings
 summary are asserted over any project — the files are read by path, whatever the registration — and
 the restore of a detail saved before the paths at the display store's filesystem seam. project-detail::REQ-004 reads
-the tab row at the same seam, in both languages.
+the tab row at the same seam, in both languages, and asserts that it fits the default window. The clipping in a narrow
+window and the keyboard's sideways shift are measured rather than asserted: they are accepted limits, not behaviours to keep.
+The agents page's tab row at the minimum window is measured only as well, and no test guards that it fits (the owner's
+decision of 2026-11-03).
 
 ## Out of Scope
 
@@ -388,6 +407,9 @@ the tab row at the same seam, in both languages.
 - A pending indicator while a first visit is in flight (dimming the clicked row, a progress bar):
   the list highlight moving at once is the only feedback, by the 2026-09-12 ruling; an indicator is
   a new visible state and needs a prototype.
+- A narrow form of a project's tab row (wrapping onto a second row, scrolling, an overflow menu): a tab past the window's
+  edge stays out of the pointer's reach until the window is widened, and the keyboard's sideways shift of the pane stays,
+  both accepted on 2026-11-03 (project-detail::REQ-004).
 
 ## Further Notes
 
