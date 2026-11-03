@@ -189,7 +189,7 @@ test('a side card\'s count opens that side\'s projects, the controls work from t
     await expect(counter(win)).toHaveText('1 stale project filtered out')
 
     // The count activated and another dimension chosen before that update lands: the list never mounted, and its next
-    // way in still opens on all sides. Two real clicks in one task, which is what puts the rail's update first.
+    // way in still opens on all sides. Two click events dispatched in one task, which is what puts the rail's update first.
     await toAgents(win)
     await expect(countOf(win, 'cx')).toBeVisible()
     await win.evaluate(() => {
@@ -213,13 +213,14 @@ const LOOK = {
   dark: { secondary: 'rgb(155, 154, 151)', strongLine: 'rgb(52, 55, 60)', primary: 'rgb(230, 230, 229)', accent: 'rgb(160, 132, 199)' }
 } as const
 
-const paint = (link: Locator): Promise<{ color: string; line: string; underline: string; outline: string; width: string; outlineColor: string; focusVisible: boolean }> =>
+const paint = (link: Locator): Promise<{ color: string; line: string; underline: string; thickness: string; outline: string; width: string; outlineColor: string; focusVisible: boolean }> =>
   link.evaluate((el) => {
     const s = getComputedStyle(el)
     return {
       color: s.color,
       line: s.textDecorationLine,
       underline: s.textDecorationColor,
+      thickness: s.textDecorationThickness,
       outline: s.outlineStyle,
       width: s.outlineWidth,
       outlineColor: s.outlineColor,
@@ -243,7 +244,7 @@ test('the count\'s look in light and dark, its keyboard path, plain text at zero
 
       // At rest: the line's secondary colour and a thin underline in the strong line colour
       await win.mouse.move(5, 5)
-      await expect.poll(() => paint(link)).toMatchObject({ color: look.secondary, line: 'underline', underline: look.strongLine, outline: 'none' })
+      await expect.poll(() => paint(link)).toMatchObject({ color: look.secondary, line: 'underline', underline: look.strongLine, thickness: 'auto', outline: 'none' })
       // The line around it has that same colour: the control does not stand out from its line at rest
       expect(await card(win, 'cl').locator('.s').evaluate((el) => getComputedStyle(el).color)).toBe(look.secondary)
 
@@ -363,7 +364,7 @@ test('the startup skeleton has no control, and the count is one once the first s
     }))
     expect(skeleton.placeholders).toBeGreaterThan(0)
     expect(skeleton.controls).toBe(0)
-    await expect(countOf(win, 'cl')).toHaveText('3 projects', { timeout: 15000 })
+    await expect(win.locator('.pane-head .stats button')).toHaveText(['3 projects', '1 project'], { timeout: 15000 })
     expect(l.errors).toEqual([])
   } finally {
     await close(l, home)
@@ -513,7 +514,7 @@ test('a kept row below the fold leaves the list at its top, and a side with only
     await expect(countOf(win, 'gk')).toHaveText('1 project')
     await countOf(win, 'gk').click()
     await expect(rows(win)).toHaveText(['grok-ghost'])
-    await expect(win.locator('.side .row.stale')).toHaveCount(1)
+    expect(await rows(win).evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe('line-through')
     await expect(toggle(win)).toBeChecked()
     await expect(counter(win)).toHaveCount(0)
 

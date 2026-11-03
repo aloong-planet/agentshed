@@ -160,6 +160,8 @@ export function App(): JSX.Element {
     startPaneTransition(() => {
       setListArrival({ side, showStale })
       setDim('projects')
+      // The list opens at its top: a reveal request a hit left behind, with no list mounted to take it, is not for here
+      setRevealSelected(false)
       if (!keepSelection) {
         setSelected(null)
         setShownProject(null)

@@ -1073,3 +1073,41 @@ test('arriving from a card with a hit still on its way: the jump never lands', a
     await close(l, home)
   }
 })
+
+test('a reveal request left by a hit the rail overtook does not move the list when a card opens it', async () => {
+  const { home } = mkHome()
+  const l = await launch(home)
+  const { win } = l
+  const list = win.locator('.side .list')
+  try {
+    // The session page is cached by a first visit, which also shows the project's row below the list's fold
+    await searchItem(win).click()
+    await box(win).fill('xenon')
+    await expect(body(win).locator('.hit')).toHaveCount(150, { timeout: 15000 })
+    await body(win).locator('.hit', { hasText: 'xenon 37' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('xenon 1', { timeout: 15000 })
+    await expect(win.locator('.side .row.sel .nm')).toHaveText('target-proj')
+    expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+
+    // The hit and the rail in one task: the rail's update lands first, so the list does not mount for the hit
+    await searchItem(win).click()
+    await expect(body(win).locator('.hit', { hasText: 'xenon 37' })).toBeVisible()
+    await win.evaluate(() => {
+      const hit = [...document.querySelectorAll<HTMLElement>('.gsearch .pane-body .hit')].find((h) => h.textContent?.includes('xenon 37'))
+      if (!hit) throw new Error('no hit')
+      hit.click()
+      document.querySelectorAll<HTMLElement>('.rail .ri')[0]?.click()
+    })
+    await expect(win.locator('.app')).toHaveClass(/dim-agents/)
+
+    // Claude's count opens the list at its top, with the kept row out of view
+    await win.locator('.pane-head .stats .stat', { has: win.locator('.badge.cl') }).locator('.stat-link').click()
+    await expect(win.locator('.opts .dd-trigger')).toHaveText('Claude Code')
+    await expect(win.locator('.side .row.sel .nm')).toHaveText('target-proj')
+    expect(await list.evaluate((el) => el.scrollTop)).toBe(0)
+    await expect(win.locator('.side .row.sel')).not.toBeInViewport()
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
