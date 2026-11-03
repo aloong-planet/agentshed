@@ -194,8 +194,6 @@ keeps its last folder ([token-stats::REQ-004/AC-03](token-stats.md)).
 
 ### projects-list::REQ-002 The list reached from a side card's project count
 
-> Pending: no control on the agents page opens the project list on one side.
-
 Applies to: the Projects dimension as opened from a side card's project count
 ([agents-overview::REQ-007](agents-overview.md)). Every other way in — the rail, a global search hit — keeps opening
 the list on all sides with the stale toggle off.
@@ -228,6 +226,8 @@ Failure modes and boundaries, by the user's sequence after arriving:
 - **The cleared project had a session open**: the session page goes with it, including one opened from global search.
 - **A kept project's page**: it is the cached visit of T9 in [project-detail](project-detail.md).
 - **A pending jump from a global search hit**: arriving supersedes it, like a rail click.
+- **Another dimension chosen before the arrival lands**: that dimension shows and the list does not open; its next way in
+  opens on all sides with the toggle off.
 
 ## Startup restoration
 
@@ -275,7 +275,9 @@ registrations follow A6 and project-detail's S6/S7 rather than retaining ghost l
   through an effect after mounting, which would draw one frame of all sides. The dimension change, those values and any
   clearing of the selection run in one Transition, the same one that wraps opening a session from global search. The
   decision (given the side, the projects and the selection: the toggle and whether the selection stays) is a pure
-  function.
+  function. Every other way in clears those values, rather than the list clearing them when it mounts: a rail click can
+  land before the Transition, and then the list never mounts. For the same reason the arrival drops a reveal request a
+  global search hit left behind (C8).
 
 ## Testing Decisions
 
@@ -299,8 +301,9 @@ projects-list::REQ-002 is tested at the e2e seam over the fixture of [agents-ove
 cases, activating the control from the agents page: the dropdown's text, the row count against the card, the toggle in
 both states, search empty, a selection on the side kept and one off it cleared, and the rail afterwards opening all
 sides. "No frame shows all sides" is an assertion over every moment, so it is recorded in the page by a mutation
-observer and read afterwards, with one positive case each way, rather than polled. The toggle and selection decision has
-a unit test over the pure function.
+observer and read afterwards, with one positive case each way, rather than polled. It runs over a list of several
+hundred rows: over three rows, a filter set in an effect after mounting was not recorded (measured 2026-11-03). The
+toggle and selection decision has a unit test over the pure function.
 
 The skeleton (A10–A13) is tested at the e2e seam: an environment-injected delay holds the first scan
 open (the same injection family as the rescan intervals), making the skeleton a stable state rather

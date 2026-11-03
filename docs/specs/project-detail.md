@@ -99,7 +99,9 @@ cached visits under project-detail::REQ-001)
   on screen when the session opened), landing on the Sessions section per the session-view rule, and
   its detail revalidates by transfusion.
 - T9 Leaving the Projects dimension (Agents, Settings) and coming back: the selection is kept (the
-  existing rule) and the page is a cached visit — no refetch, no empty frame.
+  existing rule) and the page is a cached visit — no refetch, no empty frame. The exception is coming back
+  through a side card's project count, which clears a selection not registered on that side
+  ([projects-list::REQ-002/AC-05](projects-list.md)).
 - T10 Fetch failure on a first visit (the IPC call rejects): the switch completes to the existing
   form, an empty pane body under the new project's header — no error card is invented (Out of
   Scope). A failed background revalidation leaves the shown page as it is. Either failure is logged

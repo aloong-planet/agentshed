@@ -10,6 +10,10 @@ agent side's global picture onto one screen.
   global skill count and subagent count — the skill count is the side's own library, not the skills its
   plugins bring; if one side's registry is corrupt it degrades to an error explanation while the other
   sides are unaffected
+- A card's project count of one or more is a link, by pointer or keyboard, that opens the project list on
+  that side's projects (see [Project list](projects-list.md)). A count of zero is plain text, the skill and
+  subagent counts are not links, and a card whose last line shows an error or the unread-conversations
+  note has no link
 - When the last scan could not read some of Antigravity CLI's conversations in the format the app
   supports, the Antigravity CLI card's last line says how many, in the warning colour, and hovering it
   explains that Antigravity CLI may have changed its conversation format in an update and that their

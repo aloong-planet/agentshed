@@ -26,6 +26,11 @@ activity.
 - A project selected from a global search hit has its row scrolled into view when it sits outside the
   visible part of the list; the filters are not changed for it, so a stale project stays hidden unless
   stale projects are shown
+- Opened from a side's project count on the Agents page, the list shows exactly the projects that card
+  counts: the dropdown on that side, the search box empty, and the stale toggle on when that side has a
+  stale project. A selected project registered on that side stays on the stage with its page or open
+  session; any other selection is cleared. The filters then work as usual, until the list is left; every
+  other way in opens on all sides with the toggle off
 - On the Antigravity CLI side, a project is a folder the user agreed to trust when Antigravity CLI asked;
   a conversation counts toward the activity of the first folder it lists, its time moving while
   Antigravity CLI is still writing it; a subagent's conversation, and one in a format the app does not
