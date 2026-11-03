@@ -473,8 +473,8 @@ for (const [system, instructions, overview, sessions, artifacts] of [
     await win.locator('.side .row').first().click()
     await expect(tabs).toHaveText([overview, instructions, 'Skills', 'Subagents', 'Plugins', 'MCP', 'Memory', sessions, artifacts])
     await expect(selected).toHaveText(overview)
-    // The row fits the default window. It does not wrap or scroll and the page clips what runs past it, so a tab past
-    // the row's end could not be reached
+    // The row fits the default window. It does not wrap and the page clips what runs past it, so a pointer could not
+    // reach a tab past the row's end
     const overrun = await win.locator('.pane-head .tabs').evaluate((row) =>
       Math.max(...[...row.children].map((tab) => tab.getBoundingClientRect().right)) - row.getBoundingClientRect().right)
     expect(overrun).toBeLessThanOrEqual(0)
