@@ -29,7 +29,7 @@ configuration.
   between a dark app and a light window frame
 - Both preferences are persisted and survive a restart
 - Entering and leaving settings does not lose the currently selected project
-- Everywhere markdown is rendered (skill files, memory and configuration documents, the reading
+- Everywhere markdown is rendered (skill files, memory and instruction documents, the reading
   overlay) headings share **one visual hierarchy**: a ruled first level, a bar-marked second, a
   lighter-accent third, and muted deeper levels — adjacent levels (third vs fourth in particular)
   stay tellable apart in every theme, light or dark

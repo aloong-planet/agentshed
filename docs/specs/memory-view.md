@@ -88,7 +88,7 @@ where the file is read from and in what the title block names.
 
 ### memory-view::CON-002 What rendered text keeps (direct acceptance)
 
-Applies to every rendered-markdown surface — the file drawer, the main memory file, configuration
+Applies to every rendered-markdown surface — the file drawer, the main memory file, instruction
 documents and the artifact reader — since they share one carrier (AGENTS.md: one carrier).
 Two things an agent writes as text stay text: a `[[…]]` reference, with whatever follows it (so
 `[[name]](remark)` is not a link), and a tag-like `<name>` whose name is not an HTML element (placeholders

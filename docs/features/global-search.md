@@ -69,5 +69,5 @@ project.
   its row is not on screen unless stale projects are shown
 - The question texts are kept in memory for the run and never saved; reading them in costs a moment the
   first time the page is shown in a run, and the keyword and results are not kept across restarts
-- Artifacts, memories, configuration and components are not searched here, and the results have
+- Artifacts, memories, instructions and components are not searched here, and the results have
   no side filter

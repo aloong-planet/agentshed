@@ -164,8 +164,6 @@ The hero's heading is "Your coding agents, in full view" in English.
 
 ### landing-page::REQ-008 What the project step names (direct acceptance)
 
-> Pending: the project step's English text ends its list with "configuration".
-
 The features section's project step lists what a project has using the app's own word for the section
 ([project-detail::REQ-004](project-detail.md)): "Skills, subagents, plugins, MCP servers and instructions" in English,
 and the same list with the section's Chinese label in Chinese.

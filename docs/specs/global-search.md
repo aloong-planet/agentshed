@@ -344,7 +344,7 @@ the injected delay, and the application menu's e2e (Settings and Check for Updat
   (global-search::REQ-001).
 - Sessions in directories that are not projects.
 - Persisting the keyword, the results or the page state across restarts.
-- Artifacts, memories, configuration and components in global search.
+- Artifacts, memories, instructions and components in global search.
 - A side filter on the results.
 - A project heading that opens the project; the way into the project is the session page's exit.
 - Moving a project's own session search onto the in-memory texts (global-search::CON-002).
