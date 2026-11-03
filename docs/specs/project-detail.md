@@ -244,9 +244,10 @@ minimum window in both languages. This is the one exception to [i18n::QR-001](i1
 
 The keyboard does reach those tabs, and that is accepted as it is, with no product change. Measured on macOS at 800px: Tab
 moves along the row to a tab past the edge, Enter opens it, and the pane shifts sideways to bring the focused tab into view,
-its header and body together, by about 240px in English and 68px in Chinese. The shift stays through a pointer click on
-another project. It ends when Shift+Tab brings focus back to the first tab or on leaving for the agents page; widening the
-window shrinks it, and the default window ends it.
+its header and body together, by about 240px in English and 68px in Chinese. That cuts off the start of the project's name
+and path, and in English a short name goes whole. The shift stays through a pointer click on another project. It ends when
+Shift+Tab brings focus back to the first tab or on leaving for the agents page; widening the window shrinks it, and the
+default window ends it.
 
 ## Where artifacts come from
 
