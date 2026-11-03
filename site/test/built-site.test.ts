@@ -190,6 +190,14 @@ describe('the sections', () => {
     for (const body of bodies) expect(body).not.toMatch(/⌘|⇧|\bCmd\b|\bCtrl\b|\bShift\b/)
   })
 
+  // landing-page::REQ-008. The expected lists are literals rather than the dictionary's text, so the section's former
+  // word cannot come back unnoticed
+  test.each(LOCALES)('%s: the project step lists the section by the app’s own word, in the showcase and stacked', (locale) => {
+    const list = locale === 'en' ? 'Skills, subagents, plugins, MCP servers and instructions' : 'skills\u3001subagents\u3001plugins\u3001MCP \u4e0e\u6307\u4ee4'
+    const bodies = ['#features .deck-text p', '#features .fs-step .fs-p'].map((sel) => text(pages[locale].querySelectorAll(sel)[1]))
+    expect(bodies.map((body) => body.slice(0, list.length))).toEqual([list, list])
+  })
+
   test('three install steps; the English ones say what the spec says', () => {
     for (const locale of LOCALES) expect(pages[locale].querySelectorAll('#install .step')).toHaveLength(3)
     const [download, drag, open] = [...pages.en.querySelectorAll('#install .step')].map(text)

@@ -456,7 +456,7 @@ for (const [system, instructions, overview, sessions, artifacts] of [
   ['en-US', 'Instructions', 'Overview', 'Sessions', 'Artifacts'],
   ['zh-Hans-CN', '指令', '概览', '会话', '产物']
 ]) {
-  test(`the tabs' labels and order in ${system}, on the skeleton, the agents page and a project's page (agents-overview::REQ-006, project-detail::REQ-004)`, async () => {
+  test(`the tabs' labels and order in ${system}, on the skeleton, the agents page and a project's page (agents-overview::REQ-006, project-detail::REQ-004, i18n::QR-001/AC-01)`, async () => {
     const l = await launch(undefined, mkUsageHome(), { AGENTSHED_SYSTEM_LANGUAGES: system, AGENTSHED_SCAN_DELAY_MS: '4000' })
     const win = await l.app.firstWindow()
     const agentsRow = ['Token', instructions, 'Skills', 'Subagents', 'Plugins', 'MCP', 'Memory']
@@ -473,6 +473,11 @@ for (const [system, instructions, overview, sessions, artifacts] of [
     await win.locator('.side .row').first().click()
     await expect(tabs).toHaveText([overview, instructions, 'Skills', 'Subagents', 'Plugins', 'MCP', 'Memory', sessions, artifacts])
     await expect(selected).toHaveText(overview)
+    // The row fits the default window. It does not wrap or scroll and the page clips what runs past it, so a tab past
+    // the row's end could not be reached
+    const overrun = await win.locator('.pane-head .tabs').evaluate((row) =>
+      Math.max(...[...row.children].map((tab) => tab.getBoundingClientRect().right)) - row.getBoundingClientRect().right)
+    expect(overrun).toBeLessThanOrEqual(0)
     expect(l.errors).toEqual([])
     await close(l)
   })
