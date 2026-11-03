@@ -70,13 +70,13 @@ export function validSavedRead(v: unknown): v is SavedRead {
   }
 }
 
-/** A file of a Configuration entry saved before entries carried their paths: its contents (or null, then absent),
+/** A file of an Instructions entry saved before entries carried their paths: its contents (or null, then absent),
  * given the path it was read from. A malformed one stays malformed, for validation to drop. */
 const pathed = (file: string, saved: unknown): unknown => (saved === null ? null : { file, content: saved })
 
 /** A project detail saved before its memory carried the main file's entry restores with none listed; the live
  * read replaces it (ADR-0029's upgrade case; spec memory-view, Implementation Decisions). One saved before its
- * configuration entries carried their paths — `configs` held the two files' contents and a settings summary —
+ * instruction entries carried their paths — `configs` held the two files' contents and a settings summary —
  * restores with each file at its place in the project, the only place the project's own two files live, and
  * without the summary (project-detail::REQ-002/AC-02). A session page saved
  * before the session ID was kept restores with the ID its path holds — Claude Code's and Grok's — and none for
@@ -168,19 +168,19 @@ function upgradeSavedSubagentDetail(detail: unknown): void {
   if (!('mainAgent' in detail)) detail.mainAgent = null
 }
 
-/** Where the two global configuration files a snapshot saved before entries carried their paths had been read from
+/** Where the two global instruction files a snapshot saved before entries carried their paths had been read from
  * — `~/.claude/CLAUDE.md` and Codex's `~/.codex/AGENTS.md`. Only the main process knows them (its roots), so only
  * its parse can restore that shape (agents-overview::REQ-004). */
-export interface SavedConfigPaths {
+export interface SavedInstructionPaths {
   claudeMd: string
   codexAgentsMd: string
 }
 
-/** A snapshot saved before configuration entries carried their paths held `claudeGlobalMd` and `codexAgentsMd` as
+/** A snapshot saved before instruction entries carried their paths held `claudeGlobalMd` and `codexAgentsMd` as
  * contents and a `codexConfigSummary`: with the paths given, they become the two entries' files and the summary
  * goes; the two agy files that version never read are not there until the live scan replaces it. Without the
  * paths the old shape is left for validation to drop. */
-function upgradeSavedSnapshot(v: unknown, paths: SavedConfigPaths | undefined): unknown {
+function upgradeSavedSnapshot(v: unknown, paths: SavedInstructionPaths | undefined): unknown {
   if (paths === undefined || !object(v) || !object(v.global)) return v
   const old = v.global
   if (!('claudeGlobalMd' in old) || !('codexAgentsMd' in old) || 'claudeMd' in old || 'agentsMd' in old) return v
@@ -196,8 +196,8 @@ function upgradeSavedSnapshot(v: unknown, paths: SavedConfigPaths | undefined): 
 }
 
 /** Independent entries degrade independently; corrupt envelope metadata is handled by the store. `paths` is the
- * main process's, for restoring a snapshot saved before configuration entries carried their paths. */
-export function parseDisplayData(v: unknown, paths?: SavedConfigPaths): DisplayData {
+ * main process's, for restoring a snapshot saved before instruction entries carried their paths. */
+export function parseDisplayData(v: unknown, paths?: SavedInstructionPaths): DisplayData {
   const d = emptyDisplayData()
   if (!object(v)) return d
   // The upgrades fill in place: the payload is freshly parsed from disk or IPC, owned by this call

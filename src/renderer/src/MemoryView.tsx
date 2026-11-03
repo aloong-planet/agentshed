@@ -117,7 +117,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
 }
 
 /** The detail page's Memory tab: MEMORY.md's body is rendered directly (the same pattern as the
- * Configuration tab) and topics open in a drawer (sequence D) */
+ * Instructions tab) and topics open in a drawer (sequence D) */
 export function ProjectMemoryTab({
   detail,
   projectName,

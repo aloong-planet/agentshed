@@ -93,9 +93,9 @@ describe('validateSnapshot', () => {
     expect(validateSnapshot(snap).ok).toBe(false)
   })
 
-  // agents-overview::REQ-004: the Configuration section's two entries — CLAUDE.md, and the global AGENTS.md files
-  describe('the Configuration section\'s files', () => {
-    const withConfig = (claudeMd: unknown, agentsMd: unknown): ReturnType<typeof validateSnapshot> => {
+  // agents-overview::REQ-004: the Instructions section's two entries — CLAUDE.md, and the global AGENTS.md files
+  describe('the Instructions section\'s files', () => {
+    const withInstructions = (claudeMd: unknown, agentsMd: unknown): ReturnType<typeof validateSnapshot> => {
       const snap = emptySnapshot(1) as unknown as { global: Record<string, unknown> }
       snap.global.claudeMd = claudeMd
       snap.global.agentsMd = agentsMd
@@ -104,23 +104,23 @@ describe('validateSnapshot', () => {
     const pathOf = (r: ReturnType<typeof validateSnapshot>): string => (r.ok ? '' : r.failure.path)
 
     it('admits a CLAUDE.md and a list of AGENTS.md files, one of them unreadable (content null)', () => {
-      expect(withConfig(
+      expect(withInstructions(
         { file: '/h/.claude/CLAUDE.md', content: { text: '# rules', truncated: false } },
         [
           { file: '/h/.codex/AGENTS.md', content: { text: '# codex', truncated: true } },
           { file: '/h/.gemini/AGENTS.md', content: null }
         ]
       )).toEqual({ ok: true })
-      expect(withConfig(null, []).ok).toBe(true)
+      expect(withInstructions(null, []).ok).toBe(true)
     })
 
     it('refuses a malformed entry and names the field', () => {
-      expect(pathOf(withConfig(null, {}))).toBe('global.agentsMd')
-      expect(pathOf(withConfig(null, [{ file: '', content: null }]))).toBe('global.agentsMd[0].file')
-      expect(pathOf(withConfig(null, [{ file: '/a', content: {} }]))).toBe('global.agentsMd[0].content')
-      expect(pathOf(withConfig('# rules', []))).toBe('global.claudeMd')
+      expect(pathOf(withInstructions(null, {}))).toBe('global.agentsMd')
+      expect(pathOf(withInstructions(null, [{ file: '', content: null }]))).toBe('global.agentsMd[0].file')
+      expect(pathOf(withInstructions(null, [{ file: '/a', content: {} }]))).toBe('global.agentsMd[0].content')
+      expect(pathOf(withInstructions('# rules', []))).toBe('global.claudeMd')
       // The shape before entries carried their paths: contents with no file
-      expect(pathOf(withConfig({ text: '# rules', truncated: false }, []))).toBe('global.claudeMd.file')
+      expect(pathOf(withInstructions({ text: '# rules', truncated: false }, []))).toBe('global.claudeMd.file')
     })
   })
 })
@@ -265,7 +265,7 @@ describe('validateProjectDetail — admitting (a false refusal stops the whole d
 
   it('admits nullable fields holding non-null values', () => {
     const d = okDetail()
-    // A configuration entry is its file: the path plus the contents, null when it could not be read
+    // An instruction entry is its file: the path plus the contents, null when it could not be read
     // (project-detail::REQ-002/AC-02)
     ;(d.configs as Record<string, unknown>).claudeMd = { file: '/Users/x/proj/CLAUDE.md', content: { text: '# project conventions', truncated: false } }
     ;(d.configs as Record<string, unknown>).agentsMd = { file: '/Users/x/proj/AGENTS.md', content: null }
@@ -323,7 +323,7 @@ describe('validateProjectDetail — refusing, and pointing at the field path', (
     expect(errOf(bad((d) => { (d.plugins as Array<Record<string, unknown>>)[0].enabled = 1 }))).toContain('plugins[0].enabled')
   })
 
-  it('a configuration entry that is not a file with a path (project-detail::REQ-002/AC-02)', () => {
+  it('an instruction entry that is not a file with a path (project-detail::REQ-002/AC-02)', () => {
     const cfg = (d: Record<string, unknown>): Record<string, unknown> => d.configs as Record<string, unknown>
     expect(errOf(bad((d) => { cfg(d).agentsMd = 42 }))).toBe('detail.configs.agentsMd')
     expect(errOf(bad((d) => { cfg(d).claudeMd = { file: '', content: null } }))).toBe('detail.configs.claudeMd.file')

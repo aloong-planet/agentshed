@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { mkdir, rename, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { emptyDisplayData, parseDisplayData, type DisplayData, type SavedConfigPaths } from '@shared/display-data'
+import { emptyDisplayData, parseDisplayData, type DisplayData, type SavedInstructionPaths } from '@shared/display-data'
 
 export class DisplayStore {
   private data: DisplayData = emptyDisplayData()
@@ -11,14 +11,14 @@ export class DisplayStore {
   private timer: ReturnType<typeof setTimeout> | null = null
   private readonly file: string
 
-  /** `savedConfigPaths`: where the global configuration files are, for a snapshot saved before configuration
+  /** `savedInstructionPaths`: where the global instruction files are, for a snapshot saved before instruction
    * entries carried their paths (see parseDisplayData) */
-  constructor(private readonly dir: string, savedConfigPaths?: SavedConfigPaths) {
+  constructor(private readonly dir: string, savedInstructionPaths?: SavedInstructionPaths) {
     this.file = join(dir, 'display-cache.json')
     try {
       const raw: unknown = JSON.parse(readFileSync(this.file, 'utf8'))
       if (typeof raw === 'object' && raw !== null && 'version' in raw && raw.version === 1 && 'data' in raw) {
-        this.data = parseDisplayData(raw.data, savedConfigPaths)
+        this.data = parseDisplayData(raw.data, savedInstructionPaths)
       }
     } catch { /* A missing or corrupt envelope is a cold start. */ }
   }

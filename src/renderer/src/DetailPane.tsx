@@ -5,7 +5,7 @@ import { useDisplayClock } from './DisplayClock'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { MarkdownBody } from './MarkdownBody'
-import { ConfigSection } from './ConfigSection'
+import { InstructionsSection } from './InstructionsSection'
 import type { AgentSide, ArtifactEntry, ArtifactType, CappedText, ProjectDetail, ProjectEntry, ProjectSkillEntry, Snapshot } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
 import { skillsDirLoaders } from '@shared/skill-landing'
@@ -32,7 +32,7 @@ import { useSessionSearchQuery } from './session-search-query'
 import { SessionHitCard } from './SessionHits'
 import { useArtifactContentQuery } from './artifact-content-query'
 
-type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'cfg' | 'arts'
+type Tab = 'ov' | 'instructions' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'arts'
 
 export function DetailPane({
   snap,
@@ -118,13 +118,13 @@ function DetailPaneBody({
           {(
             [
               ['ov', t.detail.tabOverview],
+              ['instructions', t.detail.tabInstructions],
               ['skills', 'Skills'],
               ['subagents', 'Subagents'],
               ['plugins', 'Plugins'],
               ['mcp', 'MCP'],
               ['memory', 'Memory'],
               ['sessions', t.detail.tabSessions],
-              ['cfg', t.detail.tabCfg],
               ['arts', t.detail.tabArts]
             ] as const
           ).map(([t, label]) => (
@@ -174,7 +174,7 @@ function DetailPaneBody({
             {tab === 'sessions' && (
               <SessionsTab detail={result.detail} onOpenSession={onOpenSession} />
             )}
-            {tab === 'cfg' && <CfgTab detail={result.detail} />}
+            {tab === 'instructions' && <InstructionsTab detail={result.detail} />}
             {tab === 'arts' && <ArtifactsTab detail={result.detail} />}
           </Fragment>
         ) : null // T10: a fetch failure resolves in-band; the body stays empty under the new header, as
@@ -702,7 +702,7 @@ const ART_LABELS: Record<ArtifactType, string> = {
 
 /**
  * The artifact reader overlay as a reusable pair (open + overlay element): the Artifacts tab and
- * the Config tab both open artifacts in it, each with its own instance (the overlay closes with
+ * the Instructions tab both open artifacts in it, each with its own instance (the overlay closes with
  * its tab). Prototypes keep their "open in the browser" route.
  */
 /** The truncation marker (ticket 07) and the relative-image rewrite: image paths resolve against
@@ -813,16 +813,16 @@ function ArtifactsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
 }
 
 /**
- * The Configuration section (project-detail::REQ-002/AC-02): the project's own CLAUDE.md and AGENTS.md, each
+ * The Instructions section (project-detail::REQ-002/AC-02): the project's own CLAUDE.md and AGENTS.md, each
  * headed by its path; no settings summary.
  */
-function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
+function InstructionsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   const lang = useLanguage()
   const { openArtifact, readerOverlay } = useArtifactReader(detail)
   const { claudeMd, agentsMd } = detail.configs
   return (
     <div>
-      <ConfigSection
+      <InstructionsSection
         claudeMd={claudeMd === null ? [] : [claudeMd]}
         agentsMd={agentsMd === null ? [] : [agentsMd]}
         links={{

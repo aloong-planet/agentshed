@@ -15,7 +15,7 @@ const fields = (shape: Record<string, Check>): Check => v => obj(v) && Object.en
 const side: Check = v => typeof v === 'string' && AGENT_SIDES.has(v)
 const perSide = (check: Check): Check => fields(Object.fromEntries([...AGENT_SIDES].map(s => [s, check])))
 const text = fields({ text: str, truncated: bool })
-const configFile = fields({ file: str, content: nullable(text) })
+const instructionFile = fields({ file: str, content: nullable(text) })
 const error = fields({ code: isErrorCode, params: v => obj(v) && Object.values(v).every(x => str(x) || num(x)) })
 const pkg = nullable(fields({ files: num, bytes: num }))
 const sub = fields({ content: nullable(text), description: nullable(str), tools: nullable(str), model: nullable(str), sandbox: nullable(str),
@@ -41,7 +41,7 @@ const globalLayer = fields({
   codexMemoriesEnabled: bool, plugins: list(plugin),
   codexPlugins: list(fields({ name: str, marketplace: str, root: nullable(str), skills: pluginSkills, version: nullable(str), cachedVersions: num })),
   antigravityPlugins: list(fields({ name: str, version: nullable(str), marketplace: nullable(str), enabled: bool, root: str, contents })),
-  mcp: list(fields({ name: str, side, source: str, disabled: bool, plugin: nullable(str) })), claudeMd: nullable(configFile), agentsMd: list(configFile)
+  mcp: list(fields({ name: str, side, source: str, disabled: bool, plugin: nullable(str) })), claudeMd: nullable(instructionFile), agentsMd: list(instructionFile)
 })
 export const displaySnapshotValid: Check = fields({
   scannedAt: num, global: globalLayer, tokens: displayTokensValid, archivedDays: list(str),

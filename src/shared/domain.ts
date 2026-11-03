@@ -18,11 +18,11 @@ export interface CappedText {
 }
 
 /**
- * One file a Configuration entry shows, headed by its path (agents-overview::REQ-004,
+ * One file an Instructions entry shows, headed by its path (agents-overview::REQ-004,
  * project-detail::REQ-002/AC-02). Only a file that exists is sent: an absent one is no file at all, and an
  * entry with no file shows "None".
  */
-export interface ConfigFile {
+export interface InstructionFile {
   /** The file's absolute path — the heading it is shown under */
   file: string
   /** The contents, truncated when oversized; **null = the file exists but could not be read**, and the
@@ -288,11 +288,11 @@ export interface GlobalLayer {
   /** Antigravity CLI plugins (plugins-view::REQ-001), the disabled ones included */
   antigravityPlugins: AntigravityPluginEntry[]
   mcp: McpServerEntry[]
-  /** The Configuration section's CLAUDE.md: `~/.claude/CLAUDE.md`; null when it does not exist */
-  claudeMd: ConfigFile | null
-  /** The Configuration section's AGENTS.md: every global AGENTS.md a side was observed to load that exists, in
+  /** The Instructions section's CLAUDE.md: `~/.claude/CLAUDE.md`; null when it does not exist */
+  claudeMd: InstructionFile | null
+  /** The Instructions section's AGENTS.md: every global AGENTS.md a side was observed to load that exists, in
    * the order shown (agents-overview::REQ-004/AC-03); empty when none does */
-  agentsMd: ConfigFile[]
+  agentsMd: InstructionFile[]
 }
 
 /**
@@ -688,11 +688,11 @@ export interface ProjectDetail {
   memory: ProjectMemory
   plugins: ProjectPluginEntry[]
   mcp: ProjectMcpEntry[]
-  /** The Configuration section: the project's own CLAUDE.md and AGENTS.md, null when absent
-   * (project-detail::REQ-002/AC-02) */
+  /** The Instructions section: the project's own CLAUDE.md and AGENTS.md, null when absent
+   * (project-detail::REQ-002/AC-02). `configs` is the saved field's name: the display copy's format keeps it */
   configs: {
-    claudeMd: ConfigFile | null
-    agentsMd: ConfigFile | null
+    claudeMd: InstructionFile | null
+    agentsMd: InstructionFile | null
   }
   /** The overview tab's data (attached by the main process from the token engine; null when the engine is not ready) */
   stats: ProjectStats | null

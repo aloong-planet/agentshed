@@ -5,7 +5,7 @@
 ## Overview
 "What capabilities does this project have installed, what conventions does it follow, and what has it
 accumulated" is the product's founding question. The detail page answers it across nine sections:
-Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Artifacts and Sessions.
+Overview (default), Instructions, Skills, Subagents, Plugins, MCP, Memory, Sessions and Artifacts.
 
 ## Capabilities
 - Switching between projects turns a page rather than flashing one: the page you are on stays put
@@ -15,6 +15,11 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
   quietly refreshes behind the scenes. Its last successful content stays readable if a refresh
   fails; a project never opened before waits for its first detail. Leaving for Agents or Settings
   and returning is likewise instant.
+- Instructions: two entries, the project's own CLAUDE.md and AGENTS.md (the AGENTS.md that Codex and
+  Antigravity CLI both read, shown once), each rendered for reading under its path; a missing file
+  shows "None" and one that cannot be read says so under its path; no settings summary is shown; a
+  link to one of the project's listed documents opens it in the same reading overlay as the Artifacts
+  tab, and a link outside them shows a notice
 - Skills effective view: within one side, a same-name pair shows only the project-level entry (the
   shadowed global one is not listed alongside); anything that exists only globally is still listed;
   on-disk skills expand to preview a package's files (see [Skills view](skills-view.md)); symlinks
@@ -29,11 +34,6 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
   there are none, a pointer to the Agents page for the global ones. Antigravity CLI's global servers and
   its enabled plugins' servers follow as a group of their own when there are any
 - Memory: this project's automatic memories in full (see [Memory view](memory-view.md))
-- Configuration: two entries, the project's own CLAUDE.md and AGENTS.md (the AGENTS.md that Codex and
-  Antigravity CLI both read, shown once), each rendered for reading under its path; a missing file
-  shows "None" and one that cannot be read says so under its path; no settings summary is shown; a
-  link to one of the project's listed documents opens it in the same reading overlay as the Artifacts
-  tab, and a link outside them shows a notice
 - Artifacts tab: the six kinds of artifact laid out flat in reverse chronological order, filterable
   by type chips; the chips are ordered by the top-down derivation chain (CONTEXT.md → ADR → specs →
   prototypes → features → postmortems); markdown opens in an overlay for reading, and prototypes'

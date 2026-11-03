@@ -198,8 +198,6 @@ governs the project page's).
 
 ### agents-overview::REQ-006 The Instructions section's name and place
 
-> Pending: the agents page's tab for CLAUDE.md and AGENTS.md reads "Config" in English and is the last tab.
-
 Applies to: the agents page's tab row, on the loaded page and on the startup skeleton (A4). The word follows the
 glossary's Instructions.
 
@@ -388,8 +386,8 @@ until it carries it.
 - **The section's code names follow the interface** (settled 2026-11-03): the section's component, its tab key, its
   dictionary keys, the type of its files, the function reading them and its style classes all say "instructions",
   on the agents page and on a project's. The dialog button's style, the file kind labelled "CFG" and the path of
-  Claude Code's own configuration file name other things and keep their names. The saved fields `claudeMd` and
-  `agentsMd` keep theirs, so the display copy's format does not change.
+  Claude Code's own configuration file name other things and keep their names. The saved fields `configs`,
+  `claudeMd` and `agentsMd` keep theirs, so the display copy's format does not change.
 - **The project count is its own element** (agents-overview::REQ-007): the dictionaries give the count and the rest
   of the line separately, so one can be a control while the sentence stays each language's own.
 - **Instruction files carry their paths** (agents-overview::REQ-004): each file the section shows

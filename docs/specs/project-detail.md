@@ -225,8 +225,6 @@ previews keep R3's link destinations.
 
 ### project-detail::REQ-004 The Instructions section's name and place
 
-> Pending: a project page's tab for CLAUDE.md and AGENTS.md reads "Config" in English and sits after Sessions.
-
 Applies to: the tab row of a project's page. A stale project's note page has no tabs (A2).
 
 - project-detail::REQ-004/AC-01: The section's tab has the agents page's label

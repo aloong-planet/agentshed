@@ -80,7 +80,7 @@ export const en: Locale = {
     sideProjects: (projects) => `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })}`,
     sideRest: (skills, subagents) =>
       `${skills} global ${plural('en', skills, { one: 'skill', other: 'skills' })} · ${subagents} ${plural('en', subagents, { one: 'subagent', other: 'subagents' })}`,
-    tabCfg: 'Config',
+    tabInstructions: 'Instructions',
     notDetected: 'No agent side’s data directory was detected on this machine',
     notDetectedHint: 'Install and use any of the agents; the overview appears at the next automatic scan (returning to this window triggers one)',
     archivedNote: (days, earliest) =>
@@ -109,7 +109,7 @@ export const en: Locale = {
     mcpFromPlugin: (plugin) => `From the ${plugin} plugin`
   },
 
-  config: {
+  instructions: {
     none: 'None',
     unreadable: 'The file cannot be read (permissions or I/O error)'
   },
@@ -295,7 +295,7 @@ export const en: Locale = {
     tabSkills: 'Skills',
     tabMcp: 'MCP',
     tabSessions: 'Sessions',
-    tabCfg: 'Config',
+    tabInstructions: 'Instructions',
     tabArts: 'Artifacts',
     byModel: 'By model',
     recentSessions: 'Recent sessions',

@@ -81,7 +81,7 @@ const zh: Dictionary = {
       },
       {
         title: '每个项目装了什么',
-        body: 'skills、subagents、plugins、MCP 与配置，按项目实际生效的样子列出来。',
+        body: 'skills、subagents、plugins、MCP 与指令，按项目实际生效的样子列出来。',
         alt: '一个项目的 Skills 页'
       },
       {
@@ -164,7 +164,7 @@ const en: Dictionary = {
       },
       {
         title: 'What each project has',
-        body: 'Skills, subagents, plugins, MCP servers and configuration, listed as they actually take effect in that project.',
+        body: 'Skills, subagents, plugins, MCP servers and instructions, listed as they actually take effect in that project.',
         alt: 'A project’s Skills tab'
       },
       {

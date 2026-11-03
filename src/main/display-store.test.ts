@@ -117,7 +117,7 @@ it('restores a project detail saved before its memory carried the main file entr
 // summary as a string or null. They restore with each present file given its path in the project — the only place
 // the project's own two files live — an absent one staying absent, and without the summary, until the live read
 // replaces them (the 2026-10-21 postmortem's rule). A malformed one is still dropped.
-it('restores a project detail saved before configuration entries carried their paths', () => {
+it('restores a project detail saved before instruction entries carried their paths', () => {
   const root = dir()
   const saved = (path: string, configs: Record<string, unknown>) => ({ kind: 'projectDetail', path, data: {
     path, skills: [], subagents: [], memory: { main: null, mainFile: null, topics: [] }, plugins: [], mcp: [],
@@ -153,7 +153,7 @@ it('restores a project detail saved before configuration entries carried their p
 // main process knows where those two files are, so it restores them as the two entries' files, at its own paths,
 // and drops the summary. The parts of the snapshot this change does not touch come from the current type, so another
 // change to them cannot turn this case red for a reason that is not this one.
-it('restores a snapshot saved before configuration entries carried their paths, at the paths the main process gives', () => {
+it('restores a snapshot saved before instruction entries carried their paths, at the paths the main process gives', () => {
   const root = dir()
   const paths = { claudeMd: '/h/.claude/CLAUDE.md', codexAgentsMd: '/h/.codex/AGENTS.md' }
   const savedSnapshot = (claudeGlobalMd: unknown, codexAgentsMd: unknown): unknown => {

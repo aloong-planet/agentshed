@@ -116,7 +116,7 @@ export const zh = {
     // (agents-overview::REQ-007)
     sideProjects: (projects: number) => `${projects} 项目`,
     sideRest: (skills: number, subagents: number) => `${skills} 全局 skills · ${subagents} subagents`,
-    tabCfg: '配置',
+    tabInstructions: '指令',
     notDetected: '本机未检测到任何 agent 侧的数据目录',
     notDetectedHint: '安装并使用任一 agent 后,下次自动扫描即可看到全景(切回本窗口会触发扫描)',
     archivedNote: (days: number, earliest: string) =>
@@ -155,10 +155,10 @@ export const zh = {
     mcpFromPlugin: (plugin: string) => `来自 ${plugin} 插件`
   },
 
-  /** The Configuration section, on the agents page and on a project's page (agents-overview::REQ-004,
+  /** The Instructions section, on the agents page and on a project's page (agents-overview::REQ-004,
    * project-detail::REQ-002/AC-02). Its two entries are named by their files, CLAUDE.md and AGENTS.md — names,
    * not copy */
-  config: {
+  instructions: {
     /** An entry none of whose files exists */
     none: '无',
     /** Under a file's path, when the file exists but could not be read */
@@ -388,7 +388,7 @@ export const zh = {
     tabSkills: 'Skills',
     tabMcp: 'MCP',
     tabSessions: '会话',
-    tabCfg: '配置',
+    tabInstructions: '指令',
     tabArts: '产物',
     byModel: '按模型拆分',
     recentSessions: '最近会话',
