@@ -14,7 +14,9 @@ behaves (projects list):
 - how the dimension looks before this launch's first snapshot — the column's skeleton, and the scanning hint
   centred in the detail area where the pick-a-project guidance otherwise sits — and whether the content
   replaces it without a jump; and the detail area's title-row hint while a restored list is being scanned
-  and after a scan fails.
+  and after a scan fails;
+- how the list reads when reached from a side card's project count on the Agents page: the side dropdown on that
+  side, its rows equal to the card's count, and the stale toggle on only when that side has a stale project.
 
 ## Structure basis
 
@@ -35,6 +37,10 @@ behaves (projects list):
   not implement. Its group 「启动」 has 骨架 / 扫描中 / 完成 / 失败; in the product the state follows whether
   the renderer has received this launch's first snapshot and how the scan ended, and the app has no such
   control, as the bar's first note line says. The bar's copy is in Chinese only.
+- The demo bar's group 「到达」 — 导航栏 / one option per side card — not part of the design; do not implement. In the
+  product the state follows where the list was opened from, and the app has no such control, as its note line says.
+  Opened on its own, the page also takes the state from the address (`#arrive=<side>`), which the Agents page's
+  card links set; inside the gallery the group sets it.
 - The bar's second note line, the filter row's width readout (the dropdown trigger's width and the row's
   content width against its available width, measured after every redraw of the column) — not part of the
   design; do not implement. It is a measurement for the reviewer; nothing in the product shows it.

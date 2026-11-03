@@ -8,9 +8,9 @@
 window.SharedCopy = {
   zh: {
     // Tabs and status (Agents, plugins, project detail)
-    tabCfg: '配置',
-    // The configuration tab's entry when no file of that name exists (Agents, project detail)
-    cfgNone: '无',
+    tabInstructions: '指令',
+    // The instructions tab's entry when no file of that name exists (Agents, project detail)
+    instructionsNone: '无',
     notEnabled: '未启用',
     // Token totals, composition and trend (Agents, project detail)
     winAllShort: '累计总量',
@@ -63,8 +63,8 @@ window.SharedCopy = {
     linkProtocolUnsupported: '不支持的链接协议'
   },
   en: {
-    tabCfg: 'Config',
-    cfgNone: 'None',
+    tabInstructions: 'Instructions',
+    instructionsNone: 'None',
     notEnabled: 'Not enabled',
     winAllShort: 'Total',
     compCacheRead: 'Cache reads',

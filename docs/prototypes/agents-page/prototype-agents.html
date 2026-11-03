@@ -31,6 +31,11 @@
   /* 该侧在选中时间窗口下的用量 */
   .stat .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
   .stat .s{font-size:10.5px;color:var(--text-2);margin-top:2px}
+  /* The side's project count opens the project list filtered to that side; a count of zero is plain text */
+  .stat-link{font:inherit;color:inherit;background:transparent;border:0;padding:0;border-radius:3px;cursor:pointer;
+    text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:2px}
+  .stat-link:hover{color:var(--text);text-decoration-color:currentColor}
+  .stat-link:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
   .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.g{background:var(--gk-bg);color:var(--gk-fg)}
@@ -57,18 +62,18 @@
   .diff{font-size:10px;color:var(--warn-fg);flex:none}
   .src{font-size:10.5px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;flex:none}
   .jump{color:var(--accent);cursor:pointer;font-size:11.5px;font-weight:400;text-transform:none;letter-spacing:0}
-  .cfg-switch{display:flex;gap:6px;margin-bottom:10px}
-  .cfg-switch span{padding:4px 10px;border:1px solid var(--line-strong);border-radius:6px;cursor:pointer;
+  .instructions-switch{display:flex;gap:6px;margin-bottom:10px}
+  .instructions-switch span{padding:4px 10px;border:1px solid var(--line-strong);border-radius:6px;cursor:pointer;
     font-size:12px;color:var(--text-2)}
-  .cfg-switch span.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+  .instructions-switch span.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
   .md{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:16px 18px;
     line-height:1.75;font-size:12.5px;max-height:52vh;overflow:auto}
   .md h3{font-size:13px;margin-bottom:6px}
   .md code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
   /* The AGENTS.md entry renders several files one after another; each starts with its path */
-  .md .cfg-path{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2);margin:16px 0 6px;
+  .md .instructions-path{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2);margin:16px 0 6px;
     padding-top:12px;border-top:1px solid var(--line)}
-  .md .cfg-path:first-child{margin-top:0;padding-top:0;border-top:0}
+  .md .instructions-path:first-child{margin-top:0;padding-top:0;border-top:0}
   .none{color:var(--text-2);padding:16px;text-align:center;font-size:12px}
   .chart{height:130px}
   .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;margin-left:auto}
@@ -142,11 +147,10 @@
       <div data-shared-block="totals-card" id="totWrap"></div>
       <div class="stats" id="sideCards"></div>
       <div class="tabs" id="tabs">
-        <span class="tab on" data-t="token">Token</span><span class="tab" data-t="skills">Skills</span>
-        <span class="tab" data-t="subagents">Subagents</span>
+        <span class="tab on" data-t="token">Token</span><span class="tab" data-t="instructions" data-i18n="tabInstructions">指令</span>
+        <span class="tab" data-t="skills">Skills</span><span class="tab" data-t="subagents">Subagents</span>
         <span class="tab" data-t="plugins">Plugins</span><span class="tab" data-t="mcp">MCP</span>
         <span class="tab" data-t="memory">Memory</span>
-        <span class="tab" data-t="cfg" data-i18n="tabCfg">配置</span>
       </div>
     </div>
     <div class="body">
@@ -253,11 +257,11 @@
       </div>
       <!-- Two entries, not by side: CLAUDE.md, and AGENTS.md rendering every global AGENTS.md that exists, each
            headed by its path. The file names are names, not copy. -->
-      <div data-p="cfg" style="display:none">
-        <div class="cfg-switch" id="cfgs">
-          <span class="on" data-cfg="claude">CLAUDE.md</span><span data-cfg="agents">AGENTS.md</span>
+      <div data-p="instructions" style="display:none">
+        <div class="instructions-switch" id="instructionFiles">
+          <span class="on" data-instruction-file="claude">CLAUDE.md</span><span data-instruction-file="agents">AGENTS.md</span>
         </div>
-        <div class="md" id="cfgbody"></div>
+        <div class="md" id="instructionsBody"></div>
       </div>
     </div>
   </div>
@@ -272,9 +276,9 @@
       </div>
       <div class="stats" id="skSides"></div>
       <div class="tabs">
-        <span class="tab on">Token</span><span class="tab">Skills</span><span class="tab">Subagents</span>
+        <span class="tab on">Token</span><span class="tab" data-i18n="tabInstructions">指令</span>
+        <span class="tab">Skills</span><span class="tab">Subagents</span>
         <span class="tab">Plugins</span><span class="tab">MCP</span><span class="tab">Memory</span>
-        <span class="tab" data-i18n="tabCfg">配置</span>
       </div>
     </div>
     <div class="body">
@@ -305,6 +309,13 @@
       <div class="dh-opts">
         <button type="button" class="dh-opt" data-u="0" aria-pressed="true">none</button>
         <button type="button" class="dh-opt" data-u="3" aria-pressed="false">3 conversations</button>
+      </div>
+    </div>
+    <div class="dh-group" id="demoNoProj">
+      <span class="dh-title">Grok projects</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-np="4" aria-pressed="true">4 projects</button>
+        <button type="button" class="dh-opt" data-np="0" aria-pressed="false">none</button>
       </div>
     </div>
     <div class="dh-group" id="demoAgentsMd" hidden>
@@ -343,6 +354,7 @@
     </div>
     <p class="dh-note">启动各档在 app 里由渲染器是否已收到这次启动的首个快照、以及扫描的结果决定;app 内没有这个开关。</p>
     <p class="dh-note" id="demoUnreadNote">The Antigravity unreadable count comes from the conversation databases the scan could not read. The app has no such switch.</p>
+    <p class="dh-note" id="demoNoProjNote">A side's project count comes from the projects its registry records. The app has no such switch.</p>
     <p class="dh-note" id="demoAgentsMdNote" hidden>Which AGENTS.md files show depends on which of ~/.codex/AGENTS.md, ~/.gemini/AGENTS.md and ~/.gemini/config/AGENTS.md exist. The app has no such switch.</p>
     <p class="dh-note" id="demoUsageNote">用量三态在 app 里由本机记下的 token 用量决定(有没有记录、本日有没有用量);app 内没有这个开关。</p>
     <p class="dh-note" id="demoMfReadNote" hidden>The memory file read states come from reading the file the drawer opens; they apply to every file here. The app has no such switch.</p>
@@ -358,7 +370,8 @@ const T = {
     winAll:'累计总量 · 全部历史', winToday:'本日', winD7:'近 7 天',
     winDays:(n)=>`近 ${n} 天`,
     detected:'已检测', undetected:'未检测',
-    sideSummary:(p,s,a)=>`${p} 项目 · ${s} 全局 skills · ${a} ${plural(a,'subagent','subagents')}`,
+    sideProjects:(p)=>`${p} 项目`,
+    sideRest:(s,a)=>`${s} 全局 skills · ${a} ${plural(a,'subagent','subagents')}`,
     byModel:'按模型拆分(跨项目;条形同用 provider 色)', byModelIn:(title,win)=>`${title} · ${win}`,
     noModelUsage:'该窗口内没有模型用量',
     trendContext:'(本地时区 · 日粒度 · 跨全部项目)',
@@ -395,7 +408,8 @@ const T = {
     winAll:'Total · all history', winToday:'Today', winD7:'Last 7 days',
     winDays:(n)=>`Last ${n} days`,
     detected:'Detected', undetected:'Not detected',
-    sideSummary:(p,s,a)=>`${p} ${plural(p,'project','projects')} · ${s} global ${plural(s,'skill','skills')} · ${a} ${plural(a,'subagent','subagents')}`,
+    sideProjects:(p)=>`${p} ${plural(p,'project','projects')}`,
+    sideRest:(s,a)=>`${s} global ${plural(s,'skill','skills')} · ${a} ${plural(a,'subagent','subagents')}`,
     byModel:'By model (across projects; bars use the provider colours)', byModelIn:(title,win)=>`${title} · ${win}`,
     noModelUsage:'No model usage in this window',
     trendContext:'(local time zone · daily · across all projects)',
@@ -442,13 +456,15 @@ function applyI18n(){
 
 // ── mock:其余三个窗口按全部历史一列的形状缩放编造。
 //    形态要评判的是「同一份数据切成四个窗口后,各侧与各模型的**占比会变**」——所以四列不是等比缩放。
-//    n = 侧卡小字的三个计数(项目 / 全局 skills / subagents)
+//    n = 侧卡小字的三个计数(项目 / 全局 skills / subagents);项目数等于共享项目栏 mock 里该侧的行数
 const SIDES = [
-  { id:'cl', cls:'c', name:'CLAUDE CODE', on:true, n:[46,26,5] },
-  { id:'cx', cls:'x', name:'CODEX',       on:true, n:[18,23,4] },
-  { id:'gk', cls:'g', name:'GROK',        on:true, n:[3,7,1] },
-  { id:'ag', cls:'a', name:'ANTIGRAVITY', on:true, n:[4,9,3] }
+  { id:'cl', key:'claude',      cls:'c', name:'CLAUDE CODE', on:true, n:[6,26,5] },
+  { id:'cx', key:'codex',       cls:'x', name:'CODEX',       on:true, n:[6,23,4] },
+  { id:'gk', key:'grok',        cls:'g', name:'GROK',        on:true, n:[4,7,1] },
+  { id:'ag', key:'antigravity', cls:'a', name:'ANTIGRAVITY', on:true, n:[2,9,3] }
 ];
+// The demo's Grok project count (the harness sets it): zero draws the count as plain text
+let GROK_PROJECTS = 4;
 // 四个时间窗口 = 四张卡 = 时间筛选器本身。days 同时喂给趋势图(压暗窗口外的日子);null=不压暗
 const RANGES = [
   { id:'all', days:null, side:[9191526594,2441689686,694099983,386400000] },
@@ -458,9 +474,9 @@ const RANGES = [
 ];
 // The demo's count of Antigravity conversations the scan could not read (the harness sets it)
 let UNREAD = 0;
-// The configuration tab's open entry, and which global AGENTS.md files the demo says exist (two = Codex's and
+// The instructions tab's open entry, and which global AGENTS.md files the demo says exist (two = Codex's and
 // agy's config one; the root one is missing). Declared here because the harness syncs before the tab is drawn.
-let CFG = 'claude', AGMD = 'two';
+let INSTRUCTION_ENTRY = 'claude', AGMD = 'two';
 /** 窗口卡的标签;第四张随全局趋势天数(30 / 60 / 90)变 */
 const winLabel = (ri) => {
   const r = RANGES[ri];
@@ -529,9 +545,14 @@ function renderTotals(){
   // 各侧的量在各自侧卡的中间行,随选中窗口变。
   // The third line carries the side's summary, or — for Antigravity with conversations it could not read —
   // that count in the warning colour; the figure above stays
+  const projectCount = (s) => {
+    const p = s.id === 'gk' ? GROK_PROJECTS : s.n[0];
+    return p === 0 ? tr().sideProjects(0)
+      : `<button type="button" class="stat-link" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html#arrive=${s.key}">${tr().sideProjects(p)}</button>`;
+  };
   const third = (s) => !s.on ? '<div class="s">—</div>'
     : s.id === 'ag' && UNREAD > 0 ? `<div class="s side-warn" title="${tr().unreadableTip}">${tr().unreadableConvs(UNREAD)}</div>`
-    : `<div class="s">${tr().sideSummary(...s.n)}</div>`;
+    : `<div class="s">${projectCount(s)} · ${tr().sideRest(s.n[1],s.n[2])}</div>`;
   document.getElementById('sideCards').innerHTML = SIDES.map((s,i)=>
     `<div class="stat">
       <div class="k"><span class="b ${s.cls}">${s.name}</span>${s.on?tr().detected:tr().undetected}</div>
@@ -782,7 +803,9 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     const on=document.querySelector('#tabs .tab.on')?.dataset.t, sk=!$('skMain').hidden;
     $('demoUsage').hidden=$('demoUsageNote').hidden=sk;
     $('demoUnread').hidden=$('demoUnreadNote').hidden=sk;
-    $('demoAgentsMd').hidden=$('demoAgentsMdNote').hidden=sk||on!=='cfg';
+    $('demoNoProj').hidden=$('demoNoProjNote').hidden=sk;
+    $('harness').querySelectorAll('[data-np]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.np===GROK_PROJECTS)));
+    $('demoAgentsMd').hidden=$('demoAgentsMdNote').hidden=sk||on!=='instructions';
     $('harness').querySelectorAll('[data-u]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.u===UNREAD)));
     $('harness').querySelectorAll('[data-am]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.am===AGMD)));
     $('demoCxmem').hidden=$('demoCxmemNote').hidden=sk||on!=='memory';
@@ -794,8 +817,10 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   $('harness').addEventListener('click',e=>{
     const u=e.target.closest('[data-u]')?.dataset.u;
     if(u!==undefined){ UNREAD=+u; renderTotals(); syncHarness(); return }
+    const np=e.target.closest('[data-np]')?.dataset.np;
+    if(np!==undefined){ GROK_PROJECTS=+np; renderTotals(); syncHarness(); return }
     const am=e.target.closest('[data-am]')?.dataset.am;
-    if(am!==undefined){ AGMD=am; renderCfg(); syncHarness(); return }
+    if(am!==undefined){ AGMD=am; renderInstructions(); syncHarness(); return }
     const em=e.target.closest('[data-e]')?.dataset.e;
     if(em!==undefined){ DEMO = em; applyRange(); syncHarness(); return }
     const r=e.target.closest('[data-r]')?.dataset.r;
@@ -870,28 +895,28 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
     closeDrawer(); syncHarness();
   });
-  // 配置分栏:两项,不分侧。文件正文是 mock 内容,不随语言变;"无"是界面文案,随语言变。
+  // 指令分栏:两项,不分侧。文件正文是 mock 内容,不随语言变;"无"是界面文案,随语言变。
   // AGENTS.md 一项把存在的全局 AGENTS.md 依次渲染(各以路径开头),顺序 Codex、agy 根目录、agy config;
   // AGMD = 演示条选的存在组合(two = Codex 与 agy config,根目录那份缺失;声明在第一段脚本里)
-  const CFG_FILES={
+  const INSTRUCTION_FILES={
     claude:[{path:'~/.claude/CLAUDE.md',html:'<h3># 全局 CLAUDE.md</h3><p>- always use pnpm as package management tool for js projects.<br>- 开发新功能:八步流程(骨架)……(只读渲染)</p>'}],
     agents:[{path:'~/.codex/AGENTS.md',html:'<h3># 全局 AGENTS.md</h3><p>读取 skill 必须按当前工具的 skill 机制完整载入……(只读渲染)</p>'},
             {path:'~/.gemini/AGENTS.md',html:'<h3># Agent rules</h3><p>Prefer small, reviewable changes……(只读渲染)</p>',root:true},
             {path:'~/.gemini/config/AGENTS.md',html:'<h3># Antigravity instructions</h3><p>Answer in Chinese unless asked otherwise……(只读渲染)</p>'}]
   };
-  function renderCfg(){
-    const files=CFG==='claude'?CFG_FILES.claude
-      :AGMD==='none'?[]:CFG_FILES.agents.filter(f=>AGMD==='three'||!f.root);
-    document.getElementById('cfgbody').innerHTML=files.length
-      ?files.map(f=>`<div class="cfg-path">${f.path}</div>${f.html}`).join('')
-      :`<div class="none">${tr().cfgNone}</div>`;
+  function renderInstructions(){
+    const files=INSTRUCTION_ENTRY==='claude'?INSTRUCTION_FILES.claude
+      :AGMD==='none'?[]:INSTRUCTION_FILES.agents.filter(f=>AGMD==='three'||!f.root);
+    document.getElementById('instructionsBody').innerHTML=files.length
+      ?files.map(f=>`<div class="instructions-path">${f.path}</div>${f.html}`).join('')
+      :`<div class="none">${tr().instructionsNone}</div>`;
   }
-  document.getElementById('cfgs').addEventListener('click',e=>{
+  document.getElementById('instructionFiles').addEventListener('click',e=>{
     if(e.target.tagName!=='SPAN')return;
-    document.querySelectorAll('#cfgs span').forEach(x=>x.classList.toggle('on',x===e.target));
-    CFG=e.target.dataset.cfg; renderCfg();
+    document.querySelectorAll('#instructionFiles span').forEach(x=>x.classList.toggle('on',x===e.target));
+    INSTRUCTION_ENTRY=e.target.dataset.instructionFile; renderInstructions();
   });
-  renderCfg();
+  renderInstructions();
 
   // 界面语言跟随设置原型所选:静态文案、各分栏与开着的抽屉原地重画;展开态、选中窗口与分栏都不动。
   // 趋势图与启动提示两个共享块各自跟随,不在这里重画
@@ -899,7 +924,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     LANG = v;
     document.documentElement.lang = v === 'zh' ? 'zh-CN' : 'en';
     applyI18n(); renderTotals(); renderModels(); renderSubagents(); renderMemory(); renderPlugins(); renderSkeleton();
-    renderCfg();
+    renderInstructions();
     if (SA !== null) drawer.innerHTML = saDrawerHtml();
     else if (MF !== null) { paintMfChrome(); mfCtl.set({}) }
   });

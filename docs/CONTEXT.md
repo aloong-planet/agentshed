@@ -10,7 +10,7 @@ or remove skills from the global library. This file is the domain glossary; the 
 - **Language**
   - Projects and sides: Project, Stale project, Agent side, Side colour, Application icon
   - Components: Global library, Compatibility-borrowed component, Shared skills directory,
-    Project install, Effective view, Subagent, Memory, Effective enabled plugins, Artifact
+    Project install, Effective view, Subagent, Instructions, Memory, Effective enabled plugins, Artifact
   - Sessions and search: Activity, Session, Question, Session ID, Turn, Filtering and searching,
     Global search
   - Codex data: Paginated rollout, Usage record, Usage boundary, Compacted window, Cold rollout
@@ -90,10 +90,16 @@ A specialised assistant, described by an agent definition file, that runs in its
 delegated a subtask. It is a kind of component within a side, never the side itself.
 _Avoid_: agent (bare — confusable with agent side)
 
+**Instructions**:
+The Markdown files a person writes for agents to load in every session — `CLAUDE.md` and `AGENTS.md`, at the
+global or the project level — which this product only displays. Memory is what an agent writes itself.
+_Avoid_: configuration (a side's settings files, which are not shown); rules (a wider set of files, not shown);
+main file
+
 **Memory**:
 Cross-session notes an agent generates on its own, which this product only displays: per project on the
 Claude side, one global directory on the Codex side.
-_Avoid_: notes (too general); `CLAUDE.md` (human-authored instructions — that is configuration)
+_Avoid_: notes (too general); `CLAUDE.md` (that is Instructions)
 
 **Effective enabled plugins**:
 The plugins in effect from one project's point of view: those resolving to true once `enabledPlugins` is

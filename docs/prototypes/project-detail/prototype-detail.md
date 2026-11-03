@@ -5,8 +5,8 @@
 The page prototypes the project detail page (feature: project detail; its Overview follows token stats, and
 its tabs follow the skills, subagents, plugins, memory and session views). It answers how a registered
 project's page reads once opened: the header (the project's name, a chip for every side the project is
-registered on, its path, the startup status) and the nine tabs — 「概览」, Skills, Subagents, Plugins, MCP,
-Memory, 「会话」, 「配置」 and 「产物」, landing on 「概览」. In particular:
+registered on, its path, the startup status) and the nine tabs — 「概览」, 「指令」, Skills, Subagents, Plugins, MCP,
+Memory, 「会话」 and 「产物」, landing on 「概览」. In particular:
 
 - whether the Overview holds as the first look at a project: the four time-window cards that are themselves
   the window selector, the composition bar below them, the per-side row, the 30 / 60 / 90-day trend with its
@@ -16,7 +16,7 @@ Memory, 「会话」, 「配置」 and 「产物」, landing on 「概览」. In
   between the Codex and Antigravity groups and the plugin-bundled group last; Subagents by level and side,
   with project-level shadowing on the Claude and Codex sides; Plugins by side, the Claude group showing this
   project's effective enabled set and the layer that decided it; Memory's main file rendered in place, with
-  its topic files opened in the file drawer; Configuration's two files, each headed by its path;
+  its topic files opened in the file drawer; 「指令」's two files, each headed by its path;
 - how the 「会话」 tab's list, its sort and its search, with hits grouped by session, read;
 - whether 「产物」 as type chips over one flat list, read in an overlay, is clear.
 
@@ -38,7 +38,7 @@ The mock project, Transfer, is registered on all four agent sides: Claude Code, 
 - The 「会话」 tab's search row and hit rows: the shared session-hits block, drawn the same as in the global
   search prototype (全局搜索). Session rows, recent-session rows and hit rows open the session page
   prototype (会话页), which draws the question index and the whole-turn expansion.
-- The Subagents and Memory rows that open a drawer, the Subagents drawer, and the Configuration entries
+- The Subagents and Memory rows that open a drawer, the Subagents drawer, and the 「指令」 entries
   headed by their path: the same form as the Agents page prototype.
 - The Memory file drawer: the shared file drawer around the shared Markdown preview block, the same form as
   the skill file drawer of the Skills package preview prototype (Skills 包预览) and the Agents page's memory
@@ -71,7 +71,7 @@ Reviewer annotations drawn inside the page are not part of the design either; do
 - 「非八步项目在此显示「未按约定沉淀」空态(不视为错误)」 under the 「产物」 list, and the reading overlay's meta
   line after 「Transfer ·」;
 - remarks in parentheses inside mock text, such as 「(Codex 侧全局,与 Claude 侧各自成行)」 in a Subagents
-  description, 「(mock 略)」 in drawer bodies and 「(只读渲染,滚动容器内)」 in a Configuration body.
+  description, 「(mock 略)」 in drawer bodies and 「(只读渲染,滚动容器内)」 in a 「指令」 body.
 
 ## Invalidated conclusions
 

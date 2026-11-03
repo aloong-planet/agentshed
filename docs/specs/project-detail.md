@@ -47,8 +47,8 @@ is read-only; the one write operation is uninstalling a project-level skill.
 ## Failure modes and boundaries
 
 **Sequence A: page composition**
-- A1 The set of sections = Overview / Skills / Subagents / Plugins / MCP / Memory / Sessions /
-  Configuration / Artifacts; a new component type extends this list.
+- A1 The sections, in this order = Overview / Instructions / Skills / Subagents / Plugins / MCP / Memory /
+  Sessions / Artifacts (project-detail::REQ-004); a new component type extends this list.
 - A2 A stale project opens as the **stale note page** (settled 2026-08-23, superseding the earlier
   "sections show empty states" behaviour): the shell — back control, struck-through name, stale tag,
   path — plus a single note card, with **no section tabs and no data areas**. The trade-off that the
@@ -64,7 +64,7 @@ is read-only; the one write operation is uninstalling a project-level skill.
   E), a background revalidation, a page-local change — is a **transfusion**: the rendered content stays
   and the new data replaces it on arrival, so a section's local state (expansion, search, scroll
   position) survives the refresh (settled 2026-08-08). Sequence T below owns the switch.
-- A4 Configuration section: a missing project CLAUDE.md / AGENTS.md shows "None" rather than an error;
+- A4 Instructions section: a missing project CLAUDE.md / AGENTS.md shows "None" rather than an error;
   oversized files are truncated.
 - A5 The detail drawer's width = min(a fixed width, **the right-hand content area's** width × 80%) —
   where the content area = the viewport minus the fixed elements on the left (the rail; and in the
@@ -183,7 +183,7 @@ never writes to any agent's registry; it tells the user what happened and hands 
   both lose all app state). Cross-references between artifacts (spec ↔ features, say) navigate inside
   the reader, and a target outside the allow-list gets a notice; external http(s) links go to the
   system browser. The main process's `will-navigate` backstop covers every render site, including
-  ones added in future. The Configuration section's CLAUDE.md / AGENTS.md previews use the same
+  ones added in future. The Instructions section's CLAUDE.md / AGENTS.md previews use the same
   allow-list (settled 2026-08-21): a relative link resolving to a listed project document opens the
   reader overlay — the very one the Artifacts section uses — and anything else relative gets the
   notice; a prototype target keeps its open-in-browser route.
@@ -191,16 +191,16 @@ never writes to any agent's registry; it tells the user what happened and hands 
   display order, and the chip labels (missing one produces either "scanned but not shown" or "shown
   but cannot be opened").
 
-## The Antigravity CLI side and the Configuration section
+## The Antigravity CLI side and the Instructions section
 
-### project-detail::REQ-002 Antigravity in a project's page, and its configuration entries
+### project-detail::REQ-002 Antigravity in a project's page, and its Instructions entries
 
 Applies to: the project detail page.
 
 - project-detail::REQ-002/AC-01: The header's side chips include ANTIGRAVITY when the project is
   registered on that side ([agents-overview::CON-004](agents-overview.md)); the stale note's chips
   follow by construction (S3).
-- project-detail::REQ-002/AC-02: The Configuration section has two entries, CLAUDE.md and AGENTS.md —
+- project-detail::REQ-002/AC-02: The Instructions section has two entries, CLAUDE.md and AGENTS.md —
   the project's own files, each headed by its path, "None" when absent (A4). The project's AGENTS.md is
   read by Codex and Antigravity alike and is shown once. The Claude project settings summary is removed,
   and no settings summary is shown for any side (ADR-0037).
@@ -216,10 +216,22 @@ Applies to: the project detail page.
 
 Failure modes and boundaries: a project registered only on Antigravity opens with the ANTIGRAVITY chip
 alone and its own sessions; the MCP section's Antigravity group appears on a project's page only when it
-has servers, since it repeats global facts (settled 2026-10-29); a configuration file that cannot be read shows the read error under its
+has servers, since it repeats global facts (settled 2026-10-29); an instruction file that cannot be read shows the read error under its
 path, the other entry unaffected — in the "None" line's form under the path heading, the same declared
-prototype exemption as the agents page's (agents-overview::REQ-004 failure modes); the configuration
+prototype exemption as the agents page's (agents-overview::REQ-004 failure modes); the Instructions
 previews keep R3's link destinations.
+
+### project-detail::REQ-004 The Instructions section's name and place
+
+> Pending: a project page's tab for CLAUDE.md and AGENTS.md reads "Config" in English and sits after Sessions.
+
+Applies to: the tab row of a project's page. A stale project's note page has no tabs (A2).
+
+- project-detail::REQ-004/AC-01: The section's tab has the agents page's label
+  ([agents-overview::REQ-006/AC-01](agents-overview.md)).
+- project-detail::REQ-004/AC-02: The tabs run Overview / Instructions / Skills / Subagents / Plugins / MCP / Memory /
+  Sessions / Artifacts. Overview stays the tab a project opens on, and coming back from a session still lands on
+  Sessions (T8).
 
 ## Where artifacts come from
 
@@ -311,7 +323,9 @@ regressions within this round; artifact collection rules and unrelated section l
 - **The `{sides}` slot is a checked contract**: a unit guard asserts every language's cause and send
   sentences carry exactly one slot and the prompt embeds its path — the type alignment cannot see
   string content, so a dropped slot would otherwise fail silently.
-- **Configuration entries carry their paths** (project-detail::REQ-002/AC-02): the detail sends each of
+- **The section's code names**: as on the agents page ([agents-overview](agents-overview.md), Implementation
+  Decisions); the page and the agents page share one section component.
+- **Instruction entries carry their paths** (project-detail::REQ-002/AC-02): the detail sends each of
   the project's two files with its path and its contents, or none for a file that exists but cannot be
   read, and null for an absent one; the agents page's section and this page's share one section
   component. A project detail saved before the files carried their paths restores with each file at its
@@ -347,9 +361,10 @@ main-process side of the knob is a one-line read and is not unit tested.
 
 project-detail::REQ-002 is asserted at the e2e seam over a fixture home with a project registered on
 Antigravity only and one on every side: the header chips and the Antigravity MCP group. The two
-configuration entries with their path headings, "None", an unreadable file and the absence of a settings
+Instructions entries with their path headings, "None", an unreadable file and the absence of a settings
 summary are asserted over any project — the files are read by path, whatever the registration — and
-the restore of a detail saved before the paths at the display store's filesystem seam.
+the restore of a detail saved before the paths at the display store's filesystem seam. project-detail::REQ-004 reads
+the tab row at the same seam, in both languages.
 
 ## Out of Scope
 
