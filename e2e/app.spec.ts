@@ -5633,7 +5633,9 @@ test('i18n: no label in the project-detail tab row or the skills rows wraps to a
   // **What the failure actually looks like, measured rather than assumed.** The obvious guess — the row
   // bursts its container and the page scrolls sideways — is wrong here, and every check built on it is
   // vacuous:
-  //   - `.tabs` is width-auto, so its `scrollWidth` always equals its `clientWidth`.
+  //   - `.tabs` is width-auto, so its `scrollWidth` equals its `clientWidth` while its tabs can shrink to fit, which an
+  //     over-long label lets them do by wrapping. At the minimum window a project's nine tabs cannot, and the row runs
+  //     past the pane (project-detail::REQ-004); this case runs at the default window.
   //   - `body` is `overflow-x: hidden`, so `documentElement.scrollWidth > clientWidth` never fires.
   //   - `.tab` is `white-space: normal` with `flex: 0 1 auto`, so an over-long label does not clip or
   //     overflow its box. It **wraps and grows the row vertically** — measured at 34px → 268px for a label

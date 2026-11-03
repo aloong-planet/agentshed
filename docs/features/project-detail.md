@@ -57,3 +57,5 @@ Overview (default), Instructions, Skills, Subagents, Plugins, MCP, Memory, Sessi
   by convention" empty state, which is not treated as an error
 - CONTEXT.md is listed only from the project's docs folder: one still at the project root is not listed
   (the other artifacts are), and a link to it shows the notice rather than opening it
+- The tabs do not scroll or move onto a second row: the default window shows every tab, and in a narrower window a tab
+  past the right edge is cut off and cannot be reached until the window is widened
