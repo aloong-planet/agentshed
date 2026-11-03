@@ -382,8 +382,8 @@ summary are asserted over any project — the files are read by path, whatever t
 the restore of a detail saved before the paths at the display store's filesystem seam. project-detail::REQ-004 reads
 the tab row at the same seam, in both languages, and asserts that it fits the default window. The clipping in a narrow
 window and the keyboard's sideways shift are measured rather than asserted: they are accepted limits, not behaviours to keep.
-The agents page's tab row at the minimum window is measured only as well, and no test guards that it fits (the owner's
-decision of 2026-11-03).
+The agents page's tab row is measured only as well: no test at any width guards that it fits, including at the default
+window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-03).
 
 ## Out of Scope
 
