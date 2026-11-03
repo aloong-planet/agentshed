@@ -14,8 +14,10 @@ describe('English counted nouns', () => {
   const d = dictOf('en')
 
   it('singular at 1 and plural at 2 wherever a noun follows a count', () => {
-    expect(d.agents.sideSummary(1, 1, 1)).toBe('1 project · 1 global skill · 1 subagent')
-    expect(d.agents.sideSummary(2, 3, 4)).toBe('2 projects · 3 global skills · 4 subagents')
+    expect(d.agents.sideProjects(1)).toBe('1 project')
+    expect(d.agents.sideProjects(2)).toBe('2 projects')
+    expect(d.agents.sideRest(1, 1)).toBe('1 global skill · 1 subagent')
+    expect(d.agents.sideRest(3, 4)).toBe('3 global skills · 4 subagents')
     expect(d.skills.pkgSummary(1, '1 kB')).toBe('1 file · 1 kB')
     expect(d.skills.pkgSummary(2, '2 kB')).toBe('2 files · 2 kB')
     expect(d.plugins.cachedVersions(1)).toBe('(1 cached version)')
@@ -79,5 +81,14 @@ describe('English counted nouns', () => {
     expect(d.session.mainline(12, ' · 3 days')).toBe('Questions (main line) · 12 questions · 3 days')
     expect(d.session.dayGroup('Mon', 1)).toBe('Mon · 1 question')
     expect(d.session.dayGroup('Mon', 4)).toBe('Mon · 4 questions')
+  })
+})
+
+describe('the side card line in Chinese', () => {
+  // Split so the project count can be a control (agents-overview::REQ-007): the two parts still read as the line did
+  it('keeps its wording', () => {
+    const d = dictOf('zh')
+    expect(d.agents.sideProjects(3)).toBe('3 \u9879\u76ee')
+    expect(d.agents.sideRest(4, 5)).toBe('4 \u5168\u5c40 skills · 5 subagents')
   })
 })

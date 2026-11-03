@@ -999,3 +999,115 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
     await close(l, home)
   }
 })
+
+// ── #347: opening a side's projects from its card, after a search hit (projects-list::REQ-002) ──
+
+const codexCount = (win: Page) => win.locator('.pane-head .stats .stat', { has: win.locator('.badge.cx') }).locator('.stat-link')
+
+test('a session opened from a hit goes with a project off the side a card opens, and the next hit opens all sides', async () => {
+  const { home } = mkHome()
+  const l = await launch(home)
+  const { app, win } = l
+  try {
+    await searchItem(win).click()
+    await box(win).fill('xenon')
+    await expect(body(win).locator('.hit')).toHaveCount(150, { timeout: 15000 })
+    await body(win).locator('.hit', { hasText: 'xenon 37' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('xenon 1', { timeout: 15000 })
+    await expect(exits(win)).toHaveCount(2)
+
+    // target-proj is registered on Claude alone, so Codex's count clears it and its session page goes with it
+    await win.locator('.rail .ri').nth(0).click()
+    await codexCount(win).click()
+    await expect(win.locator('.opts .dd-trigger')).toHaveText('Codex')
+    await expect(win.locator('.side .row .nm')).toHaveText(['fork-proj'])
+    await expect(win.locator('.startup-project-placeholder .empty')).toHaveText('Select a project to see its details')
+    await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+    await expect(exits(win)).toHaveCount(0)
+    await expect(win.locator('.side .row.sel')).toHaveCount(0)
+
+    // Left through the menu rather than the rail: a hit still opens the list on all sides with the toggle off
+    await clickSearchSessions(app)
+    await body(win).locator('.hit', { hasText: 'xenon 37' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('xenon 1', { timeout: 15000 })
+    await expect(win.locator('.opts .dd-trigger')).toHaveText('All')
+    await expect(win.locator('.side input[type="checkbox"]')).not.toBeChecked()
+    await expect(win.locator('.side .row.sel .nm')).toHaveText('target-proj')
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+test('arriving from a card with a hit still on its way: the jump never lands', async () => {
+  const { home } = mkHome()
+  const l = await launch(home, { AGENTSHED_FETCH_DELAY_MS: '1500' })
+  const { win } = l
+  try {
+    await searchItem(win).click()
+    await box(win).fill('notarize')
+    await expect(body(win).locator('.shead').first()).toContainText(NOTARIZE_HEADER, { timeout: 15000 })
+    // Left alone, a hit's jump lands once its session page has arrived; how long it took sets the wait below
+    const clicked = Date.now()
+    await body(win).locator('.hit', { hasText: 'Notarize the stale build' }).click()
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(win.locator('.pane-head .stitle')).toHaveText('Notarize the stale build', { timeout: 10000 })
+    const landing = Date.now() - clicked
+
+    // A hit in a session not seen yet, then the agents page and a card while the search page holds
+    await searchItem(win).click()
+    await body(win).locator('.hit', { hasText: 'How do I notarize the app?' }).click()
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await win.locator('.rail .ri').nth(0).click()
+    await codexCount(win).click()
+    await expect(win.locator('.opts .dd-trigger')).toHaveText('Codex')
+
+    // Past the delay the list is as the card opened it, and no session page was drawn
+    await win.waitForTimeout(landing + 1000)
+    await expect(win.locator('.opts .dd-trigger')).toHaveText('Codex')
+    await expect(win.locator('.side .row .nm')).toHaveText(['fork-proj'])
+    await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+    await expect(win.locator('.side .row.sel')).toHaveCount(0)
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+test('a reveal request left by a hit the rail overtook does not move the list when a card opens it', async () => {
+  const { home } = mkHome()
+  const l = await launch(home)
+  const { win } = l
+  const list = win.locator('.side .list')
+  try {
+    // The session page is cached by a first visit, which also shows the project's row below the list's fold
+    await searchItem(win).click()
+    await box(win).fill('xenon')
+    await expect(body(win).locator('.hit')).toHaveCount(150, { timeout: 15000 })
+    await body(win).locator('.hit', { hasText: 'xenon 37' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('xenon 1', { timeout: 15000 })
+    await expect(win.locator('.side .row.sel .nm')).toHaveText('target-proj')
+    expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+
+    // The hit and the rail in one task: the rail's update lands first, so the list does not mount for the hit
+    await searchItem(win).click()
+    await expect(body(win).locator('.hit', { hasText: 'xenon 37' })).toBeVisible()
+    await win.evaluate(() => {
+      const hit = [...document.querySelectorAll<HTMLElement>('.gsearch .pane-body .hit')].find((h) => h.textContent?.includes('xenon 37'))
+      if (!hit) throw new Error('no hit')
+      hit.click()
+      document.querySelectorAll<HTMLElement>('.rail .ri')[0]?.click()
+    })
+    await expect(win.locator('.app')).toHaveClass(/dim-agents/)
+
+    // Claude's count opens the list at its top, with the kept row out of view
+    await win.locator('.pane-head .stats .stat', { has: win.locator('.badge.cl') }).locator('.stat-link').click()
+    await expect(win.locator('.opts .dd-trigger')).toHaveText('Claude Code')
+    await expect(win.locator('.side .row.sel .nm')).toHaveText('target-proj')
+    expect(await list.evaluate((el) => el.scrollTop)).toBe(0)
+    await expect(win.locator('.side .row.sel')).not.toBeInViewport()
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})

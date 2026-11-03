@@ -5,7 +5,7 @@ import { displayQuery, hydrateDisplayQueries } from './display-queries'
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { invalidateOnSnapshot } from './query-client'
-import type { Snapshot } from '@shared/domain'
+import type { AgentSide, Snapshot } from '@shared/domain'
 import type { TrendSpan } from '@shared/trend'
 import { TrendSpanContext } from './TrendSpan'
 import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
@@ -19,7 +19,8 @@ import {
   type AppearanceTheme
 } from '@shared/appearance'
 import { dictOf, effectiveLanguage, type Language, type LanguagePreference } from '@shared/i18n'
-import { ProjectsPane } from './ProjectsPane'
+import { ProjectsPane, type ListArrival } from './ProjectsPane'
+import { sideArrival } from './side-arrival'
 import { AgentsPane } from './AgentsPane'
 import { AgentsSkeleton, ProjectsSkeleton } from './StartupSkeleton'
 import { DetailPane } from './DetailPane'
@@ -79,6 +80,9 @@ export function App(): JSX.Element {
   // A project selected from a global search hit has its row scrolled into view in the project list
   // (projects-list C8); a one-shot request the list clears once it has done it
   const [revealSelected, setRevealSelected] = useState(false)
+  // Opening the list from a side card's project count (projects-list::REQ-002): the filters it mounts with. Every other
+  // way in clears them, so it opens on all sides
+  const [listArrival, setListArrival] = useState<ListArrival | null>(null)
   // The pending jump from a global search hit: a later click, or leaving the search page, supersedes it
   const jumpSeq = useRef(0)
   // The application menu's "Search Sessions…" asks the search page's box for the focus: a request the page
@@ -116,6 +120,7 @@ export function App(): JSX.Element {
   /** A rail entry (or the application menu's equivalent): drops a pending jump from a search hit */
   const navigate = (d: Dim): void => {
     jumpSeq.current++
+    setListArrival(null)
     setDim(d)
   }
 
@@ -130,6 +135,7 @@ export function App(): JSX.Element {
     const go = (): void => {
       if (seq !== jumpSeq.current) return // a later click won; its page is kept in the cache (P8)
       startPaneTransition(() => {
+        setListArrival(null)
         setDim('projects')
         setSelected(project)
         setShownProject(project)
@@ -141,6 +147,28 @@ export function App(): JSX.Element {
     const page = displayQuery(queryClient, sessionPageQueryKey(file), () => fetchSessionPage(file))
     if (queryClient.getQueryData(page.queryKey) !== undefined || page.initialData() !== undefined) go()
     else void queryClient.fetchQuery(page).then(go, go)
+  }
+
+  /**
+   * A side card's project count: one transitioned update switches to Projects on that side's projects and clears a
+   * selection not registered there, so no frame shows all sides or a cleared stage under the old dimension
+   * (projects-list::REQ-002/AC-06). It supersedes a pending jump from a search hit, like a rail click.
+   */
+  const openSideProjects = (side: AgentSide): void => {
+    jumpSeq.current++
+    const { showStale, keepSelection } = sideArrival(snap?.projects ?? [], side, selected)
+    startPaneTransition(() => {
+      setListArrival({ side, showStale })
+      setDim('projects')
+      // The list opens at its top: a reveal request a hit left behind, with no list mounted to take it, is not for here
+      setRevealSelected(false)
+      if (!keepSelection) {
+        setSelected(null)
+        setShownProject(null)
+        setOpenSession(null)
+        setBackToSessions(false)
+      }
+    })
   }
 
   const selectProject = (p: string | null): void => {
@@ -372,7 +400,7 @@ export function App(): JSX.Element {
           snap === null ? (
             <AgentsSkeleton />
           ) : (
-            <AgentsPane snap={snap} />
+            <AgentsPane snap={snap} onOpenSide={openSideProjects} />
           )
         ) : snap === null ? (
           <ProjectsSkeleton />
@@ -383,6 +411,7 @@ export function App(): JSX.Element {
             onSelect={selectProject}
             revealSelected={revealSelected}
             onRevealed={() => setRevealSelected(false)}
+            arrival={listArrival}
             detail={
               // The detail slot's one Suspense boundary (ADR-0028): the slot is already revealed when a
               // switch happens, so the Transition around `shownProject` holds this boundary's last

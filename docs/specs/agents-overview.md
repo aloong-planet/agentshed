@@ -209,8 +209,6 @@ glossary's Instructions.
 
 ### agents-overview::REQ-007 A side card's project count opens that side's projects
 
-> Pending: a side card's project count is plain text.
-
 Applies to: a side card's project count, in the card's usual third line (B2).
 
 - agents-overview::REQ-007/AC-01: A count of one or more is a control. Activating it, by pointer or by keyboard,

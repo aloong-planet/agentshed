@@ -52,16 +52,24 @@ interface Props {
   revealSelected?: boolean
   /** Called once the row has been revealed, so the request is not repeated */
   onRevealed?: () => void
+  /** Opened from a side card's project count: the filters the list mounts with (projects-list::REQ-002) */
+  arrival: ListArrival | null
   /** The detail area (filled in by ticket 03; currently a placeholder) */
   detail: React.ReactNode
 }
 
-export function ProjectsPane({ snap, selected, onSelect, revealSelected, onRevealed, detail }: Props): JSX.Element {
+export interface ListArrival {
+  side: AgentSide
+  showStale: boolean
+}
+
+export function ProjectsPane({ snap, selected, onSelect, revealSelected, onRevealed, arrival, detail }: Props): JSX.Element {
   const now = useDisplayClock()
   const t = useDict()
   const [kw, setKw] = useState('')
-  const [sideFilter, setSideFilter] = useState<'all' | AgentSide>('all')
-  const [showStale, setShowStale] = useState(false)
+  // Initial values rather than an effect after mounting, which would draw one frame of all sides (AC-06)
+  const [sideFilter, setSideFilter] = useState<'all' | AgentSide>(arrival?.side ?? 'all')
+  const [showStale, setShowStale] = useState(arrival?.showStale ?? false)
 
   const { visible, staleFiltered } = useMemo(() => {
     const k = kw.trim().toLowerCase()

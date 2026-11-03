@@ -112,8 +112,10 @@ export const zh = {
   skillDeepHint: '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill',
   /** The global Agents page and the application shell (ticket 11) */
   agents: {
-    sideSummary: (projects: number, skills: number, subagents: number) =>
-      `${projects} 项目 · ${skills} 全局 skills · ${subagents} subagents`,
+    // Two entries, so the project count can be a control while the rest of the line stays text
+    // (agents-overview::REQ-007)
+    sideProjects: (projects: number) => `${projects} 项目`,
+    sideRest: (skills: number, subagents: number) => `${skills} 全局 skills · ${subagents} subagents`,
     tabInstructions: '指令',
     notDetected: '本机未检测到任何 agent 侧的数据目录',
     notDetectedHint: '安装并使用任一 agent 后,下次自动扫描即可看到全景(切回本窗口会触发扫描)',

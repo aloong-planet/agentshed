@@ -887,6 +887,28 @@ body {
   color: var(--text-2);
   margin-top: 2px;
 }
+/* A side's project count of one or more opens the project list on that side (agents-overview::REQ-007). It inherits
+   the line's font and colour and has no box of its own, so the card measures the same as with plain text */
+.stat-link {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 2px;
+}
+.stat-link:hover {
+  color: var(--text);
+  text-decoration-color: currentColor;
+}
+.stat-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 /* The third line when the side has conversations it could not read: the count in the warning colour, in place of
    the side's counts (agents-overview::REQ-003/AC-02) */
 .stat .s.side-warn {
