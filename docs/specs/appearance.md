@@ -142,7 +142,7 @@ platform's.
     paper feel, but the hue is not bound to the theme)  
 - C3 Local styles with hard-coded hex in `theme.css` → pulled into tokens, so no colour is missed when
   the theme changes.  
-- C4 Rendered markdown (skill preview, memory / configuration / artifact readers): links follow the
+- C4 Rendered markdown (skill preview, memory / instructions / artifact readers): links follow the
   `--accent` family; headings follow the heading ladder of sequence E — h1/h2 in the accent family,
   h3 in `--md-h3`, and h4–h6 **deliberately step out of the accent family** into `--text-2` so depth
   reads as receding rather than as ever-smaller accent text.

@@ -1186,12 +1186,12 @@ body {
   border: 1px dashed var(--line-strong);
   border-radius: 9px;
 }
-.cfg-switch {
+.instructions-switch {
   display: flex;
   gap: 6px;
   margin-bottom: 10px;
 }
-.cfg-switch button {
+.instructions-switch button {
   font: inherit;
   font-size: 12px;
   padding: 4px 10px;
@@ -1201,16 +1201,16 @@ body {
   color: var(--text-2);
   background: transparent;
 }
-.cfg-switch button.on {
+.instructions-switch button.on {
   color: var(--accent);
   border-color: var(--accent);
   background: var(--accent-soft);
 }
-/* A Configuration entry's file is headed by its path (agents-overview::REQ-004, project-detail::REQ-002/AC-02);
+/* An Instructions entry's file is headed by its path (agents-overview::REQ-004, project-detail::REQ-002/AC-02);
    the AGENTS.md entry can hold several files in one card, each after a rule. A class of its own: it is a chrome
    line inside a card that carries rendered markdown, and a descendant selector would reach the rendered body
    (appearance spec E9). Long paths wrap inside the card. */
-.cfg-path {
+.instructions-path {
   font-size: 11px;
   color: var(--text-2);
   margin: 16px 0 6px;
@@ -1218,19 +1218,19 @@ body {
   border-top: 1px solid var(--line);
   overflow-wrap: anywhere;
 }
-.cfg-path:first-child {
+.instructions-path:first-child {
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
 }
-/* The Configuration card keeps the prototypes' height: past about half the window its files scroll inside it,
+/* The Instructions card keeps the prototypes' height: past about half the window its files scroll inside it,
    so several AGENTS.md files never push the page into a long scroll */
-.cfg-files {
+.instructions-files {
   max-height: 52vh;
 }
-/* "None", and an unreadable file's sentence, sit inside the Configuration card as the prototypes draw them: the
+/* "None", and an unreadable file's sentence, sit inside the Instructions card as the prototypes draw them: the
    empty-state line without a frame of its own, the card being the frame */
-.cfg-files > .none {
+.instructions-files > .none {
   border: 0;
 }
 .md {

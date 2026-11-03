@@ -1,5 +1,5 @@
 // Ticket 07: the Agents global layer — global skills (merged, symlinks), plugins, global MCP (three
-// sources), and read-only configuration.
+// sources), and read-only instructions.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -180,7 +180,7 @@ describe('global MCP (three sources)', () => {
 // agents-overview::REQ-004: two entries, CLAUDE.md and AGENTS.md. The locations are the ones measured with agy
 // (research record §10.9): it loads ~/.gemini/AGENTS.md and ~/.gemini/config/AGENTS.md together, the root one
 // first, and GEMINI.md and rules from their own places — none of which joins the section.
-describe('the Configuration section (agents-overview::REQ-004)', () => {
+describe('the Instructions section (agents-overview::REQ-004)', () => {
   const write = (rel: string, text: string): void => {
     const file = join(dir, rel)
     mkdirSync(join(file, '..'), { recursive: true })

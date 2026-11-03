@@ -22,8 +22,16 @@ agent side's global picture onto one screen.
 - On a first launch, or when the saved display cannot be used, real headings and labels surround
   placeholder figures until the first scan finishes. Page controls wait for that data while the
   navigation rail remains usable; data fills in place and later scans never bring placeholders back
+- The sections, as tabs in this order, the same while placeholder figures show: Token, Instructions, Skills,
+  Subagents, Plugins, MCP and Memory
 - Token section (the default): a large daily trend chart with 30 / 60 / 90 day spans (switchable between
   combined and a single side) and a cross-project model breakdown; the totals include stale projects
+- Instructions section: two entries, CLAUDE.md and AGENTS.md, rather than one set per side. CLAUDE.md
+  is the global one; AGENTS.md shows every global AGENTS.md an agent side loads — Codex's, then
+  Antigravity CLI's two, its root one first — one after another, each headed by its path. Files are
+  rendered for reading in a card that scrolls past about half the window; an entry with no file shows
+  "None", a file that cannot be read says so under its path, and overly long files are truncated. No
+  side's settings summary is shown, and Antigravity CLI's GEMINI.md files and rules are not shown
 - Skills section: every side's global library merged into one column, with side badges showing which
   sides have each entry and symlinks marked; no cross-side content diff; on-disk skills expand to preview a package's files (see [Skills view](skills-view.md)); global library
   entries can start an "Install to…" action; plugin entries are read-only and expand to preview the package (see
@@ -37,12 +45,6 @@ agent side's global picture onto one screen.
   Disabled, and a plugin's server names the plugin it comes from
 - Memory section: a summary of each project's automatic memories, with viewing (see
   [Memory view](memory-view.md))
-- Configuration section: two entries, CLAUDE.md and AGENTS.md, rather than one set per side. CLAUDE.md
-  is the global one; AGENTS.md shows every global AGENTS.md an agent side loads — Codex's, then
-  Antigravity CLI's two, its root one first — one after another, each headed by its path. Files are
-  rendered for reading in a card that scrolls past about half the window; an entry with no file shows
-  "None", a file that cannot be read says so under its path, and overly long files are truncated. No
-  side's settings summary is shown, and Antigravity CLI's GEMINI.md files and rules are not shown
 
 ## Boundaries and non-goals
 - Every restart opens Agents. Previously viewed content is remembered, but the last selected project,

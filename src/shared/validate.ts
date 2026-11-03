@@ -59,10 +59,10 @@ function isCapped(v: unknown): boolean {
 function isAppErr(v: unknown): boolean {
   return isRecord(v) && typeof v['code'] === 'string' && isRecord(v['params'])
 }
-/** ConfigFile: { file: non-empty string; content: CappedText | null } — a Configuration entry's file, whose path the
- * renderer shows as its heading (agents-overview::REQ-004, project-detail::REQ-002/AC-02) */
-function configFileFailure(v: unknown, at: string): ValidateResult | null {
-  if (!isRecord(v)) return failType(at, 'ConfigFile')
+/** InstructionFile: { file: non-empty string; content: CappedText | null } — an Instructions entry's file, whose path
+ * the renderer shows as its heading (agents-overview::REQ-004, project-detail::REQ-002/AC-02) */
+function instructionFileFailure(v: unknown, at: string): ValidateResult | null {
+  if (!isRecord(v)) return failType(at, 'InstructionFile')
   if (typeof v['file'] !== 'string' || v['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
   if (v['content'] !== null && !isCapped(v['content'])) return failType(`${at}.content`, 'CappedText|null')
   return null
@@ -114,10 +114,10 @@ export function validateSnapshot(v: unknown): ValidateResult {
     if (!Array.isArray(g[arr])) return failType(`global.${arr}`, 'array')
   }
   if (g['claudeMd'] !== null) {
-    const r = configFileFailure(g['claudeMd'], 'global.claudeMd')
+    const r = instructionFileFailure(g['claudeMd'], 'global.claudeMd')
     if (r) return r
   }
-  const agentsMd = eachOf(g['agentsMd'], 'global.agentsMd', (f, at) => configFileFailure(f, at))
+  const agentsMd = eachOf(g['agentsMd'], 'global.agentsMd', (f, at) => instructionFileFailure(f, at))
   if (agentsMd) return agentsMd
   if (typeof g['codexMemoriesEnabled'] !== 'boolean')
     return failType('global.codexMemoriesEnabled', 'boolean')
@@ -544,7 +544,7 @@ export function validateProjectDetail(v: unknown): ValidateResult {
   if (!isRecord(cfg)) return failType('detail.configs', 'object')
   for (const k of ['claudeMd', 'agentsMd'] as const) {
     if (cfg[k] !== null) {
-      const r = configFileFailure(cfg[k], `detail.configs.${k}`)
+      const r = instructionFileFailure(cfg[k], `detail.configs.${k}`)
       if (r) return r
     }
   }

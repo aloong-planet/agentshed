@@ -284,13 +284,13 @@ test('a root CONTEXT.md registered by a page saved before it moved under docs/ i
   }
 })
 
-// agents-overview::REQ-004 across an update: a display cache written by the version before configuration entries
+// agents-overview::REQ-004 across an update: a display cache written by the version before instruction entries
 // carried their paths — its snapshot's global layer as this machine's cache held it on 2026-10-29, `claudeGlobalMd` and
 // `codexAgentsMd` as contents beside a `codexConfigSummary` — restores before the first scan, each file under the path
 // the main process knows it by. The scan is held, so the saved copy is the only source of what the section shows.
-test('a snapshot saved before configuration entries carried their paths restores with them, before the first scan', async () => {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-cfg-restore-home-'))
-  const userData = mkdtempSync(join(tmpdir(), 'agentshed-cfg-restore-data-'))
+test('a snapshot saved before instruction entries carried their paths restores with them, before the first scan', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-instructions-restore-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-instructions-restore-data-'))
   mkdirSync(join(home, '.claude'), { recursive: true })
   mkdirSync(join(home, '.codex'), { recursive: true })
   writeFileSync(join(home, '.claude', 'CLAUDE.md'), '# Live rules\n')
@@ -315,11 +315,11 @@ test('a snapshot saved before configuration entries carried their paths restores
       AGENTSHED_SYSTEM_LANGUAGES: 'en-US', AGENTSHED_SCAN_DELAY_MS: '20000'
     } })
     const win = await app.firstWindow()
-    const paths = win.locator('.pane-body .cfg-path')
-    await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
+    const paths = win.locator('.pane-body .instructions-path')
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
     await expect(paths).toHaveText([join(home, '.claude', 'CLAUDE.md')], { timeout: 5000 })
     await expect(win.locator('.pane-body .md')).toContainText('Saved rules')
-    await win.locator('.pane-body .cfg-switch button', { hasText: 'AGENTS.md' }).click()
+    await win.locator('.pane-body .instructions-switch button', { hasText: 'AGENTS.md' }).click()
     await expect(paths).toHaveText([join(home, '.codex', 'AGENTS.md')])
     await expect(win.locator('.pane-body .md')).toContainText('Saved codex notes')
     expect(await win.locator('.startup-display-hint').getAttribute('data-state'), 'the first scan is still held').not.toBe('ready')

@@ -1,6 +1,6 @@
 // Reading project detail (ticket 03): the skills effective view (a same-name pair within one side lists
 // only the project level, skills-view B1),
-// project-level MCP, and read-only configuration. Each side's runtime same-name semantics (Claude
+// project-level MCP, and read-only instructions. Each side's runtime same-name semantics (Claude
 // shadows / Codex coexists, verified at source level
 // on 2026-07-30) are in CONTEXT under "Codex same-name semantics differ per component"; this list no
 // longer emits shadowing or coexistence fields.
@@ -24,7 +24,7 @@ import { readArtifacts } from './artifacts'
 import { readEffectiveSubagents } from './subagents'
 import { readProjectMemory } from './memory'
 import { readAntigravityPlugins, readProjectPlugins } from './plugins'
-import { fmField, readConfigFile, readTextCapped } from './read-utils'
+import { fmField, readInstructionFile, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 /** G1 (the detail page's rule): the bundled skills of this project's effectively enabled plugins →
@@ -74,8 +74,8 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
     // project-detail::REQ-002/AC-02: the project's own two files, each with its path; the project's AGENTS.md
     // is read by Codex and Antigravity CLI alike and is shown once
     configs: {
-      claudeMd: readConfigFile(join(projectPath, 'CLAUDE.md')),
-      agentsMd: readConfigFile(join(projectPath, 'AGENTS.md'))
+      claudeMd: readInstructionFile(join(projectPath, 'CLAUDE.md')),
+      agentsMd: readInstructionFile(join(projectPath, 'AGENTS.md'))
     },
     stats: null,
     artifacts: readArtifacts(projectPath)

@@ -3,7 +3,7 @@ import { ChevronDown, RefreshCw, Search } from './icons'
 import { useTrendSpan } from './TrendSpan'
 import { useWindowLabel, TrendSpanControl } from './TokenViz'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
-import { STATIC_TABS } from './AgentsPane'
+import { agentTabs } from './AgentsPane'
 import { USAGE_WINDOWS } from '@shared/usage'
 import { TREND_MODE_LABEL, type TrendMode } from '@shared/trend'
 
@@ -176,9 +176,9 @@ export function AgentsSkeleton(): JSX.Element {
           ))}
         </div>
         <nav className="tabs">
-          {[...STATIC_TABS.map(([, l]) => l), t.agents.tabCfg].map((l, i) => (
-            <span key={l} className={`tab ${i === 0 ? 'on' : ''}`}>
-              {l}
+          {agentTabs(t).map(([key, label], i) => (
+            <span key={key} className={`tab ${i === 0 ? 'on' : ''}`}>
+              {label}
             </span>
           ))}
         </nav>

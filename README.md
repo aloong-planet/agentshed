@@ -13,12 +13,12 @@
 ### 所有 agent 一屏看清
 
 - 打开就是 Agents 页：每个 agent 侧的全局情况都在一屏上，token 用量分全部历史、今天、近 7 天和近 30 / 60 / 90 天。
-- 各个分页汇总 agent 的全局内容：skills、subagents、plugins、MCP 服务、记忆与配置。
+- 各个分页汇总 agent 的全局内容：skills、subagents、plugins、MCP 服务、记忆与指令。
 
 ### 所有项目一张列表
 
 - 任一 agent 侧登记过的项目都在一张列表里，一个目录算一个项目，按活跃时间排序。可以按名称或路径搜索，只看某一个 agent 侧，也可以显示或隐藏目录已不存在的项目。
-- 项目页列出这个项目实际生效的 skills、subagents、plugins、MCP 服务、记忆与配置，以及 agent 在项目里产出的文档和项目的会话。
+- 项目页列出这个项目实际生效的 skills、subagents、plugins、MCP 服务、记忆与指令，以及 agent 在项目里产出的文档和项目的会话。
 
 ### Skills、subagents、plugins 与记忆
 
