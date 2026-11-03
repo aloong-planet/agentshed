@@ -162,6 +162,14 @@ following the visitor's system appearance.
 
 The hero's heading is "Your coding agents, in full view" in English.
 
+### landing-page::REQ-008 What the project step names (direct acceptance)
+
+> Pending: the project step's English text ends its list with "configuration".
+
+The features section's project step lists what a project has using the app's own word for the section
+([project-detail::REQ-004](project-detail.md)): "Skills, subagents, plugins, MCP servers and instructions" in English,
+and the same list with the section's Chinese label in Chinese.
+
 ## Quality Requirements
 
 ### landing-page::QR-001 Layout holds across widths, languages and appearances
@@ -254,7 +262,9 @@ since they never reach it (mac-distribution::CON-004).
   targets. Release notes and other release text are never inserted into the page.
 - E2 The hero and the overview, project, token and session screenshots show real project names, paths,
   usage and session text by the owner's decision; the memory and search screenshots show none of the
-  owner's data (landing-page::REQ-005/AC-01). Retaking them is the only way to change what they show.
+  owner's data (landing-page::REQ-005/AC-01). Retaking them is the only way to change what they show, so the hero,
+  overview and project screenshots keep showing the Instructions section's former name and place until they are
+  next retaken.
 
 ## Implementation Decisions
 
@@ -337,6 +347,7 @@ Prior art: Transfer's site tests for its download configuration, and the prototy
 
 ## Out of Scope
 
+- Retaking the screenshots only because the Instructions section changed its name and place (E2).
 - Download statistics (deferred, ADR-0031 option 10).
 - More than two languages (ADR-0031 option 6).
 - A copy of the page in mainland China (ADR-0031 option 8).

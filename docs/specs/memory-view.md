@@ -199,7 +199,7 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
   memory directories.
 - **Container structure (prototype ruling)**: on the global page, clicking a row expands the file list
   and clicking a file opens a drawer; on the detail page, the main file is rendered directly (the same
-  pattern as the Configuration section) with topics in a drawer. Esc and clicking the overlay are
+  pattern as the Instructions section) with topics in a drawer. Esc and clicking the overlay are
   equivalent.
 - **The memory file drawer (prototype ruling, 2026-10-21)**: one drawer frame and one preview frame
   serve both the memory file drawer and the skill file drawer (memory-view::CON-001); each supplies its

@@ -7,15 +7,16 @@ beside the rail — gathers the global picture of every agent side (Claude Code,
 screen, in the Agents overview feature, when the sides' components are not symmetric: plugins are read on Claude
 Code, on Codex (a cache listing with no enablement) and on Antigravity, and not on Grok; MCP servers come from a
 different file on each side that has them, and from plugins; memory is read on Claude Code and Codex only; the
-configuration files are named by file, not by side. The page answers the form of:
+instruction files are named by file, not by side. The page answers the form of:
 
 - the page head: the title row with the scanning hint inline; the four time-window totals cards (all history,
   today, the last 7 days, the last N days), which are the window selector; the composition bar under them (cache
   reads, uncached input, output); one side card per side, with its detection, its usage in the selected window and
-  its project / global skill / subagent counts;
+  its project / global skill / subagent counts, the project count opening the project list filtered to that side
+  and a count of zero staying plain text;
 - the Antigravity side card's third line when the scan left conversations unread — 「3 个对话读不出」 in the
   warning colour, with its hover text, the figure above it unchanged;
-- the tabs Token / Skills / Subagents / Plugins / MCP / Memory / 「配置」 and how each lays out the sides;
+- the tabs Token / 「指令」 / Skills / Subagents / Plugins / MCP / Memory and how each lays out the sides;
 - Token: the daily trend chart stacked by provider, with its inline 30 / 60 / 90 span choice and its 「合计」 /
   per-side switch, the days outside the selected window dimmed; the per-model rows of the selected window; every
   figure the window governs moving with it together; a window with no usage (today empty while history is not, or
@@ -27,7 +28,7 @@ configuration files are named by file, not by side. The page answers the form of
   directory's other files switching the drawer, other links going to the browser or raising the error toast, and
   the read states inside the same frame;
 - Plugins grouped by side, and MCP grouped by side and by source;
-- 「配置」: the two entries CLAUDE.md and AGENTS.md, the latter rendering every global AGENTS.md that exists one
+- 「指令」: the two entries CLAUDE.md and AGENTS.md, the latter rendering every global AGENTS.md that exists one
   after another, each under its path, and 「无」 when none exists;
 - the startup skeleton drawn in the same place before this launch's first snapshot: the static labels rendered,
   a placeholder in every data slot, the controls under the head refusing input while the rail stays live, and the
@@ -58,17 +59,19 @@ The interface language, light/dark and the colour scheme follow the gallery's se
 the page has no switch for them. The demo bar, the reviewer annotations and the mock data (names, paths,
 descriptions, file contents) stay as written in every language.
 
-- The floating demo bar (「Demo ·」) and its six groups — not part of the design; do not implement. Its note lines
+- The floating demo bar (「Demo ·」) and its seven groups — not part of the design; do not implement. Its note lines
   say what decides each state in the product and that the app has no such switch.
   - 「启动」 — 骨架 / 扫描中 / 完成 / 失败 (the shared startup status group), always shown: decided by whether the
     renderer has received this launch's first snapshot, and by the scan's result. 骨架 swaps the page for the
     skeleton and hides every other group.
   - 「Antigravity unreadable」 — none / 3 conversations, shown outside the skeleton: decided by how many
     Antigravity conversations the scan could not read.
+  - 「Grok projects」 — 4 projects / none, shown outside the skeleton: decided by the projects Grok's registry
+    records; none draws that card's count as plain text.
   - 「用量」 — 有数据 / 本日无用量 / 全空, shown on every tab outside the skeleton: decided by the token usage recorded
     on this machine (whether any is recorded, whether today has any). The state reaches the trend chart as well
     as the cards and the model rows.
-  - 「AGENTS.md files」 — two exist / all three / none, on the 「配置」 tab only: decided by which of
+  - 「AGENTS.md files」 — two exist / all three / none, on the 「指令」 tab only: decided by which of
     `~/.codex/AGENTS.md`, `~/.gemini/AGENTS.md` and `~/.gemini/config/AGENTS.md` exist.
   - 「Codex 记忆」 — 开·有内容 / 开·无内容 / 关·无内容 / 关·遗留文件, on the Memory tab only: decided by
     `features.memories` in Codex's `config.toml` and by the files in its memory directory.

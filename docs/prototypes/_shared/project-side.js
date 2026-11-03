@@ -16,11 +16,13 @@
 // follows; the row of the project the page itself shows carries none.
 //   ProjectSide.setState(state)  "scanning" | "empty" | "loaded", for a page that demonstrates the states
 //   ProjectSide.onRender(fn)     calls fn(column) after every draw
+//   ProjectSide.arrive(side)     how the page was reached: a side (from that side's card on the Agents page) or
+//                                null (from the rail)
 // The copy follows the page's language (demo-dimensions.js).
 ;(function () {
   // Most recent first, as the app sorts them. Transfer carries all four sides: the row where the name,
   // the stale slot, the activity and the count crowd the column hardest. agy-demo is registered on the
-  // Antigravity side alone.
+  // Antigravity side alone; that side alone has no stale project.
   const PROJECTS = [
     { name: 'agentshed', path: '~/CascadeProjects/agentshed', sides: ['claude', 'grok'], days: 0 },
     { name: 'agy-demo', path: '~/CascadeProjects/agy-demo', sides: ['antigravity'], days: 0 },
@@ -30,7 +32,7 @@
     { name: 'AI-Learning', path: '~/CascadeProjects/AI-Learning', sides: ['codex'], days: 5 },
     { name: 'aloong-tools', path: '~/CascadeProjects/aloong-tools', sides: ['claude'], days: 7 },
     { name: 'csv-debug-viewer', path: '~/CascadeProjects/csv-debug-viewer', sides: ['claude'], days: 30 },
-    { name: 'removed-experiment-2025', path: '/Users/you/Projects/removed-experiment-2025', sides: ['claude', 'codex', 'grok', 'antigravity'], days: 45, stale: true, route: 'project-detail/detail-stale-note' },
+    { name: 'removed-experiment-2025', path: '/Users/you/Projects/removed-experiment-2025', sides: ['claude', 'codex', 'grok'], days: 45, stale: true, route: 'project-detail/detail-stale-note' },
     { name: 'New project', path: '~/Projects/New project', sides: ['codex'], days: 60, stale: true },
     { name: 'fe', path: '~/tmp/fe', sides: ['codex'], days: 60, stale: true }
   ]
@@ -255,6 +257,15 @@
     setState(state) {
       for (const c of columns) {
         c.state = state
+        build(c)
+      }
+    },
+    // From a side's card: the filter on that side, the stale toggle on only when that side has a stale project.
+    // From the rail: all sides, the toggle off.
+    arrive(side) {
+      for (const c of columns) {
+        c.filter = side ?? 'all'
+        c.showStale = side !== null && PROJECTS.some((p) => p.stale && p.sides.includes(side))
         build(c)
       }
     },

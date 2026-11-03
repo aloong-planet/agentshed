@@ -21,9 +21,9 @@ instance, exist only on the Claude side).
 
 As the default landing page, gather every agent side's global picture onto one screen: per-side
 summary cards at the top and, below them, sections by component type
-(Token/Skills/Subagents/Plugins/MCP/Memory/Configuration). Everything is read-only; the one write
+(Token/Instructions/Skills/Subagents/Plugins/MCP/Memory). Everything is read-only; the one write
 operation is installing a skill into a project (see the skill-install spec). **This app's colour
-theme (purple / mist blue / amber brown) is not configured in this page's Configuration section** —
+theme (purple / mist blue / amber brown) is not configured on this page** —
 see [appearance](appearance.md) (the rail's settings dimension).
 
 ## User Stories
@@ -77,13 +77,15 @@ see [appearance](appearance.md) (the rail's settings dimension).
   skeleton — the two states never mix.
 
 **Sequence B: sections and accounting**
-- B1 The set of sections = Token / Skills / Subagents / Plugins / MCP / Memory / Configuration; a new
-  component type extends this list (ordered most-used first).
+- B1 The sections, in this order = Token / Instructions / Skills / Subagents / Plugins / MCP / Memory
+  (agents-overview::REQ-006); a new component type extends this list.
 - B2 A summary card's secondary row shows that side's project count, global skill count and subagent
   count — using the same accounting as the corresponding section, with one stated difference: the skill
   count is the side's own global library (its on-disk names), never the plugin entries the Skills section
   also lists (skills-view::REQ-001/AC-05; settled 2026-10-29 for every side, so Claude's figure no longer
-  counts the skills of its enabled plugins — one label on every card cannot count two ways).
+  counts the skills of its enabled plugins — one label on every card cannot count two ways). The project
+  count is every project the side's registry records, stale ones included: the list its link opens shows
+  exactly those (agents-overview::REQ-007).
 - B3 The Token totals **include stale projects** (this differs from the project list's default
   filtering; "hidden" left this rule with ADR-0022). The all-history card carried an explicit
   "(includes stale projects)" note until 2026-08-22, when the note was retired by user decision —
@@ -92,7 +94,7 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - B4 Sections where the sides' concepts are asymmetric (the Codex group under Plugins, the Codex
   global entry under Memory) follow their own spec's probe-style rules, and no false signal is
   manufactured for the sake of symmetry.
-- B5 Configuration section: an entry with no file shows "None" in its card rather than an error;
+- B5 Instructions section: an entry with no file shows "None" in its card rather than an error;
   oversized files are truncated; the card keeps about half the window's height and its files scroll
   inside it, as the prototypes draw it.
 
@@ -148,9 +150,9 @@ and the IDE (ADR-0037).
   (`<plugin>_<server>`, measured) and marked as coming from that plugin. A project's own
   `.agents/mcp_config.json` is shown nowhere: agy was not observed to load it (ADR-0037).
 
-### agents-overview::REQ-004 Configuration shows CLAUDE.md and AGENTS.md
+### agents-overview::REQ-004 Instructions shows CLAUDE.md and AGENTS.md
 
-Applies to: the Configuration section of the agents page ([project-detail::REQ-002](project-detail.md)
+Applies to: the Instructions section of the agents page ([project-detail::REQ-002](project-detail.md)
 governs the project page's).
 
 - agents-overview::REQ-004/AC-01: The section has two entries, CLAUDE.md and AGENTS.md, not grouped by
@@ -190,7 +192,54 @@ governs the project page's).
   naming that plugin — one row form for every side's group, so Claude's plugin servers carry the note
   too (settled 2026-10-29). A server's command or URL is shown on no row: it can carry a token.
 - Copy never enumerates the sides as a closed set: the unreadable notice names only this side's own
-  conversations, and the configuration entries are named by file, not by side.
+  conversations, and the Instructions entries are named by file, not by side.
+
+## The Instructions section and the way into the project list
+
+### agents-overview::REQ-006 The Instructions section's name and place
+
+> Pending: the agents page's tab for CLAUDE.md and AGENTS.md reads "Config" in English and is the last tab.
+
+Applies to: the agents page's tab row, on the loaded page and on the startup skeleton (A4). The word follows the
+glossary's Instructions.
+
+- agents-overview::REQ-006/AC-01: The section's tab reads "Instructions" in English, and in Chinese the label the
+  confirmed prototype draws.
+- agents-overview::REQ-006/AC-02: The tabs run Token / Instructions / Skills / Subagents / Plugins / MCP / Memory.
+  Token stays the tab the page opens on.
+- agents-overview::REQ-006/AC-03: The startup skeleton's tab row shows the same labels in the same order.
+
+### agents-overview::REQ-007 A side card's project count opens that side's projects
+
+> Pending: a side card's project count is plain text.
+
+Applies to: a side card's project count, in the card's usual third line (B2).
+
+- agents-overview::REQ-007/AC-01: A count of one or more is a control. Activating it, by pointer or by keyboard,
+  opens the Projects dimension on that side's projects ([projects-list::REQ-002](projects-list.md)).
+- agents-overview::REQ-007/AC-02: A count of zero is plain text, with no control, whether the side has registered
+  nothing or is not detected.
+- agents-overview::REQ-007/AC-03: At rest the control keeps the third line's secondary text colour with a thin
+  underline in the strong line colour. On hover the text and the underline both take the primary text colour. A
+  keyboard focus draws a visible ring in the accent colour.
+- agents-overview::REQ-007/AC-04: The control does not change the height of the card or the width of the line:
+  the card measures the same with a link as with plain text.
+- agents-overview::REQ-007/AC-05: Only the project count is a control; the skill and subagent counts stay text.
+
+Failure modes and boundaries, by what the user is doing when the card is drawn:
+
+- **The startup skeleton is up** (A4, A4a): the third line is a placeholder, so there is no control.
+- **A restored snapshot is showing while the first scan runs** (agents-overview::REQ-001): the control works from
+  the restored data, and the list it opens shows the same restored data.
+- **The side's third line shows its error or its unreadable count** (A3, agents-overview::REQ-003/AC-02): the line
+  has no project count, so it has no control. The side can still be chosen in the project list's dropdown.
+- **A scan lands between reading the card and activating the control**: the card and the list both draw from the
+  snapshot in hand when the control is activated, so the count and the rows agree.
+- **Coming back to the agents page**: from the rail, as after any departure, on Token with the all-history window
+  (the page keeps neither across a switch of dimension).
+- **The time window**: the project count does not depend on it, so the selected window changes neither the count
+  nor what the control opens.
+- **Introduced content**: the count is first-party text; nothing rendered from agent data becomes a control here.
 
 ## Startup restoration requirements
 
@@ -336,7 +385,16 @@ until it carries it.
   uses); placeholder blocks take the separator-line grey with a subtle opacity pulse that honours
   reduced-motion preferences (settled in the prototype, 2026-08-21). Placeholder geometry matches
   the loaded content's line boxes so the fill is shift-free (A4b).
-- **Configuration files carry their paths** (agents-overview::REQ-004): each file the section shows
+- **One ordered tab list** (agents-overview::REQ-006): the loaded page and its skeleton read the same ordered list
+  of tabs, labels included, so they cannot disagree about the order.
+- **The section's code names follow the interface** (settled 2026-11-03): the section's component, its tab key, its
+  dictionary keys, the type of its files, the function reading them and its style classes all say "instructions",
+  on the agents page and on a project's. The dialog button's style, the file kind labelled "CFG" and the path of
+  Claude Code's own configuration file name other things and keep their names. The saved fields `claudeMd` and
+  `agentsMd` keep theirs, so the display copy's format does not change.
+- **The project count is its own element** (agents-overview::REQ-007): the dictionaries give the count and the rest
+  of the line separately, so one can be a control while the sentence stays each language's own.
+- **Instruction files carry their paths** (agents-overview::REQ-004): each file the section shows
   travels with its absolute path, which heads it, and with its contents — or none, for a file that
   exists but cannot be read; an absent file is not sent, so an entry with no file shows "None". The
   global AGENTS.md files are a fixed list in AC-03's order, which keeps GEMINI.md, rules and Grok's
@@ -358,7 +416,7 @@ unreadable conversation, a global MCP file with a disabled server and an enabled
 any subset of the three global AGENTS.md files; e2e reads the side card's third line in both states
 and the AGENTS.md entry with two files, three and none. The badge pair's values in both appearances
 are asserted where the other side colours are. The restore of a snapshot saved before the
-configuration files carried their paths is asserted at the display store's filesystem seam and, for
+instruction files carried their paths is asserted at the display store's filesystem seam and, for
 the main process's own paths, by an e2e case that holds the first scan.
 
 The skeleton (A4 family) is tested at the e2e seam: an environment-injected delay holds the first
@@ -368,8 +426,16 @@ are visible, controls under the header refuse pointer input (hit-testing, not at
 the in-place fill is asserted **geometrically** — key anchors' positions measured before and after
 the snapshot arrives (the same discipline as the project list's floating-layer assertions).
 
+agents-overview::REQ-006 and agents-overview::REQ-007 are tested at the e2e seam over a fixture home. The tab
+order is read on the loaded page and, under the held first scan, on the skeleton. For the link: one side with a stale
+project, one without and one with no projects; the counts are read from the cards and compared with the rows the list
+then shows (the arrival itself is [projects-list::REQ-002](projects-list.md)). The count of zero is asserted by
+hit-testing that no control is under it, the look by computed styles at rest and on hover, the height by measuring the
+card with a count of one or more and of zero, and the keyboard path by focusing the control and pressing Enter.
+
 ## Out of Scope
 
+- Links on a side card's skill and subagent counts.
 - Write operations on the global library / plugins / memories (the one write operation is installing
   a skill into a project).
 - Cross-component aggregate views. Global search is a page of its own and covers session questions only

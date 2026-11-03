@@ -190,6 +190,45 @@ A conversation that cannot be read — it will not open, it is not in the suppor
 is not a local one, gives no folder its activity; a read that fails while agy is writing the conversation
 keeps its last folder ([token-stats::REQ-004/AC-03](token-stats.md)).
 
+## Arriving from a side card
+
+### projects-list::REQ-002 The list reached from a side card's project count
+
+> Pending: no control on the agents page opens the project list on one side.
+
+Applies to: the Projects dimension as opened from a side card's project count
+([agents-overview::REQ-007](agents-overview.md)). Every other way in — the rail, a global search hit — keeps opening
+the list on all sides with the stale toggle off.
+
+- projects-list::REQ-002/AC-01: The side dropdown shows that side, and the rows are that side's projects.
+- projects-list::REQ-002/AC-02: The stale toggle is on when that side has at least one stale project and off when it
+  has none, so the number of rows equals the card's count (C9 then shows no counter).
+- projects-list::REQ-002/AC-03: Search is empty.
+- projects-list::REQ-002/AC-04: A selected project registered on that side stays selected and its page or open
+  session page stays on the stage.
+- projects-list::REQ-002/AC-05: A selected project not registered on that side is cleared: no row is selected and the
+  detail area shows the pick-a-project guidance, as with no selection at all.
+- projects-list::REQ-002/AC-06: The first frame of the list is already the filtered list, and the dimension, the list
+  and the detail area change in one update: no frame shows all sides, or a cleared stage under the old dimension.
+- projects-list::REQ-002/AC-07: From there the dropdown, the toggle and search work as usual and stack (C1). Leaving
+  the dimension and coming back by the rail opens all sides with the toggle off.
+
+Failure modes and boundaries, by the user's sequence after arriving:
+
+- **Choosing another side in the dropdown**: the toggle stays as it is. It is judged on arrival only, so the next side's
+  stale projects show when the toggle is on and are counted by C9 when it is off.
+- **Unticking the toggle**: the side's stale projects hide and C9's counter shows, as usual.
+- **A scan lands while the list is open**: rows update in place, and the dropdown and the toggle stay. A side gaining its
+  first stale project does not turn the toggle on; C9's counter shows it.
+- **A side with only stale projects**: its rows are all struck through, equal to the card's count.
+- **The kept project is stale**: the toggle is on, since the side has a stale project, so its row shows selected and
+  the stale note page stays.
+- **The kept project's row lies below the fold**: the list opens at its top, as after the rail; C8's reveal is for a
+  selection made outside the list and is not used here.
+- **The cleared project had a session open**: the session page goes with it, including one opened from global search.
+- **A kept project's page**: it is the cached visit of T9 in [project-detail](project-detail.md).
+- **A pending jump from a global search hit**: arriving supersedes it, like a rail click.
+
 ## Startup restoration
 
 This page consumes [agents-overview::REQ-001](agents-overview.md) for restored rows,
@@ -232,6 +271,12 @@ registrations follow A6 and project-detail's S6/S7 rather than retaining ghost l
   (settled in the prototype, 2026-08-21). One skeleton form language across both dimensions — the
   agents overview's skeleton uses the same placeholder colour and pulse.
 
+- **Arrival is one update and an initial value**: the side and the toggle reach the list as the state it mounts with, not
+  through an effect after mounting, which would draw one frame of all sides. The dimension change, those values and any
+  clearing of the selection run in one Transition, the same one that wraps opening a session from global search. The
+  decision (given the side, the projects and the selection: the toggle and whether the selection stays) is a pure
+  function.
+
 ## Testing Decisions
 
 Following ADR-0002's dual seam: `ScanRoots` fixture unit tests at the providers layer cover the
@@ -250,6 +295,13 @@ the check that distinguishes it is hit-testing the layer's own centre and confir
 to it. Their opposite resize answers are each asserted, since a layer that dismisses when it should
 reposition looks identical to one that was never opened.
 
+projects-list::REQ-002 is tested at the e2e seam over the fixture of [agents-overview](agents-overview.md)'s link
+cases, activating the control from the agents page: the dropdown's text, the row count against the card, the toggle in
+both states, search empty, a selection on the side kept and one off it cleared, and the rail afterwards opening all
+sides. "No frame shows all sides" is an assertion over every moment, so it is recorded in the page by a mutation
+observer and read afterwards, with one positive case each way, rather than polled. The toggle and selection decision has
+a unit test over the pure function.
+
 The skeleton (A10–A13) is tested at the e2e seam: an environment-injected delay holds the first scan
 open (the same injection family as the rescan intervals), making the skeleton a stable state rather
 than a race. Assertions are render-level — placeholder rows visible, the sidebar's controls refusing
@@ -258,6 +310,8 @@ pointer input by hit-testing (not attribute checks), and the in-place fill asser
 
 ## Out of Scope
 
+- Remembering a filter across visits: a filter set on arrival lasts until the dimension is left.
+- A control that goes back to the agents page from the list; the rail does that.
 - Live file watching: data only updates on the startup scan and the automatic rescans.
 - A manual refresh control (removed 2026-08-23). The cost is accepted: an action taken outside the
   app — or an install made inside it — becomes visible at the next automatic scan rather than on

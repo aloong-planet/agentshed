@@ -47,7 +47,18 @@
   <div data-demo-harness>
     <span class="dh-tag">Demo ·</span>
     <span data-startup-controls></span>
+    <div class="dh-group" id="demoArrive">
+      <span class="dh-title">到达</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-arrive="" aria-pressed="true">导航栏</button>
+        <button type="button" class="dh-opt" data-arrive="claude" aria-pressed="false">Claude Code 卡片</button>
+        <button type="button" class="dh-opt" data-arrive="codex" aria-pressed="false">Codex 卡片</button>
+        <button type="button" class="dh-opt" data-arrive="grok" aria-pressed="false">Grok 卡片</button>
+        <button type="button" class="dh-opt" data-arrive="antigravity" aria-pressed="false">Antigravity 卡片</button>
+      </div>
+    </div>
     <p class="dh-note">启动各档在 app 里由渲染器是否已收到这次启动的首个快照、以及扫描的结果决定;app 内没有这个开关。</p>
+    <p class="dh-note" id="demoArriveNote">到达一组在 app 里由从哪里进入项目页决定:导航栏,或 Agents 页某一侧卡片上的项目数;app 内没有这个开关。</p>
     <p class="dh-note" id="room"></p>
   </div>
 <script>
@@ -65,12 +76,23 @@
     document.getElementById('pickStage').hidden=skeleton;
     document.getElementById('skStage').hidden=!skeleton;
     ProjectSide.setState(skeleton?'scanning':'loaded');
+    document.getElementById('demoArrive').hidden=document.getElementById('demoArriveNote').hidden=skeleton;
   });
   ProjectSide.onRender((col)=>{
     const trig=col.querySelector('.dd-trigger'),opts=col.querySelector('.opts');
     document.getElementById('room').textContent=
       `过滤行宽度读数:触发器 ${Math.round(trig.getBoundingClientRect().width)}px · 行 ${Math.round(opts.scrollWidth)}/${Math.round(opts.clientWidth)}px`;
   });
+  // 到达状态:演示条切换;独立打开时,侧卡的链接经地址的 #arrive=<侧> 带过来
+  function arrive(side){
+    ProjectSide.arrive(side||null);
+    document.querySelectorAll('[data-arrive]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.arrive===(side||''))));
+  }
+  document.getElementById('demoArrive').addEventListener('click',e=>{
+    const b=e.target.closest('[data-arrive]');
+    if(b) arrive(b.dataset.arrive);
+  });
+  arrive(new URLSearchParams(location.hash.slice(1)).get('arrive'));
   DemoDimensions.on('language',v=>{
     document.documentElement.lang=HTML_LANG[v];
     document.getElementById('pickT').textContent=PICK[v];
