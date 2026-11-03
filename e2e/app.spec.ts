@@ -447,18 +447,50 @@ test('all seven Agents page tabs render as they are switched through, with no er
 })
 
 /**
+ * agents-overview::REQ-006 and project-detail::REQ-004: the Instructions section's label and place. One launch per
+ * language reads all three rows: the skeleton under the held first scan, the loaded agents page and a project's page.
+ * The skeleton's locator is scoped to `.sk-page`, which goes when the page loads: unscoped, the retried read would wait
+ * for the loaded page and pass on its row, whatever the skeleton had shown.
+ */
+for (const [system, instructions, overview, sessions, artifacts] of [
+  ['en-US', 'Instructions', 'Overview', 'Sessions', 'Artifacts'],
+  ['zh-Hans-CN', '指令', '概览', '会话', '产物']
+]) {
+  test(`the tabs' labels and order in ${system}, on the skeleton, the agents page and a project's page (agents-overview::REQ-006, project-detail::REQ-004)`, async () => {
+    const l = await launch(undefined, mkUsageHome(), { AGENTSHED_SYSTEM_LANGUAGES: system, AGENTSHED_SCAN_DELAY_MS: '4000' })
+    const win = await l.app.firstWindow()
+    const agentsRow = ['Token', instructions, 'Skills', 'Subagents', 'Plugins', 'MCP', 'Memory']
+    await expect(win.locator('.sk-page .pane-head .tabs .tab')).toHaveText(agentsRow)
+    await expect(win.locator('.sk-page .pane-head .tabs .tab.on')).toHaveText('Token')
+
+    await expect(win.locator('.sk-page')).toHaveCount(0, { timeout: 15000 })
+    const tabs = win.locator('.pane-head .tabs .tab')
+    const selected = win.locator('.pane-head .tabs .tab.on')
+    await expect(tabs).toHaveText(agentsRow)
+    await expect(selected).toHaveText('Token')
+
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row').first().click()
+    await expect(tabs).toHaveText([overview, instructions, 'Skills', 'Subagents', 'Plugins', 'MCP', 'Memory', sessions, artifacts])
+    await expect(selected).toHaveText(overview)
+    expect(l.errors).toEqual([])
+    await close(l)
+  })
+}
+
+/**
  * agents-overview::REQ-004 and project-detail::REQ-002/AC-02: a home holding the global CLAUDE.md, the three global
  * AGENTS.md at the locations measured with agy (research record §10.9), and what the section leaves out — agy's
  * GEMINI.md files and rules, and Grok's AGENTS.md — each with a marker; plus two projects, one with a CLAUDE.md
  * and an AGENTS.md that cannot be read (a directory at its path), one with neither.
  */
-function mkConfigHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-cfg-'))
+function mkInstructionsHome(): string {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-instructions-'))
   const put = (rel: string, text: string): void => {
     mkdirSync(join(home, rel, '..'), { recursive: true })
     writeFileSync(join(home, rel), text)
   }
-  const withFiles = join(home, 'cfg-proj')
+  const withFiles = join(home, 'instructions-proj')
   const bare = join(home, 'bare-proj')
   mkdirSync(withFiles, { recursive: true })
   mkdirSync(bare, { recursive: true })
@@ -476,21 +508,21 @@ function mkConfigHome(): string {
   put(join('.gemini', 'config', 'rules', 'house-style.md'), 'marker-agy-rule\n')
   put(join('.gemini', 'antigravity-cli', 'rules', 'sample-cli-rule.md'), 'marker-agy-cli-rule\n')
   put(join('.grok', 'AGENTS.md'), 'marker-grok-agents\n')
-  put(join('cfg-proj', 'CLAUDE.md'), '# Project conventions\nmarker-project-claude\n')
+  put(join('instructions-proj', 'CLAUDE.md'), '# Project conventions\nmarker-project-claude\n')
   mkdirSync(join(withFiles, 'AGENTS.md'))
-  put(join('cfg-proj', 'GEMINI.md'), 'marker-project-gemini\n')
+  put(join('instructions-proj', 'GEMINI.md'), 'marker-project-gemini\n')
   return home
 }
 
 // One launch for every state: the files change on disk and the automatic rescan (a 250 ms interval) brings each
 // state in, the page refreshing by transfusion with the selected entry kept.
-test('the Configuration section: CLAUDE.md and AGENTS.md on both pages, each file under its path, unreadable and absent files, and nothing from GEMINI.md or rules (agents-overview::REQ-004, project-detail::REQ-002/AC-02)', async () => {
-  const home = mkConfigHome()
+test('the Instructions section: CLAUDE.md and AGENTS.md on both pages, each file under its path, unreadable and absent files, and nothing from GEMINI.md or rules (agents-overview::REQ-004, project-detail::REQ-002/AC-02)', async () => {
+  const home = mkInstructionsHome()
   const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
   const win = await l.app.firstWindow()
   const body = win.locator('.pane-body')
-  const paths = body.locator('.cfg-path')
-  const labels = (): Promise<string[]> => body.locator('.cfg-switch button').allTextContents()
+  const paths = body.locator('.instructions-path')
+  const labels = (): Promise<string[]> => body.locator('.instructions-switch button').allTextContents()
   const unreadable = 'The file cannot be read (permissions or I/O error)'
   const codex = join(home, '.codex', 'AGENTS.md')
   const agyRoot = join(home, '.gemini', 'AGENTS.md')
@@ -498,7 +530,7 @@ test('the Configuration section: CLAUDE.md and AGENTS.md on both pages, each fil
   const excluded = ['marker-gemini-root', 'marker-gemini-config', 'marker-agy-rule', 'marker-agy-cli-rule', 'marker-grok-agents', 'marker-project-gemini']
 
   // The agents page opens on CLAUDE.md: ~/.claude/CLAUDE.md under its path, truncated past the cap (AC-02, B5)
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
   await expect(paths).toHaveText([join(home, '.claude', 'CLAUDE.md')])
   await expect(body.locator('.md')).toContainText('marker-claude-global')
   await expect(body.locator('.md')).toContainText('…(truncated)')
@@ -515,7 +547,7 @@ test('the Configuration section: CLAUDE.md and AGENTS.md on both pages, each fil
   expect(await body.locator('.badge').count()).toBe(0)
 
   // AGENTS.md: the three files one after another in the spec's order, each body under its own path (AC-03)
-  await body.locator('.cfg-switch button', { hasText: 'AGENTS.md' }).click()
+  await body.locator('.instructions-switch button', { hasText: 'AGENTS.md' }).click()
   await expect(paths).toHaveText([codex, agyRoot, agyConfig])
   const following = await paths.evaluateAll((els) => els.map((e) => e.nextElementSibling?.textContent ?? ''))
   expect(following[0]).toContain('marker-codex-agents')
@@ -573,22 +605,22 @@ test('the Configuration section: CLAUDE.md and AGENTS.md on both pages, each fil
   // A project's page: its own CLAUDE.md under its path; its AGENTS.md cannot be read; two entries, no summary
   // (project-detail::REQ-002/AC-02)
   await win.locator('.rail .ri').nth(1).click()
-  await win.locator('.side .row', { hasText: 'cfg-proj' }).click()
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
-  await expect(paths).toHaveText([join(home, 'cfg-proj', 'CLAUDE.md')])
+  await win.locator('.side .row', { hasText: 'instructions-proj' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
+  await expect(paths).toHaveText([join(home, 'instructions-proj', 'CLAUDE.md')])
   await expect(body.locator('.md')).toContainText('marker-project-claude')
   expect(await labels()).toEqual(['CLAUDE.md', 'AGENTS.md'])
-  await body.locator('.cfg-switch button', { hasText: 'AGENTS.md' }).click()
-  await expect(paths).toHaveText([join(home, 'cfg-proj', 'AGENTS.md')])
+  await body.locator('.instructions-switch button', { hasText: 'AGENTS.md' }).click()
+  await expect(paths).toHaveText([join(home, 'instructions-proj', 'AGENTS.md')])
   await expect(body.locator('.md .none')).toHaveText(unreadable)
   expect((await body.textContent()) ?? '').not.toContain('marker-project-gemini')
   // A project with neither file: "None" under each entry (A4)
   await win.locator('.side .row', { hasText: 'bare-proj' }).click()
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
-  await expect(body.locator('.cfg-switch button.on')).toHaveText('CLAUDE.md')
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
+  await expect(body.locator('.instructions-switch button.on')).toHaveText('CLAUDE.md')
   await expect(body.locator('.md .none')).toHaveText(['None'])
-  await body.locator('.cfg-switch button', { hasText: 'AGENTS.md' }).click()
-  await expect(body.locator('.cfg-switch button.on')).toHaveText('AGENTS.md')
+  await body.locator('.instructions-switch button', { hasText: 'AGENTS.md' }).click()
+  await expect(body.locator('.instructions-switch button.on')).toHaveText('AGENTS.md')
   await expect(body.locator('.md .none')).toHaveText(['None'])
 
   expect(l.errors).toEqual([])
@@ -3011,7 +3043,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   // The demo project's CLAUDE.md links to a listed artifact and to a path outside the list
   writeFileSync(
     join(demo, 'CLAUDE.md'),
-    '# Demo config\n\ncfg link probe: [open context](./docs/CONTEXT.md) · [missing doc](./docs/none.md)\n'
+    '# Demo instructions\n\ninstructions link probe: [open context](./docs/CONTEXT.md) · [missing doc](./docs/none.md)\n'
   )
   // The demo project's memory
   const enc = demo.replace(/[^A-Za-z0-9]/g, '-')
@@ -3354,19 +3386,19 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   expectLadder(await headingLadder(win, '.reader .md'), 'artifact reader')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
-  // (6d) Config-card links (project detail): a relative link to a listed artifact opens the same
+  // (6d) Instructions-card links (project detail): a relative link to a listed artifact opens the same
   //      reader overlay; anything outside the artifact list keeps the explicit notice; neither
   //      navigates the window
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
-  await expect(win.locator('.pane-body .md')).toContainText('cfg link probe')
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
+  await expect(win.locator('.pane-body .md')).toContainText('instructions link probe')
   await win.locator('.pane-body .md a', { hasText: 'open context' }).click()
   await expect(win.locator('.reader .md')).toContainText('Ladder h2')
-  expect(win.url(), 'artifact link from the config card must not navigate').toBe(urlBefore)
+  expect(win.url(), 'artifact link from the Instructions card must not navigate').toBe(urlBefore)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await expect(win.locator('.toast')).toHaveCount(0) // wait out any earlier toast, so the next one is fresh
   await win.locator('.pane-body .md a', { hasText: 'missing doc' }).click()
   await expect(win.locator('.toast')).toBeVisible()
-  expect(win.url(), 'out-of-scope config link must not navigate').toBe(urlBefore)
+  expect(win.url(), 'out-of-scope Instructions link must not navigate').toBe(urlBefore)
 
   // (6e) A main file written after the scan: only the project's own read registration admits it, so a topic's
   //      link to it opens it rather than reporting a refused read (memory-view, Implementation Decisions)

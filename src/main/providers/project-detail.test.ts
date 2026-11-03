@@ -1,6 +1,6 @@
 // Ticket 03: project detail's "what is installed" — the skills effective view (a same-name pair shows only
 // the project level, skills-view B1),
-// project-level MCP (.mcp.json plus the enabled/disabled switches), and read-only configuration.
+// project-level MCP (.mcp.json plus the enabled/disabled switches), and read-only instructions.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -114,7 +114,7 @@ describe('project-level MCP', () => {
 })
 
 // project-detail::REQ-002/AC-02: two entries, the project's own CLAUDE.md and AGENTS.md, each with its path
-describe('the Configuration section (project-detail::REQ-002/AC-02)', () => {
+describe('the Instructions section (project-detail::REQ-002/AC-02)', () => {
   it('the project CLAUDE.md and AGENTS.md, each with its path; no settings summary, even with a project key carrying settings', () => {
     writeFileSync(join(proj, 'CLAUDE.md'), '# Project conventions\n')
     // The shape of agy's demo project sample (research record, spike/samples/project/AGENTS.md)
@@ -137,7 +137,7 @@ describe('the Configuration section (project-detail::REQ-002/AC-02)', () => {
     expect(d.configs).not.toHaveProperty('settingsSummary')
   })
 
-  it('missing configuration → null', () => {
+  it('missing instructions → null', () => {
     const d = readProjectDetail(roots(), proj)
     expect(d.configs.claudeMd).toBeNull()
     expect(d.configs.agentsMd).toBeNull()

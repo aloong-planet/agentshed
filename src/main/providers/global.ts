@@ -1,5 +1,5 @@
 // Reading the Agents global layer (ticket 07): global skills (merged, symlinks), plugins, global MCP, and
-// read-only configuration.
+// read-only instructions.
 // skills-view: the cross-side content diff (differs) has been removed.
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -12,12 +12,12 @@ import type {
   PluginEntry,
   PluginSkillSummary,
   SkillPkgStats } from '@shared/domain'
-import type { SavedConfigPaths } from '@shared/display-data'
+import type { SavedInstructionPaths } from '@shared/display-data'
 import { antigravityConfigDir, globalSkillsRoots, type ScanRoots } from './types'
 import { readGlobalSubagents } from './subagents'
 import { readAntigravityPlugins, readClaudePlugins, readCodexPlugins, readMcpConfigServers } from './plugins'
 import { readCodexMemoriesEnabled } from './memory'
-import { fmField, readConfigFile, readTextCapped } from './read-utils'
+import { fmField, readInstructionFile, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
@@ -34,8 +34,8 @@ export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
     codexPlugins: readCodexPlugins(roots.codexHome),
     antigravityPlugins,
     mcp: readGlobalMcp(roots, plugins, antigravityPlugins),
-    claudeMd: readConfigFile(claudeMdPath(roots)),
-    agentsMd: globalAgentsMdPaths(roots).flatMap((file) => readConfigFile(file) ?? [])
+    claudeMd: readInstructionFile(claudeMdPath(roots)),
+    agentsMd: globalAgentsMdPaths(roots).flatMap((file) => readInstructionFile(file) ?? [])
   }
 }
 
@@ -210,14 +210,14 @@ function readGlobalMcp(
   return out
 }
 
-// ── Read-only configuration ──
+// ── Read-only instructions ──
 
-/** The Configuration section's CLAUDE.md (agents-overview::REQ-004/AC-02) */
+/** The Instructions section's CLAUDE.md (agents-overview::REQ-004/AC-02) */
 const claudeMdPath = (roots: ScanRoots): string => join(roots.claudeHome, 'CLAUDE.md')
 const codexAgentsMdPath = (roots: ScanRoots): string => join(roots.codexHome, 'AGENTS.md')
 
 /**
- * The global AGENTS.md files the Configuration section's AGENTS.md entry shows, in the order shown
+ * The global AGENTS.md files the Instructions section's AGENTS.md entry shows, in the order shown
  * (agents-overview::REQ-004/AC-03): Codex's, then the two agy loads together, the root one first (measured with
  * agy, ADR-0037). Only the ones a side was observed to load: Grok's is not read, there being no sample of it, and
  * agy's GEMINI.md files and rules are read nowhere (AC-05) — the exclusion is by construction, as this is the only
@@ -231,8 +231,8 @@ function globalAgentsMdPaths(roots: ScanRoots): string[] {
   ]
 }
 
-/** The two files a snapshot saved before configuration entries carried their paths had read, for restoring it
- * (display-data's SavedConfigPaths) */
-export function savedConfigPaths(roots: ScanRoots): SavedConfigPaths {
+/** The two files a snapshot saved before instruction entries carried their paths had read, for restoring it
+ * (display-data's SavedInstructionPaths) */
+export function savedInstructionPaths(roots: ScanRoots): SavedInstructionPaths {
   return { claudeMd: claudeMdPath(roots), codexAgentsMd: codexAgentsMdPath(roots) }
 }

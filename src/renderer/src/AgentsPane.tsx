@@ -3,7 +3,7 @@ import { StartupHint } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_FULL_NAME, SIDE_ORDER, type SideBadgeClass } from './side-badge'
-import { ConfigSection } from './ConfigSection'
+import { InstructionsSection } from './InstructionsSection'
 import type { AgentSide, GlobalSkill, ProjectEntry, Snapshot } from '@shared/domain'
 import type { SkillHoldings } from '@shared/ipc'
 import { skillLandings, type SkillLanding } from '@shared/skill-landing'
@@ -21,24 +21,26 @@ import { SkillSearch } from './SkillSearch'
 import { filterByName } from './skill-filter'
 import { errorText } from '@shared/error-text'
 import { ERR, appError, type AppError } from '@shared/errors'
+import type { Locale } from '@shared/i18n'
 import { useLanguage, useDict } from './language'
 import { Inbox } from './icons'
 
-type Tab = 'token' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg'
+type Tab = 'token' | 'instructions' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory'
 
 /**
- * The section tabs whose labels are language-independent (product/technical names); the configuration
- * tab's label lives in the dictionaries and is appended by the render. Exported so the startup
- * skeleton renders the same set — adding a section (spec B1) lands here once for both.
+ * The section tabs in order (agents-overview::REQ-006), labels included: the one list the loaded page and the startup
+ * skeleton both read, so they cannot disagree, and adding a section (spec B1) lands here once for both. The labels are
+ * language-independent product and technical names, except the Instructions section's, which the dictionaries hold.
  */
-export const STATIC_TABS = [
+export const agentTabs = (t: Locale): ReadonlyArray<readonly [Tab, string]> => [
   ['token', 'Token'],
+  ['instructions', t.agents.tabInstructions],
   ['skills', 'Skills'],
   ['subagents', 'Subagents'],
   ['plugins', 'Plugins'],
   ['mcp', 'MCP'],
   ['memory', 'Memory']
-] as const
+]
 
 export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   const now = useDisplayClock()
@@ -89,7 +91,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
           })}
         </div>
         <nav className="tabs">
-          {([...STATIC_TABS, ['cfg', t.agents.tabCfg]] as const).map(([t, label]) => (
+          {agentTabs(t).map(([t, label]) => (
             <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
               {label}
             </button>
@@ -136,7 +138,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
         {tab === 'plugins' && <GlobalPluginsTab snap={snap} />}
         {tab === 'mcp' && <McpTab snap={snap} />}
         {tab === 'memory' && <GlobalMemoryTab snap={snap} />}
-        {tab === 'cfg' && <CfgTab snap={snap} />}
+        {tab === 'instructions' && <InstructionsTab snap={snap} />}
       </div>
     </div>
   )
@@ -461,17 +463,17 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
 }
 
 /**
- * The Configuration section (agents-overview::REQ-004): CLAUDE.md, and AGENTS.md holding every global AGENTS.md a
+ * The Instructions section (agents-overview::REQ-004): CLAUDE.md, and AGENTS.md holding every global AGENTS.md a
  * side loads that exists, in the order the main process sends them. No settings summary for any side.
  */
-function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
+function InstructionsTab({ snap }: { snap: Snapshot }): JSX.Element {
   const lang = useLanguage()
   return (
-    <ConfigSection
+    <InstructionsSection
       claudeMd={snap.global.claudeMd === null ? [] : [snap.global.claudeMd]}
       agentsMd={snap.global.agentsMd}
       links={{
-        // The global configuration card has no in-app targets wired, so every relative link gets
+        // The global Instructions card has no in-app targets wired, so every relative link gets
         // the explicit out-of-scope notice (the invariant's fallback) — onInternal is unreachable
         baseDir: '',
         readable: [],
