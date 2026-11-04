@@ -66,8 +66,9 @@ We adopt **option 1**.
 
 ## Consequences
 
-- Positive: a read-only or full settings directory no longer stops the app from showing anything new, and
-  a first launch leaves the placeholder. Nothing the file holds is lost or overwritten by these failures.
+- Positive: a settings directory that goes read-only or full while the app runs no longer stops it showing
+  anything new, and a first scan whose archive cannot be written leaves the placeholder. Nothing the file
+  holds is lost or overwritten by these failures.
 - Negative, the cost accepted: a row that reached only memory, and is gone from the agent's data before a
   write succeeds, is not archived. The agents-overview restart sequence takes the same line for saved
   pages.
@@ -77,6 +78,9 @@ We adopt **option 1**.
 - Negative: while a file cannot be read, past days only the archive held read lower or empty, without
   hatching, until it can be read. A retained day reads its lower live figure for that time.
 - Negative: the notice is one toast. A user who misses it is not told again until the next run.
+- Negative, not solved here: a settings directory already read-only or full at launch never reaches a scan.
+  The runtime cannot create its single-instance lock there, and the application exits as a second instance
+  does, with nothing on screen (token-stats C25).
 - Neutral: an instance that already read the file and finds it unreadable later writes from memory, which
   holds its history, so that case needs no rule of its own.
 
@@ -85,5 +89,5 @@ We adopt **option 1**.
 Issue #362 and the readings behind it, made during #359 and #362: a later scan with the directory
 read-only, a first scan with the rename blocked, the unreadable file, and `document.hasFocus()` in a real
 shown window (true at start, false after a blur, true after a focus, with the window's focus event).
-ADR-0007, ADR-0016, ADR-0026; token-stats C3, C4, C8, C10, C18, C22, C23; agents-overview A4d and the
+ADR-0007, ADR-0016, ADR-0026; token-stats C3, C4, C8, C10, C18, C22, C23, C25; agents-overview A4d and the
 restart sequence.

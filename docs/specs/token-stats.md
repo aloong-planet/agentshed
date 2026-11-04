@@ -187,7 +187,7 @@ next to A/B, so that no existing reference is renumbered)
   was computed is in memory and goes out as usual, the failure is logged, no temporary file stays behind
   whichever step failed, and the next launch parses again.
 - C4 The archive is written on the first merge; a new instance reads it back. **A failed write does not
-  fail the scan** (a read-only or full settings directory, ADR-0038): the effective rows computed in
+  fail the scan** (a settings directory gone read-only or full, ADR-0038): the effective rows computed in
   memory go out as usual and the failure is logged. Each later scan writes again, so the file catches up
   with no restart once the directory is writable, and carries what the failed merges moved in memory.
   The user is told once per run, in a toast in the current UI language: usage history cannot be saved
@@ -309,6 +309,11 @@ next to A/B, so that no existing reference is renumbered)
 - C24 Interface for C4, C8 and C22: the scan's result appears where it was stuck and the notice is a toast,
   so no page, state form or control is added or changed, only one sentence in the existing toast form
   (the prototype exemption, declared). A standing state for this would need a prototype.
+- C25 **A settings directory already read-only or full at launch never reaches a scan**: the runtime cannot create its
+  single-instance lock there, the lock request answers no, and the application exits as a second instance
+  does, with no window and nothing on screen (measured 2026-11-05, on a directory at mode 555 and on a
+  volume with no room). C4 and C8 govern what happens once the application is running: a directory that
+  goes read-only or full later, or a volume with room for the lock and not for the archive.
 
 **Sequence D: trend and axis rendering**
 - D1 The plotted calendar span follows token-stats::REQ-002/AC-02.
@@ -986,8 +991,9 @@ failed at the file-system boundary, for the archive, the token cache, the prefer
 version alike: a write that stops halfway as a full disk does, and a rename that fails while the target stays
 a good file. Those cases assert the failure fired, so a writer that stops reaching it goes red. The chain the
 unit seam cannot reach is the running app: a directory made read-only after launch, a directory at the
-archive's path from launch, and the file's mode from launch, reading the snapshots, the placeholder, the toast's
-whole text and its count over several scans. A real change of window focus is not driven, because the e2e driver
+archive's path from launch, the file's mode from launch, and a relaunch over a saved display, reading the snapshots,
+the placeholder, the toast's whole text and its count over several scans. Two launches run with one scan and no timed
+rescan, so that the ask at mount and the ask on focus each have to tell the user alone. A real change of window focus is not driven, because the e2e driver
 emulates focus: those cases shadow `document.hasFocus` and dispatch the event, which are the two facts a real
 window was measured to give.
 

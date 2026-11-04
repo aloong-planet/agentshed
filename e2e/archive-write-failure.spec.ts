@@ -15,6 +15,8 @@ const EN = 'Usage history can’t be saved right now because its file in the set
 const ZH = '用量历史暂时无法保存，因为设置目录中的历史文件无法读取或写入。'
 /** A mode on a directory does not hold back root */
 const ROOT = process.getuid?.() === 0
+/** Holds the first scan until the record is running, on a machine under load too */
+const HOLD_MS = '3000'
 /** A past day, so the archive's own rule treats the row as history */
 const AT = new Date(Date.now() - 90_000_000).toISOString()
 
@@ -121,6 +123,10 @@ test('token-stats C4: the settings directory read-only after launch — a new se
     }, { timeout: 15_000 }).toBe(4)
     await scansPass(win)
     expect(await toastsSeen(win)).toEqual([])
+    // A second failure in the same run: once told is once
+    chmodSync(f.userData, 0o555)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([])
   } finally {
     chmodSync(f.userData, 0o755)
     await closeApp(app)
@@ -134,7 +140,7 @@ for (const [language, sentence] of [['en-US', EN], ['zh-CN', ZH]] as const) {
     // A non-empty directory where the archive goes: the temporary file writes and the rename fails
     mkdirSync(join(f.userData, 'usage-archive.json', 'x'), { recursive: true })
     // The first scan held, so the record starts before the toast
-    const { app, win, stderr } = await start(f, { AGENTSHED_SYSTEM_LANGUAGES: language, AGENTSHED_SCAN_DELAY_MS: '1500' })
+    const { app, win, stderr } = await start(f, { AGENTSHED_SYSTEM_LANGUAGES: language, AGENTSHED_SCAN_DELAY_MS: HOLD_MS })
     try {
       await watch(win)
       await expect(win.locator('.sk-page')).toHaveCount(0, { timeout: 15_000 })
@@ -160,7 +166,7 @@ test('token-stats C8: the archive unreadable from launch — the figures are the
   writeFileSync(file, JSON.stringify({ version: 2, rows: [seeded], stamps: {}, observed: {}, superseded: [] }))
   const before = statSync(file)
   chmodSync(file, 0o000)
-  const { app, win, stderr } = await start(f, { AGENTSHED_SCAN_DELAY_MS: '1500' })
+  const { app, win, stderr } = await start(f, { AGENTSHED_SCAN_DELAY_MS: HOLD_MS })
   try {
     await watch(win)
     await expect(win.locator('.sk-page')).toHaveCount(0, { timeout: 15_000 })
@@ -184,10 +190,64 @@ test('token-stats C8: the archive unreadable from launch — the figures are the
   }
 })
 
+test('agents-overview REQ-002, token-stats C4: a relaunch over a saved display with the rename blocked — the saved figure shows, the scan replaces it, and the toast is told', async () => {
+  const f = fixture()
+  const first = await start(f)
+  await expect(allHistory(first.win)).toHaveText('2', { timeout: 15_000 })
+  await closeApp(first.app)
+  session(f, 'second')
+  const file = join(f.userData, 'usage-archive.json')
+  rmSync(file)
+  mkdirSync(join(file, 'x'), { recursive: true })
+  const { app, win } = await start(f, { AGENTSHED_SCAN_DELAY_MS: HOLD_MS })
+  try {
+    await watch(win)
+    await expect(allHistory(win)).toHaveText('2')
+    await expect(win.locator('.scan-hint')).toBeVisible()
+    await expect(allHistory(win)).toHaveText('4', { timeout: 15_000 })
+    await expect(win.locator('.scan-hint')).not.toBeVisible()
+    await expect(win.locator('.toast.err')).toHaveText(EN)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([EN])
+  } finally {
+    await closeApp(app)
+    cleanUp(f)
+  }
+})
+
 const loseFocus = (win: Page): Promise<void> => win.evaluate(() => { document.hasFocus = () => false })
 const regainFocus = (win: Page): Promise<void> => win.evaluate(() => {
   delete (document as unknown as { hasFocus?: unknown }).hasFocus
   window.dispatchEvent(new Event('focus'))
+})
+
+/**
+ * The launch where one ask alone can take the notice: the archive's rename blocked, the first scan held until the window has
+ * no focus, and no other scan for ten minutes. So the one snapshot's ask is withheld, and what tells the user next is whichever
+ * ask the case then makes possible, with no timed scan to do it instead.
+ */
+async function oneWithheldScan(f: Fixture): Promise<{ app: ElectronApplication; win: Page }> {
+  mkdirSync(join(f.userData, 'usage-archive.json', 'x'), { recursive: true })
+  const { app, win } = await start(f, { AGENTSHED_SCAN_DELAY_MS: HOLD_MS, AGENTSHED_RESCAN_MS: '600000' })
+  await watch(win)
+  await loseFocus(win)
+  await expect.poll(() => snapshotsSeen(win), { timeout: 15_000 }).toBe(1)
+  expect(await toastsSeen(win)).toEqual([])
+  return { app, win }
+}
+
+test('token-stats C4: the window getting focus tells a waiting notice, with no scan to do it', async () => {
+  const f = fixture()
+  const { app, win } = await oneWithheldScan(f)
+  try {
+    await regainFocus(win)
+    await expect(win.locator('.toast.err')).toHaveText(EN)
+    expect(await snapshotsSeen(win)).toBe(1)
+    expect(await toastsSeen(win)).toEqual([EN])
+  } finally {
+    await closeApp(app)
+    cleanUp(f)
+  }
 })
 
 test('token-stats C4: a failure while the window has no focus waits for it, and is told in the language on screen then', async () => {
@@ -245,25 +305,14 @@ test('token-stats C4: a failure that clears before the window has focus tells no
   }
 })
 
-test('token-stats C4: a window that subscribed after the failure is told when it mounts', async () => {
-  test.skip(ROOT, 'root ignores the directory mode')
+test('token-stats C4: a window that subscribed after the failure is told when it mounts, with no scan to do it', async () => {
   const f = fixture()
-  const { app, win } = await start(f)
+  const { app, win } = await oneWithheldScan(f)
   try {
-    await openSessions(win)
-    await watch(win)
-    await loseFocus(win)
-    chmodSync(f.userData, 0o555)
-    await scansPass(win)
-    expect(await toastsSeen(win)).toEqual([])
     // A new document: its focus is the emulated one again, and it missed the snapshot that came with the failure
     await win.reload()
     await expect(win.locator('.toast.err')).toHaveText(EN)
-    await watch(win)
-    await scansPass(win)
-    expect(await toastsSeen(win)).toEqual([])
   } finally {
-    chmodSync(f.userData, 0o755)
     await closeApp(app)
     cleanUp(f)
   }

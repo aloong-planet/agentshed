@@ -95,8 +95,8 @@ numbers share a source and reconcile against each other.
   one that cannot be read, are under the boundaries below). Today's figure is exempt and still moves with every refresh while
   sessions are being written. Deleting a forked conversation's parent takes the calls the fork copied
   with it: a past day keeps them, today does not
-- If the settings directory is read-only or full, or the history file in it cannot be read, the figures
-  keep updating and new sessions keep appearing. One notice says usage history cannot be saved right now,
+- If the settings directory goes read-only or full while the application runs, or the history file in it
+  cannot be read, the figures keep updating and new sessions keep appearing. One notice says usage history cannot be saved right now,
   once each time the application runs, waiting until its window has focus. Saving resumes by itself once
   the file can be used, with nothing already saved lost or overwritten
 - Projects with no sessions show zeros and an empty state rather than an error
@@ -122,6 +122,8 @@ numbers share a source and reconcile against each other.
 - If the newer version stored the history archive in a format this version does not read, this version
   leaves the archive untouched and shows only what its own refreshes find: past days only the archive
   held read lower or empty, without hatching, until the newer version is opened again
+- With the settings directory already read-only or full when it is opened, the application does not open,
+  and nothing says why
 - While usage history cannot be saved, a day's usage that only this run of the application has counted,
   and that the agent deletes before saving works again, is not kept. While the history file cannot be
   read, past days only it held read lower or empty, without hatching, until it can be read
