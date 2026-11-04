@@ -946,8 +946,10 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await row('alpha').click()
   await pageIs('alpha', 'Overview')
 
-  // Another project takes over the page on screen, and its tab
+  // Another project takes over the page on screen, and its tab. A click on the project's own row first leaves the tab
+  // alone: the header's change orders the read behind both clicks, which that row alone could not
   await select('Skills')
+  await row('alpha').click()
   await row('beta').click()
   await pageIs('beta', 'Skills')
 
