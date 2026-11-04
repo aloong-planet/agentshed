@@ -33,7 +33,7 @@ window.SharedCopy = {
     inherited: '—(继承)',
     cacheOnly: '仅缓存枚举',
     secInstall: '安装记录',
-    projectLost: '(项目已失联)',
+    projectLost: '(项目已失效)',
     srcPlugin: 'plugin 自带',
     secClaudeProject: '项目级 · .claude/skills',
     // The shared skills directory: one group, one install target, loaded by more than one side (project
@@ -85,7 +85,7 @@ window.SharedCopy = {
     inherited: '— (inherited)',
     cacheOnly: 'cache enumeration only',
     secInstall: 'Install records',
-    projectLost: ' (project unreachable)',
+    projectLost: ' (project stale)',
     srcPlugin: 'bundled with plugin',
     secClaudeProject: 'Project level · .claude/skills',
     secShared: 'Shared · .agents/skills',

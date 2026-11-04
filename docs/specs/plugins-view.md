@@ -286,6 +286,9 @@ entry point → admitted or the reason for refusal), never the traversal impleme
 - **Prototype gate: passed** (2026-08-07, finalised over four iterations: inline installation records
   and enablement, category tabs, the Skills row list with stats, the greyed-out missing state, and the
   Codex group's Skills-only tab).
+- **Prototype gate (2026-11-05), the mark's word**: the prototypes' word for a stale owning project (E2) is brought to
+  the label's, "project stale". It is copy only: no state, control or form changes. Declared here as the exemption
+  rather than assumed.
 - Implementation wrap-up (step 8) must update: `docs/features/plugins-view.md` (the expansion form and
   preview capability), and the wording about "plugins cannot be previewed" in
   `docs/features/skills-view.md` and `docs/features/agents-overview.md`.
