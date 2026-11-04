@@ -3058,16 +3058,6 @@ mark {
   color: var(--accent-deep);
   border-color: var(--accent);
 }
-.sk-tip {
-  font-size: 11.5px;
-  color: var(--warn-fg);
-  background: var(--warn-bg);
-  border: 1px solid color-mix(in srgb, var(--warn-fg) 28%, var(--line));
-  border-radius: 8px;
-  padding: 7px 10px;
-  line-height: 1.45;
-  margin: 8px 14px;
-}
 .files-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 64px 72px 108px;

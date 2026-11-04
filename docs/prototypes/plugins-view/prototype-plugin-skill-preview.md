@@ -9,8 +9,8 @@ row, and the file drawer over the page. The feature is the plugins view's in-pla
 (plugins-view spec, sequences E and H).
 
 The mock draws a plugin with two installation records (`superpowers@official`), among its skills one whose
-directory is missing (greyed out, the reason in its stats slot) and one with references deeper than two levels (the
-notice under its file table); a plugin that is not enabled and stays readable (`content-tools@local`); a plugin
+directory is missing (greyed out, the reason in its stats slot) and one with files nested two levels down, listed
+with the rest; a plugin that is not enabled and stays readable (`content-tools@local`); a plugin
 whose install directory is missing, with the banner in its expanded area and its skill row greyed out
 (`ghost@legacy`); and a probe-style Codex plugin whose expanded area has a Skills tab only (`documents`).
 
@@ -24,8 +24,7 @@ whose install directory is missing, with the banner in its expanded area and its
 - The skill rows and how they expand and collapse: the Skills section's rows on the Skills view prototype
   (prototype-skills-preview), the same interaction.
 - The file table under a skill row: the expanded file table of the Skills view prototype (columns file / lines /
-  size / modification date, the entry-point tag on `SKILL.md`, the notice about deeper paths); the two change
-  together.
+  size / modification date, the entry-point tag on `SKILL.md`); the two change together.
 - The file drawer: the shared file-drawer form, the one the skill file drawer and the memory file drawer take; its
   body is the shared md-preview block.
 

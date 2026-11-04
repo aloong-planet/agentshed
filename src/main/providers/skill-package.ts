@@ -1,14 +1,11 @@
-// skills-view: enumerating a package's files and reading their contents. Depth / extensions / junk
-// directories; symlinks are followed; the caller registers the exact allow-list.
+// skills-view: enumerating a package's files and reading their contents. Extensions / junk directories at
+// any depth; symlinks are followed unless they lead back on themselves; the caller registers the exact
+// allow-list.
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { basename, dirname, join, relative, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { PROJECT_SKILLS_DIR, type AgentSide } from '@shared/domain'
 import { globalSkillsRoots, type ScanRoots } from './types'
 import type { CappedText } from '@shared/domain'
-
-/** The maximum number of segments in a relative path inside a package (SKILL.md=1; references/foo.md=2;
- * references/nested/x.md=3 is over the limit) */
-export const SKILL_MAX_SEGMENTS = 2
 
 export const SKILL_TEXT_EXTS = new Set([
   'md',
@@ -44,8 +41,6 @@ export const SKILL_SKIP_DIR_NAMES = new Set([
   '.svn'
 ])
 
-// The notice copy moved to the renderer (ticket 07): the main process only passes the `deep` verdict
-
 export interface SkillFileMeta {
   /** The relative path inside the package, POSIX style */
   path: string
@@ -60,8 +55,6 @@ export interface SkillFileMeta {
 export interface SkillPackageListing {
   root: string
   files: SkillFileMeta[]
-  deep: boolean
-  deepPaths: string[]
 }
 
 export type SkillPackageScope = 'global' | 'project'
@@ -151,19 +144,30 @@ interface WalkedFile {
   mtimeMs: number
 }
 
-/** A stat-only walk (contents not read): enumeration and the inline stats share one set of
- * extension / junk-directory / depth rules */
-function walkFiles(root: string): { files: WalkedFile[]; deepPaths: string[] } {
-  const files: WalkedFile[] = []
-  const deepPaths: string[] = []
+/** Whether the directory `outer` holds the path `inner`, at any depth. Not a prefix check: the path of the
+ * filesystem root already ends in a separator. */
+export function holdsPath(outer: string, inner: string): boolean {
+  const rel = relative(outer, inner)
+  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
+}
 
-  function walk(dir: string): void {
+/** A stat-only walk (contents not read): enumeration and the inline stats share one set of
+ * extension / junk-directory rules. A package's depth is unbounded, so a directory symlink leading back to a
+ * directory the walk is inside, or to one holding the package, is not followed: following it would list the same
+ * files again at each level (skills-view::REQ-003/AC-05). `root` is a real path; `realDir` is the real path of
+ * `dir`. */
+function walkFiles(root: string): WalkedFile[] {
+  const files: WalkedFile[] = []
+  const inside = new Set<string>()
+
+  function walk(dir: string, realDir: string): void {
     let entries
     try {
       entries = readdirSync(dir, { withFileTypes: true })
     } catch {
       return
     }
+    inside.add(realDir)
     for (const e of entries) {
       if (e.name === '.' || e.name === '..') continue
       if (SKILL_SKIP_DIR_NAMES.has(e.name)) continue
@@ -176,40 +180,39 @@ function walkFiles(root: string): { files: WalkedFile[]; deepPaths: string[] } {
         continue
       }
       if (st.isDirectory()) {
-        walk(abs)
+        let realChild = join(realDir, e.name)
+        if (e.isSymbolicLink()) {
+          try {
+            realChild = realpathSync(abs)
+          } catch {
+            continue
+          }
+          if (inside.has(realChild) || holdsPath(realChild, root)) continue
+        }
+        walk(abs, realChild)
         continue
       }
       if (!st.isFile()) continue
       if (!isTextFile(e.name)) continue
       const rel = relPosix(root, abs)
       if (rel.startsWith('..')) continue
-      // Matching the prototype's deep-demo: the top level plus one subdirectory level are listable, and
-      // anything deeper only gets a notice
-      const segments = rel.split('/').length
-      if (segments > SKILL_MAX_SEGMENTS) {
-        deepPaths.push(rel)
-        continue
-      }
       files.push({ rel, abs, bytes: st.size, mtimeMs: st.mtimeMs })
     }
+    inside.delete(realDir)
   }
 
-  walk(root)
-  return { files, deepPaths }
+  walk(root, root)
+  return files
 }
 
 /**
- * Enumerate a skill package's previewable text files (called on expansion; it adds a per-file line
- * count, which requires reading contents).
- * depth = the number of relative path segments: SKILL.md=1; references/a.md=2; a/b/c.md=3 is over the
- * limit.
- * Spec: only depth ≤ 2 enters the list; anything deeper is collected into deepPaths.
+ * Enumerate a skill package's previewable text files at any depth (called on expansion; it adds a per-file
+ * line count, which requires reading contents).
  */
 export function listSkillPackageFiles(rootAbs: string): SkillPackageListing {
   const root = realpathSync(rootAbs)
-  const walked = walkFiles(root)
   const files: SkillFileMeta[] = []
-  for (const f of walked.files) {
+  for (const f of walkFiles(root)) {
     let text: string
     try {
       // The line count covers the whole file; truncated reading for display happens on the read channel
@@ -224,13 +227,7 @@ export function listSkillPackageFiles(rootAbs: string): SkillPackageListing {
     if (b.path === 'SKILL.md') return 1
     return a.path.localeCompare(b.path)
   })
-  const deepPaths = [...walked.deepPaths].sort()
-  return {
-    root,
-    files,
-    deep: deepPaths.length > 0,
-    deepPaths
-  }
+  return { root, files }
 }
 
 /**
@@ -245,7 +242,7 @@ export function statSkillPackage(rootAbs: string): { files: number; bytes: numbe
   } catch {
     return null
   }
-  const { files } = walkFiles(root)
+  const files = walkFiles(root)
   return { files: files.length, bytes: files.reduce((a, f) => a + f.bytes, 0) }
 }
 

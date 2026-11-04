@@ -75,7 +75,6 @@ export const en: Locale = {
     toastFound: (version) => `Version ${version} found — downloading in the background`
   },
 
-  skillDeepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
   agents: {
     sideProjects: (projects) => `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })}`,
     sideRest: (skills, subagents) =>
@@ -146,7 +145,6 @@ export const en: Locale = {
       `${files} ${plural('en', files, { one: 'file', other: 'files' })} · ${size}`,
     srcPluginPkg: 'Plugin package', srcProject: 'Project', srcGlobal: 'Global library',
     listing: 'Listing…',
-    deeperPaths: (paths) => `Deeper paths not listed: ${paths}`,
     colFile: 'File', colLines: 'Lines', colSize: 'Size', colMtime: 'Modified',
     noPreviewable: 'No previewable text files in this package',
     tagEntry: 'Entry', close: 'Close', raw: 'Raw', preview: 'Preview',

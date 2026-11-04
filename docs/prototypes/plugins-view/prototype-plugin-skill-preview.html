@@ -92,8 +92,6 @@
   .files .tag{font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 5px;flex:none}
   .files .meta{font-size:11.5px;color:var(--text-2);font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,monospace;text-align:right;white-space:nowrap}
   .files .meta.lines{font-weight:600;color:var(--text)}
-  .sk-tip{font-size:11.5px;color:var(--warn-fg);background:var(--warn-bg);
-    border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;line-height:1.45;margin:8px 0 0}
   /* The drawer's mask; the drawer itself is the shared file-drawer block */
   .mask{position:fixed;inset:0;background:var(--mask);z-index:10}
 </style>
@@ -149,7 +147,6 @@
       dirMissing: '包内该 skill 目录不存在',
       installMissingCache: '安装目录缺失(缓存已清理)',
       pkgSummary: (files, size) => `${files} 个文件 · ${size}`,
-      deepTip: (paths) => `按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill。更深路径未列入: ${paths}`,
       pluginPkg: '插件包'
     },
     en: {
@@ -162,7 +159,6 @@
       dirMissing: 'This skill’s directory does not exist in the package',
       installMissingCache: 'Install directory missing (cache cleaned up)',
       pkgSummary: (files, size) => `${files} ${enOne(files) ? 'file' : 'files'} · ${size}`,
-      deepTip: (paths) => `Best practice is a skill reference depth below 2 — consider restructuring this skill. Deeper paths not listed: ${paths}`,
       pluginPkg: 'Plugin package'
     }
   }
@@ -174,27 +170,25 @@
   // ── Mock data (boundaries first) ──
   const FILES = {
     'superpowers:brainstorming': {
-      deep: ['references/nested/too-deep.md'],
       files: {
         'SKILL.md': '---\nname: brainstorming\ndescription: 先问后做——动手前把问题空间摊开\n---\n\n# Brainstorming\n\n先发散再收敛。**禁止**在第一轮就锁定方案。\n\n- 列出至少 3 个方向\n- 给每个方向找一个反例\n',
         'references/patterns.md': '# 常用发散模式\n\n1. 逆向:如果必须失败,怎么做\n2. 极端:预算×10 / ÷10\n',
-        'scripts/collect.sh': '#!/bin/bash\n# 汇总头脑风暴产物\ncat ideas/*.md\n'
+        'references/nested/facilitation.md': '# 主持要点\n\n两层子目录里的文档,同样可以打开和预览。\n',
+        'scripts/collect.sh': '#!/bin/bash\n# 汇总头脑风暴产物\ncat ideas/*.md\n',
+        'scripts/lib/merge.py': '# 合并多轮头脑风暴的产物\nprint("merged")\n'
       }
     },
     'superpowers:writing-plans': {
-      deep: [],
       files: {
         'SKILL.md': '---\nname: writing-plans\ndescription: 把共识写成可执行计划\n---\n\n# Writing Plans\n\n每步都要有验收判据。\n'
       }
     },
     'content-tools:publish-wechat': {
-      deep: [],
       files: {
         'SKILL.md': '---\nname: publish-wechat\ndescription: 公众号排版与发布\n---\n\n# Publish WeChat\n\n> 未启用的插件也能审阅——启用前先看它指示 agent 做什么。\n\n1. markdown → 微信 HTML\n2. 生成封面\n'
       }
     },
     'documents:documents': {
-      deep: [],
       files: {
         'SKILL.md': '---\nname: documents\ndescription: 文档创建与编辑(Codex 内置)\n---\n\n# Documents\n\nCodex 侧插件包,目录约定与 Claude 同构。\n',
         'references/formats.md': '# 支持格式\n\ndocx / pdf / md\n'
@@ -262,11 +256,6 @@
       list.appendChild(b)
     })
     wrap.appendChild(list); host.appendChild(wrap)
-    if(pack.deep.length){
-      const tip=document.createElement('div'); tip.className='sk-tip'
-      tip.textContent = c.deepTip(pack.deep.join(', '))
-      host.appendChild(tip)
-    }
   }
 
   // ── The drawer (the shared md-preview block) ──

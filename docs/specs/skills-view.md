@@ -1,7 +1,7 @@
 # Skills view
 
 > Related: [features/skills-view](../features/skills-view.md) · [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0002 · ADR-0004 · ADR-0010 · ADR-0037  
-> Status: **delivered** (prototype gate passed 2026-08-06; expand-to-preview + enumerate-and-read + inline package stats + `differs` removed + same-name override in detail). **Filtering by name and hover-for-full-name added 2026-08-10** (prototype gate passed the same day).
+> Status: **delivered** (prototype gate passed 2026-08-06; expand-to-preview + enumerate-and-read + inline package stats + `differs` removed + same-name override in detail). **Filtering by name and hover-for-full-name added 2026-08-10** (prototype gate passed the same day). **Listing at any depth added 2026-11-04** (prototype gate passed the same day).
 
 ## Problem Statement
 
@@ -17,7 +17,7 @@ discipline of "switch sides and read the source, no cross-side diff".
 ## Solution
 
 On both lists — global Agents · Skills and project detail · Skills — a skill row from an **on-disk
-source** can **expand** to show the package's text files (bounded depth); **clicking a file** opens a
+source** can **expand** to show the package's text files, however deeply they nest; **clicking a file** opens a
 drawer to read it (markdown previewable by default). The payload carries path metadata only;
 **on expansion** the files are enumerated and registered in the allow-list, and contents are fetched
 on demand when a file is read. Modelled for **N sides**: only sides with a definition get a badge and
@@ -70,9 +70,8 @@ repeats what is already legible is noise.
    installing and reading do not interfere with each other.
 8. As a user, I want plugin namespace entries to expand and preview too, so that a capability in the
    effective view can be reviewed without detouring to the Plugins section (ADR-0012).
-9. As a user, I want a best-practice notice when a package's references nest too deeply, rather than
-   silent truncation with no explanation, so that I know to restructure that skill rather than
-   suspecting the app of losing files.
+9. As a user, I want a package's text files listed however deeply they nest, so that I can read the
+   whole package rather than restructure it or suspect the app of losing files (skills-view::REQ-003).
 10. As a user, I want no more "the two sides differ" badges, so that the product does not pretend it
     can give a reliable pairwise diff across N sides.
 11. As a user with a large global library, I want to type part of a skill's name and see only the
@@ -114,7 +113,8 @@ repeats what is already legible is noise.
 - A8 Clicking a file opens the drawer; if the package or file no longer exists or cannot be read → an
   explicit error inside the drawer, without crashing the list.
 - A9 Every side's global library empty → the existing empty state, with no preview entry point.
-- A10 Depth > 2 → notice copy in the expanded area; over-deep paths do not enter the file list.
+- A10 A text file at any depth enters the file list, with no notice about depth
+  (skills-view::REQ-003/AC-01).
 - A11 Expanding a row whose file list cannot be enumerated → an error toast. Switching the UI language
   while that failed result stands does **not** show the toast again: the toast belongs to the failure,
   not to the language it was worded in. The expanded area states the failure in the toast's sentence,
@@ -159,13 +159,11 @@ repeats what is already legible is noise.
   **aggregate package stats (file count, total bytes; obtainable by `stat` alone without reading
   contents; revised 2026-08-06 for inline display)** and the minimum identity needed to locate the
   skill root.
-- C2 Enumeration rules: **depth ≤ 2** (the skill root is depth 0; `references/foo.md` is 1; `a/b/c.md`
-  at 3 is out of bounds); only **text extensions** enter the list; known junk directory names are
-  excluded (any segment that is `.git`, `node_modules`, `__pycache__`, `.DS_Store` and the like).
-- C3 If the package contains text files deeper than 2 (still visible after excluding junk directories)
-  → **still list the files at depth ≤ 2** and show a fixed notice inside the drawer: **"as a matter of
-  best practice a skill's reference depth should not reach 2 — consider restructuring this skill"**;
-  the deeper files do not enter the clickable list.
+- C2 Enumeration rules: **no depth limit** (skills-view::REQ-003); only **text extensions** enter the
+  list; known junk directory names are excluded (any segment that is `.git`, `node_modules`,
+  `__pycache__`, `.DS_Store` and the like).
+- C3 — withdrawn with the depth limit (skills-view::REQ-003). The number is left unused rather than
+  reassigned, so that an old reference to C3 fails to find anything instead of finding a different rule.
 - C4 Non-text files, or files not on the extension allow-list → **do not appear in the list** (no
   system-open entry point in v1).
 - C5 `SKILL.md` is selected by default; if it is missing (a broken package) → an error or explanation
@@ -207,7 +205,7 @@ repeats what is already legible is noise.
   (AGENTS.md); clicking inside a preview must not lose app state. Concretely (settled 2026-08-20): a
   relative link resolving to one of the package's **listed files** switches the drawer to that file
   (raw for non-markdown, same as opening it from the file table); anything else relative — outside
-  the package, or below the listing depth — gets the explicit out-of-scope notice, fail-closed.
+  the package, or inside it but not listed (C4) — gets the explicit out-of-scope notice, fail-closed.
 - D4 **Images** in the preview: relative paths resolve against the skill package root and must be
   allow-listed files; on failure a placeholder is shown, and this must not become a way to read paths
   outside the package.
@@ -410,6 +408,50 @@ Applies to: the project detail page's Skills section.
   one per side, each previewing its own package — never merged (plugins-view G4). Each row keeps its own
   expansion when filtering moves the rows around it (E7).
 
+## Listing a package at any depth
+
+### skills-view::REQ-003 Every text file in a package is listed at any depth
+
+Applies to: the file table and the inline package stats of every row that expands — the agents page's
+Skills section, project detail's Skills section and the Plugins section's Skills tab
+([plugins-view](plugins-view.md) H1, H2).
+
+- skills-view::REQ-003/AC-01: A file on the text extension list enters the file table however deeply it
+  is nested in the package. No notice about depth appears, and no list of unlisted paths.
+- skills-view::REQ-003/AC-02: The table stays flat with zero indentation: each row shows the file's whole
+  path relative to the package root and its type badge, `SKILL.md` first and the rest in path order. A
+  path wider than its column ends in an ellipsis and shows in full on hover.
+- skills-view::REQ-003/AC-03: A row's "N files · size" counts exactly the files its table lists, at every
+  depth, still without reading contents (C1).
+- skills-view::REQ-003/AC-04: A deep file opens like any other: clicking it reads it in the drawer under
+  sequence D (markdown previews by default and can switch to raw; other text shows raw only), and a
+  relative link resolving to it switches the drawer to it (D3).
+- skills-view::REQ-003/AC-05: A directory symlink inside a package that leads back to a directory the walk
+  is already inside, or to a directory containing the package, is not followed, so a link cycle cannot
+  repeat a file. Any other directory symlink is followed, and a directory reached by two paths is listed
+  under both.
+- skills-view::REQ-003/AC-06: A listing saved before this rule restores with no depth notice; it shows the
+  files it held until its refresh lists the deeper ones (ADR-0029).
+
+### Failure modes and boundaries: any depth
+
+- A file whose type is off the list stays unlisted at any depth (C4): binaries, `.xsd` schemas,
+  extensionless scripts. A link to one gets the out-of-scope notice (D3).
+- A large package: rows are not capped; the table grows with the package and the section scrolls. Measured
+  2026-11-04 across this machine's 195 packages: at most 127 rows in one package, at most 2 MB of listed
+  text read for line counts on expansion, and a longest path of 80 characters.
+- A junk directory is skipped at any depth (C2). A directory the junk set does not name, such as a virtual
+  environment or build output, is listed in full; none appears in those 195 packages, so the set is not
+  extended on a guess.
+- A directory symlink to an unrelated directory outside the package lists that directory's text files, and
+  they become readable by their exact registered paths (C9): enumeration still follows what the package
+  links to, as it did for shallow paths, and reading stays local.
+- A long path in a narrow column: at the default window the Agents page shows the 80-character path whole,
+  while project detail and narrower windows cut it, file name included, leaving the full path to hover and
+  to the drawer's subtitle.
+- An oversized file is truncated when read (C7) wherever it sits; its line count still covers the whole file.
+- Filtering (sequences E, F) matches skill names only, so deep files change nothing about which rows match.
+
 ## UI decisions (prototype gate passed · 2026-08-06)
 
 Matching the current behaviour of
@@ -419,7 +461,7 @@ Matching the current behaviour of
   the package's file table; **clicking a file** opens a drawer to read it.
 - **Expanded area**: headers "file / lines / size / modification date"; type badges; a marker on the
   `SKILL.md` entry point; an **N-side segmented control** inside the expanded area when there are
-  several sides; the depth > 2 notice in the expanded area; plugin rows expand on equal footing with
+  several sides; plugin rows expand on equal footing with
   on-disk rows (ADR-0012, 2026-08-07). **Flat** (finalised 2026-08-06): zero indentation, no inner
   card, no summary bar, with the header and file rows sharing a 14px baseline.
 - **Drawer**: the title = the skill name; the subtitle = level · side · path; the body full width. Its
@@ -480,8 +522,10 @@ Matching the current behaviour of
   registered in the allow-list, and **on clicking a file** the contents are read on demand by path —
   reusing the same "exact path allow-list + read on demand" discipline as memory and artifacts, with
   no new arbitrary-path read hole.
-- **Depth**: a relative path inside the package with ≤ 2 segments (excluding `.` / `..`) enters the
-  list; anything deeper only triggers the notice copy.
+- **Depth**: enumeration has no depth limit, and the listing contract carries the files alone, with no
+  depth verdict and no unlisted paths; a saved listing's older depth fields are ignored rather than
+  required. The walk knows the real directories it is inside, which is what decides
+  skills-view::REQ-003/AC-05.
 - **Text extensions** (an initial set, adjustable during implementation but pinned by a unit test):
   `md` `txt` `json` `yml` `yaml` `toml` `sh` `bash` `zsh` `js` `ts` `mjs` `cjs` `jsx` `tsx` `py` `rb`
   `go` `rs` `css` `html` `svg` (svg read as text) and so on — the single constant set in the
@@ -534,15 +578,16 @@ Matching the current behaviour of
 
 Following ADR-0002's dual seam:
 
-1. **The providers / security seam**: tested on fixture directories — depth truncation and the notice
-   condition, extension filtering, junk directory skipping, symlink following, out-of-package path
+1. **The providers / security seam**: tested on fixture directories — files listed at any depth, the
+   inline stats matching the table, a link cycle repeating no file, extension filtering, junk directory skipping, symlink following, out-of-package path
    refusal, an unregistered path being unreadable, a missing `SKILL.md`, an empty package; the open
    enumeration does not pre-hide contents in the scan snapshot; **on a same-side same-name pair the
    detail skills list contains no covered global row** (at least one Claude and one Codex fixture).
 2. **The contract seam**: round-trip validation after removing `differs`; validation of the new
-   preview-related fields and commands; plugin entries have no preview path.
+   preview-related fields and commands; plugin entries have no preview path; a saved listing validates
+   with or without the older depth fields.
 3. **e2e**: opening an on-disk skill from global or detail → see a fragment of `SKILL.md`; clicking
-   another text file in the package switches the content; plugin rows are not previewable (if a
+   another text file in the package, a deeply nested one included, switches the content; plugin rows are not previewable (if a
    fixture can be built); on a same-name pair in detail, no second global row appears in the UI.
 
 A good test asserts only external behaviour (directory → the set of relative paths listed / the text
@@ -623,6 +668,10 @@ nothing):
 - **Highlighting the matched fragment**, and any count-of-matches readout.
 - **Persisting the keyword** across sessions, or sharing it between the global and detail lists.
 - **A search box on the other sections** (Subagents, Plugins, Memory, MCP) — see R11.
+- **Listing text kinds off the extension list.** Most are `.xsd` schemas that office skills read by
+  machine (117 of 143 such files on this machine, 2026-11-04), which would add rows by the dozen, and an
+  extensionless script cannot be told from a binary without reading it, which the inline stats must not
+  do (C1). Owner's ruling 2026-11-04.
 - **Widening the name column, or making it flexible.** The 200px is shared row geometry across sections;
   changing it is a separate decision about that geometry, not a consequence of filtering.
 - **Reaching the full name by keyboard.** The reveal is hover-only for now; the name is also readable in
@@ -641,4 +690,4 @@ nothing):
   any test title depending on `differs`.
 - **The parallel with subagents-view**: switch sides and read the source, no cross-side diff — skills
   aligns with it; the only difference is that a skill is a **package**, hence the multi-file
-  enumeration and depth rules.
+  enumeration rules.

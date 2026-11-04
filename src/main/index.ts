@@ -538,11 +538,7 @@ handle(CMD.listSkillFiles, async (_e, args: unknown): Promise<ListSkillFilesResu
     throw appError(ERR.skillPackageUnavailable)
   }
   const listing = listSkillPackageFiles(root)
-  const result = {
-    files: listing.files,
-    deep: listing.deep,
-    deepPaths: listing.deepPaths,
-  }
+  const result = { files: listing.files }
   const read: SavedRead = { kind: 'skillFiles', args: a, data: result }
   readRegistry.replace({ owner: savedReadKey(read), skillFiles: listing.files.map(f => f.absPath), artifacts: [], projects: [], pluginRoots: [] })
   remember(read)

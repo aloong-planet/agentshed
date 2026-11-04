@@ -63,7 +63,7 @@ export function validSavedRead(v: unknown): v is SavedRead {
       const a = v.args, d = v.data
       return object(a) && AGENT_SIDES.has(String(a.side)) && path(a.name) &&
         (a.scope === 'global' || (a.scope === 'project' && path(a.projectPath)) || (a.scope === 'plugin' && path(a.pluginRoot))) &&
-        object(d) && typeof d.deep === 'boolean' && strings(d.deepPaths) && Array.isArray(d.files) &&
+        object(d) && Array.isArray(d.files) &&
         d.files.every(f => object(f) && path(f.path) && path(f.absPath) && number(f.bytes) && number(f.lines) && number(f.mtimeMs))
     }
     default: return false
