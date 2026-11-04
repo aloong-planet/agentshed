@@ -23,11 +23,13 @@ typing part of its name. No cross-side content diff.
   values on separate lines) and can be switched to raw; non-markdown files show raw only. Previously
   read files reappear immediately after a restart and remain visible if their refresh fails; files
   not yet read are loaded only when opened
-- **Links inside a previewed markdown work**: a relative link to another file of the same package
-  switches the drawer to that file; a link pointing outside the package shows a notice instead;
-  external links open in the system browser — none of them ever navigates the app away
-- When nesting goes too deep, a notice suggests restructuring the skill rather than listing the deep
-  files
+- **Links inside a previewed markdown work**: a relative link to another listed file of the same package
+  switches the drawer to that file; a link pointing outside the package, or to a package file the table
+  does not list, shows a notice instead; external links open in the system browser — none of them ever
+  navigates the app away
+- The file table lists a package's text files **however deeply they nest**, each row with its whole path
+  and type badge, and the row's count and size cover them all. A path too long for its column ends in an
+  ellipsis and shows in full on hover and in the drawer's subtitle
 - Antigravity CLI's global skills join the list with their own badge. Where agy keeps a skill of one name
   in more than one of its global folders, the list shows it once and opens the copy agy actually uses;
   agy's built-in skills are not listed
@@ -54,4 +56,8 @@ typing part of its name. No cross-side content diff.
 - List rows do not show the description (read the skill's description in the SKILL.md preview)
 - No machine diff across agent sides
 - Skills are never edited or written back
-- Non-text files are not listed
+- Only text files of known types are listed, at any depth: images, fonts, Office documents, schemas such
+  as `.xsd` and scripts with no extension are not
+- A file the app cannot read is left out of the table, though the row's count still includes it
+- A folder linked from inside a package is listed like any other, unless the link leads back into a folder
+  already being listed or to a folder holding the package
