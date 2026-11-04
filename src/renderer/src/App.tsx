@@ -75,7 +75,8 @@ export function App(): JSX.Element {
   // by the session page; switching project exits it
   const [openSession, setOpenSession] = useState<OpenSession | null>(null)
   // Returning from a session page lands on the "Sessions" section (the pane header's back control, "Back
-  // to <project> · Sessions") rather than the overview
+  // to <project> · Sessions") rather than the overview, once: the page the return draws spends it, so any page
+  // drawn later starts on the overview (project-detail::REQ-004/AC-02)
   const [backToSessions, setBackToSessions] = useState(false)
   // A project selected from a global search hit has its row scrolled into view in the project list
   // (projects-list C8); a one-shot request the list clears once it has done it
@@ -443,10 +444,10 @@ export function App(): JSX.Element {
                     snap={snap}
                     path={shownProject}
                     initialTab={backToSessions ? 'sessions' : undefined}
+                    onInitialTabSpent={() => setBackToSessions(false)}
                     onOpenSession={(f, q) => {
                       startPaneTransition(() => {
                         setOpenSession({ file: f, focusQ: q ?? null, fromSearch: false })
-                        setBackToSessions(false)
                       })
                     }}
                   />

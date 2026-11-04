@@ -42,13 +42,16 @@ export function PluginSkillList({
   const listing = listResult?.ok ? listResult.listing : null
   // The same sentence as the toast below, in the current UI language (skills-view A11)
   const err = listResult?.ok === false ? t.skills.listFailed(errorText(lang, listResult.error)) : null
+  const listFailed = listResult?.ok === false
 
   useEffect(() => {
     if (listResult?.ok === false) toast('err', t.skills.listFailed(errorText(lang, listResult.error)))
-    // `lang` and `t` are left out on purpose: the toast belongs to a failed result, so switching the UI
-    // language must not show it a second time
+    // The toast belongs to the failure (H10), so this follows whether the listing failed and not the result object: a
+    // revalidation's new failure, on a reopen or a scan, adds none, and a collapse takes `listFailed` back to false, so
+    // the reopen adds one. `openName` because another row with a cached failure leaves `listFailed` true. `lang` and `t`
+    // are left out on purpose: a language does not make a failure
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listResult])
+  }, [listFailed, openName])
 
   function toggle(name: string): void {
     setOpenName((prev) => (prev === name ? null : name))

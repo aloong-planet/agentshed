@@ -174,6 +174,9 @@ never writes to any agent's registry; it tells the user what happened and hands 
   A read that fails (the file was removed after the scan listed it) shows a toast and no overlay,
   rather than the click doing nothing — landed 2026-09-13 on the query layer (ADR-0028), the read
   going through `artifact-content-query`'s result wrapper rather than an unhandled rejection.
+  Each click on a file whose read fails reads it again and shows one toast, the answer to that read,
+  so a file that has come back opens with none. A scan landing afterwards adds no toast, and does not
+  open the reader when the file comes back: a failed read leaves nothing open.
   Reopening an already-read file is a cached, instant revisit.
 - B10 `.scratch/` is not under `docs/` by construction and does not count as an artifact (tickets are
   working documents — see the division of labour in specs/README).
@@ -234,9 +237,10 @@ Applies to: the tab row of a project's page. A stale project's note page has no 
   Sessions / Artifacts. The selected tab stays with the page on screen: selecting another project while a project's page
   is on screen keeps the tab, and the next project shows it (the owner's decision of 2026-11-04). A project opens on
   Overview when no project's page is on screen: its first selection, coming back through the rail or a side card's project
-  count, or selecting it from a session page, a stale project's note page or the not-in-snapshot state. Coming back from a
-  session lands on Sessions (T8), and leaving that project for another dimension and coming back lands there again, until
-  a project is selected in the list, the one on screen included.
+  count, selecting it from a session page, a stale project's note page or the not-in-snapshot state, or a scan turning a
+  note page or that state back into the sectioned page. Coming back from a session lands on Sessions (T8), once: the page
+  the return draws spends the landing, with or without tabs, and the next page drawn starts on Overview (the owner's
+  decision of 2026-11-04).
 
 Failure modes and boundaries, a narrow window (the owner's decisions of 2026-11-03): the row keeps its one form at every
 window width, and no narrow form is designed. It does not move onto a second row, a sideways wheel over it does not move it,
@@ -421,6 +425,11 @@ window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-
 
 - **Prototype gate for project-detail::REQ-003**: the change moves where one artifact type is read from
   and adds no visible state or form; declared here as a data-source exemption.
+- **Prototype gate (2026-11-04)**: which tab a page drawn after the return starts on (REQ-004/AC-02), how
+  many toasts a failed read or listing shows (B9, [skills-view](skills-view.md) A11,
+  [plugins-view](plugins-view.md) H10), and the reader no longer opening by itself on a scan add no visible
+  state or form: the tab row, the toast and the reader keep theirs, and a count or a moment has no form to
+  draw; declared here as the exemption rather than assumed.
 - **Prototype gate (2026-09-12)**: the atomic switch adds no visible state — the list highlight
   keeps its existing form, and the end state is the absence of an intermediate frame, which has no
   form to draw; declared here as the exemption rather than assumed.
