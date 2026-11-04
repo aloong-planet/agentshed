@@ -38,6 +38,8 @@ export function DetailPane({
   snap,
   path,
   initialTab,
+  win,
+  onWin,
   onOpenSession
 }: {
   snap: Snapshot
@@ -45,6 +47,10 @@ export function DetailPane({
   /** Read when this pane mounts. Leaving a session page for a project lands on the "Sessions" section (the prototype's
    * rule for the back control, the owner's for a selection in the list); normally not passed, starting on the overview */
   initialTab?: Tab
+  /** The window selected on Overview's totals card: held above this pane, since a session page unmounts it and the window
+   * outlives that (token-stats G11) */
+  win: UsageWindow
+  onWin: (win: UsageWindow) => void
   /** Open a session page (ticket 04; since ticket 08 it can carry focusQ to go straight to a question) */
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
@@ -52,12 +58,9 @@ export function DetailPane({
   const entry = snap.projects.find((p) => p.path === path)
   // Here rather than in the sectioned page, because what this pane draws may have no tabs (a stale project's note, the
   // not-in-snapshot state), and those replace the sectioned page without changing or using what the next one shows. This
-  // pane stays mounted while a project is on the stage; a session page or another dimension unmounts it, and what comes
-  // after starts afresh (project-detail::REQ-004/AC-02)
+  // pane stays mounted while a project is on the stage; a session page or another dimension unmounts it, and the next pane's
+  // tab starts afresh (project-detail::REQ-004/AC-02)
   const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
-  // Beside the tab for the same reason, and above the tab switch so the selection survives moving between tabs: the overview
-  // is conditionally rendered, so state held inside it would be discarded on every switch (token-stats G11)
-  const [win, setWin] = useState<UsageWindow>('all')
 
   if (!entry) return <div className="empty">{t.detail.notInSnapshot}</div>
 
@@ -80,7 +83,7 @@ export function DetailPane({
   }
 
   return (
-    <DetailPaneBody entry={entry} snap={snap} tab={tab} onTab={setTab} win={win} onWin={setWin} onOpenSession={onOpenSession} />
+    <DetailPaneBody entry={entry} snap={snap} tab={tab} onTab={setTab} win={win} onWin={onWin} onOpenSession={onOpenSession} />
   )
 }
 

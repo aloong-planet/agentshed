@@ -741,6 +741,71 @@ test('a return onto a stale project\'s note keeps the landing: the next project,
   }
 })
 
+test('leaving Projects resets Overview\'s window: a search hit arrives on the default, by the rail and by the menu, and so does the way back from the menu\'s Settings (token-stats G11)', async () => {
+  const { home } = mkHome()
+  const l = await launch(home)
+  const { app, win } = l
+  const header = win.locator('.pane-head h1')
+  const selectedTab = win.locator('.pane-head .tabs .tab.on')
+  const selectedWindow = win.locator('.tot-c.on .k')
+  const QUESTION = 'How do I notarize the app?'
+  const chooseToday = async (): Promise<void> => {
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'target-proj' }).click()
+    await expect(header).toHaveText('target-proj')
+    await expect(selectedTab).toHaveText('Overview')
+    await win.locator('.tot-c', { hasText: 'Today' }).click()
+    await expect(selectedWindow).toHaveText('Today')
+  }
+  const onIntoTheProject = async (): Promise<void> => {
+    await exits(win).nth(1).click()
+    await expect(header).toHaveText('target-proj')
+    await expect(selectedTab).toHaveText('Sessions')
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Overview' }).click()
+    await expect(selectedTab).toHaveText('Overview')
+  }
+  try {
+    // The rail's Search item leaves Projects
+    await chooseToday()
+    await openHit(win, 'notarize', QUESTION)
+    await onIntoTheProject()
+    await expect(selectedWindow).toHaveText('Total · all history')
+
+    // The menu's "Search Sessions…" leaves Projects without the rail
+    await chooseToday()
+    await clickSearchSessions(app)
+    await box(win).fill('notarize')
+    await body(win).locator('.hit', { hasText: QUESTION }).first().click()
+    await expect(win.locator('.qlist .q.located .txt')).toHaveText(QUESTION, { timeout: 15000 })
+    await onIntoTheProject()
+    await expect(selectedWindow).toHaveText('Total · all history')
+
+    // So does the menu's Settings
+    await chooseToday()
+    await app.evaluate(({ Menu }) => {
+      const walk = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
+        for (const i of items) {
+          if (i.accelerator === 'CmdOrCtrl+,') return i
+          const found = i.submenu ? walk(i.submenu.items) : null
+          if (found) return found
+        }
+        return null
+      }
+      const item = walk(Menu.getApplicationMenu()?.items ?? [])
+      if (!item) throw new Error('no Settings item in the application menu')
+      ;(item.click as () => void)()
+    })
+    await expect(win.locator('.settings-sec-t').first()).toBeVisible()
+    await win.locator('.rail .ri').nth(1).click()
+    await expect(header).toHaveText('target-proj')
+    await expect(selectedTab).toHaveText('Overview')
+    await expect(selectedWindow).toHaveText('Total · all history')
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
 test('leaving the session for the search page and coming back keeps it with its exits; selecting another project replaces it (J6, J7)', async () => {
   const { home } = mkHome()
   const l = await launch(home)

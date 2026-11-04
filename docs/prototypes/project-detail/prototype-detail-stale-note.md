@@ -13,7 +13,7 @@ sides down to one; and how the Chinese and English copy wraps at this width.
 - The window frame — the rail with Projects current and the project column with the same mock projects —
   follows the project list prototype; here the column shows stale projects and has this project selected, and
   a project that has its own prototype opens it on click.
-- The header (back control, struck-through project name, stale tag, path) with the note card as the page's
+- The header (struck-through project name, stale tag, path) with the note card as the page's
   whole body, and no section tabs or data areas, follows a direction the owner confirmed for the stale note
   page.
 - The stale tag takes the project column's stale tag colours.
