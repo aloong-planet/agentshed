@@ -2,9 +2,10 @@
 // app's version went up shows "You're up to date" in settings (app-update::REQ-004/AC-04). Kept in userData
 // apart from the preferences, since it is not something the user chooses, and written at every launch.
 // Atomic writes, as for the other userData files.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gt, valid } from 'semver'
+import { writeFileAtomicSync } from './providers/atomic-write'
 
 const FILE = 'last-run-version.json'
 
@@ -19,10 +20,7 @@ export function recordRunVersion(dir: string, running: string): boolean {
   // A record that cannot be written must not stop the launch; the next run then compares with the older
   // record and may show the line once more
   try {
-    mkdirSync(dir, { recursive: true })
-    const tmp = join(dir, `.${FILE}.tmp-${process.pid}`)
-    writeFileSync(tmp, JSON.stringify({ version: running }))
-    renameSync(tmp, join(dir, FILE))
+    writeFileAtomicSync(join(dir, FILE), join(dir, `.${FILE}.tmp-${process.pid}`), JSON.stringify({ version: running }))
   } catch (error) {
     console.error('[run-version] could not record this run\'s version:', error)
   }

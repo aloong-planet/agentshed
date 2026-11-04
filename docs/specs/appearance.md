@@ -345,7 +345,7 @@ trackpad, in light or dark)
   read-only disk) would throw before `themeSource` is set, so the renderer would have optimistically
   ticked the chosen mode while the UI did not change — the notice says it failed and the UI does not
   move either, a double frustration. In the current order a failure loses only the persistence — it
-  works for this session and reverts to the on-disk value after a restart.
+  stays in effect until the app restarts, then goes back to the on-disk value.
 - **Explicitly not adopted**: having the renderer compute light/dark itself and write a DOM attribute
   (such as `data-theme`). That would require every dark value to be written twice, once in the media
   query block and once in the manual override block (3 themes × 2 = 6 duplicated sets, so a colour

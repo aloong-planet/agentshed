@@ -87,7 +87,8 @@ export const zh = {
     saveThemeFailed: '保存主题失败。当前选择在重启前有效，重启后恢复。',
     saveModeFailed: '保存外观模式失败。当前选择在重启前有效，重启后恢复。',
     saveLanguageFailed: '保存语言失败。当前选择在重启前有效，重启后恢复。',
-    saveAutoCheckUpdatesFailed: '保存自动检查更新设置失败。当前选择在重启前有效，重启后恢复。'
+    saveAutoCheckUpdatesFailed: '保存自动检查更新设置失败。当前选择在重启前有效，重启后恢复。',
+    archiveFileFailed: '用量历史暂时无法保存，因为设置目录中的历史文件无法读取或写入。'
   },
 
   /** App updates (app-update): the update button's hover text, which is also its accessible name, and the
@@ -133,6 +134,9 @@ export const zh = {
      * (skill-install::REQ-001/AC-04); `sides` comes joined by detail.sideJoin */
     installedShared: (skill: string, project: string, sides: string) =>
       `已安装 ${skill} → ${project} 的共享目录(复制落地;${sides} 都会加载)`,
+    /** A landing that is blocked or failed: `where` is its side, or for the shared directory the directory itself */
+    landingFailed: (skill: string, project: string, where: string, reason: string) =>
+      `${skill} → ${project}(${where}):${reason}`,
     /** The install picker's row tags (skill-install::REQ-003) */
     pickStale: '失效,禁用',
     pickHasSame: '已装同名',
@@ -419,7 +423,7 @@ export const zh = {
     levelGlobal: '全局层',
     uninstall: '卸载',
     uninstalled: (name: string) => `已卸载 ${name}`,
-    uninstallFailed: (detail: string) => `卸载失败:${detail}`,
+    uninstallFailed: (name: string, reason: string) => `卸载 ${name} 失败:${reason}`,
     secClaudeProject: '项目级 · .claude/skills',
     secClaudeGlobal: '全局层 · Claude',
     secCodexGlobal: '全局层 · Codex',
@@ -525,7 +529,7 @@ export const zh = {
     sessionNotIndexed: '会话不在索引中,下次扫描后重试',
     sessionFileUnreadable: '会话文件已不可读(被移动或删除?)',
     sessionMetaUnreadable: '会话首行元数据不可读,无法重建索引',
-    sessionParseFailed: '会话文件解析失败',
+    sessionParseFailed: '会话文件不可读(格式已变更?)',
     prefsStoreNotReady: '偏好存储未就绪',
     prefsWriteFailed: '偏好未能保存',
     invalidPref: (field: string) => `偏好取值不合契约:${field}`,
@@ -541,12 +545,14 @@ export const zh = {
     skillMissingSource: (name: string) => `全局库无此 skill:${name}`,
     skillCopyMissing: '项目级副本不存在',
     skillConflict: '目标已有同名项目级 skill,已阻止不覆盖',
-    skillCopyFailed: (detail: string) => `复制失败已清理:${detail}`,
-    skillDeleteFailed: (detail: string) => `删除失败:${detail}`,
+    skillCopyFailed: '复制失败,已清理',
+    skillDeleteFailed: (path: string) => `未能完全删除 ${path}`,
     registryProjectsInvalid: '注册表的 projects 键缺失或不是对象',
-    registryParseFailed: (detail: string) => `注册表解析失败:${detail}`,
+    registryUnreadable: (path: string) => `注册表不可读:${path}`,
+    /** Without a path: a snapshot saved before the error carried one comes back holding none until the first scan */
+    registryParseFailed: (path: string) => (path ? `注册表已损坏:${path}` : '注册表已损坏'),
     subagentUnreadable: '文件不可读(权限或 IO 异常)',
-    subagentTomlFailed: (detail: string) => `toml 解析失败:${detail}`,
+    subagentTomlFailed: 'toml 解析失败(损坏或语法错误);Codex 本身也不会加载它',
     subagentMissingName: '缺有效 name 字段(Codex 不加载此文件)'
   },
 

@@ -393,6 +393,21 @@ describe('Antigravity subagents (subagents-view::REQ-001)', () => {
     }
   })
 
+  it.skipIf(process.getuid?.() === 0)('a definition inside a directory that cannot be entered stays too, under the directory\'s name (A8)', () => {
+    mkFile(join(agAgents(), 'sample-flat.md'), SAMPLE_FLAT)
+    mkFile(join(agAgents(), 'locked-dir', 'agent.md'), SAMPLE_REVIEWER)
+    chmodSync(join(agAgents(), 'locked-dir'), 0o000)
+    try {
+      const all = readGlobalSubagents(roots())
+      const locked = all.find((s) => s.name === 'locked-dir')
+      expect(locked?.antigravity?.error?.code).toBe(ERR.subagentUnreadable)
+      expect(locked?.antigravity?.content).toBeNull()
+      expect(all.map((s) => s.name)).toContain('sample-flat')
+    } finally {
+      chmodSync(join(agAgents(), 'locked-dir'), 0o755)
+    }
+  })
+
   it('a name Claude also defines is one entry with both sides\' definitions', () => {
     mkFile(join(dir, '.claude', 'agents', 'code-reviewer.md'), '---\ndescription: Review code\ntools: Read, Grep\n---\nYou are a reviewer.\n')
     mkFile(join(agAgents(), 'code-reviewer', 'agent.md'), '---\nname: code-reviewer\ndescription: agy reviewer\ntools:\n  - view_file\n  - grep_search\n---\nYou review.\n')

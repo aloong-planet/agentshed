@@ -94,7 +94,7 @@ describe('the preference handlers', () => {
     // themeSource is set, so the renderer has optimistically ticked "dark" while the UI has not changed —
     // the notice says it failed and
     // the UI does not move either, a double frustration. In the correct order a failure loses only the
-    // persistence: it works for this session and reverts on restart.
+    // persistence: it stays in effect until the app restarts, then goes back.
     //
     // A **real** PrefsStore produces a real persistence failure: point the storage directory at a path
     // whose parent is a file,

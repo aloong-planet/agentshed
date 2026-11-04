@@ -102,7 +102,7 @@ describe('global subagents', () => {
     mkCodexAgent('good.toml', `name = "good"\ndeveloper_instructions = "ok"\n`)
     const snap = await scan(roots(), { now: () => 1 })
     const broken = snap.global.subagents.find((s) => s.name === '(broken.toml)')
-    expect(broken?.codex?.error).toBeTruthy()
+    expect(broken?.codex?.error).toEqual({ code: ERR.subagentTomlFailed, params: {} })
     expect(snap.global.subagents.find((s) => s.name === 'good')).toBeTruthy()
   })
 

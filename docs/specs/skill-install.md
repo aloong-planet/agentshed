@@ -56,12 +56,21 @@ can be uninstalled. The global library itself is read-only.
   the project does not belong to that side, no install.
 - A9 Several target directories qualify → install to each, each reporting its own success or failure;
   Codex and Antigravity qualifying together are one directory and one landing (skill-install::REQ-001).
+- A10 The copy fails (a project that cannot be written, a source file that cannot be read, a full disk) →
+  one failure notice naming the skill, the project and the side or shared directory, saying the copy
+  failed and was cleaned up, in the current UI language. It carries no system error; that goes to the log.
 
 **Sequence B: uninstall**
 - B1 Deletes the project-level copy; **the global library is unaffected**.
 - B2 The target does not exist → report an error rather than throwing (the UI shows a failure notice).
 - B3 Name traversal → refused.
 - B4 The confirmation dialog must show the full path to be deleted (the user can see what is going).
+- B5 The delete fails (a directory that cannot be written) → one failure notice naming the skill and the
+  copy's path, in the current UI language, saying it could not be fully deleted: a directory's contents go
+  before the directory itself, so the copy can be empty already and gone from the list (measured
+  2026-11-05). It carries no system error; that goes to the log. The empty directory still holds the name,
+  so a later install of that skill is blocked by A4 until the directory is removed; left so, since it
+  takes a read-only parent over a writable copy, and the same-name check is not worth loosening for it.
 
 **Cross-cutting**
 - R1 Install and uninstall touch only the global library and the project's skills directory, and
@@ -142,7 +151,9 @@ at install time (A4).
 - **Name validation**: path traversal is refused at both the install and uninstall ends (the caller is
   not trusted).
 - **Notices**: an install's or uninstall's success and failure notices differ only in their colour; their
-  text carries no mark such as ✓ or ⚠.
+  text carries no mark such as ✓ or ⚠. A failed uninstall's notice names the skill whatever the reason.
+  A landing's failure notice and the same-name notice share one sentence shape from the dictionary, with
+  each language's own punctuation.
 
 ## Testing Decisions
 

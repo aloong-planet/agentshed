@@ -63,7 +63,7 @@ and are never written back to any agent configuration.
 - A1 No side's data directory exists → an empty snapshot with `detected=false` for every side, no
   throw.
 - A2 Only some sides exist → `detected=true` for those, with the others' empty state alongside.
-- A3 One side's registry is corrupt → that side degrades to empty with an error explanation, and
+- A3 One side's registry is corrupt or unreadable → that side degrades to empty with an error explanation, and
   **every other side behaves normally** (a single-side failure does not clear the whole table).
 - A4 The same directory is registered on several sides → merged into one entry whose count equals the
   number of sides.
@@ -95,7 +95,7 @@ and are never written back to any agent configuration.
   nominal (the project count is unknown until the scan lands).
 - A13 First scan failure without a restored snapshot → the skeleton and hint stay; recovery rides the automatic rescan triggers
   (timer, window focus). A dedicated error state is out of scope (the agents overview spec carries
-  the same rule as A4d).
+  the same rule as A4d, and says what is not such a failure).
 - A14 A scan that finds no project leaves the list showing the same no-match line that search and the
   filters show when no row matches.
 

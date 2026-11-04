@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side)
+> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases (the
 > accounting decisions are in the ADRs and are not restated here).
@@ -57,6 +57,8 @@ all of them.
     that the figure is exact and survives the agent's replay and format changes.
 14. As a user, I want a session Codex has compressed to keep counting exactly as before, so that a
     cold week does not vanish from my history.
+15. As a user, I want the figures to keep updating when my usage history cannot be saved, and to be told
+    so once, so that a full disk does not stop the app and I know there is something to free.
 
 ## Failure modes and boundaries
 
@@ -182,13 +184,19 @@ next to A/B, so that no existing reference is renumbered)
 - C2 Garbage cache content does not crash and triggers a full recompute.
 - C3 A second build gives the same result (idempotent); the cache file is valid JSON and lands
   atomically. A failed write of it (a blocked or full settings directory) does not fail the scan: what
-  was computed is in memory and goes out as usual, the failure is logged, and the next launch parses
-  again.
-
-  > Pending: a failed archive write still fails the scan (C4): the current snapshot stays, and a first
-  > scan stays on its placeholder. A settings directory that is read-only or full fails both writes.
-
-- C4 The archive is written on the first merge; a new instance reads it back.
+  was computed is in memory and goes out as usual, the failure is logged, no temporary file stays behind
+  whichever step failed, and the next launch parses again.
+- C4 The archive is written on the first merge; a new instance reads it back. **A failed write does not
+  fail the scan** (a settings directory gone read-only or full, ADR-0039): the effective rows computed in
+  memory go out as usual and the failure is logged. Each later scan writes again, so the file catches up
+  with no restart once the directory is writable, and carries what the failed merges moved in memory.
+  The user is told once per run, in a toast in the current UI language: usage history cannot be saved
+  right now, because its file in the settings directory cannot be read or written. The sentence states
+  no system error and no path. A first scan's failure shows it too, and reloading the window does not
+  repeat it. With the window unfocused the toast waits until the window has focus: a background scan's
+  failure would otherwise come and go unseen, and nothing tells the user again that run. A failure that
+  has cleared by then tells nothing, since the sentence says "right now", and a later failure in that run
+  still tells.
 - C5 **Liveness is judged per (day, side)** (ADR-0026). A side is live on a day when this scan
   produced at least one row for it on that day. For a live (day, side) the live rows replace the
   archive's — subject to C10 for past days — so an accounting fix still corrects history
@@ -198,16 +206,23 @@ next to A/B, so that no existing reference is renumbered)
   are not wiped by this scan finding nothing for that side, even when other sides are live that
   day (the case the per-day reading got wrong).
 - C7 Within one day, rows are split by side × project × model and do not overwrite one another.
-- C8 Archive writes are atomic with no temporary files left in the directory; a corrupt archive file
-  degrades to empty without crashing (the next scan starts accumulating again). A file of a newer
-  format is not corrupt: token-stats::REQ-006 governs it.
+- C8 Archive writes are atomic with no temporary files left in the directory, whichever step of a write
+  failed, and a failed write leaves the file as the last good archive. A corrupt archive file, one that
+  reads and does not parse, degrades to empty without crashing (the next scan starts accumulating
+  again). A file of a newer format is not corrupt: token-stats::REQ-006 governs it. **Nor is a file that
+  exists and cannot be read** (ADR-0039): degrading it to empty would overwrite history that is only out
+  of reach. Its effective rows are the live rows, no day is archived-only, nothing is written and a
+  restore (C16) refuses, as for a newer format. The read is tried again at each scan, because a change of
+  mode does not move the file's signature, and once it can be read the next scan reads it with its
+  history whole and C10 applies again. The failure is logged and C4's toast tells the user, since the
+  figures now lack the archived days.
 - C9 The set of archived-only **days** — a day the archive holds rows for and no side has live rows
   on — stays queryable, for the existing hatching and note. Retained (day, side) pairs are **not**
   exposed to the interface: retention is accounting-only (ADR-0026, amended 2026-09-10), and a day
   on which one side is archived-only while another is live carries no marking either.
 - C10 **A past (day, side) never falls silently** (ADR-0026, the invariant in AGENTS.md) — within an
-  archive this build reads; a corrupt one (C8) or one of a newer format (token-stats::REQ-006) gives
-  the rule nothing to hold. Every
+  archive this build reads; a corrupt or unreadable one (C8) or one of a newer format
+  (token-stats::REQ-006) gives the rule nothing to hold. Every
   archive row carries the accounting stamp it was written under — the application version and the
   cache structure version, combined. When a past (day, side) is live and its live total is **lower**
   than the archive's: under a **different** stamp the live rows are accepted (a correction of ours),
@@ -278,6 +293,27 @@ next to A/B, so that no existing reference is renumbered)
   restore is then re-applied by hand (C16), after which the observed value is recorded under the new
   stamp and retention holds again. This is the price of C12's figure-moved clause being exact rather
   than tolerant; it fell due on 2026-09-10 for the Codex usage-record change (ADR-0027).
+- C22 **While a write is blocked, the file is what counts as the archive** (ADR-0039). Within the run
+  memory holds the effective rows: C10 retains a lower past figure, and writes that fail and are tried
+  again keep one superseded value (C13). A restart reads the last good file and compares against that, so
+  a higher figure and a retained pair's observed value held only in memory are gone, and an application
+  update in that window falls under C18. A row that reached only memory, and is gone from the agent's data
+  before a write succeeds, is not archived: that is the cost accepted.
+- C23 Another writer changing the file during a blocked stretch (C16's restore, a newer build) moves its
+  signature, so the next merge reads the file back rather than writing from memory (token-stats::REQ-006/AC-03),
+  and what only memory held goes with it. A stat failing for any reason but absence is not a removed file: it
+  says nothing about the file, and the rows in memory stay, so C10 holds. A file that stops being readable
+  while the app runs changes nothing, since the next write replaces it from memory, which holds its
+  history. A directory at the file's path holds no history, so it is not an unreadable file, and writes
+  fail as C4 says.
+- C24 Interface for C4, C8 and C22: the scan's result appears where it was stuck and the notice is a toast,
+  so no page, state form or control is added or changed, only one sentence in the existing toast form
+  (the prototype exemption, declared). A standing state for this would need a prototype.
+- C25 **A settings directory already read-only or full at launch never reaches a scan**: the runtime cannot create its
+  single-instance lock there, the lock request answers no, and the application exits as a second instance
+  does, with no window and nothing on screen (measured 2026-11-05, on a directory at mode 555 and on a
+  volume with no room). C4 and C8 govern what happens once the application is running: a directory that
+  goes read-only or full later, or a volume with room for the lock and not for the archive.
 
 **Sequence D: trend and axis rendering**
 - D1 The plotted calendar span follows token-stats::REQ-002/AC-02.
@@ -381,11 +417,11 @@ overnight froze `scannedAt` and today's data was not shown)**
 - G10 Composition colours: cache read blue, uncached input yellow, output green (ADR-0024).
 - G11 The selected totals-card identity is view state (the global trend-span preference has its
   own lifetime under token-stats::REQ-002/AC-05 and token-stats::REQ-002/AC-07): it survives switching
-  tabs within the page — and, on the project detail page, switching projects, with a stale project's note page or the
-  not-in-snapshot state between the two pages or not, since the window is a lens the user holds rather than a property of
-  one project — and is not persisted across restarts, matching how the session sort already behaves. Leaving the project
-  detail page by the rail or a side card's project count and coming back resets it, as it does the tab
-  ([project-detail::REQ-004/AC-02](project-detail.md)), and so does opening a session from it and coming back.
+  tabs within the page and is not persisted across restarts, matching how the session sort already behaves. On the project
+  detail page it is held while you stay in Projects, since the window is a lens the user holds rather than a property of one
+  project: switching projects, a stale project's note page or the not-in-snapshot state between two pages, and a session
+  opened and left, by the back control or by selecting a project in the list. It resets when you leave Projects, whichever
+  way you come back, and a search hit's session arrives on the default.
 - G12 The window and the trend's side filter are **independent controls that compose**: selecting a
   side narrows what the bars count (D4), selecting a window dims which bars are in scope (D10), and
   using both leaves a single-side chart with part of its span dimmed. Neither resets the other. The
@@ -730,8 +766,8 @@ Applies to: an archive file whose format version is a whole number above the one
   it does not know are carried through (token-stats::REQ-005/AC-03).
 - An archive of a newer format while this build runs alone: the days only the archive held read lower
   or empty, with no hatching (token-stats::REQ-006/AC-02, token-stats::REQ-006/AC-04). This is the
-  one place besides a corrupt archive (C8) where a past day reads lower than the archive holds: C10
-  governs the archive this build writes, and this build writes none. Usage the agent deletes in that
+  one place besides a corrupt or unreadable archive (C8) where a past day reads lower than the archive
+  holds: C10 governs the archive this build writes, and this build writes none. Usage the agent deletes in that
   time reaches the newer build's archive only if the newer build scanned it before.
 - A newer build drops a side an older one archived: to the newer build those rows are of a side it does
   not know, and token-stats::REQ-005 applies to them there.
@@ -807,6 +843,16 @@ Applies to: an archive file whose format version is a whole number above the one
   derivation that skipped silently would hide a producer's mistake. A file of a newer format is held as
   not this build's to write: the archive returns the live rows as the effective set and refuses every
   write until the file on disk changes, judged again on the same re-read a restore relies on.
+- **An archive file that fails** (ADR-0039): the merge reports whether its file failed rather than
+  throwing, and a restore still throws. Writing leaves the rows the merge moved in memory and the recorded
+  signature as they were, which is what keeps the next merge from reading the file back and lets it carry
+  them to the next write. The notice crosses IPC as a command the main process answers true once in a run:
+  it holds that state because a reload is a new renderer in the same run, and because the failure can come
+  before the window subscribes, and each merge that succeeds before the notice is taken withdraws it. The window asks at mount, with each snapshot and on focus, and asks nothing
+  while it has no focus. The notice stays out of the snapshot, which is saved with the display copy and
+  would restore a failure from an earlier run. The archive, the token cache, the preferences and the last
+  run's version share one atomic write, which removes its temporary file when it fails; the display copy's
+  asynchronous write already did.
 - **Codex usage sources**: see ADR-0027. The parser reads both sources in one pass and applies the
   usage boundary as it goes; the per-file aggregate keeps its list of per-event increments and gains
   the boundary index beside it, so that the replay stripping can stop at the legacy span — a shape
@@ -940,6 +986,18 @@ script is run through its runner under `pnpm test:scripts`, as a developer runs 
 newer format it refuses before reading the snapshot and leaves the file as it was, and against this build's
 format its dry run reports and writes nothing.
 
+An archive file that fails (C3, C4, C8, C22, C23) is tested at the archive's unit seam with real failures: a
+directory at the temporary path, the file's mode, the directory's mode. Two states no real means reaches are
+failed at the file-system boundary, for the archive, the token cache, the preferences and the last run's
+version alike: a write that stops halfway as a full disk does, and a rename that fails while the target stays
+a good file. Those cases assert the failure fired, so a writer that stops reaching it goes red. The chain the
+unit seam cannot reach is the running app: a directory made read-only after launch, a directory at the
+archive's path from launch, the file's mode from launch, and a relaunch over a saved display, reading the snapshots,
+the placeholder, the toast's whole text and its count over several scans. Two launches run with one scan and no timed
+rescan, so that the ask at mount and the ask on focus each have to tell the user alone. A real change of window focus is not driven, because the e2e driver
+emulates focus: those cases shadow `document.hasFocus` and dispatch the event, which are the two facts a real
+window was measured to give.
+
 The Codex usage sources (B1, B7, B9–B12) are tested at the providers seam with rollout fixtures
 whose shapes come from real paginated samples (the record's key set, the interleaving of events and
 records, a legacy span before the boundary, a compacted window, a subagent rollout with records): a
@@ -1000,6 +1058,8 @@ moved and others did not — checking them one at a time would pass on a page th
 - ccusage alignment for rollouts carrying usage records (ADR-0027): the third-party meter reads only
   the legacy events and is expected to read lower on those days.
 - A cap on superseded values (revisited if the archive file passes about 5 MB, C13).
+- A standing state or a repeated notice while the archive's file fails (ADR-0039): the notice is one
+  toast a run.
 - Restoring history on a machine that never had it: the restore script works from a cache snapshot
   of this application's own making, and no such snapshot exists on a machine whose agent rewrote
   its records before this application ever scanned them.

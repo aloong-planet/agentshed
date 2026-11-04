@@ -1,11 +1,13 @@
 // Ticket 02 slice (a): both sides' registries → the project union (badges / staleness / path
 // normalisation).
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { scan } from './scan'
 import type { ScanRoots } from './types'
+import { ERR } from '@shared/errors'
+import { settingsJson } from '../testing/agy-fixture'
 
 let dir: string
 function roots(): ScanRoots {
@@ -125,7 +127,7 @@ describe('the registry union', () => {
     writeClaudeRegistry([p])
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.sides.grok.detected).toBe(true)
-    expect(snap.sides.grok.error).toBeTruthy()
+    expect(snap.sides.grok.error).toEqual({ code: ERR.registryParseFailed, params: { path: join(dir, '.grok', 'trusted_folders.toml') } })
     expect(snap.projects).toHaveLength(1)
     expect(snap.projects[0].name).toBe('ok-side')
   })
@@ -145,8 +147,90 @@ describe('the registry union', () => {
     writeCodexRegistry([p])
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.sides.claude.detected).toBe(true)
-    expect(snap.sides.claude.error).toBeTruthy()
+    expect(snap.sides.claude.error).toEqual({ code: ERR.registryParseFailed, params: { path: join(dir, '.claude.json') } })
     expect(snap.projects).toHaveLength(1)
     expect(snap.projects[0].name).toBe('ok-side')
+  })
+
+  // The Codex reader looks for section headers line by line and parses nothing, so its one failure is a read
+  it('a config.toml that is not valid TOML is no error on the Codex side: its reader only reads the file', async () => {
+    mkdirSync(join(dir, '.codex'), { recursive: true })
+    writeFileSync(join(dir, '.codex', 'config.toml'), '[projects."unterminated')
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.sides.codex.detected).toBe(true)
+    expect(snap.sides.codex.error).toBeUndefined()
+  })
+
+  // agents-overview A3: a file that cannot be read is told apart from a corrupt one, and neither carries the system's text
+  describe.skipIf(process.getuid?.() === 0)('a registry that exists and cannot be read', () => {
+    const sides = [
+      { side: 'claude', rel: ['.claude.json'], write: (p: string) => writeClaudeRegistry([p]) },
+      { side: 'codex', rel: ['.codex', 'config.toml'], write: (p: string) => writeCodexRegistry([p]) },
+      { side: 'grok', rel: ['.grok', 'trusted_folders.toml'], write: (p: string) => writeGrokRegistry([p]) },
+      {
+        side: 'antigravity',
+        rel: ['.gemini', 'antigravity-cli', 'settings.json'],
+        write: (p: string) => {
+          mkdirSync(join(dir, '.gemini', 'antigravity-cli'), { recursive: true })
+          writeFileSync(join(dir, '.gemini', 'antigravity-cli', 'settings.json'), settingsJson([p]))
+        }
+      }
+    ] as const
+    it.each(sides)('$side says so with the file, and the other side behaves normally', async ({ side, rel, write }) => {
+      write(mkProject('locked-side'))
+      const other = mkProject('other-side')
+      if (side === 'claude') writeCodexRegistry([other])
+      else writeClaudeRegistry([other])
+      const file = join(dir, ...rel)
+      chmodSync(file, 0o000)
+      try {
+        const snap = await scan(roots(), { now: () => 1 })
+        expect(snap.sides[side].detected).toBe(true)
+        expect(snap.sides[side].error).toEqual({ code: ERR.registryUnreadable, params: { path: file } })
+        expect(snap.projects.map((e) => e.name)).toEqual(['other-side'])
+      } finally {
+        chmodSync(file, 0o644)
+      }
+    })
+
+    // A file behind a directory that cannot be entered is unreadable too (a data root left owned by root by `sudo`, say):
+    // that must not read as a side that has registered nothing (A9). Claude's file sits in the home directory itself
+    it.each(sides.filter((s) => s.side !== 'claude'))('$side behind a data root that cannot be entered says so too', async ({ side, rel, write }) => {
+      write(mkProject('locked-side'))
+      writeClaudeRegistry([mkProject('other-side')])
+      const file = join(dir, ...rel)
+      const root = dirname(file)
+      chmodSync(root, 0o000)
+      try {
+        const snap = await scan(roots(), { now: () => 1 })
+        expect(snap.sides[side].detected).toBe(true)
+        expect(snap.sides[side].error).toEqual({ code: ERR.registryUnreadable, params: { path: file } })
+      } finally {
+        chmodSync(root, 0o755)
+      }
+    })
+
+    // agy's data root is the one with a parent of its own, so it alone can be hidden from the detection itself: it still
+    // exists (agents-overview::REQ-003/AC-01), and its registry is what cannot be read
+    it('antigravity behind a .gemini that cannot be entered is detected, and says its registry cannot be read', async () => {
+      const root = join(dir, '.gemini', 'antigravity-cli')
+      mkdirSync(root, { recursive: true })
+      writeFileSync(join(root, 'settings.json'), settingsJson([]))
+      chmodSync(join(dir, '.gemini'), 0o000)
+      try {
+        const snap = await scan(roots(), { now: () => 1 })
+        expect(snap.sides.antigravity.detected).toBe(true)
+        expect(snap.sides.antigravity.error).toEqual({ code: ERR.registryUnreadable, params: { path: join(root, 'settings.json') } })
+      } finally {
+        chmodSync(join(dir, '.gemini'), 0o755)
+      }
+    })
+  })
+
+  it('a data root that is a plain file holds no registry: detected with no projects and no error (A9)', async () => {
+    writeFileSync(join(dir, '.grok'), '')
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.sides.grok.detected).toBe(true)
+    expect(snap.sides.grok.error).toBeUndefined()
   })
 })

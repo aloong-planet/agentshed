@@ -38,7 +38,8 @@ Everything is read-only.
 **Sequence A: global page → Subagents section**
 - A1 No side's agents directory exists, or all are empty → empty-state copy, no crash.
 - A2 Codex toml fails to parse (corrupt) → that entry shows a "parse failed" label (with the filename
-  as a placeholder), and the rest behave normally.
+  as a placeholder), and the rest behave normally. Its detail line says so in a sentence in the current
+  UI language, with none of the parser's text.
 - A3 Codex toml has no valid `name` → marked an invalid definition (Codex itself does not load it).
 - A4 Claude markdown with no frontmatter or no description → the filename becomes the name, missing
   fields are left blank.
@@ -47,7 +48,8 @@ Everything is read-only.
 - A6 A definition file over 200 KB → truncated for display.
 - A7 Source containing malicious HTML → goes through the existing sanitising render pipeline
   (regression point: the PR #10 rules).
-- A8 The file exists but cannot be read (permissions / IO) → the entry stays with an "unreadable"
+- A8 The file exists but cannot be read (permissions / IO, or the directory form's directory cannot be
+  entered) → the entry stays with an "unreadable"
   label, and **does not silently disappear** — silently disappearing would pollute the same-name
   shadowing judgement (the Claude side's key is the filename, which still takes part; on the Codex
   side the name is unknowable, so only its existence is listed).

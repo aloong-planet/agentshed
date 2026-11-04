@@ -14,8 +14,6 @@
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
-  .bk{display:inline-flex;align-items:center;gap:4px;color:var(--text-2);font-size:12px;cursor:pointer;margin-bottom:6px}
-  .bk:hover{color:var(--text)}
   .h1{display:flex;align-items:center;gap:9px}
   .h1 b{font-size:16px;text-decoration:line-through;color:var(--text-2)}
   /* The stale tag takes --warn-fg for its text and border, as the project column's does */
@@ -60,7 +58,6 @@
   <script src="../_shared/project-side.js"></script>
   <div class="main">
     <div class="head">
-      <div class="bk" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html"><span data-icon="ChevronLeft" data-icon-size="13"></span><span id="backT"></span></div>
       <div class="h1"><b>removed-experiment-2025</b><span class="stale-tag" id="staleT"></span></div>
       <div class="path">/Users/you/Projects/removed-experiment-2025</div>
     </div>
@@ -88,13 +85,13 @@
 <script>
 const PATH = '/Users/you/Projects/removed-experiment-2025';
 const T = {
-  zh:{back:'返回项目列表', stale:'失效',
+  zh:{stale:'失效',
     cause:(b)=>`失效原因:项目目录已不存在(被删除或移动),而 ${b} 的注册表仍记录着它。`,
     fx:'从注册表移除该记录后,此行将从列表消失;token 累计与趋势不受影响(统计独立于注册表)。',
     llmHow:(b)=>`把这句话分别发给 ${b},由它自己删除:`,
     llmPrompt:(p)=>`我的项目 "${p}" 已经失效(目录已不存在),请帮我从你的配置中移除它的记录。`,
     copied:'已复制' },
-  en:{back:'Back to projects', stale:'Stale',
+  en:{stale:'Stale',
     cause:(b)=>`Why stale: the project directory no longer exists (deleted or moved), while the ${b} ${b.includes('·')?'registries':'registry'} still records it.`,
     fx:'Removing the records takes this row off the list; token totals and the trend are unaffected (the statistics are independent of the registries).',
     llmHow:(b)=>`Send this line to ${b} and let each of them delete it themselves:`,
@@ -113,7 +110,6 @@ function codeline(payload){
 }
 function render(){
   const t = T[LANG];
-  document.getElementById('backT').textContent = t.back;
   document.getElementById('staleT').textContent = t.stale;
   const badges = SIDES.map((s)=>BADGE[s]).join(' · ');
   document.getElementById('note').innerHTML =

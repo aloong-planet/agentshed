@@ -48,8 +48,12 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - A1 No side detected → a whole-page empty state with guidance (which agent to install), not an
   error.
 - A2 One side not detected → that side's card shows "not detected", the others behave normally.
-- A3 One side's registry corrupt → that side's card shows an error explanation (in place of the stats
-  row), the other sides are unaffected.
+- A3 One side's registry corrupt or unreadable → that side's card shows an error explanation (in place of
+  the stats row), the other sides are unaffected. A file behind a directory that cannot be entered counts as
+  one that cannot be read, never as one not there. A registry that cannot be read and a corrupt one say
+  different things, each a sentence in the current UI language naming the file, with no system error and
+  no parser's text. A snapshot saved before the file was named shows the sentence alone until the first
+  scan answers.
 - A4 First scan of this launch not finished and no usable saved snapshot → the page renders a **skeleton** (changed 2026-08-21;
   it used to be a bare hint on an otherwise empty stage): the page's real structure with its static
   labels rendered (title, time-window card labels, side-card names, tab labels, trend title) and a
@@ -71,7 +75,9 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - A4c The skeleton exists only while no live or restored snapshot is available. Later scans keep the previous
   data on screen and never fall back to the skeleton.
 - A4d First scan failure without a restored snapshot → the skeleton and hint stay as they are; recovery rides the automatic
-  rescan triggers (timer, window focus). A dedicated first-scan error state is out of scope.
+  rescan triggers (timer, window focus). A dedicated first-scan error state is out of scope. A usage archive that cannot
+  be written or read is not a scan failure: the first scan leaves the skeleton as usual
+  ([token-stats](token-stats.md) C4, C8).
 - A4e Once the first snapshot lands with no side detected, A1's whole-page empty state replaces the
   skeleton — the two states never mix.
 
@@ -172,13 +178,14 @@ governs the project page's).
   detected with zero usage and zero counts (A9 in the projects-list spec).
 - An automatic update of agy breaks the format: the card's third line turns into the unreadable count
   at the next scan and back once the count returns to zero; the usage figure shows what could be read.
-- The side's settings file is corrupt (A3) while conversations were left unread: the third line explains
-  the error, and the count shows once the error is gone — an error says the side's data is empty, which
+- The side's settings file is corrupt or unreadable (A3) while conversations were left unread: the third
+  line explains the error, and the count shows once the error is gone — an error says the side's data is empty, which
   explains the figure more than the count does.
 - The count is part of the saved snapshot (agents-overview::REQ-001): after a restart the notice is back
   before the first scan, which then replaces it.
-- One of the three global AGENTS.md files cannot be read: its slot shows the read error under its path
-  and the others render (B5); all three absent → "None". The read error takes the "None" line's form
+- One of the three global AGENTS.md files cannot be read, a file inside a directory that cannot be entered
+  included: its slot shows the read error under its path and the others render (B5); all three absent →
+  "None". The read error takes the "None" line's form
   under the file's path heading: the prototypes draw no unreadable state, so the slot is made of two
   forms they do draw — declared as the prototype exemption (no new form).
 - `~/.gemini/GEMINI.md` exists and no AGENTS.md does: the AGENTS.md entry shows "None"

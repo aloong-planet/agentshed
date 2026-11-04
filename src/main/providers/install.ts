@@ -60,7 +60,9 @@ export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {
     } catch {
       // A cleanup failure does not cascade
     }
-    return { ok: false, reason: ERR.skillCopyFailed, params: { detail: String(err) } }
+    // The notice names no cause, so the system's own words go to the log
+    console.error('[skill-install] copy failed:', err)
+    return { ok: false, reason: ERR.skillCopyFailed }
   }
 }
 
@@ -120,6 +122,7 @@ export function uninstallSkill(args: UninstallArgs): OpResult {
     rmSync(target, { recursive: true, force: true })
     return { ok: true }
   } catch (err) {
-    return { ok: false, reason: ERR.skillDeleteFailed, params: { detail: String(err) } }
+    console.error('[skill-install] delete failed:', err)
+    return { ok: false, reason: ERR.skillDeleteFailed, params: { path: target } }
   }
 }

@@ -19,6 +19,7 @@ import { basename, dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { ERR } from '@shared/errors'
 import type { RegistryResult } from './claude'
+import { isAbsent } from './read-utils'
 import { DatabaseSync } from './sqlite'
 import {
   decodeGeneratorMetadata,
@@ -73,15 +74,21 @@ export function readConversationDb<T>(file: string, read: (db: DatabaseSync) => 
 /** The registry: `trustedWorkspaces` in agy's settings — the folders the user agreed to trust when agy asked, which agy
  * writes itself (projects-list::REQ-001/AC-01, measured 2026-10-28) */
 export function readAntigravityRegistry(home: string): RegistryResult {
-  if (!existsSync(home)) return { detected: false, paths: [] }
+  if (isAbsent(home)) return { detected: false, paths: [] }
   const file = join(home, 'settings.json')
   // A9: installed, nothing trusted yet — a normal state
-  if (!existsSync(file)) return { detected: true, paths: [] }
+  if (isAbsent(file)) return { detected: true, paths: [] }
+  let text: string
+  try {
+    text = readFileSync(file, 'utf8')
+  } catch {
+    return { detected: true, paths: [], error: { code: ERR.registryUnreadable, params: { path: file } } }
+  }
   let parsed: unknown
   try {
-    parsed = JSON.parse(readFileSync(file, 'utf8'))
-  } catch (err) {
-    return { detected: true, paths: [], error: { code: ERR.registryParseFailed, params: { detail: String(err) } } }
+    parsed = JSON.parse(text)
+  } catch {
+    return { detected: true, paths: [], error: { code: ERR.registryParseFailed, params: { path: file } } }
   }
   const ledger = typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>)['trustedWorkspaces'] : undefined
   if (ledger === undefined) return { detected: true, paths: [] }

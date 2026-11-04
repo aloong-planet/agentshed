@@ -9,7 +9,7 @@ import { join, basename } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
 import type { AgentSide, ProjectSubagentEntry, SubagentEntry, SubagentSideDetail } from '@shared/domain'
 import { antigravityConfigDir, type ScanRoots } from './types'
-import { fmField, fmValue, frontMatter, readCapped } from './read-utils'
+import { fmField, fmValue, frontMatter, isAbsent, readCapped } from './read-utils'
 import { ERR } from '@shared/errors'
 
 /** The Codex built-in roles (role.rs built_in::configs); a custom entry of the same name overrides the
@@ -74,7 +74,7 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
     let parsed: Record<string, unknown>
     try {
       parsed = parseToml(content.text)
-    } catch (err) {
+    } catch {
       out.set(`(${f})`, {
         content,
         description: null,
@@ -83,7 +83,7 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
         sandbox: null,
         subagent: null,
         mainAgent: null,
-        error: { code: ERR.subagentTomlFailed, params: { detail: String(err).slice(0, 120) } }
+        error: { code: ERR.subagentTomlFailed, params: {} }
       })
       continue
     }
@@ -144,7 +144,7 @@ function readAntigravitySide(dir: string, withFlat: boolean): Map<string, Subage
       if (withFlat && st.isFile() && n.endsWith('.md')) {
         file = join(dir, n)
         fallback = basename(n, '.md')
-      } else if (st.isDirectory() && existsSync(join(dir, n, 'agent.md'))) {
+      } else if (st.isDirectory() && !isAbsent(join(dir, n, 'agent.md'))) {
         file = join(dir, n, 'agent.md')
         fallback = n
       } else continue

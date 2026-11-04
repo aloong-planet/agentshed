@@ -1,7 +1,7 @@
 // Ticket 03: project detail's "what is installed" — the skills effective view (a same-name pair shows only
 // the project level, skills-view B1),
 // project-level MCP (.mcp.json plus the enabled/disabled switches), and read-only instructions.
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -161,5 +161,17 @@ describe('the Instructions section (project-detail::REQ-002/AC-02)', () => {
     const d = readProjectDetail(roots(), proj)
     expect(d.configs.agentsMd).toEqual({ file: join(proj, 'AGENTS.md'), content: null })
     expect(d.configs.claudeMd).toEqual({ file: join(proj, 'CLAUDE.md'), content: { text: '# Project conventions\n', truncated: false } })
+  })
+
+  it.skipIf(process.getuid?.() === 0)('files inside a project directory that cannot be entered keep their paths too, rather than reading as absent', () => {
+    writeFileSync(join(proj, 'CLAUDE.md'), '# Project conventions\n')
+    chmodSync(proj, 0o000)
+    try {
+      const d = readProjectDetail(roots(), proj)
+      expect(d.configs.claudeMd).toEqual({ file: join(proj, 'CLAUDE.md'), content: null })
+      expect(d.configs.agentsMd).toEqual({ file: join(proj, 'AGENTS.md'), content: null })
+    } finally {
+      chmodSync(proj, 0o755)
+    }
   })
 })

@@ -2,11 +2,12 @@ import type { StartupStatus } from '@shared/display-data'
 import { StartupHint, StartupContext } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { displayQuery, hydrateDisplayQueries } from './display-queries'
-import { Suspense, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useRef, useState, useTransition, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { invalidateOnSnapshot } from './query-client'
 import type { AgentSide, Snapshot } from '@shared/domain'
 import type { TrendSpan } from '@shared/trend'
+import type { UsageWindow } from '@shared/usage'
 import { TrendSpanContext } from './TrendSpan'
 import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
@@ -52,6 +53,20 @@ function applyTheme(theme: AppearanceTheme): void {
 
 function applyLang(lang: Language): void {
   document.documentElement.lang = dictOf(lang).htmlLang
+}
+
+/**
+ * Holds the window selected on a project's Overview for as long as you stay in Projects (token-stats G11). It sits in the
+ * Projects dimension's detail slot, above the choice between the session page and the project's pane: neither unmounts it,
+ * and leaving the dimension does, so no way out has to clear anything. A click re-renders this slot, not the project list.
+ */
+function ProjectWindow({
+  children
+}: {
+  children: (win: UsageWindow, onWin: (win: UsageWindow) => void) => ReactNode
+}): JSX.Element {
+  const [win, setWin] = useState<UsageWindow>('all')
+  return <>{children(win, setWin)}</>
 }
 
 export function App(): JSX.Element {
@@ -220,6 +235,16 @@ export function App(): JSX.Element {
       setTrendSpan(next.trendSpan)
       setAutoCheckUpdates(next.autoCheckUpdates)
     })
+    // The usage archive's file failed (token-stats C4). The main process answers true once in a run, so asking is safe from
+    // anywhere: at mount for a failure before this window subscribed, with each snapshot for one after, and on focus for
+    // one that came with no focus, since a toast nobody sees would be the only one this run
+    const tellArchiveFailure = (): void => {
+      if (!document.hasFocus()) return
+      void window.agentshed.takeArchiveNotice().then((due) => {
+        if (due) toast('err', dictOf(langRef.current).toast.archiveFileFailed)
+      }).catch(() => {})
+    }
+    window.addEventListener('focus', tellArchiveFailure)
     let liveSnapshot = 0
     let liveStatus = false
     const offStatus = window.agentshed.onStartupStatus((status) => { liveStatus = true; setStartup(status) })
@@ -228,7 +253,9 @@ export function App(): JSX.Element {
       setStartup('ready')
       setSnap(s)
       invalidateOnSnapshot(queryClient)
+      tellArchiveFailure()
     })
+    tellArchiveFailure()
     async function restore(): Promise<void> {
       const generation = liveSnapshot
       try {
@@ -266,6 +293,7 @@ export function App(): JSX.Element {
     })
     return () => {
       alive = false
+      window.removeEventListener('focus', tellArchiveFailure)
       off()
       offStatus()
       offSettings()
@@ -427,52 +455,58 @@ export function App(): JSX.Element {
             onRevealed={() => setRevealSelected(false)}
             arrival={listArrival}
             detail={
-              // The detail slot's one Suspense boundary (ADR-0028): the slot is already revealed when a
-              // switch happens, so the Transition around `shownProject` holds this boundary's last
-              // committed content instead of ever reaching the fallback (project-detail T1). The
-              // fallback draws nothing and is reachable only by a key change made outside a Transition.
-              <Suspense fallback={null}>
-                {shownProject && openSession ? (
-                  <SessionPane
-                    file={openSession.file}
-                    focusQ={openSession.focusQ}
-                    projectName={shown?.name ?? shownProject}
-                    projectDir={shownProject}
-                    stale={shown?.stale ?? false}
-                    now={now}
-                    onBack={backToProject}
-                    onOpenSession={(f) => {
-                      startPaneTransition(() => {
-                        setOpenSession({ file: f, focusQ: null, fromSearch: false })
-                      })
-                    }}
-                    exits={
-                      openSession.fromSearch
-                        ? { stale: shown?.stale ?? false, onBackToSearch: () => navigate('search'), onGoToProject: backToProject }
-                        : undefined
-                    }
-                  />
-                ) : shownProject ? (
-                  <DetailPane
-                    snap={snap}
-                    path={shownProject}
-                    initialTab={landOnSessions ? 'sessions' : undefined}
-                    onOpenSession={(f, q) => {
-                      startPaneTransition(() => {
-                        setOpenSession({ file: f, focusQ: q ?? null, fromSearch: false })
-                      })
-                    }}
-                  />
-                ) : (
-                  <div className="startup-project-placeholder">
-                    <div className="startup-project-heading"><b>Agentshed</b><StartupHint /></div>
-                    <div className="empty">
-                      <div className="big"><MousePointerClick size={30} /></div>
-                      <div>{t.shell.pickProject}</div>
-                    </div>
-                  </div>
+              <ProjectWindow>
+                {(win, onWin) => (
+                  // The detail slot's one Suspense boundary (ADR-0028): the slot is already revealed when a
+                  // switch happens, so the Transition around `shownProject` holds this boundary's last
+                  // committed content instead of ever reaching the fallback (project-detail T1). The
+                  // fallback draws nothing and is reachable only by a key change made outside a Transition.
+                  <Suspense fallback={null}>
+                    {shownProject && openSession ? (
+                      <SessionPane
+                        file={openSession.file}
+                        focusQ={openSession.focusQ}
+                        projectName={shown?.name ?? shownProject}
+                        projectDir={shownProject}
+                        stale={shown?.stale ?? false}
+                        now={now}
+                        onBack={backToProject}
+                        onOpenSession={(f) => {
+                          startPaneTransition(() => {
+                            setOpenSession({ file: f, focusQ: null, fromSearch: false })
+                          })
+                        }}
+                        exits={
+                          openSession.fromSearch
+                            ? { stale: shown?.stale ?? false, onBackToSearch: () => navigate('search'), onGoToProject: backToProject }
+                            : undefined
+                        }
+                      />
+                    ) : shownProject ? (
+                      <DetailPane
+                        snap={snap}
+                        path={shownProject}
+                        initialTab={landOnSessions ? 'sessions' : undefined}
+                        win={win}
+                        onWin={onWin}
+                        onOpenSession={(f, q) => {
+                          startPaneTransition(() => {
+                            setOpenSession({ file: f, focusQ: q ?? null, fromSearch: false })
+                          })
+                        }}
+                      />
+                    ) : (
+                      <div className="startup-project-placeholder">
+                        <div className="startup-project-heading"><b>Agentshed</b><StartupHint /></div>
+                        <div className="empty">
+                          <div className="big"><MousePointerClick size={30} /></div>
+                          <div>{t.shell.pickProject}</div>
+                        </div>
+                      </div>
+                    )}
+                  </Suspense>
                 )}
-              </Suspense>
+              </ProjectWindow>
             }
           />
         )}

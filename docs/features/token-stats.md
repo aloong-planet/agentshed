@@ -13,10 +13,10 @@ numbers share a source and reconcile against each other.
   over all history, today, the last 7 days, and the last N days — each showing that window's total, and
   **clicking a card selects the window**. Everything the window governs moves together: each side's
   figure, the composition bar, the highlighted span of the trend chart, and the per-model breakdown.
-  All history is the default; the selection survives switching tabs (and, in a project, switching
-  projects, past a stale project's note or a project that has left the list too); leaving a project's
-  page for a session or another part of the app and coming back resets it, and the active card is not
-  kept across restarts. The fourth card's label and actual total
+  All history is the default; the selection survives switching tabs, and in a project it stays while
+  you remain in Projects: switching projects, past a stale project's note or a project that has left the
+  list, and opening a session and coming back. Leaving for another part of the app resets it, and the
+  active card is not kept across restarts. The fourth card's label and actual total
   follow the global 30/60/90-day choice even when another card is active. If the fourth card is active,
   its side figures, composition and model breakdown also follow that choice. The other three cards
   keep their meanings. "Today" follows the current local day, as does the trend
@@ -91,10 +91,14 @@ numbers share a source and reconcile against each other.
 - A past day's figure never falls silently: when an agent's records for a past day shrink — rewritten
   by the agent, deleted by hand, rewound in Antigravity CLI, or left out because they can no longer be
   read — the day's figure is retained as it was counted before; only a correction that arrives with an
-  application update replaces it (one exception, an archive a newer version stored in its own format, is
-  under the boundaries below). Today's figure is exempt and still moves with every refresh while
+  application update replaces it (two exceptions, an archive a newer version stored in its own format and
+  one that cannot be read, are under the boundaries below). Today's figure is exempt and still moves with every refresh while
   sessions are being written. Deleting a forked conversation's parent takes the calls the fork copied
   with it: a past day keeps them, today does not
+- If the settings directory goes read-only or full while the application runs, or the history file in it
+  cannot be read, the figures keep updating and new sessions keep appearing. One notice says usage history cannot be saved right now,
+  once each time the application runs, waiting until its window has focus. Saving resumes by itself once
+  the file can be used, with nothing already saved lost or overwritten
 - Projects with no sessions show zeros and an empty state rather than an error
 
 ## Boundaries and non-goals
@@ -118,6 +122,11 @@ numbers share a source and reconcile against each other.
 - If the newer version stored the history archive in a format this version does not read, this version
   leaves the archive untouched and shows only what its own refreshes find: past days only the archive
   held read lower or empty, without hatching, until the newer version is opened again
+- With the settings directory already read-only or full when it is opened, the application does not open,
+  and nothing says why
+- While usage history cannot be saved, a day's usage that only this run of the application has counted,
+  and that the agent deletes before saving works again, is not kept. While the history file cannot be
+  read, past days only it held read lower or empty, without hatching, until it can be read
 - The archive can only accumulate from the first day this application ran; sessions older than that
   and already cleaned up cannot be recovered, and neither can history on a machine whose agent
   rewrote its records before this application ever scanned them

@@ -463,9 +463,11 @@ as a cached visit under session-view::REQ-001)
   the expanded turns, the sort and the folded days survive, the index being the original turn
   number. New with this rule: before it the page was static until reopened.
 - P6 Failure on a first open (the file is gone, it exists and cannot be read, the allow-list refuses
-  it, the parse fails): the switch completes to the page's existing error state — an error result is a
-  ready page. The state gives the reason in a sentence in the current UI language, never the raw IPC
-  error. A failed revalidation of a cached page leaves the shown page as it is.
+  it, an Antigravity conversation cannot be read in the supported format): the switch completes to the
+  page's existing error state — an error result is a ready page. The state gives the reason in a sentence
+  in the current UI language, never the raw IPC error. A file that cannot be read says so whether or not
+  its index has to be rebuilt, on the page and in a turn. A failed revalidation of a cached page leaves
+  the shown page as it is.
 - P7 A file Codex compressed while its page was cached: the plain path's page stays a cached visit
   until the next snapshot marks it stale; from then on opening it is P6, and the session reappears
   under its compressed identity (C4).

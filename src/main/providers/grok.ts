@@ -6,6 +6,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
 import type { RegistryResult } from './claude'
+import { isAbsent } from './read-utils'
 import { ERR } from '@shared/errors'
 
 export interface GrokSessionMeta {
@@ -103,22 +104,25 @@ export function readGrokRegistry(grokHome: string): RegistryResult {
   if (!existsSync(grokHome)) return { detected: false, paths: [] }
   const ledger = join(grokHome, 'trusted_folders.toml')
   // A9: an installed side that has registered nothing is a normal state, not a failure
-  if (!existsSync(ledger)) return { detected: true, paths: [] }
+  if (isAbsent(ledger)) return { detected: true, paths: [] }
+  let text: string
   try {
-    const parsed = parseToml(readFileSync(ledger, 'utf8')) as Record<string, unknown>
-    const folders = parsed['folders']
-    // No folders table at all is the empty ledger (A9, normal); a folders key that is NOT a table
-    // is a corrupt one (A3) — degrading without an explanation is what the two must not share
-    if (folders === undefined) return { detected: true, paths: [] }
-    if (typeof folders !== 'object' || folders === null) {
-      return { detected: true, paths: [], error: { code: ERR.registryProjectsInvalid, params: {} } }
-    }
-    return { detected: true, paths: Object.keys(folders) }
-  } catch (err) {
-    return {
-      detected: true,
-      paths: [],
-      error: { code: ERR.registryParseFailed, params: { detail: String(err) } }
-    }
+    text = readFileSync(ledger, 'utf8')
+  } catch {
+    return { detected: true, paths: [], error: { code: ERR.registryUnreadable, params: { path: ledger } } }
   }
+  let parsed: Record<string, unknown>
+  try {
+    parsed = parseToml(text)
+  } catch {
+    return { detected: true, paths: [], error: { code: ERR.registryParseFailed, params: { path: ledger } } }
+  }
+  const folders = parsed['folders']
+  // No folders table at all is the empty ledger (A9, normal); a folders key that is NOT a table
+  // is a corrupt one (A3) — degrading without an explanation is what the two must not share
+  if (folders === undefined) return { detected: true, paths: [] }
+  if (typeof folders !== 'object' || folders === null) {
+    return { detected: true, paths: [], error: { code: ERR.registryProjectsInvalid, params: {} } }
+  }
+  return { detected: true, paths: Object.keys(folders) }
 }

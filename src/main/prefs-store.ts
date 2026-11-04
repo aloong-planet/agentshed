@@ -1,6 +1,6 @@
 // The app's own preferences (userData/prefs.json). Never the agent configuration. Atomic writes:
 // a temporary file + rename, so an interruption leaves no half file.
-import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   DEFAULT_MODE,
@@ -19,6 +19,7 @@ import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
 import { ERR, appError } from '@shared/errors'
 
 import { isTrendSpan, TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
+import { writeFileAtomicSync } from './providers/atomic-write'
 
 export type { Prefs }
 
@@ -104,10 +105,7 @@ export class PrefsStore {
    */
   private persist(): void {
     try {
-      mkdirSync(this.dir, { recursive: true })
-      const tmp = join(this.dir, `.prefs.json.tmp-${process.pid}`)
-      writeFileSync(tmp, JSON.stringify(this.prefs, null, 2))
-      renameSync(tmp, this.file)
+      writeFileAtomicSync(this.file, join(this.dir, `.prefs.json.tmp-${process.pid}`), JSON.stringify(this.prefs, null, 2))
     } catch (error) {
       console.error('[prefs] save failed:', error)
       throw appError(ERR.prefsWriteFailed)

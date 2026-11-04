@@ -50,8 +50,8 @@ is read-only; the one write operation is uninstalling a project-level skill.
 - A1 The sections, in this order = Overview / Instructions / Skills / Subagents / Plugins / MCP / Memory /
   Sessions / Artifacts (project-detail::REQ-004); a new component type extends this list.
 - A2 A stale project opens as the **stale note page** (settled 2026-08-23, superseding the earlier
-  "sections show empty states" behaviour): the shell — back control, struck-through name, stale tag,
-  path — plus a single note card, with **no section tabs and no data areas**. The trade-off that the
+  "sections show empty states" behaviour): the shell — struck-through name, stale tag, path — plus a
+  single note card, with **no section tabs and no data areas** and no back control, the project list being beside it. The trade-off that the
   project's own token history is no longer reachable from its page was accepted; the global totals
   still include it (see agents-overview B3). Sequence S below owns the card.
 - A3 Detail is fetched on demand (it does not enter the overview snapshot), and **a project switch is
@@ -225,7 +225,7 @@ Applies to: the project detail page.
 
 Failure modes and boundaries: a project registered only on Antigravity opens with the ANTIGRAVITY chip
 alone and its own sessions; the MCP section's Antigravity group appears on a project's page only when it
-has servers, since it repeats global facts (settled 2026-10-29); an instruction file that cannot be read shows the read error under its
+has servers, since it repeats global facts (settled 2026-10-29); an instruction file that cannot be read, one inside a directory that cannot be entered included, shows the read error under its
 path, the other entry unaffected — in the "None" line's form under the path heading, the same declared
 prototype exemption as the agents page's (agents-overview::REQ-004 failure modes); the Instructions
 previews keep R3's link destinations.
@@ -345,11 +345,13 @@ regressions within this round; artifact collection rules and unrelated section l
 - **Section state is keyed by project**: the pane body subtree is keyed by the project path, so a
   section's local state resets on a project change exactly as it does today (the Skills filter rule)
   and survives a transfusion of the same project (A3).
-- **The selected tab and the selected window live above what the pane draws** (project-detail::REQ-004/AC-02,
-  [token-stats](token-stats.md) G11): the pane stays mounted while a project is on the stage and holds them, so a note page or
-  the not-in-snapshot state drawn in the sectioned page's place neither changes nor uses them, with no flag for either. A
-  session page or another dimension unmounts the pane, which is what starts the next one afresh; a new pane reads the landing
-  on Sessions when it mounts.
+- **The selected tab lives above what the pane draws** (project-detail::REQ-004/AC-02): the pane stays mounted while a
+  project is on the stage and holds it, so a note page or the not-in-snapshot state drawn in the sectioned page's place
+  neither changes nor uses it, with no flag for either. A session page or another dimension unmounts the pane, which is what
+  starts the next one afresh; a new pane reads the landing on Sessions when it mounts.
+- **The selected window lives in the Projects dimension's detail slot** ([token-stats](token-stats.md) G11), above the choice
+  between the session page and the pane and below the project list. Neither page unmounts it, and leaving the dimension does,
+  so its lifetime is the rule itself and no way out has to clear it. A click on a totals card re-renders the slot, not the list.
 - **Allow-list**: when detail is returned, the artifact and memory file paths are registered in the
   allow-list, and both reading and external opening validate against it.
 - **The stale note page renders from the snapshot entry alone** (path, sides, staleness are already
@@ -446,10 +448,11 @@ window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-
   draw; declared here as the exemption rather than assumed. The sentence a failed read's toast states (B9)
   changes wording only, and is declared as copy.
 - **Prototype gate (2026-11-04), a page with no tabs**: a stale project's note page and the not-in-snapshot state keeping
-  the tab (REQ-004/AC-02) and the selected window ([token-stats](token-stats.md) G11) for the next page adds no page, control,
-  state, colour or spacing: the tab row, the totals cards and both pages keep their forms, and which one is selected at a
-  moment has no form to draw. The behaviour does change visibly, which puts it outside the gate's named exceptions; the owner
-  confirmed on 2026-11-04 that it needs no prototype, and it is declared here rather than assumed.
+  the tab (REQ-004/AC-02) and the selected window ([token-stats](token-stats.md) G11) for the next page, and the window held
+  across a session page, add no page, control, state, colour or spacing: the tab row, the totals cards and the pages keep
+  their forms, and which one is selected at a moment has no form to draw. The behaviour does change visibly, which puts it
+  outside the gate's named exceptions; the owner confirmed on 2026-11-04 that it needs no prototype, the session page was
+  added on the owner's delegation on 2026-11-05, and it is declared here rather than assumed.
 - **Prototype gate (2026-09-12)**: the atomic switch adds no visible state — the list highlight
   keeps its existing form, and the end state is the absence of an intermediate frame, which has no
   form to draw; declared here as the exemption rather than assumed.
