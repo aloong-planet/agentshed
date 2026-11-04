@@ -5,7 +5,7 @@ import { displayQuery } from './display-queries'
 // The truncation marker and relative-link rewriting stay a render-time derivation over the cached raw
 // text (in DetailPane.tsx), not baked into the cache — a language switch while the reader is open
 // still picks up the marker's new wording.
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import type { CappedText } from '@shared/domain'
 
 export type ArtifactContentResult =
@@ -27,6 +27,11 @@ export async function fetchArtifactContent(
   }
 }
 
+/** The query for one file, for the hook below and for a click that has to know how its read came out */
+export function artifactContentQuery(client: QueryClient, file: string | null): ReturnType<typeof displayQuery<ArtifactContentResult>> {
+  return displayQuery(client, artifactContentQueryKey(file), () => fetchArtifactContent(file as string))
+}
+
 /** `file === null` means no reader is open — the query is disabled. */
 export function useArtifactContentQuery(file: string | null): {
   data: ArtifactContentResult | undefined
@@ -34,7 +39,7 @@ export function useArtifactContentQuery(file: string | null): {
 } {
   const client = useQueryClient()
   const { data, isLoading } = useQuery({
-    ...displayQuery(client, artifactContentQueryKey(file), () => fetchArtifactContent(file as string)),
+    ...artifactContentQuery(client, file),
     enabled: file !== null
   })
   return { data, isLoading }

@@ -90,8 +90,9 @@ opened, or go on into its project, so that looking through hits does not mean se
   same keyword, results, sort and scroll position. The results are the current ones for that keyword
   (global-search::REQ-004).
 - global-search::US-003/AC-03: "Go to <project> · Sessions" shows that project's detail on its Sessions
-  tab. For a stale project the exit reads "Go to <project>", without "· Sessions", and shows the project's
-  stale note page, which has no Sessions tab.
+  tab, once, like the back control: the next page drawn starts on Overview
+  ([project-detail::REQ-004/AC-02](project-detail.md)). For a stale project the exit reads "Go to <project>",
+  without "· Sessions", and shows the project's stale note page, which has no Sessions tab.
 - global-search::US-003/AC-04: Only the session opened directly from a hit has the two exits. A fork
   parent reached through that session's banner, a session opened after going into the project, and any
   session opened inside a project show the single back control ("Back to <project> · Sessions"), as
@@ -245,7 +246,8 @@ with plural forms through the existing plural rules; no string enumerates the ag
 - J5 Follow the fork banner to the parent: single back control on the parent's page; its back control
   leads to the project's Sessions tab.
 - J6 While a session opened from search is on screen, click another project in the list: the project page
-  replaces it, as any project selection does; the way back to the search is the rail's Search item.
+  replaces it, as any project selection does, on its Sessions tab ([project-detail::REQ-004/AC-02](project-detail.md));
+  the way back to the search is the rail's Search item.
 - J7 While a session opened from search is on screen, switch to Search with the rail, change the keyword,
   then switch back to Projects: the session page is still there with its two exits, and "Back to search
   results" now shows the new results.

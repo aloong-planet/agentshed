@@ -21,7 +21,7 @@ import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statS
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
-import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
+import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
 import { ERR } from '../src/shared/errors'
 import { AGENT_SIDES } from '../src/shared/validate'
@@ -133,6 +133,54 @@ function localDayOffset(daysAgo: number): Date {
   d.setDate(d.getDate() - daysAgo)
   d.setHours(12, 0, 0, 0) // Midday, so no time zone pushes the date outside the window
   return d
+}
+
+/** Waits for `n` scans to reach the page, counted from now: a change on disk is certainly in the second one */
+function scansLanded(win: Page, n: number): Promise<void> {
+  return win.evaluate(
+    (count) =>
+      new Promise<void>((resolve) => {
+        let seen = 0
+        const off = (window as unknown as { agentshed: { onSnapshot: (cb: () => void) => () => void } }).agentshed.onSnapshot(() => {
+          if (++seen === count) {
+            off()
+            resolve()
+          }
+        })
+      }),
+    n
+  )
+}
+
+/**
+ * Counts the error toasts that appear from now on, because a toast leaves after about 3 seconds and what is on screen does
+ * not tell; each read returns how many appeared since the last. A read comes after the reads under way have landed: at a
+ * zero fetch delay the main process answers in the order it was asked, so a call made now answers after any revalidation
+ * before it, whose result then reaches the page's effects within a tick.
+ */
+async function errorToastsAdded(win: Page): Promise<() => Promise<number>> {
+  await win.waitForSelector('.toasts', { state: 'attached' })
+  await win.evaluate(() => {
+    const w = window as unknown as { errorToasts: number }
+    w.errorToasts = 0
+    new MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of r.addedNodes) if (n instanceof HTMLElement && n.classList.contains('err')) w.errorToasts++
+      }
+    }).observe(document.querySelector('.toasts') as Element, { childList: true })
+  })
+  let read = 0
+  return async () => {
+    const total = await win.evaluate(async () => {
+      const w = window as unknown as { errorToasts: number; agentshed: { getPrefs: () => Promise<unknown> } }
+      await w.agentshed.getPrefs()
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      return w.errorToasts
+    })
+    const added = total - read
+    read = total
+    return added
+  }
 }
 
 /**
@@ -890,7 +938,7 @@ test('a stale project opens as the note page: card only, chips per recording sid
  * step reads the header first: a switch holds the old page until the new one is ready, so the tab alone could be the old
  * project's.
  */
-test('the tab a project opens on: another project keeps it, a page drawn afresh starts on Overview, and coming back from a session starts on Sessions', async () => {
+test('the tab a project opens on: another project keeps it, a page drawn afresh starts on Overview, and coming back from a session starts on Sessions, once', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-tabs-'))
   const alpha = join(home, 'alpha')
   const beta = join(home, 'beta')
@@ -911,7 +959,7 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
     ].map((line) => JSON.stringify(line)).join('\n') + '\n'
   )
 
-  // A brisk rescan, for the last step: a record going reaches the page through the automatic scan
+  // A brisk rescan, for the steps a scan drives: a record going or coming back reaches the page through the automatic scan
   const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
   const win = await l.app.firstWindow()
   const agents = win.locator('.rail .ri').nth(0)
@@ -970,40 +1018,82 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await row('alpha').click()
   await pageIs('alpha', 'Overview')
 
-  // Coming back from a session lands on Sessions (T8), and so does leaving that page for another dimension and coming
-  // back, by the rail or by a side card's project count
+  // Coming back from a session lands on Sessions (T8), once: the next page drawn starts on Overview, whichever tab was on
+  // screen when leaving, by the rail or by a side card's project count
   const backFromTheSession = async (): Promise<void> => {
     await openTheSession()
     await win.locator('.sback').click()
     await pageIs('alpha', 'Sessions')
   }
   await backFromTheSession()
-  await select('Skills')
-  await leaveByTheRailAndComeBack()
-  await pageIs('alpha', 'Sessions')
-  await select('Skills')
-  await throughTheSideCard()
-  await pageIs('alpha', 'Sessions')
-
-  // Until a project is selected in the list, even the one on screen: the next page drawn starts on Overview. Another
-  // project takes over the page on screen first, and its tab
-  await row('alpha').click()
   await leaveByTheRailAndComeBack()
   await pageIs('alpha', 'Overview')
+  await backFromTheSession()
+  await select('Skills')
+  await leaveByTheRailAndComeBack()
+  await pageIs('alpha', 'Overview')
+  await backFromTheSession()
+  await throughTheSideCard()
+  await pageIs('alpha', 'Overview')
+  await backFromTheSession()
+  await select('Skills')
+  await throughTheSideCard()
+  await pageIs('alpha', 'Overview')
+
+  // A page a scan draws follows the same rule: the page turning into a stale project's note and back, and the project
+  // leaving the snapshot and coming back
+  await backFromTheSession()
+  rmSync(alpha, { recursive: true })
+  await expect(win.locator('.stale-note')).toBeVisible()
+  mkdirSync(alpha)
+  await pageIs('alpha', 'Overview')
+  await backFromTheSession()
+  register(beta, ghost)
+  await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
+  register(alpha, beta, ghost)
+  await pageIs('alpha', 'Overview')
+
+  // With the landed page on screen another project takes it over, and its tab; the next page drawn starts on Overview
   await backFromTheSession()
   await row('beta').click()
   await pageIs('beta', 'Sessions')
   await leaveByTheRailAndComeBack()
   await pageIs('beta', 'Overview')
 
-  // A project selected from a session page draws a new page
+  // A project selected in the list from a session page lands on Sessions, once. This one has none yet, and the tab says so.
+  // With that page on screen another project keeps the tab, and the next page drawn starts on Overview
   await row('alpha').click()
   await expect(win.locator('.det-title h1')).toHaveText('alpha')
   await openTheSession()
   await row('beta').click()
-  await pageIs('beta', 'Overview')
+  await pageIs('beta', 'Sessions')
+  await expect(win.locator('.pane-body .none')).toHaveText(
+    'No sessions in this project yet. They appear automatically once any agent side has a conversation in this directory.'
+  )
+  await row('alpha').click()
+  await pageIs('alpha', 'Sessions')
+  await leaveByTheRailAndComeBack()
+  await pageIs('alpha', 'Overview')
+
+  // So does the session's own project, its row clicked with the session on screen
+  await openTheSession()
+  await row('alpha').click()
+  await pageIs('alpha', 'Sessions')
+  await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+  await throughTheSideCard()
+  await pageIs('alpha', 'Overview')
+
+  // A stale project's note spends the landing: the page a scan later draws starts on Overview
+  await openTheSession()
+  await win.locator('.side input[type="checkbox"]').check()
+  await row('ghost').click()
+  await expect(win.locator('.stale-note')).toBeVisible()
+  mkdirSync(ghost)
+  await pageIs('ghost', 'Overview')
 
   // The project on screen leaves the snapshot (S7): selecting another project clears the message and draws a new page
+  await row('beta').click()
+  await pageIs('beta', 'Overview')
   await select('Skills')
   register(alpha, ghost)
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
@@ -1012,6 +1102,17 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await expect(win.locator('.detail .empty')).toHaveCount(0)
 
   expect(l.errors).toEqual([])
+
+  // A return that draws no tabs spends the landing all the same: the session left onto the not-in-snapshot state. Last,
+  // and past the check above, because the main process refuses the open session's reads once its project has gone
+  await openTheSession()
+  register(ghost)
+  await scansLanded(win, 2)
+  await win.locator('.sback').click()
+  await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
+  register(alpha, ghost)
+  await pageIs('alpha', 'Overview')
+
   await close(l)
 })
 
@@ -3361,7 +3462,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // AC-08: the overlay closes
   await expect(fd).toHaveCount(0)
   await memFile('vanish.md').click()
-  await expect(fdBody).toContainText('File cannot be read')
+  await expect(fdBody).toHaveText('File cannot be read: This file can no longer be read (moved or deleted?)')
   await expect(fd.locator('.md-preview-name')).toHaveText('vanish.md')
   await expect(fd.locator('.md-preview-seg')).toBeVisible()
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // The drawer covers the window centre, so click the visible mask on the left
@@ -3627,7 +3728,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
 
   // The one expected handler error: reading vanish.md, removed after the scan on purpose (AC-07). Electron logs
   // every rejected IPC handler to stderr; anything else is still a failure.
-  expect(errors.filter((e) => !(e.includes("handler for 'agentshed:read-artifact'") && e.includes('vanish.md')))).toEqual([])
+  expect(errors.filter((e) => !(e.includes("handler for 'agentshed:read-artifact'") && e.includes(ERR.artifactUnreadable)))).toEqual([])
   await closeApp(app)
   rmSync(userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
@@ -4288,7 +4389,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
 
 // skills-view A11 / plugins-view H10: a package that disappears between the scan and the expand cannot
 // be listed. The file area says so in the same words as the toast, not with the raw IPC error.
-test('a skill package removed after the scan: the file table shows the toast\'s wording in both skill lists (#209)', async () => {
+test('a skill package removed after the scan: one toast for each expansion, and the file table in the toast\'s wording, in both skill lists (#209)', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
   const demo = join(home, 'demo-proj')
   mkdirSync(demo, { recursive: true })
@@ -4310,11 +4411,22 @@ test('a skill package removed after the scan: the file table shows the toast\'s 
 
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
-  const expectSameAsToast = async (table: ReturnType<typeof win.locator>): Promise<void> => {
-    const toast = win.locator('.toast').last()
-    await expect(toast).toContainText('Listing failed: ')
-    await expect(table).toHaveText((await toast.textContent()) ?? '')
-    await expect(table).not.toContainText('Error invoking remote method')
+  const added = await errorToastsAdded(win)
+  const expectSameAsToast = async (
+    table: ReturnType<typeof win.locator>,
+    sentence = 'Listing failed: The skill package is unavailable or outside the allowed roots'
+  ): Promise<void> => {
+    await expect(table).toHaveText(sentence)
+    await expect(win.locator('.toast.err').last()).toHaveText(sentence)
+  }
+  /** One toast for each expansion: the cached failure and the revalidation's new failure are one failure (A11, H10) */
+  const collapseAndReopen = async (head: ReturnType<typeof win.locator>, table: ReturnType<typeof win.locator>): Promise<void> => {
+    await head.click()
+    await expect(table).toHaveCount(0)
+    expect(await added()).toBe(0)
+    await head.click()
+    await expect(table).toBeVisible()
+    expect(await added()).toBe(1)
   }
 
   // The Skills tab (SkillExpandBlock)
@@ -4324,6 +4436,9 @@ test('a skill package removed after the scan: the file table shows the toast\'s 
   rmSync(vanishing, { recursive: true })
   await row.locator('.sk-head').click()
   await expectSameAsToast(row.locator('.files .empty'))
+  expect(await added()).toBe(1)
+  await collapseAndReopen(row.locator('.sk-head'), row.locator('.files .empty'))
+  await collapseAndReopen(row.locator('.sk-head'), row.locator('.files .empty'))
 
   // The Plugins tab (PluginSkillList)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
@@ -4331,11 +4446,110 @@ test('a skill package removed after the scan: the file table shows the toast\'s 
   await expect(spRow).toBeVisible()
   rmSync(join(sp, 'skills', 'brainstorming'), { recursive: true })
   await spRow.click()
-  const psk = win.locator('.exp-area').first().locator('.psk', { hasText: 'superpowers:brainstorming' })
+  const exp = win.locator('.exp-area').first()
+  const psk = exp.locator('.psk', { hasText: 'superpowers:brainstorming' })
   await psk.click()
-  await expectSameAsToast(win.locator('.exp-area').first().locator('.files .empty'))
+  await expectSameAsToast(exp.locator('.files .empty'))
+  expect(await added()).toBe(1)
+  await collapseAndReopen(psk, exp.locator('.files .empty'))
+  await collapseAndReopen(psk, exp.locator('.files .empty'))
 
+  // The one language control is on the settings page, which takes both rows off the stage. The switch adds no failure
+  // toast, each row comes back collapsed, and its next expansion adds one, in the new language
+  await win.locator('.rail .ri.set').click()
+  await win.locator('[data-testid="language-trigger"]').click()
+  await win.locator('.lang-opt[data-lang="zh"]').click()
+  await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+  await win.locator('.rail .ri').nth(0).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await expect(row).toBeVisible()
+  await expect(row).not.toHaveClass(/open/)
+  expect(await added()).toBe(0)
+  await row.locator('.sk-head').click()
+  await expectSameAsToast(row.locator('.files .empty'), '列举失败:skill 包不可用或不在允许根下')
+  expect(await added()).toBe(1)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
+  await spRow.click()
+  await psk.click()
+  await expectSameAsToast(exp.locator('.files .empty'), '列举失败:skill 包不可用或不在允许根下')
+  expect(await added()).toBe(1)
   await close(l)
+
+  // A row left open on a failed listing, with scans landing. The package above leaves the list on the next scan, so these
+  // rows are ones the resolver refuses by name and the scan still lists: `resolveSkillRoot` and `resolvePluginSkillRoot`
+  // refuse a colon, and the listing fails whatever the scans do. The global row is on two sides
+  const home2 = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+  const demo2 = join(home2, 'demo-proj')
+  mkdirSync(demo2, { recursive: true })
+  writeFileSync(join(home2, '.claude.json'), JSON.stringify({ projects: { [demo2]: {} } }))
+  const sp2 = join(home2, 'pkg-sp')
+  for (const dir of [join(home2, '.claude', 'skills'), join(home2, '.agents', 'skills'), join(sp2, 'skills')]) {
+    mkdirSync(join(dir, 'odd:name'), { recursive: true })
+    writeFileSync(join(dir, 'odd:name', 'SKILL.md'), '---\ndescription: Refused by name\n---\nx\n')
+  }
+  mkdirSync(join(sp2, 'skills', 'odd:two'), { recursive: true })
+  writeFileSync(join(sp2, 'skills', 'odd:two', 'SKILL.md'), '---\ndescription: Refused by name too\n---\nx\n')
+  mkdirSync(join(sp2, '.claude-plugin'), { recursive: true })
+  writeFileSync(join(sp2, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }))
+  mkdirSync(join(home2, '.claude', 'plugins'), { recursive: true })
+  writeFileSync(
+    join(home2, '.claude', 'plugins', 'installed_plugins.json'),
+    JSON.stringify({ version: 2, plugins: { 'superpowers@official': [{ scope: 'user', version: '1.0.0', installPath: sp2 }] } })
+  )
+  writeFileSync(join(home2, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'superpowers@official': true } }))
+
+  const l2 = await launch(undefined, home2, { AGENTSHED_RESCAN_MS: '250' })
+  const win2 = await l2.app.firstWindow()
+  const added2 = await errorToastsAdded(win2)
+  await win2.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const odd = win2.locator('.sk', { hasText: 'odd:name' }).filter({ hasNotText: 'superpowers:' })
+  await expect(odd).toBeVisible()
+  await odd.locator('.sk-head').click()
+  await expect(odd.locator('.files .empty')).toContainText('Listing failed: ')
+  expect(await added2()).toBe(1)
+  await scansLanded(win2, 2)
+  await expect(odd).toHaveClass(/open/)
+  await expect(odd.locator('.files .empty')).toContainText('Listing failed: ')
+  expect(await added2()).toBe(0)
+  // Scans with the row collapsed add none, and the reopen adds one
+  await odd.locator('.sk-head').click()
+  await expect(odd.locator('.files .empty')).toHaveCount(0)
+  await scansLanded(win2, 1)
+  expect(await added2()).toBe(0)
+  await odd.locator('.sk-head').click()
+  await expect(odd.locator('.files .empty')).toBeVisible()
+  expect(await added2()).toBe(1)
+  // Another side is another listing: its failure adds one, and coming back to the first, which has a cached failure, one
+  await odd.locator('.sk-sides button').nth(1).click()
+  await expect(odd.locator('.sk-sides button.on')).toHaveText('Codex')
+  expect(await added2()).toBe(1)
+  await odd.locator('.sk-sides button').nth(0).click()
+  await expect(odd.locator('.sk-sides button.on')).toHaveText('Claude')
+  expect(await added2()).toBe(1)
+
+  await win2.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
+  await win2.locator('.it.row-btn', { hasText: 'superpowers@official' }).click()
+  const exp2 = win2.locator('.exp-area').first()
+  const oddPsk = exp2.locator('.psk', { hasText: 'superpowers:odd:name' })
+  await oddPsk.click()
+  await expect(exp2.locator('.files .empty')).toContainText('Listing failed: ')
+  expect(await added2()).toBe(1)
+  await scansLanded(win2, 2)
+  await expect(exp2.locator('.files .empty')).toContainText('Listing failed: ')
+  expect(await added2()).toBe(0)
+  await oddPsk.click()
+  await expect(exp2.locator('.files .empty')).toHaveCount(0)
+  await oddPsk.click()
+  await expect(exp2.locator('.files .empty')).toBeVisible()
+  expect(await added2()).toBe(1)
+  // Another row is another listing: its failure adds one, and coming back to the first, which has a cached failure, one
+  await exp2.locator('.psk', { hasText: 'superpowers:odd:two' }).click()
+  await expect(exp2.locator('.psk.on')).toContainText('superpowers:odd:two')
+  expect(await added2()).toBe(1)
+  await oddPsk.click()
+  await expect(exp2.locator('.psk.on')).toContainText('superpowers:odd:name')
+  expect(await added2()).toBe(1)
+  await close(l2)
 })
 
 // The file table's line counts group digits the way the UI language does, like every other count. The
@@ -6422,27 +6636,123 @@ test('leaving a project for a session page and coming back (query layer closeout
   await close(l)
 })
 
-test('opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash', async () => {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
-  const proj = join(home, 'demo-proj')
-  mkdirSync(proj, { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-  mkdirSync(join(proj, 'docs'), { recursive: true })
-  const ctx = join(proj, 'docs', 'CONTEXT.md')
-  writeFileSync(ctx, '# Doomed\n\nGone before it opens.\n')
+test('opening an artifact whose file was removed after the scan (query layer): one toast for each click, no overlay, no crash', async () => {
+  const mkHome = (): { home: string; ctx: string } => {
+    const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
+    const proj = join(home, 'demo-proj')
+    mkdirSync(join(proj, 'docs', 'specs'), { recursive: true })
+    writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+    const ctx = join(proj, 'docs', 'CONTEXT.md')
+    writeFileSync(ctx, '# Doomed\n\nGone before it opens.\n')
+    writeFileSync(join(proj, 'docs', 'specs', 'fine.md'), '# Fine\n\nThis one reads.\n')
+    return { home, ctx }
+  }
+  const { home, ctx } = mkHome()
+  const openTheArtifacts = async (w: Page): Promise<void> => {
+    await w.locator('.rail .ri').nth(1).click()
+    await w.locator('.side .row').first().click()
+    await w.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
+  }
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
-  await win.locator('.rail .ri').nth(1).click()
-  await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
-  await expect(win.locator('.it.ai', { hasText: 'Doomed' })).toBeVisible()
+  const added = await errorToastsAdded(win)
+  await openTheArtifacts(win)
+  const doomed = win.locator('.it.ai', { hasText: 'Doomed' })
+  await expect(doomed).toBeVisible()
 
   rmSync(ctx, { force: true })
-  await win.locator('.it.ai', { hasText: 'Doomed' }).click()
-  await expect(win.locator('.toast')).toBeVisible()
+  await doomed.click()
+  await expect(win.locator('.toast.err')).toHaveText('This file can no longer be read (moved or deleted?)')
+  await expect(win.locator('.reader')).toHaveCount(0)
+  expect(await added()).toBe(1)
+
+  // Each click on it is a new attempt: one toast, not silence (B9), and not two from the cached failure and the new one
+  await doomed.click()
+  expect(await added()).toBe(1)
+  await win.locator('.it.ai', { hasText: 'Fine' }).click()
+  await expect(win.locator('.reader')).toBeVisible()
+  await win.locator('.mask').click()
+  await expect(win.locator('.reader')).toHaveCount(0)
+  expect(await added()).toBe(0)
+  await doomed.click()
+  expect(await added()).toBe(1)
   await expect(win.locator('.reader')).toHaveCount(0)
 
+  // The toast states the failure in the current UI language
+  await win.locator('.rail .ri.set').click()
+  await win.locator('[data-testid="language-trigger"]').click()
+  await win.locator('.lang-opt[data-lang="zh"]').click()
+  await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '产物' }).click()
+  await doomed.click()
+  await expect(win.locator('.toast.err').last()).toHaveText('该文件已不可读(被移动或删除?)')
+  expect(await added()).toBe(1)
+
+  // The file back: the click reads it again and opens it, with no toast from the failure it remembers
+  writeFileSync(ctx, '# Doomed\n\nBack again.\n')
+  await doomed.click()
+  await expect(win.locator('.reader')).toContainText('Back again.')
+  expect(await added()).toBe(0)
+
+  // Removed again, now that it has been read: the click shows what was kept, with no toast (ADR-0029)
+  await win.locator('.mask').click()
+  await expect(win.locator('.reader')).toHaveCount(0)
+  rmSync(ctx, { force: true })
+  await doomed.click()
+  await expect(win.locator('.reader')).toContainText('Back again.')
+  expect(await added()).toBe(0)
+  await expect(win.locator('.reader')).toContainText('Back again.')
   await close(l)
+
+  // A failing read overtaken by a click on another file: its toast, and the other file opens and stays
+  const third = mkHome()
+  const l3 = await launch(undefined, third.home, { AGENTSHED_FETCH_DELAY_MS: '500' })
+  const win3 = await l3.app.firstWindow()
+  const added3 = await errorToastsAdded(win3)
+  await openTheArtifacts(win3)
+  await expect(win3.locator('.it.ai', { hasText: 'Doomed' })).toBeVisible()
+  rmSync(third.ctx, { force: true })
+  await win3.locator('.it.ai', { hasText: 'Doomed' }).click()
+  await win3.locator('.it.ai', { hasText: 'Fine' }).click()
+  await expect(win3.locator('.reader')).toContainText('This one reads.')
+  expect(await added3()).toBe(1)
+  await expect(win3.locator('.reader')).toContainText('This one reads.')
+  await close(l3)
+
+  // A read that fails through scans, with scans landing. A removed file leaves the list on the next scan, so this one is
+  // a link whose target is gone: `collectMd` lists it by name, and its read fails whatever the scans do
+  const home2 = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
+  const proj2 = join(home2, 'demo-proj')
+  mkdirSync(join(proj2, 'docs', 'specs'), { recursive: true })
+  writeFileSync(join(home2, '.claude.json'), JSON.stringify({ projects: { [proj2]: {} } }))
+  const target = join(proj2, 'moved.md')
+  const link = join(proj2, 'docs', 'specs', 'dangling.md')
+  symlinkSync(target, link)
+  const l2 = await launch(undefined, home2, { AGENTSHED_RESCAN_MS: '250' })
+  const win2 = await l2.app.firstWindow()
+  const added2 = await errorToastsAdded(win2)
+  await openTheArtifacts(win2)
+  const dangling = win2.locator(`.it.ai[title="${link}"]`)
+  await expect(dangling).toBeVisible()
+  await dangling.click()
+  expect(await added2()).toBe(1)
+  await scansLanded(win2, 2)
+  await expect(dangling).toBeVisible()
+  expect(await added2()).toBe(0)
+  await dangling.click()
+  expect(await added2()).toBe(1)
+  await scansLanded(win2, 2)
+  expect(await added2()).toBe(0)
+
+  // The target arriving opens nothing by itself: nothing is open any more. The next click opens it
+  writeFileSync(target, '# Arrived\n\nThe link reads now.\n')
+  await scansLanded(win2, 2)
+  await expect(win2.locator('.reader')).toHaveCount(0)
+  await dangling.click()
+  await expect(win2.locator('.reader')).toContainText('The link reads now.')
+  expect(await added2()).toBe(0)
+  await close(l2)
 })
 
 test('reopening a skill file table (query layer): first expand is slow, reopening it is instant', async () => {

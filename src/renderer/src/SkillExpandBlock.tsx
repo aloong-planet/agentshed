@@ -82,13 +82,16 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const listing = listResult?.ok ? listResult.listing : null
   // The same sentence as the toast below, in the current UI language (skills-view A11)
   const listErr = listResult?.ok === false ? t.skills.listFailed(errorText(lang, listResult.error)) : null
+  const listFailed = listResult?.ok === false
 
   useEffect(() => {
     if (listResult?.ok === false) toast('err', t.skills.listFailed(errorText(lang, listResult.error)))
-    // `lang` and `t` are left out on purpose: the toast belongs to a failed result, so switching the UI
-    // language must not show it a second time
+    // The toast belongs to the failure (A11), so this follows whether the listing failed and not the result object: a
+    // revalidation's new failure, on a reopen or a scan, adds none, and a collapse takes `listFailed` back to false, so
+    // the reopen adds one. `side` because another side with a cached failure leaves `listFailed` true. `lang` and `t`
+    // are left out on purpose: a language does not make a failure
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listResult])
+  }, [listFailed, side])
 
   function toggle(): void {
     if (!expandable) return

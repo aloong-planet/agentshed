@@ -30,7 +30,7 @@ import { useLanguage, useDict } from './language'
 import { GitFork } from './icons'
 import { useSessionSearchQuery } from './session-search-query'
 import { SessionHitCard } from './SessionHits'
-import { useArtifactContentQuery } from './artifact-content-query'
+import { artifactContentQuery, useArtifactContentQuery } from './artifact-content-query'
 
 type Tab = 'ov' | 'instructions' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'arts'
 
@@ -38,18 +38,28 @@ export function DetailPane({
   snap,
   path,
   initialTab,
+  onInitialTabSpent,
   onOpenSession
 }: {
   snap: Snapshot
   path: string
-  /** Returning from a session page lands on the "Sessions" section (the prototype's rule); normally not
-   * passed, landing on the overview */
+  /** Leaving a session page for a project lands on the "Sessions" section (the prototype's rule for the back control,
+   * the owner's for a selection in the list); normally not passed, landing on the overview */
   initialTab?: Tab
+  /** The page `initialTab` was for is on screen, so no later page starts on it */
+  onInitialTabSpent: () => void
   /** Open a session page (ticket 04; since ticket 08 it can carry focusQ to go straight to a question) */
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
   const t = useDict()
   const entry = snap.projects.find((p) => p.path === path)
+
+  // Here rather than in the sectioned page, because what it draws may have no tabs (a stale project's note, the
+  // not-in-snapshot state) and that spends the landing too; and in an effect rather than during render, because a page
+  // that suspends renders again before it commits, and has to read the same tab each time (project-detail T1)
+  useEffect(() => {
+    if (initialTab) onInitialTabSpent()
+  }, [initialTab, onInitialTabSpent])
 
   if (!entry) return <div className="empty">{t.detail.notInSnapshot}</div>
 
@@ -723,12 +733,9 @@ function useArtifactReader(detail: ProjectDetail): {
 } {
   const t = useDict()
   const lang = useLanguage()
+  const client = useQueryClient()
   const [openItem, setOpenItem] = useState<ArtifactEntry | null>(null)
   const { data: readResult } = useArtifactContentQuery(openItem ? openItem.file : null)
-
-  useEffect(() => {
-    if (readResult?.ok === false) toast('err', errorText(lang, readResult.error))
-  }, [readResult, lang])
 
   async function openArtifact(item: ArtifactEntry): Promise<void> {
     if (item.type === 'prototypes') {
@@ -736,6 +743,13 @@ function useArtifactReader(detail: ProjectDetail): {
       return
     }
     setOpenItem(item)
+    // The click's own answer (B9): the read it started rather than what the query holds, so each click on a file that
+    // cannot be read adds one toast, a file that has come back opens with none, and a scan's revalidation adds none. A
+    // failed read lets go of the file, or the reader would open by itself on the scan that finds it back
+    const result = await client.fetchQuery(artifactContentQuery(client, item.file))
+    if (result.ok) return
+    toast('err', errorText(lang, result.error))
+    setOpenItem((open) => (open?.file === item.file ? null : open))
   }
 
   // The truncation marker and the relative-image rewrite are derived at render time from the cached
