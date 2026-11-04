@@ -1648,7 +1648,7 @@ test('a project behind a directory that cannot be entered keeps a normal row and
 
   // The sections with nothing to read stay as they are, and each reads whole, so that nothing is drawn beside its words
   await tab('Skills').click()
-  await expect(win.locator('.pane-body .sk .nm')).toHaveText(['alpha-skill'])
+  await expect(win.locator('.pane-body')).toHaveText('Global level · Claude(1)alpha-skillCCGlobal1 file · 33 B')
   await tab('Subagents').click()
   await expect(win.locator('.pane-body')).toHaveText('No subagent definitions at project or global level')
   await tab('MCP').click()
