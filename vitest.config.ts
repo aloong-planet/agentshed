@@ -2,6 +2,9 @@ import { resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // The renderer's JSX, for its component tests: the root tsconfig holds only references, so esbuild would otherwise fall
+  // back to the classic runtime
+  esbuild: { jsx: 'automatic' },
   resolve: {
     alias: {
       '@shared': resolve('src/shared'),
@@ -13,7 +16,7 @@ export default defineConfig({
     // The data layer and the contract validation are pure Node modules, depending on neither Electron nor
     // jsdom — the electron alias above keeps that true for modules that import it for their runtime half
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
     globals: false
   }
 })
