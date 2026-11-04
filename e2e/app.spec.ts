@@ -3796,9 +3796,9 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   expect(
     await longCell.evaluate((el) => {
       const style = getComputedStyle(el)
-      return { cut: el.scrollWidth > el.clientWidth, overflowX: style.overflowX, textOverflow: style.textOverflow }
+      return { cut: el.scrollWidth > el.clientWidth, whiteSpace: style.whiteSpace, overflowX: style.overflowX, textOverflow: style.textOverflow }
     })
-  ).toEqual({ cut: true, overflowX: 'hidden', textOverflow: 'ellipsis' })
+  ).toEqual({ cut: true, whiteSpace: 'nowrap', overflowX: 'hidden', textOverflow: 'ellipsis' })
   // The drawer's subtitle holds that whole path, uncut
   await longCell.click()
   const drawerMeta = win.locator('.file-drawer .d-meta')

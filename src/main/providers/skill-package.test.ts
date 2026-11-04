@@ -63,6 +63,7 @@ describe('listSkillPackageFiles', () => {
       'SKILL.md': '---\nname: x\n---\n\n# Hi\n',
       'references/overview.md': '# ov\n',
       'artifact_tool_docs/api/references/cookbook/imported-deck.md': 'deep\n',
+      'templates/vinext-starter/examples/d1/app/api/notes/route.ts': 'export {}\n',
       'container_tools/lib/inspect_layout.py': 'print(1)\n',
       'script.sh': 'echo 1\n',
       'ooxml/schemas/wml.xsd': '<schema/>\n',
@@ -78,7 +79,8 @@ describe('listSkillPackageFiles', () => {
       'artifact_tool_docs/api/references/cookbook/imported-deck.md',
       'container_tools/lib/inspect_layout.py',
       'references/overview.md',
-      'script.sh'
+      'script.sh',
+      'templates/vinext-starter/examples/d1/app/api/notes/route.ts'
     ])
     const skill = listing.files.find((f) => f.path === 'SKILL.md')!
     expect(skill.lines).toBeGreaterThanOrEqual(3)
