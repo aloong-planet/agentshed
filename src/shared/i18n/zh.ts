@@ -81,12 +81,13 @@ export const zh = {
     /** Switching to "follow system" — this has to name the language it currently resolves to, or the user
      * cannot see what actually changed */
     languageFollowSystem: (name: string) => `已设为跟随系统 · 当前为 ${name}`,
-    /** The preference failed to persist (the UI has already switched; a restart reverts it) */
-    saveTrendSpanFailed: '保存趋势天数失败',
-    saveThemeFailed: '保存主题失败',
-    saveModeFailed: '保存外观模式失败',
-    saveLanguageFailed: '保存语言失败',
-    saveAutoCheckUpdatesFailed: '保存自动检查更新设置失败'
+    /** The preference failed to persist (the UI has already switched; a restart reverts it). Whole sentences: the
+     * system's own error never joins them */
+    saveTrendSpanFailed: '保存趋势天数失败。当前选择在重启前有效，重启后恢复。',
+    saveThemeFailed: '保存主题失败。当前选择在重启前有效，重启后恢复。',
+    saveModeFailed: '保存外观模式失败。当前选择在重启前有效，重启后恢复。',
+    saveLanguageFailed: '保存语言失败。当前选择在重启前有效，重启后恢复。',
+    saveAutoCheckUpdatesFailed: '保存自动检查更新设置失败。当前选择在重启前有效，重启后恢复。'
   },
 
   /** App updates (app-update): the update button's hover text, which is also its accessible name, and the
@@ -526,6 +527,7 @@ export const zh = {
     sessionMetaUnreadable: '会话首行元数据不可读,无法重建索引',
     sessionParseFailed: '会话文件解析失败',
     prefsStoreNotReady: '偏好存储未就绪',
+    prefsWriteFailed: '偏好未能保存',
     invalidPref: (field: string) => `偏好取值不合契约:${field}`,
     contractMissing: (path: string) => `收到不合契约的载荷:缺少 ${path}`,
     contractType: (path: string, expect: string) => `收到不合契约的载荷:${path} 应为 ${expect}`,

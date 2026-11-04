@@ -16,6 +16,7 @@ import {
   type LanguagePreference
 } from '@shared/i18n'
 import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
+import { ERR, appError } from '@shared/errors'
 
 import { isTrendSpan, TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
 
@@ -96,10 +97,20 @@ export class PrefsStore {
     }
   }
 
+  /**
+   * A failure leaves the choice in memory, in effect until a restart, and crosses IPC as a code: the system's
+   * message names the file, and all the window has to say is what failed and what that means (docs/specs/i18n.md).
+   * The cause stays in the log, the one place it is any use.
+   */
   private persist(): void {
-    mkdirSync(this.dir, { recursive: true })
-    const tmp = join(this.dir, `.prefs.json.tmp-${process.pid}`)
-    writeFileSync(tmp, JSON.stringify(this.prefs, null, 2))
-    renameSync(tmp, this.file)
+    try {
+      mkdirSync(this.dir, { recursive: true })
+      const tmp = join(this.dir, `.prefs.json.tmp-${process.pid}`)
+      writeFileSync(tmp, JSON.stringify(this.prefs, null, 2))
+      renameSync(tmp, this.file)
+    } catch (error) {
+      console.error('[prefs] save failed:', error)
+      throw appError(ERR.prefsWriteFailed)
+    }
   }
 }

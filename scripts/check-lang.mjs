@@ -253,6 +253,7 @@ const RULES = [
       f === 'e2e/app-update.spec.ts' ||
       f === 'e2e/global-search.spec.ts' ||
       f === 'e2e/menu-check-updates.spec.ts' ||
+      f === 'e2e/token-span.spec.ts' ||
       f === 'src/main/app-menu.test.ts' ||
       f === 'src/renderer/src/update-toasts.test.ts' ||
       f === 'src/shared/error-text.test.ts' ||

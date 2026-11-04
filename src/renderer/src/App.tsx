@@ -10,7 +10,6 @@ import type { TrendSpan } from '@shared/trend'
 import { TrendSpanContext } from './TrendSpan'
 import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
-import { errorText } from '@shared/error-text'
 import { LanguageProvider } from './language'
 import {
   DEFAULT_MODE,
@@ -115,9 +114,16 @@ export function App(): JSX.Element {
   // that effect has an empty dependency list, so
   // its closure captured the values as of mount. The same use as cursorRef in LanguageSelect.
   const prefsRef = useRef<Prefs>({ theme, language: langPref, mode, trendSpan, autoCheckUpdates })
+  const langRef = useRef<Language>(lang)
   useLayoutEffect(() => {
     prefsRef.current = { theme, language: langPref, mode, trendSpan, autoCheckUpdates }
+    langRef.current = lang
   })
+  /** A preference that did not save: the sentence in the language on screen when the failure arrives, which may not be
+   * the one the click's render closed over (a language switch, or one made while the write was in flight) */
+  const saveFailed = (key: 'saveTrendSpanFailed' | 'saveThemeFailed' | 'saveModeFailed' | 'saveLanguageFailed' | 'saveAutoCheckUpdatesFailed'): void => {
+    toast('err', dictOf(langRef.current).toast[key])
+  }
   /** A rail entry (or the application menu's equivalent): drops a pending jump from a search hit */
   const navigate = (d: Dim): void => {
     jumpSeq.current++
@@ -278,8 +284,8 @@ export function App(): JSX.Element {
       // Main-process writes are synchronous and ordered. Responses are acknowledgements only:
       // an earlier response must never replace a more recent user choice.
       await window.agentshed.setTrendSpan(span)
-    } catch (e) {
-      toast('err', `${t.toast.saveTrendSpanFailed}:${errorText(lang, e)}`)
+    } catch {
+      saveFailed('saveTrendSpanFailed')
     }
   }
 
@@ -293,8 +299,8 @@ export function App(): JSX.Element {
       const p = await window.agentshed.setTheme(s)
       setTheme(p.theme)
       applyTheme(p.theme)
-    } catch (e) {
-      toast('err', `${t.toast.saveThemeFailed}:${errorText(lang, e)}`)
+    } catch {
+      saveFailed('saveThemeFailed')
     }
   }
 
@@ -307,8 +313,8 @@ export function App(): JSX.Element {
     try {
       const p = await window.agentshed.setMode(m)
       setMode(p.mode)
-    } catch (e) {
-      toast('err', `${t.toast.saveModeFailed}:${errorText(lang, e)}`)
+    } catch {
+      saveFailed('saveModeFailed')
     }
   }
 
@@ -320,8 +326,8 @@ export function App(): JSX.Element {
     try {
       const p = await window.agentshed.setAutoCheckUpdates(on)
       setAutoCheckUpdates(p.autoCheckUpdates)
-    } catch (e) {
-      toast('err', `${t.toast.saveAutoCheckUpdatesFailed}:${errorText(lang, e)}`)
+    } catch {
+      saveFailed('saveAutoCheckUpdatesFailed')
     }
   }
 
@@ -347,8 +353,8 @@ export function App(): JSX.Element {
     try {
       const p = await window.agentshed.setLanguage(next)
       setLangPref(p.language)
-    } catch (e) {
-      toast('err', `${t.toast.saveLanguageFailed}:${errorText(lang, e)}`)
+    } catch {
+      saveFailed('saveLanguageFailed')
     }
   }
 

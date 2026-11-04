@@ -531,11 +531,19 @@ export class TokenEngine {
     return { version: CACHE_VERSION, files: {} }
   }
 
+  /**
+   * The cache only spares the next launch a parse: what was just computed is in memory and answers from there. So a failed
+   * write fails neither a scan nor a session page (token-stats C3, session-view C4), and is logged.
+   */
   private persist(): void {
-    mkdirSync(this.cacheDir, { recursive: true })
-    const tmp = join(this.cacheDir, `.token-cache.j-${process.pid}`)
-    writeFileSync(tmp, JSON.stringify(this.cache))
-    renameSync(tmp, this.cacheFile)
+    try {
+      mkdirSync(this.cacheDir, { recursive: true })
+      const tmp = join(this.cacheDir, `.token-cache.j-${process.pid}`)
+      writeFileSync(tmp, JSON.stringify(this.cache))
+      renameSync(tmp, this.cacheFile)
+    } catch (error) {
+      console.error('[token-cache] save failed:', error)
+    }
   }
 
   /**

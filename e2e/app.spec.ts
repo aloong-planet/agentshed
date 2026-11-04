@@ -20,7 +20,7 @@
 // Also not driven: the tab row over a failed detail fetch on a page drawn after a stale project's note (project-detail T10).
 // The row draws before that branch and reads no fetch result. Add a case when a seam can make the project detail read fail:
 // select a normal project from a note page on a tab other than Overview, and read that tab over an empty body.
-import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
+import { appendFileSync, chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { dirname, join } from 'node:path'
@@ -6776,6 +6776,163 @@ test('opening a session whose file was removed after the scan (query layer): the
   expect(l.errors).toHaveLength(1)
   expect(l.errors[0]).toContain(ERR.sessionFileUnreadable)
   await close(l)
+})
+
+test('a session file that exists and cannot be read: the page and a turn say so in a sentence in the current language, and the other turn stays (P6, in-turn fetch states)', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const claude = join(home, '.claude', 'projects', enc, 'a.jsonl')
+  const codex = join(home, '.codex', 'sessions', '2026', '01', '01', 'rollout-019fb0c0-1111-7af3-af7d-8505cedf1ec2.jsonl')
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
+
+  // The file exists and its index is good, so only the read fails: chmod changes neither its mtime nor its size
+  chmodSync(claude, 0o000)
+  await win.locator('.qlist .q', { hasText: 'Second question' }).click()
+  await expect(win.locator('.turn .tnote')).toHaveText('This turn could not be fetched: The session file can no longer be read (moved or deleted?)')
+  await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
+
+  // A session that cannot be opened at all
+  chmodSync(codex, 0o000)
+  await win.locator('.sback').click()
+  await win.locator('.pane-body .card .se', { hasText: 'Codex side question' }).click()
+  await expect(win.locator('.pane-body .none')).toHaveText('Cannot open this session: The session file can no longer be read (moved or deleted?)')
+
+  // Both in Chinese: the page re-renders from the code it holds, and the turn is fetched again under Chinese
+  await win.locator('.ri.set').click()
+  await win.locator('[data-testid="language-trigger"]').click()
+  await win.locator('.lang-opt[data-lang="zh"]').click()
+  await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.pane-body .none')).toHaveText('会话打不开:会话文件已不可读(被移动或删除?)')
+  await win.locator('.sback').click()
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  await win.locator('.qlist .q', { hasText: 'Second question' }).click()
+  await expect(win.locator('.turn .tnote')).toHaveText('这一轮取不回来:会话文件已不可读(被移动或删除?)')
+  // The turn read earlier keeps what was read, whatever the file says now
+  await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
+
+  // Clicking again retries: readable again, the turn comes
+  chmodSync(claude, 0o644)
+  await win.locator('.qlist .q', { hasText: 'Second question' }).click()
+  await expect(win.locator('.turn')).toHaveCount(1)
+  await win.locator('.qlist .q', { hasText: 'Second question' }).click()
+  await expect(win.locator('.turn .tnote')).toHaveCount(0)
+  await expect(win.locator('.turn .fetched')).toHaveCount(2)
+  chmodSync(codex, 0o644)
+
+  // The handler errors this case provokes on purpose carry the code and nothing else does
+  expect(l.errors.length).toBeGreaterThan(0)
+  for (const e of l.errors) expect(e.includes(ERR.sessionFileUnreadable), `a collected stderr chunk without the code:\n${e}`).toBe(true)
+  await close(l)
+})
+
+test('a project search with one session file that cannot be read shows the other sessions\' hits and leaves that one out (a failure on one entry stays there)', async () => {
+  const home = mkUsageHome()
+  const claude = join(home, '.claude', 'projects', join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-'), 'a.jsonl')
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.sbar input').fill('question')
+  await expect(win.locator('.shead')).toContainText('Found 3 hits · 2 sessions')
+
+  // Claude's session is read first, being the newest, so the Codex hit comes after the failure. And another needle: the
+  // same one is answered from the query's cache, and reads nothing
+  chmodSync(claude, 0o000)
+  await win.locator('.sbar input').fill('ques')
+  await expect(win.locator('.shead')).toContainText('Found 1 hit · 1 session')
+  await expect(win.locator('.grp .hit')).toHaveCount(1)
+  await expect(win.locator('.grp .hit')).toContainText('Codex side question')
+  chmodSync(claude, 0o644)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/** A user's question line, in the shape mkUsageHome writes */
+const questionLine = (text: string): string =>
+  JSON.stringify({ type: 'user', timestamp: localDayOffset(0).toISOString(), message: { role: 'user', content: text } })
+
+test('a failed token cache write on a session page: a session whose index has to be rebuilt opens, with no raw error, and the failure is logged (P6, C4)', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const l = await launch(undefined, home)
+  const stderr: string[] = []
+  l.app.process().stderr?.on('data', (b: Buffer) => stderr.push(b.toString()))
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
+
+  mkdirSync(join(l.userData, `.token-cache.j-${l.app.process().pid}`))
+  appendFileSync(join(home, '.claude', 'projects', enc, 'a.jsonl'), questionLine('Third question') + '\n')
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  // Only a rebuild knows the third question
+  await expect(win.locator('.qlist .q')).toHaveCount(3)
+  await expect(win.locator('.qlist .q', { hasText: 'Third question' })).toBeVisible()
+  await expect(win.locator('.pane-body .none')).toHaveCount(0)
+  await expect.poll(() => stderr.join('')).toContain('[token-cache] save failed:')
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('a failed token cache write during a scan: the scan still delivers its snapshot, and the failure is logged', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '300' })
+  const stderr: string[] = []
+  l.app.process().stderr?.on('data', (b: Buffer) => stderr.push(b.toString()))
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
+
+  mkdirSync(join(l.userData, `.token-cache.j-${l.app.process().pid}`))
+  writeFileSync(join(home, '.claude', 'projects', enc, 'after.jsonl'), questionLine('Question after the block') + '\n')
+  // Only a delivered snapshot can list a session that came after the block
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Question after the block' })).toBeVisible({ timeout: 10000 })
+  expect(stderr.join('')).toContain('[token-cache] save failed:')
+  expect(stderr.join('')).not.toContain('scan failed')
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('a failed token cache write on the first scan: the app comes up with its data rather than staying on the placeholder, and the failure is logged', async () => {
+  const home = mkUsageHome()
+  const userData = makeUserData()
+  // A non-empty directory where the cache file goes: the temporary file writes and the rename fails
+  mkdirSync(join(userData, 'token-cache.json', 'x'), { recursive: true })
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US' }
+  })
+  const stderr: string[] = []
+  const errors: string[] = []
+  app.process().stderr?.on('data', (b: Buffer) => {
+    const t = b.toString()
+    stderr.push(t)
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t.trim())
+  })
+  const win = await app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  // Only the first scan's snapshot can list the session
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible({ timeout: 15000 })
+  expect(stderr.join('')).toContain('[token-cache] save failed:')
+  expect(stderr.join('')).not.toContain('scan failed')
+  expect(errors).toEqual([])
+  await close({ app, errors, userData, home })
 })
 
 test('a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity', async () => {
