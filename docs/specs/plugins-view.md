@@ -150,11 +150,11 @@ both pages and on every side whose plugins expand)
   allow-list registered by the enumeration. The renderer cannot forge a package root outside the set.
 - H9 Whether switching tabs in the expanded area preserves an already-expanded file table is not
   guaranteed (switch back and expand again; v1 promises no state preservation).
-- H10 Expanding a row whose file table cannot be enumerated → an error toast. Switching the UI language
-  while that failed result stands does **not** show the toast again, and the expanded area states the
-  failure in the toast's sentence (both as skills-view A11). Gap (the no-second-toast rule only): no
-  automated test (the renderer has no component-level test seam); the intent is recorded where the
-  effect is written.
+- H10 Expanding a row whose file table cannot be enumerated → one error toast. A reopen adds one, a scan
+  landing while the row is open on that failure adds none, a language switch adds none and the row's next
+  expansion adds one in the new language, and the expanded area states the failure in the toast's sentence
+  (all as [skills-view](skills-view.md) A11). Opening another row is another listing, and its failure adds
+  one.
 
 **Cross-cutting regression points**
 - R1 The IPC contract (`validate`) must be extended along with any new domain type field (the same

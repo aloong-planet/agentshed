@@ -418,6 +418,7 @@ export const en: Locale = {
     turnOutOfRange: (i, total) =>
       `Turn index out of range: ${i} (of ${total} ${plural('en', total, { one: 'turn', other: 'turns' })})`,
     artifactNotWhitelisted: 'This artifact path is not in the allowed list',
+    artifactUnreadable: 'This file can no longer be read (moved or deleted?)',
     pluginRootNotRegistered:
       'This plugin package root is not registered — wait for the scan to finish',
     projectNotOpened: 'The project is not open — open the project details first',

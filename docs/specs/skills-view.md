@@ -115,12 +115,14 @@ repeats what is already legible is noise.
 - A9 Every side's global library empty → the existing empty state, with no preview entry point.
 - A10 A text file at any depth enters the file list, with no notice about depth
   (skills-view::REQ-003/AC-01).
-- A11 Expanding a row whose file list cannot be enumerated → an error toast. Switching the UI language
-  while that failed result stands does **not** show the toast again: the toast belongs to the failure,
-  not to the language it was worded in. The expanded area states the failure in the toast's sentence,
-  in the current UI language — never the raw IPC error, which carries the encoded error contract. Gap
-  (the no-second-toast rule only): no automated test (the renderer has no component-level test seam);
-  the intent is recorded where the effect is written.
+- A11 Expanding a row whose file list cannot be enumerated → one error toast. The toast belongs to the
+  failure: collapsing and reopening the row is another expansion and adds one, even though a reopen takes
+  the cached failure and then a revalidation's; a scan landing while the row is open on that failure adds
+  none; moving an open row to another side is another listing, and its failure adds one. The language
+  control is on the settings page, which takes the row off the stage, so no row stays open through a
+  switch: the switch adds no failure toast, the row comes back collapsed, and its next expansion adds one
+  in the new language. The expanded area states the failure in the toast's sentence, in the current UI
+  language — never the raw IPC error, which carries the encoded error contract.
 
 **Sequence B: project detail → Skills section (list rule + preview)**
 

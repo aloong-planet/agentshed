@@ -515,6 +515,7 @@ export const zh = {
     engineNotReady: '扫描引擎未就绪,请稍候再试',
     turnOutOfRange: (i: number, total: number) => `轮次下标越界:${i}(共 ${total} 轮)`,
     artifactNotWhitelisted: '产物路径不在白名单',
+    artifactUnreadable: '该文件已不可读(被移动或删除?)',
     pluginRootNotRegistered: '插件包根不在登记集,请等待扫描完成',
     projectNotOpened: '项目未打开,请先打开项目详情',
     skillPackageUnavailable: 'skill 包不可用或不在允许根下',

@@ -23,12 +23,13 @@ const n = (p: ErrorParams, k: string): number => {
  * **The fallback's character changed as of ticket 06**: it used to be an "old-protocol compatibility
  * branch" — the migration was unfinished and cross-process calls still
  * carried whole-sentence Chinese errors. After ticket 06 closed the protocol, **no cross-process
- * producer takes this path at all** (confirmed by a whole-repository search:
+ * producer throws a sentence** (confirmed by a whole-repository search:
  * zero `throw new Error` in `src/` outside tests, and no whole-sentence message on any contract field).
  *
  * It is kept because the remaining entry points are **non-protocol errors**: the renderer's own
- * TypeErrors and whatever a third-party library throws —
- * none of which will ever have an error code. Removing the fallback would turn them into blanks, and
+ * TypeErrors, whatever a third-party library throws, and a system error a main-process handler lets
+ * through uncaught, which arrives as its raw message (a preference store's failed write does) —
+ * none of which has an error code. Removing the fallback would turn them into blanks, and
  * "erroring while reporting an error" is worse than one ugly line of
  * original text. So this is no longer a compatibility branch but the last display guarantee for
  * non-protocol exceptions.
@@ -53,6 +54,8 @@ export function errorText(lang: Language, raw: unknown): string {
       return t.turnOutOfRange(n(p, 'i'), n(p, 'total'))
     case ERR.artifactNotWhitelisted:
       return t.artifactNotWhitelisted
+    case ERR.artifactUnreadable:
+      return t.artifactUnreadable
     case ERR.pluginRootNotRegistered:
       return t.pluginRootNotRegistered
     case ERR.projectNotOpened:

@@ -447,7 +447,9 @@ as a cached visit under session-view::REQ-001)
 - P2 Jumping from a session page to its parent through the fork banner: the current page stays until
   the parent's page is ready.
 - P3 Returning to the project: a cached visit of the project page (at once), landing on the Sessions
-  section; its detail revalidates by transfusion (project-detail T8).
+  section, once ([project-detail::REQ-004/AC-02](project-detail.md)); its detail revalidates by transfusion
+  (project-detail T8). Selecting a project in the list from the session page lands on Sessions the same way,
+  another project or the session's own.
 - P4 Reopening a session with a saved successful page: its page is drawn at once from what was last shown
   and revalidated in the background; page-local state (expanded turns, sort, folded days, the
   locating focus) starts fresh, keyed by the session as today, and a search hit's focus still

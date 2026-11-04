@@ -29,6 +29,8 @@ export const ERR = {
   turnOutOfRange: 'turn-out-of-range',
   /** The artifact path is not allow-listed */
   artifactNotWhitelisted: 'artifact-not-whitelisted',
+  /** A listed file can no longer be read (moved, deleted, or a system error); memory files read through the same channel */
+  artifactUnreadable: 'artifact-unreadable',
   /** The plugin package root is not in the scan's registration set */
   pluginRootNotRegistered: 'plugin-root-not-registered',
   /** The project detail page has not been opened yet */
