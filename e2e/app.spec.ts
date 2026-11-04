@@ -2042,7 +2042,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
   await expect(target('agy-demo').locator('.pop-have')).toHaveText('Same name installed')
   await target('agy-demo').click()
   await expect(win.locator('.toast.err')).toHaveText(
-    'commit-style → agy-demo(.agents/skills):Blocked: the target already has a project-level skill with this name, and nothing was overwritten'
+    'commit-style → agy-demo (.agents/skills): Blocked: the target already has a project-level skill with this name, and nothing was overwritten'
   )
   expect(readFileSync(join(agOnly, '.agents', 'skills', 'commit-style', 'SKILL.md'), 'utf8')).toContain('Commit style, the project copy')
   // tdd into the project every side registered: two landings — Claude's directory and the shared one, which already
