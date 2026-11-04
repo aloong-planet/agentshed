@@ -9,7 +9,7 @@
 // a lower figure means the data shrank and the archive's value is retained. Whatever an accepted change
 // replaces is kept as a superseded value. The scan's own day is rewritten freely.
 //
-// A file that cannot be written or read stops no scan (ADR-0038): the figures go out from memory, or from the live rows
+// A file that cannot be written or read stops no scan (ADR-0039): the figures go out from memory, or from the live rows
 // alone, and the file stays as it is until it can be used again.
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'

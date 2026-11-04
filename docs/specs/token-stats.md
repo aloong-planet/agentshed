@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0038 (an archive file that fails stops no scan)
+> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases (the
 > accounting decisions are in the ADRs and are not restated here).
@@ -187,7 +187,7 @@ next to A/B, so that no existing reference is renumbered)
   was computed is in memory and goes out as usual, the failure is logged, no temporary file stays behind
   whichever step failed, and the next launch parses again.
 - C4 The archive is written on the first merge; a new instance reads it back. **A failed write does not
-  fail the scan** (a settings directory gone read-only or full, ADR-0038): the effective rows computed in
+  fail the scan** (a settings directory gone read-only or full, ADR-0039): the effective rows computed in
   memory go out as usual and the failure is logged. Each later scan writes again, so the file catches up
   with no restart once the directory is writable, and carries what the failed merges moved in memory.
   The user is told once per run, in a toast in the current UI language: usage history cannot be saved
@@ -210,7 +210,7 @@ next to A/B, so that no existing reference is renumbered)
   failed, and a failed write leaves the file as the last good archive. A corrupt archive file, one that
   reads and does not parse, degrades to empty without crashing (the next scan starts accumulating
   again). A file of a newer format is not corrupt: token-stats::REQ-006 governs it. **Nor is a file that
-  exists and cannot be read** (ADR-0038): degrading it to empty would overwrite history that is only out
+  exists and cannot be read** (ADR-0039): degrading it to empty would overwrite history that is only out
   of reach. Its effective rows are the live rows, no day is archived-only, nothing is written and a
   restore (C16) refuses, as for a newer format. The read is tried again at each scan, because a change of
   mode does not move the file's signature, and once it can be read the next scan reads it with its
@@ -293,7 +293,7 @@ next to A/B, so that no existing reference is renumbered)
   restore is then re-applied by hand (C16), after which the observed value is recorded under the new
   stamp and retention holds again. This is the price of C12's figure-moved clause being exact rather
   than tolerant; it fell due on 2026-09-10 for the Codex usage-record change (ADR-0027).
-- C22 **While a write is blocked, the file is what counts as the archive** (ADR-0038). Within the run
+- C22 **While a write is blocked, the file is what counts as the archive** (ADR-0039). Within the run
   memory holds the effective rows: C10 retains a lower past figure, and writes that fail and are tried
   again keep one superseded value (C13). A restart reads the last good file and compares against that, so
   a higher figure and a retained pair's observed value held only in memory are gone, and an application
@@ -843,7 +843,7 @@ Applies to: an archive file whose format version is a whole number above the one
   derivation that skipped silently would hide a producer's mistake. A file of a newer format is held as
   not this build's to write: the archive returns the live rows as the effective set and refuses every
   write until the file on disk changes, judged again on the same re-read a restore relies on.
-- **An archive file that fails** (ADR-0038): the merge reports whether its file failed rather than
+- **An archive file that fails** (ADR-0039): the merge reports whether its file failed rather than
   throwing, and a restore still throws. Writing leaves the rows the merge moved in memory and the recorded
   signature as they were, which is what keeps the next merge from reading the file back and lets it carry
   them to the next write. The notice crosses IPC as a command the main process answers true once in a run:
@@ -1057,7 +1057,7 @@ moved and others did not — checking them one at a time would pass on a page th
 - ccusage alignment for rollouts carrying usage records (ADR-0027): the third-party meter reads only
   the legacy events and is expected to read lower on those days.
 - A cap on superseded values (revisited if the archive file passes about 5 MB, C13).
-- A standing state or a repeated notice while the archive's file fails (ADR-0038): the notice is one
+- A standing state or a repeated notice while the archive's file fails (ADR-0039): the notice is one
   toast a run.
 - Restoring history on a machine that never had it: the restore script works from a cache snapshot
   of this application's own making, and no such snapshot exists on a machine whose agent rewrote

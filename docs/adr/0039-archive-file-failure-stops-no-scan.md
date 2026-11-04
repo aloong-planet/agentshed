@@ -1,4 +1,4 @@
-# ADR-0038: An archive file that fails stops no scan: memory carries the figures, the disk keeps the last good file, and the user is told once
+# ADR-0039: An archive file that fails stops no scan: memory carries the figures, the disk keeps the last good file, and the user is told once
 
 - Status: Accepted (2026-11-05)
 
