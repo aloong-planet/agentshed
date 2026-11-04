@@ -372,7 +372,7 @@ export const zh = {
   },
   /** The project detail tabs (ticket 08) */
   detail: {
-    notInSnapshot: '项目不在快照中(刷新后重试)',
+    notInSnapshot: '项目不在快照中(请在列表中选择其他项目)',
     staleTag: '失效',
     /** The stale note page (spec project-detail sequence S). `{sides}` is the chip slot — one
      * complete sentence per language, the slot moving with each language's word order (the RichText
@@ -519,7 +519,7 @@ export const zh = {
     engineNotReady: '扫描引擎未就绪,请稍候再试',
     turnOutOfRange: (i: number, total: number) => `轮次下标越界:${i}(共 ${total} 轮)`,
     artifactNotWhitelisted: '产物路径不在白名单',
-    pluginRootNotRegistered: '插件包根不在登记集,请先刷新或打开详情',
+    pluginRootNotRegistered: '插件包根不在登记集,请等待扫描完成',
     projectNotOpened: '项目未打开,请先打开项目详情',
     skillPackageUnavailable: 'skill 包不可用或不在允许根下',
     skillFileNotWhitelisted: 'skill 文件路径不在白名单',

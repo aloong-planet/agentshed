@@ -886,6 +886,136 @@ test('a stale project opens as the note page: card only, chips per recording sid
 })
 
 /**
+ * project-detail::REQ-004/AC-02: which tab a project's page shows, read from the ways into it that the criterion names. Every
+ * step reads the header first: a switch holds the old page until the new one is ready, so the tab alone could be the old
+ * project's.
+ */
+test('the tab a project opens on: another project keeps it, a page drawn afresh starts on Overview, and coming back from a session starts on Sessions', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-tabs-'))
+  const alpha = join(home, 'alpha')
+  const beta = join(home, 'beta')
+  const ghost = join(home, 'ghost')
+  mkdirSync(alpha)
+  mkdirSync(beta)
+  const register = (...paths: string[]): void =>
+    writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: Object.fromEntries(paths.map((p) => [p, {}])) }))
+  register(alpha, beta, ghost)
+  const sessionDir = join(home, '.claude', 'projects', alpha.replace(/[^a-zA-Z0-9]/g, '-'))
+  mkdirSync(sessionDir, { recursive: true })
+  const at = localDayOffset(1).toISOString()
+  writeFileSync(
+    join(sessionDir, 'a.jsonl'),
+    [
+      { type: 'user', timestamp: at, message: { role: 'user', content: 'Sample question' } },
+      { type: 'assistant', timestamp: at, message: { model: 'claude-fable-5', content: [{ type: 'text', text: 'Done.' }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+    ].map((line) => JSON.stringify(line)).join('\n') + '\n'
+  )
+
+  // A brisk rescan, for the last step: a record going reaches the page through the automatic scan
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
+  const win = await l.app.firstWindow()
+  const agents = win.locator('.rail .ri').nth(0)
+  const projects = win.locator('.rail .ri').nth(1)
+  const row = (name: string) => win.locator('.side .row', { hasText: name })
+  const selected = win.locator('.pane-head .tabs .tab.on')
+  const select = async (tab: string): Promise<void> => {
+    await win.locator('.pane-head .tabs .tab', { hasText: tab }).click()
+    await expect(selected).toHaveText(tab)
+  }
+  const pageIs = async (project: string, tab: string): Promise<void> => {
+    await expect(win.locator('.det-title h1')).toHaveText(project)
+    await expect(selected).toHaveText(tab)
+  }
+  const leaveByTheRailAndComeBack = async (): Promise<void> => {
+    await agents.click()
+    await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+    await projects.click()
+  }
+  const throughTheSideCard = async (): Promise<void> => {
+    await agents.click()
+    await win.locator('.pane-head .stats .stat', { has: win.locator('.badge.cl') }).locator('.s .stat-link').click()
+  }
+  const openTheSession = async (): Promise<void> => {
+    await select('Sessions')
+    await win.locator('.pane-body .se', { hasText: 'Sample question' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
+  }
+
+  // The first selection
+  await projects.click()
+  await row('alpha').click()
+  await pageIs('alpha', 'Overview')
+
+  // Another project takes over the page on screen, and its tab. A click on the project's own row first leaves the tab
+  // alone: the header's change orders the read behind both clicks, which that row alone could not
+  await select('Skills')
+  await row('alpha').click()
+  await row('beta').click()
+  await pageIs('beta', 'Skills')
+
+  // Leaving by the rail takes the page off the stage, so coming back draws a new one
+  await leaveByTheRailAndComeBack()
+  await pageIs('beta', 'Overview')
+
+  // So does a side card's project count that keeps the selection
+  await select('Skills')
+  await throughTheSideCard()
+  await pageIs('beta', 'Overview')
+
+  // A stale project's note page has no tabs, so the next project draws a new page
+  await select('Skills')
+  await win.locator('.side input[type="checkbox"]').check()
+  await row('ghost').click()
+  await expect(win.locator('.stale-note')).toBeVisible()
+  await row('alpha').click()
+  await pageIs('alpha', 'Overview')
+
+  // Coming back from a session lands on Sessions (T8), and so does leaving that page for another dimension and coming
+  // back, by the rail or by a side card's project count
+  const backFromTheSession = async (): Promise<void> => {
+    await openTheSession()
+    await win.locator('.sback').click()
+    await pageIs('alpha', 'Sessions')
+  }
+  await backFromTheSession()
+  await select('Skills')
+  await leaveByTheRailAndComeBack()
+  await pageIs('alpha', 'Sessions')
+  await select('Skills')
+  await throughTheSideCard()
+  await pageIs('alpha', 'Sessions')
+
+  // Until a project is selected in the list, even the one on screen: the next page drawn starts on Overview. Another
+  // project takes over the page on screen first, and its tab
+  await row('alpha').click()
+  await leaveByTheRailAndComeBack()
+  await pageIs('alpha', 'Overview')
+  await backFromTheSession()
+  await row('beta').click()
+  await pageIs('beta', 'Sessions')
+  await leaveByTheRailAndComeBack()
+  await pageIs('beta', 'Overview')
+
+  // A project selected from a session page draws a new page
+  await row('alpha').click()
+  await expect(win.locator('.det-title h1')).toHaveText('alpha')
+  await openTheSession()
+  await row('beta').click()
+  await pageIs('beta', 'Overview')
+
+  // The project on screen leaves the snapshot (S7): selecting another project clears the message and draws a new page
+  await select('Skills')
+  register(alpha, ghost)
+  await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
+  await row('alpha').click()
+  await pageIs('alpha', 'Overview')
+  await expect(win.locator('.detail .empty')).toHaveCount(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
  * Ticket antigravity-side/#322: a fixture home where agy trusts three folders — one only it registered, one Claude
  * registered too (with a Claude memory, so the Memory section has a row to read), and one whose directory is gone —
  * and one conversation in the first, last written three days ago (projects-list::REQ-001/AC-01, AC-04). A live folder
@@ -5855,6 +5985,21 @@ test('startup skeleton: agents page shows placeholders, refuses input, fills in 
     await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
     await expect(win.locator('.pane-head .tabs .tab')).toHaveCount(7)
     expect(await win.locator('.sk-ph').count()).toBeGreaterThan(0)
+
+    // A4: every side card's figure and third line hold a placeholder with a width. Read off the page's cards rather than
+    // by side, so a card the widths miss cannot pass by not being named here
+    const sideCards = await win.locator('.pane-head .stats .stat').evaluateAll((cards) =>
+      cards.map((card) => ({
+        side: card.querySelector('.badge')?.textContent,
+        figure: card.querySelector('.v .sk-ph')?.getBoundingClientRect().width,
+        line: card.querySelector('.s .sk-ph')?.getBoundingClientRect().width
+      }))
+    )
+    expect(sideCards).toHaveLength(4)
+    for (const { side, figure, line } of sideCards) {
+      expect(figure, `the figure's placeholder on ${side}`).toBeGreaterThan(0)
+      expect(line, `the third line's placeholder on ${side}`).toBeGreaterThan(0)
+    }
 
     // Non-interactive (A4a): hit-test the first window card's centre — with pointer events off the
     // point must fall through to something outside the card. An attribute check cannot see this.

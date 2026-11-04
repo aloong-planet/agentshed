@@ -140,7 +140,8 @@ never writes to any agent's registry; it tells the user what happened and hands 
 - S7 After the records are removed and a refresh runs, the project leaves the list; if it was the
   selected project, the pane shows the existing not-in-snapshot empty state rather than a ghost
   selection(the mechanism that has always answered a vanished entry — a selection reset would hide
-  what happened, the message says it).
+  what happened, the message says it). The message names selecting another project, which clears it; with none left
+  in the list it stays until a record comes back or the window reloads.
 - S8 Introduced-content dimension: the card renders first-party copy plus the path **as text** (a
   path containing markup-like characters displays literally); the copy button is the only
   interactive element and writes only to the clipboard.
@@ -230,8 +231,12 @@ Applies to: the tab row of a project's page. A stale project's note page has no 
 - project-detail::REQ-004/AC-01: The section's tab has the agents page's label
   ([agents-overview::REQ-006/AC-01](agents-overview.md)).
 - project-detail::REQ-004/AC-02: The tabs run Overview / Instructions / Skills / Subagents / Plugins / MCP / Memory /
-  Sessions / Artifacts. Overview stays the tab a project opens on, and coming back from a session still lands on
-  Sessions (T8).
+  Sessions / Artifacts. The selected tab stays with the page on screen: selecting another project while a project's page
+  is on screen keeps the tab, and the next project shows it (the owner's decision of 2026-11-04). A project opens on
+  Overview when no project's page is on screen: its first selection, coming back through the rail or a side card's project
+  count, or selecting it from a session page, a stale project's note page or the not-in-snapshot state. Coming back from a
+  session lands on Sessions (T8), and leaving that project for another dimension and coming back lands there again, until
+  a project is selected in the list, the one on screen included.
 
 Failure modes and boundaries, a narrow window (the owner's decisions of 2026-11-03): the row keeps its one form at every
 window width, and no narrow form is designed. It does not move onto a second row, a sideways wheel over it does not move it,
@@ -246,8 +251,8 @@ The keyboard does reach those tabs, and that is accepted as it is, with no produ
 moves along the row to a tab past the edge, Enter opens it, and the pane shifts sideways to bring the focused tab into view,
 its header and body together, by about 240px in English and 68px in Chinese. That cuts off the start of the project's name
 and path, and in English a short name goes whole. The shift stays through a pointer click on another project. It ends when
-Shift+Tab brings focus back to the first tab or on leaving for the agents page; widening the window shrinks it, and the
-default window ends it.
+Shift+Tab brings focus back to the first tab, on opening a session or on leaving for the agents page; widening the window
+shrinks it, and the default window ends it.
 
 ## Where artifacts come from
 
@@ -380,7 +385,8 @@ Antigravity only and one on every side: the header chips and the Antigravity MCP
 Instructions entries with their path headings, "None", an unreadable file and the absence of a settings
 summary are asserted over any project — the files are read by path, whatever the registration — and
 the restore of a detail saved before the paths at the display store's filesystem seam. project-detail::REQ-004 reads
-the tab row at the same seam, in both languages, and asserts that it fits the default window. The clipping in a narrow
+the tab row at the same seam, in both languages, asserts that it fits the default window, and reads the selected tab from
+the ways into a page that project-detail::REQ-004/AC-02 names. The clipping in a narrow
 window and the keyboard's sideways shift are measured rather than asserted: they are accepted limits, not behaviours to keep.
 The agents page's tab row is measured only as well: no test at any width guards that it fits, including at the default
 window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-03).

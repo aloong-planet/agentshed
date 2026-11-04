@@ -281,7 +281,7 @@ export const en: Locale = {
       `This turn contains **${count} ${plural('en', count, { one: 'unrecognised record', other: 'unrecognised records' })}** (types: ${types}) — kept as-is in the source file, not rendered. This usually means an agent update introduced a new record type.`
   },
   detail: {
-    notInSnapshot: 'This project is not in the snapshot (refresh and try again)',
+    notInSnapshot: 'This project is not in the snapshot (select another project in the list)',
     staleTag: 'Stale',
     staleCause: (n) =>
       `Why stale: the project directory no longer exists (deleted or moved), while the {sides} ${n > 1 ? 'registries' : 'registry'} still ${n > 1 ? 'record' : 'records'} it.`,
@@ -421,7 +421,7 @@ export const en: Locale = {
       `Turn index out of range: ${i} (of ${total} ${plural('en', total, { one: 'turn', other: 'turns' })})`,
     artifactNotWhitelisted: 'This artifact path is not in the allowed list',
     pluginRootNotRegistered:
-      'This plugin package root is not registered — refresh or open the details first',
+      'This plugin package root is not registered — wait for the scan to finish',
     projectNotOpened: 'The project is not open — open the project details first',
     skillPackageUnavailable: 'The skill package is unavailable or outside the allowed roots',
     skillFileNotWhitelisted: 'This skill file path is not in the allowed list',
