@@ -3,7 +3,7 @@
 //
 // Gaps, by reading only (the ticket's Evidence): the native dialog, a real full disk, and the focus of a first instance.
 // e2e/refused-launch.spec.ts reads the exit code and the sentence through index.ts.
-import { chmodSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -17,6 +17,10 @@ const zh = (dir: string): object => ({
   title: 'Agentshed 无法启动',
   message: `Agentshed 无法写入设置目录，这个目录可能是只读的，或所在磁盘已满：\n\n${dir}`
 })
+
+/** What the store writes: all five fields, and the others differ from the defaults, as a real user's file would */
+const stored = (language: string): string =>
+  JSON.stringify({ theme: 'blue', language, mode: 'dark', trendSpan: 90, autoCheckUpdates: false }, null, 2)
 
 describe('refusedLaunch', () => {
   let dir: string
@@ -35,21 +39,22 @@ describe('refusedLaunch', () => {
   })
 
   it('a writable directory with a stored language still reads as a second instance, the file left alone', () => {
-    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ language: 'zh' }))
+    writeFileSync(join(dir, 'prefs.json'), stored('zh'))
     expect(refusedLaunch(dir, () => ['en-US'])).toBeNull()
     expect(readdirSync(dir)).toEqual(['prefs.json'])
+    expect(readFileSync(join(dir, 'prefs.json'), 'utf8')).toBe(stored('zh'))
   })
 
   describe.skipIf(process.getuid?.() === 0)('a directory that cannot be written', () => {
     it('names it in the stored English, over a Chinese system, and leaves nothing behind', () => {
-      writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ language: 'en' }))
+      writeFileSync(join(dir, 'prefs.json'), stored('en'))
       chmodSync(dir, 0o555)
       expect(refusedLaunch(dir, () => ['zh-CN'])).toEqual(en(dir))
       expect(readdirSync(dir)).toEqual(['prefs.json'])
     })
 
     it('names it in the stored Chinese, over an English system', () => {
-      writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ language: 'zh' }))
+      writeFileSync(join(dir, 'prefs.json'), stored('zh'))
       chmodSync(dir, 0o555)
       expect(refusedLaunch(dir, () => ['en-US'])).toEqual(zh(dir))
     })
@@ -62,13 +67,13 @@ describe('refusedLaunch', () => {
 
     it('uses the system\'s language when the preference file cannot be read: what it stores is not reached', () => {
       const file = join(dir, 'prefs.json')
-      writeFileSync(file, JSON.stringify({ language: 'en' }))
+      writeFileSync(file, stored('en'))
       chmodSync(file, 0o000)
       chmodSync(dir, 0o555)
       expect(refusedLaunch(dir, () => ['zh-CN'])).toEqual(zh(dir))
     })
 
-    it.each(['not-json', JSON.stringify({ language: 'system' }), JSON.stringify({ language: 'fr' })])('uses the system\'s language for a file holding %s', (content) => {
+    it.each(['not-json', stored('system'), stored('fr')])('uses the system\'s language for a file holding %s', (content) => {
       writeFileSync(join(dir, 'prefs.json'), content)
       chmodSync(dir, 0o555)
       expect(refusedLaunch(dir, () => ['zh-CN'])).toEqual(zh(dir))

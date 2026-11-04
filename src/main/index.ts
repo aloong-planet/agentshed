@@ -91,8 +91,9 @@ if (!gotTheLock) {
     // from the accessibility tree. Ready is the signal, bounded, since on macOS ready never arrives while a first instance
     // is running; by then the dialog is in the tree without it (all measured 2026-11-05).
     void Promise.race([app.whenReady(), new Promise((resolve) => setTimeout(resolve, 3000))]).then(() => {
-      // Test silencing, on every platform: a modal dialog takes the foreground and waits for a click nobody makes
-      if (process.env['AGENTSHED_NO_FOREGROUND']) console.error(`${refusal.title}\n${refusal.message}`)
+      // Test silencing, on every platform: a modal dialog takes the foreground and waits for a click nobody makes. It says
+      // whether ready came, which is all that tells this wait from the dialog being shown while the module loads
+      if (process.env['AGENTSHED_NO_FOREGROUND']) console.error(`${refusal.title}\n${refusal.message}\nready: ${app.isReady()}`)
       else dialog.showErrorBox(refusal.title, refusal.message)
       app.exit(1)
     })

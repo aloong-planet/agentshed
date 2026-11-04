@@ -500,6 +500,8 @@ test('a preference file that cannot be read: no automatic check, a check asked f
     win = await app.firstWindow()
     await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
     await expect(win.locator('html')).toHaveAttribute('data-theme', 'blue')
+    await win.locator('.ri.set').click()
+    await expect(win.locator('[data-mode-option="dark"]')).toHaveAttribute('aria-checked', 'true')
     await expect.poll(() => requests(f)).toEqual(['check', 'check', 'check'])
   } finally {
     await closeApp(app)

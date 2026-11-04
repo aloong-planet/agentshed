@@ -351,7 +351,7 @@ describe('UpdateController', () => {
     beforeEach(() => {
       dir = mkdtempSync(join(tmpdir(), 'update-prefs-'))
       const file = join(dir, 'prefs.json')
-      writeFileSync(file, JSON.stringify({ autoCheckUpdates: true }))
+      writeFileSync(file, JSON.stringify({ theme: 'blue', language: 'zh', mode: 'dark', trendSpan: 90, autoCheckUpdates: true }, null, 2))
       chmodSync(file, 0o000)
       store = new PrefsStore(dir)
     })
