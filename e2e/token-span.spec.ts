@@ -241,7 +241,7 @@ test('global span save failure keeps live views consistent and reopens the last 
     const handlerErrors: string[] = []
     app.process().stderr?.on('data', (b: Buffer) => {
       const t = b.toString()
-      if (/Error occurred in handler|agentshed-error:/.test(t)) handlerErrors.push(t)
+      if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) handlerErrors.push(t)
     })
     let win = await app.firstWindow()
     const toasts = await recordToasts(win)

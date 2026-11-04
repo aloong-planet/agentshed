@@ -417,6 +417,7 @@ hands the command over; it never runs it.
 - D3 Full-text search must **deduplicate**: 54.7% of Codex's bytes are fork replay copies, and without
   deduplication the same sentence is reported once per generation of a fork chain.
   A cold rollout is searched in one streaming pass (C2), in question mode and full-text mode alike.
+  A session whose file cannot be read is left out, in either mode, and the other sessions' hits stay.
 - D4 A hit locates "which question in which session", clickable to go straight there.
   **The locating highlight for a hit (finalised after three rounds of prototype confirmation
   2026-08-06)**: on arrival a yellow background pulse **holds for 10 s** (8 s steady, fading over the

@@ -531,11 +531,19 @@ export class TokenEngine {
     return { version: CACHE_VERSION, files: {} }
   }
 
+  /**
+   * The cache only spares the next launch a parse: what was just computed is in memory and answers from there. So a failed
+   * write fails neither a scan nor a session page (token-stats C3, session-view C4), and is logged.
+   */
   private persist(): void {
-    mkdirSync(this.cacheDir, { recursive: true })
-    const tmp = join(this.cacheDir, `.token-cache.j-${process.pid}`)
-    writeFileSync(tmp, JSON.stringify(this.cache))
-    renameSync(tmp, this.cacheFile)
+    try {
+      mkdirSync(this.cacheDir, { recursive: true })
+      const tmp = join(this.cacheDir, `.token-cache.j-${process.pid}`)
+      writeFileSync(tmp, JSON.stringify(this.cache))
+      renameSync(tmp, this.cacheFile)
+    } catch (error) {
+      console.error('[token-cache] save failed:', error)
+    }
   }
 
   /**
@@ -808,13 +816,7 @@ export class TokenEngine {
       agg = fresh
       // A Codex entry was stored above, with the state its next resume starts from
       if (fresh.kind !== 'codex') this.cache.files[file] = { sig, agg }
-      // The rebuilt index is in memory and this answer comes from it; saving it only spares the next launch a rebuild,
-      // so a failed write is not this page's failure (session-view C4)
-      try {
-        this.persist()
-      } catch (error) {
-        console.error('[token-cache] save failed:', error)
-      }
+      this.persist()
     }
     if (agg.kind === 'antigravity') {
       // A conversation that cannot be read in the supported format is listed nowhere and has no page

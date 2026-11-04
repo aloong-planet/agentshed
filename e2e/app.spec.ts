@@ -6834,6 +6834,77 @@ test('a session file that exists and cannot be read: the page and a turn say so 
   await close(l)
 })
 
+test('a project search with one session file that cannot be read shows the other sessions\' hits and leaves that one out (a failure on one entry stays there)', async () => {
+  const home = mkUsageHome()
+  const codex = join(home, '.codex', 'sessions', '2026', '01', '01', 'rollout-019fb0c0-1111-7af3-af7d-8505cedf1ec2.jsonl')
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.sbar input').fill('question')
+  await expect(win.locator('.shead')).toContainText('Found 3 hits · 2 sessions')
+
+  // Another needle: the same one is answered from the query's cache, and reads nothing
+  chmodSync(codex, 0o000)
+  await win.locator('.sbar input').fill('ques')
+  await expect(win.locator('.shead')).toContainText('Found 2 hits · 1 session')
+  await expect(win.locator('.grp .hit')).toHaveCount(2)
+  chmodSync(codex, 0o644)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/** A user's question line, in the shape mkUsageHome writes */
+const questionLine = (text: string): string =>
+  JSON.stringify({ type: 'user', timestamp: localDayOffset(0).toISOString(), message: { role: 'user', content: text } })
+
+test('a failed token cache write on a session page: a session whose index has to be rebuilt opens, with no raw error, and the failure is logged (P6, C4)', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const l = await launch(undefined, home)
+  const stderr: string[] = []
+  l.app.process().stderr?.on('data', (b: Buffer) => stderr.push(b.toString()))
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
+
+  mkdirSync(join(l.userData, `.token-cache.j-${l.app.process().pid}`))
+  appendFileSync(join(home, '.claude', 'projects', enc, 'a.jsonl'), questionLine('Third question') + '\n')
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  // Only a rebuild knows the third question
+  await expect(win.locator('.qlist .q')).toHaveCount(3)
+  await expect(win.locator('.qlist .q', { hasText: 'Third question' })).toBeVisible()
+  await expect(win.locator('.pane-body .none')).toHaveCount(0)
+  await expect.poll(() => stderr.join('')).toContain('[token-cache] save failed:')
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('a failed token cache write during a scan: the scan still delivers its snapshot, and the failure is logged', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '300' })
+  const stderr: string[] = []
+  l.app.process().stderr?.on('data', (b: Buffer) => stderr.push(b.toString()))
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
+
+  mkdirSync(join(l.userData, `.token-cache.j-${l.app.process().pid}`))
+  writeFileSync(join(home, '.claude', 'projects', enc, 'after.jsonl'), questionLine('Question after the block') + '\n')
+  // Only a delivered snapshot can list a session that came after the block
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Question after the block' })).toBeVisible({ timeout: 10000 })
+  expect(stderr.join('')).toContain('[token-cache] save failed:')
+  expect(stderr.join('')).not.toContain('scan failed')
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 test('a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity', async () => {
   const home = mkUsageHome()
   const proj = join(home, 'demo-proj')

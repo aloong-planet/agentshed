@@ -181,7 +181,13 @@ next to A/B, so that no existing reference is renumbered)
   halves of the same change** (see postmortems/cache-version-crash).
 - C2 Garbage cache content does not crash and triggers a full recompute.
 - C3 A second build gives the same result (idempotent); the cache file is valid JSON and lands
-  atomically.
+  atomically. A failed write of it (a blocked or full settings directory) does not fail the scan: what
+  was computed is in memory and goes out as usual, the failure is logged, and the next launch parses
+  again.
+
+  > Pending: a failed archive write still fails the scan (C4): the current snapshot stays, and a first
+  > scan stays on its placeholder. A settings directory that is read-only or full fails both writes.
+
 - C4 The archive is written on the first merge; a new instance reads it back.
 - C5 **Liveness is judged per (day, side)** (ADR-0026). A side is live on a day when this scan
   produced at least one row for it on that day. For a live (day, side) the live rows replace the

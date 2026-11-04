@@ -19,7 +19,7 @@
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseRunner } from './token-stats'
 import { emptyTokenStats } from '@shared/domain'
 import { zstdCompressSync } from 'node:zlib'
@@ -2076,9 +2076,29 @@ describe('sessionQuestions (the session page service)', () => {
     await e.build(roots(), [proj])
     mkdirSync(join(dir, 'cache', `.token-cache.j-${process.pid}`))
     appendFileSync(cl, userLine('second') + '\n')
-    expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(2)
-    expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(2)
-    expect(e.isFresh(cl)).toBe(true)
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(2)
+      expect(logged).toHaveBeenCalledWith('[token-cache] save failed:', expect.anything())
+      expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(2)
+      expect(e.isFresh(cl)).toBe(true)
+    } finally {
+      logged.mockRestore()
+    }
+  })
+
+  it('a build whose cache write fails still completes, the first scan included (e2e blocks only after launch): the failure is logged', async () => {
+    const cl = mkClaudeFile('first-scan.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
+    mkdirSync(join(dir, 'cache', `.token-cache.j-${process.pid}`), { recursive: true })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const r = await engine().build(roots(), [proj])
+      expect([...r.sessionFiles]).toContain(cl)
+      expect(existsSync(join(dir, 'cache', 'token-cache.json'))).toBe(false)
+      expect(logged).toHaveBeenCalledWith('[token-cache] save failed:', expect.anything())
+    } finally {
+      logged.mockRestore()
+    }
   })
 
   it('a file not in the cache: refused (with the caller guiding a refresh) rather than a silent empty list', async () => {

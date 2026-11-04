@@ -111,7 +111,8 @@ sessions, one per row, with "how many questions I asked in this conversation".
   a project in the list from it, lands on the "Sessions" section
 - **The top of the sessions section searches all of this project's sessions**: by default it searches
   questions only — small, clean, precise hits; it can be switched to "full text" (which hits tool
-  output and other noise, which is exactly why it is a toggle). Case-insensitive
+  output and other noise, which is exactly why it is a toggle). Case-insensitive. A session whose file
+  can no longer be read is left out, and the other sessions' hits stay
 - **Hits are grouped by session**: the group header is the session (side badge, title, fork status)
   and inside it are the matching questions and highlighted snippets; it answers "in which
   conversation" first and "which line" second. Body hits carry a "body" marker and a context snippet

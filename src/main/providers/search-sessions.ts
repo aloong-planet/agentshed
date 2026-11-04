@@ -113,10 +113,16 @@ export async function searchProjectSessions(
 
     // ── The coarse question pass: raw byte ranges, decoding and parsing only the entries that hit ──
     // From the file the ranges are in: the session file, or an Antigravity conversation's transcript
-    const { bufs } = await readRangeBuffers(
-      q.source,
-      recs.map((r) => ({ start: r[0], end: r[1] }))
-    )
+    let bufs: Buffer[]
+    try {
+      ;({ bufs } = await readRangeBuffers(
+        q.source,
+        recs.map((r) => ({ start: r[0], end: r[1] }))
+      ))
+    } catch {
+      // A file that exists and cannot be read only hurts itself too, as above
+      continue
+    }
     const parseQ = (idx: number): { text: string; at: number | null } | null => {
       const cached = qText.get(idx)
       if (cached) return cached

@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -112,6 +112,26 @@ describe('question mode (the default): searches questions only, with hits groupe
     expect(r.groups).toHaveLength(1)
     expect(r.groups[0].hits[0]).toMatchObject({ i: 1, inBody: false })
     expect(r.groups[0].hits[0].text).toContain('Notarize config')
+  })
+
+  it('a session file that cannot be read is left out and the others\' hits stay, in both modes: a failure on one entry stays there', async () => {
+    mkClaude('a.jsonl', [uL('needle in the readable session')])
+    const locked = mkClaude('b.jsonl', [uL('needle in the locked session')])
+    const e = new TokenEngine(join(dir, 'cache'))
+    const sessions = (await e.build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
+    expect(sessions).toHaveLength(2)
+    // chmod changes neither the mtime nor the size, so the index still answers and the range read is what fails
+    chmodSync(locked, 0o000)
+    try {
+      for (const fullText of [false, true]) {
+        const r = await searchProjectSessions(e, roots(), sessions, 'needle', fullText)
+        expect(r.sessionCount, `fullText ${fullText}`).toBe(1)
+        expect(r.totalHits, `fullText ${fullText}`).toBe(1)
+        expect(r.groups[0].hits[0].text).toBe('needle in the readable session')
+      }
+    } finally {
+      chmodSync(locked, 0o644)
+    }
   })
 
   it('a word in the body does not hit in question mode (questions only by default)', async () => {
