@@ -122,6 +122,10 @@ export function App(): JSX.Element {
   const navigate = (d: Dim): void => {
     jumpSeq.current++
     setListArrival(null)
+    // Moving between dimensions overtakes a return still held on its fetch: it draws no page, so the next page starts on
+    // the overview. Every way back to Projects comes through here or a search hit, which clears it too, so the application
+    // menu's entries need no line of their own, and neither does a side card, reached only from the agents page
+    if (d !== dim) setBackToSessions(false)
     setDim(d)
   }
 
@@ -167,7 +171,6 @@ export function App(): JSX.Element {
         setSelected(null)
         setShownProject(null)
         setOpenSession(null)
-        setBackToSessions(false)
       }
     })
   }

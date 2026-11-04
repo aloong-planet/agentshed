@@ -4386,11 +4386,12 @@ test('a skill package removed after the scan: one toast for each expansion, and 
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
   const added = await errorToastsAdded(win)
-  const expectSameAsToast = async (table: ReturnType<typeof win.locator>, wording = 'Listing failed: '): Promise<void> => {
-    const toast = win.locator('.toast.err').last()
-    await expect(toast).toContainText(wording)
-    await expect(table).toHaveText((await toast.textContent()) ?? '')
-    await expect(table).not.toContainText('Error invoking remote method')
+  const expectSameAsToast = async (
+    table: ReturnType<typeof win.locator>,
+    sentence = 'Listing failed: The skill package is unavailable or outside the allowed roots'
+  ): Promise<void> => {
+    await expect(table).toHaveText(sentence)
+    await expect(win.locator('.toast.err').last()).toHaveText(sentence)
   }
   /** One toast for each expansion: the cached failure and the revalidation's new failure are one failure (A11, H10) */
   const collapseAndReopen = async (head: ReturnType<typeof win.locator>, table: ReturnType<typeof win.locator>): Promise<void> => {
@@ -4439,12 +4440,12 @@ test('a skill package removed after the scan: one toast for each expansion, and 
   await expect(row).not.toHaveClass(/open/)
   expect(await added()).toBe(0)
   await row.locator('.sk-head').click()
-  await expectSameAsToast(row.locator('.files .empty'), '列举失败')
+  await expectSameAsToast(row.locator('.files .empty'), '列举失败:skill 包不可用或不在允许根下')
   expect(await added()).toBe(1)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
   await spRow.click()
   await psk.click()
-  await expectSameAsToast(exp.locator('.files .empty'), '列举失败')
+  await expectSameAsToast(exp.locator('.files .empty'), '列举失败:skill 包不可用或不在允许根下')
   expect(await added()).toBe(1)
   await close(l)
 
@@ -6610,13 +6611,17 @@ test('leaving a project for a session page and coming back (query layer closeout
 })
 
 test('opening an artifact whose file was removed after the scan (query layer): one toast for each click, no overlay, no crash', async () => {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
-  const proj = join(home, 'demo-proj')
-  mkdirSync(join(proj, 'docs', 'specs'), { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-  const ctx = join(proj, 'docs', 'CONTEXT.md')
-  writeFileSync(ctx, '# Doomed\n\nGone before it opens.\n')
-  writeFileSync(join(proj, 'docs', 'specs', 'fine.md'), '# Fine\n\nThis one reads.\n')
+  const mkHome = (): { home: string; ctx: string } => {
+    const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
+    const proj = join(home, 'demo-proj')
+    mkdirSync(join(proj, 'docs', 'specs'), { recursive: true })
+    writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+    const ctx = join(proj, 'docs', 'CONTEXT.md')
+    writeFileSync(ctx, '# Doomed\n\nGone before it opens.\n')
+    writeFileSync(join(proj, 'docs', 'specs', 'fine.md'), '# Fine\n\nThis one reads.\n')
+    return { home, ctx }
+  }
+  const { home, ctx } = mkHome()
   const openTheArtifacts = async (w: Page): Promise<void> => {
     await w.locator('.rail .ri').nth(1).click()
     await w.locator('.side .row').first().click()
@@ -6663,7 +6668,31 @@ test('opening an artifact whose file was removed after the scan (query layer): o
   await doomed.click()
   await expect(win.locator('.reader')).toContainText('Back again.')
   expect(await added()).toBe(0)
+
+  // Removed again, now that it has been read: the click shows what was kept, with no toast (ADR-0029)
+  await win.locator('.mask').click()
+  await expect(win.locator('.reader')).toHaveCount(0)
+  rmSync(ctx, { force: true })
+  await doomed.click()
+  await expect(win.locator('.reader')).toContainText('Back again.')
+  expect(await added()).toBe(0)
+  await expect(win.locator('.reader')).toContainText('Back again.')
   await close(l)
+
+  // A failing read overtaken by a click on another file: its toast, and the other file opens and stays
+  const third = mkHome()
+  const l3 = await launch(undefined, third.home, { AGENTSHED_FETCH_DELAY_MS: '500' })
+  const win3 = await l3.app.firstWindow()
+  const added3 = await errorToastsAdded(win3)
+  await openTheArtifacts(win3)
+  await expect(win3.locator('.it.ai', { hasText: 'Doomed' })).toBeVisible()
+  rmSync(third.ctx, { force: true })
+  await win3.locator('.it.ai', { hasText: 'Doomed' }).click()
+  await win3.locator('.it.ai', { hasText: 'Fine' }).click()
+  await expect(win3.locator('.reader')).toContainText('This one reads.')
+  expect(await added3()).toBe(1)
+  await expect(win3.locator('.reader')).toContainText('This one reads.')
+  await close(l3)
 
   // A read that fails through scans, with scans landing. A removed file leaves the list on the next scan, so this one is
   // a link whose target is gone: `collectMd` lists it by name, and its read fails whatever the scans do

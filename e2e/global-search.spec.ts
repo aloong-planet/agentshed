@@ -597,6 +597,91 @@ test('on into the project: its Sessions tab, or a stale project\'s note; a sessi
   }
 })
 
+test('a return overtaken while it is held on its fetch draws no page, so the next page starts on Overview, by each way out (project-detail::REQ-004/AC-02)', async () => {
+  const { home } = mkHome()
+  const l = await launch(home, { AGENTSHED_FETCH_DELAY_MS: '1000' })
+  const { win, app } = l
+  // Each way uses a project not yet fetched, because a fetched one is not held
+  const ways: { text: string; name: string; leave: () => Promise<void> }[] = [
+    {
+      text: 'How do I notarize the app?',
+      name: 'target-proj',
+      leave: async () => {
+        await win.locator('.rail .ri').nth(0).click()
+        await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+      }
+    },
+    {
+      text: 'Child asks to notarize the fork',
+      name: 'fork-proj',
+      leave: async () => {
+        await clickSearchSessions(app)
+        await expect(box(win)).toBeVisible()
+      }
+    },
+    {
+      text: 'twin asks to notarize',
+      name: 'twin',
+      leave: async () => {
+        await app.evaluate(({ Menu }) => {
+          const walk = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
+            for (const i of items) {
+              if (i.accelerator === 'CmdOrCtrl+,') return i
+              const found = i.submenu ? walk(i.submenu.items) : null
+              if (found) return found
+            }
+            return null
+          }
+          const item = walk(Menu.getApplicationMenu()?.items ?? [])
+          if (!item) throw new Error('no Settings item in the application menu')
+          ;(item.click as () => void)()
+        })
+        await expect(win.locator('.settings-sec-t').first()).toBeVisible()
+      }
+    }
+  ]
+  try {
+    for (const way of ways) {
+      await openHit(win, 'notarize', way.text)
+      // The exit holds the session page on its fetch
+      await exits(win).nth(1).click()
+      await expect(win.locator('.pane-head .stitle')).toBeVisible()
+      await way.leave()
+      // The held return lands with no page on the stage. Past the fetch delay; coming back sooner reads the same
+      await win.waitForTimeout(1300)
+      await win.locator('.rail .ri').nth(1).click()
+      await expect(win.locator('.pane-head h1')).toHaveText(way.name)
+      await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Overview')
+    }
+
+    // The rail's own item is no way out: the return draws its page, on Sessions (T8)
+    await openHit(win, 'filler question 22', 'filler question 22')
+    await exits(win).nth(1).click()
+    await expect(win.locator('.pane-head .stitle')).toBeVisible()
+    await win.locator('.rail .ri').nth(1).click()
+    await expect(win.locator('.pane-head h1')).toHaveText('filler-22')
+    await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
+  } finally {
+    await close(l, home)
+  }
+})
+
+test('a return onto a stale project\'s note spends the landing: when the project comes back its page starts on Overview (project-detail::REQ-004/AC-02)', async () => {
+  const { home, paths } = mkHome()
+  const l = await launch(home, { AGENTSHED_RESCAN_MS: '250' })
+  const { win } = l
+  try {
+    await openHit(win, 'notarize', 'Notarize the stale build')
+    await exits(win).nth(1).click()
+    await expect(win.locator('.stale-note')).toBeVisible()
+    mkdirSync(paths.stale)
+    await expect(win.locator('.stale-note')).toHaveCount(0)
+    await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Overview')
+  } finally {
+    await close(l, home)
+  }
+})
+
 test('leaving the session for the search page and coming back keeps it with its exits; selecting another project replaces it (J6, J7)', async () => {
   const { home } = mkHome()
   const l = await launch(home)

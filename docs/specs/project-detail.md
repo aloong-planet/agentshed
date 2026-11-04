@@ -177,7 +177,9 @@ never writes to any agent's registry; it tells the user what happened and hands 
   Each click on a file whose read fails reads it again and shows one toast, the answer to that read,
   so a file that has come back opens with none. The toast states the failure in a sentence in the
   current UI language, never the raw IPC error. A scan landing afterwards adds no toast, and does not
-  open the reader when the file comes back: a failed read leaves nothing open.
+  open the reader when the file comes back: a failed read leaves nothing open. A file already read
+  successfully does not fail this way: with the file gone, the click opens its kept copy with no toast
+  (ADR-0029).
   Reopening an already-read file is a cached, instant revisit.
 - B10 `.scratch/` is not under `docs/` by construction and does not count as an artifact (tickets are
   working documents — see the division of labour in specs/README).
