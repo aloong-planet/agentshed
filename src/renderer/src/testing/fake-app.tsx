@@ -94,12 +94,12 @@ function mount(children: ReactNode): void {
 /** The whole app, as its entry mounts it */
 export const mountApp = (): void => mount(<App />)
 
-export function mountSessionPage(file: string, onBack: () => void = () => {}): void {
+export function mountSessionPage(file: string, onBack: () => void = () => {}, onOpenSession?: (file: string) => void): void {
   mount(
     <LanguageProvider lang="en">
       <StartupContext.Provider value="ready">
         <Suspense fallback={null}>
-          <SessionPane file={file} projectName="demo-proj" projectDir="/home/u/demo-proj" stale={false} now={Date.now()} onBack={onBack} />
+          <SessionPane file={file} projectName="demo-proj" projectDir="/home/u/demo-proj" stale={false} now={Date.now()} onBack={onBack} onOpenSession={onOpenSession} />
         </Suspense>
       </StartupContext.Provider>
     </LanguageProvider>
