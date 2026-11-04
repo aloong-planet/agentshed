@@ -81,6 +81,10 @@ We adopt **option 1**.
 - Negative, not solved here: a settings directory already read-only or full at launch never reaches a scan.
   The runtime cannot create its single-instance lock there, and the application exits as a second instance
   does, with nothing on screen (token-stats C25).
+
+  > **Amended (2026-11-05)**: #367 solved the second half of this. The application still does not start, and
+  > a native dialog now names the directory and says why (i18n, The launch dialog).
+
 - Neutral: an instance that already read the file and finds it unreadable later writes from memory, which
   holds its history, so that case needs no rule of its own.
 
