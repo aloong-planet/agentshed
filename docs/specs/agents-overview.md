@@ -59,10 +59,9 @@ see [appearance](appearance.md) (the rail's settings dimension).
   scan finishes — that sentence became false with this change and is rewritten in every language.
 - A4a The skeleton is non-interactive: time-window cards, tabs and every other control under the
   page header refuse pointer input, and nothing shows a hover or selected affordance beyond a muted
-  default-tab marker. The rail stays live — settings, the projects dimension and refresh all work
-  (refresh is deduplicated against the in-flight startup scan per R2). Changing language or
-  appearance from settings restyles the skeleton like any page — its labels come from the same
-  dictionaries and its colours from the same theme tokens.
+  default-tab marker. The rail stays live — settings and the projects dimension both work. Changing
+  language or appearance from settings restyles the skeleton like any page — its labels come from
+  the same dictionaries and its colours from the same theme tokens.
 - A4b Filling is in place: when the first snapshot arrives, data replaces placeholders with **no
   anchor moving** — the hint sits in the title row precisely so its disappearance causes no vertical
   shift. Two stated exceptions: the number of placeholder model rows is nominal, since the model
@@ -101,8 +100,8 @@ see [appearance](appearance.md) (the rail's settings dimension).
 **Cross-cutting**
 - R1 Component-level boundaries live in each section's own spec and are not repeated here; adding a
   section means updating B1's list.
-- R2 Global refresh is shared by both dimensions, and repeat clicks while one is in flight are
-  deduplicated.
+- R2 The automatic scan is shared by both dimensions, and a trigger arriving while one is in flight is
+  deduplicated (projects-list C4).
 
 **Sequence G: the Grok side**
 - G1 Grok's own global skills (its skills directory) list alongside the other sides'; what it

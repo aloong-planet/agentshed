@@ -233,7 +233,7 @@ repeats what is already legible is noise.
   and is the behaviour to preserve — a filter must not silently collapse what the user opened.
 - E8 The "Install to…" popover is open when typing starts → it closes. It is a `fixed` layer positioned
   from its trigger's rect, and the row it was measured against may be about to leave the list.
-- E9 A snapshot refresh (manual or automatic) while filtering → the keyword survives, because the section
+- E9 A snapshot refresh while filtering → the keyword survives, because the section
   is not unmounted (the transfusion update, project-detail A3).
 - E10 Leaving the tab, or switching project, clears the keyword: it is a way of looking at one list, not a
   setting.

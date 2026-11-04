@@ -4,6 +4,7 @@ import { useTrendSpan } from './TrendSpan'
 import { useWindowLabel, TrendSpanControl } from './TokenViz'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
 import { agentTabs } from './AgentsPane'
+import type { AgentSide } from '@shared/domain'
 import { USAGE_WINDOWS } from '@shared/usage'
 import { TREND_MODE_LABEL, type TrendMode } from '@shared/trend'
 
@@ -13,7 +14,7 @@ import { TREND_MODE_LABEL, type TrendMode } from '@shared/trend'
  * placeholder block in every data slot, and no interaction — `.sk-page` turns pointer events off
  * wholesale, so nothing here carries a handler.
  *
- * Placeholder widths and the chart's bar heights are fixed arrays, not random: the skeleton must
+ * Placeholder widths and the chart's bar heights are fixed values, not random: the skeleton must
  * look the same on every launch, and staggered values are what keeps a column of placeholders
  * reading as "text of varying length will land here" rather than as a table rule.
  *
@@ -53,9 +54,18 @@ const BARS = [
   40, 52, 64, 46, 34, 26
 ]
 
+/** The widths of a side card's figure and third line, total over AgentSide: a list by position leaves
+ * a side past its end with no placeholder, and a width of undefined draws nothing without an error */
+const SIDE_WIDTHS: Record<AgentSide, { figure: number; line: number }> = {
+  claude: { figure: 58, line: 150 },
+  codex: { figure: 46, line: 140 },
+  grok: { figure: 50, line: 120 },
+  antigravity: { figure: 52, line: 132 }
+}
+
 /** The side cards' static identity, derived from the side Record (complete by construction; the
  * figures and secondary rows are placeholders) */
-const SIDES = SIDE_ORDER.map((s) => ({ cls: SIDE_BADGE[s].cls, label: SIDE_CHIP_LABEL[s] }))
+const SIDES = SIDE_ORDER.map((s) => ({ cls: SIDE_BADGE[s].cls, label: SIDE_CHIP_LABEL[s], ...SIDE_WIDTHS[s] }))
 
 /** The sidebar's placeholder rows: name widths staggered like real project names (A10) */
 const ROW_WIDTHS = [128, 96, 142, 88, 150, 104, 120, 134, 92]
@@ -158,7 +168,7 @@ export function AgentsSkeleton(): JSX.Element {
           </div>
         </div>
         <div className="stats">
-          {SIDES.map((s, i) => (
+          {SIDES.map((s) => (
             <div key={s.cls} className="stat">
               {/* SkLine, not Sk: the loaded row carries detection copy at the row's own font size,
                   and the badge's smaller type alone gives the row a shorter line box off-platform */}
@@ -167,10 +177,10 @@ export function AgentsSkeleton(): JSX.Element {
                 <SkLine w={38} h={8} />
               </div>
               <div className="v">
-                <SkLine w={[58, 46, 50][i]} h={13} />
+                <SkLine w={s.figure} h={13} />
               </div>
               <div className="s">
-                <SkLine w={[150, 140, 120][i]} h={8} />
+                <SkLine w={s.line} h={8} />
               </div>
             </div>
           ))}

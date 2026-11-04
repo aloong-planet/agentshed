@@ -105,8 +105,8 @@ is read-only.
 **Sequence G: plugin entries joining the Skills section** (ADR-0010; the inclusion rule is
 **unchanged by preview**, ADR-0012)
 - G1 Only effectively enabled plugins' skills appear (by the page's own rule: the global page uses the
-  user layer, the detail page uses that project's effective enabled set); after disabling and
-  refreshing → the entry disappears (visible only in the Plugins expansion).
+  user layer, the detail page uses that project's effective enabled set); a plugin disabled since the
+  last scan → the next scan takes the entry out (visible only in the Plugins expansion).
 - G2 A namespaced entry `pluginName:skillName` does not take part in on-disk skills' shadowing
   judgement; it coexists with an on-disk skill of the same name as two independent entries (namespace
   isolation).

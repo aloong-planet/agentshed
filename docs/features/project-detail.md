@@ -5,7 +5,7 @@
 ## Overview
 "What capabilities does this project have installed, what conventions does it follow, and what has it
 accumulated" is the product's founding question. The detail page answers it across nine sections:
-Overview (default), Instructions, Skills, Subagents, Plugins, MCP, Memory, Sessions and Artifacts.
+Overview, Instructions, Skills, Subagents, Plugins, MCP, Memory, Sessions and Artifacts.
 
 ## Capabilities
 - Switching between projects turns a page rather than flashing one: the page you are on stays put
@@ -15,6 +15,11 @@ Overview (default), Instructions, Skills, Subagents, Plugins, MCP, Memory, Sessi
   quietly refreshes behind the scenes. Its last successful content stays readable if a refresh
   fails; a project never opened before waits for its first detail. Leaving for Agents or Settings
   and returning is likewise instant.
+- The tab you are on stays with the page: selecting another project keeps it, and the next project
+  shows that tab. A project opens on Overview when no project's page is on screen: when you first
+  select one, come back from another part of the app, or select one from a session or a stale
+  project's note. Coming back from a session lands on Sessions, and leaving that project and returning
+  lands there again until you select another project
 - Instructions: two entries, the project's own CLAUDE.md and AGENTS.md (the AGENTS.md that Codex and
   Antigravity CLI both read, shown once), each rendered for reading under its path; a missing file
   shows "None" and one that cannot be read says so under its path; no settings summary is shown; a
@@ -59,5 +64,5 @@ Overview (default), Instructions, Skills, Subagents, Plugins, MCP, Memory, Sessi
   (the other artifacts are), and a link to it shows the notice rather than opening it
 - The tabs do not move onto a second row or scroll under the pointer: the default window shows every tab, and in a
   narrower window a tab past the right edge is cut off and the pointer cannot reach it until the window is widened. The
-  keyboard can: tabbing to it moves the whole page sideways to show it, until focus goes back to the first tab, you leave
-  for Agents or the window is widened
+  keyboard can: tabbing to it moves the whole page sideways to show it, until focus goes back to the first tab, you open a
+  session or you leave for Agents; widening the window shrinks the shift, and the default window ends it
