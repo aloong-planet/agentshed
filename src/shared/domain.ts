@@ -176,7 +176,7 @@ export interface PluginInstallRecord {
   scope: string | null
   /** The owning project for project scope; null otherwise */
   projectPath: string | null
-  /** The owning project's directory no longer exists (E2: displayed as written and marked "project lost") */
+  /** The owning project's directory no longer exists (E2: displayed as written and marked "project stale") */
   projectMissing: boolean
   installPath: string | null
   version: string | null

@@ -62,6 +62,23 @@ describe('the registry union', () => {
     expect(byName['ghost']).toMatchObject({ sides: ['claude'], stale: true })
   })
 
+  it.skipIf(process.getuid?.() === 0)('a directory that cannot be reached is not stale, and one that is really not there still is (projects-list A6)', async () => {
+    const locked = join(dir, 'work', 'locked')
+    const blocked = join(locked, 'blocked')
+    mkdirSync(blocked, { recursive: true })
+    const file = join(dir, 'work', 'a-file')
+    writeFileSync(file, '')
+    writeClaudeRegistry([blocked, join(dir, 'work', 'ghost'), join(file, 'under-a-file')])
+    chmodSync(locked, 0o000)
+    try {
+      const snap = await scan(roots(), { now: () => 1 })
+      const staleByName = Object.fromEntries(snap.projects.map((p) => [p.name, p.stale]))
+      expect(staleByName).toEqual({ blocked: false, ghost: true, 'under-a-file': true })
+    } finally {
+      chmodSync(locked, 0o755)
+    }
+  })
+
   it('the Codex config.toml registry → project entries', async () => {
     const p = mkProject('codex-only')
     writeCodexRegistry([p])

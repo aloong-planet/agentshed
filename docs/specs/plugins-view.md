@@ -47,7 +47,7 @@ is read-only.
 7. As a user, I want each side's plugins grouped separately with no cross-side merging by name, so
    that I know which side a plugin is installed on (the sides' marketplaces and package formats
    are independent).
-8. As a user, I want anomalies such as a cleaned-up install directory, a lost owning project, or a
+8. As a user, I want anomalies such as a cleaned-up install directory, a stale owning project, or a
    missing individual skill directory labelled truthfully (greyed out / a banner) rather than
    disappearing or crashing, so that I can decide what to clean up.
 
@@ -57,7 +57,8 @@ is read-only.
 - E1 One plugin with several installation records (installed at both user and project) → show each
   record's scope and owner (**inline chips**), neither merged nor reduced to the first.
 - E2 A project-scope record whose owning project directory no longer exists → shown as written and
-  marked "project lost", not validated and not crashing.
+  marked "project stale", not validated and not crashing. A directory that cannot be reached is not one
+  ([projects-list](projects-list.md) A6): its record is shown with no mark.
 - E3 A scope of local or an unknown value → labelled as written, with no guessing at the semantics; a
   record missing the scope field → labelled "(unknown)".
 - E4 Enablement explicitly false and enablement absent → both display as not enabled (the global page
@@ -220,7 +221,7 @@ Settled during implementation (2026-10-29):
 
 ## Implementation Decisions
 
-- **Types**: an installation record array (with scope / owning project / lost marker) + layered
+- **Types**: an installation record array (with scope / owning project / stale marker) + layered
   enablement (the user-layer rule for the global page / `enabledFrom` attribution for the detail page)
   + four kinds of bundled component summary. A bundled skill entry extends to name + description +
   **package stats (file count / bytes) + readability (a missing package root or subdirectory means
@@ -285,6 +286,9 @@ entry point → admitted or the reason for refusal), never the traversal impleme
 - **Prototype gate: passed** (2026-08-07, finalised over four iterations: inline installation records
   and enablement, category tabs, the Skills row list with stats, the greyed-out missing state, and the
   Codex group's Skills-only tab).
+- **Prototype gate (2026-11-05), the mark's word**: the prototypes' word for a stale owning project (E2) is brought to
+  the label's, "project stale". It is copy only: no state, control or form changes. Declared here as the exemption
+  rather than assumed.
 - Implementation wrap-up (step 8) must update: `docs/features/plugins-view.md` (the expansion form and
   preview capability), and the wording about "plugins cannot be previewed" in
   `docs/features/skills-view.md` and `docs/features/agents-overview.md`.

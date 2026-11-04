@@ -53,7 +53,8 @@ is read-only; the one write operation is uninstalling a project-level skill.
   "sections show empty states" behaviour): the shell — struck-through name, stale tag, path — plus a
   single note card, with **no section tabs and no data areas** and no back control, the project list being beside it. The trade-off that the
   project's own token history is no longer reachable from its page was accepted; the global totals
-  still include it (see agents-overview B3). Sequence S below owns the card.
+  still include it (see agents-overview B3). Sequence S below owns the card. A directory that cannot be reached is
+  not stale ([projects-list](projects-list.md) A6), so such a project opens its sections.
 - A3 Detail is fetched on demand (it does not enter the overview snapshot), and **a project switch is
   atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the invariant of that date,
   now in AGENTS.md): the page on screen stays whole until the next project's page can be drawn whole, then

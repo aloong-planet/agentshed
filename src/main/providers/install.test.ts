@@ -116,6 +116,23 @@ describe.skipIf(process.getuid?.() === 0)('installSkill, when the copy fails', (
     }
   })
 
+  it('a project behind a directory that cannot be entered is the failed copy, not the stale-target refusal (A10)', () => {
+    mkGlobalSkill('claude', 'tidy')
+    const locked = join(dir, 'locked')
+    const blocked = join(locked, 'blocked')
+    mkdirSync(blocked, { recursive: true })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    chmodSync(locked, 0o000)
+    try {
+      expect(installSkill(roots(), { skillName: 'tidy', side: 'claude', targetProjectPath: blocked })).toEqual({ ok: false, reason: ERR.skillCopyFailed })
+      expect(logged.mock.calls).toEqual([['[skill-install] copy failed:', expect.any(Error)]])
+    } finally {
+      chmodSync(locked, 0o755)
+      logged.mockRestore()
+    }
+    expect(readdirSync(blocked)).toEqual([])
+  })
+
   it('a copy that fails midway leaves nothing behind (A6), which is what the notice claims', () => {
     const locked = join(mkGlobalSkill('claude', 'tidy'), 'z-locked.txt')
     writeFileSync(locked, 'x')
