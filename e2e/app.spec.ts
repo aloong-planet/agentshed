@@ -3659,6 +3659,10 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   writeFileSync(join(gskills, 'tdd', 'scripts', 'lib', 'deep-tool.py'), 'print("Deep tool body")\n')
   mkdirSync(join(gskills, 'tdd', 'schemas'), { recursive: true })
   writeFileSync(join(gskills, 'tdd', 'schemas', 'wml.xsd'), '<schema/>\n')
+  // A directory link out of the package, as a skill sharing a folder holds one (skills-view, "any depth" boundaries)
+  mkdirSync(join(home, 'shared-docs'), { recursive: true })
+  writeFileSync(join(home, 'shared-docs', 'outside.md'), '# Outside\n\nLinked directory body\n')
+  symlinkSync(join(home, 'shared-docs'), join(gskills, 'tdd', 'linked'))
   const longPath = `templates/${'long-directory-name/'.repeat(10)}guide.md`
   mkdirSync(dirname(join(gskills, 'tdd', longPath)), { recursive: true })
   writeFileSync(join(gskills, 'tdd', longPath), '# Long\n')
@@ -3704,8 +3708,8 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   //     the body)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const tdd = win.locator('.sk', { hasText: 'tdd' })
-  // SKILL.md, the script and the three nested files; the schema is off the text list
-  await expect(tdd.locator('.sk-meta')).toContainText('5 files')
+  // SKILL.md, the script, the three nested files and the one behind the directory link; the schema is off the text list
+  await expect(tdd.locator('.sk-meta')).toContainText('6 files')
   await tdd.locator('.sk-head').click()
   await expect(tdd.locator('.files-card')).toBeVisible()
   await expect(tdd.locator('.files-sum')).toHaveCount(0) // The summary moved onto the row, so the expanded area no longer repeats it
@@ -3762,8 +3766,12 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(tdd).not.toContainText('restructuring')
   await deepTool.click()
   await expect(win.locator('.file-drawer .md-preview-name')).toHaveText('scripts/lib/deep-tool.py')
+  await expect(win.locator('.file-drawer .d-meta')).toContainText('scripts/lib/deep-tool.py')
   await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Deep tool body')
   await expect(win.locator('.file-drawer .md-preview-seg')).toHaveCount(0)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await tdd.locator('.files button', { hasText: 'linked/outside.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body.preview')).toContainText('Linked directory body')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await tdd.locator('.files button', { hasText: 'SKILL.md' }).click()
   await win.locator('.file-drawer .md-preview-body a', { hasText: 'deep guide' }).click()
@@ -3783,8 +3791,11 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   const longCell = tdd.locator(`.files button .path[title="${longPath}"]`)
   await expect(longCell).toHaveText(longPath)
   expect(
-    await longCell.evaluate((el) => ({ cut: el.scrollWidth > el.clientWidth, overflow: getComputedStyle(el).textOverflow }))
-  ).toEqual({ cut: true, overflow: 'ellipsis' })
+    await longCell.evaluate((el) => {
+      const style = getComputedStyle(el)
+      return { cut: el.scrollWidth > el.clientWidth, overflowX: style.overflowX, textOverflow: style.textOverflow }
+    })
+  ).toEqual({ cut: true, overflowX: 'hidden', textOverflow: 'ellipsis' })
 
   // (1b) A symlinked skill whose target is outside the roots: the row carries the symlink badge, and
   //      expanding and reading files work end to end (A6)

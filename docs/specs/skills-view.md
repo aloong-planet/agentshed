@@ -421,15 +421,16 @@ Skills section, project detail's Skills section and the Plugins section's Skills
 - skills-view::REQ-003/AC-02: The table stays flat with zero indentation: each row shows the file's whole
   path relative to the package root and its type badge, `SKILL.md` first and the rest in path order. A
   path wider than its column ends in an ellipsis and shows in full on hover.
-- skills-view::REQ-003/AC-03: A row's "N files · size" counts exactly the files its table lists, at every
-  depth, still without reading contents (C1).
+- skills-view::REQ-003/AC-03: A row's "N files · size" counts the files its table lists, at every depth,
+  still without reading contents (C1); the one difference is a file that cannot be read, in the boundaries
+  below.
 - skills-view::REQ-003/AC-04: A deep file opens like any other: clicking it reads it in the drawer under
   sequence D (markdown previews by default and can switch to raw; other text shows raw only), and a
   relative link resolving to it switches the drawer to it (D3).
-- skills-view::REQ-003/AC-05: A directory symlink inside a package that leads back to a directory the walk
-  is already inside, or to a directory containing the package, is not followed, so a link cycle cannot
-  repeat a file. Any other directory symlink is followed, and a directory reached by two paths is listed
-  under both.
+- skills-view::REQ-003/AC-05: The walk does not enter a directory it is already inside, whether a symlink or
+  one of that directory's own children leads there, and does not follow a symlink to a directory containing
+  the package, so a link cycle ends. Any other directory symlink is followed, and a directory reached by two
+  paths is listed under both.
 - skills-view::REQ-003/AC-06: A listing saved before this rule restores with no depth notice; it shows the
   files it held until its refresh lists the deeper ones (ADR-0029).
 
@@ -446,6 +447,10 @@ Skills section, project detail's Skills section and the Plugins section's Skills
 - A directory symlink to an unrelated directory outside the package lists that directory's text files, and
   they become readable by their exact registered paths (C9): enumeration still follows what the package
   links to, as it did for shallow paths, and reading stays local.
+- A broken symlink, or one pointing at itself, is skipped, and the rest of the package lists.
+- A file that cannot be read when the table is built (its permissions, say) is left out of the table but still
+  counted by the row, since the row's numbers come from `stat` alone (C1). A directory that cannot be read lists
+  nothing from inside it. Neither costs any other file (AGENTS.md's one-entry invariant).
 - A long path in a narrow column: at the default window the Agents page shows the 80-character path whole,
   while project detail and narrower windows cut it, file name included, leaving the full path to hover and
   to the drawer's subtitle.

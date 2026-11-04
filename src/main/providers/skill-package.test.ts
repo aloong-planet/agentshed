@@ -1,4 +1,6 @@
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
+// Gap: the walk's catch around resolving a directory link has no trigger short of the link vanishing between that
+// call and the stat before it, so no test drives it; driving it would need the filesystem injected.
+import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -8,6 +10,7 @@ import {
   resolveSkillRoot,
   resolvePluginSkillRoot,
   isUnderKnownSkillRoots,
+  readSkillFileText,
   statSkillPackage
 } from './skill-package'
 import type { ScanRoots } from './types'
@@ -63,6 +66,7 @@ describe('listSkillPackageFiles', () => {
       'script.sh': 'echo 1\n',
       'ooxml/schemas/wml.xsd': '<schema/>\n',
       'schema.xsd': '<schema/>\n',
+      'scripts/go': '#!/bin/sh\n',
       'bin/tool.png': 'not-text',
       'assets/fonts/deep/font.ttf': 'not-text'
     })
@@ -133,6 +137,39 @@ describe('listSkillPackageFiles', () => {
     expect(listing.files.some((f) => f.path === 'SKILL.md')).toBe(true)
   })
 
+  it('lists a name starting with two dots', () => {
+    const pack = join(dir, 'dotted')
+    mkPack(pack, { 'SKILL.md': '# s\n', '..notes.md': 'n\n', '..x/y.md': 'y\n', 'normal/z.md': 'z\n' })
+    expect(listSkillPackageFiles(pack).files.map((f) => f.path)).toEqual(['SKILL.md', '..notes.md', '..x/y.md', 'normal/z.md'])
+    expect(statSkillPackage(pack)!.files).toBe(4)
+  })
+
+  // The row counts by stat alone (C1), so it cannot know; either failure costs nothing but the entry itself
+  it.skipIf(process.getuid?.() === 0)('a file that cannot be read leaves the table and stays in the row\'s count; a directory that cannot be read lists nothing', () => {
+    const pack = join(dir, 'locked')
+    mkPack(pack, { 'SKILL.md': '# s\n', 'a/b/locked.md': 'x\n', 'a/b/open.md': 'y\n', 'a/sealed/hidden.md': 'z\n' })
+    const sealed = join(pack, 'a', 'sealed')
+    chmodSync(join(pack, 'a', 'b', 'locked.md'), 0o000)
+    chmodSync(sealed, 0o000)
+    try {
+      expect(listSkillPackageFiles(pack).files.map((f) => f.path)).toEqual(['SKILL.md', 'a/b/open.md'])
+      expect(statSkillPackage(pack)!.files).toBe(3)
+    } finally {
+      chmodSync(sealed, 0o755) // The temp directory's cleanup cannot read into it otherwise
+    }
+  })
+
+  it('a nested oversized file truncates when read, and its line count covers the whole file', () => {
+    const pack = join(dir, 'oversized')
+    mkPack(pack, { 'SKILL.md': '# s\n', 'refs/deep/big.md': `${'x'.repeat(99)}\n`.repeat(5001), 'refs/deep/small.md': 'small\n' })
+    const files = listSkillPackageFiles(pack).files
+    const big = files.find((f) => f.path === 'refs/deep/big.md')!
+    expect(big.lines).toBe(5001)
+    const read = readSkillFileText(big.absPath)
+    expect([read.truncated, read.text.length]).toEqual([true, 500_000])
+    expect(readSkillFileText(files.find((f) => f.path === 'refs/deep/small.md')!.absPath)).toEqual({ text: 'small\n', truncated: false })
+  })
+
   it('caps no rows: a package larger than any measured one lists every file', () => {
     const pack = join(dir, 'large-pack')
     const files: Record<string, string> = { 'SKILL.md': '# s\n' }
@@ -162,6 +199,38 @@ describe('listSkillPackageFiles', () => {
       symlinkSync('../a', join(pack, 'b', 'l2'))
       expect(listed(pack)).toEqual(['SKILL.md', 'a/l1/y.md', 'a/x.md', 'b/l2/x.md', 'b/y.md'])
       expect(statSkillPackage(pack)!.files).toBe(5)
+    })
+
+    it('a link re-entering a directory through its own child ends there, whatever the links\' name order', () => {
+      const pack = join(dir, 're-entry')
+      mkPack(pack, { 'SKILL.md': '# s\n', 'a/g.md': 'g\n', 'a/b/f.md': 'f\n' })
+      symlinkSync('a/b', join(pack, 'l1'))
+      symlinkSync('..', join(pack, 'a', 'b', 'l2'))
+      const expected = ['SKILL.md', 'a/b/f.md', 'a/g.md', 'l1/f.md', 'l1/l2/g.md']
+      expect(listed(pack)).toEqual(expected)
+      // Self links on both sides of l2, since the order a directory lists in decides what a stale guard lets through
+      symlinkSync('.', join(pack, 'a', 'b', 'aself'))
+      symlinkSync('.', join(pack, 'a', 'b', 'zself'))
+      expect(listed(pack)).toEqual(expected)
+      expect(statSkillPackage(pack)!.files).toBe(5)
+    })
+
+    it('a link out of the package that leads back into its own target ends there', () => {
+      const pack = join(dir, 'through-out')
+      mkPack(pack, { 'SKILL.md': '# s\n' })
+      mkPack(join(dir, 'ext'), { 'foo/a.md': 'a\n', 'other.md': 'o\n' })
+      symlinkSync('../ext/foo', join(pack, 'x'))
+      symlinkSync('..', join(dir, 'ext', 'foo', 'up'))
+      expect(listed(pack)).toEqual(['SKILL.md', 'x/a.md', 'x/up/other.md'])
+    })
+
+    it('a broken link and a link to itself are skipped, and the rest lists', () => {
+      const pack = join(dir, 'bad-links')
+      mkPack(pack, { 'SKILL.md': '# s\n', 'refs/a.md': 'a\n' })
+      symlinkSync('gone', join(pack, 'dead'))
+      symlinkSync('loop', join(pack, 'refs', 'loop'))
+      expect(listed(pack)).toEqual(['SKILL.md', 'refs/a.md'])
+      expect(statSkillPackage(pack)).toMatchObject({ files: 2, bytes: 6 })
     })
 
     it('a link to a directory containing the package is not followed', () => {

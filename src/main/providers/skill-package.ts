@@ -2,7 +2,7 @@
 // any depth; symlinks are followed unless they lead back on themselves; the caller registers the exact
 // allow-list.
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
+import { basename, dirname, join, relative, sep } from 'node:path'
 import { PROJECT_SKILLS_DIR, type AgentSide } from '@shared/domain'
 import { globalSkillsRoots, type ScanRoots } from './types'
 import type { CappedText } from '@shared/domain'
@@ -148,14 +148,13 @@ interface WalkedFile {
  * filesystem root already ends in a separator. */
 export function holdsPath(outer: string, inner: string): boolean {
   const rel = relative(outer, inner)
-  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
+  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`)
 }
 
 /** A stat-only walk (contents not read): enumeration and the inline stats share one set of
- * extension / junk-directory rules. A package's depth is unbounded, so a directory symlink leading back to a
- * directory the walk is inside, or to one holding the package, is not followed: following it would list the same
- * files again at each level (skills-view::REQ-003/AC-05). `root` is a real path; `realDir` is the real path of
- * `dir`. */
+ * extension / junk-directory rules. A package's depth is unbounded, so the walk does not enter a directory it is
+ * already inside, whichever route leads there, nor one holding the package: entering it would list the same files
+ * again at each level (skills-view::REQ-003/AC-05). `root` is a real path; `realDir` is the real path of `dir`. */
 function walkFiles(root: string): WalkedFile[] {
   const files: WalkedFile[] = []
   const inside = new Set<string>()
@@ -187,16 +186,14 @@ function walkFiles(root: string): WalkedFile[] {
           } catch {
             continue
           }
-          if (inside.has(realChild) || holdsPath(realChild, root)) continue
         }
+        if (inside.has(realChild) || holdsPath(realChild, root)) continue
         walk(abs, realChild)
         continue
       }
       if (!st.isFile()) continue
       if (!isTextFile(e.name)) continue
-      const rel = relPosix(root, abs)
-      if (rel.startsWith('..')) continue
-      files.push({ rel, abs, bytes: st.size, mtimeMs: st.mtimeMs })
+      files.push({ rel: relPosix(root, abs), abs, bytes: st.size, mtimeMs: st.mtimeMs })
     }
     inside.delete(realDir)
   }
