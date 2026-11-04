@@ -13,10 +13,10 @@ numbers share a source and reconcile against each other.
   over all history, today, the last 7 days, and the last N days — each showing that window's total, and
   **clicking a card selects the window**. Everything the window governs moves together: each side's
   figure, the composition bar, the highlighted span of the trend chart, and the per-model breakdown.
-  All history is the default; the selection survives switching tabs (and, in a project, switching
-  projects, past a stale project's note or a project that has left the list too); leaving a project's
-  page for a session or another part of the app and coming back resets it, and the active card is not
-  kept across restarts. The fourth card's label and actual total
+  All history is the default; the selection survives switching tabs, and in a project it stays while
+  you remain in Projects: switching projects, past a stale project's note or a project that has left the
+  list, and opening a session and coming back. Leaving for another part of the app resets it, and the
+  active card is not kept across restarts. The fourth card's label and actual total
   follow the global 30/60/90-day choice even when another card is active. If the fourth card is active,
   its side figures, composition and model breakdown also follow that choice. The other three cards
   keep their meanings. "Today" follows the current local day, as does the trend

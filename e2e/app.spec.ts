@@ -1110,10 +1110,10 @@ test('the tab a project opens on: another project keeps it, through a page with 
   await pageIs('alpha', 'Skills')
   await select('Overview')
   await expect(selectedWindow).toHaveText('Today')
-  // A session page takes the pane off the stage, and the window with it
+  // A session page takes the pane off the stage, but not the window: it is held while you stay in Projects
   await backFromTheSession()
   await select('Overview')
-  await expect(selectedWindow).toHaveText('Total · all history')
+  await expect(selectedWindow).toHaveText('Today')
   await select('Memory')
   register(beta, ghost, phantom)
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
@@ -1131,12 +1131,16 @@ test('the tab a project opens on: another project keeps it, through a page with 
   // With that page on screen another project keeps the tab, and leaving by the rail starts on Overview
   await row('alpha').click()
   await expect(win.locator('.det-title h1')).toHaveText('alpha')
+  await chooseWindow('Today')
   await openTheSession()
   await row('beta').click()
   await pageIs('beta', 'Sessions')
   await expect(win.locator('.pane-body .none')).toHaveText(
     'No sessions in this project yet. They appear automatically once any agent side has a conversation in this directory.'
   )
+  await select('Overview')
+  await expect(selectedWindow).toHaveText('Today')
+  await select('Sessions')
   await row('alpha').click()
   await pageIs('alpha', 'Sessions')
   await leaveByTheRailAndComeBack()
@@ -1149,6 +1153,23 @@ test('the tab a project opens on: another project keeps it, through a page with 
   await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
   await throughTheSideCard()
   await pageIs('alpha', 'Overview')
+
+  // With a session on screen the rail's own item is no way out, so the window stays; leaving Projects resets it
+  await chooseWindow('Today')
+  await openTheSession()
+  await projects.click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
+  await win.locator('.sback').click()
+  await pageIs('alpha', 'Sessions')
+  await select('Overview')
+  await expect(selectedWindow).toHaveText('Today')
+  await openTheSession()
+  await leaveByTheRailAndComeBack()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
+  await win.locator('.sback').click()
+  await pageIs('alpha', 'Sessions')
+  await select('Overview')
+  await expect(selectedWindow).toHaveText('Total · all history')
 
   // Whichever way the session was entered: from Overview's session card, then another project or the back control
   const openFromTheCard = async (): Promise<void> => {
