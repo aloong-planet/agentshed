@@ -19,7 +19,7 @@ Overview, Instructions, Skills, Subagents, Plugins, MCP, Memory, Sessions and Ar
   shows that tab. A project opens on Overview when no project's page is on screen: when you first
   select one, come back from another part of the app, or select one from a session or a stale
   project's note. Coming back from a session lands on Sessions, and leaving that project and returning
-  lands there again until you select another project
+  lands there again until you select a project in the list, even the one on screen
 - Instructions: two entries, the project's own CLAUDE.md and AGENTS.md (the AGENTS.md that Codex and
   Antigravity CLI both read, shown once), each rendered for reading under its path; a missing file
   shows "None" and one that cannot be read says so under its path; no settings summary is shown; a

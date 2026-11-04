@@ -235,7 +235,7 @@ Applies to: the tab row of a project's page. A stale project's note page has no 
   Overview when no project's page is on screen: its first selection, coming back through the rail or a side card's project
   count, or selecting it from a session page, a stale project's note page or the not-in-snapshot state. Coming back from a
   session lands on Sessions (T8), and leaving that project for another dimension and coming back lands there again, until
-  another project is selected.
+  a project is selected in the list, the one on screen included.
 
 Failure modes and boundaries, a narrow window (the owner's decisions of 2026-11-03): the row keeps its one form at every
 window width, and no narrow form is designed. It does not move onto a second row, a sideways wheel over it does not move it,

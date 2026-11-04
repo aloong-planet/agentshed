@@ -886,8 +886,9 @@ test('a stale project opens as the note page: card only, chips per recording sid
 })
 
 /**
- * project-detail::REQ-004/AC-02: which tab a project's page shows, read from each way into it. Every step reads the header
- * first: a switch holds the old page until the new one is ready, so the tab alone could be the old project's.
+ * project-detail::REQ-004/AC-02: which tab a project's page shows, read from the ways into it that the criterion names. Every
+ * step reads the header first: a switch holds the old page until the new one is ready, so the tab alone could be the old
+ * project's.
  */
 test('the tab a project opens on: another project keeps it, a page drawn afresh starts on Overview, and coming back from a session starts on Sessions', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-tabs-'))
@@ -930,6 +931,10 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
     await expect(win.locator('.pane-head h1')).toHaveText('Agents')
     await projects.click()
   }
+  const throughTheSideCard = async (): Promise<void> => {
+    await agents.click()
+    await win.locator('.pane-head .stats .stat', { has: win.locator('.badge.cl') }).locator('.s .stat-link').click()
+  }
   const openTheSession = async (): Promise<void> => {
     await select('Sessions')
     await win.locator('.pane-body .se', { hasText: 'Sample question' }).click()
@@ -952,8 +957,7 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
 
   // So does a side card's project count that keeps the selection
   await select('Skills')
-  await agents.click()
-  await win.locator('.pane-head .stats .stat', { has: win.locator('.badge.cl') }).locator('.s .stat-link').click()
+  await throughTheSideCard()
   await pageIs('beta', 'Overview')
 
   // A stale project's note page has no tabs, so the next project draws a new page
@@ -964,15 +968,28 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await row('alpha').click()
   await pageIs('alpha', 'Overview')
 
-  // Coming back from a session lands on Sessions (T8), and so does leaving that page by the rail and coming back
-  await openTheSession()
-  await win.locator('.sback').click()
-  await pageIs('alpha', 'Sessions')
+  // Coming back from a session lands on Sessions (T8), and so does leaving that page for another dimension and coming
+  // back, by the rail or by a side card's project count
+  const backFromTheSession = async (): Promise<void> => {
+    await openTheSession()
+    await win.locator('.sback').click()
+    await pageIs('alpha', 'Sessions')
+  }
+  await backFromTheSession()
   await select('Skills')
   await leaveByTheRailAndComeBack()
   await pageIs('alpha', 'Sessions')
+  await select('Skills')
+  await throughTheSideCard()
+  await pageIs('alpha', 'Sessions')
 
-  // Until another project is selected: it takes over the tab, and the next page drawn starts on Overview
+  // Until a project is selected in the list, even the one on screen: the page keeps its tab, and the next page drawn
+  // starts on Overview
+  await row('alpha').click()
+  await pageIs('alpha', 'Sessions')
+  await leaveByTheRailAndComeBack()
+  await pageIs('alpha', 'Overview')
+  await backFromTheSession()
   await row('beta').click()
   await pageIs('beta', 'Sessions')
   await leaveByTheRailAndComeBack()
