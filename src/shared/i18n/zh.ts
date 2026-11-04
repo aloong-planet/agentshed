@@ -59,6 +59,13 @@ export const zh = {
     updatesDevFoot: '开发运行（未打包的 app）中不检查更新。'
   },
 
+  /** The dialog of a launch that cannot write its settings directory (#367). Like the menu, a native control the main
+   * process builds from these; the application name Agentshed is the same in every language */
+  launch: {
+    cannotWriteTitle: 'Agentshed 无法启动',
+    cannotWriteMessage: (dir: string) => `Agentshed 无法写入设置目录，这个目录可能是只读的，或所在磁盘已满：\n\n${dir}`
+  },
+
   /** The application menu (ticket 13). The application name Agentshed is the same in every language
    * (ADR-0013) */
   menu: {

@@ -2,7 +2,7 @@ import { ReadRegistry } from './read-registrations'
 import { DisplayStore } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, recordFileBytes, regularTarget } from './source-identity'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
-import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -45,6 +45,7 @@ import {
 } from './security'
 import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
+import { refusedLaunch } from './refused-launch'
 import { applyAppearanceMode } from './appearance-mode'
 import { createPrefsHandlers } from './prefs-handlers'
 import { buildMenuTemplate } from './app-menu'
@@ -77,11 +78,25 @@ protocol.registerSchemesAsPrivileged([
   }
 ])
 
-// The single-instance lock: a second instance has initialised nothing, so exiting outright is safest
-// (quit goes through before-quit and can hang)
+// The single-instance lock: a refused launch has initialised nothing, so exiting outright is safest
+// (quit goes through before-quit and can hang). The runtime answers no both for a second instance and for a
+// settings directory it cannot create the lock in, so refusedLaunch tells them apart (#367).
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
-  app.exit(0)
+  const refusal = refusedLaunch(app.getPath('userData'), systemPreferredLanguages)
+  if (!refusal) {
+    app.exit(0)
+  } else {
+    // Not while this module loads: a dialog shown then looks the same and takes the foreground the same, but it is missing
+    // from the accessibility tree. Ready is the signal, bounded, since on macOS ready never arrives while a first instance
+    // is running; by then the dialog is in the tree without it (all measured 2026-11-05).
+    void Promise.race([app.whenReady(), new Promise((resolve) => setTimeout(resolve, 3000))]).then(() => {
+      // Test silencing, on every platform: a modal dialog takes the foreground and waits for a click nobody makes
+      if (process.env['AGENTSHED_NO_FOREGROUND']) console.error(`${refusal.title}\n${refusal.message}`)
+      else dialog.showErrorBox(refusal.title, refusal.message)
+      app.exit(1)
+    })
+  }
 }
 
 // Test silencing (injected by e2e and smoke, the same kind of seam as AGENTSHED_HOME_OVERRIDE; never set

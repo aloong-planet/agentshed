@@ -255,7 +255,9 @@ const RULES = [
       f === 'e2e/menu-check-updates.spec.ts' ||
       f === 'e2e/token-span.spec.ts' ||
       f === 'e2e/archive-write-failure.spec.ts' ||
+      f === 'e2e/refused-launch.spec.ts' ||
       f === 'src/main/app-menu.test.ts' ||
+      f === 'src/main/refused-launch.test.ts' ||
       f === 'src/renderer/src/update-toasts.test.ts' ||
       f === 'src/shared/error-text.test.ts' ||
       f === 'src/shared/format.test.ts' ||

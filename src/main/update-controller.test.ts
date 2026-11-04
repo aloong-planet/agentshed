@@ -1,7 +1,11 @@
 // The update controller driven through its public surface with a fake update source and a fake clock —
 // the seam app-update's Testing Decisions confirm. Covers the lifecycle table, gating by the switch and by
 // the development run, joined checks, the schedule and every failure path of the spec's sequences A–C.
-import { describe, expect, it } from 'vitest'
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { PrefsStore } from './prefs-store'
 import { CHECK_PERIOD_MS, UpdateController, type FoundUpdate, type UpdateSource } from './update-controller'
 import type { UpdateNotice, UpdateState } from '@shared/update'
 
@@ -96,7 +100,7 @@ class FakeClock {
   }
 }
 
-function harness(opts: { packaged?: boolean; autoChecks?: boolean } = {}) {
+function harness(opts: { packaged?: boolean; autoChecks?: boolean; autoChecksOn?: () => boolean } = {}) {
   const source = new FakeSource()
   const clock = new FakeClock()
   const states: UpdateState[] = []
@@ -104,7 +108,7 @@ function harness(opts: { packaged?: boolean; autoChecks?: boolean } = {}) {
   const switchState = { on: opts.autoChecks ?? true }
   const controller = new UpdateController({
     source: opts.packaged === false ? null : source,
-    autoChecksOn: () => switchState.on,
+    autoChecksOn: opts.autoChecksOn ?? (() => switchState.on),
     now: clock.now,
     setTimer: clock.setTimer,
     publish: (s) => states.push(s),
@@ -337,6 +341,46 @@ describe('UpdateController', () => {
     h.clock.sleep(2 * CHECK_PERIOD_MS)
     h.clock.advance(0)
     expect(h.source.requests).toBe(2)
+  })
+
+  // The preference file behind the switch cannot be read (#367), with the store wired as index.ts wires it. The file says
+  // on, so what holds the checks back is the failure and not the file
+  describe.skipIf(process.getuid?.() === 0)('with a preference file that cannot be read', () => {
+    let dir: string
+    let store: PrefsStore
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'update-prefs-'))
+      const file = join(dir, 'prefs.json')
+      writeFileSync(file, JSON.stringify({ autoCheckUpdates: true }))
+      chmodSync(file, 0o000)
+      store = new PrefsStore(dir)
+    })
+    afterEach(() => {
+      rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('no automatic check starts at launch, at the daily tick or on waking, and a manual check still runs', async () => {
+      const h = harness({ autoChecksOn: () => store.get().autoCheckUpdates })
+      h.controller.start()
+      expect(h.source.requests).toBe(0)
+      h.clock.advance(CHECK_PERIOD_MS)
+      expect(h.source.requests).toBe(0)
+      h.clock.sleep(CHECK_PERIOD_MS + MINUTE)
+      h.controller.wake()
+      expect(h.source.requests).toBe(0)
+      const manual = h.controller.check()
+      h.source.upToDate()
+      expect(await manual).toEqual({ kind: 'upToDate' })
+      expect(h.source.requests).toBe(1)
+    })
+
+    it('turning automatic checks on fails to save, and the next tick checks because the user asked', () => {
+      const h = harness({ autoChecksOn: () => store.get().autoCheckUpdates })
+      h.controller.start()
+      expect(() => store.setAutoCheckUpdates(true)).toThrow()
+      h.clock.advance(CHECK_PERIOD_MS)
+      expect(h.source.requests).toBe(1)
+    })
   })
 
   it('download progress reaches the renderer as a whole percentage within 0–100, whatever the feed reports', async () => {
