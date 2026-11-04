@@ -3766,28 +3766,43 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
 
   // (1a0) Every badge kind takes one box and moves no row: the kinds' classes once met global rules of the same
   //       name, and a shell row took the project list's search head margin
-  const badges = await tdd.locator('.files button').evaluateAll((rows) =>
-    rows.map((row) => {
+  const { badges, paints } = await tdd.locator('.files button').evaluateAll((rows) => {
+    // A token as computed, since the values follow the light or dark mode in effect
+    const probe = document.body.appendChild(document.createElement('span'))
+    const tokens = (background: string, text: string): string => {
+      probe.style.color = `var(${background})`
+      const first = getComputedStyle(probe).color
+      probe.style.color = `var(${text})`
+      return `${first} on which ${getComputedStyle(probe).color}`
+    }
+    const paints = { MD: tokens('--accent-soft', '--accent-deep'), SH: tokens('--ok-bg', '--ok-fg'), neutral: tokens('--bg', '--text-2') }
+    probe.remove()
+    const badges = rows.map((row) => {
       const icon = row.querySelector('.ic') as HTMLElement
       const style = getComputedStyle(icon)
       const box = icon.getBoundingClientRect()
+      const range = document.createRange()
+      range.selectNodeContents(icon)
+      const lines = [...range.getClientRects()]
+      const labelInside = lines.length === 1 && lines[0].left >= box.left && lines[0].right <= box.right && lines[0].top >= box.top && lines[0].bottom <= box.bottom
       return {
         label: icon.textContent ?? '',
-        look: `${box.width}x${box.height} margin ${style.margin} overflow ${style.overflow}`,
-        background: style.backgroundColor,
+        look: `${box.width}x${box.height} margin ${style.margin} overflow ${style.overflow} label inside ${labelInside}`,
+        paint: `${style.backgroundColor} on which ${style.color}`,
         rowHeight: row.getBoundingClientRect().height,
         pathLeft: (row.querySelector('.path') as HTMLElement).getBoundingClientRect().left
       }
     })
-  )
+    return { badges, paints }
+  })
   expect(new Set(badges.map((b) => b.label))).toEqual(new Set(['MD', 'SH', 'JS', 'CFG', 'PY', 'TXT']))
-  expect([...new Set(badges.map((b) => b.look))]).toEqual(['22x22 margin 0px overflow visible'])
+  expect([...new Set(badges.map((b) => b.look))]).toEqual(['22x22 margin 0px overflow visible label inside true'])
   expect(new Set(badges.map((b) => b.rowHeight)).size, 'no row is taller for its kind').toBe(1)
   expect(new Set(badges.map((b) => b.pathLeft)).size, 'every path starts level').toBe(1)
-  const backgroundOf = (label: string): string => badges.find((b) => b.label === label)?.background ?? ''
-  expect(backgroundOf('MD'), 'markdown takes its tint').not.toBe(backgroundOf('PY'))
-  expect(backgroundOf('SH'), 'a script takes its tint').not.toBe(backgroundOf('PY'))
-  expect(backgroundOf('CFG'), 'a config file is neutral').toBe(backgroundOf('PY'))
+  expect(new Set(Object.values(paints)).size, 'the three paints differ, or this check says nothing').toBe(3)
+  for (const b of badges) {
+    expect(b.paint, `the ${b.label} badge's colours`).toBe(b.label === 'MD' ? paints.MD : b.label === 'SH' ? paints.SH : paints.neutral)
+  }
 
   // (1a) Files at any depth (skills-view::REQ-003): listed with their badges and no notice about depth; a nested
   //      script reads raw, and a nested document is reached by a link and previews
