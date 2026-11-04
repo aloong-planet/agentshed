@@ -11,12 +11,11 @@
 <link rel="stylesheet" href="../_shared/file-drawer.css">
 <style>
   /* Page tokens on top of the app's (_shared/theme.css). Each names the app token that plays the same role in
-     the app's skills view — expanded area and its tip — so every palette and both modes come from the shared
+     the app's skills view — its expanded area — so every palette and both modes come from the shared
      theme. The mask takes the same alpha in both modes. The drawer and its markdown are the shared
      file-drawer and md-preview blocks. */
   :root {
     --warn: var(--warn-fg);
-    --warn-border: color-mix(in srgb, var(--warn-fg) 28%, var(--line));
     --tree-bg: var(--bg);
     --gb-bg: var(--gk-bg); --gb-fg: var(--gk-fg);
     --mask: rgba(0, 0, 0, 0.35);
@@ -96,9 +95,6 @@
     font:inherit;font-size:11px;font-weight:600;border:1px solid var(--line-strong);
     background:var(--card);color:var(--text-2);border-radius:7px;padding:3px 10px;cursor:pointer}
   .sk-sides button.on{background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent)}
-  .sk-tip{
-    font-size:11.5px;color:var(--warn);background:var(--warn-bg);border:1px solid var(--warn-border);
-    border-radius:8px;padding:7px 10px;line-height:1.45;margin:8px 14px}
   .files-card{background:transparent;border:0;border-radius:0;overflow:hidden;margin-top:0}
   .files-head{
     display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;
@@ -158,7 +154,7 @@
     <h2 class="page-h">Skills 包预览</h2>
     <div class="sub">
       磁盘 skill 行内右侧直接给<strong>文件数 / 大小</strong>；<b>点行折叠/展开</b>文件表，
-      <b>点文件</b>开抽屉读详情（md 默认可预览）。<b>插件行与磁盘行平等展开预览</b>（ADR-0012），
+      包内任意深度的文本文件都平铺列出；<b>点文件</b>开抽屉读详情（md 默认可预览）。<b>插件行与磁盘行平等展开预览</b>（ADR-0012），
       但仍没有装卸按钮；查不到包的行（插件包根为空时）不可展开，箭头处显示 · 。行不展示 description。
       展开区为平铺：不缩进，表格满宽分段。
     </div>
@@ -227,8 +223,6 @@
       unreadable: (skill, file) => `文件不可读: ${skill} / ${file}`,
       pkgSummary: (files, size) => `${files} 个文件 · ${size}`,
       noPackage: (key) => `无包数据（${key}）`,
-      deepHint: '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill。',
-      deeperPaths: (paths) => `更深路径未列入: ${paths}`,
       noPreviewable: '包内无可预览文本文件',
       // The drawer's level label, by the row's level
       level: { lib: '全局库', project: '项目级', global: '全局层', plugin: '插件' },
@@ -252,8 +246,6 @@
       unreadable: (skill, file) => `File cannot be read: ${skill} / ${file}`,
       pkgSummary: (files, size) => `${files} ${enOne(files) ? 'file' : 'files'} · ${size}`,
       noPackage: (key) => `No package data (${key})`,
-      deepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
-      deeperPaths: (paths) => `Deeper paths not listed: ${paths}`,
       noPreviewable: 'No previewable text files in this package',
       level: { lib: 'Global library', project: 'Project level', global: 'Global level', plugin: 'Plugin' },
       group: {
@@ -412,13 +404,6 @@
       container.innerHTML = `<div class="empty">${c.noPackage(key)}</div>`
       return
     }
-    if (pack.deep) {
-      const tip = document.createElement('div')
-      tip.className = 'sk-tip'
-      tip.innerHTML = `${c.deepHint}
-        <br><span style="opacity:.85">${c.deeperPaths((pack.deepPaths || []).join(', ') || '…')}</span>`
-      container.appendChild(tip)
-    }
     const names = listFiles(pack)
     const card = document.createElement('div')
     card.className = 'files-card'
@@ -555,7 +540,7 @@
 
   const GLOBAL = [
     { name: 'github-ops', description: '完整真实包 · 点行展开文件 · 点文件开抽屉', sides: ['claude', 'codex', 'grok'], origin: 'disk', symlink: true },
-    { name: 'deep-demo', description: '深度>2 提示（展开后可见）', sides: ['claude', 'codex'], origin: 'disk', symlink: false },
+    { name: 'deep-demo', description: '多层目录的文件全部平铺列出（展开后可见）', sides: ['claude', 'codex'], origin: 'disk', symlink: false },
     { name: 'tdd', description: 'Test-driven development…', sides: ['claude'], origin: 'disk', symlink: false },
     { name: 'release-notes', description: 'Antigravity 全局库 · 从 git log 起草发布说明', sides: ['antigravity'], origin: 'disk', symlink: false },
     { name: 'superpowers:brainstorming', description: '插件 · 与磁盘行平等展开预览(ADR-0012)', sides: ['claude'], origin: 'plugin', symlink: false },

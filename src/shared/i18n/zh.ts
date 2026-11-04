@@ -107,9 +107,6 @@ export const zh = {
    * sentence is assembled here.
    */
   /** Placeholder wording the renderer supplies when the main process sends null (ticket 07) */
-  /** The skill reference-depth hint (ticket 07: the main process sends only the verdict, the wording lives
-   * here) */
-  skillDeepHint: '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill',
   /** The global Agents page and the application shell (ticket 11) */
   agents: {
     // Two entries, so the project count can be a control while the rest of the line stays text
@@ -203,7 +200,6 @@ export const zh = {
     srcProject: '项目',
     srcGlobal: '全局库',
     listing: '列举中…',
-    deeperPaths: (paths: string) => `更深路径未列入: ${paths}`,
     colFile: '文件',
     colLines: '行数',
     colSize: '大小',

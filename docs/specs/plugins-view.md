@@ -122,10 +122,10 @@ is read-only.
 both pages and on every side whose plugins expand)
 - H1 The Skills tab is a row list: each row = name (in namespaced form) + the frontmatter description
   + "N files · size" on the right (the stats share their source and rules with skills-view's inline
-  stats: stat-only, with identical extension / junk-directory / depth filtering).
+  stats: stat-only, with identical extension and junk-directory filtering).
 - H2 Clicking a row expands the package's file table (headers: file / lines / size / modification
-  date; a marker on the `SKILL.md` entry point; a notice at depth > 2 that deeper files are not
-  listed) — the enumeration rules are exactly those of skills-view sequence C.
+  date; a marker on the `SKILL.md` entry point) — the enumeration rules are exactly those of
+  skills-view sequence C and [skills-view::REQ-003](skills-view.md).
 - H3 Clicking a file opens a drawer to read it: markdown previews by default (frontmatter as a
   key-value card) and can be switched to raw, non-markdown shows monospace raw only; truncation
   follows the artifact channel — the same rules as skills-view sequences C/D, including the

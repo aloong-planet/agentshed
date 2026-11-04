@@ -70,6 +70,19 @@ it.each(['{broken', '{"version":999,"data":{}}'])('an unreadable display envelop
   expect(new DisplayStore(root).get().snapshot).toBeNull()
 })
 
+it('restores a file listing saved before the depth limit went, and one saved after it (skills-view::REQ-003/AC-06)', () => {
+  const root = dir()
+  const file = { path: 'SKILL.md', absPath: '/k/SKILL.md', bytes: 4, lines: 1, mtimeMs: 5 }
+  const before = { kind: 'skillFiles', args: { side: 'claude', name: 'before', scope: 'global' }, data: { files: [file], deep: true, deepPaths: ['a/b/c.md'] } }
+  const after = { kind: 'skillFiles', args: { side: 'claude', name: 'after', scope: 'global' }, data: { files: [file] } }
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: { ...emptyDisplayData(), reads: [before, after] } }))
+  const reads = new DisplayStore(root).get().reads
+  expect(reads.map((r) => (r.kind === 'skillFiles' ? [r.args.name, r.data.files[0].path] : r.kind))).toEqual([
+    ['before', 'SKILL.md'],
+    ['after', 'SKILL.md']
+  ])
+})
+
 it('isolates a saved page whose numeric data overflowed JSON without discarding another preview', () => {
   const root = dir()
   writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
@@ -392,8 +405,8 @@ it('agents-overview::REQ-005: restores what a newer build saved without the side
       { kind: 'projectDetail', path: '/w/g', data: detail('/w/g', RENAMED, null) },
       ...sessionReads('/s/claude.jsonl', 'claude'),
       ...sessionReads('/s/other.jsonl', RENAMED),
-      { kind: 'skillFiles', args: { side: 'claude', name: 's', scope: 'global' }, data: { files: [], deep: false, deepPaths: [] } },
-      { kind: 'skillFiles', args: { side: RENAMED, name: 's', scope: 'global' }, data: { files: [], deep: false, deepPaths: [] } },
+      { kind: 'skillFiles', args: { side: 'claude', name: 's', scope: 'global' }, data: { files: [] } },
+      { kind: 'skillFiles', args: { side: RENAMED, name: 's', scope: 'global' }, data: { files: [] } },
       { kind: 'artifactContent', file: '/w/p/a.md', data: { text: 'kept', truncated: false } }
     ]
   })

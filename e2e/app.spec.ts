@@ -20,7 +20,7 @@
 import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
 import { ERR } from '../src/shared/errors'
@@ -3750,9 +3750,29 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   mkdirSync(join(gskills, 'tdd', 'scripts'), { recursive: true })
   writeFileSync(
     join(gskills, 'tdd', 'SKILL.md'),
-    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n- Bullet probe A\n- Bullet probe B\n\n| L | C | R |\n|:--|:-:|--:|\n| a1 | b1 | c1 |\n| a2 | b2 | c2 |\n\n[Probe link](https://example.com/probe) · [run the script](./scripts/run.sh) · [missing link](./nope.md)\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
+    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n- Bullet probe A\n- Bullet probe B\n\n| L | C | R |\n|:--|:-:|--:|\n| a1 | b1 | c1 |\n| a2 | b2 | c2 |\n\n[Probe link](https://example.com/probe) · [run the script](./scripts/run.sh) · [missing link](./nope.md) · [deep guide](./references/nested/deep-guide.md) · [the schema](./schemas/wml.xsd)\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
   writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo Unique script B\n')
+  // Files nested as real packages nest them (skills-view::REQ-003), and one type off the text list
+  mkdirSync(join(gskills, 'tdd', 'references', 'nested'), { recursive: true })
+  writeFileSync(join(gskills, 'tdd', 'references', 'nested', 'deep-guide.md'), '# Deep guide\n\nDeep guide body\n')
+  mkdirSync(join(gskills, 'tdd', 'scripts', 'lib'), { recursive: true })
+  writeFileSync(join(gskills, 'tdd', 'scripts', 'lib', 'deep-tool.py'), 'print("Deep tool body")\n')
+  writeFileSync(join(gskills, 'tdd', 'scripts', 'lib', 'helper.mjs'), 'export {}\n')
+  mkdirSync(join(gskills, 'tdd', 'assets'), { recursive: true })
+  writeFileSync(join(gskills, 'tdd', 'assets', 'defaults.json'), '{}\n')
+  mkdirSync(join(gskills, 'tdd', 'schemas'), { recursive: true })
+  writeFileSync(join(gskills, 'tdd', 'schemas', 'wml.xsd'), '<schema/>\n')
+  // A directory link out of the package, as a skill sharing a folder holds one (skills-view, "any depth" boundaries)
+  mkdirSync(join(home, 'shared-docs'), { recursive: true })
+  writeFileSync(join(home, 'shared-docs', 'outside.md'), '# Outside\n\nLinked directory body\n')
+  symlinkSync(join(home, 'shared-docs'), join(gskills, 'tdd', 'linked'))
+  // Past the read cap, in a type that shows raw
+  writeFileSync(join(gskills, 'tdd', 'references', 'nested', 'big-data.txt'), 'Line of the data file\n'.repeat(30000))
+  // One segment with no break point, as real names run on underscores, and wider than any window
+  const longPath = `templates/${'long_directory_name_'.repeat(10)}/guide.md`
+  mkdirSync(dirname(join(gskills, 'tdd', longPath)), { recursive: true })
+  writeFileSync(join(gskills, 'tdd', longPath), '# Long\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
   writeFileSync(join(gskills, 'review-code', 'SKILL.md'), '---\ndescription: Four-layer method\n---\n\nGlobal body D\n')
   // A symlinked skill whose target is outside every known skills root (the dotfiles/monorepo shape, the
@@ -3795,7 +3815,8 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   //     the body)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const tdd = win.locator('.sk', { hasText: 'tdd' })
-  await expect(tdd.locator('.sk-meta')).toContainText('2 files')
+  // SKILL.md, the script, the six nested files and the one behind the directory link; the schema is off the text list
+  await expect(tdd.locator('.sk-meta')).toContainText('9 files')
   await tdd.locator('.sk-head').click()
   await expect(tdd.locator('.files-card')).toBeVisible()
   await expect(tdd.locator('.files-sum')).toHaveCount(0) // The summary moved onto the row, so the expanded area no longer repeats it
@@ -3842,6 +3863,106 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await tdd.locator('.files button', { hasText: 'scripts/run.sh' }).click()
   await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Unique script B')
   await expect(win.locator('.file-drawer .md-preview-seg')).toHaveCount(0)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // (1a0) Every badge kind takes one box and moves no row: the kinds' classes once met global rules of the same
+  //       name, and a shell row took the project list's search head margin
+  const { badges, paints } = await tdd.locator('.files button').evaluateAll((rows) => {
+    // A token as computed, since the values follow the light or dark mode in effect
+    const probe = document.body.appendChild(document.createElement('span'))
+    const tokens = (background: string, text: string): string => {
+      probe.style.color = `var(${background})`
+      const first = getComputedStyle(probe).color
+      probe.style.color = `var(${text})`
+      return `${first} on which ${getComputedStyle(probe).color}`
+    }
+    const paints = { MD: tokens('--accent-soft', '--accent-deep'), SH: tokens('--ok-bg', '--ok-fg'), neutral: tokens('--bg', '--text-2') }
+    probe.remove()
+    const badges = rows.map((row) => {
+      const icon = row.querySelector('.ic') as HTMLElement
+      const style = getComputedStyle(icon)
+      const box = icon.getBoundingClientRect()
+      const range = document.createRange()
+      range.selectNodeContents(icon)
+      const lines = [...range.getClientRects()]
+      const labelInside = lines.length === 1 && lines[0].left >= box.left && lines[0].right <= box.right && lines[0].top >= box.top && lines[0].bottom <= box.bottom
+      return {
+        label: icon.textContent ?? '',
+        look: `${box.width}x${box.height} margin ${style.margin} overflow ${style.overflow} label inside ${labelInside}`,
+        paint: `${style.backgroundColor} on which ${style.color}`,
+        rowHeight: row.getBoundingClientRect().height,
+        pathLeft: (row.querySelector('.path') as HTMLElement).getBoundingClientRect().left
+      }
+    })
+    return { badges, paints }
+  })
+  expect(new Set(badges.map((b) => b.label))).toEqual(new Set(['MD', 'SH', 'JS', 'CFG', 'PY', 'TXT']))
+  expect([...new Set(badges.map((b) => b.look))]).toEqual(['22x22 margin 0px overflow visible label inside true'])
+  expect(new Set(badges.map((b) => b.rowHeight)).size, 'no row is taller for its kind').toBe(1)
+  expect(new Set(badges.map((b) => b.pathLeft)).size, 'every path starts level').toBe(1)
+  expect(new Set(Object.values(paints)).size, 'the three paints differ, or this check says nothing').toBe(3)
+  for (const b of badges) {
+    expect(b.paint, `the ${b.label} badge's colours`).toBe(b.label === 'MD' ? paints.MD : b.label === 'SH' ? paints.SH : paints.neutral)
+  }
+
+  // (1a) Files at any depth (skills-view::REQ-003): listed with their badges and no notice about depth; a nested
+  //      script reads raw, and a nested document is reached by a link and previews
+  const deepTool = tdd.locator('.files button', { hasText: 'scripts/lib/deep-tool.py' })
+  await expect(deepTool.locator('.ic')).toHaveText('PY')
+  await expect(tdd.locator('.files button', { hasText: 'references/nested/deep-guide.md' }).locator('.ic')).toHaveText('MD')
+  await expect(tdd).not.toContainText('restructuring')
+  await deepTool.click()
+  await expect(win.locator('.file-drawer .md-preview-name')).toHaveText('scripts/lib/deep-tool.py')
+  await expect(win.locator('.file-drawer .d-meta')).toContainText('scripts/lib/deep-tool.py')
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Deep tool body')
+  await expect(win.locator('.file-drawer .md-preview-seg')).toHaveCount(0)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await tdd.locator('.files button', { hasText: 'linked/outside.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body.preview')).toContainText('Linked directory body')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await tdd.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await win.locator('.file-drawer .md-preview-body a', { hasText: 'deep guide' }).click()
+  await expect(win.locator('.file-drawer .md-preview-name')).toHaveText('references/nested/deep-guide.md')
+  await expect(win.locator('.file-drawer .md-preview-body.preview')).toContainText('Deep guide body')
+  await expect(win.locator('.file-drawer .md-preview-seg button')).toHaveCount(2)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // A file in the package but off the list gets the notice, and the drawer stays where it is (D3)
+  await expect(win.locator('.toast')).toHaveCount(0) // wait out the earlier toast, so the next one is fresh
+  await tdd.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await win.locator('.file-drawer .md-preview-body a', { hasText: 'the schema' }).click()
+  await expect(win.locator('.toast')).toContainText('outside the readable scope')
+  await expect(win.locator('.file-drawer .md-preview-name')).toHaveText('SKILL.md')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // A path wider than its column ends in an ellipsis and keeps its whole path on hover. Longer than any window
+  // is wide, so the check does not depend on the platform's font metrics
+  const longCell = tdd.locator(`.files button .path[title="${longPath}"]`)
+  await expect(longCell).toHaveText(longPath)
+  expect(
+    await longCell.evaluate((el) => {
+      const style = getComputedStyle(el)
+      return { cut: el.scrollWidth > el.clientWidth, whiteSpace: style.whiteSpace, overflowX: style.overflowX, textOverflow: style.textOverflow }
+    })
+  ).toEqual({ cut: true, whiteSpace: 'nowrap', overflowX: 'hidden', textOverflow: 'ellipsis' })
+  // The drawer's subtitle holds that whole path, uncut
+  await longCell.click()
+  const drawerMeta = win.locator('.file-drawer .d-meta')
+  await expect(drawerMeta).toContainText(longPath)
+  expect(
+    await drawerMeta.evaluate((el) => {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      const text = range.getBoundingClientRect()
+      const block = (el.parentElement as HTMLElement).getBoundingClientRect()
+      return {
+        ownBoxFits: el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight,
+        textInsideBlock: text.width > 0 && text.left >= block.left && text.right <= block.right && text.top >= block.top && text.bottom <= block.bottom
+      }
+    })
+  ).toEqual({ ownBoxFits: true, textInsideBlock: true })
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // A nested file past the read cap ends in the truncation footnote (C7)
+  await tdd.locator('.files button', { hasText: 'references/nested/big-data.txt' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toHaveText(/…\(truncated\)\s*$/)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // (1b) A symlinked skill whose target is outside the roots: the row carries the symlink badge, and
@@ -4304,6 +4425,8 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
     join(sp, 'skills', 'brainstorming', 'SKILL.md'),
     '---\ndescription: Ask before acting\n---\n\nPlugin body A\n'
   )
+  mkdirSync(join(sp, 'skills', 'brainstorming', 'references', 'nested'), { recursive: true })
+  writeFileSync(join(sp, 'skills', 'brainstorming', 'references', 'nested', 'plugin-deep.md'), '# Deep\n\nPlugin deep body\n')
   mkdirSync(join(sp, 'skills', 'writing-plans'), { recursive: true })
   writeFileSync(join(sp, 'skills', 'writing-plans', 'SKILL.md'), '---\ndescription: Write plans\n---\nx\n')
   mkdirSync(join(sp, 'hooks'), { recursive: true })
@@ -4354,11 +4477,15 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   const spExp = win.locator('.exp-area').first()
   await expect(spExp.locator('.ptab')).toHaveText(['Skills2', 'Hooks1'])
   const bRow = spExp.locator('.psk', { hasText: 'superpowers:brainstorming' })
-  await expect(bRow.locator('.meta')).toContainText('1 file')
+  await expect(bRow.locator('.meta')).toContainText('2 files')
   await bRow.click()
   await spExp.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Plugin body A')
   await expect(win.locator('.file-drawer .d-meta')).toContainText('Plugin package')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // A nested file lists and opens as in the Skills section (H2, skills-view::REQ-003)
+  await spExp.locator('.files button', { hasText: 'references/nested/plugin-deep.md' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Plugin deep body')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await spRow.click() // Collapse, so a later .files locator is not taken by this row's table
 

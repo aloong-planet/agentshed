@@ -1,5 +1,5 @@
-// Shared by skills-view and plugins-view: a skill package's file table (header, file rows, the depth
-// notice, and the loading and error states).
+// Shared by skills-view and plugins-view: a skill package's file table (header, file rows, and the loading
+// and error states).
 // The on-disk and plugin skill expansions have to evolve together (spec H2 shares its rules with sequence
 // C), hence a single component.
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
@@ -60,46 +60,33 @@ export function SkillFilesTable({
   }
   if (!listing) return null
   return (
-    <>
-      {listing.deep && (
-        <div className="sk-tip">
-          {t.skillDeepHint}
-          {listing.deepPaths.length > 0 && (
-            <>
-              <br />
-              <span style={{ opacity: 0.85 }}>{t.skills.deeperPaths(listing.deepPaths.join(', '))}</span>
-            </>
-          )}
-        </div>
-      )}
-      <div className="files-card">
-        <div className="files-head">
-          <span>{t.skills.colFile}</span>
-          <span>{t.skills.colLines}</span>
-          <span>{t.skills.colSize}</span>
-          <span>{t.skills.colMtime}</span>
-        </div>
-        <div className="files">
-          {listing.files.length === 0 && <div className="empty">{t.skills.noPreviewable}</div>}
-          {listing.files.map((f) => {
-            const { label, kind } = extKind(f.path)
-            return (
-              <button type="button" key={f.absPath} onClick={() => onOpen(f)}>
-                <span className="name-cell">
-                  <span className={`ic ${kind}`}>{label}</span>
-                  <span className="path mono" title={f.path}>
-                    {f.path}
-                  </span>
-                  {f.path === 'SKILL.md' && <span className="tag">{t.skills.tagEntry}</span>}
-                </span>
-                <span className="meta lines">{formatCount(lang, f.lines)}</span>
-                <span className="meta">{formatSize(lang, f.bytes)}</span>
-                <span className="meta">{formatDate(f.mtimeMs)}</span>
-              </button>
-            )
-          })}
-        </div>
+    <div className="files-card">
+      <div className="files-head">
+        <span>{t.skills.colFile}</span>
+        <span>{t.skills.colLines}</span>
+        <span>{t.skills.colSize}</span>
+        <span>{t.skills.colMtime}</span>
       </div>
-    </>
+      <div className="files">
+        {listing.files.length === 0 && <div className="empty">{t.skills.noPreviewable}</div>}
+        {listing.files.map((f) => {
+          const { label, kind } = extKind(f.path)
+          return (
+            <button type="button" key={f.absPath} onClick={() => onOpen(f)}>
+              <span className="name-cell">
+                <span className={`ic ic-${kind}`}>{label}</span>
+                <span className="path mono" title={f.path}>
+                  {f.path}
+                </span>
+                {f.path === 'SKILL.md' && <span className="tag">{t.skills.tagEntry}</span>}
+              </span>
+              <span className="meta lines">{formatCount(lang, f.lines)}</span>
+              <span className="meta">{formatSize(lang, f.bytes)}</span>
+              <span className="meta">{formatDate(f.mtimeMs)}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }

@@ -7,7 +7,7 @@ import type { ListSkillFilesArgs, ListSkillFilesResult } from '@shared/ipc'
 import { fetchSkillFiles, skillFilesQueryKey } from './skill-files-query'
 
 const args: ListSkillFilesArgs = { side: 'claude', name: 'tdd', scope: 'global' }
-const fixture: ListSkillFilesResult = { files: [], deep: false, deepPaths: [] }
+const fixture: ListSkillFilesResult = { files: [] }
 
 describe('fetchSkillFiles (resolves to a result value rather than throwing)', () => {
   it('wraps a successful list as an ok result', async () => {

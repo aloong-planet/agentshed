@@ -5,8 +5,8 @@
 How the two Skills lists let the user read a skill package (Skills view): the agents page's Skills section
 (the global library, one row per name across every side) and a project's detail Skills section
 (grouped by side and level, the plugin-bundled group last). A row expands into the package's flat file
-table, with a side switcher when more than one side holds the skill and the depth notice when references
-nest too deep; clicking a file opens the file drawer with its markdown preview; each list narrows by name
+table, every depth included, with a side switcher when more than one side holds the skill; clicking a file
+opens the file drawer with its markdown preview; each list narrows by name
 through its own search box, project detail's group counts following the filter and an emptied group
 disappearing; and a name truncated by its column shows in full on hover. The mock spans the four agent sides
 (CC, CX, GK, AG): an Antigravity global library entry, the shared `.agents/skills` group in project detail,
