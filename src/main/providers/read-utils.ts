@@ -1,7 +1,7 @@
 // Small shared read helpers for providers: truncated reading and line-level frontmatter field extraction.
 // Four places used to hold their own copy (review-code refactor items #2/#3); the truncation rule now
 // changes in one place only.
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { accessSync, constants, existsSync, readFileSync, statSync } from 'node:fs'
 import type { CappedText, InstructionFile } from '@shared/domain'
 
 export const MAX_TEXT_BYTES = 200_000
@@ -21,6 +21,16 @@ export function isAbsent(path: string): boolean {
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code
     return code === 'ENOENT' || code === 'ENOTDIR'
+  }
+}
+
+/** Whether this process may read a file: what tells a file that cannot be read from one whose contents let a reader down */
+export function isReadable(file: string): boolean {
+  try {
+    accessSync(file, constants.R_OK)
+    return true
+  } catch {
+    return false
   }
 }
 

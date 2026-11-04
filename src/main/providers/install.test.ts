@@ -109,7 +109,7 @@ describe.skipIf(process.getuid?.() === 0)('installSkill, when the copy fails', (
     chmodSync(proj, 0o555)
     try {
       expect(installSkill(roots(), { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason: ERR.skillCopyFailed })
-      expect(logged.mock.calls.map((c): unknown => c[0])).toEqual(['[skill-install] copy failed:'])
+      expect(logged.mock.calls).toEqual([['[skill-install] copy failed:', expect.any(Error)]])
     } finally {
       chmodSync(proj, 0o755)
       logged.mockRestore()
@@ -155,7 +155,7 @@ describe('uninstallSkill', () => {
     chmodSync(skills, 0o555)
     try {
       expect(uninstallSkill({ skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason: ERR.skillDeleteFailed, params: { path: copy } })
-      expect(logged.mock.calls.map((c): unknown => c[0])).toEqual(['[skill-install] delete failed:'])
+      expect(logged.mock.calls).toEqual([['[skill-install] delete failed:', expect.any(Error)]])
     } finally {
       chmodSync(skills, 0o755)
       logged.mockRestore()

@@ -2070,8 +2070,6 @@ describe('sessionQuestions (the session page service)', () => {
     )
   })
 
-  // Codex's own null (a rollout whose meta reads and whose parse then does not) needs the file to change between two reads a
-  // moment apart, which no public path stages; it is the same line as this one, read rather than driven
   it.skipIf(process.getuid?.() === 0)('changed since the index and its file cannot be read: says the file cannot be read, not that it failed to parse (session-view P6)', async () => {
     const cl = mkClaudeFile('locked.jsonl', [userLine('q'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
     const e = engine()
@@ -2084,6 +2082,43 @@ describe('sessionQuestions (the session page service)', () => {
     } finally {
       chmodSync(cl, 0o644)
     }
+  })
+
+  it.skipIf(process.getuid?.() === 0)('a Codex rollout changed since the index that cannot be read: says the file cannot be read, not that its metadata is unreadable (session-view P6)', async () => {
+    const rollout = mkCodexRollout('rollout-locked-019f050.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_l1' }])
+    const e = engine()
+    await e.build(roots(), [proj])
+    appendFileSync(rollout, '\n')
+    chmodSync(rollout, 0o000)
+    try {
+      const code = await e.sessionQuestions(roots(), rollout).catch((err: unknown) => decodeAppError(err)?.code)
+      expect(code).toBe(ERR.sessionFileUnreadable)
+    } finally {
+      chmodSync(rollout, 0o644)
+    }
+  })
+
+  it('a readable Codex rollout whose first line gives no metadata says that, and only that', async () => {
+    const rollout = mkCodexRollout('rollout-headless-019f051.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_h1' }])
+    const e = engine()
+    await e.build(roots(), [proj])
+    writeFileSync(rollout, `not json\n${readFileSync(rollout, 'utf8')}`)
+    const code = await e.sessionQuestions(roots(), rollout).catch((err: unknown) => decodeAppError(err)?.code)
+    expect(code).toBe(ERR.sessionMetaUnreadable)
+  })
+
+  it('a cold rollout cut short after the scan listed it whole: its head reads, its parse does not, and it says the file cannot be read (session-view P6)', async () => {
+    const big = mkCodexRollout('rollout-cut-019f052.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol',
+      Array.from({ length: 3000 }, (_, i) => ({ input: 1000 + i, cached: 0, output: 10, record: `resp_c${i}` })))
+    const full = zstdCompressSync(readFileSync(big))
+    rmSync(big)
+    const cold = `${big}.zst`
+    writeFileSync(cold, full)
+    const e = engine()
+    await e.build(roots(), [proj])
+    writeFileSync(cold, full.subarray(0, Math.floor(full.length / 2)))
+    const code = await e.sessionQuestions(roots(), cold).catch((err: unknown) => decodeAppError(err)?.code)
+    expect(code).toBe(ERR.sessionFileUnreadable)
   })
 
   it('a rebuild whose cache write fails still answers: the index is in memory, and only the next launch rebuilds again', async () => {

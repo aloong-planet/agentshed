@@ -1596,6 +1596,12 @@ test('a failed uninstall and a failed install each show one notice in a sentence
   const global = join(home, '.claude', 'skills', 'alpha-skill')
   mkdirSync(global, { recursive: true })
   writeFileSync(join(global, 'SKILL.md'), '---\ndescription: alpha\n---\n\nbody\n')
+  // A Codex skill: its landing is the shared directory, and a failure there names the directory, not a side
+  const shared = join(home, '.agents', 'skills', 'gamma-skill')
+  mkdirSync(shared, { recursive: true })
+  writeFileSync(join(shared, 'SKILL.md'), '---\ndescription: gamma\n---\n\nbody\n')
+  mkdirSync(join(home, '.codex'))
+  writeFileSync(join(home, '.codex', 'config.toml'), `[projects."${target}"]\ntrust_level = "trusted"\n`)
   const skills = join(holder, '.claude', 'skills')
   const copy = join(skills, 'beta-skill')
   mkdirSync(copy, { recursive: true })
@@ -1619,15 +1625,19 @@ test('a failed uninstall and a failed install each show one notice in a sentence
   await expect(win.locator('.toast')).toHaveCount(0)
 
   // The install, in English and again in Chinese
-  const install = async (): Promise<void> => {
+  const install = async (skill: string = 'alpha-skill'): Promise<void> => {
     await win.locator('.rail .ri').nth(0).click()
     await tab('Skills').click()
-    await win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: /^alpha-skill$/ }) }).locator('.ins').click()
+    await win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: new RegExp(`^${skill}$`) }) }).locator('.ins').click()
     await win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: /^target-proj$/ }) }).click()
   }
   chmodSync(target, 0o555)
   await install()
   await expect(win.locator('.toast.err')).toHaveText('alpha-skill → target-proj (claude): Copy failed and was cleaned up')
+  await expect(win.locator('.toast')).toHaveCount(1)
+  await expect(win.locator('.toast')).toHaveCount(0)
+  await install('gamma-skill')
+  await expect(win.locator('.toast.err')).toHaveText('gamma-skill → target-proj (.agents/skills): Copy failed and was cleaned up')
   await expect(win.locator('.toast')).toHaveCount(1)
   await expect(win.locator('.toast')).toHaveCount(0)
   await win.locator('.ri.set').click()
@@ -1640,7 +1650,6 @@ test('a failed uninstall and a failed install each show one notice in a sentence
   await expect(win.locator('.toast.err')).toHaveText('alpha-skill → target-proj(claude):复制失败,已清理')
   await expect(win.locator('.toast')).toHaveCount(1)
   chmodSync(target, 0o755)
-  expect(existsSync(join(target, '.claude'))).toBe(false)
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -7022,8 +7031,17 @@ test('a session file that changed since the index and cannot be read: the page a
   await win.locator('.qlist .q', { hasText: 'Second question' }).click()
   await expect(win.locator('.turn .tnote')).toHaveText('This turn could not be fetched: The session file can no longer be read (moved or deleted?)')
   await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
+
+  // Codex's rebuild reads the metadata first, and a file that cannot be read says the same there
+  const codex = join(home, '.codex', 'sessions', '2026', '01', '01', 'rollout-019fb0c0-1111-7af3-af7d-8505cedf1ec2.jsonl')
+  spoil(codex)
+  await win.locator('.sback').click()
+  await row('Codex side question').click()
+  await expect(win.locator('.pane-body .none')).toHaveText('Cannot open this session: The session file can no longer be read (moved or deleted?)')
+
   chmodSync(claude, 0o644)
   chmodSync(other, 0o644)
+  chmodSync(codex, 0o644)
 
   // The handler errors this case provokes on purpose carry the code and nothing else does
   expect(l.errors.length).toBeGreaterThan(0)

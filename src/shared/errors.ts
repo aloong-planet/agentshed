@@ -45,7 +45,7 @@ export const ERR = {
   sessionNotIndexed: 'session-not-indexed',
   /** The session file can no longer be read (moved, deleted, or a system error) */
   sessionFileUnreadable: 'session-file-unreadable',
-  /** The session's first-line metadata cannot be read, so the index cannot be rebuilt */
+  /** The session file reads, and its first line gives no metadata, so the index cannot be rebuilt */
   sessionMetaUnreadable: 'session-meta-unreadable',
   /** An Antigravity conversation its reader cannot read in the supported format, a database that cannot be opened
    * included: that read does not tell the two apart */

@@ -1266,6 +1266,24 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     await expect(engine().sessionQuestions(roots(), file)).rejects.toSatisfy((err: unknown) => decodeAppError(err)?.code === ERR.sessionParseFailed)
   })
 
+  // session-view P6: the same read cannot tell a database it cannot open from one of another format, so both reach the one
+  // sentence, which is true of both
+  it.skipIf(process.getuid?.() === 0)('a rebuild that cannot open the database, with no log beside it, takes the same code as another format', async () => {
+    const p = mkProject('demo')
+    trust([p])
+    const file = usageConversation(ID.main, [p], [{ usage: { messageId: 'm-n', input: 100 }, at: oct(26) }])
+    writeTranscript(agyRoot(), ID.main, T.main)
+    await build()
+    appendFileSync(transcriptFile(agyRoot(), ID.main), '\n')
+    chmodSync(file, 0o000)
+    try {
+      const code = await engine().sessionQuestions(roots(), file).catch((err: unknown) => decodeAppError(err)?.code)
+      expect(code).toBe(ERR.sessionParseFailed)
+    } finally {
+      chmodSync(file, 0o644)
+    }
+  })
+
   // session-view P6: a read that fails with agy's log beside the database gives no result at all, and that is a file that
   // cannot be read, never a parse. The log also changes the signature, so the index has to be rebuilt
   it.skipIf(process.getuid?.() === 0)('a rebuild that cannot read the database while agy\'s log is beside it says the file cannot be read', async () => {
