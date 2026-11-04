@@ -17,6 +17,9 @@
 // page, which no drawer survives; add a case when it can change with a drawer open, such as from a menu).
 // Copy follows the dictionary the language cases cover; the file, mode and scroll would survive because a
 // language change remounts nothing in the drawer.
+// Also not driven: the tab row over a failed detail fetch on a page drawn after a stale project's note (project-detail T10).
+// The row draws before that branch and reads no fetch result. Add a case when a seam can make the project detail read fail:
+// select a normal project from a note page on a tab other than Overview, and read that tab over an empty body.
 import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
@@ -989,6 +992,11 @@ test('the tab a project opens on: another project keeps it, through a page with 
     await win.locator('.pane-body .se', { hasText: 'Sample question' }).click()
     await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
   }
+  const selectedWindow = win.locator('.tot-c.on .k')
+  const chooseWindow = async (label: string): Promise<void> => {
+    await win.locator('.tot-c', { hasText: label }).click()
+    await expect(selectedWindow).toHaveText(label)
+  }
   const toTheNote = async (project: string): Promise<void> => {
     await win.locator('.side input[type="checkbox"]').check()
     await row(project).click()
@@ -1001,21 +1009,28 @@ test('the tab a project opens on: another project keeps it, through a page with 
   await row('alpha').click()
   await pageIs('alpha', 'Overview')
 
-  // Another project takes over the page on screen, and its tab. A click on the project's own row first leaves the tab
-  // alone: the header's change orders the read behind both clicks, which that row alone could not
+  // Another project takes over the page on screen, its tab and Overview's window (token-stats G11). A click on the project's
+  // own row first leaves the tab alone: the header's change orders the read behind both clicks, which that row alone could not
+  await chooseWindow('Today')
   await select('Skills')
   await row('alpha').click()
   await row('beta').click()
   await pageIs('beta', 'Skills')
+  await select('Overview')
+  await expect(selectedWindow).toHaveText('Today')
 
-  // Leaving by the rail takes the page off the stage, so coming back draws a new one
+  // Leaving by the rail takes the page off the stage, so coming back draws a new one, on the default window
+  await select('Skills')
   await leaveByTheRailAndComeBack()
   await pageIs('beta', 'Overview')
+  await expect(selectedWindow).toHaveText('Total · all history')
 
   // So does a side card's project count that keeps the selection
+  await chooseWindow('Today')
   await select('Skills')
   await throughTheSideCard()
   await pageIs('beta', 'Overview')
+  await expect(selectedWindow).toHaveText('Total · all history')
 
   // A stale project's note page has no tabs, so it neither changes nor uses the tab: the next project opens on the one from
   // before it
@@ -1035,15 +1050,28 @@ test('the tab a project opens on: another project keeps it, through a page with 
   await row('alpha').click()
   await pageIs('alpha', 'Memory')
 
+  // Overview's window goes through such a page the same way (token-stats G11)
+  await select('Overview')
+  await chooseWindow('Today')
+  await toTheNote('ghost')
+  await row('beta').click()
+  await pageIs('beta', 'Overview')
+  await expect(selectedWindow).toHaveText('Today')
+  await row('alpha').click()
+  await pageIs('alpha', 'Overview')
+
   // Leaving by the rail or a side card's project count while on a note page: coming back is not switching projects, so the
-  // next project opens on Overview
+  // next project opens on Overview and the default window
   for (const comeBack of [leaveByTheRailAndComeBack, throughTheSideCard]) {
+    await select('Overview')
+    await chooseWindow('Today')
     await select('Skills')
     await toTheNote('ghost')
     await comeBack()
     await expect(win.locator('.stale-note')).toBeVisible()
     await row('beta').click()
     await pageIs('beta', 'Overview')
+    await expect(selectedWindow).toHaveText('Total · all history')
   }
   await row('alpha').click()
   await pageIs('alpha', 'Overview')
@@ -1073,11 +1101,15 @@ test('the tab a project opens on: another project keeps it, through a page with 
   // A scan turning the page into a stale project's note and back, or taking the project out of the snapshot and back, draws
   // it on the remembered tab. Read on tabs other than Sessions, which could not tell that from the landing
   await backFromTheSession()
+  await select('Overview')
+  await chooseWindow('Today')
   await select('Skills')
   rmSync(alpha, { recursive: true })
   await expect(win.locator('.stale-note')).toBeVisible()
   mkdirSync(alpha)
   await pageIs('alpha', 'Skills')
+  await select('Overview')
+  await expect(selectedWindow).toHaveText('Today')
   await backFromTheSession()
   await select('Memory')
   register(beta, ghost, phantom)
@@ -1140,12 +1172,16 @@ test('the tab a project opens on: another project keeps it, through a page with 
   // message and opens on the tab from before it
   await row('beta').click()
   await pageIs('beta', 'Sessions')
+  await select('Overview')
+  await chooseWindow('Today')
   await select('Skills')
   register(alpha, ghost, phantom)
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
   await row('alpha').click()
   await pageIs('alpha', 'Skills')
   await expect(win.locator('.detail .empty')).toHaveCount(0)
+  await select('Overview')
+  await expect(selectedWindow).toHaveText('Today')
 
   // A note page whose project then leaves the snapshot is two such pages in a row
   await select('Instructions')

@@ -55,6 +55,9 @@ export function DetailPane({
   // pane stays mounted while a project is on the stage; a session page or another dimension unmounts it, and what comes
   // after starts afresh (project-detail::REQ-004/AC-02)
   const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
+  // Beside the tab for the same reason, and above the tab switch so the selection survives moving between tabs: the overview
+  // is conditionally rendered, so state held inside it would be discarded on every switch (token-stats G11)
+  const [win, setWin] = useState<UsageWindow>('all')
 
   if (!entry) return <div className="empty">{t.detail.notInSnapshot}</div>
 
@@ -77,7 +80,7 @@ export function DetailPane({
   }
 
   return (
-    <DetailPaneBody entry={entry} snap={snap} tab={tab} onTab={setTab} onOpenSession={onOpenSession} />
+    <DetailPaneBody entry={entry} snap={snap} tab={tab} onTab={setTab} win={win} onWin={setWin} onOpenSession={onOpenSession} />
   )
 }
 
@@ -91,19 +94,20 @@ function DetailPaneBody({
   snap,
   tab,
   onTab,
+  win,
+  onWin,
   onOpenSession
 }: {
   entry: ProjectEntry
   snap: Snapshot
   tab: Tab
   onTab: (tab: Tab) => void
+  win: UsageWindow
+  onWin: (win: UsageWindow) => void
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
   const now = useDisplayClock()
   const t = useDict()
-  // Above the tab switch so the selection survives moving between tabs (G11). The overview is
-  // conditionally rendered, so state held inside it would be discarded on every switch.
-  const [win, setWin] = useState<UsageWindow>('all')
   const { span: trendSpan, onSpan: setTrendSpan } = useTrendSpan()
   const result = useProjectDetailQuery(entry.path)
   const queryClient = useQueryClient()
@@ -155,7 +159,7 @@ function DetailPaneBody({
                 snap={snap}
                 onOpenSession={onOpenSession}
                 window={win}
-                onWindow={setWin}
+                onWindow={onWin}
               />
             )}
             {tab === 'skills' && (

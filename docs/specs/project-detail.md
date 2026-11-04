@@ -345,10 +345,11 @@ regressions within this round; artifact collection rules and unrelated section l
 - **Section state is keyed by project**: the pane body subtree is keyed by the project path, so a
   section's local state resets on a project change exactly as it does today (the Skills filter rule)
   and survives a transfusion of the same project (A3).
-- **The selected tab lives above what the pane draws** (project-detail::REQ-004/AC-02): the pane stays mounted while a
-  project is on the stage and holds the tab, so a note page or the not-in-snapshot state drawn in the sectioned page's place
-  neither changes nor uses it, with no flag for either. A session page or another dimension unmounts the pane, which is what
-  starts the next one afresh; a new pane reads the landing on Sessions when it mounts.
+- **The selected tab and the selected window live above what the pane draws** (project-detail::REQ-004/AC-02,
+  [token-stats](token-stats.md) G11): the pane stays mounted while a project is on the stage and holds them, so a note page or
+  the not-in-snapshot state drawn in the sectioned page's place neither changes nor uses them, with no flag for either. A
+  session page or another dimension unmounts the pane, which is what starts the next one afresh; a new pane reads the landing
+  on Sessions when it mounts.
 - **Allow-list**: when detail is returned, the artifact and memory file paths are registered in the
   allow-list, and both reading and external opening validate against it.
 - **The stale note page renders from the snapshot entry alone** (path, sides, staleness are already
@@ -445,9 +446,10 @@ window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-
   draw; declared here as the exemption rather than assumed. The sentence a failed read's toast states (B9)
   changes wording only, and is declared as copy.
 - **Prototype gate (2026-11-04), a page with no tabs**: a stale project's note page and the not-in-snapshot state keeping
-  the tab for the next page (REQ-004/AC-02) adds no page, control, state, colour or spacing: the tab row and both pages keep
-  their forms, and which tab is selected at a moment has no form to draw. The behaviour does change visibly, which puts it
-  outside the gate's named exceptions; declared here as the exemption rather than assumed.
+  the tab (REQ-004/AC-02) and the selected window ([token-stats](token-stats.md) G11) for the next page adds no page, control,
+  state, colour or spacing: the tab row, the totals cards and both pages keep their forms, and which one is selected at a
+  moment has no form to draw. The behaviour does change visibly, which puts it outside the gate's named exceptions; the owner
+  confirmed on 2026-11-04 that it needs no prototype, and it is declared here rather than assumed.
 - **Prototype gate (2026-09-12)**: the atomic switch adds no visible state — the list highlight
   keeps its existing form, and the end state is the absence of an intermediate frame, which has no
   form to draw; declared here as the exemption rather than assumed.
