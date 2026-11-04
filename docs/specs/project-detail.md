@@ -175,7 +175,8 @@ never writes to any agent's registry; it tells the user what happened and hands 
   rather than the click doing nothing — landed 2026-09-13 on the query layer (ADR-0028), the read
   going through `artifact-content-query`'s result wrapper rather than an unhandled rejection.
   Each click on a file whose read fails reads it again and shows one toast, the answer to that read,
-  so a file that has come back opens with none. A scan landing afterwards adds no toast, and does not
+  so a file that has come back opens with none. The toast states the failure in a sentence in the
+  current UI language, never the raw IPC error. A scan landing afterwards adds no toast, and does not
   open the reader when the file comes back: a failed read leaves nothing open.
   Reopening an already-read file is a cached, instant revisit.
 - B10 `.scratch/` is not under `docs/` by construction and does not count as an artifact (tickets are
@@ -429,7 +430,8 @@ window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-
   many toasts a failed read or listing shows (B9, [skills-view](skills-view.md) A11,
   [plugins-view](plugins-view.md) H10), and the reader no longer opening by itself on a scan add no visible
   state or form: the tab row, the toast and the reader keep theirs, and a count or a moment has no form to
-  draw; declared here as the exemption rather than assumed.
+  draw; declared here as the exemption rather than assumed. The sentence a failed read's toast states (B9)
+  changes wording only, and is declared as copy.
 - **Prototype gate (2026-09-12)**: the atomic switch adds no visible state — the list highlight
   keeps its existing form, and the end state is the absence of an intermediate frame, which has no
   form to draw; declared here as the exemption rather than assumed.

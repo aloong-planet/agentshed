@@ -431,7 +431,12 @@ handle(CMD.readArtifact, async (_e, file: unknown) => {
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
   if (!readRegistry.admission('artifacts', file)) throw appError(ERR.artifactNotWhitelisted)
   if (readRegistry.admission('artifacts', file) === 'restored' && !regularTarget(file)) throw appError(ERR.artifactNotWhitelisted)
-  const raw = readFileSync(file, 'utf8')
+  let raw: string
+  try {
+    raw = readFileSync(file, 'utf8')
+  } catch {
+    throw appError(ERR.artifactUnreadable)
+  }
   // Only report whether it was truncated; the renderer appends the marker in the current language
   // (ticket 07)
   const text = raw.length > 500_000

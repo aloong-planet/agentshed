@@ -3436,7 +3436,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // AC-08: the overlay closes
   await expect(fd).toHaveCount(0)
   await memFile('vanish.md').click()
-  await expect(fdBody).toContainText('File cannot be read')
+  await expect(fdBody).toHaveText('File cannot be read: This file can no longer be read (moved or deleted?)')
   await expect(fd.locator('.md-preview-name')).toHaveText('vanish.md')
   await expect(fd.locator('.md-preview-seg')).toBeVisible()
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // The drawer covers the window centre, so click the visible mask on the left
@@ -6631,7 +6631,7 @@ test('opening an artifact whose file was removed after the scan (query layer): o
 
   rmSync(ctx, { force: true })
   await doomed.click()
-  await expect(win.locator('.toast')).toBeVisible()
+  await expect(win.locator('.toast.err')).toHaveText('This file can no longer be read (moved or deleted?)')
   await expect(win.locator('.reader')).toHaveCount(0)
   expect(await added()).toBe(1)
 
@@ -6646,6 +6646,17 @@ test('opening an artifact whose file was removed after the scan (query layer): o
   await doomed.click()
   expect(await added()).toBe(1)
   await expect(win.locator('.reader')).toHaveCount(0)
+
+  // The toast states the failure in the current UI language
+  await win.locator('.rail .ri.set').click()
+  await win.locator('[data-testid="language-trigger"]').click()
+  await win.locator('.lang-opt[data-lang="zh"]').click()
+  await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '产物' }).click()
+  await doomed.click()
+  await expect(win.locator('.toast.err').last()).toHaveText('该文件已不可读(被移动或删除?)')
+  expect(await added()).toBe(1)
 
   // The file back: the click reads it again and opens it, with no toast from the failure it remembers
   writeFileSync(ctx, '# Doomed\n\nBack again.\n')
