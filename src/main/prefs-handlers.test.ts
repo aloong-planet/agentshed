@@ -110,8 +110,23 @@ describe('the preference handlers', () => {
     // "validation or the readiness check threw first", and in those cases themeSource should not have been
     // set at all,
     // which would make this case green and meaningless
-    expect(() => h.setMode('dark')).toThrow(/ENOTDIR|ENOENT/)
+    expect(codeOf(() => h.setMode('dark'))).toBe(ERR.prefsWriteFailed)
     expect(theme.themeSource).toBe('dark')
+  })
+
+  it.each([
+    ['setTheme', 'blue', 'theme'],
+    ['setLanguage', 'zh', 'language'],
+    ['setMode', 'dark', 'mode'],
+    ['setTrendSpan', 60, 'trendSpan'],
+    ['setAutoCheckUpdates', false, 'autoCheckUpdates']
+  ] as const)('%s on a store that cannot write: throws the code, with the choice in effect in memory', (setter, value, field) => {
+    const asFile = join(dir, 'not-a-dir')
+    writeFileSync(asFile, 'x')
+    const blocked = new PrefsStore(join(asFile, 'sub'))
+    const h = createPrefsHandlers({ store: () => blocked, theme })
+    expect(codeOf(() => h[setter](value))).toBe(ERR.prefsWriteFailed)
+    expect(blocked.get()[field]).toBe(value)
   })
 
   it('setMode: an invalid value throws, and **must not pass the invalid value to themeSource**', () => {

@@ -23,13 +23,16 @@ const n = (p: ErrorParams, k: string): number => {
  * **The fallback's character changed as of ticket 06**: it used to be an "old-protocol compatibility
  * branch" — the migration was unfinished and cross-process calls still
  * carried whole-sentence Chinese errors. After ticket 06 closed the protocol, **no cross-process
- * producer throws a sentence** (confirmed by a whole-repository search:
- * zero `throw new Error` in `src/` outside tests, and no whole-sentence message on any contract field).
+ * producer throws a sentence** (read on 2026-11-04: each `throw new Error` in `src/` outside tests is a
+ * test seam, a caller's bug, a script's, or caught before IPC; and no whole-sentence message on any
+ * contract field).
  *
  * It is kept because the remaining entry points are **non-protocol errors**: the renderer's own
  * TypeErrors, whatever a third-party library throws, and a system error a main-process handler lets
- * through uncaught, which arrives as its raw message (a preference store's failed write does) —
- * none of which has an error code. Removing the fallback would turn them into blanks, and
+ * through uncaught, which arrives as its raw message (the one known is listing a skill package's files,
+ * when its file goes between the resolver's check and the listing's, accepted by the owner on
+ * 2026-11-04: docs/specs/i18n.md, Structured errors) — none of which has an error code. Removing the
+ * fallback would turn them into blanks, and
  * "erroring while reporting an error" is worse than one ugly line of
  * original text. So this is no longer a compatibility branch but the last display guarantee for
  * non-protocol exceptions.
@@ -76,6 +79,8 @@ export function errorText(lang: Language, raw: unknown): string {
       return t.sessionParseFailed
     case ERR.prefsStoreNotReady:
       return t.prefsStoreNotReady
+    case ERR.prefsWriteFailed:
+      return t.prefsWriteFailed
     case ERR.invalidPref:
       return t.invalidPref(s(p, 'field'))
     case ERR.contractMissing:

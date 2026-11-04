@@ -291,7 +291,8 @@ hands the command over; it never runs it.
   **rebuild the index for that file only**, without a full rescan; verify once before fetching.
   **Landed (2026-08-04)**: `engine.sessionQuestions` compares the signature on every fetch
   and, on a mismatch, re-parses that one file and **writes the cache back to disk** (so it is not
-  rebuilt again next time); the display-side stripping for a Codex fork shares its source with the
+  rebuilt again next time; a failed write is not the fetch's failure, since the new index is in memory
+  and the page is served from it, and only the next launch rebuilds again); the display-side stripping for a Codex fork shares its source with the
   list (the same `stripReplayPrefix` and parent lookup), rather than reusing the token metering side's
   conclusions.
   A session page left open while Codex compresses its file (2026-09-10): the plain path is gone, so
@@ -460,9 +461,10 @@ as a cached visit under session-view::REQ-001)
   transfusion — the question list follows the file (a live session gains its new questions) while
   the expanded turns, the sort and the folded days survive, the index being the original turn
   number. New with this rule: before it the page was static until reopened.
-- P6 Failure on a first open (the file is gone, the allow-list refuses it, the parse fails): the
-  switch completes to the page's existing error state — an error result is a ready page. A failed
-  revalidation of a cached page leaves the shown page as it is.
+- P6 Failure on a first open (the file is gone, it exists and cannot be read, the allow-list refuses
+  it, the parse fails): the switch completes to the page's existing error state — an error result is a
+  ready page. The state gives the reason in a sentence in the current UI language, never the raw IPC
+  error. A failed revalidation of a cached page leaves the shown page as it is.
 - P7 A file Codex compressed while its page was cached: the plain path's page stays a cached visit
   until the next snapshot marks it stale; from then on opening it is P6, and the session reappears
   under its compressed identity (C4).
@@ -594,8 +596,8 @@ below are archived as a decision record and are no longer requirements)**
   pure-copy.
 - **In-turn fetch states (retro-added to the prototype 2026-08-06, confirmed by the user)**:
   fetching = a momentary notice on the first fetch, with an already-fetched turn re-expanding
-  instantly; a single turn's failure = that turn shows an error without affecting the others, and
-  clicking again retries; an empty turn (no prose reply) shows only the fetch footnote and invents no
+  instantly; a single turn's failure = that turn gives the reason in a sentence in the current UI
+  language, never the raw IPC error, without affecting the others, and clicking again retries; an empty turn (no prose reply) shows only the fetch footnote and invents no
   placeholder; the footnote includes the actual bytes read. Visually all of them are small, faint
   in-turn text (the prototype's `.rebuild` style).
 - **A knock-on change to the overview section**: the overview's session card becomes clickable, and its

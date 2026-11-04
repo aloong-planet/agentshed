@@ -46,6 +46,8 @@ sessions, one per row, with "how many questions I asked in this conversation".
 - If the session file changes while the page is open, a turn without saved content shows a
   rebuilding notice while that session is refreshed. An already read answer stays visible during
   the refresh; if the question itself changes, its new answer follows the new question
+- A session whose file can no longer be read says so in a sentence on its page, and a turn that cannot
+  be fetched says so in that turn: the other turns stay as they are, and clicking again retries
 - **Sessions spanning several days are grouped by day**: the group row shows the date and that day's
   count, and clicking it collapses or expands the day; there is also "collapse all / expand all".
   Collapsing only hides — a turn already expanded is still expanded when the day is reopened

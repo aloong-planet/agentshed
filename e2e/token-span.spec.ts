@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
+import { ERR } from '../src/shared/errors'
 
 function day(ago: number): string {
   const date = new Date()
@@ -58,6 +59,42 @@ function cleanup(f: ReturnType<typeof fixture>): void {
   rmSync(f.home, { recursive: true, force: true })
   rmSync(f.userData, { recursive: true, force: true })
 }
+
+/** Every toast from now on, whatever its lifetime, as "kind: text"; each call states the ones that appear next, and no more */
+async function recordToasts(win: Page): Promise<(next: string[]) => Promise<void>> {
+  await win.waitForSelector('.toasts', { state: 'attached' })
+  await win.evaluate(() => {
+    const seen: string[] = []
+    ;(window as unknown as { __toasts: string[] }).__toasts = seen
+    new MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of r.addedNodes) {
+          if (n instanceof HTMLElement && n.classList.contains('toast')) seen.push(`${n.classList.contains('err') ? 'err' : 'ok'}: ${n.textContent ?? ''}`)
+        }
+      }
+    }).observe(document.querySelector('.toasts') as Element, { childList: true })
+  })
+  let read = 0
+  return async (next) => {
+    await expect.poll(() => win.evaluate(() => [...(window as unknown as { __toasts: string[] }).__toasts]).then((all) => all.slice(read))).toEqual(next)
+    read += next.length
+  }
+}
+/** The application menu as built: each top-level menu's label and its first item's (what macOS draws is accepted by hand, i18n spec) */
+function menuHeads(app: ElectronApplication): Promise<string[][]> {
+  return app.evaluate(({ Menu }) => (Menu.getApplicationMenu()?.items ?? []).map((i) => [i.label, i.submenu?.items[0]?.label ?? '']))
+}
+const MENU_EN = [['Agentshed', 'About Agentshed'], ['Edit', 'Undo'], ['View', 'Reload'], ['Window', 'Minimize']]
+const MENU_ZH = [['Agentshed', '关于 Agentshed'], ['编辑', '撤销'], ['显示', '重新载入'], ['窗口', '最小化']]
+/** Reaching a control lower on the settings page scrolled it, and a scroll closes the language list (the i18n table): the list is opened again until the click lands */
+async function chooseLanguage(win: Page, id: string): Promise<void> {
+  await expect(async () => {
+    if (!(await win.getByTestId('language-pop').isVisible())) await win.getByTestId('language-trigger').click()
+    await win.locator(`.lang-opt[data-lang="${id}"]`).click({ timeout: 1000 })
+  }).toPass()
+}
+const failedEn = (name: string): string => `err: Couldn’t save ${name}. It stays in effect until the app restarts, then goes back.`
+const failedZh = (name: string): string => `err: 保存${name}失败。当前选择在重启前有效，重启后恢复。`
 
 // The backfill rule itself is unit-tested; this pins the wiring around it — the app must hand the
 // backfill the choices made since mount, not the values it mounted with (#61).
@@ -195,19 +232,29 @@ for (const [span, cache] of [[30, undefined], [60, 'broken'], [90, '{"version":-
 
 test('global span save failure keeps live views consistent and reopens the last successful value', async () => {
   const f = fixture()
+  // The automatic check's switch is available only with an update source; this is the scripted one
+  const script = join(f.home, 'update.json')
+  writeFileSync(script, JSON.stringify({ check: 'upToDate' }))
   let app: ElectronApplication | undefined
   try {
-    app = await launch(f)
+    app = await launch(f, { AGENTSHED_UPDATE_SCRIPT: script })
+    const handlerErrors: string[] = []
+    app.process().stderr?.on('data', (b: Buffer) => {
+      const t = b.toString()
+      if (/Error occurred in handler|agentshed-error:/.test(t)) handlerErrors.push(t)
+    })
     let win = await app.firstWindow()
+    const toasts = await recordToasts(win)
     await choice(win, 60).click()
     await expect.poll(() => readPrefs(f.userData).trendSpan).toBe(60)
+    const prefsBefore = readFileSync(join(f.userData, 'prefs.json'), 'utf8')
     const archiveBefore = readFileSync(join(f.userData, 'usage-archive.json'), 'utf8')
     const configBefore = readFileSync(join(f.home, '.claude.json'), 'utf8')
     const pid = app.process().pid
     const blocked = join(f.userData, `.prefs.json.tmp-${pid}`)
     mkdirSync(blocked)
     await choice(win, 90).click()
-    await expect(win.locator('.toast')).toContainText('Failed to save the trend span')
+    await toasts([failedEn('the trend span')])
     await checkSpan(win, 90, '246')
     await win.locator('.rail .ri').nth(1).click()
     await win.locator('.side .row', { hasText: 'alpha' }).click()
@@ -215,11 +262,78 @@ test('global span save failure keeps live views consistent and reopens the last 
     expect(readFileSync(join(f.userData, 'usage-archive.json'), 'utf8')).toBe(archiveBefore)
     expect(readFileSync(join(f.home, '.claude.json'), 'utf8')).toBe(configBefore)
     expect(readPrefs(f.userData).trendSpan).toBe(60)
+
+    // The other four, in English: one toast each, and the choice in effect
+    const theme = (id: string) => win.locator(`[data-theme-option="${id}"]`)
+    const mode = (id: string) => win.locator(`[data-mode-option="${id}"]`)
+    const auto = (id: string) => win.getByTestId('auto-check-seg').locator(`[data-auto-option="${id}"]`)
+    await win.locator('.ri.set').click()
+    await theme('blue').click()
+    await toasts([failedEn('the theme')])
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'blue')
+    await mode('dark').click()
+    await toasts([failedEn('the appearance mode')])
+    await expect(mode('dark')).toHaveAttribute('aria-checked', 'true')
+    await auto('off').click()
+    await toasts([failedEn('the automatic update check setting')])
+    await expect(auto('off')).toHaveAttribute('aria-checked', 'true')
+
+    // The language: the window, its notices and the application menu all move together
+    expect(await menuHeads(app)).toEqual(MENU_EN)
+    await chooseLanguage(win, 'zh')
+    await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+    await toasts(['ok: 界面语言已切换为 简体中文', failedZh('语言')])
+    expect(await menuHeads(app)).toEqual(MENU_ZH)
+
+    // The same four in Chinese
+    await theme('amber').click()
+    await toasts([failedZh('主题')])
+    await mode('light').click()
+    await toasts([failedZh('外观模式')])
+    await auto('on').click()
+    await toasts([failedZh('自动检查更新设置')])
+    await win.locator('.rail .ri').nth(0).click()
+    await choice(win, 30).click()
+    await toasts([failedZh('趋势天数')])
+    await expect(choice(win, 30)).toHaveAttribute('aria-pressed', 'true')
+
+    // Writes in flight when the language changes: their notices use the new language (the i18n table). An IPC reply
+    // needs a macrotask, so with only microtasks between the clicks no rejection can arrive before the switch
+    await win.locator('.ri.set').click()
+    await win.evaluate(async () => {
+      for (const selector of ['[data-theme-option="blue"]', '[data-auto-option="off"]', '[data-testid="language-trigger"]', '.lang-opt[data-lang="en"]']) {
+        const el = document.querySelector(selector)
+        if (!(el instanceof HTMLElement)) throw new Error(`nothing to click at ${selector}`)
+        el.click()
+        await Promise.resolve()
+      }
+    })
+    await expect(win.locator('html')).toHaveAttribute('lang', 'en')
+    await toasts(['ok: Interface language switched to English', failedEn('the theme'), failedEn('the automatic update check setting'), failedEn('the language')])
+    expect(await menuHeads(app)).toEqual(MENU_EN)
+
+    // Left in Chinese, so the next launch's English is the disk's and not what the session ended on
+    await chooseLanguage(win, 'zh')
+    await toasts(['ok: 界面语言已切换为 简体中文', failedZh('语言')])
+    expect(await menuHeads(app)).toEqual(MENU_ZH)
+
+    // Nothing reached the disk, and the main process logged each failure by its code
+    expect(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).toBe(prefsBefore)
+    expect(handlerErrors.length).toBeGreaterThan(0)
+    for (const e of handlerErrors) expect(e.includes(ERR.prefsWriteFailed), `a handler error without the code:\n${e}`).toBe(true)
+
     rmSync(blocked, { recursive: true })
     await closeApp(app)
-    app = await launch(f)
+    app = await launch(f, { AGENTSHED_UPDATE_SCRIPT: script })
     win = await app.firstWindow()
     await checkSpan(win, 60, '144')
+    await expect(win.locator('html')).toHaveAttribute('lang', 'en')
+    expect(await menuHeads(app)).toEqual(MENU_EN)
+    await win.locator('.ri.set').click()
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'purple')
+    await expect(mode('system')).toHaveAttribute('aria-checked', 'true')
+    await expect(auto('on')).toHaveAttribute('aria-checked', 'true')
+    await expect(win.getByTestId('language-trigger')).toContainText('Follow system')
   } finally { if (app) await closeApp(app).catch(() => {}); cleanup(f) }
 })
 

@@ -59,11 +59,11 @@ export const en: Locale = {
   toast: {
     languageSwitched: (name) => `Interface language switched to ${name}`,
     languageFollowSystem: (name) => `Now following the system · currently ${name}`,
-    saveTrendSpanFailed: 'Failed to save the trend span',
-    saveThemeFailed: 'Failed to save the theme',
-    saveModeFailed: 'Failed to save the appearance mode',
-    saveLanguageFailed: 'Failed to save the language',
-    saveAutoCheckUpdatesFailed: 'Failed to save the automatic update check setting'
+    saveTrendSpanFailed: 'Couldn’t save the trend span. It stays in effect until the app restarts, then goes back.',
+    saveThemeFailed: 'Couldn’t save the theme. It stays in effect until the app restarts, then goes back.',
+    saveModeFailed: 'Couldn’t save the appearance mode. It stays in effect until the app restarts, then goes back.',
+    saveLanguageFailed: 'Couldn’t save the language. It stays in effect until the app restarts, then goes back.',
+    saveAutoCheckUpdatesFailed: 'Couldn’t save the automatic update check setting. It stays in effect until the app restarts, then goes back.'
   },
 
   update: {
@@ -430,6 +430,7 @@ export const en: Locale = {
     sessionMetaUnreadable: 'The session’s first-line metadata is unreadable, so the index cannot be rebuilt',
     sessionParseFailed: 'Failed to parse the session file',
     prefsStoreNotReady: 'The preference store is not ready',
+    prefsWriteFailed: 'The preference could not be saved',
     invalidPref: (field) => `Invalid preference value: ${field}`,
     contractMissing: (path) => `Received an invalid payload: ${path} is missing`,
     contractType: (path, expect) => `Received an invalid payload: ${path} should be ${expect}`,

@@ -43,7 +43,7 @@ export const ERR = {
   skillFileUnreadable: 'skill-file-unreadable',
   /** The session is not in the index; refresh globally first */
   sessionNotIndexed: 'session-not-indexed',
-  /** The session file can no longer be read (moved or deleted) */
+  /** The session file can no longer be read (moved, deleted, or a system error) */
   sessionFileUnreadable: 'session-file-unreadable',
   /** The session's first-line metadata cannot be read, so the index cannot be rebuilt */
   sessionMetaUnreadable: 'session-meta-unreadable',
@@ -51,6 +51,8 @@ export const ERR = {
   sessionParseFailed: 'session-parse-failed',
   /** Preference storage is not ready */
   prefsStoreNotReady: 'prefs-store-not-ready',
+  /** A preference could not be written (a read-only or full disk, a blocked settings directory); the choice stays in memory */
+  prefsWriteFailed: 'prefs-write-failed',
   /** The preference value does not meet the contract (params.field: theme / language / mode) */
   invalidPref: 'invalid-pref',
   /** Contract validation of a cross-process payload: a field is missing (params.what is the payload's

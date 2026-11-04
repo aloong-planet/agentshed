@@ -1,9 +1,9 @@
 import { ReadRegistry } from './read-registrations'
 import { DisplayStore } from './display-store'
-import { sourceIdentity, pageRevision, questionRevision, regularTarget } from './source-identity'
+import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, recordFileBytes, regularTarget } from './source-identity'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
 import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   CMD,
@@ -22,7 +22,6 @@ import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, as
 import { mergeKey } from '@shared/path-key'
 import { deriveStats } from '@shared/usage'
 import { scan, walkSessions } from './providers/scan'
-import { readRanges } from './providers/range-read'
 import { questionTextOfRange } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
@@ -329,8 +328,8 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   const source = sessionReadSource(realRoots(), file)
   const identity = sourceIdentity(source)
   const q = await tokenEngine.sessionQuestions(realRoots(), file)
-  // The text is read live by range (spec D2a: the index holds no text); readRanges never reads whole
-  const { texts } = await readRanges(source, q.questions.map((r) => ({ start: r[0], end: r[1] })))
+  // The text is read live by range (spec D2a: the index holds no text), and never whole
+  const { texts } = await readSessionRanges(source, q.questions.map((r) => ({ start: r[0], end: r[1] })))
   const questions = q.questions.map((rec, idx) => {
     // A single bad line only hurts itself: that entry shows a placeholder without affecting the other
     // questions or dragging down the page
@@ -349,7 +348,7 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     at: q.at,
     tokens: sessionTokens.get(file) ?? 0,
     // The record file's size — the one Finder shows (an Antigravity conversation's database, not its transcript)
-    bytes: statSync(file).size,
+    bytes: recordFileBytes(file),
     forkState: q.forkState,
     forkPoints: q.forkPoints,
     forkParentTitle: q.forkParentTitle,
@@ -390,7 +389,7 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   const rec = q.questions[a.i]
   // A whole turn = from after the question up to the next one ([turn start, turn end); the page already
   // has the question in full; re-read that selected question only to validate its source identity)
-  const { texts, bytesRead } = await readRanges(source, [{ start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] }])
+  const { texts, bytesRead } = await readSessionRanges(source, [{ start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] }])
   const revision = questionRevision(identity, file, rec[0], rec[1], texts[0])
   if (a.revision !== undefined && a.revision !== revision) throw appError(ERR.sessionNotIndexed)
   const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, texts[1]), bytesRead }
@@ -574,11 +573,14 @@ handle(CMD.getPrefs, async () => {
 })
 handle(CMD.setTheme, (_e, theme: unknown) => prefsHandlers.setTheme(theme))
 handle(CMD.setLanguage, (_e, language: unknown) => {
-  const next = prefsHandlers.setLanguage(language)
-  // **The menu must be rebuilt**, not constructed once at startup (ticket 13): it is a native control,
-  // and its copy does not update automatically when the renderer's language changes
-  applyMenu()
-  return next
+  try {
+    return prefsHandlers.setLanguage(language)
+  } finally {
+    // **The menu must be rebuilt**, not constructed once at startup (ticket 13): it is a native control,
+    // and its copy does not update automatically when the renderer's language changes. A failed write
+    // included: the language is in effect until a restart, and the menu stays with the window
+    applyMenu()
+  }
 })
 handle(CMD.setTrendSpan, (_e, span: unknown) => prefsHandlers.setTrendSpan(span))
 handle(CMD.setMode, (_e, mode: unknown) => prefsHandlers.setMode(mode))

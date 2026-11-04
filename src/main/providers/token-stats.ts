@@ -808,7 +808,13 @@ export class TokenEngine {
       agg = fresh
       // A Codex entry was stored above, with the state its next resume starts from
       if (fresh.kind !== 'codex') this.cache.files[file] = { sig, agg }
-      this.persist()
+      // The rebuilt index is in memory and this answer comes from it; saving it only spares the next launch a rebuild,
+      // so a failed write is not this page's failure (session-view C4)
+      try {
+        this.persist()
+      } catch (error) {
+        console.error('[token-cache] save failed:', error)
+      }
     }
     if (agg.kind === 'antigravity') {
       // A conversation that cannot be read in the supported format is listed nowhere and has no page

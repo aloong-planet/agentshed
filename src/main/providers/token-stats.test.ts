@@ -2070,6 +2070,17 @@ describe('sessionQuestions (the session page service)', () => {
     )
   })
 
+  it('a rebuild whose cache write fails still answers: the index is in memory, and only the next launch rebuilds again', async () => {
+    const cl = mkClaudeFile('blocked.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
+    const e = engine()
+    await e.build(roots(), [proj])
+    mkdirSync(join(dir, 'cache', `.token-cache.j-${process.pid}`))
+    appendFileSync(cl, userLine('second') + '\n')
+    expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(2)
+    expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(2)
+    expect(e.isFresh(cl)).toBe(true)
+  })
+
   it('a file not in the cache: refused (with the caller guiding a refresh) rather than a silent empty list', async () => {
     const e = engine()
     await e.build(roots(), [proj])

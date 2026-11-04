@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { decodeAppError } from '@shared/errors'
 import { PrefsStore } from './prefs-store'
 
 describe('PrefsStore', () => {
@@ -38,9 +39,27 @@ describe('PrefsStore', () => {
     store.setTrendSpan(60)
     // A directory at the temporary-file path causes a real write failure before rename.
     mkdirSync(join(dir, `.prefs.json.tmp-${process.pid}`))
-    expect(() => store.setTrendSpan(90)).toThrow(/EISDIR/)
+    let thrown: unknown
+    try {
+      store.setTrendSpan(90)
+    } catch (e) {
+      thrown = e
+    }
+    // The code alone crosses IPC: what the system said, and the path it named, would reach the screen as they are
+    expect(decodeAppError(thrown)?.code).toBe('prefs-write-failed')
+    expect((thrown as Error).message).not.toMatch(/EISDIR|prefs\.json/)
     expect(store.get().trendSpan).toBe(90)
     expect(new PrefsStore(dir).get().trendSpan).toBe(60)
+  })
+
+  it('a later save that succeeds writes the earlier unsaved choice with it: the record is written whole', () => {
+    const store = new PrefsStore(dir)
+    const blocked = join(dir, `.prefs.json.tmp-${process.pid}`)
+    mkdirSync(blocked)
+    expect(() => store.setTheme('blue')).toThrow()
+    rmSync(blocked, { recursive: true })
+    store.setMode('dark')
+    expect(new PrefsStore(dir).get()).toMatchObject({ theme: 'blue', mode: 'dark' })
   })
 
   it('with no file: purple + follow the system language + follow the system appearance + automatic update checks on', () => {
