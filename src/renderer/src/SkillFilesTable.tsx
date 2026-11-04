@@ -74,7 +74,7 @@ export function SkillFilesTable({
           return (
             <button type="button" key={f.absPath} onClick={() => onOpen(f)}>
               <span className="name-cell">
-                <span className={`ic ${kind}`}>{label}</span>
+                <span className={`ic ic-${kind}`}>{label}</span>
                 <span className="path mono" title={f.path}>
                   {f.path}
                 </span>

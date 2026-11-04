@@ -3094,46 +3094,34 @@ mark {
 }
 .files button:hover .path { color: var(--accent-deep); }
 .files button .name-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  /* Type badges: a horizontal pill that must not wrap (a fixed 22×22 would squeeze MD onto two lines and
-     look like a broken icon) */
+/* Type badges: one square whatever the label, so every path starts level. The kinds carry an ic- prefix because a
+   bare .sh is the project list's search head and a bare .md the markdown card: their rules landed on the badge, and a
+   shell row took the search head's margin. */
 .files button .ic {
+  width: 22px;
+  height: 22px;
   flex: none;
-  min-width: 28px;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 4px;
-  display: inline-flex;
+  border-radius: 6px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   background: var(--bg);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   color: var(--text-2);
   font-family: ui-monospace, Menlo, monospace;
   box-sizing: border-box;
 }
-.files button .ic.md {
+.files button .ic-md {
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
   color: var(--accent-deep);
 }
-.files button .ic.sh {
+.files button .ic-sh {
   background: var(--ok-bg);
   border-color: color-mix(in srgb, var(--ok-fg) 20%, var(--line));
-  color: var(--ok-fg);
-}
-.files button .ic.cfg {
-  background: var(--bg);
-  border-color: var(--line-strong);
-  color: var(--text-2);
-}
-.files button .ic.sh {
-  background: var(--ok-bg);
-  border-color: color-mix(in srgb, var(--ok-fg) 25%, var(--line));
   color: var(--ok-fg);
 }
 .files button .path {

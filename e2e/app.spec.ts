@@ -3657,6 +3657,9 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   writeFileSync(join(gskills, 'tdd', 'references', 'nested', 'deep-guide.md'), '# Deep guide\n\nDeep guide body\n')
   mkdirSync(join(gskills, 'tdd', 'scripts', 'lib'), { recursive: true })
   writeFileSync(join(gskills, 'tdd', 'scripts', 'lib', 'deep-tool.py'), 'print("Deep tool body")\n')
+  writeFileSync(join(gskills, 'tdd', 'scripts', 'lib', 'helper.mjs'), 'export {}\n')
+  mkdirSync(join(gskills, 'tdd', 'assets'), { recursive: true })
+  writeFileSync(join(gskills, 'tdd', 'assets', 'defaults.json'), '{}\n')
   mkdirSync(join(gskills, 'tdd', 'schemas'), { recursive: true })
   writeFileSync(join(gskills, 'tdd', 'schemas', 'wml.xsd'), '<schema/>\n')
   // A directory link out of the package, as a skill sharing a folder holds one (skills-view, "any depth" boundaries)
@@ -3711,8 +3714,8 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   //     the body)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const tdd = win.locator('.sk', { hasText: 'tdd' })
-  // SKILL.md, the script, the four nested files and the one behind the directory link; the schema is off the text list
-  await expect(tdd.locator('.sk-meta')).toContainText('7 files')
+  // SKILL.md, the script, the six nested files and the one behind the directory link; the schema is off the text list
+  await expect(tdd.locator('.sk-meta')).toContainText('9 files')
   await tdd.locator('.sk-head').click()
   await expect(tdd.locator('.files-card')).toBeVisible()
   await expect(tdd.locator('.files-sum')).toHaveCount(0) // The summary moved onto the row, so the expanded area no longer repeats it
@@ -3760,6 +3763,31 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Unique script B')
   await expect(win.locator('.file-drawer .md-preview-seg')).toHaveCount(0)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // (1a0) Every badge kind takes one box and moves no row: the kinds' classes once met global rules of the same
+  //       name, and a shell row took the project list's search head margin
+  const badges = await tdd.locator('.files button').evaluateAll((rows) =>
+    rows.map((row) => {
+      const icon = row.querySelector('.ic') as HTMLElement
+      const style = getComputedStyle(icon)
+      const box = icon.getBoundingClientRect()
+      return {
+        label: icon.textContent ?? '',
+        look: `${box.width}x${box.height} margin ${style.margin} overflow ${style.overflow}`,
+        background: style.backgroundColor,
+        rowHeight: row.getBoundingClientRect().height,
+        pathLeft: (row.querySelector('.path') as HTMLElement).getBoundingClientRect().left
+      }
+    })
+  )
+  expect(new Set(badges.map((b) => b.label))).toEqual(new Set(['MD', 'SH', 'JS', 'CFG', 'PY', 'TXT']))
+  expect([...new Set(badges.map((b) => b.look))]).toEqual(['22x22 margin 0px overflow visible'])
+  expect(new Set(badges.map((b) => b.rowHeight)).size, 'no row is taller for its kind').toBe(1)
+  expect(new Set(badges.map((b) => b.pathLeft)).size, 'every path starts level').toBe(1)
+  const backgroundOf = (label: string): string => badges.find((b) => b.label === label)?.background ?? ''
+  expect(backgroundOf('MD'), 'markdown takes its tint').not.toBe(backgroundOf('PY'))
+  expect(backgroundOf('SH'), 'a script takes its tint').not.toBe(backgroundOf('PY'))
+  expect(backgroundOf('CFG'), 'a config file is neutral').toBe(backgroundOf('PY'))
 
   // (1a) Files at any depth (skills-view::REQ-003): listed with their badges and no notice about depth; a nested
   //      script reads raw, and a nested document is reached by a link and previews

@@ -465,7 +465,8 @@ Matching the current behaviour of
 
 - **Container**: a full-width list. An on-disk skill **expands and collapses on a row click** to show
   the package's file table; **clicking a file** opens a drawer to read it.
-- **Expanded area**: headers "file / lines / size / modification date"; type badges; a marker on the
+- **Expanded area**: headers "file / lines / size / modification date"; type badges (one 22px square whatever the
+  label, markdown in the accent's tint, shell scripts in the success colour's, every other type neutral); a marker on the
   `SKILL.md` entry point; an **N-side segmented control** inside the expanded area when there are
   several sides; plugin rows expand on equal footing with
   on-disk rows (ADR-0012, 2026-08-07). **Flat** (finalised 2026-08-06): zero indentation, no inner
