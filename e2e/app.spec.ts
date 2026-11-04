@@ -21,8 +21,9 @@
 // The row draws before that branch and reads no fetch result. Add a case when a seam can make the project detail read fail:
 // select a normal project from a note page on a tab other than Overview, and read that tab over an empty body.
 // Also not driven: macOS privacy protection refusing a project under ~/Documents, ~/Desktop or ~/Downloads, which a test cannot
-// arrange. A parent at mode 000 stands in for it (projects-list A6): `isAbsent` answers alike for any refusal. Add a case when
-// a machine can grant and refuse that access under test.
+// arrange. What it does to `stat` is from knowledge, not measured. The cases use a parent at mode 000, and `isAbsent` answers
+// alike for any refusal (read-utils.test.ts), so such a project is not stale if `stat` is refused, and was never stale if it
+// is not (projects-list A6). Add a case when a machine can grant and refuse that access under test.
 import { appendFileSync, chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
@@ -1585,9 +1586,10 @@ test('a project behind a directory that cannot be entered keeps a normal row and
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {}, [gone]: {} } }))
   // Its sessions live on the agent's side, which the blocked directory does not touch
   const sessions = join(home, '.claude', 'projects', proj.replace(/[^a-zA-Z0-9]/g, '-'))
+  const sessionId = '6b3f2a10-4c5d-4e6f-8a7b-9c0d1e2f3a4b'
   mkdirSync(sessions, { recursive: true })
   writeFileSync(
-    join(sessions, 'a.jsonl'),
+    join(sessions, `${sessionId}.jsonl`),
     JSON.stringify({ type: 'user', timestamp: localDayOffset(1).toISOString(), message: { role: 'user', content: 'A question from the agent side' } }) + '\n'
   )
   const skill = join(home, '.claude', 'skills', 'alpha-skill')
@@ -1641,7 +1643,29 @@ test('a project behind a directory that cannot be entered keeps a normal row and
   await expect(win.locator('.pane-body .instructions-path')).toHaveText([join(proj, 'CLAUDE.md')])
   await expect(win.locator('.pane-body .md .none')).toHaveText('The file cannot be read (permissions or I/O error)')
   await tab('Sessions').click()
-  await expect(win.locator('.pane-body .card .se')).toHaveText([/A question from the agent side/])
+  const session = win.locator('.pane-body .card .se')
+  await expect(session).toHaveText([/A question from the agent side/])
+
+  // The sections with nothing to read stay as they are, in their usual words
+  await tab('Skills').click()
+  await expect(win.locator('.pane-body .sk .nm')).toHaveText(['alpha-skill'])
+  await tab('Subagents').click()
+  await expect(win.locator('.pane-body')).toContainText('No subagent definitions at project or global level')
+  await tab('MCP').click()
+  await expect(win.locator('.pane-body')).toContainText('This project has no .mcp.json; see the Agents page for global MCP')
+  await tab('Memory').click()
+  await expect(win.locator('.pane-body')).toContainText('No automatic memory in this project yet')
+  await tab('Artifacts').click()
+  await expect(win.locator('.pane-body')).toContainText('Nothing captured under the convention (not an eight-step project; not an error)')
+
+  // Its resume command carries no warning: session-view::US-001/AC-08's is for a directory that is gone
+  await tab('Sessions').click()
+  await session.click()
+  await win.locator('.pane-head .sact[data-act="resume"]').hover()
+  const tip = win.locator('[data-testid="session-tip"]')
+  await expect(tip.locator('.stip-cmd')).toHaveText(`cd '${proj}' && claude --resume ${sessionId}`)
+  await expect(tip.locator('.stip-warn')).toHaveCount(0)
+  await win.locator('.sback').click()
 
   // The deleted one is what it was
   await win.locator('.side input[type="checkbox"]').check()
