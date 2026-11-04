@@ -3702,7 +3702,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
 
   // The one expected handler error: reading vanish.md, removed after the scan on purpose (AC-07). Electron logs
   // every rejected IPC handler to stderr; anything else is still a failure.
-  expect(errors.filter((e) => !(e.includes("handler for 'agentshed:read-artifact'") && e.includes('vanish.md')))).toEqual([])
+  expect(errors.filter((e) => !(e.includes("handler for 'agentshed:read-artifact'") && e.includes(ERR.artifactUnreadable)))).toEqual([])
   await closeApp(app)
   rmSync(userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
