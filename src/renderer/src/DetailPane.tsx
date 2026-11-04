@@ -38,28 +38,26 @@ export function DetailPane({
   snap,
   path,
   initialTab,
-  onInitialTabSpent,
   onOpenSession
 }: {
   snap: Snapshot
   path: string
-  /** Leaving a session page for a project lands on the "Sessions" section (the prototype's rule for the back control,
-   * the owner's for a selection in the list); normally not passed, landing on the overview */
+  /** Read when this pane mounts. Leaving a session page for a project lands on the "Sessions" section (the prototype's
+   * rule for the back control, the owner's for a selection in the list); normally not passed, starting on the overview */
   initialTab?: Tab
-  /** The page `initialTab` was for is on screen, so no later page starts on it */
-  onInitialTabSpent: () => void
   /** Open a session page (ticket 04; since ticket 08 it can carry focusQ to go straight to a question) */
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
   const t = useDict()
   const entry = snap.projects.find((p) => p.path === path)
-
-  // Here rather than in the sectioned page, because what it draws may have no tabs (a stale project's note, the
-  // not-in-snapshot state) and that spends the landing too; and in an effect rather than during render, because a page
-  // that suspends renders again before it commits, and has to read the same tab each time (project-detail T1)
-  useEffect(() => {
-    if (initialTab) onInitialTabSpent()
-  }, [initialTab, onInitialTabSpent])
+  // Here rather than in the sectioned page, because what this pane draws may have no tabs (a stale project's note, the
+  // not-in-snapshot state), and those replace the sectioned page without changing or using what the next one shows. This
+  // pane stays mounted while a project is on the stage; a session page or another dimension unmounts it, and what comes
+  // after starts afresh (project-detail::REQ-004/AC-02)
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
+  // Beside the tab for the same reason, and above the tab switch so the selection survives moving between tabs: the overview
+  // is conditionally rendered, so state held inside it would be discarded on every switch (token-stats G11)
+  const [win, setWin] = useState<UsageWindow>('all')
 
   if (!entry) return <div className="empty">{t.detail.notInSnapshot}</div>
 
@@ -82,7 +80,7 @@ export function DetailPane({
   }
 
   return (
-    <DetailPaneBody entry={entry} snap={snap} initialTab={initialTab} onOpenSession={onOpenSession} />
+    <DetailPaneBody entry={entry} snap={snap} tab={tab} onTab={setTab} win={win} onWin={setWin} onOpenSession={onOpenSession} />
   )
 }
 
@@ -94,20 +92,22 @@ export function DetailPane({
 function DetailPaneBody({
   entry,
   snap,
-  initialTab,
+  tab,
+  onTab,
+  win,
+  onWin,
   onOpenSession
 }: {
   entry: ProjectEntry
   snap: Snapshot
-  initialTab?: Tab
+  tab: Tab
+  onTab: (tab: Tab) => void
+  win: UsageWindow
+  onWin: (win: UsageWindow) => void
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
   const now = useDisplayClock()
   const t = useDict()
-  const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
-  // Above the tab switch so the selection survives moving between tabs (G11). The overview is
-  // conditionally rendered, so state held inside it would be discarded on every switch.
-  const [win, setWin] = useState<UsageWindow>('all')
   const { span: trendSpan, onSpan: setTrendSpan } = useTrendSpan()
   const result = useProjectDetailQuery(entry.path)
   const queryClient = useQueryClient()
@@ -138,7 +138,7 @@ function DetailPaneBody({
               ['arts', t.detail.tabArts]
             ] as const
           ).map(([t, label]) => (
-            <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
+            <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => onTab(t)}>
               {label}
             </button>
           ))}
@@ -159,7 +159,7 @@ function DetailPaneBody({
                 snap={snap}
                 onOpenSession={onOpenSession}
                 window={win}
-                onWindow={setWin}
+                onWindow={onWin}
               />
             )}
             {tab === 'skills' && (

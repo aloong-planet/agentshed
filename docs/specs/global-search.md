@@ -90,9 +90,10 @@ opened, or go on into its project, so that looking through hits does not mean se
   same keyword, results, sort and scroll position. The results are the current ones for that keyword
   (global-search::REQ-004).
 - global-search::US-003/AC-03: "Go to <project> · Sessions" shows that project's detail on its Sessions
-  tab, once, like the back control: the next page drawn starts on Overview
+  tab, once, like the back control: leaving by the rail or a side card's project count and coming back starts on Overview
   ([project-detail::REQ-004/AC-02](project-detail.md)). For a stale project the exit reads "Go to <project>",
-  without "· Sessions", and shows the project's stale note page, which has no Sessions tab.
+  without "· Sessions", and shows the project's stale note page, which has no Sessions tab; the next page with tabs opens on
+  Sessions.
 - global-search::US-003/AC-04: Only the session opened directly from a hit has the two exits. A fork
   parent reached through that session's banner, a session opened after going into the project, and any
   session opened inside a project show the single back control ("Back to <project> · Sessions"), as
