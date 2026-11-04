@@ -16,7 +16,7 @@
 // in rest on a state the app does not build itself (a pinned mtime) or one in which the page fails as a whole
 // (no read permission). The list's fallback is driven through a parse runner that removes the file. A case is
 // due if the session's own call stops sharing that expression.
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -2068,6 +2068,22 @@ describe('sessionQuestions (the session page service)', () => {
     await expect(e.sessionQuestions(roots(), cl)).rejects.toSatisfy(
       (err: unknown) => decodeAppError(err)?.code === ERR.sessionFileUnreadable
     )
+  })
+
+  // Codex's own null (a rollout whose meta reads and whose parse then does not) needs the file to change between two reads a
+  // moment apart, which no public path stages; it is the same line as this one, read rather than driven
+  it.skipIf(process.getuid?.() === 0)('changed since the index and its file cannot be read: says the file cannot be read, not that it failed to parse (session-view P6)', async () => {
+    const cl = mkClaudeFile('locked.jsonl', [userLine('q'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
+    const e = engine()
+    await e.build(roots(), [proj])
+    appendFileSync(cl, userLine('second') + '\n')
+    chmodSync(cl, 0o000)
+    try {
+      const code = await e.sessionQuestions(roots(), cl).catch((err: unknown) => decodeAppError(err)?.code)
+      expect(code).toBe(ERR.sessionFileUnreadable)
+    } finally {
+      chmodSync(cl, 0o644)
+    }
   })
 
   it('a rebuild whose cache write fails still answers: the index is in memory, and only the next launch rebuilds again', async () => {

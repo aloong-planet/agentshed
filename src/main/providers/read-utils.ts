@@ -1,13 +1,27 @@
 // Small shared read helpers for providers: truncated reading and line-level frontmatter field extraction.
 // Four places used to hold their own copy (review-code refactor items #2/#3); the truncation rule now
 // changes in one place only.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import type { CappedText, InstructionFile } from '@shared/domain'
 
 export const MAX_TEXT_BYTES = 200_000
 
 function capped(raw: string, max: number): CappedText {
   return raw.length > max ? { text: raw.slice(0, max), truncated: true } : { text: raw, truncated: false }
+}
+
+/**
+ * Whether a path is really not there. existsSync also answers false for a path it is not allowed to look at, which would
+ * make a file behind a directory that cannot be entered read as no file at all.
+ */
+export function isAbsent(path: string): boolean {
+  try {
+    statSync(path)
+    return false
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    return code === 'ENOENT' || code === 'ENOTDIR'
+  }
 }
 
 /** Read text and truncate at a cap; null when the file is missing or unreadable */
@@ -31,7 +45,7 @@ export function readCapped(file: string, max = MAX_TEXT_BYTES): CappedText | nul
  * than read as absent (agents-overview::REQ-004 failure modes; project-detail::REQ-002).
  */
 export function readInstructionFile(file: string, max = MAX_TEXT_BYTES): InstructionFile | null {
-  if (!existsSync(file)) return null
+  if (isAbsent(file)) return null
   try {
     return { file, content: capped(readFileSync(file, 'utf8'), max) }
   } catch {

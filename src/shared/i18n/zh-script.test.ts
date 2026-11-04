@@ -27,7 +27,8 @@ const NOT_HAN: Record<string, { value: string; why: string }> = {
   'detail.tabMcp': { value: 'MCP', why: 'protocol name' },
   'turn.typeSeparator': { value: '、', why: 'the Chinese enumeration comma — punctuation, not a Han character' },
   'session.parentTitle': { value: '《2》', why: 'only the Chinese title marks around the title' },
-  'token.byModelIn': { value: '2 · 2', why: 'only a separator between two interpolated values' }
+  'token.byModelIn': { value: '2 · 2', why: 'only a separator between two interpolated values' },
+  'agents.landingFailed': { value: '2 → 2(2):2', why: 'only the punctuation between four interpolated parts' }
 }
 
 /**

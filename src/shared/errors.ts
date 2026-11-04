@@ -47,7 +47,8 @@ export const ERR = {
   sessionFileUnreadable: 'session-file-unreadable',
   /** The session's first-line metadata cannot be read, so the index cannot be rebuilt */
   sessionMetaUnreadable: 'session-meta-unreadable',
-  /** The session file failed to parse */
+  /** An Antigravity conversation its reader cannot read in the supported format, a database that cannot be opened
+   * included: that read does not tell the two apart */
   sessionParseFailed: 'session-parse-failed',
   /** Preference storage is not ready */
   prefsStoreNotReady: 'prefs-store-not-ready',
@@ -84,20 +85,22 @@ export const ERR = {
   skillCopyMissing: 'skill-copy-missing',
   /** The target already has a project-level skill of the same name; blocked rather than overwritten */
   skillConflict: 'skill-conflict',
-  /** The copy failed and was cleaned up (params.detail is the underlying error string) */
+  /** The copy failed and was cleaned up */
   skillCopyFailed: 'skill-copy-failed',
-  /** The delete failed (params.detail) */
+  /** The delete failed, perhaps part way: a directory's contents go before it (params.path is the copy) */
   skillDeleteFailed: 'skill-delete-failed',
 
   // ── Failures on data fields (ticket 07): not thrown errors, but probe and parse results sent down
   // with the snapshot ──
   /** The agent registry's projects key is missing or not an object */
   registryProjectsInvalid: 'registry-projects-invalid',
-  /** The registry failed to parse (params.detail) */
+  /** The registry exists and its file cannot be read: a permission or IO error (params.path is the file) */
+  registryUnreadable: 'registry-unreadable',
+  /** The registry was read and its contents are corrupt (params.path is the file) */
   registryParseFailed: 'registry-parse-failed',
   /** The subagent definition file cannot be read (a permission or IO error) */
   subagentUnreadable: 'subagent-unreadable',
-  /** The subagent's toml failed to parse (params.detail) */
+  /** The subagent's toml failed to parse */
   subagentTomlFailed: 'subagent-toml-failed',
   /** The subagent has no valid name field (Codex does not load this file) */
   subagentMissingName: 'subagent-missing-name'

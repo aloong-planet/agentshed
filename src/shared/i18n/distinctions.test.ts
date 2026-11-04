@@ -29,7 +29,7 @@ const MUST_DIFFER: Array<{ why: string; a: (d: Locale) => string; b: (d: Locale)
   },
   {
     why: 'an uninstall failure and a skill-delete failure are separate error codes; rendering them identically defeats the structured-error protocol (ADR-0015)',
-    a: (d) => d.detail.uninstallFailed('E'),
+    a: (d) => d.detail.uninstallFailed('E', 'E'),
     b: (d) => d.errors.skillDeleteFailed('E')
   },
   {

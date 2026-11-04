@@ -5,6 +5,7 @@ import { readFileSync, existsSync, readdirSync, statSync, openSync, readSync, cl
 import { join } from 'node:path'
 import type { RegistryResult } from './claude'
 import { isColdRollout, isRolloutName, readFirstLineCold } from './cold-rollout'
+import { isAbsent } from './read-utils'
 import { ERR } from '@shared/errors'
 
 const PROJECT_HEADER = /^\s*\[projects\."(.+)"\]\s*$/
@@ -154,7 +155,8 @@ function readHead(file: string): CodexSessionMeta | null {
 export function readCodexRegistry(codexHome: string): RegistryResult {
   if (!existsSync(codexHome)) return { detected: false, paths: [] }
   const configFile = join(codexHome, 'config.toml')
-  if (!existsSync(configFile)) return { detected: true, paths: [] }
+  if (isAbsent(configFile)) return { detected: true, paths: [] }
+  // Section headers are looked for line by line and nothing is parsed, so the one failure here is the read
   try {
     const paths: string[] = []
     for (const line of readFileSync(configFile, 'utf8').split('\n')) {
@@ -162,11 +164,7 @@ export function readCodexRegistry(codexHome: string): RegistryResult {
       if (m) paths.push(m[1])
     }
     return { detected: true, paths }
-  } catch (err) {
-    return {
-      detected: true,
-      paths: [],
-      error: { code: ERR.registryParseFailed, params: { detail: String(err) } }
-    }
+  } catch {
+    return { detected: true, paths: [], error: { code: ERR.registryUnreadable, params: { path: configFile } } }
   }
 }

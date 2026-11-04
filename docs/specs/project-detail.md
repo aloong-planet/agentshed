@@ -225,7 +225,7 @@ Applies to: the project detail page.
 
 Failure modes and boundaries: a project registered only on Antigravity opens with the ANTIGRAVITY chip
 alone and its own sessions; the MCP section's Antigravity group appears on a project's page only when it
-has servers, since it repeats global facts (settled 2026-10-29); an instruction file that cannot be read shows the read error under its
+has servers, since it repeats global facts (settled 2026-10-29); an instruction file that cannot be read, one inside a directory that cannot be entered included, shows the read error under its
 path, the other entry unaffected — in the "None" line's form under the path heading, the same declared
 prototype exemption as the agents page's (agents-overview::REQ-004 failure modes); the Instructions
 previews keep R3's link destinations.

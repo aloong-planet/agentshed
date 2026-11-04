@@ -808,11 +808,13 @@ export class TokenEngine {
         const meta = readCodexSessionMeta(file)
         if (!meta) throw appError(ERR.sessionMetaUnreadable)
         const entry = await this.codexEntry(file, meta.cwd, meta, readCodexIndex(roots.codexHome))
-        if (!entry) throw appError(ERR.sessionParseFailed)
+        if (!entry) throw appError(ERR.sessionFileUnreadable)
         this.cache.files[file] = entry
         fresh = entry.agg
       }
-      if (!fresh) throw appError(ERR.sessionParseFailed)
+      // A parse gives null only when the file cannot be read: a bad line is skipped, and a format it does not know is
+      // an agg marked unreadable, below
+      if (!fresh) throw appError(ERR.sessionFileUnreadable)
       agg = fresh
       // A Codex entry was stored above, with the state its next resume starts from
       if (fresh.kind !== 'codex') this.cache.files[file] = { sig, agg }

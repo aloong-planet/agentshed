@@ -1,7 +1,7 @@
 // Ticket 07: the Agents global layer — global skills (merged, symlinks), plugins, global MCP (three
 // sources), and read-only instructions.
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
-import { join } from 'node:path'
+import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { scan } from './scan'
@@ -260,6 +260,18 @@ describe('the Instructions section (agents-overview::REQ-004)', () => {
       { file: join(dir, AGY_ROOT), content: null },
       { file: join(dir, AGY_CONFIG), content: { text: '# Antigravity instructions\n', truncated: false } }
     ])
+  })
+
+  it.skipIf(process.getuid?.() === 0)('a file inside a directory that cannot be entered keeps its place and its path too, rather than reading as absent', async () => {
+    write(CODEX, '# Codex global\n')
+    const root = dirname(join(dir, CODEX))
+    chmodSync(root, 0o000)
+    try {
+      const snap = await scan(roots(), { now: () => 1 })
+      expect(snap.global.agentsMd).toEqual([{ file: join(dir, CODEX), content: null }])
+    } finally {
+      chmodSync(root, 0o755)
+    }
   })
 
   it('an oversized file is truncated (B5)', async () => {
