@@ -5,7 +5,7 @@ import type {} from '../src/renderer/src/env'
 // "packaged"). The post-update line is driven by seeding the version the previous run recorded in the isolated
 // userData (Testing Decisions). A later automatic check is reached through the real wake path: the main
 // process's clock is moved past the 24-hour period and the system's resume event is emitted.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
@@ -70,13 +70,13 @@ async function launchCheckDone(win: Page, f: Fixture): Promise<void> {
   await expect.poll(() => win.evaluate(() => window.agentshed.getUpdateState().then((s) => s.phase))).toBe('idle')
 }
 /** A later automatic check through the real wake path (app-update::REQ-006/AC-02) */
-async function wakeAfterADay(app: ElectronApplication): Promise<void> {
-  await app.evaluate(({ powerMonitor }) => {
+async function wakeAfterADay(app: ElectronApplication, hours = 25): Promise<void> {
+  await app.evaluate(({ powerMonitor }, ahead) => {
     const real = Date.now
-    Date.now = () => real() + 25 * 60 * 60 * 1000
+    Date.now = () => real() + ahead * 60 * 60 * 1000
     powerMonitor.emit('resume')
     Date.now = real
-  })
+  }, hours)
 }
 
 test('settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02)', async () => {
@@ -449,6 +449,65 @@ test.describe('the automatic-checks switch (US-002, REQ-003/AC-03)', () => {
       cleanup(f)
     }
   })
+})
+
+test('a preference file that cannot be read: no automatic check, a check asked for runs, a save fails and leaves the file, and the next launch reads it (#367)', async () => {
+  test.skip(process.getuid?.() === 0, 'a mode does not hold back root')
+  const f = fixture()
+  script(f, { check: 'upToDate' })
+  const file = join(f.userData, 'prefs.json')
+  // Stored on, so the switch reading off below comes from the failure and not from the file
+  const saved = JSON.stringify({ theme: 'blue', language: 'zh', mode: 'dark', trendSpan: 90, autoCheckUpdates: true })
+  writeFileSync(file, saved)
+  chmodSync(file, 0o000)
+  let app = await launch(f)
+  try {
+    let win = await app.firstWindow()
+    await openSettings(win)
+    // The defaults: the system's language and the purple theme, with the switch off and saying so
+    await expect(win.locator('html')).toHaveAttribute('lang', 'en')
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'purple')
+    await expect(option(win, 'off')).toHaveAttribute('aria-checked', 'true')
+    // Give a launch check every chance to happen, and a later one too
+    await win.waitForTimeout(1500)
+    await wakeAfterADay(app)
+    await win.waitForTimeout(500)
+    expect(requests(f)).toEqual([])
+
+    // A check the user asks for runs
+    await action(win).click()
+    await expect(line(win)).toHaveText('You’re up to date')
+    expect(requests(f)).toEqual(['check'])
+
+    // A save fails with the existing toast, and the choice is in effect
+    await win.locator('[data-theme-option="amber"]').click()
+    await expect(win.locator('.toast.err')).toHaveText('Couldn’t save the theme. It stays in effect until the app restarts, then goes back.')
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'amber')
+
+    // Turning the switch on is the user asking: it fails to save, and automatic checks then run this run
+    await option(win, 'on').click()
+    await expect(win.locator('.toast.err').filter({ hasText: 'automatic update check' })).toHaveText('Couldn’t save the automatic update check setting. It stays in effect until the app restarts, then goes back.')
+    await expect(option(win, 'on')).toHaveAttribute('aria-checked', 'true')
+    await wakeAfterADay(app, 50)
+    await expect.poll(() => requests(f)).toEqual(['check', 'check'])
+
+    await closeApp(app)
+    chmodSync(file, 0o644)
+    expect(readFileSync(file, 'utf8')).toBe(saved)
+
+    // Readable again: the next launch uses it, and the launch check it allows runs
+    app = await launch(f)
+    win = await app.firstWindow()
+    await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'blue')
+    await win.locator('.ri.set').click()
+    await expect(win.locator('[data-mode-option="dark"]')).toHaveAttribute('aria-checked', 'true')
+    await expect.poll(() => requests(f)).toEqual(['check', 'check', 'check'])
+  } finally {
+    await closeApp(app)
+    chmodSync(file, 0o644)
+    cleanup(f)
+  }
 })
 
 test('the first launch after an update restores the saved display like any other launch (G4)', async () => {

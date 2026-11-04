@@ -43,8 +43,10 @@ a retried "does not appear" check cannot prove absence.
 ### Product boundaries
 
 - Agentshed's own code makes no outbound request except the update check and the download of the update
-  it finds; with automatic checks off nothing starts unless the user asks, and a feature that needs the
-  network needs its own decision (ADR-0032).
+  it finds; with automatic checks off, or a preference file that cannot be read, nothing starts unless the
+  user asks, and a feature that needs the network needs its own decision (ADR-0032).
+- A file holding what the user cannot get back, the usage archive and the preference file so far, is never
+  written over when it exists and could not be read at launch (ADR-0039, i18n Preference persistence).
 - A record that must describe the installed copy alone is never read or written by a development run,
   because `agentshed` and `Agentshed` resolve to one userData directory on a case-insensitive volume
   (app-update spec, Implementation Decisions).
