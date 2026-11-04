@@ -235,6 +235,16 @@ export function App(): JSX.Element {
       setTrendSpan(next.trendSpan)
       setAutoCheckUpdates(next.autoCheckUpdates)
     })
+    // The usage archive's file failed (token-stats C4). The main process answers true once in a run, so asking is safe from
+    // anywhere: at mount for a failure before this window subscribed, with each snapshot for one after, and on focus for
+    // one that came with no focus, since a toast nobody sees would be the only one this run
+    const tellArchiveFailure = (): void => {
+      if (!document.hasFocus()) return
+      void window.agentshed.takeArchiveNotice().then((due) => {
+        if (due) toast('err', dictOf(langRef.current).toast.archiveFileFailed)
+      }).catch(() => {})
+    }
+    window.addEventListener('focus', tellArchiveFailure)
     let liveSnapshot = 0
     let liveStatus = false
     const offStatus = window.agentshed.onStartupStatus((status) => { liveStatus = true; setStartup(status) })
@@ -243,7 +253,9 @@ export function App(): JSX.Element {
       setStartup('ready')
       setSnap(s)
       invalidateOnSnapshot(queryClient)
+      tellArchiveFailure()
     })
+    tellArchiveFailure()
     async function restore(): Promise<void> {
       const generation = liveSnapshot
       try {
@@ -281,6 +293,7 @@ export function App(): JSX.Element {
     })
     return () => {
       alive = false
+      window.removeEventListener('focus', tellArchiveFailure)
       off()
       offStatus()
       offSettings()

@@ -63,7 +63,8 @@ export const en: Locale = {
     saveThemeFailed: 'Couldn’t save the theme. It stays in effect until the app restarts, then goes back.',
     saveModeFailed: 'Couldn’t save the appearance mode. It stays in effect until the app restarts, then goes back.',
     saveLanguageFailed: 'Couldn’t save the language. It stays in effect until the app restarts, then goes back.',
-    saveAutoCheckUpdatesFailed: 'Couldn’t save the automatic update check setting. It stays in effect until the app restarts, then goes back.'
+    saveAutoCheckUpdatesFailed: 'Couldn’t save the automatic update check setting. It stays in effect until the app restarts, then goes back.',
+    archiveFileFailed: 'Usage history can’t be saved right now because its file in the settings directory can’t be read or written.'
   },
 
   update: {

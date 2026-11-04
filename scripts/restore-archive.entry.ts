@@ -69,6 +69,12 @@ function main(): void {
     process.exit(2)
   }
 
+  // Nor is one it cannot read (spec C8): what it holds is unknown, and the dry run would report every day as empty
+  if (archive.isUnreadable()) {
+    console.error(`${join(userData, 'usage-archive.json')} cannot be read: nothing can be restored into it`)
+    process.exit(2)
+  }
+
   // rowsFromCacheFile refuses a snapshot of another cache structure version (spec C16)
   const all = rowsFromCacheFile(snapshot)
   const rows = all.filter((r) => r.side === (side as AgentSide) && r.day !== '' && r.day >= from && r.day <= to)

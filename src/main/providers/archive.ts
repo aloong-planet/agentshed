@@ -8,13 +8,17 @@
 // rose, or when it fell under a **different accounting stamp** (our rules changed); under the same stamp
 // a lower figure means the data shrank and the archive's value is retained. Whatever an accepted change
 // replaces is kept as a superseded value. The scan's own day is rewritten freely.
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+//
+// A file that cannot be written or read stops no scan (ADR-0039): the figures go out from memory, or from the live rows
+// alone, and the file stays as it is until it can be used again.
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 // The row type lives in the domain rather than here: since ADR-0025 it is also what the renderer
 // receives, so persistence no longer owns it.
 import type { AgentSide, UsageRow } from '@shared/domain'
 import { localDay } from '@shared/format'
 import { AGENT_SIDES } from '@shared/validate'
+import { writeFileAtomicSync } from './atomic-write'
 export type { UsageRow }
 
 /** v2 (2026-09-10): stamps, observed values and superseded values joined the rows (ADR-0026). A v1 file
@@ -73,6 +77,8 @@ export interface MergeResult {
   rows: UsageRow[]
   /** Days the archive holds rows for and no side is live on (the interface hatches these, spec C9) */
   archivedOnlyDays: string[]
+  /** The file could not be written, or could not be read (spec C4, C8): the caller has the user told */
+  fileFailed: boolean
 }
 
 function keyOf(r: UsageRow): string {
@@ -113,6 +119,9 @@ export class UsageArchive {
   /** The file is of a newer format than this build writes (token-stats::REQ-006): it is not this build's to read or
    * write, until the file on disk changes */
   private newer = false
+  /** The file exists and could not be read (spec C8): what it holds is unknown, so nothing may replace it. Tried again on
+   * every merge, since the change that cures this, a file's mode, does not move its signature */
+  private unreadable = false
   /** The on-disk signature (mtime:size) this instance last read or wrote; another writer moves it */
   private diskSig: string | null = null
 
@@ -132,8 +141,10 @@ export class UsageArchive {
     try {
       const st = statSync(this.file)
       return `${st.mtimeMs}:${st.size}`
-    } catch {
-      return null
+    } catch (error) {
+      // A stat the directory refuses says nothing about the file, and taking it for a deleted file would give up the rows
+      // this instance holds
+      return (error as NodeJS.ErrnoException).code === 'ENOENT' ? null : this.diskSig
     }
   }
 
@@ -143,23 +154,40 @@ export class UsageArchive {
    * overwritten by the next scan), so a merge or restore first re-reads the file if anyone else has
    * written it since this instance last did. Two writes inside one mtime tick with the same byte size
    * would still be missed; a restore changes the size, so that window is theoretical.
+   *
+   * A failed write moves neither the file nor `diskSig`, so what the failed merge moved stays in memory for the next
+   * write to carry. Another writer's change does move the file, and what only memory held then goes (spec C4).
    */
   private reloadIfChanged(): void {
-    if (this.fileSig() === this.diskSig) return
+    if (!this.unreadable && this.fileSig() === this.diskSig) return
     this.map = new Map()
     this.stamps = new Map()
     this.observed = new Map()
     this.supersededList = []
     this.foreign = []
     this.newer = false
+    this.unreadable = false
     this.load()
   }
 
   private load(): void {
     this.diskSig = this.fileSig()
-    if (!existsSync(this.file)) return
+    let text: string
     try {
-      const raw: unknown = JSON.parse(readFileSync(this.file, 'utf8'))
+      text = readFileSync(this.file, 'utf8')
+    } catch (error) {
+      // No file is a fresh start, and a directory at the path holds no history: only a write that will fail. Anything else
+      // is a file this build cannot see into, which is not a corrupt one: degrading it to empty would overwrite its
+      // history at the next merge
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'EISDIR') {
+        this.unreadable = true
+        console.error('[usage-archive] read failed:', error)
+      }
+      return
+    }
+    try {
+      const raw: unknown = JSON.parse(text)
       // Read loosely: the file may be a v1 archive (rows only) or a v2 one; anything else is corrupt
       const shape = raw as {
         version?: number
@@ -206,7 +234,7 @@ export class UsageArchive {
    */
   merge(live: UsageRow[], anchorMs: number, opts: MergeOptions = {}): MergeResult {
     this.reloadIfChanged()
-    if (this.newer) return { rows: live.filter((r) => r.day), archivedOnlyDays: [] }
+    if (this.newer || this.unreadable) return { rows: live.filter((r) => r.day), archivedOnlyDays: [], fileFailed: this.unreadable }
     // Liveness is a property of a (day, side) pair (spec C5): only pairs this scan produced rows for are
     // replaced; a side with no rows on a day keeps its archived rows whatever the other sides did that day
     const livePairs = new Map<string, UsageRow[]>()
@@ -253,12 +281,19 @@ export class UsageArchive {
       this.stamps.set(k, this.stamp)
       this.observed.delete(k)
     }
-    this.persist()
+    let fileFailed = false
+    try {
+      this.persist()
+    } catch (error) {
+      // The file stays the last good archive and the next merge writes again (spec C4)
+      console.error('[usage-archive] save failed:', error)
+      fileFailed = true
+    }
     const liveDays = new Set<string>()
     for (const rows of livePairs.values()) liveDays.add(rows[0].day)
     const archivedOnlyDays = new Set<string>()
     for (const r of this.map.values()) if (!liveDays.has(r.day)) archivedOnlyDays.add(r.day)
-    return { rows: this.rows(), archivedOnlyDays: [...archivedOnlyDays].sort() }
+    return { rows: this.rows(), archivedOnlyDays: [...archivedOnlyDays].sort(), fileFailed }
   }
 
   /**
@@ -270,6 +305,7 @@ export class UsageArchive {
   restore(rows: UsageRow[], anchorMs: number): { pairs: number; skippedOwnDay: number } {
     this.reloadIfChanged()
     if (this.newer) throw new Error(`${this.file} is of a newer format than this build writes; nothing was written`)
+    if (this.unreadable) throw new Error(`${this.file} cannot be read; nothing was written`)
     const ownDay = localDay(anchorMs)
     const pairs = new Map<string, UsageRow[]>()
     for (const r of rows) {
@@ -313,6 +349,12 @@ export class UsageArchive {
     return this.newer
   }
 
+  /** Whether the file on disk exists and cannot be read (spec C8) */
+  isUnreadable(): boolean {
+    this.reloadIfChanged()
+    return this.unreadable
+  }
+
   /** The archive's current rows, every pair */
   rows(): UsageRow[] {
     return [...this.map.values()]
@@ -324,7 +366,6 @@ export class UsageArchive {
   }
 
   private persist(): void {
-    mkdirSync(this.dir, { recursive: true })
     const tmp = join(this.dir, `.usage-archive.w-${process.pid}`)
     const payload: ArchiveShape = {
       version: ARCHIVE_VERSION,
@@ -333,8 +374,7 @@ export class UsageArchive {
       observed: Object.fromEntries(this.observed),
       superseded: this.supersededList
     }
-    writeFileSync(tmp, JSON.stringify(payload))
-    renameSync(tmp, this.file)
+    writeFileAtomicSync(this.file, tmp, JSON.stringify(payload))
     this.diskSig = this.fileSig()
   }
 }

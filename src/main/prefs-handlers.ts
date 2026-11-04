@@ -85,7 +85,7 @@ export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
       // renderer would have optimistically ticked the chosen mode
       // while the UI did not change — the notice says it failed and the UI does not move either, a double
       // frustration. In the current order a failure loses only the persistence:
-      // it works for this session and reverts to the on-disk value after a restart. Pinned by
+      // it stays in effect until the app restarts, then goes back to the on-disk value. Pinned by
       // prefs-handlers.test.ts.
       applyAppearanceMode(deps.theme, mode)
       return store.setMode(mode)
