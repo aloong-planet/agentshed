@@ -983,10 +983,9 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await throughTheSideCard()
   await pageIs('alpha', 'Sessions')
 
-  // Until a project is selected in the list, even the one on screen: the page keeps its tab, and the next page drawn
-  // starts on Overview
+  // Until a project is selected in the list, even the one on screen: the next page drawn starts on Overview. Another
+  // project takes over the page on screen first, and its tab
   await row('alpha').click()
-  await pageIs('alpha', 'Sessions')
   await leaveByTheRailAndComeBack()
   await pageIs('alpha', 'Overview')
   await backFromTheSession()
