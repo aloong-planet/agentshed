@@ -47,7 +47,7 @@ is read-only.
 7. As a user, I want each side's plugins grouped separately with no cross-side merging by name, so
    that I know which side a plugin is installed on (the sides' marketplaces and package formats
    are independent).
-8. As a user, I want anomalies such as a cleaned-up install directory, a lost owning project, or a
+8. As a user, I want anomalies such as a cleaned-up install directory, a stale owning project, or a
    missing individual skill directory labelled truthfully (greyed out / a banner) rather than
    disappearing or crashing, so that I can decide what to clean up.
 
@@ -221,7 +221,7 @@ Settled during implementation (2026-10-29):
 
 ## Implementation Decisions
 
-- **Types**: an installation record array (with scope / owning project / lost marker) + layered
+- **Types**: an installation record array (with scope / owning project / stale marker) + layered
   enablement (the user-layer rule for the global page / `enabledFrom` attribution for the detail page)
   + four kinds of bundled component summary. A bundled skill entry extends to name + description +
   **package stats (file count / bytes) + readability (a missing package root or subdirectory means
