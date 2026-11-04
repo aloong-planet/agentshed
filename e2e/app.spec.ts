@@ -3802,7 +3802,10 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await longCell.click()
   const drawerMeta = win.locator('.file-drawer .d-meta')
   await expect(drawerMeta).toContainText(longPath)
-  expect(await drawerMeta.evaluate((el) => el.scrollWidth <= el.clientWidth), 'the subtitle does not clip a long path').toBe(true)
+  expect(
+    await drawerMeta.evaluate((el) => el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight),
+    'the subtitle clips a long path neither across nor down'
+  ).toBe(true)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // A nested file past the read cap ends in the truncation footnote (C7)
   await tdd.locator('.files button', { hasText: 'references/nested/big-data.txt' }).click()
