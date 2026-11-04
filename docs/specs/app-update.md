@@ -55,7 +55,8 @@ that it makes no request unless I ask for one.
   request unless the user asks for a manual check. The one exception is the download already under way
   that app-update::US-002/AC-03 lets finish.
 - app-update::US-002/AC-02: The switch is on in a fresh installation. Its value survives a restart. An
-  unreadable or invalid stored value falls back to on without disturbing any other preference.
+  invalid stored value, or a file that does not parse, falls back to on without disturbing any other
+  preference. A preference file that cannot be read is the exception: Failure A3a.
 - app-update::US-002/AC-03: The switch governs automatic checks only. Turning it off neither cancels
   a download already under way nor discards an update already ready, which still installs on quit or
   on a click.
@@ -247,6 +248,10 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   fails silently (app-update::REQ-002/AC-01). There is no faster retry. The next tick or a manual
   check tries again (ADR-0032 consequence: those users see no update until a check gets through).
 - A3 Launch with the switch off: no check at all (app-update::US-002/AC-01).
+- A3a Launch with a preference file that exists and cannot be read: the app cannot know the user allowed
+  automatic checks, so the switch reads off and none runs, at launch, on the timer or on waking. A manual
+  check still runs. Turning the switch on is the user asking: its save fails with the existing notice, it is
+  in effect until a restart, and the next tick checks. The next launch that can read the file uses what it holds.
 - A4 The app is left open for days: one check per 24 hours (app-update::REQ-006/AC-01). Sleep through
   a tick: at most one check on waking (app-update::REQ-006/AC-02).
 - A5 The switch is turned on mid-session: no immediate check (app-update::US-002/AC-04).
@@ -357,6 +362,9 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   (token-stats). The update adds no migration of its own.
 - G5 A second instance launched while an update is ready exits as before (single-instance lock). The
   running instance keeps the ready update.
+- G5a A second launch with the first instance running and the settings directory since unwritable: the first
+  is told to take focus as under G5 and keeps any ready update, and the second shows the launch dialog and exits
+  non-zero ([i18n](i18n.md), The launch dialog, which says what focus does in each way of launching).
 - G6 Toasts: the update toasts use the app's existing toast and stack with any other toast.
 
 **Content brought in from outside**

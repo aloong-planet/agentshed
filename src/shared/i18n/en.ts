@@ -47,6 +47,11 @@ export const en: Locale = {
     updatesDevFoot: 'Updates are not checked in a development run (the app is not packaged).'
   },
 
+  launch: {
+    cannotWriteTitle: 'Agentshed can’t start',
+    cannotWriteMessage: (dir) => `Agentshed can’t write to its settings directory, which may be read-only or on a full disk:\n\n${dir}`
+  },
+
   menu: {
     about: 'About Agentshed', checkForUpdates: 'Check for Updates…', hide: 'Hide Agentshed', hideOthers: 'Hide Others',
     unhide: 'Show All', quit: 'Quit Agentshed',

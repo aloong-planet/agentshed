@@ -1,7 +1,7 @@
 // appearance ticket 01: PrefsStore — the app's own prefs.json, defaulting to purple, falling back on
 // corruption or invalid values, written atomically.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { decodeAppError } from '@shared/errors'
@@ -221,6 +221,92 @@ describe('PrefsStore', () => {
   it.each(['false', 0, null, 'off'])('an invalid stored switch value %s falls back to on, alone (app-update::US-002/AC-02)', (autoCheckUpdates) => {
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'en', mode: 'dark', trendSpan: 90, autoCheckUpdates }))
     expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'en', mode: 'dark', trendSpan: 90, autoCheckUpdates: true })
+  })
+
+  // A preference file that exists and cannot be read (#367): before this, a read failure counted as a corrupt file, so
+  // the next save wrote the defaults over the user's other choices
+  describe.skipIf(process.getuid?.() === 0)('a file that cannot be read', () => {
+    const SAVED = JSON.stringify({ theme: 'blue', language: 'zh', mode: 'dark', trendSpan: 90, autoCheckUpdates: true }, null, 2)
+    let file: string
+    beforeEach(() => {
+      file = join(dir, 'prefs.json')
+      writeFileSync(file, SAVED)
+      chmodSync(file, 0o000)
+    })
+    const codeOf = (fn: () => unknown): string | undefined => {
+      try {
+        fn()
+      } catch (e) {
+        return decodeAppError(e)?.code
+      }
+      return undefined
+    }
+    const bytes = (): string => {
+      chmodSync(file, 0o644)
+      return readFileSync(file, 'utf8')
+    }
+
+    it.each([
+      ['theme', (s: PrefsStore) => s.setTheme('amber'), { theme: 'amber' }],
+      ['language', (s: PrefsStore) => s.setLanguage('en'), { language: 'en' }],
+      ['mode', (s: PrefsStore) => s.setMode('light'), { mode: 'light' }],
+      ['trend span', (s: PrefsStore) => s.setTrendSpan(60), { trendSpan: 60 }],
+      ['automatic checks', (s: PrefsStore) => s.setAutoCheckUpdates(true), { autoCheckUpdates: true }]
+    ])('saving the %s fails with the code, keeps the file as it was and holds the choice in memory', (_name, save, held) => {
+      const store = new PrefsStore(dir)
+      expect(codeOf(() => save(store))).toBe('prefs-write-failed')
+      expect(store.get()).toMatchObject(held)
+      expect(readdirSync(dir)).toEqual(['prefs.json'])
+      expect(bytes()).toBe(SAVED)
+    })
+
+    it('reads as the defaults with automatic checks off: the app cannot know the user allowed them', () => {
+      expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'system', mode: 'system', trendSpan: 30, autoCheckUpdates: false })
+    })
+
+    it('turning automatic checks on fails to save and is in effect for this run: the user asked for them', () => {
+      const store = new PrefsStore(dir)
+      expect(codeOf(() => store.setAutoCheckUpdates(true))).toBe('prefs-write-failed')
+      expect(store.get().autoCheckUpdates).toBe(true)
+    })
+
+    it('once the file can be read, the next launch uses it, and the choice that failed to save is gone', () => {
+      expect(codeOf(() => new PrefsStore(dir).setTheme('amber'))).toBe('prefs-write-failed')
+      chmodSync(file, 0o644)
+      expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'zh', mode: 'dark', trendSpan: 90, autoCheckUpdates: true })
+    })
+
+    it('a file that becomes readable during the run stays blocked until the next launch: memory holds the defaults', () => {
+      const store = new PrefsStore(dir)
+      chmodSync(file, 0o644)
+      expect(codeOf(() => store.setTheme('amber'))).toBe('prefs-write-failed')
+      expect(readFileSync(file, 'utf8')).toBe(SAVED)
+    })
+
+    it('a directory at the file\'s path fails every save and reads as unreadable', () => {
+      rmSync(file)
+      mkdirSync(file)
+      const store = new PrefsStore(dir)
+      expect(store.get().autoCheckUpdates).toBe(false)
+      expect(codeOf(() => store.setTheme('amber'))).toBe('prefs-write-failed')
+    })
+  })
+
+  it.skipIf(process.getuid?.() === 0)('a file that stops being readable after launch is replaced from memory, which holds the whole record (token-stats C23\'s rule)', () => {
+    const file = join(dir, 'prefs.json')
+    writeFileSync(file, JSON.stringify({ theme: 'blue', language: 'zh', mode: 'dark', trendSpan: 90, autoCheckUpdates: false }))
+    const store = new PrefsStore(dir)
+    chmodSync(file, 0o000)
+    store.setTheme('amber')
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'zh', mode: 'dark', trendSpan: 90, autoCheckUpdates: false })
+  })
+
+  it.each(['not-json', 'null'])('a file that reads and does not parse (%s) still degrades, keeps automatic checks on and is replaced on save', (content) => {
+    writeFileSync(join(dir, 'prefs.json'), content)
+    const store = new PrefsStore(dir)
+    expect(store.get()).toEqual({ theme: 'purple', language: 'system', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
+    store.setTheme('blue')
+    expect(new PrefsStore(dir).get().theme).toBe('blue')
   })
 
   it('writes are atomic: no temporary file is left in the directory', () => {
