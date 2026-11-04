@@ -938,16 +938,17 @@ test('a stale project opens as the note page: card only, chips per recording sid
  * step reads the header first: a switch holds the old page until the new one is ready, so the tab alone could be the old
  * project's.
  */
-test('the tab a project opens on: another project keeps it, a page drawn afresh starts on Overview, and coming back from a session starts on Sessions, once', async () => {
+test('the tab a project opens on: another project keeps it, through a page with no tabs too; coming back by the rail or a side card starts on Overview; and leaving a session starts on Sessions, once', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-tabs-'))
   const alpha = join(home, 'alpha')
   const beta = join(home, 'beta')
   const ghost = join(home, 'ghost')
+  const phantom = join(home, 'phantom')
   mkdirSync(alpha)
   mkdirSync(beta)
   const register = (...paths: string[]): void =>
     writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: Object.fromEntries(paths.map((p) => [p, {}])) }))
-  register(alpha, beta, ghost)
+  register(alpha, beta, ghost, phantom)
   const sessionDir = join(home, '.claude', 'projects', alpha.replace(/[^a-zA-Z0-9]/g, '-'))
   mkdirSync(sessionDir, { recursive: true })
   const at = localDayOffset(1).toISOString()
@@ -988,6 +989,12 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
     await win.locator('.pane-body .se', { hasText: 'Sample question' }).click()
     await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
   }
+  const toTheNote = async (project: string): Promise<void> => {
+    await win.locator('.side input[type="checkbox"]').check()
+    await row(project).click()
+    await expect(win.locator('.det-title h1')).toHaveText(project)
+    await expect(win.locator('.stale-note')).toBeVisible()
+  }
 
   // The first selection
   await projects.click()
@@ -1010,16 +1017,39 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await throughTheSideCard()
   await pageIs('beta', 'Overview')
 
-  // A stale project's note page has no tabs, so the next project draws a new page
+  // A stale project's note page has no tabs, so it neither changes nor uses the tab: the next project opens on the one from
+  // before it
   await select('Skills')
-  await win.locator('.side input[type="checkbox"]').check()
-  await row('ghost').click()
-  await expect(win.locator('.stale-note')).toBeVisible()
+  await toTheNote('ghost')
+  await row('alpha').click()
+  await pageIs('alpha', 'Skills')
+  await select('Sessions')
+  await toTheNote('ghost')
+  await row('beta').click()
+  await pageIs('beta', 'Sessions')
+
+  // Two such pages in a row change nothing
+  await select('Memory')
+  await toTheNote('ghost')
+  await toTheNote('phantom')
+  await row('alpha').click()
+  await pageIs('alpha', 'Memory')
+
+  // Leaving by the rail or a side card's project count while on a note page: coming back is not switching projects, so the
+  // next project opens on Overview
+  for (const comeBack of [leaveByTheRailAndComeBack, throughTheSideCard]) {
+    await select('Skills')
+    await toTheNote('ghost')
+    await comeBack()
+    await expect(win.locator('.stale-note')).toBeVisible()
+    await row('beta').click()
+    await pageIs('beta', 'Overview')
+  }
   await row('alpha').click()
   await pageIs('alpha', 'Overview')
 
-  // Coming back from a session lands on Sessions (T8), once: the next page drawn starts on Overview, whichever tab was on
-  // screen when leaving, by the rail or by a side card's project count
+  // Coming back from a session lands on Sessions (T8), once: leaving by the rail or by a side card's project count and
+  // coming back starts on Overview, whichever tab was on screen when leaving
   const backFromTheSession = async (): Promise<void> => {
     await openTheSession()
     await win.locator('.sback').click()
@@ -1040,20 +1070,22 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await throughTheSideCard()
   await pageIs('alpha', 'Overview')
 
-  // A page a scan draws follows the same rule: the page turning into a stale project's note and back, and the project
-  // leaving the snapshot and coming back
+  // A scan turning the page into a stale project's note and back, or taking the project out of the snapshot and back, draws
+  // it on the remembered tab. Read on tabs other than Sessions, which could not tell that from the landing
   await backFromTheSession()
+  await select('Skills')
   rmSync(alpha, { recursive: true })
   await expect(win.locator('.stale-note')).toBeVisible()
   mkdirSync(alpha)
-  await pageIs('alpha', 'Overview')
+  await pageIs('alpha', 'Skills')
   await backFromTheSession()
-  register(beta, ghost)
+  await select('Memory')
+  register(beta, ghost, phantom)
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
-  register(alpha, beta, ghost)
-  await pageIs('alpha', 'Overview')
+  register(alpha, beta, ghost, phantom)
+  await pageIs('alpha', 'Memory')
 
-  // With the landed page on screen another project takes it over, and its tab; the next page drawn starts on Overview
+  // With the landed page on screen another project takes it over, and its tab; leaving by the rail starts on Overview
   await backFromTheSession()
   await row('beta').click()
   await pageIs('beta', 'Sessions')
@@ -1061,7 +1093,7 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await pageIs('beta', 'Overview')
 
   // A project selected in the list from a session page lands on Sessions, once. This one has none yet, and the tab says so.
-  // With that page on screen another project keeps the tab, and the next page drawn starts on Overview
+  // With that page on screen another project keeps the tab, and leaving by the rail starts on Overview
   await row('alpha').click()
   await expect(win.locator('.det-title h1')).toHaveText('alpha')
   await openTheSession()
@@ -1083,37 +1115,77 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await throughTheSideCard()
   await pageIs('alpha', 'Overview')
 
-  // A stale project's note spends the landing: the page a scan later draws starts on Overview
-  await openTheSession()
-  await win.locator('.side input[type="checkbox"]').check()
-  await row('ghost').click()
-  await expect(win.locator('.stale-note')).toBeVisible()
-  mkdirSync(ghost)
-  await pageIs('ghost', 'Overview')
-
-  // The project on screen leaves the snapshot (S7): selecting another project clears the message and draws a new page
+  // Whichever way the session was entered: from Overview's session card, then another project or the back control
+  const openFromTheCard = async (): Promise<void> => {
+    await win.locator('.pane-body .se', { hasText: 'Sample question' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
+  }
+  await openFromTheCard()
   await row('beta').click()
-  await pageIs('beta', 'Overview')
+  await pageIs('beta', 'Sessions')
+  await row('alpha').click()
+  await pageIs('alpha', 'Sessions')
+  await select('Overview')
+  await openFromTheCard()
+  await win.locator('.sback').click()
+  await pageIs('alpha', 'Sessions')
+
+  // A session left onto a stale project's note keeps the landing: the project a scan brings back opens on Sessions
+  await openTheSession()
+  await toTheNote('ghost')
+  mkdirSync(ghost)
+  await pageIs('ghost', 'Sessions')
+
+  // The project on screen leaves the snapshot (S7): that state has no tabs either, so selecting another project clears the
+  // message and opens on the tab from before it
+  await row('beta').click()
+  await pageIs('beta', 'Sessions')
   await select('Skills')
+  register(alpha, ghost, phantom)
+  await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
+  await row('alpha').click()
+  await pageIs('alpha', 'Skills')
+  await expect(win.locator('.detail .empty')).toHaveCount(0)
+
+  // A note page whose project then leaves the snapshot is two such pages in a row
+  await select('Instructions')
+  await toTheNote('phantom')
   register(alpha, ghost)
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
   await row('alpha').click()
-  await pageIs('alpha', 'Overview')
-  await expect(win.locator('.detail .empty')).toHaveCount(0)
+  await pageIs('alpha', 'Instructions')
 
   expect(l.errors).toEqual([])
 
-  // A return that draws no tabs spends the landing all the same: the session left onto the not-in-snapshot state. Last,
-  // and past the check above, because the main process refuses the open session's reads once its project has gone
+  // A session left onto the not-in-snapshot state keeps the landing too. Last, and past the check above, because the main
+  // process refuses the open session's reads once its project has gone
   await openTheSession()
   register(ghost)
   await scansLanded(win, 2)
   await win.locator('.sback').click()
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
   register(alpha, ghost)
-  await pageIs('alpha', 'Overview')
+  await pageIs('alpha', 'Sessions')
 
   await close(l)
+
+  // A first selection that goes through a note page has no earlier tab, so the next project opens on Overview. A window of
+  // its own, because a first selection happens once in a window's life
+  const freshHome = mkdtempSync(join(tmpdir(), 'agentshed-e2e-tabs-fresh-'))
+  const freshAlpha = join(freshHome, 'alpha')
+  mkdirSync(freshAlpha)
+  writeFileSync(join(freshHome, '.claude.json'), JSON.stringify({ projects: { [freshAlpha]: {}, [join(freshHome, 'ghost')]: {} } }))
+  const fresh = await launch(undefined, freshHome)
+  const freshWin = await fresh.app.firstWindow()
+  await freshWin.locator('.rail .ri').nth(1).click()
+  await freshWin.locator('.side input[type="checkbox"]').check()
+  await freshWin.locator('.side .row', { hasText: 'ghost' }).click()
+  await expect(freshWin.locator('.stale-note')).toBeVisible()
+  await freshWin.locator('.side .row', { hasText: 'alpha' }).click()
+  await expect(freshWin.locator('.det-title h1')).toHaveText('alpha')
+  await expect(freshWin.locator('.pane-head .tabs .tab.on')).toHaveText('Overview')
+  expect(fresh.errors).toEqual([])
+  await close(fresh)
 })
 
 /**

@@ -237,15 +237,19 @@ Applies to: the tab row of a project's page. A stale project's note page has no 
 - project-detail::REQ-004/AC-01: The section's tab has the agents page's label
   ([agents-overview::REQ-006/AC-01](agents-overview.md)).
 - project-detail::REQ-004/AC-02: The tabs run Overview / Instructions / Skills / Subagents / Plugins / MCP / Memory /
-  Sessions / Artifacts. The selected tab stays with the page on screen: selecting another project while a project's page
-  is on screen keeps the tab, and the next project shows it (the owner's decision of 2026-11-04). A project opens on
-  Overview when no project's page is on screen: its first selection, coming back through the rail or a side card's project
-  count, selecting it from a stale project's note page or the not-in-snapshot state, or a scan turning a note page or that
-  state back into the sectioned page. Leaving a session for a project lands on Sessions: coming back from it (T8), or
-  selecting a project in the list from its page, another project or the session's own, which shows the tab's empty sentence
-  for a project with no sessions. It does so once: the page it draws spends the landing, with or without tabs, and the next
-  page drawn starts on Overview. A return overtaken by a move to another dimension draws no page, and the next page starts
-  on Overview too (the owner's decisions of 2026-11-04).
+  Sessions / Artifacts. The selected tab carries to the next project: selecting another project keeps it, and the next
+  project shows it (the owner's decision of 2026-11-04). A stale project's note page and the not-in-snapshot state have no
+  tabs, and neither change nor use what the next page starts on: the next project selected, or the same project when a scan
+  brings its page back, opens on the tab from the last page that had tabs, however many such pages came between. A project
+  opens on Overview when no earlier tab applies: its first selection, with a note page before it or not, and coming back
+  through the rail or a side card's project count, with a note page on the way or not, because coming back is not switching
+  projects. Leaving a session for a project lands on Sessions, whichever way the session was entered, Overview's session
+  card included: coming back from it (T8), or selecting a project in the list from its page, another project or the
+  session's own, which shows the tab's empty sentence for a project with no sessions. It does so once: from there the tab
+  carries as above, and leaving by the rail or a side card's project count and coming back starts on Overview. When a
+  session is left onto a note page or the not-in-snapshot state, the next page with tabs opens on Sessions, by the same rule.
+  A return overtaken by a move to another dimension draws no page, and the next page starts on Overview too (the owner's
+  decisions of 2026-11-04).
 
 Failure modes and boundaries, a narrow window (the owner's decisions of 2026-11-03): the row keeps its one form at every
 window width, and no narrow form is designed. It does not move onto a second row, a sideways wheel over it does not move it,
@@ -341,6 +345,10 @@ regressions within this round; artifact collection rules and unrelated section l
 - **Section state is keyed by project**: the pane body subtree is keyed by the project path, so a
   section's local state resets on a project change exactly as it does today (the Skills filter rule)
   and survives a transfusion of the same project (A3).
+- **The selected tab lives above what the pane draws** (project-detail::REQ-004/AC-02): the pane stays mounted while a
+  project is on the stage and holds the tab, so a note page or the not-in-snapshot state drawn in the sectioned page's place
+  neither changes nor uses it, with no flag for either. A session page or another dimension unmounts the pane, which is what
+  starts the next one afresh; a new pane reads the landing on Sessions when it mounts.
 - **Allow-list**: when detail is returned, the artifact and memory file paths are registered in the
   allow-list, and both reading and external opening validate against it.
 - **The stale note page renders from the snapshot entry alone** (path, sides, staleness are already
@@ -436,6 +444,10 @@ window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-
   state or form: the tab row, the toast and the reader keep theirs, and a count or a moment has no form to
   draw; declared here as the exemption rather than assumed. The sentence a failed read's toast states (B9)
   changes wording only, and is declared as copy.
+- **Prototype gate (2026-11-04), a page with no tabs**: a stale project's note page and the not-in-snapshot state keeping
+  the tab for the next page (REQ-004/AC-02) adds no page, control, state, colour or spacing: the tab row and both pages keep
+  their forms, and which tab is selected at a moment has no form to draw. The behaviour does change visibly, which puts it
+  outside the gate's named exceptions; declared here as the exemption rather than assumed.
 - **Prototype gate (2026-09-12)**: the atomic switch adds no visible state — the list highlight
   keeps its existing form, and the end state is the absence of an intermediate frame, which has no
   form to draw; declared here as the exemption rather than assumed.

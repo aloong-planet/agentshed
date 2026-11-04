@@ -15,11 +15,13 @@ Overview, Instructions, Skills, Subagents, Plugins, MCP, Memory, Sessions and Ar
   quietly refreshes behind the scenes. Its last successful content stays readable if a refresh
   fails; a project never opened before waits for its first detail. Leaving for Agents or Settings
   and returning is likewise instant.
-- The tab you are on stays with the page: selecting another project keeps it, and the next project
-  shows that tab. A project opens on Overview when no project's page is on screen: when you first
-  select one, come back from another part of the app, or select one from a stale project's note.
-  Leaving a session for a project lands on Sessions, whether you go back or select a project in the
-  list, for that moment alone: leaving for another part of the app and coming back opens on Overview
+- The tab you are on carries over when you select another project: under Skills the next project
+  opens on its Skills, and likewise for every tab. A stale project's note and a project that has left
+  the list have no tabs and change nothing: the next project you select, or the same one when it comes
+  back, opens on the tab from before them. A project opens on Overview when you first select one, or
+  come back from another part of the app, with a stale project's note on the way or not. Leaving a
+  session for a project lands on Sessions, whether you go back or select a project in the list, for
+  that moment alone: leaving for another part of the app and coming back opens on Overview
 - Instructions: two entries, the project's own CLAUDE.md and AGENTS.md (the AGENTS.md that Codex and
   Antigravity CLI both read, shown once), each rendered for reading under its path; a missing file
   shows "None" and one that cannot be read says so under its path; no settings summary is shown; a

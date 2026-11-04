@@ -558,7 +558,7 @@ test('on into the project: its Sessions tab, or a stale project\'s note; a sessi
     await exits(win).nth(1).click()
     await expect(win.locator('.pane-head h1')).toHaveText('target-proj')
     await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
-    // Once, like the back control: the next page drawn starts on Overview (project-detail::REQ-004/AC-02)
+    // Once, like the back control: leaving by the rail and coming back starts on Overview (project-detail::REQ-004/AC-02)
     await win.locator('.rail .ri').nth(0).click()
     await expect(win.locator('.pane-head h1')).toHaveText('Agents')
     await win.locator('.rail .ri').nth(1).click()
@@ -682,17 +682,60 @@ test('a return overtaken while it is held on its fetch draws no page, so the nex
   }
 })
 
-test('a return onto a stale project\'s note spends the landing: when the project comes back its page starts on Overview (project-detail::REQ-004/AC-02)', async () => {
-  const { home, paths } = mkHome()
+test('a return onto a stale project\'s note keeps the landing: the next project, or that one when a scan brings it back, opens on Sessions, by the back control and by a selection in the list (project-detail::REQ-004/AC-02, session-view P3)', async () => {
+  const { home } = mkHome()
   const l = await launch(home, { AGENTSHED_RESCAN_MS: '250' })
   const { win } = l
+  const row = (name: string) => win.locator('.side .row', { hasText: name })
+  const header = win.locator('.pane-head h1')
+  const note = win.locator('.stale-note')
+  const dirOf = (n: number): string => join(home, 'work', `filler-${n}`)
+  // Each round takes a filler project of its own, so none waits on a scan to undo the round before
+  const waysOntoTheNote = [
+    // A hit's way on into its project, which reads "Go to <project>" for a stale one
+    async (n: number): Promise<void> => {
+      rmSync(dirOf(n), { recursive: true })
+      await openHit(win, `filler question ${n}`, `filler question ${n}`)
+      await expect(exits(win)).toHaveText(['Back to search results', `Go to filler-${n}`])
+      await exits(win).nth(1).click()
+    },
+    // The back control, with the project gone stale under the session: the list hiding its row says the scan has arrived
+    async (n: number): Promise<void> => {
+      await win.locator('.rail .ri').nth(1).click()
+      await row(`filler-${n}`).click()
+      await expect(header).toHaveText(`filler-${n}`)
+      await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+      await win.locator('.pane-body .card .se', { hasText: `filler question ${n}` }).click()
+      await expect(win.locator('.pane-head .stitle')).toHaveText(`filler question ${n}`)
+      rmSync(dirOf(n), { recursive: true })
+      await expect(row(`filler-${n}`)).toHaveCount(0)
+      await win.locator('.pane-head .sback').click()
+    },
+    // A selection in the list, from another project's session
+    async (n: number): Promise<void> => {
+      rmSync(dirOf(n), { recursive: true })
+      await openHit(win, 'notarize', 'How do I notarize the app?')
+      await expect(row(`filler-${n}`)).toHaveCount(0)
+      await win.locator('.side input[type="checkbox"]').check()
+      await row(`filler-${n}`).click()
+    }
+  ]
   try {
-    await openHit(win, 'notarize', 'Notarize the stale build')
-    await exits(win).nth(1).click()
-    await expect(win.locator('.stale-note')).toBeVisible()
-    mkdirSync(paths.stale)
-    await expect(win.locator('.stale-note')).toHaveCount(0)
-    await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Overview')
+    let n = 11
+    for (const ontoTheNote of waysOntoTheNote) {
+      for (const scanBringsItBack of [false, true]) {
+        await ontoTheNote(n)
+        await expect(header).toHaveText(`filler-${n}`)
+        await expect(note).toBeVisible()
+        if (scanBringsItBack) mkdirSync(dirOf(n))
+        else await row('target-proj').click()
+        await expect(header).toHaveText(scanBringsItBack ? `filler-${n}` : 'target-proj')
+        await expect(note).toHaveCount(0)
+        await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
+        n++
+      }
+    }
+    expect(l.errors).toEqual([])
   } finally {
     await close(l, home)
   }
