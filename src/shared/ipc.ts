@@ -8,6 +8,9 @@ export const CMD = {
   getSnapshot: 'agentshed:get-snapshot',
   /** Validated saved presentation data and startup scan state; read-only. */
   getStartup: 'agentshed:get-startup',
+  /** Whether the user is due the notice that the usage archive's file failed: true once in a run, whichever window asks
+   * first (token-stats C4) */
+  takeArchiveNotice: 'agentshed:take-archive-notice',
   /** Fetch project detail on demand */
   getProjectDetail: 'agentshed:get-project-detail',
   /** The session page: the question index + text read live by range (ticket 04; a range-read path, not

@@ -87,7 +87,8 @@ export const zh = {
     saveThemeFailed: '保存主题失败。当前选择在重启前有效，重启后恢复。',
     saveModeFailed: '保存外观模式失败。当前选择在重启前有效，重启后恢复。',
     saveLanguageFailed: '保存语言失败。当前选择在重启前有效，重启后恢复。',
-    saveAutoCheckUpdatesFailed: '保存自动检查更新设置失败。当前选择在重启前有效，重启后恢复。'
+    saveAutoCheckUpdatesFailed: '保存自动检查更新设置失败。当前选择在重启前有效，重启后恢复。',
+    archiveFileFailed: '用量历史暂时无法保存，因为设置目录中的历史文件无法读取或写入。'
   },
 
   /** App updates (app-update): the update button's hover text, which is also its accessible name, and the

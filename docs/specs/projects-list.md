@@ -95,7 +95,7 @@ and are never written back to any agent configuration.
   nominal (the project count is unknown until the scan lands).
 - A13 First scan failure without a restored snapshot → the skeleton and hint stay; recovery rides the automatic rescan triggers
   (timer, window focus). A dedicated error state is out of scope (the agents overview spec carries
-  the same rule as A4d).
+  the same rule as A4d, and says what is not such a failure).
 - A14 A scan that finds no project leaves the list showing the same no-match line that search and the
   filters show when no row matches.
 

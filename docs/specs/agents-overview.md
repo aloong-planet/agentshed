@@ -71,7 +71,9 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - A4c The skeleton exists only while no live or restored snapshot is available. Later scans keep the previous
   data on screen and never fall back to the skeleton.
 - A4d First scan failure without a restored snapshot → the skeleton and hint stay as they are; recovery rides the automatic
-  rescan triggers (timer, window focus). A dedicated first-scan error state is out of scope.
+  rescan triggers (timer, window focus). A dedicated first-scan error state is out of scope. A usage archive that cannot
+  be written or read is not a scan failure: the first scan leaves the skeleton as usual
+  ([token-stats](token-stats.md) C4, C8).
 - A4e Once the first snapshot lands with no side detected, A1's whole-page empty state replaces the
   skeleton — the two states never mix.
 
