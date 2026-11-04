@@ -18,7 +18,7 @@
 // - The incremental cache stores entry-level data (deduplication has to happen across files, in the
 //   aggregation layer, so a deduplicated result cannot be what is cached);
 //   keyed by (path, mtime, size), written atomically. The statistics include stale projects.
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, sep } from 'node:path'
 import type {
   AgentSide,
@@ -52,6 +52,7 @@ import type { ScanRoots } from './types'
 import { walkSessions, type SessionWalk } from './scan'
 import { agySessionSignature, agyTranscriptPath, readAgySummaryTitles, readAntigravityUsage, type AgyCall } from './antigravity'
 import type { UsageRow } from './archive'
+import { writeFileAtomicSync } from './atomic-write'
 
 /** One Claude usage entry (encoded into the cache as a compact array): [mid, rid, sc, in, out, cr, cw, model, day] */
 type PackedEntry = [
@@ -537,10 +538,7 @@ export class TokenEngine {
    */
   private persist(): void {
     try {
-      mkdirSync(this.cacheDir, { recursive: true })
-      const tmp = join(this.cacheDir, `.token-cache.j-${process.pid}`)
-      writeFileSync(tmp, JSON.stringify(this.cache))
-      renameSync(tmp, this.cacheFile)
+      writeFileAtomicSync(this.cacheFile, join(this.cacheDir, `.token-cache.j-${process.pid}`), JSON.stringify(this.cache))
     } catch (error) {
       console.error('[token-cache] save failed:', error)
     }

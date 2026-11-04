@@ -6,7 +6,7 @@
 // A file a newer build wrote (token-stats::REQ-005, token-stats::REQ-006) is seeded at the file boundary, the
 // only way rows of a side this build does not know can reach it. Not asserted here: that no notice appears on a
 // page (no code renders one); the log half of the two AC-04s is asserted below.
-import { mkdtempSync, rmSync, readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -369,5 +369,207 @@ describe('UsageArchive: a file a newer build wrote', () => {
     expect(a.rows()).toEqual([])
     a.merge([row(D1, '/p1', 'm1', 100)], ANCHOR)
     expect(onDisk().rows.map((x) => [x.day, x.total])).toEqual([[D1, 100]])
+  })
+})
+
+describe('a write that fails (token-stats C4, C8)', () => {
+  const PAST = '2026-07-01'
+  const OTHER = '2026-07-02'
+  const storeDir = (): string => join(dir, 'store')
+  const storeFile = (): string => join(storeDir(), 'usage-archive.json')
+  const totals = (rows: UsageRow[]): Array<[string, number]> => rows.map((r): [string, number] => [r.day, r.total]).sort()
+  /** A directory at the temporary path: the write really fails. Returns what lets it work again */
+  const block = (): (() => void) => {
+    const path = join(storeDir(), `.usage-archive.w-${process.pid}`)
+    mkdirSync(path, { recursive: true })
+    return () => rmSync(path, { recursive: true })
+  }
+  let logged: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    logged.mockRestore()
+  })
+
+  it('C4: the merge still answers with its effective rows, says the write failed, and logs it', () => {
+    const a = open()
+    expect(a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR).fileFailed).toBe(false)
+    expect(logged).not.toHaveBeenCalled()
+    block()
+    const r = a.merge([row(PAST, '/p1', 'm1', 100), row(OTHER, '/p1', 'm1', 7)], ANCHOR)
+    expect(r.fileFailed).toBe(true)
+    expect(totals(r.rows)).toEqual([[PAST, 100], [OTHER, 7]])
+    expect(logged).toHaveBeenCalledWith('[usage-archive] save failed:', expect.anything())
+  })
+
+  it('C4: once the write works the next merge writes, with a row seen only while it was blocked', () => {
+    const a = open()
+    a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+    const unblock = block()
+    a.merge([row(PAST, '/p1', 'm1', 100), row(OTHER, '/p1', 'm1', 7)], ANCHOR)
+    // The agent has deleted that session by now: the row lives on in memory, as an archived-only day
+    expect(a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR).archivedOnlyDays).toEqual([OTHER])
+    unblock()
+    expect(a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR).fileFailed).toBe(false)
+    expect(totals(open().rows())).toEqual([[PAST, 100], [OTHER, 7]])
+  })
+
+  it('C4: a restart while the write is blocked reads the last good file, so a row only memory held is gone', () => {
+    const a = open()
+    a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+    block()
+    a.merge([row(PAST, '/p1', 'm1', 100), row(OTHER, '/p1', 'm1', 7)], ANCHOR)
+    expect(totals(open().rows())).toEqual([[PAST, 100]])
+  })
+
+  it('the invariant in AGENTS.md: a lower past figure under one stamp is retained in the run, after a restart and once written', () => {
+    const a = open()
+    a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+    const lastGood = readFileSync(storeFile(), 'utf8')
+    const unblock = block()
+    expect(totals(a.merge([row(PAST, '/p1', 'm1', 60)], ANCHOR).rows)).toEqual([[PAST, 100]])
+    expect(totals(a.merge([row(PAST, '/p1', 'm1', 60)], ANCHOR).rows)).toEqual([[PAST, 100]])
+    expect(readFileSync(storeFile(), 'utf8')).toBe(lastGood)
+    const restarted = open()
+    const r = restarted.merge([row(PAST, '/p1', 'm1', 60)], ANCHOR)
+    expect(r.fileFailed).toBe(true)
+    expect(totals(r.rows)).toEqual([[PAST, 100]])
+    unblock()
+    expect(restarted.merge([row(PAST, '/p1', 'm1', 60)], ANCHOR).fileFailed).toBe(false)
+    expect(totals(open().rows())).toEqual([[PAST, 100]])
+  })
+
+  it('C13: writes that fail and are tried again keep one superseded value', () => {
+    const a = open()
+    a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+    const unblock = block()
+    a.merge([row(PAST, '/p1', 'm1', 120)], ANCHOR)
+    a.merge([row(PAST, '/p1', 'm1', 120)], ANCHOR)
+    unblock()
+    a.merge([row(PAST, '/p1', 'm1', 120)], ANCHOR)
+    const trail = open().superseded()
+    expect(trail).toHaveLength(1)
+    expect(trail[0].rows.map((x) => x.total)).toEqual([100])
+  })
+
+  it('token-stats::REQ-006/AC-03: a newer format appearing while memory is ahead of the file is left alone', () => {
+    const a = open()
+    a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+    const unblock = block()
+    a.merge([row(PAST, '/p1', 'm1', 100), row(OTHER, '/p1', 'm1', 7)], ANCHOR)
+    const bytes = JSON.stringify({ version: ARCHIVE_VERSION + 1, rows: [], stamps: {}, observed: {}, superseded: [] })
+    writeFileSync(storeFile(), bytes)
+    unblock()
+    const r = a.merge([row(PAST, '/p1', 'm1', 50)], ANCHOR)
+    expect(r.fileFailed).toBe(false)
+    expect(totals(r.rows)).toEqual([[PAST, 50]])
+    expect(readFileSync(storeFile(), 'utf8')).toBe(bytes)
+  })
+
+  it('C16: another writer changing the file while memory is ahead of it is read back, not overwritten', () => {
+    const a = open()
+    a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+    const unblock = block()
+    a.merge([row(PAST, '/p1', 'm1', 100), row('2026-07-03', '/p1', 'm1', 3)], ANCHOR)
+    unblock()
+    open().merge([row(PAST, '/p1', 'm1', 100), row(OTHER, '/p1', 'm1', 7)], ANCHOR)
+    a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+    expect(totals(open().rows())).toEqual([[PAST, 100], [OTHER, 7]])
+  })
+
+  it.skipIf(process.getuid?.() === 0)('a file the stat cannot reach is no removed file: the rows stay in memory and the rule holds', () => {
+    const a = open()
+    a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+    chmodSync(storeDir(), 0o000)
+    try {
+      const r = a.merge([row(PAST, '/p1', 'm1', 60)], ANCHOR)
+      expect(r.fileFailed).toBe(true)
+      expect(totals(r.rows)).toEqual([[PAST, 100]])
+    } finally {
+      chmodSync(storeDir(), 0o755)
+    }
+    expect(a.merge([row(PAST, '/p1', 'm1', 60)], ANCHOR).fileFailed).toBe(false)
+    expect(totals(open().rows())).toEqual([[PAST, 100]])
+  })
+
+  it('token-stats::REQ-006/AC-04: a file of a newer format is no failed write, whatever would block one', () => {
+    mkdirSync(storeDir(), { recursive: true })
+    writeFileSync(storeFile(), JSON.stringify({ version: ARCHIVE_VERSION + 1, rows: [], stamps: {}, observed: {}, superseded: [] }))
+    block()
+    expect(open().merge([row(PAST, '/p1', 'm1', 100)], ANCHOR).fileFailed).toBe(false)
+    expect(logged).not.toHaveBeenCalled()
+  })
+
+  describe('a file that cannot be read (C8)', () => {
+    const skipAsRoot = process.getuid?.() === 0
+    /** A real archive: a past day, and a day only the archive holds. What goes on to fail its read is its mode */
+    const written = (): string => {
+      const a = open()
+      a.merge([row(PAST, '/p1', 'm1', 100), row(OTHER, '/p1', 'm1', 7)], ANCHOR)
+      a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+      return readFileSync(storeFile(), 'utf8')
+    }
+    afterEach(() => {
+      if (existsSync(storeFile())) chmodSync(storeFile(), 0o644)
+    })
+
+    it.skipIf(skipAsRoot)('keeps its content through every merge, shows the live rows, and returns whole once it can be read', () => {
+      const bytes = written()
+      chmodSync(storeFile(), 0o000)
+      const a = open()
+      for (let i = 0; i < 2; i++) {
+        const r = a.merge([row(PAST, '/p1', 'm1', 60)], ANCHOR)
+        expect(r.fileFailed).toBe(true)
+        expect(totals(r.rows)).toEqual([[PAST, 60]])
+        expect(r.archivedOnlyDays).toEqual([])
+      }
+      expect(logged).toHaveBeenCalledWith('[usage-archive] read failed:', expect.anything())
+      chmodSync(storeFile(), 0o644)
+      expect(readFileSync(storeFile(), 'utf8')).toBe(bytes)
+      // A change of mode moves no signature: the same instance reads it at its next merge, and the rule holds on what it read
+      const r = a.merge([row(PAST, '/p1', 'm1', 60)], ANCHOR)
+      expect(r.fileFailed).toBe(false)
+      expect(totals(r.rows)).toEqual([[PAST, 100], [OTHER, 7]])
+      expect(r.archivedOnlyDays).toEqual([OTHER])
+    })
+
+    it('a file that reads and does not parse stays corrupt: not flagged, and the next merge starts it again', () => {
+      mkdirSync(storeDir(), { recursive: true })
+      writeFileSync(storeFile(), 'not an archive')
+      const r = open().merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+      expect(r.fileFailed).toBe(false)
+      expect(totals(open().rows())).toEqual([[PAST, 100]])
+      expect(logged).not.toHaveBeenCalled()
+    })
+
+    it.skipIf(skipAsRoot)('C16: a restore refuses it, and says why', () => {
+      const bytes = written()
+      chmodSync(storeFile(), 0o000)
+      const a = open()
+      expect(a.isUnreadable()).toBe(true)
+      expect(() => a.restore([row(PAST, '/p1', 'm1', 900)], ANCHOR)).toThrow(/cannot be read/)
+      chmodSync(storeFile(), 0o644)
+      expect(readFileSync(storeFile(), 'utf8')).toBe(bytes)
+      expect(a.isUnreadable()).toBe(false)
+    })
+
+    it.skipIf(skipAsRoot)('a file that stops being readable while the app runs loses nothing: the write comes from memory, which holds its history', () => {
+      written()
+      const a = open()
+      chmodSync(storeFile(), 0o000)
+      expect(a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR).fileFailed).toBe(false)
+      chmodSync(storeFile(), 0o644)
+      expect(totals(open().rows())).toEqual([[PAST, 100], [OTHER, 7]])
+    })
+  })
+
+  it('C16: a restore that cannot write says so, and the file stays as it was', () => {
+    const a = open()
+    a.merge([row(PAST, '/p1', 'm1', 100)], ANCHOR)
+    const lastGood = readFileSync(storeFile(), 'utf8')
+    block()
+    expect(() => a.restore([row(PAST, '/p1', 'm1', 900)], ANCHOR)).toThrow()
+    expect(readFileSync(storeFile(), 'utf8')).toBe(lastGood)
   })
 })

@@ -150,6 +150,11 @@ function setStartupStatus(status: StartupStatus): void {
   mainWindow?.webContents.send(EVT.startupStatus, status)
 }
 
+/** The notice that the usage archive's file failed (token-stats C4): 'due' while the last merge failed and the window has
+ * not taken it, since the sentence says "right now". Kept here because a reload is a new renderer in the same run, and
+ * the failure can come before the window subscribes */
+let archiveNotice: 'none' | 'due' | 'taken' = 'none'
+
 let inflight: Promise<Snapshot> | null = null
 /** The last successful scan moment; the throttle baseline for focus triggers (token-stats E1) */
 let lastScanAt: number | null = null
@@ -224,6 +229,7 @@ async function doScan(): Promise<Snapshot> {
         // back here so the whole-history figures keep them (spec G7).
         if (archive) {
           const eff = archive.merge(t.rows, snap.scannedAt, { forceAccept: ARCHIVE_FORCE_ACCEPT })
+          if (archiveNotice !== 'taken') archiveNotice = eff.fileFailed ? 'due' : 'none'
           const rows = [...eff.rows, ...t.rows.filter((r) => !r.day)]
           snap.tokens = deriveStats(rows)
           snap.archivedDays = eff.archivedOnlyDays
@@ -287,6 +293,11 @@ function handle<T>(
 }
 
 handle(CMD.getStartup, () => ({ display: { ...(displayStore?.get() ?? emptyDisplayData()), snapshot: current, reads: [...savedReads.values()] }, status: startupStatus }))
+handle(CMD.takeArchiveNotice, () => {
+  if (archiveNotice !== 'due') return false
+  archiveNotice = 'taken'
+  return true
+})
 handle(CMD.getSnapshot, async () => {
   if (current) return current
   return doScan()

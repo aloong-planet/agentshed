@@ -138,6 +138,7 @@ const api = {
       !['scanning', 'waiting', 'ready'].includes(String(raw.status))) throw appError(ERR.contractType, { path: 'startup', expect: 'StartupData' })
     return { display: parseDisplayData(raw.display), status: raw.status as StartupStatus }
   },
+  takeArchiveNotice: async (): Promise<boolean> => (await ipcRenderer.invoke(CMD.takeArchiveNotice)) === true,
   onStartupStatus: (cb: (status: StartupStatus) => void): (() => void) => {
     const listener = (_e: unknown, status: unknown): void => {
       if (status === 'scanning' || status === 'waiting' || status === 'ready') cb(status)
