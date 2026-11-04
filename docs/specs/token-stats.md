@@ -850,8 +850,9 @@ Applies to: an archive file whose format version is a whole number above the one
   it holds that state because a reload is a new renderer in the same run, and because the failure can come
   before the window subscribes, and each merge that succeeds before the notice is taken withdraws it. The window asks at mount, with each snapshot and on focus, and asks nothing
   while it has no focus. The notice stays out of the snapshot, which is saved with the display copy and
-  would restore a failure from an earlier run. Every writer of a single file in the settings directory
-  shares one atomic write, which removes its temporary file when it fails.
+  would restore a failure from an earlier run. The archive, the token cache, the preferences and the last
+  run's version share one atomic write, which removes its temporary file when it fails; the display copy's
+  asynchronous write already did.
 - **Codex usage sources**: see ADR-0027. The parser reads both sources in one pass and applies the
   usage boundary as it goes; the per-file aggregate keeps its list of per-event increments and gains
   the boundary index beside it, so that the replay stripping can stop at the legacy span — a shape
