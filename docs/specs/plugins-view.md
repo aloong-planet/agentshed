@@ -57,7 +57,8 @@ is read-only.
 - E1 One plugin with several installation records (installed at both user and project) → show each
   record's scope and owner (**inline chips**), neither merged nor reduced to the first.
 - E2 A project-scope record whose owning project directory no longer exists → shown as written and
-  marked "project lost", not validated and not crashing.
+  marked "project stale", not validated and not crashing. A directory that cannot be reached is not one
+  ([projects-list](projects-list.md) A6): its record is shown with no mark.
 - E3 A scope of local or an unknown value → labelled as written, with no guessing at the semantics; a
   record missing the scope field → labelled "(unknown)".
 - E4 Enablement explicitly false and enablement absent → both display as not enabled (the global page

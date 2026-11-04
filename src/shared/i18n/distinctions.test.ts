@@ -151,7 +151,7 @@ describe('one concept, one word', () => {
   // The opposite failure: the same concept rendered several different ways inside one language, so a user
   // cannot tell they are reading about the same thing.
   it('a plugin whose project directory is gone uses that language’s word for a stale project', () => {
-    // `plugins.ts` computes projectMissing as `!existsSync(projectPath)` — which is precisely CONTEXT.md’s
+    // `plugins.ts` computes projectMissing as `isAbsent(projectPath)` — which is precisely CONTEXT.md’s
     // definition of a stale project ("still recorded in a registry, directory no longer on disk"). Five
     // languages called it "lost" instead — and so did the source language, which used one word here and a
     // different one in the eight other places the same condition appears. One condition, one word;

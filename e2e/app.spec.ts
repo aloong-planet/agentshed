@@ -20,6 +20,9 @@
 // Also not driven: the tab row over a failed detail fetch on a page drawn after a stale project's note (project-detail T10).
 // The row draws before that branch and reads no fetch result. Add a case when a seam can make the project detail read fail:
 // select a normal project from a note page on a tab other than Overview, and read that tab over an empty body.
+// Also not driven: macOS privacy protection refusing a project under ~/Documents, ~/Desktop or ~/Downloads, which a test cannot
+// arrange. A parent at mode 000 stands in for it (projects-list A6): `isAbsent` answers alike for any refusal. Add a case when
+// a machine can grant and refuse that access under test.
 import { appendFileSync, chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
@@ -1566,6 +1569,88 @@ test('an instruction file inside a directory that cannot be entered shows the re
 
   chmodSync(proj, 0o755)
   chmodSync(codex, 0o755)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// projects-list A6: stale is a directory that is really not there. Asking `existsSync` also called a project behind a
+// directory that cannot be entered stale, and its note told the user to have the agent delete the records of a live project
+test('a project behind a directory that cannot be entered keeps a normal row and page, and a deleted one is still stale', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-unreachable-'))
+  const locked = join(home, 'locked')
+  const proj = join(locked, 'blocked-proj')
+  const gone = join(home, 'gone-proj') // registered, never created
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(proj, 'CLAUDE.md'), '# Project conventions\n')
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {}, [gone]: {} } }))
+  // Its sessions live on the agent's side, which the blocked directory does not touch
+  const sessions = join(home, '.claude', 'projects', proj.replace(/[^a-zA-Z0-9]/g, '-'))
+  mkdirSync(sessions, { recursive: true })
+  writeFileSync(
+    join(sessions, 'a.jsonl'),
+    JSON.stringify({ type: 'user', timestamp: localDayOffset(1).toISOString(), message: { role: 'user', content: 'A question from the agent side' } }) + '\n'
+  )
+  const skill = join(home, '.claude', 'skills', 'alpha-skill')
+  mkdirSync(skill, { recursive: true })
+  writeFileSync(join(skill, 'SKILL.md'), '---\ndescription: alpha\n---\n\nbody\n')
+  const plugins = join(home, '.claude', 'plugins')
+  mkdirSync(plugins, { recursive: true })
+  writeFileSync(
+    join(plugins, 'installed_plugins.json'),
+    JSON.stringify({
+      version: 2,
+      plugins: {
+        'demo@mp': [
+          { scope: 'project', version: '1.0.0', installPath: join(home, 'cache', 'demo'), projectPath: proj },
+          { scope: 'project', version: '1.0.0', installPath: join(home, 'cache', 'demo'), projectPath: gone }
+        ]
+      }
+    })
+  )
+  chmodSync(locked, 0o000)
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const tab = (name: string) => win.locator('.pane-head .tabs .tab', { hasText: name })
+
+  // The plugin section marks the deleted project's record alone (plugins-view E2)
+  await tab('Plugins').click()
+  await expect(win.locator('.pane-body .chip')).toHaveText(['project · blocked-proj', 'project · gone-proj(project stale)'])
+
+  // The picker offers it, and the install is attempted and fails as a copy, not as a stale target (skill-install A5, A10)
+  await tab('Skills').click()
+  await win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: /^alpha-skill$/ }) }).locator('.ins').click()
+  const pick = (name: string) => win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: new RegExp(`^${name}$`) }) })
+  await expect(pick('gone-proj')).toBeDisabled()
+  await expect(pick('blocked-proj')).toBeEnabled()
+  await pick('blocked-proj').click()
+  await expect(win.locator('.toast.err')).toHaveText('alpha-skill → blocked-proj (claude): Copy failed and was cleaned up')
+
+  // In the list with the stale toggle off, the counter counts the deleted project alone
+  await win.locator('.rail .ri').nth(1).click()
+  const row = win.locator('.side .row', { hasText: 'blocked-proj' })
+  await expect(row).toBeVisible()
+  await expect(row.locator('.stale-tag')).toHaveCount(0)
+  await expect(win.locator('.opts .cnt')).toHaveText('1 stale project filtered out')
+
+  // Its page is the sectioned page, not the note: Instructions say they cannot be read, and the sessions still read
+  await row.click()
+  await expect(win.locator('.pane-head h1')).toHaveText('blocked-proj')
+  await expect(win.locator('.pane-head .stale-tag')).toHaveCount(0)
+  await expect(win.locator('.stale-note')).toHaveCount(0)
+  await tab('Instructions').click()
+  await expect(win.locator('.pane-body .instructions-path')).toHaveText([join(proj, 'CLAUDE.md')])
+  await expect(win.locator('.pane-body .md .none')).toHaveText('The file cannot be read (permissions or I/O error)')
+  await tab('Sessions').click()
+  await expect(win.locator('.pane-body .card .se')).toHaveText([/A question from the agent side/])
+
+  // The deleted one is what it was
+  await win.locator('.side input[type="checkbox"]').check()
+  const goneRow = win.locator('.side .row', { hasText: 'gone-proj' })
+  await expect(goneRow.locator('.stale-tag')).toHaveText('Stale')
+  await goneRow.click()
+  await expect(win.locator('.stale-note')).toBeVisible()
+
+  chmodSync(locked, 0o755)
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -7247,17 +7332,22 @@ test('leaving a project for a session page and coming back (query layer closeout
 })
 
 test('opening an artifact whose file was removed after the scan (query layer): one toast for each click, no overlay, no crash', async () => {
-  const mkHome = (): { home: string; ctx: string } => {
+  // The file that goes is a link's target. A plain file removed leaves the list at the next read of the list, which is the next
+  // scan or a revalidation (project-detail T2), so a click on its row would race them. `collectMd` lists a link by name, and
+  // its read fails whatever lands
+  const mkHome = (): { home: string; target: string; link: string } => {
     const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
     const proj = join(home, 'demo-proj')
     mkdirSync(join(proj, 'docs', 'specs'), { recursive: true })
     writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-    const ctx = join(proj, 'docs', 'CONTEXT.md')
-    writeFileSync(ctx, '# Doomed\n\nGone before it opens.\n')
+    const target = join(proj, 'moved.md')
+    const link = join(proj, 'docs', 'specs', 'doomed.md')
+    writeFileSync(target, '# Doomed\n\nGone before it opens.\n')
+    symlinkSync(target, link)
     writeFileSync(join(proj, 'docs', 'specs', 'fine.md'), '# Fine\n\nThis one reads.\n')
-    return { home, ctx }
+    return { home, target, link }
   }
-  const { home, ctx } = mkHome()
+  const { home, target: doomedTarget, link: doomedLink } = mkHome()
   const openTheArtifacts = async (w: Page): Promise<void> => {
     await w.locator('.rail .ri').nth(1).click()
     await w.locator('.side .row').first().click()
@@ -7267,10 +7357,11 @@ test('opening an artifact whose file was removed after the scan (query layer): o
   const win = await l.app.firstWindow()
   const added = await errorToastsAdded(win)
   await openTheArtifacts(win)
-  const doomed = win.locator('.it.ai', { hasText: 'Doomed' })
+  // By its path: its name falls back from the heading to the file name once the target is gone
+  const doomed = win.locator(`.it.ai[title="${doomedLink}"]`)
   await expect(doomed).toBeVisible()
 
-  rmSync(ctx, { force: true })
+  rmSync(doomedTarget, { force: true })
   await doomed.click()
   await expect(win.locator('.toast.err')).toHaveText('This file can no longer be read (moved or deleted?)')
   await expect(win.locator('.reader')).toHaveCount(0)
@@ -7300,7 +7391,7 @@ test('opening an artifact whose file was removed after the scan (query layer): o
   expect(await added()).toBe(1)
 
   // The file back: the click reads it again and opens it, with no toast from the failure it remembers
-  writeFileSync(ctx, '# Doomed\n\nBack again.\n')
+  writeFileSync(doomedTarget, '# Doomed\n\nBack again.\n')
   await doomed.click()
   await expect(win.locator('.reader')).toContainText('Back again.')
   expect(await added()).toBe(0)
@@ -7308,7 +7399,7 @@ test('opening an artifact whose file was removed after the scan (query layer): o
   // Removed again, now that it has been read: the click shows what was kept, with no toast (ADR-0029)
   await win.locator('.mask').click()
   await expect(win.locator('.reader')).toHaveCount(0)
-  rmSync(ctx, { force: true })
+  rmSync(doomedTarget, { force: true })
   await doomed.click()
   await expect(win.locator('.reader')).toContainText('Back again.')
   expect(await added()).toBe(0)
@@ -7321,17 +7412,17 @@ test('opening an artifact whose file was removed after the scan (query layer): o
   const win3 = await l3.app.firstWindow()
   const added3 = await errorToastsAdded(win3)
   await openTheArtifacts(win3)
-  await expect(win3.locator('.it.ai', { hasText: 'Doomed' })).toBeVisible()
-  rmSync(third.ctx, { force: true })
-  await win3.locator('.it.ai', { hasText: 'Doomed' }).click()
+  const doomed3 = win3.locator(`.it.ai[title="${third.link}"]`)
+  await expect(doomed3).toBeVisible()
+  rmSync(third.target, { force: true })
+  await doomed3.click()
   await win3.locator('.it.ai', { hasText: 'Fine' }).click()
   await expect(win3.locator('.reader')).toContainText('This one reads.')
   expect(await added3()).toBe(1)
   await expect(win3.locator('.reader')).toContainText('This one reads.')
   await close(l3)
 
-  // A read that fails through scans, with scans landing. A removed file leaves the list on the next scan, so this one is
-  // a link whose target is gone: `collectMd` lists it by name, and its read fails whatever the scans do
+  // A read that fails through scans, with scans landing
   const home2 = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
   const proj2 = join(home2, 'demo-proj')
   mkdirSync(join(proj2, 'docs', 'specs'), { recursive: true })

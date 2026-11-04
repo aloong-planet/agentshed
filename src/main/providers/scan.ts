@@ -1,7 +1,6 @@
 // The scan engine entry point (seam 1): given the data roots → the overview snapshot.
 // Ticket 02: the registry union (badges / staleness / path normalisation). Session activity, skills and
 // the rest land in this layer incrementally in later tickets.
-import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import { emptySnapshot } from '@shared/domain'
@@ -13,6 +12,7 @@ import { readGrokRegistry, readGrokSessions, type GrokSessionMeta } from './grok
 import { readAntigravityRegistry, readAntigravitySessions, type AntigravitySessionMeta } from './antigravity'
 import { readGlobalLayer } from './global'
 import { readMemorySummary } from './memory'
+import { isAbsent } from './read-utils'
 
 export interface ScanDeps {
   /** An injected clock, controllable in tests */
@@ -71,7 +71,8 @@ export function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
       path,
       name: basename(path),
       sides: [side],
-      stale: !existsSync(path),
+      // Stale says the directory is gone, so one that cannot be reached is not (projects-list A6)
+      stale: isAbsent(path),
       lastSessionAt: null,
       sessionCount: 0
     })

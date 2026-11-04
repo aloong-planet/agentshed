@@ -16,7 +16,7 @@ import type {
   ProjectPluginEntry
 } from '@shared/domain'
 import { antigravityConfigDir, type ScanRoots } from './types'
-import { fmField, fmValue, frontMatter, readTextCapped } from './read-utils'
+import { fmField, fmValue, frontMatter, isAbsent, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 function readJson(file: string): Record<string, unknown> | null {
@@ -55,7 +55,7 @@ function readInstalled(claudeHome: string): InstalledPlugin[] {
       return {
         scope: str('scope') ?? null,
         projectPath,
-        projectMissing: projectPath !== null && !existsSync(projectPath),
+        projectMissing: projectPath !== null && isAbsent(projectPath),
         installPath: str('installPath'),
         version: str('version')
       }
