@@ -72,8 +72,10 @@ Applies to: the six cases.
 
 ### test-layers::REQ-006 What stays in e2e of the tab case (direct acceptance)
 
-The steps of the tab case in which a change on disk reaches the page through a scan stay in a thin e2e
-case, because ADR-0038 admits reacting to files. Its lines and time do not count as replaced.
+A thin e2e case keeps one real change on disk for each way a scan changes the page under the tab: a project's
+directory removed and put back, and its registry entry removed and put back, because ADR-0038 admits reacting
+to files. The tab case's other scan-driven steps move, driven by a snapshot through the fake. The thin case's
+lines and time do not count as replaced.
 
 ### test-layers::REQ-007 The outcome
 
@@ -93,8 +95,10 @@ Applies to: the six cases taken together. Every criterion must pass; a case left
 of AC-01. The figures are the owner's rulings of 2026-11-05.
 
 - test-layers::QR-001/AC-01: The new tests catch every injected renderer bug.
-- test-layers::QR-001/AC-02: The new tests' total time is at most one fifth of the replaced e2e cases',
-  both measured on the same machine.
+- test-layers::QR-001/AC-02: The new tests' total time is at most one fifth of the replaced e2e cases', both
+  measured on the same machine as the median of five runs: the whole `vitest run` of the new test files, start
+  to exit, against the sum of the Playwright durations of the replaced cases, which leaves out the build and
+  Playwright's own start.
 - test-layers::QR-001/AC-03: The new tests pass 20 consecutive runs with no failure.
 - test-layers::QR-001/AC-04: The new tests and their harness total at most as many lines as the replaced
   e2e cases.
