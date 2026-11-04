@@ -310,7 +310,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
     // "Same name installed": the blocked notice, and nothing installed into any landing (skill-install::REQ-003/AC-02)
     const holding = lands.filter((l) => heldIn(skill, project).includes(l.dir))
     if (holding.length > 0) {
-      for (const l of holding) toast('err', `${skill.name} → ${project.name}(${where(l)}):${errorText(lang, appError(ERR.skillConflict))}`)
+      for (const l of holding) toast('err', t.agents.landingFailed(skill.name, project.name, where(l), errorText(lang, appError(ERR.skillConflict))))
       return
     }
     const results = await window.agentshed.installSkill({
@@ -320,7 +320,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
     })
     for (const r of results) {
       if (!r.result.ok) {
-        toast('err', `${skill.name} → ${project.name}(${where(r)}):${errorText(lang, appError(r.result.reason, r.result.params))}`)
+        toast('err', t.agents.landingFailed(skill.name, project.name, where(r), errorText(lang, appError(r.result.reason, r.result.params))))
       } else if (r.loaders.length > 1) {
         toast('ok', t.agents.installedShared(skill.name, project.name, r.loaders.map((s) => SIDE_FULL_NAME[s]).join(t.detail.sideJoin)))
       } else {

@@ -1517,7 +1517,7 @@ test('Antigravity usage: a corrupt settings file on the card comes before the un
 
   // The figure shows the build that also counted the unreadable conversation; the third line is the error, not the count
   await expect(card.locator('.v')).toHaveText('3k')
-  await expect(card.locator('.stat-err')).toHaveText(/^Failed to parse the registry: SyntaxError/)
+  await expect(card.locator('.stat-err')).toHaveText(`The registry is corrupt: ${join(agy, 'settings.json')}`)
   await expect(card.locator('.side-warn')).toHaveCount(0)
 
   // The settings repaired: at the next automatic scan the error goes and the count shows, the figure staying
@@ -1526,6 +1526,148 @@ test('Antigravity usage: a corrupt settings file on the card comes before the un
   await expect(card.locator('.side-warn')).toHaveText('1 conversation couldn’t be read')
   await expect(card.locator('.v')).toHaveText('3k')
 
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// agents-overview A3: a registry that cannot be read is not a corrupt one, and the card says which, with the file and
+// without the system's words. The exact text is what keeps EACCES out
+// agents-overview REQ-004, project-detail REQ-002: a directory that cannot be entered must not make a file read as absent,
+// on either page. Before the fix both slots read "None"
+test('an instruction file inside a directory that cannot be entered shows the read error in its slot, not None', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-instrblock-'))
+  const proj = join(home, 'blocked-proj')
+  mkdirSync(proj)
+  writeFileSync(join(proj, 'CLAUDE.md'), '# Project conventions\n')
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const codex = join(home, '.codex')
+  mkdirSync(codex)
+  writeFileSync(join(codex, 'AGENTS.md'), '# Codex global\n')
+  chmodSync(codex, 0o000)
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const body = win.locator('.pane-body')
+  const unreadable = 'The file cannot be read (permissions or I/O error)'
+  const tab = win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' })
+
+  await tab.click()
+  await body.locator('.instructions-switch button', { hasText: 'AGENTS.md' }).click()
+  await expect(body.locator('.instructions-path')).toHaveText([join(codex, 'AGENTS.md')])
+  await expect(body.locator('.md .none')).toHaveText(unreadable)
+
+  await win.locator('.rail .ri').nth(1).click()
+  const row = win.locator('.side .row', { hasText: 'blocked-proj' })
+  await expect(row).toBeVisible()
+  chmodSync(proj, 0o000)
+  await row.click()
+  await tab.click()
+  await expect(body.locator('.instructions-path')).toHaveText([join(proj, 'CLAUDE.md')])
+  await expect(body.locator('.md .none')).toHaveText(unreadable)
+
+  chmodSync(proj, 0o755)
+  chmodSync(codex, 0o755)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('a side whose registry cannot be read says so on its card, naming the file', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-regread-'))
+  const config = join(home, '.claude.json')
+  writeFileSync(config, JSON.stringify({ projects: {} }))
+  chmodSync(config, 0o000)
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const card = win.locator('.pane-head .stats .stat', { hasText: 'CLAUDE CODE' })
+  await expect(card.locator('.stat-err')).toHaveText(`The registry cannot be read: ${config}`)
+  chmodSync(config, 0o644)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// skill-install's failure notices: one notice, naming the skill and the project, in the current UI language, with no
+// system error. The directories go read-only with the lists already on screen, as a user's would
+test('a failed uninstall and a failed install each show one notice in a sentence, with no system error', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-skillfail-'))
+  const target = join(home, 'target-proj')
+  const holder = join(home, 'holder-proj')
+  mkdirSync(target)
+  mkdirSync(holder)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [target]: {}, [holder]: {} } }))
+  const global = join(home, '.claude', 'skills', 'alpha-skill')
+  mkdirSync(global, { recursive: true })
+  writeFileSync(join(global, 'SKILL.md'), '---\ndescription: alpha\n---\n\nbody\n')
+  // A Codex skill: its landing is the shared directory, and a failure there names the directory, not a side
+  const shared = join(home, '.agents', 'skills', 'gamma-skill')
+  mkdirSync(shared, { recursive: true })
+  writeFileSync(join(shared, 'SKILL.md'), '---\ndescription: gamma\n---\n\nbody\n')
+  mkdirSync(join(home, '.codex'))
+  writeFileSync(join(home, '.codex', 'config.toml'), `[projects."${target}"]\ntrust_level = "trusted"\n`)
+  const skills = join(holder, '.claude', 'skills')
+  const copy = join(skills, 'beta-skill')
+  mkdirSync(copy, { recursive: true })
+  writeFileSync(join(copy, 'SKILL.md'), '---\ndescription: beta\n---\n\nbody\n')
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const tab = (name: string) => win.locator('.pane-head .tabs .tab', { hasText: name })
+
+  // The uninstall. Its copy's contents are gone by the time the delete fails on the directory, so "not fully" is the truth
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'holder-proj' }).click()
+  await tab('Skills').click()
+  const row = win.locator('.pane-body .sk', { has: win.locator('.nm', { hasText: /^beta-skill$/ }) })
+  await expect(row).toBeVisible()
+  chmodSync(skills, 0o555)
+  await row.locator('.ins').click()
+  await win.locator('.dlg .cfg-btn.danger').click()
+  await expect(win.locator('.toast.err')).toHaveText(`Couldn’t uninstall beta-skill. It could not be fully deleted: ${copy}`)
+  await expect(win.locator('.toast')).toHaveCount(1)
+  chmodSync(skills, 0o755)
+  await expect(win.locator('.toast')).toHaveCount(0)
+
+  // The install, in English and again in Chinese
+  const install = async (skill: string = 'alpha-skill'): Promise<void> => {
+    await win.locator('.rail .ri').nth(0).click()
+    await tab('Skills').click()
+    await win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: new RegExp(`^${skill}$`) }) }).locator('.ins').click()
+    await win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: /^target-proj$/ }) }).click()
+  }
+  chmodSync(target, 0o555)
+  await install()
+  await expect(win.locator('.toast.err')).toHaveText('alpha-skill → target-proj (claude): Copy failed and was cleaned up')
+  await expect(win.locator('.toast')).toHaveCount(1)
+  await expect(win.locator('.toast')).toHaveCount(0)
+  await install('gamma-skill')
+  await expect(win.locator('.toast.err')).toHaveText('gamma-skill → target-proj (.agents/skills): Copy failed and was cleaned up')
+  await expect(win.locator('.toast')).toHaveCount(1)
+  await expect(win.locator('.toast')).toHaveCount(0)
+  await win.locator('.ri.set').click()
+  await win.locator('[data-testid="language-trigger"]').click()
+  await win.locator('.lang-opt[data-lang="zh"]').click()
+  await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+  // The switch has a notice of its own, which is gone before the install
+  await expect(win.locator('.toast')).toHaveCount(0)
+  await install()
+  await expect(win.locator('.toast.err')).toHaveText('alpha-skill → target-proj(claude):复制失败,已清理')
+  await expect(win.locator('.toast')).toHaveCount(1)
+  chmodSync(target, 0o755)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// subagents-view A2: the label stays and the detail line is a sentence, with none of the parser's text
+test('a subagent\'s corrupt toml keeps its label, and its detail line carries no parser\'s text', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-toml-'))
+  mkdirSync(join(home, '.codex', 'agents'), { recursive: true })
+  writeFileSync(join(home, '.codex', 'agents', 'broken.toml'), 'name = "unterminated')
+  writeFileSync(join(home, '.codex', 'agents', 'good.toml'), 'name = "good"\ndeveloper_instructions = "ok"\n')
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Subagents' }).click()
+  const row = win.locator('.it.row-btn', { hasText: '(broken.toml)' })
+  await expect(row.locator('.pill.warn')).toHaveText('Parse failed')
+  await row.click()
+  await expect(win.locator('.drawer .none')).toHaveText('Failed to parse the toml (corrupt or a syntax error); Codex itself will not load it either. Other entries are unaffected.')
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -1909,7 +2051,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
   await expect(target('agy-demo').locator('.pop-have')).toHaveText('Same name installed')
   await target('agy-demo').click()
   await expect(win.locator('.toast.err')).toHaveText(
-    'commit-style → agy-demo(.agents/skills):Blocked: the target already has a project-level skill with this name, and nothing was overwritten'
+    'commit-style → agy-demo (.agents/skills): Blocked: the target already has a project-level skill with this name, and nothing was overwritten'
   )
   expect(readFileSync(join(agOnly, '.agents', 'skills', 'commit-style', 'SKILL.md'), 'utf8')).toContain('Commit style, the project copy')
   // tdd into the project every side registered: two landings — Claude's directory and the shared one, which already
@@ -1921,7 +2063,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
   await expect(target('transfer').locator('.pop-have')).toHaveText('Same name installed')
   await expect(target('agy-demo').locator('.pop-have')).toHaveCount(0)
   await target('transfer').click()
-  await expect(win.locator('.toast.err')).toContainText('tdd → transfer(.agents/skills)')
+  await expect(win.locator('.toast.err')).toHaveText('tdd → transfer (.agents/skills): Blocked: the target already has a project-level skill with this name, and nothing was overwritten')
   expect(await win.locator('.toast').count()).toBe(1)
   expect(existsSync(join(all, '.claude', 'skills', 'tdd'))).toBe(false)
   // Whether a project offers the shared directory follows the skill's sides it is registered on (A8): a Codex-only
@@ -6847,6 +6989,58 @@ test('a session file that exists and cannot be read: the page and a turn say so 
   await win.locator('.qlist .q', { hasText: 'Second question' }).click()
   await expect(win.locator('.turn .tnote')).toHaveCount(0)
   await expect(win.locator('.turn .fetched')).toHaveCount(2)
+  chmodSync(codex, 0o644)
+
+  // The handler errors this case provokes on purpose carry the code and nothing else does
+  expect(l.errors.length).toBeGreaterThan(0)
+  for (const e of l.errors) expect(e.includes(ERR.sessionFileUnreadable), `a collected stderr chunk without the code:\n${e}`).toBe(true)
+  await close(l)
+})
+
+// The file changed since the index, so the rebuild path runs and fails on the read: that used to say it failed to parse
+test('a session file that changed since the index and cannot be read: the page and a turn say it cannot be read (P6, in-turn fetch states)', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const dir = join(home, '.claude', 'projects', enc)
+  const claude = join(dir, 'a.jsonl')
+  const other = join(dir, 'b.jsonl')
+  writeFileSync(other, JSON.stringify({ type: 'user', timestamp: localDayOffset(3).toISOString(), message: { role: 'user', content: 'Locked question' } }) + '\n')
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  const row = (question: string) => win.locator('.pane-body .card .se', { hasText: question })
+  await expect(row('Locked question')).toBeVisible()
+  const spoil = (file: string): void => {
+    appendFileSync(file, '\n')
+    chmodSync(file, 0o000)
+  }
+
+  // The page, on its first open
+  spoil(other)
+  await row('Locked question').click()
+  await expect(win.locator('.pane-body .none')).toHaveText('Cannot open this session: The session file can no longer be read (moved or deleted?)')
+
+  // A turn, with another already open
+  await win.locator('.sback').click()
+  await row('Sample question').click()
+  await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
+  spoil(claude)
+  await win.locator('.qlist .q', { hasText: 'Second question' }).click()
+  await expect(win.locator('.turn .tnote')).toHaveText('This turn could not be fetched: The session file can no longer be read (moved or deleted?)')
+  await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
+
+  // Codex's rebuild reads the metadata first, and a file that cannot be read says the same there
+  const codex = join(home, '.codex', 'sessions', '2026', '01', '01', 'rollout-019fb0c0-1111-7af3-af7d-8505cedf1ec2.jsonl')
+  spoil(codex)
+  await win.locator('.sback').click()
+  await row('Codex side question').click()
+  await expect(win.locator('.pane-body .none')).toHaveText('Cannot open this session: The session file can no longer be read (moved or deleted?)')
+
+  chmodSync(claude, 0o644)
+  chmodSync(other, 0o644)
   chmodSync(codex, 0o644)
 
   // The handler errors this case provokes on purpose carry the code and nothing else does

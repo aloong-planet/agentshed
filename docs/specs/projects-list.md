@@ -63,7 +63,7 @@ and are never written back to any agent configuration.
 - A1 No side's data directory exists → an empty snapshot with `detected=false` for every side, no
   throw.
 - A2 Only some sides exist → `detected=true` for those, with the others' empty state alongside.
-- A3 One side's registry is corrupt → that side degrades to empty with an error explanation, and
+- A3 One side's registry is corrupt or unreadable → that side degrades to empty with an error explanation, and
   **every other side behaves normally** (a single-side failure does not clear the whole table).
 - A4 The same directory is registered on several sides → merged into one entry whose count equals the
   number of sides.

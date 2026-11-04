@@ -7,6 +7,8 @@ import { emptySnapshot, emptyTokenStats, zeroBySide } from '@shared/domain'
 import type { AgentSide, ProjectDetail, ProjectStats, SessionPage, SessionTurn, Snapshot, UsageRow } from '@shared/domain'
 import { emptyDisplayData, type DisplayData, type SavedRead } from '@shared/display-data'
 import { AGENT_SIDES } from '@shared/validate'
+import { errorText } from '@shared/error-text'
+import { ERR, appError } from '@shared/errors'
 import { DisplayStore } from './display-store'
 const dirs: string[] = []
 afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }) })
@@ -33,6 +35,23 @@ it('drops a corrupt snapshot leaf without losing an independently valid preview'
   const restored = new DisplayStore(root).get()
   expect(restored.snapshot).toBeNull()
   expect(restored.reads).toEqual([{ kind: 'artifactContent', file: '/viewed.md', data: { text: 'kept preview', truncated: false } }])
+})
+
+// agents-overview A3. Corruption's route in, the file: this is what a build from before the error named its file left there
+it('a snapshot whose side error still holds the old detail parameter comes back whole, and reads as the sentence alone', async () => {
+  const root = dir(), store = new DisplayStore(root), data = emptyDisplayData()
+  data.snapshot = emptySnapshot(100)
+  data.snapshot.sides.claude.error = { code: ERR.registryParseFailed, params: { path: '/h/.claude.json' } }
+  store.save(data)
+  await store.flush()
+  const file = join(root, 'display-cache.json')
+  const raw = JSON.parse(readFileSync(file, 'utf8')) as { data: { snapshot: { sides: { claude: { error: { params: unknown } } } } } }
+  const old = { detail: 'SyntaxError: Expected property name in JSON at position 1' }
+  raw.data.snapshot.sides.claude.error.params = old
+  writeFileSync(file, JSON.stringify(raw))
+  const error = new DisplayStore(root).get().snapshot?.sides.claude.error
+  expect(error).toEqual({ code: ERR.registryParseFailed, params: old })
+  expect(errorText('en', appError(ERR.registryParseFailed, error?.params))).toBe('The registry is corrupt')
 })
 
 it('coalesces pending writes and flushes the newest successful payload', async () => {

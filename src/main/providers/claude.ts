@@ -12,23 +12,26 @@ export interface RegistryResult {
 
 export function readClaudeRegistry(configFile: string): RegistryResult {
   if (!existsSync(configFile)) return { detected: false, paths: [] }
+  let text: string
   try {
-    const raw: unknown = JSON.parse(readFileSync(configFile, 'utf8'))
-    const projects =
-      typeof raw === 'object' && raw !== null
-        ? (raw as Record<string, unknown>)['projects']
-        : undefined
-    if (typeof projects !== 'object' || projects === null) {
-      return { detected: true, paths: [], error: { code: ERR.registryProjectsInvalid, params: {} } }
-    }
-    return { detected: true, paths: Object.keys(projects) }
-  } catch (err) {
-    return {
-      detected: true,
-      paths: [],
-      error: { code: ERR.registryParseFailed, params: { detail: String(err) } }
-    }
+    text = readFileSync(configFile, 'utf8')
+  } catch {
+    return { detected: true, paths: [], error: { code: ERR.registryUnreadable, params: { path: configFile } } }
   }
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    return { detected: true, paths: [], error: { code: ERR.registryParseFailed, params: { path: configFile } } }
+  }
+  const projects =
+    typeof raw === 'object' && raw !== null
+      ? (raw as Record<string, unknown>)['projects']
+      : undefined
+  if (typeof projects !== 'object' || projects === null) {
+    return { detected: true, paths: [], error: { code: ERR.registryProjectsInvalid, params: {} } }
+  }
+  return { detected: true, paths: Object.keys(projects) }
 }
 
 /**

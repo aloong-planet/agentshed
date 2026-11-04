@@ -31,6 +31,10 @@ copy into a chosen project, and can uninstall the project-level copy.
 - Every operation gives an explicit success or failure notice, and the result is visible right away:
   a project's contents are read when the project is opened, so nothing has to be refreshed and no
   other project is disturbed
+- A failed install says the copy failed and was cleaned up, naming the skill and the project. A failed
+  uninstall names the skill and says what could not be fully deleted, by its path; a folder's contents go
+  first, so the skill can already be gone from the list, and the empty folder blocks installing that name
+  again until it is removed
 
 ## Boundaries and non-goals
 - The global library is read-only: nothing is added to or removed from it via this app; plugins

@@ -1,9 +1,9 @@
 // Ticket 06: install and uninstall — landing by copy (dereferenced), blocking same names, refusing stale
 // projects, cleaning up on failure, and the uninstall guards.
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync, existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync, existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { installSkill, uninstallSkill } from './install'
 import type { ScanRoots } from './types'
 import { ERR } from '@shared/errors'
@@ -101,6 +101,36 @@ describe('installSkill', () => {
   })
 })
 
+// The notice says the copy failed and was cleaned up, and carries no system error (skill-install's failure notices)
+describe.skipIf(process.getuid?.() === 0)('installSkill, when the copy fails', () => {
+  it('a project that cannot be written: the failure carries no parameter, and the system error goes to the log', () => {
+    mkGlobalSkill('claude', 'tidy')
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    chmodSync(proj, 0o555)
+    try {
+      expect(installSkill(roots(), { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason: ERR.skillCopyFailed })
+      expect(logged.mock.calls).toEqual([['[skill-install] copy failed:', expect.any(Error)]])
+    } finally {
+      chmodSync(proj, 0o755)
+      logged.mockRestore()
+    }
+  })
+
+  it('a copy that fails midway leaves nothing behind (A6), which is what the notice claims', () => {
+    const locked = join(mkGlobalSkill('claude', 'tidy'), 'z-locked.txt')
+    writeFileSync(locked, 'x')
+    chmodSync(locked, 0o000)
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(installSkill(roots(), { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason: ERR.skillCopyFailed })
+      expect(readdirSync(join(proj, '.claude', 'skills'))).toEqual([])
+    } finally {
+      chmodSync(locked, 0o644)
+      logged.mockRestore()
+    }
+  })
+})
+
 describe('uninstallSkill', () => {
   it('deletes the project-level copy; the global library is unaffected', () => {
     mkGlobalSkill('claude', 'tdd')
@@ -114,6 +144,22 @@ describe('uninstallSkill', () => {
   it('a missing target → reports an error rather than throwing', () => {
     const r = uninstallSkill({ skillName: 'nope', side: 'claude', targetProjectPath: proj })
     expect(r.ok).toBe(false)
+  })
+
+  it.skipIf(process.getuid?.() === 0)('a directory that cannot be written: the failure names the path, with no system error, and the system error goes to the log', () => {
+    const skills = join(proj, '.claude', 'skills')
+    const copy = join(skills, 'tidy')
+    mkdirSync(copy, { recursive: true })
+    writeFileSync(join(copy, 'SKILL.md'), '---\nname: tidy\n---\n')
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    chmodSync(skills, 0o555)
+    try {
+      expect(uninstallSkill({ skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason: ERR.skillDeleteFailed, params: { path: copy } })
+      expect(logged.mock.calls).toEqual([['[skill-install] delete failed:', expect.any(Error)]])
+    } finally {
+      chmodSync(skills, 0o755)
+      logged.mockRestore()
+    }
   })
 
   it('name traversal is refused', () => {

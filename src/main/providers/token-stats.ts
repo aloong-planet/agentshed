@@ -40,6 +40,7 @@ import { readGrokSessionMeta } from './grok'
 import { isColdRollout, rolloutStem } from './cold-rollout'
 import { mapLimit, readRanges } from './range-read'
 import { eachJsonlLine } from './jsonl'
+import { isReadable } from './read-utils'
 import {
   makeAntigravityQuestionIndexer,
   makeGrokQuestionIndexer,
@@ -804,13 +805,16 @@ export class TokenEngine {
         fresh = await parseGrokFile(file, mergeKey(meta.cwd), meta.subagent)
       } else {
         const meta = readCodexSessionMeta(file)
-        if (!meta) throw appError(ERR.sessionMetaUnreadable)
+        // No metadata out of a file that cannot be read is the file's failure, not its first line's (session-view P6)
+        if (!meta) throw appError(isReadable(file) ? ERR.sessionMetaUnreadable : ERR.sessionFileUnreadable)
         const entry = await this.codexEntry(file, meta.cwd, meta, readCodexIndex(roots.codexHome))
-        if (!entry) throw appError(ERR.sessionParseFailed)
+        if (!entry) throw appError(ERR.sessionFileUnreadable)
         this.cache.files[file] = entry
         fresh = entry.agg
       }
-      if (!fresh) throw appError(ERR.sessionParseFailed)
+      // A parse gives null only when the file cannot be read: a bad line is skipped, and a format it does not know is
+      // an agg marked unreadable, below
+      if (!fresh) throw appError(ERR.sessionFileUnreadable)
       agg = fresh
       // A Codex entry was stored above, with the state its next resume starts from
       if (fresh.kind !== 'codex') this.cache.files[file] = { sig, agg }

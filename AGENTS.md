@@ -26,6 +26,9 @@ a retried "does not appear" check cannot prove absence.
   the target agent itself does at that moment; nothing is salvaged from unparseable content.
 - A failure reading one entry affects only that entry's display — never another entry (shadowing
   included), an aggregate view or a whole scan — and any such escape is fixed whatever its frequency.
+- A place that promises a read error never decides absence with `existsSync`, which answers false for a
+  path behind a directory that cannot be entered; it asks `isAbsent` (postmortem
+  `2026-11-05-a-path-it-could-not-look-at-read-as-not-there`).
 
 ### Token accounting
 

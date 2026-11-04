@@ -33,6 +33,7 @@
 //   decoder of the research record) needs real agy data and stays out of the default gate; run 2026-10-29 for #323:
 //   43 calls, identical figures (research record §10.11).
 import {
+  chmodSync,
   appendFileSync,
   existsSync,
   mkdirSync,
@@ -184,7 +185,7 @@ describe('the registry: the folders agy was told to trust (projects-list::REQ-00
     writeFileSync(join(agyRoot(), 'settings.json'), '{"trustedWorkspaces": ["/x"')
     let snap = await scan(roots(), { now: () => 1 })
     expect(snap.sides.antigravity.detected).toBe(true)
-    expect(snap.sides.antigravity.error?.code).toBe(ERR.registryParseFailed)
+    expect(snap.sides.antigravity.error).toEqual({ code: ERR.registryParseFailed, params: { path: join(agyRoot(), 'settings.json') } })
     expect(snap.projects.map((e) => e.name)).toEqual(['claude-side'])
     writeFileSync(join(agyRoot(), 'settings.json'), '{"trustedWorkspaces": 3}')
     snap = await scan(roots(), { now: () => 1 })
@@ -1263,6 +1264,42 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     const r = await build()
     expect([sessionsOf(r, p), r.antigravityUnreadable, [...r.sessionFiles]]).toEqual([[], 1, []])
     await expect(engine().sessionQuestions(roots(), file)).rejects.toSatisfy((err: unknown) => decodeAppError(err)?.code === ERR.sessionParseFailed)
+  })
+
+  // session-view P6: the same read cannot tell a database it cannot open from one of another format, so both reach the one
+  // sentence, which is true of both
+  it.skipIf(process.getuid?.() === 0)('a rebuild that cannot open the database, with no log beside it, takes the same code as another format', async () => {
+    const p = mkProject('demo')
+    trust([p])
+    const file = usageConversation(ID.main, [p], [{ usage: { messageId: 'm-n', input: 100 }, at: oct(26) }])
+    writeTranscript(agyRoot(), ID.main, T.main)
+    await build()
+    appendFileSync(transcriptFile(agyRoot(), ID.main), '\n')
+    chmodSync(file, 0o000)
+    try {
+      const code = await engine().sessionQuestions(roots(), file).catch((err: unknown) => decodeAppError(err)?.code)
+      expect(code).toBe(ERR.sessionParseFailed)
+    } finally {
+      chmodSync(file, 0o644)
+    }
+  })
+
+  // session-view P6: a read that fails with agy's log beside the database gives no result at all, and that is a file that
+  // cannot be read, never a parse. The log also changes the signature, so the index has to be rebuilt
+  it.skipIf(process.getuid?.() === 0)('a rebuild that cannot read the database while agy\'s log is beside it says the file cannot be read', async () => {
+    const p = mkProject('demo')
+    trust([p])
+    const file = usageConversation(ID.main, [p], [{ usage: { messageId: 'm-w', input: 100 }, at: oct(26) }])
+    writeTranscript(agyRoot(), ID.main, T.main)
+    await build()
+    writeFileSync(`${file}-wal`, 'x')
+    chmodSync(file, 0o000)
+    try {
+      const code = await engine().sessionQuestions(roots(), file).catch((err: unknown) => decodeAppError(err)?.code)
+      expect(code).toBe(ERR.sessionFileUnreadable)
+    } finally {
+      chmodSync(file, 0o644)
+    }
   })
 
   describe('forks (REQ-005)', () => {

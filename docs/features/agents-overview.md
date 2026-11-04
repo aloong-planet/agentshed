@@ -8,8 +8,8 @@ agent side's global picture onto one screen.
 ## Capabilities
 - A summary card per side at the top: that side's detection status, token figure, project count,
   global skill count and subagent count — the skill count is the side's own library, not the skills its
-  plugins bring; if one side's registry is corrupt it degrades to an error explanation while the other
-  sides are unaffected
+  plugins bring; if one side's registry is corrupt or cannot be read, its card says which and names the
+  file, while the other sides are unaffected
 - A card's project count of one or more is a link, by pointer or keyboard, that opens the project list on
   that side's projects (see [Project list](projects-list.md)). A count of zero is plain text, the skill and
   subagent counts are not links, and a card whose last line shows an error or the unread-conversations
@@ -18,7 +18,7 @@ agent side's global picture onto one screen.
   supports, the Antigravity CLI card's last line says how many, in the warning colour, and hovering it
   explains that Antigravity CLI may have changed its conversation format in an update and that their
   usage is not counted; the figure above still shows what could be read, and the usual line returns
-  once every conversation reads again. A corrupt registry's explanation takes precedence over it
+  once every conversation reads again. A registry's error takes precedence over it
 - Reopening the app immediately shows the last saved overview and project list while a scan runs
   in the background. The page remains usable; the title's scanning note disappears when fresh data
   arrives in place. If scanning fails, the note stops spinning, previous data stays visible and

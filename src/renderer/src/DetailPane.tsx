@@ -594,7 +594,7 @@ function SkillsTab({
       targetProjectPath: detail.path
     })
     if (r.ok) toast('ok', t.detail.uninstalled(s.name))
-    else toast('err', t.detail.uninstallFailed(errorText(lang, appError(r.reason, r.params))))
+    else toast('err', t.detail.uninstallFailed(s.name, errorText(lang, appError(r.reason, r.params))))
     onChanged()
   }
   const delPath =

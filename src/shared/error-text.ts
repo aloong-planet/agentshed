@@ -106,17 +106,19 @@ export function errorText(lang: Language, raw: unknown): string {
     case ERR.skillConflict:
       return t.skillConflict
     case ERR.skillCopyFailed:
-      return t.skillCopyFailed(s(p, 'detail'))
+      return t.skillCopyFailed
     case ERR.skillDeleteFailed:
-      return t.skillDeleteFailed(s(p, 'detail'))
+      return t.skillDeleteFailed(s(p, 'path'))
     case ERR.registryProjectsInvalid:
       return t.registryProjectsInvalid
+    case ERR.registryUnreadable:
+      return t.registryUnreadable(s(p, 'path'))
     case ERR.registryParseFailed:
-      return t.registryParseFailed(s(p, 'detail'))
+      return t.registryParseFailed(s(p, 'path'))
     case ERR.subagentUnreadable:
       return t.subagentUnreadable
     case ERR.subagentTomlFailed:
-      return t.subagentTomlFailed(s(p, 'detail'))
+      return t.subagentTomlFailed
     case ERR.subagentMissingName:
       return t.subagentMissingName
     default:
