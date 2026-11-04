@@ -31,8 +31,9 @@ no rule for which layer a behaviour belongs at.
    behaviour stays at the data layer.
 6. The data layer as the single seam — rejected, as ADR-0002 rejected it: the contract layer has to be
    independently testable (the lesson of Transfer's IPC drift).
-7. A component-test layer below e2e — deferred: whether it earns its keep needs evidence. Reopened when
-   the pilot in the [test-layers spec](../specs/test-layers.md) has its outcome.
+7. A component-test layer below e2e — rejected for now: a pilot matched e2e's detection but failed two
+   criteria set in advance, and its figures and what would reopen it are in the
+   [test-layers spec](../specs/test-layers.md)'s Out of Scope.
 
 ## Decision
 
@@ -70,7 +71,7 @@ This decision moves no existing case by itself.
 - Negative: e2e stays the slowest layer, and this decision only bounds new cases; it does not shrink the
   suite.
 - Negative: a UI behaviour with no chain or layout concern and no pure function to extract has no cheap
-  home yet. The test-layers pilot measures whether one is worth adding.
+  home, so it stays in e2e.
 - Neutral: every spec and source comment citing ADR-0002 now cites this entry.
 
 ## Sources
