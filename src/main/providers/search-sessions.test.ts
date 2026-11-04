@@ -115,19 +115,23 @@ describe('question mode (the default): searches questions only, with hits groupe
   })
 
   it('a session file that cannot be read is left out and the others\' hits stay, in both modes: a failure on one entry stays there', async () => {
-    mkClaude('a.jsonl', [uL('needle in the readable session')])
-    const locked = mkClaude('b.jsonl', [uL('needle in the locked session')])
+    const asked = (at: string, text: string): string =>
+      JSON.stringify({ type: 'user', timestamp: at, message: { role: 'user', content: text } })
+    const newest = mkClaude('newest.jsonl', [asked('2026-07-30T03:00:00.000Z', 'needle in the newest session')])
+    const locked = mkClaude('locked.jsonl', [asked('2026-07-30T02:00:00.000Z', 'needle in the locked session')])
+    const oldest = mkClaude('oldest.jsonl', [asked('2026-07-30T01:00:00.000Z', 'needle in the oldest session')])
     const e = new TokenEngine(join(dir, 'cache'))
     const sessions = (await e.build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
-    expect(sessions).toHaveLength(2)
+    // Read newest first, so a session comes after the failing one: a failure that ended the search there would lose it
+    expect(sessions.map((s) => s.file)).toEqual([newest, locked, oldest])
     // chmod changes neither the mtime nor the size, so the index still answers and the range read is what fails
     chmodSync(locked, 0o000)
     try {
       for (const fullText of [false, true]) {
         const r = await searchProjectSessions(e, roots(), sessions, 'needle', fullText)
-        expect(r.sessionCount, `fullText ${fullText}`).toBe(1)
-        expect(r.totalHits, `fullText ${fullText}`).toBe(1)
-        expect(r.groups[0].hits[0].text).toBe('needle in the readable session')
+        expect(r.sessionCount, `fullText ${fullText}`).toBe(2)
+        expect(r.totalHits, `fullText ${fullText}`).toBe(2)
+        expect(r.groups.map((g) => g.hits[0].text), `fullText ${fullText}`).toEqual(['needle in the newest session', 'needle in the oldest session'])
       }
     } finally {
       chmodSync(locked, 0o644)

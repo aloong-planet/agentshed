@@ -2087,7 +2087,7 @@ describe('sessionQuestions (the session page service)', () => {
     }
   })
 
-  it('a build whose cache write fails still completes, the first scan included (e2e blocks only after launch): the failure is logged', async () => {
+  it('a build whose cache write fails still completes, and the failure is logged', async () => {
     const cl = mkClaudeFile('first-scan.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
     mkdirSync(join(dir, 'cache', `.token-cache.j-${process.pid}`), { recursive: true })
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {})

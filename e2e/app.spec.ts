@@ -6836,7 +6836,7 @@ test('a session file that exists and cannot be read: the page and a turn say so 
 
 test('a project search with one session file that cannot be read shows the other sessions\' hits and leaves that one out (a failure on one entry stays there)', async () => {
   const home = mkUsageHome()
-  const codex = join(home, '.codex', 'sessions', '2026', '01', '01', 'rollout-019fb0c0-1111-7af3-af7d-8505cedf1ec2.jsonl')
+  const claude = join(home, '.claude', 'projects', join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-'), 'a.jsonl')
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -6845,12 +6845,14 @@ test('a project search with one session file that cannot be read shows the other
   await win.locator('.sbar input').fill('question')
   await expect(win.locator('.shead')).toContainText('Found 3 hits · 2 sessions')
 
-  // Another needle: the same one is answered from the query's cache, and reads nothing
-  chmodSync(codex, 0o000)
+  // Claude's session is read first, being the newest, so the Codex hit comes after the failure. And another needle: the
+  // same one is answered from the query's cache, and reads nothing
+  chmodSync(claude, 0o000)
   await win.locator('.sbar input').fill('ques')
-  await expect(win.locator('.shead')).toContainText('Found 2 hits · 1 session')
-  await expect(win.locator('.grp .hit')).toHaveCount(2)
-  chmodSync(codex, 0o644)
+  await expect(win.locator('.shead')).toContainText('Found 1 hit · 1 session')
+  await expect(win.locator('.grp .hit')).toHaveCount(1)
+  await expect(win.locator('.grp .hit')).toContainText('Codex side question')
+  chmodSync(claude, 0o644)
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -6903,6 +6905,34 @@ test('a failed token cache write during a scan: the scan still delivers its snap
   expect(stderr.join('')).not.toContain('scan failed')
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+test('a failed token cache write on the first scan: the app comes up with its data rather than staying on the placeholder, and the failure is logged', async () => {
+  const home = mkUsageHome()
+  const userData = makeUserData()
+  // A non-empty directory where the cache file goes: the temporary file writes and the rename fails
+  mkdirSync(join(userData, 'token-cache.json', 'x'), { recursive: true })
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US' }
+  })
+  const stderr: string[] = []
+  const errors: string[] = []
+  app.process().stderr?.on('data', (b: Buffer) => {
+    const t = b.toString()
+    stderr.push(t)
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t.trim())
+  })
+  const win = await app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  // Only the first scan's snapshot can list the session
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible({ timeout: 15000 })
+  expect(stderr.join('')).toContain('[token-cache] save failed:')
+  expect(stderr.join('')).not.toContain('scan failed')
+  expect(errors).toEqual([])
+  await close({ app, errors, userData, home })
 })
 
 test('a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity', async () => {

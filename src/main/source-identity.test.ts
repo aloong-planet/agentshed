@@ -1,10 +1,11 @@
 // Known gaps of the session read guards, readSessionRanges and recordFileBytes. No state a test can reach through the app
-// makes these fail, so no e2e case drives them: a read failing after a good open, a close failing, a cold stream breaking
-// under an unchanged signature, and the record file's stat failing after the identity check. So replacing recordFileBytes
-// in getSessionPage with a bare stat leaves every test green. Below, the guards are driven at their own seam: a directory
-// for the read, a file that is not zstd for the stream, a missing file for the stat. A failing close is not driven at all;
-// it shares the read's catch. A case through the app needs a read seam that can inject a fault, or a delay that lets a test
-// remove the file between the two calls.
+// makes these fail, so no e2e case drives them: a read failing after a good open, a close failing, and the record file's
+// stat failing after the identity check. So replacing recordFileBytes in getSessionPage with a bare stat leaves every test
+// green. A case for those needs a read seam that can inject a fault, or a delay that lets a test remove the file between
+// the two calls. A cold stream breaking under an unchanged signature could be reached, by rewriting a .jsonl.zst at the
+// same length with its mtime pinned; it has no case because it goes through the same catch as the seam's file below.
+// Below, the guards are driven at their own seam: a directory for the read, a file that is not zstd for the stream, a
+// missing file for the stat. A failing close is not driven at all; it shares the read's catch.
 import { expect, it } from 'vitest'
 import { chmodSync, mkdtempSync, writeFileSync, symlinkSync, rmSync, mkdirSync, statSync, utimesSync } from 'node:fs'
 import { join } from 'node:path'
