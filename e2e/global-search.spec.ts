@@ -602,26 +602,34 @@ test('a return overtaken while it is held on its fetch draws no page, so the nex
   const l = await launch(home, { AGENTSHED_FETCH_DELAY_MS: '1000' })
   const { win, app } = l
   // Each way uses a project not yet fetched, because a fetched one is not held
-  const ways: { text: string; name: string; leave: () => Promise<void> }[] = [
+  const rail = (i: number) => win.locator('.rail .ri').nth(i)
+  const toAgents = async (): Promise<void> => {
+    await rail(0).click()
+    await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+  }
+  const ways: { keyword: string; text: string; name: string; leave: () => Promise<void>; back: () => Promise<void> }[] = [
     {
+      keyword: 'notarize',
       text: 'How do I notarize the app?',
       name: 'target-proj',
-      leave: async () => {
-        await win.locator('.rail .ri').nth(0).click()
-        await expect(win.locator('.pane-head h1')).toHaveText('Agents')
-      }
+      leave: toAgents,
+      back: () => rail(1).click()
     },
     {
+      keyword: 'notarize',
       text: 'Child asks to notarize the fork',
       name: 'fork-proj',
       leave: async () => {
         await clickSearchSessions(app)
         await expect(box(win)).toBeVisible()
-      }
+      },
+      back: () => rail(1).click()
     },
     {
+      keyword: 'notarize',
       text: 'twin asks to notarize',
       name: 'twin',
+      back: () => rail(1).click(),
       leave: async () => {
         await app.evaluate(({ Menu }) => {
           const walk = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
@@ -638,18 +646,26 @@ test('a return overtaken while it is held on its fetch draws no page, so the nex
         })
         await expect(win.locator('.settings-sec-t').first()).toBeVisible()
       }
+    },
+    {
+      // The card clears nothing itself: this is the way that needs the clear on leaving
+      keyword: 'filler question 21',
+      text: 'filler question 21',
+      name: 'filler-21',
+      leave: toAgents,
+      back: () => win.locator('.pane-head .stats .stat', { has: win.locator('.badge.cl') }).locator('.s .stat-link').click()
     }
   ]
   try {
     for (const way of ways) {
-      await openHit(win, 'notarize', way.text)
+      await openHit(win, way.keyword, way.text)
       // The exit holds the session page on its fetch
       await exits(win).nth(1).click()
       await expect(win.locator('.pane-head .stitle')).toBeVisible()
       await way.leave()
       // The held return lands with no page on the stage. Past the fetch delay; coming back sooner reads the same
       await win.waitForTimeout(1300)
-      await win.locator('.rail .ri').nth(1).click()
+      await way.back()
       await expect(win.locator('.pane-head h1')).toHaveText(way.name)
       await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Overview')
     }
@@ -658,7 +674,7 @@ test('a return overtaken while it is held on its fetch draws no page, so the nex
     await openHit(win, 'filler question 22', 'filler question 22')
     await exits(win).nth(1).click()
     await expect(win.locator('.pane-head .stitle')).toBeVisible()
-    await win.locator('.rail .ri').nth(1).click()
+    await rail(1).click()
     await expect(win.locator('.pane-head h1')).toHaveText('filler-22')
     await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
   } finally {
