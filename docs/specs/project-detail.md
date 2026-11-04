@@ -140,7 +140,8 @@ never writes to any agent's registry; it tells the user what happened and hands 
 - S7 After the records are removed and a refresh runs, the project leaves the list; if it was the
   selected project, the pane shows the existing not-in-snapshot empty state rather than a ghost
   selection(the mechanism that has always answered a vanished entry — a selection reset would hide
-  what happened, the message says it).
+  what happened, the message says it). The message names selecting another project, which clears it; with none left
+  in the list it stays until a record comes back or the window reloads.
 - S8 Introduced-content dimension: the card renders first-party copy plus the path **as text** (a
   path containing markup-like characters displays literally); the copy button is the only
   interactive element and writes only to the clipboard.
