@@ -454,7 +454,7 @@ Skills section, project detail's Skills section and the Plugins section's Skills
   nothing from inside it. Neither costs any other file (AGENTS.md's one-entry invariant).
 - A long path in a narrow column: at the default window the Agents page shows the 80-character path whole,
   while project detail and narrower windows cut it, file name included, leaving the full path to hover and
-  to the drawer's subtitle.
+  to the drawer's subtitle, which wraps at any character and so holds a path of any length.
 - An oversized file is truncated when read (C7) wherever it sits; its line count still covers the whole file.
 - Filtering (sequences E, F) matches skill names only, so deep files change nothing about which rows match.
 

@@ -3665,7 +3665,8 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   symlinkSync(join(home, 'shared-docs'), join(gskills, 'tdd', 'linked'))
   // Past the read cap, in a type that shows raw
   writeFileSync(join(gskills, 'tdd', 'references', 'nested', 'big-data.txt'), 'Line of the data file\n'.repeat(30000))
-  const longPath = `templates/${'long-directory-name/'.repeat(10)}guide.md`
+  // One segment with no break point, as real names run on underscores, and wider than any window
+  const longPath = `templates/${'long_directory_name_'.repeat(10)}/guide.md`
   mkdirSync(dirname(join(gskills, 'tdd', longPath)), { recursive: true })
   writeFileSync(join(gskills, 'tdd', longPath), '# Long\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
@@ -3803,9 +3804,17 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   const drawerMeta = win.locator('.file-drawer .d-meta')
   await expect(drawerMeta).toContainText(longPath)
   expect(
-    await drawerMeta.evaluate((el) => el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight),
-    'the subtitle clips a long path neither across nor down'
-  ).toBe(true)
+    await drawerMeta.evaluate((el) => {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      const text = range.getBoundingClientRect()
+      const block = (el.parentElement as HTMLElement).getBoundingClientRect()
+      return {
+        ownBoxFits: el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight,
+        textInsideBlock: text.width > 0 && text.left >= block.left && text.right <= block.right && text.top >= block.top && text.bottom <= block.bottom
+      }
+    })
+  ).toEqual({ ownBoxFits: true, textInsideBlock: true })
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // A nested file past the read cap ends in the truncation footnote (C7)
   await tdd.locator('.files button', { hasText: 'references/nested/big-data.txt' }).click()
