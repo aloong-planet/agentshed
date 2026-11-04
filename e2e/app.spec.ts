@@ -3663,6 +3663,8 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   mkdirSync(join(home, 'shared-docs'), { recursive: true })
   writeFileSync(join(home, 'shared-docs', 'outside.md'), '# Outside\n\nLinked directory body\n')
   symlinkSync(join(home, 'shared-docs'), join(gskills, 'tdd', 'linked'))
+  // Past the read cap, in a type that shows raw
+  writeFileSync(join(gskills, 'tdd', 'references', 'nested', 'big-data.txt'), 'Line of the data file\n'.repeat(30000))
   const longPath = `templates/${'long-directory-name/'.repeat(10)}guide.md`
   mkdirSync(dirname(join(gskills, 'tdd', longPath)), { recursive: true })
   writeFileSync(join(gskills, 'tdd', longPath), '# Long\n')
@@ -3708,8 +3710,8 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   //     the body)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const tdd = win.locator('.sk', { hasText: 'tdd' })
-  // SKILL.md, the script, the three nested files and the one behind the directory link; the schema is off the text list
-  await expect(tdd.locator('.sk-meta')).toContainText('6 files')
+  // SKILL.md, the script, the four nested files and the one behind the directory link; the schema is off the text list
+  await expect(tdd.locator('.sk-meta')).toContainText('7 files')
   await tdd.locator('.sk-head').click()
   await expect(tdd.locator('.files-card')).toBeVisible()
   await expect(tdd.locator('.files-sum')).toHaveCount(0) // The summary moved onto the row, so the expanded area no longer repeats it
@@ -3796,6 +3798,16 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
       return { cut: el.scrollWidth > el.clientWidth, overflowX: style.overflowX, textOverflow: style.textOverflow }
     })
   ).toEqual({ cut: true, overflowX: 'hidden', textOverflow: 'ellipsis' })
+  // The drawer's subtitle holds that whole path, uncut
+  await longCell.click()
+  const drawerMeta = win.locator('.file-drawer .d-meta')
+  await expect(drawerMeta).toContainText(longPath)
+  expect(await drawerMeta.evaluate((el) => el.scrollWidth <= el.clientWidth), 'the subtitle does not clip a long path').toBe(true)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // A nested file past the read cap ends in the truncation footnote (C7)
+  await tdd.locator('.files button', { hasText: 'references/nested/big-data.txt' }).click()
+  await expect(win.locator('.file-drawer .md-preview-body')).toHaveText(/…\(truncated\)\s*$/)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // (1b) A symlinked skill whose target is outside the roots: the row carries the symlink badge, and
   //      expanding and reading files work end to end (A6)

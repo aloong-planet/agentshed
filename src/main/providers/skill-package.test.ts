@@ -1,5 +1,6 @@
 // Gap: the walk's catch around resolving a directory link has no trigger short of the link vanishing between that
 // call and the stat before it, so no test drives it; driving it would need the filesystem injected.
+import { execFileSync } from 'node:child_process'
 import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -170,7 +171,16 @@ describe('listSkillPackageFiles', () => {
     expect(readSkillFileText(files.find((f) => f.path === 'refs/deep/small.md')!.absPath)).toEqual({ text: 'small\n', truncated: false })
   })
 
-  it('caps no rows: a package larger than any measured one lists every file', () => {
+  it('a named pipe with a text name is skipped', () => {
+    const pack = join(dir, 'with-pipe')
+    mkPack(pack, { 'SKILL.md': '# s\n', 'refs/a.md': 'a\n' })
+    execFileSync('mkfifo', [join(pack, 'refs', 'pipe.md')])
+    // The stats first: reading a pipe blocks, so a regression fails here rather than hanging the run
+    expect(statSkillPackage(pack)).toMatchObject({ files: 2, bytes: 6 })
+    expect(listSkillPackageFiles(pack).files.map((f) => f.path)).toEqual(['SKILL.md', 'refs/a.md'])
+  })
+
+  it('caps no rows: a large package lists every file', () => {
     const pack = join(dir, 'large-pack')
     const files: Record<string, string> = { 'SKILL.md': '# s\n' }
     for (let i = 0; i < 299; i++) files[`refs/group-${i % 7}/nested/${i}.md`] = 'x\n'

@@ -168,7 +168,6 @@ function walkFiles(root: string): WalkedFile[] {
     }
     inside.add(realDir)
     for (const e of entries) {
-      if (e.name === '.' || e.name === '..') continue
       if (SKILL_SKIP_DIR_NAMES.has(e.name)) continue
       const abs = join(dir, e.name)
       let st

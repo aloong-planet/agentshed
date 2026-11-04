@@ -447,7 +447,8 @@ Skills section, project detail's Skills section and the Plugins section's Skills
 - A directory symlink to an unrelated directory outside the package lists that directory's text files, and
   they become readable by their exact registered paths (C9): enumeration still follows what the package
   links to, as it did for shallow paths, and reading stays local.
-- A broken symlink, or one pointing at itself, is skipped, and the rest of the package lists.
+- A broken symlink, or one pointing at itself, is skipped, and the rest of the package lists. So is a named
+  pipe or socket with a text name: reading one would block the main process.
 - A file that cannot be read when the table is built (its permissions, say) is left out of the table but still
   counted by the row, since the row's numbers come from `stat` alone (C1). A directory that cannot be read lists
   nothing from inside it. Neither costs any other file (AGENTS.md's one-entry invariant).
