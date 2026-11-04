@@ -43,8 +43,8 @@ export function DetailPane({
 }: {
   snap: Snapshot
   path: string
-  /** Returning from a session page lands on the "Sessions" section (the prototype's rule); normally not
-   * passed, landing on the overview */
+  /** Leaving a session page for a project lands on the "Sessions" section (the prototype's rule for the back control,
+   * the owner's for a selection in the list); normally not passed, landing on the overview */
   initialTab?: Tab
   /** The page `initialTab` was for is on screen, so no later page starts on it */
   onInitialTabSpent: () => void
@@ -54,7 +54,7 @@ export function DetailPane({
   const t = useDict()
   const entry = snap.projects.find((p) => p.path === path)
 
-  // Here rather than in the sectioned page, because the return may draw a page with no tabs (a stale project's note, the
+  // Here rather than in the sectioned page, because what it draws may have no tabs (a stale project's note, the
   // not-in-snapshot state) and that spends the landing too; and in an effect rather than during render, because a page
   // that suspends renders again before it commits, and has to read the same tab each time (project-detail T1)
   useEffect(() => {

@@ -74,10 +74,10 @@ export function App(): JSX.Element {
   // Session page view state (ticket 04): when non-empty, the project detail area is replaced wholesale
   // by the session page; switching project exits it
   const [openSession, setOpenSession] = useState<OpenSession | null>(null)
-  // Returning from a session page lands on the "Sessions" section (the pane header's back control, "Back
-  // to <project> · Sessions") rather than the overview, once: the page the return draws spends it, so any page
-  // drawn later starts on the overview (project-detail::REQ-004/AC-02)
-  const [backToSessions, setBackToSessions] = useState(false)
+  // Leaving a session page for a project lands on the "Sessions" section rather than the overview: by the pane
+  // header's back control ("Back to <project> · Sessions"), or by selecting a project in the list. Once: the page that
+  // draws spends it, so any page drawn later starts on the overview (project-detail::REQ-004/AC-02)
+  const [landOnSessions, setLandOnSessions] = useState(false)
   // A project selected from a global search hit has its row scrolled into view in the project list
   // (projects-list C8); a one-shot request the list clears once it has done it
   const [revealSelected, setRevealSelected] = useState(false)
@@ -125,7 +125,7 @@ export function App(): JSX.Element {
     // Moving between dimensions overtakes a return still held on its fetch: it draws no page, so the next page starts on
     // the overview. Every way back to Projects comes through here or a search hit, which clears it too, so the application
     // menu's entries need no line of their own, and neither does a side card, reached only from the agents page
-    if (d !== dim) setBackToSessions(false)
+    if (d !== dim) setLandOnSessions(false)
     setDim(d)
   }
 
@@ -145,7 +145,7 @@ export function App(): JSX.Element {
         setSelected(project)
         setShownProject(project)
         setOpenSession({ file, focusQ: q, fromSearch: true })
-        setBackToSessions(false)
+        setLandOnSessions(false)
         setRevealSelected(true)
       })
     }
@@ -177,10 +177,13 @@ export function App(): JSX.Element {
 
   const selectProject = (p: string | null): void => {
     setSelected(p)
+    // From a session page the project's page is new, and lands on Sessions. With a page on screen it stays mounted and
+    // keeps its tab, whatever this says
+    const fromSession = openSession !== null
     startPaneTransition(() => {
       setShownProject(p)
       setOpenSession(null)
-      setBackToSessions(false)
+      setLandOnSessions(fromSession)
     })
   }
 
@@ -189,7 +192,7 @@ export function App(): JSX.Element {
   const backToProject = (): void => {
     startPaneTransition(() => {
       setOpenSession(null)
-      setBackToSessions(true)
+      setLandOnSessions(true)
     })
   }
 
@@ -446,8 +449,8 @@ export function App(): JSX.Element {
                   <DetailPane
                     snap={snap}
                     path={shownProject}
-                    initialTab={backToSessions ? 'sessions' : undefined}
-                    onInitialTabSpent={() => setBackToSessions(false)}
+                    initialTab={landOnSessions ? 'sessions' : undefined}
+                    onInitialTabSpent={() => setLandOnSessions(false)}
                     onOpenSession={(f, q) => {
                       startPaneTransition(() => {
                         setOpenSession({ file: f, focusQ: q ?? null, fromSearch: false })

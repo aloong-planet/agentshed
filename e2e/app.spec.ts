@@ -1060,14 +1060,40 @@ test('the tab a project opens on: another project keeps it, a page drawn afresh 
   await leaveByTheRailAndComeBack()
   await pageIs('beta', 'Overview')
 
-  // A project selected from a session page draws a new page
+  // A project selected in the list from a session page lands on Sessions, once. This one has none yet, and the tab says so.
+  // With that page on screen another project keeps the tab, and the next page drawn starts on Overview
   await row('alpha').click()
   await expect(win.locator('.det-title h1')).toHaveText('alpha')
   await openTheSession()
   await row('beta').click()
-  await pageIs('beta', 'Overview')
+  await pageIs('beta', 'Sessions')
+  await expect(win.locator('.pane-body .none')).toHaveText(
+    'No sessions in this project yet. They appear automatically once any agent side has a conversation in this directory.'
+  )
+  await row('alpha').click()
+  await pageIs('alpha', 'Sessions')
+  await leaveByTheRailAndComeBack()
+  await pageIs('alpha', 'Overview')
+
+  // So does the session's own project, its row clicked with the session on screen
+  await openTheSession()
+  await row('alpha').click()
+  await pageIs('alpha', 'Sessions')
+  await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+  await throughTheSideCard()
+  await pageIs('alpha', 'Overview')
+
+  // A stale project's note spends the landing: the page a scan later draws starts on Overview
+  await openTheSession()
+  await win.locator('.side input[type="checkbox"]').check()
+  await row('ghost').click()
+  await expect(win.locator('.stale-note')).toBeVisible()
+  mkdirSync(ghost)
+  await pageIs('ghost', 'Overview')
 
   // The project on screen leaves the snapshot (S7): selecting another project clears the message and draws a new page
+  await row('beta').click()
+  await pageIs('beta', 'Overview')
   await select('Skills')
   register(alpha, ghost)
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')

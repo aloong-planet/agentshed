@@ -240,10 +240,12 @@ Applies to: the tab row of a project's page. A stale project's note page has no 
   Sessions / Artifacts. The selected tab stays with the page on screen: selecting another project while a project's page
   is on screen keeps the tab, and the next project shows it (the owner's decision of 2026-11-04). A project opens on
   Overview when no project's page is on screen: its first selection, coming back through the rail or a side card's project
-  count, selecting it from a session page, a stale project's note page or the not-in-snapshot state, or a scan turning a
-  note page or that state back into the sectioned page. Coming back from a session lands on Sessions (T8), once: the page
-  the return draws spends the landing, with or without tabs, and the next page drawn starts on Overview (the owner's
-  decision of 2026-11-04).
+  count, selecting it from a stale project's note page or the not-in-snapshot state, or a scan turning a note page or that
+  state back into the sectioned page. Leaving a session for a project lands on Sessions: coming back from it (T8), or
+  selecting a project in the list from its page, another project or the session's own, which shows the tab's empty sentence
+  for a project with no sessions. It does so once: the page it draws spends the landing, with or without tabs, and the next
+  page drawn starts on Overview. A return overtaken by a move to another dimension draws no page, and the next page starts
+  on Overview too (the owner's decisions of 2026-11-04).
 
 Failure modes and boundaries, a narrow window (the owner's decisions of 2026-11-03): the row keeps its one form at every
 window width, and no narrow form is designed. It does not move onto a second row, a sideways wheel over it does not move it,
@@ -428,7 +430,7 @@ window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-
 
 - **Prototype gate for project-detail::REQ-003**: the change moves where one artifact type is read from
   and adds no visible state or form; declared here as a data-source exemption.
-- **Prototype gate (2026-11-04)**: which tab a page drawn after the return starts on (REQ-004/AC-02), how
+- **Prototype gate (2026-11-04)**: which tab a page drawn on leaving a session or after it starts on (REQ-004/AC-02), how
   many toasts a failed read or listing shows (B9, [skills-view](skills-view.md) A11,
   [plugins-view](plugins-view.md) H10), and the reader no longer opening by itself on a scan add no visible
   state or form: the tab row, the toast and the reader keep theirs, and a count or a moment has no form to

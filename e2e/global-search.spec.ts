@@ -722,6 +722,7 @@ test('leaving the session for the search page and coming back keeps it with its 
     await expect(win.locator('.pane-head .stitle')).toHaveText('How do I notarize the app?')
     await win.locator('.side .row', { hasText: 'filler-01' }).click()
     await expect(win.locator('.pane-head h1')).toHaveText('filler-01')
+    await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
     await searchItem(win).click()
     await expect(box(win)).toHaveValue('stale')
     await win.locator('.rail .ri').nth(1).click()

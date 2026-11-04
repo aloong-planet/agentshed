@@ -246,7 +246,8 @@ with plural forms through the existing plural rules; no string enumerates the ag
 - J5 Follow the fork banner to the parent: single back control on the parent's page; its back control
   leads to the project's Sessions tab.
 - J6 While a session opened from search is on screen, click another project in the list: the project page
-  replaces it, as any project selection does; the way back to the search is the rail's Search item.
+  replaces it, as any project selection does, on its Sessions tab ([project-detail::REQ-004/AC-02](project-detail.md));
+  the way back to the search is the rail's Search item.
 - J7 While a session opened from search is on screen, switch to Search with the rail, change the keyword,
   then switch back to Projects: the session page is still there with its two exits, and "Back to search
   results" now shows the new results.

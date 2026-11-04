@@ -105,8 +105,8 @@ sessions, one per row, with "how many questions I asked in this conversation".
 - "Last activity" is the largest timestamp inside the session file, which is a different measure from
   the project list's activity sort (which uses the file modification time)
 - The overview section's recent sessions card lists the 5 most recent with a total count, and
-  clicking any row **goes straight to that session's page**; returning from a session page lands on
-  the "Sessions" section
+  clicking any row **goes straight to that session's page**; returning from a session page, or selecting
+  a project in the list from it, lands on the "Sessions" section
 - **The top of the sessions section searches all of this project's sessions**: by default it searches
   questions only — small, clean, precise hits; it can be switched to "full text" (which hits tool
   output and other noise, which is exactly why it is a toggle). Case-insensitive
