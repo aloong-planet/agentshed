@@ -379,7 +379,7 @@ overnight froze `scannedAt` and today's data was not shown)**
   not-in-snapshot state between the two pages or not, since the window is a lens the user holds rather than a property of
   one project — and is not persisted across restarts, matching how the session sort already behaves. Leaving the project
   detail page by the rail or a side card's project count and coming back resets it, as it does the tab
-  ([project-detail::REQ-004/AC-02](project-detail.md)).
+  ([project-detail::REQ-004/AC-02](project-detail.md)), and so does opening a session from it and coming back.
 - G12 The window and the trend's side filter are **independent controls that compose**: selecting a
   side narrows what the bars count (D4), selecting a window dims which bars are in scope (D10), and
   using both leaves a single-side chart with part of its span dimmed. Neither resets the other. The

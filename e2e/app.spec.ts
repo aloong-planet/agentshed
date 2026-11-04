@@ -1110,7 +1110,10 @@ test('the tab a project opens on: another project keeps it, through a page with 
   await pageIs('alpha', 'Skills')
   await select('Overview')
   await expect(selectedWindow).toHaveText('Today')
+  // A session page takes the pane off the stage, and the window with it
   await backFromTheSession()
+  await select('Overview')
+  await expect(selectedWindow).toHaveText('Total · all history')
   await select('Memory')
   register(beta, ghost, phantom)
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')

@@ -15,8 +15,8 @@ numbers share a source and reconcile against each other.
   figure, the composition bar, the highlighted span of the trend chart, and the per-model breakdown.
   All history is the default; the selection survives switching tabs (and, in a project, switching
   projects, past a stale project's note or a project that has left the list too); leaving a project's
-  page for another part of the app and coming back resets it, and the active card is not kept across
-  restarts. The fourth card's label and actual total
+  page for a session or another part of the app and coming back resets it, and the active card is not
+  kept across restarts. The fourth card's label and actual total
   follow the global 30/60/90-day choice even when another card is active. If the fourth card is active,
   its side figures, composition and model breakdown also follow that choice. The other three cards
   keep their meanings. "Today" follows the current local day, as does the trend
