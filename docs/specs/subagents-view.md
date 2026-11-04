@@ -1,6 +1,6 @@
 # Subagents view
 
-> Related: [features](../features/subagents-view.md) · ADR-0001 (single type source) · ADR-0002 (dual seam) · ADR-0037 (Antigravity CLI side)
+> Related: [features](../features/subagents-view.md) · ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
@@ -130,7 +130,7 @@ inherits the main one was not measured, so the drawer claims nothing.
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam, adding nothing new: (1) `ScanRoots` fixture unit tests at the
+Following ADR-0038's seams, adding nothing new: (1) `ScanRoots` fixture unit tests at the
 providers layer (covering the failure mode table: corrupt toml, missing name, duplicate names within
 a layer, unreadable files, the shadowing judgement); (2) the contract validation round trip. The
 standard for a good test: exercise only the reader's external behaviour (fixture directory → domain

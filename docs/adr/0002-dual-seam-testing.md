@@ -1,6 +1,7 @@
 # ADR-0002: Dual-seam testing strategy (data-layer injection + IPC contract)
 
-- Status: Accepted (2026-07-29, decided by the user during requirements analysis)
+- Status: Superseded by ADR-0038 (accepted 2026-07-29, decided by the user during requirements analysis; the
+  data-layer and contract seams and the two options rejected here were carried forward by 0038)
 
 ## Options
 

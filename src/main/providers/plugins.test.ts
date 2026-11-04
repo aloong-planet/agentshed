@@ -4,7 +4,7 @@
 // corrupt (F2); F3 is the two-way acceptance case.
 // Known gaps: E2 (the lost-projectPath label), F4 (the Codex group note on the detail page) and the
 // per-side grouped rendering are all UI layer,
-//   not unit tested per ADR-0002; the data pass-through is pinned by E1/E8 and F3's whole chain by e2e.
+//   not unit tested per ADR-0038; the data pass-through is pinned by E1/E8 and F3's whole chain by e2e.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'

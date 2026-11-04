@@ -1,6 +1,6 @@
 # Project detail
 
-> Related: [features](../features/project-detail.md) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0002 · ADR-0028 (query layer) · ADR-0037 (Antigravity CLI side)
+> Related: [features](../features/project-detail.md) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0028 (query layer) · ADR-0037 (Antigravity CLI side)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01. Each section's component-level requirements and boundaries live in its own
 > spec (subagents-view / memory-view / plugins-view / skill-install / token-stats); this document
@@ -373,7 +373,7 @@ regressions within this round; artifact collection rules and unrelated section l
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam: fixture unit tests at the providers layer cover recognising the six
+Following ADR-0038's seams: fixture unit tests at the providers layer cover recognising the six
 types (CONTEXT.md under `docs/`, a root one not recognised), excluding READMEs, the prototypes recursion and exclusion rules, the title fallback, and the
 no-`docs`-directory empty state; the type order is pinned as a contract in a unit test (so it is not
 changed unintentionally). The UI's chip filtering and reading overlay are not unit tested and rely on

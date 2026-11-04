@@ -1,6 +1,6 @@
 // session-page-query: the query-layer wrapper around getSessionPage (ADR-0028, spec session-view P6).
 // Mirrors project-detail-query.test.ts; useSessionPageQuery itself has no renderer component-test
-// seam (ADR-0002).
+// seam (ADR-0038).
 import { describe, it, expect } from 'vitest'
 import type { SessionPage } from '@shared/domain'
 import { fetchSessionPage, sessionPageQueryKey } from './session-page-query'

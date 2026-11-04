@@ -1,6 +1,6 @@
 # Skills install
 
-> Related: [features](../features/skill-install.md) · ADR-0004 (land by copy, symlinks rejected) · ADR-0002 (dual seam) · ADR-0037 (shared skills directory)
+> Related: [features](../features/skill-install.md) · ADR-0004 (land by copy, symlinks rejected) · ADR-0038 (test layers) · ADR-0037 (shared skills directory)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases; the
 > trade-offs behind the landing method are in ADR-0004 and are not restated here.
@@ -146,7 +146,7 @@ at install time (A4).
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam: the providers layer **measures real filesystem effects** on a
+Following ADR-0038's seams: the providers layer **measures real filesystem effects** on a
 temporary fixture directory (after installing the files are really there, after uninstalling they are
 really gone, a symlink is really dereferenced, a failure really leaves no residue) rather than
 mocking `fs`. The shared skills directory (skill-install::REQ-001, skill-install::REQ-002) adds a skill

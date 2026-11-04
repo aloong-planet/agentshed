@@ -1,6 +1,6 @@
 # Session view
 
-> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side)
+> Related: [features](../features/session-view.md) · ADR-0038 (test layers) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side)
 > Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1); amended 2026-09-12 for atomic opening and cached revisits (P, UI decisions); amended 2026-10-28 for the session ID and resume (session-view::US-001, session-view::CON-001 to session-view::CON-003; prototype gate passed the same day).
 
 > Startup restoration uses the original page prototypes confirmed on 2026-09-14.
@@ -1144,7 +1144,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam: (1) fixture unit tests at the providers layer — question extraction
+Following ADR-0038's seams: (1) fixture unit tests at the providers layer — question extraction
 (excluding tool_result), the Codex double-write choice, fork prefix stripping, Claude's last-leaf walk
 back, title cleaning, and the offset index's fetch correctness (what is read by offset = the
 corresponding turn from a full parse); (2) the contract validation round trip; (3) e2e covering the

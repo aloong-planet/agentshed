@@ -319,7 +319,7 @@ with plural forms through the existing plural rules; no string enumerates the ag
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam, through the seams that already exist:
+Following ADR-0038's seams, through the seams that already exist:
 
 1. **Providers seam (fixture homes)**: the corpus and its search over a fixture home with several
    projects — a stale one, a directory with sessions but no registry record, warmup and subagent
