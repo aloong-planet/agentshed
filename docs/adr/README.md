@@ -46,5 +46,6 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Chinese and English; French, Spanish, Russian and Japanese are dropped before the first release | Accepted |
 | [0036](0036-injected-text-stays-a-question.md) | Text the agent tools write into a session as the user (compaction summaries, messages between agents, Codex's ambient state) stays a question | Accepted |
 | [0037](0037-antigravity-cli-as-fourth-agent-side.md) | Antigravity CLI as the fourth agent side: its trust ledger as registry, usage from its conversation databases counted once per call, a four-field total, `.agents/skills` shared with Codex | Accepted |
-| [0038](0038-test-layers.md) | Test layers: the data layer, the contract, and e2e as the UI's automated layer, admitting only what the assembled app alone can show | Accepted |
+| [0038](0038-test-layers.md) | Test layers: the data layer, the contract, and e2e as the UI's automated layer, admitting only what the assembled app alone can show | Accepted (the rule on component tests amended 2026-11-05) |
 | [0039](0039-archive-file-failure-stops-no-scan.md) | An archive file that cannot be written or read stops no scan: memory carries the figures, the disk keeps the last good file, and the user is told once per run | Accepted (the launch consequence amended 2026-11-05) |
+| [0040](0040-rendering-branch-tests.md) | Component tests hold only the rendering branches nothing else checks, chosen by the shape of the data; no e2e case moves | Accepted |

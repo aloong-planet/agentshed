@@ -62,6 +62,9 @@ contract, and a derivation in the renderer to a unit test of a pure function. Re
 are not unit tested. Hand acceptance covers what e2e cannot reach, and its items live in each spec's
 Testing Decisions.
 
+> **Amended (2026-11-05)**: ADR-0040 admits component tests for one narrow case, the rendering branches nothing
+> else checks. Otherwise React components stay out of unit tests, and the rest of this decision stands.
+
 This decision moves no existing case by itself.
 
 ## Consequences
@@ -72,6 +75,7 @@ This decision moves no existing case by itself.
   suite.
 - Negative: a UI behaviour with no chain or layout concern and no pure function to extract has no cheap
   home, so it stays in e2e.
+  > **Amended (2026-11-05)**: apart from the rendering branches ADR-0040 admits.
 - Neutral: every spec and source comment citing ADR-0002 now cites this entry.
 
 ## Sources
