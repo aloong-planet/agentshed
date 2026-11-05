@@ -50,6 +50,8 @@ functions and which throws on a method it was not told to expect.
   produces, and the validators accepted them.
 - Neutral: reopen this entry when component tests pass 500 lines in total, since that would be a layer in fact,
   which ADR-0038 rejected on evidence.
+  > **Amended (2026-11-05)**: the owner withdrew this trigger, so no line count reopens this entry. The conditions
+  > under Decision still say what a component test may hold.
 
 ## Sources
 
