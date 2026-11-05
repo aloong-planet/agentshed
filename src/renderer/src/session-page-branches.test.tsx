@@ -72,8 +72,8 @@ afterEach(cleanup)
 
 describe('the session page on less common data', () => {
   it('a row counts subagents only when its turn dispatched some', async () => {
-    await open(page({ questions: [question(1), question(2, { subagents: 2 })] }))
-    expect(all('.qlist .q').map(words)).toEqual(['02Q20 2 12:00', '01Q10 12:00'])
+    await open(page({ questions: [question(1), question(2, { subagents: 1 })] }))
+    expect(all('.qlist .q').map(words)).toEqual(['02Q20 1 12:00', '01Q10 12:00'])
   })
 
   it('a question with no time shows a dash', async () => {
@@ -85,13 +85,14 @@ describe('the session page on less common data', () => {
     await open(page({ forkPoints: 0 }))
     expect(all('.banner')).toHaveLength(0)
     cleanup()
-    await open(page({ forkPoints: 2 }))
-    expect(all('.banner.info').map(words).join()).toContain('This session has 2 fork points')
+    await open(page({ forkPoints: 1 }))
+    expect(all('.banner.info').map(words).join()).toContain('This session has 1 fork point')
   })
 
-  it('a flat list, newest first, opens the turn of the row clicked', async () => {
+  it('one question with no time makes the list flat, and newest first opens the turn of the row clicked', async () => {
     const answer = (body: string): SessionTurn => ({ blocks: [{ kind: 'text', role: 'assistant', at: null, body }], bytesRead: 1 })
-    await open(page({ questions: [question(1, { at: null }), question(2, { at: null })] }), [answer('answer one'), answer('answer two')])
+    await open(page({ questions: [question(1), question(2, { at: null })] }), [answer('answer one'), answer('answer two')])
+    expect(all('.daygrp')).toHaveLength(0)
     const [newest] = all('.qlist .q')
     expect(words(newest)).toContain('02Q2')
     fireEvent.click(newest)
