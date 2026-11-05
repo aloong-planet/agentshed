@@ -1,3 +1,4 @@
+import './launch-guard'
 import { ReadRegistry } from './read-registrations'
 import { DisplayStore } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, recordFileBytes, regularTarget } from './source-identity'

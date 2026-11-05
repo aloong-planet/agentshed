@@ -2,6 +2,7 @@
 
 > Related: [ADR-0031](../adr/0031-macos-release-line.md) ·
 > [ADR-0032](../adr/0032-app-updates.md) (why each release carries a ZIP) ·
+> [ADR-0042](../adr/0042-packaged-build-refuses-launch-inputs.md) (what a packaged build refuses at launch) ·
 > [app-update](app-update.md) · [landing-page](landing-page.md) · electron-scaffold's macOS signing
 > policy (`macos-signing.md`), cited by section below
 
@@ -14,6 +15,10 @@ Gatekeeper refuses it. Distributing to others brings in the macOS distribution p
 download from, and an entry point for people who have never seen the repository (the landing page,
 specified separately).
 
+A signed build is also something macOS trusts: what the user has granted it, and what it can read, belong to whatever runs
+inside it. The fuses close Node's way in, and Chromium's switches and the app's own environment variables remained
+(ADR-0042 has the measurements).
+
 ## Solution
 
 A release line built in CI on release tags (ADR-0031). A tag runs the release packaging on a macOS
@@ -23,7 +28,8 @@ Every release, pre-releases included, is published on GitHub Releases, and the p
 the in-app updater reads. Formal releases are also copied to the R2 bucket `agentshed-releases` behind
 a custom download host; the latest pointer is updated last, after every mirrored file has been checked
 reachable. The first release is the pre-release `v0.1.0-beta`, and the two READMEs, Chinese and
-English, gain download and install instructions with it.
+English, gain download and install instructions with it. A packaged build refuses any launch input that would steer it, and
+a packaging whose app does not refuse fails.
 
 ## User Stories
 
@@ -174,6 +180,26 @@ the two packaging commands, and its source points to the project's macOS signing
 this project's actual values (identity, secret names, artifact naming, tier behaviour). The runbook does
 not copy the policy.
 
+### mac-distribution::CON-008 A packaged build takes no input that steers it at launch
+
+Applies to: every launch of a packaged build, from either profile (ADR-0042). A run from source (development, e2e, smoke) is
+not a packaged build.
+
+- mac-distribution::CON-008/AC-01: A launch carrying a command-line switch other than the settings directory's
+  (`--user-data-dir`) exits with code 64 before anything loads: no window opens, no program named on the command line runs and
+  no debugging port answers. Any spelling Chromium's command line accepts counts, one dash or two, whether or not the switch
+  is one anybody knows. The one exception is `--type` naming a process type (Failure F10).
+- mac-distribution::CON-008/AC-02: A launch whose environment holds the development server's URL (`ELECTRON_RENDERER_URL`) or
+  any test seam (`AGENTSHED_*`) does the same, whatever the value.
+- mac-distribution::CON-008/AC-03: The refusal is said on standard error, naming each refused input without its value. There
+  is no dialog.
+- mac-distribution::CON-008/AC-04: A launch with neither opens as it always has: from Finder, the Dock or `open`, on the
+  updater's relaunch, and with only the settings directory.
+- mac-distribution::CON-008/AC-05: Every packaging, in either profile, launches the built app with inputs it must refuse and
+  then with only its settings directory. It fails when the app does not exit with code 64 on each of those inputs, runs a
+  program named on its command line, or does not stay up on the plain launch. A failed check publishes nothing
+  (mac-distribution::US-002/AC-03).
+
 ## Failure modes and boundaries
 
 **Sequence A: tagging and building**
@@ -240,6 +266,29 @@ not copy the policy.
   configuration (docs/ops/electron-security.md). Adopting the asset changes how the app is built, not
   what it is.
 
+**Sequence F: launching a packaged build**
+
+- F1 A switch nobody has listed, including one a later Chromium adds: refused, since the allow-list names what is accepted
+  (mac-distribution::CON-008/AC-01).
+- F2 `--` is switch-shaped and refused. An argument with no leading dash is not a switch, and is ignored as before.
+- F3 A `-psn_` argument, which older macOS launches carried: accepted. It is not a Chromium switch, and refusing it would
+  stop the app opening.
+- F4 A launch through a symlink, named `electron` or anything else, or of a helper executable run directly: each still reads
+  as packaged, and refuses.
+- F5 Someone starts the installed app from a terminal with an `AGENTSHED_*` variable exported: refused, and the sentence names
+  the variable, so the reason is on their screen.
+- F6 A new test seam without the `AGENTSHED_` prefix would not be refused (`AGENTS.md` holds the constraint).
+- F7 A macOS that added an argument of its own to every launch would have every launch refused, and the packaging check would
+  not show it, because it starts the process directly (ADR-0042). Checking a package by hand includes a launch through `open`.
+- F8 A packaging on a machine that cannot run a built architecture: that app is reported and left out of the launch check. When
+  no built app can run there, the packaging fails rather than passing unchecked.
+- F9 The plain launch in the packaging check is killed at its limit. It has its own temporary settings directory, so it
+  touches no real settings and meets no running copy's single-instance lock.
+- F10 `--type` naming a process type is read by Chromium before any JavaScript, so it never reaches the guard and no exit 64
+  comes. Started by hand, such a process has no parent to talk to and crashes, with or without the guard: measured for
+  `gpu-process`, `renderer`, `utility`, `zygote`, `browser` and an unknown name, each alone and beside the switches that open a
+  port or name a program, and none opened a port or ran a program. An empty `--type=` does reach the guard, and is refused.
+
 ## Implementation Decisions
 
 - **The packaging asset** (`mac-packaging.cjs` and its tests) is copied into `build/`, next to the
@@ -285,6 +334,11 @@ not copy the policy.
 - **Runbooks**: the project's macOS signing runbook (identity, secrets, naming, tiers, workflow
   pitfalls) and its R2 setup notes go under `docs/ops/`, updated in place. They hold this project's
   values and point to the policy rather than copying it.
+- **The launch guard** runs first in the main process, gated on the build being packaged, and exits while the module loads:
+  at that point the debugging server has not started and no other process has (measured on Electron 43.2.0), and `app.exit`
+  ends the process there and then, so nothing after it runs. Its decision is a pure function over the arguments and the
+  environment. The check of mac-distribution::CON-008/AC-05 lives in the packaging asset, and exit code 64 is the contract between
+  the two.
 - **The README change** ships in the same change as the first release, in both languages. The
   instructions point to the landing page and to GitHub Releases, give the same requirements the landing
   page states (macOS 12 or later, Apple Silicon), say what the first launch shows, and tell users to
@@ -300,6 +354,12 @@ not copy the policy.
   publish or touch the mirror, and that the mirror and pointer jobs depend on the gate job. It evaluates each
   condition with GitHub's published expression evaluator against the documented contexts of each trigger, and
   runs with the script tests. This is a regression guard only, and does not replace a real run.
+- **The launch guard's decision** is tested as a pure function against its bypass vectors, at the unit level, including which
+  argument it starts from and the sentence it says. Its three lines of wiring cannot be: an unpackaged run never reaches them, so
+  the packaging check on the built app holds the exit code, and a pull request that breaks them goes red only at the next
+  packaging, before anything is published. The check does not read standard error, so the sentence on a real package is checked
+  by hand. The check's own decisions are tested in the asset's tests against an injected launcher, its adapter against a real
+  process, and its generated program by running it.
 - **The publish step** is tested against a model of the repository's releases standing in for GitHub, which
   records every state in which a release is public, so "never public with part of the set" is asserted over all
   of them, and an artifact without each of its update files is refused before the model is touched; its adapter to
@@ -316,7 +376,9 @@ not copy the policy.
     `macos-signing.md` §7;
   - a first launch from a browser download, with a screenshot showing the notice's wording;
   - for the first formal release, the output of the reachability check on every R2 URL before the
-    pointer was rewritten.
+    pointer was rewritten;
+  - the packaging check going red on a build without the guard, and one manual packaging run in CI showing the check passes on
+    a macOS runner.
 
 - Prior art: Transfer's release workflow, which passed these gates with real notarizations, and the
   existing CI workflow's job layout.

@@ -33,7 +33,8 @@ publish:
 # on the packaged build.
 # These switches take effect **at packaging time** only and do not affect dev; once closed, an attacker
 # cannot run this app's Electron
-# binary as a general-purpose Node, nor inject through a debug port. The criteria and the item-by-item
+# binary as a general-purpose Node, nor inject through Node's inspector. Chromium's own switches are another
+# way in, which no fuse closes: the launch guard refuses those (ADR-0042). The criteria and the item-by-item
 # status are in docs/ops/electron-security.md.
 electronFuses:
   runAsNode: false # Forbid ELECTRON_RUN_AS_NODE (otherwise this app can be used as an arbitrary Node interpreter)

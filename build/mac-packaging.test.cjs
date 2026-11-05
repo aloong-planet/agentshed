@@ -7,9 +7,12 @@
 // `main` runs real commands and is tested only for its argument and location checks and for the DMG gate checking the
 // artifact set before it runs any command: the hook path it derives and the DMG gate's loop over the selected DMGs
 // are covered only by a real release packaging run, which is also the only check of a real ZIP's extraction and of
-// the app inside it.
+// the app inside it. The launch gate's decisions run against an injected launcher. Two things here do start a real process:
+// launchApp, its adapter, starts shell scripts, and one case runs the gate's generated program. Whether a real app refuses
+// is what a real packaging run shows.
 const { test, describe, afterEach } = require('node:test')
 const assert = require('node:assert/strict')
+const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
@@ -177,8 +180,24 @@ function buildRunner(outputDir, opts = {}) {
   return { commands, run, extractions }
 }
 
-const pkg = (outputDir, run, profile, env = { CSC_LINK: 'base64-p12' }, zip = false) =>
-  mac.packageMac({ profile, env, run, outputDir, productName: PRODUCT, version: VERSION, arches: ARCHES, zip, hookPath: 'build/mac-packaging.cjs' })
+/** Whether a launch is the plain one: only the settings directory, and no refused variable */
+const isPlainLaunch = (args, env) => args.length === 1 && env.ELECTRON_RENDERER_URL === undefined
+
+/**
+ * A built app as the launch gate sees it. By default it refuses every input with exit code 64 and stays up on the plain
+ * launch; `answer` overrides that per launch, and `calls` records every one.
+ */
+function launcher(answer = () => undefined) {
+  const calls = []
+  const launch = (binary, args, env, limit) => {
+    calls.push({ binary, args, env, limit })
+    return answer({ binary, args, env }) ?? (isPlainLaunch(args, env) ? { exited: false } : { exited: true, status: 64, signal: null })
+  }
+  return { calls, launch }
+}
+
+const pkg = (outputDir, run, profile, env = { CSC_LINK: 'base64-p12' }, zip = false, launch = launcher().launch) =>
+  mac.packageMac({ profile, env, run, outputDir, productName: PRODUCT, version: VERSION, arches: ARCHES, zip, hookPath: 'build/mac-packaging.cjs', launch, hostArch: 'arm64', log: () => {} })
 
 /** The commands with each extraction directory, whose name is random, shown as `<zip:arch>` */
 const withExtractions = (commands, extractions) =>
@@ -892,5 +911,216 @@ describe('command line', () => {
     assert.throws(() => mac.main(['notarize-dmg'], APPLE_ENV, root), {
       message: `no update metadata (*-mac.yml) in ${outputDir}: electron-builder writes it only when a publish provider is configured or detected`
     })
+  })
+})
+
+describe('the launch inputs a packaged app must refuse', () => {
+  const APPS = [{ arch: 'arm64', app: '/out/mac-arm64/Demo.app' }]
+  const check = (launch, { apps = APPS, hostArch = 'arm64', env = {}, log = () => {} } = {}) =>
+    mac.checkLaunchInputs(apps, { productName: PRODUCT, env, launch, hostArch, log })
+  /** What a launch was given, with its settings directory and the generated program shown by role */
+  const given = ({ args, env }) => ({
+    args: args
+      .filter((arg) => !arg.startsWith('--user-data-dir='))
+      .map((arg) => arg.replace(/=.*launch-program$/, '=<program>')),
+    url: env.ELECTRON_RENDERER_URL
+  })
+
+  test('every input is tried on the app, each launch with its own settings directory, and then a plain launch', () => {
+    const { calls, launch } = launcher()
+    check(launch)
+    assert.deepEqual(calls.map(given), [
+      { args: ['--remote-debugging-port=0'], url: undefined },
+      { args: ['-remote-debugging-port=0'], url: undefined },
+      { args: ['--remote-debugging-pipe'], url: undefined },
+      { args: ['--type='], url: undefined },
+      { args: ['--gpu-launcher=<program>'], url: undefined },
+      { args: ['--renderer-cmd-prefix=<program>'], url: undefined },
+      { args: ['--utility-cmd-prefix=<program>'], url: undefined },
+      { args: ['--mac-packaging-probe-unknown-switch'], url: undefined },
+      { args: [], url: 'http://127.0.0.1:9/' },
+      { args: [], url: undefined }
+    ])
+    assert.ok(calls.every(({ binary }) => binary === path.join('/out/mac-arm64/Demo.app', 'Contents', 'MacOS', PRODUCT)))
+    const dirs = calls.map(({ args }) => args.find((arg) => arg.startsWith('--user-data-dir=')))
+    assert.ok(dirs.every(Boolean), 'every launch names a settings directory, so none touches the real one')
+    assert.equal(new Set(dirs).size, calls.length)
+    // A guard that skips the first argument must not pass by finding the settings directory there
+    for (const { args } of calls) assert.ok(args.at(-1).startsWith('--user-data-dir='), args.join(' '))
+  })
+
+  test('the app is given only a small environment, never the signing and Apple secrets', () => {
+    const { calls, launch } = launcher()
+    check(launch, { env: { HOME: '/h', PATH: '/p', CSC_LINK: 'secret', CSC_KEY_PASSWORD: 'secret', APPLE_ID: 'secret', APPLE_APP_SPECIFIC_PASSWORD: 'secret', APPLE_TEAM_ID: 'secret', ELECTRON_RENDERER_URL: 'http://left.over/' } })
+    assert.ok(!JSON.stringify(calls.map(({ env }) => env)).includes('secret'))
+    assert.deepEqual(calls.at(-1).env, { HOME: '/h', PATH: '/p' }, 'the plain launch inherits no refused variable')
+  })
+
+  test('an app still running at the limit fails the packaging, naming the input', () => {
+    const { calls, launch } = launcher(({ args }) => (args.some((arg) => arg === '--remote-debugging-pipe') ? { exited: false } : undefined))
+    assert.throws(() => check(launch), { message: /Demo\.app did not refuse --remote-debugging-pipe: it was still running at the limit/ })
+    assert.equal(calls.length, 3, 'the first input it does not refuse ends the check')
+    assert.equal(calls.at(-1).args[0], '--remote-debugging-pipe')
+  })
+
+  for (const [name, result, shown] of [
+    ['exits 0', { exited: true, status: 0, signal: null }, 'it exited with code 0'],
+    ['exits 1', { exited: true, status: 1, signal: null }, 'it exited with code 1'],
+    ['crashes', { exited: true, status: null, signal: 'SIGTRAP' }, 'it ended on SIGTRAP']
+  ]) {
+    test(`an app that ${name} on an input has not refused it`, () => {
+      const { launch } = launcher(({ args }) => (args[0] === '--remote-debugging-port=0' ? result : undefined))
+      assert.throws(() => check(launch), (error) => {
+        assert.match(error.message, /did not refuse --remote-debugging-port/)
+        assert.ok(error.message.includes(shown), error.message)
+        assert.match(error.message, /exit code 64/)
+        return true
+      })
+    })
+  }
+
+  test('a program named on the command line that ran fails the packaging, even when the app then exits 64', () => {
+    // The real generated program, run the way a launcher prefix is: it records that it ran, then does what it is asked
+    let ran = null
+    const { launch } = launcher(({ args }) => {
+      const named = args.find((arg) => arg.startsWith('--gpu-launcher='))
+      if (named) ran = spawnSync(named.slice('--gpu-launcher='.length), ['/bin/sh', '-c', 'exit 7'])
+      return undefined
+    })
+    assert.throws(() => check(launch), { message: /Demo\.app ran the program named by --gpu-launcher/ })
+    assert.equal(ran.status, 7, 'the program goes on to run what it is given')
+  })
+
+  for (const [name, result, shown] of [
+    ['refuses it', { exited: true, status: 64, signal: null }, 'it exited with code 64'],
+    ['exits by itself', { exited: true, status: 0, signal: null }, 'it exited with code 0'],
+    ['crashes', { exited: true, status: null, signal: 'SIGSEGV' }, 'it ended on SIGSEGV']
+  ]) {
+    test(`an app that ${name} on a plain launch fails the packaging: refusing everything would pass every input`, () => {
+      const { launch } = launcher(({ args, env }) => (isPlainLaunch(args, env) ? result : undefined))
+      assert.throws(() => check(launch), (error) => {
+        assert.match(error.message, /Demo\.app did not stay up on a launch with only its settings directory/)
+        assert.ok(error.message.includes(shown), error.message)
+        return true
+      })
+    })
+  }
+
+  for (const [outcome, answer, message] of [
+    ['passed', () => undefined, null],
+    ['failed', () => ({ exited: false }), /did not refuse/]
+  ]) {
+    test(`a temporary directory that cannot be fully removed leaves the outcome of a check that ${outcome} as it is`, () => {
+      let locked = null
+      const { launch } = launcher(({ args }) => {
+        if (!locked) {
+          // A read-only directory with a file in it, which makes removing the temporary directory throw
+          locked = path.join(args.at(-1).slice('--user-data-dir='.length), 'locked')
+          fs.mkdirSync(locked)
+          fs.writeFileSync(path.join(locked, 'file'), '')
+          fs.chmodSync(locked, 0o555)
+        }
+        return answer()
+      })
+      try {
+        if (message) assert.throws(() => check(launch), { message })
+        else check(launch)
+        // The removal did fail, so the case exercised what it is named for
+        assert.equal(fs.existsSync(locked), true)
+      } finally {
+        fs.chmodSync(locked, 0o755)
+        fs.rmSync(path.dirname(path.dirname(locked)), { recursive: true, force: true })
+      }
+    })
+  }
+
+  test('the check waits longer for a refusal than it watches a plain launch', () => {
+    const { calls, launch } = launcher()
+    check(launch)
+    const refusal = calls[0].limit
+    const plain = calls.at(-1).limit
+    assert.ok(refusal > plain && plain > 0, `refusal ${refusal}, plain ${plain}`)
+  })
+
+  test('an app this machine cannot run is reported and left out; a universal one runs anywhere', () => {
+    const { calls, launch } = launcher()
+    const lines = []
+    check(launch, {
+      apps: [{ arch: 'x64', app: '/out/mac/Demo.app' }, { arch: 'universal', app: '/out/mac-universal/Demo.app' }],
+      hostArch: 'arm64',
+      log: (line) => lines.push(line)
+    })
+    assert.ok(calls.every(({ binary }) => binary.startsWith('/out/mac-universal/')))
+    assert.ok(calls.length > 0)
+    assert.ok(lines.some((line) => line.includes('/out/mac/Demo.app') && line.includes('x64') && line.includes('arm64')), lines.join('\n'))
+  })
+
+  test('no app this machine can run fails the packaging rather than passing unchecked', () => {
+    const { calls, launch } = launcher()
+    assert.throws(() => check(launch, { apps: [{ arch: 'x64', app: '/out/mac/Demo.app' }], hostArch: 'arm64' }), {
+      message: 'none of the built apps can run on this machine (arm64), so none could be checked for the launch inputs it must refuse'
+    })
+    assert.equal(calls.length, 0)
+  })
+
+  test('the temporary directories are removed whether the check passes or fails', () => {
+    const seen = new Set()
+    const record = ({ args }) => {
+      const dir = args.find((arg) => arg.startsWith('--user-data-dir='))
+      seen.add(path.dirname(dir.slice('--user-data-dir='.length)))
+      return undefined
+    }
+    check(launcher(record).launch)
+    assert.throws(() => check(launcher((call) => (record(call), { exited: false })).launch))
+    assert.equal(seen.size, 2)
+    for (const dir of seen) assert.equal(fs.existsSync(dir), false, dir)
+  })
+
+  for (const [profile, env] of [['local', { CSC_LINK: 'base64-p12' }], ['release', { CSC_LINK: 'base64-p12', ...APPLE_ENV }]]) {
+    test(`a ${profile} packaging runs the check on the app it built, and an app that fails it stops the packaging before the DMG checks`, () => {
+      const outputDir = tempDir()
+      const { commands, run } = buildRunner(outputDir)
+      const passing = launcher()
+      pkg(outputDir, run, profile, env, false, passing.launch)
+      const launched = new Set(passing.calls.map(({ binary }) => /\/(mac[^/]*)\/Demo\.app\//.exec(binary)[1]))
+      assert.deepEqual([...launched].sort(), ['mac-arm64', 'mac-universal'], 'every app an arm64 machine can run, and only those')
+      assert.equal(passing.calls.length, 2 * 10, 'each of them gets all nine inputs and the plain launch')
+
+      const failedDir = tempDir()
+      const failed = buildRunner(failedDir)
+      assert.throws(() => pkg(failedDir, failed.run, profile, env, false, launcher(() => ({ exited: false })).launch), /did not refuse/)
+      assert.ok(!failed.commands.some((command) => command.startsWith('codesign --verify') && command.endsWith('.dmg')), failed.commands.join('\n'))
+      assert.ok(commands.some((command) => command.startsWith('codesign --verify') && command.endsWith('.dmg')))
+    })
+  }
+})
+
+describe('starting a real process for the launch gate', () => {
+  function script(body) {
+    const file = path.join(tempDir(), 'app')
+    fs.writeFileSync(file, `#!/bin/sh\n${body}\n`, { mode: 0o755 })
+    return file
+  }
+
+  test('a process that exits reports its code', () => {
+    assert.deepEqual(mac.launchApp(script('exit 64'), [], {}, 5000), { exited: true, status: 64, signal: null })
+  })
+
+  test('a process still running at the limit is killed and reported as not exited', () => {
+    const started = Date.now()
+    assert.deepEqual(mac.launchApp(script('exec sleep 30'), [], {}, 300), { exited: false })
+    assert.ok(Date.now() - started < 10_000)
+  })
+
+  test('a process that dies on a signal reports the signal', () => {
+    assert.deepEqual(mac.launchApp(script('kill -TRAP $$'), [], {}, 5000), { exited: true, status: null, signal: 'SIGTRAP' })
+  })
+
+  test('it passes the arguments and the environment it is given', () => {
+    assert.deepEqual(mac.launchApp(script('[ "$1" = "--a=b" ] && [ "$PROBE" = "yes" ] && exit 64; exit 3'), ['--a=b'], { PROBE: 'yes' }, 5000), { exited: true, status: 64, signal: null })
+  })
+
+  test('a binary that cannot start is an error, not a result', () => {
+    assert.throws(() => mac.launchApp('/no/such/binary', [], {}, 1000), /\/no\/such\/binary could not start/)
   })
 })

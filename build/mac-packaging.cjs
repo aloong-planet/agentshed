@@ -24,6 +24,9 @@
 // The release profile and the DMG gate read APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID; the
 // certificate comes from the login keychain or, in CI, from CSC_LINK. The YAML parser is the js-yaml that
 // electron-builder itself depends on.
+//
+// Both profiles launch the built app and require it to refuse launch inputs with exit code 64 (macos-signing.md,
+// section 6; electron-security.md, item 21). The app must implement that refusal: this file only checks it.
 
 const crypto = require('node:crypto')
 const fs = require('node:fs')
@@ -275,6 +278,109 @@ function checkZippedApp(file, { productName, teamId, stapled, run }) {
   }
 }
 
+/** The exit code a packaged app refuses a launch input with, the contract between the app and this gate (EX_USAGE) */
+const REFUSED_EXIT_CODE = 64
+// The system's checks on a freshly signed app can take seconds on its first launch; the refusal itself is immediate
+const REFUSAL_LIMIT_MS = 30_000
+const PLAIN_LAUNCH_MS = 8_000
+// What a launched app is given of the environment, so the certificate and the Apple credentials never reach it
+const LAUNCH_ENV = ['HOME', 'PATH', 'TMPDIR', 'USER', 'LOGNAME', 'LANG']
+
+/**
+ * The inputs tried. The switches are the ones measured to open the debugging port or to run a program on a notarized
+ * build (or to crash it), and a made-up one that only an allow-list refuses, since Chromium's switches are no fixed list.
+ * An empty --type reaches the main process as any other launch does; with a process type's name, --type never reaches it,
+ * because Chromium reads that first, and a build started that way by hand crashes with or without a guard, so it is not
+ * tried. The variable is the URL the common Electron templates load in development; a project's own test seams are its
+ * own unit tests' to cover.
+ */
+function launchInputs(program) {
+  const named = (input) => ({ name: input.split('=')[0], args: [input] })
+  return [
+    named('--remote-debugging-port=0'),
+    named('-remote-debugging-port=0'),
+    named('--remote-debugging-pipe'),
+    named('--type='),
+    named(`--gpu-launcher=${program}`),
+    named(`--renderer-cmd-prefix=${program}`),
+    named(`--utility-cmd-prefix=${program}`),
+    named('--mac-packaging-probe-unknown-switch'),
+    { name: 'ELECTRON_RENDERER_URL', args: [], env: { ELECTRON_RENDERER_URL: 'http://127.0.0.1:9/' } }
+  ]
+}
+
+/** How a launch ended, in words */
+function launchOutcome(result) {
+  if (!result.exited) return 'it was still running at the limit'
+  return result.signal ? `it ended on ${result.signal}` : `it exited with code ${result.status}`
+}
+
+/**
+ * One launch of a real process, bounded: it is killed at the limit. Its output is not read: the exit is the answer, and
+ * an app left running with a pipe open would hold the call past the limit.
+ */
+function launchApp(binary, args, env, limit) {
+  const result = spawnSync(binary, args, { env, timeout: limit, killSignal: 'SIGKILL', stdio: 'ignore' })
+  if (result.error && result.error.code !== 'ETIMEDOUT') throw new Error(`${binary} could not start: ${result.error.message}`)
+  if (result.error) return { exited: false }
+  return { exited: true, status: result.status, signal: result.signal }
+}
+
+/**
+ * Launches each app this machine can run with each input it must refuse, then with only its settings directory. The
+ * plain launch is what makes a pass mean something: an app that refuses everything would pass every input, and no user
+ * could open it. Every launch has its own settings directory, so none touches the real one or meets a running copy's
+ * single-instance lock.
+ */
+function checkLaunchInputs(apps, { productName, env = process.env, launch = launchApp, hostArch = process.arch, log = console.log }) {
+  const runnable = apps.filter(({ arch }) => arch === 'universal' || arch === hostArch)
+  for (const { arch, app } of apps) {
+    if (!runnable.some((entry) => entry.app === app)) log(`[mac] not launching ${app}: it is ${arch} and this machine is ${hostArch}`)
+  }
+  if (runnable.length === 0) {
+    throw new Error(`none of the built apps can run on this machine (${hostArch}), so none could be checked for the launch inputs it must refuse`)
+  }
+  const inherited = Object.fromEntries(LAUNCH_ENV.filter((name) => env[name] !== undefined).map((name) => [name, env[name]]))
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mac-launch-'))
+  try {
+    const program = path.join(dir, 'launch-program')
+    const ran = `${program}.ran`
+    fs.writeFileSync(program, `#!/bin/sh\n: > '${ran}'\nexec "$@"\n`, { mode: 0o755 })
+    let launches = 0
+    const settings = () => {
+      const settingsDir = path.join(dir, `settings-${++launches}`)
+      fs.mkdirSync(settingsDir)
+      return `--user-data-dir=${settingsDir}`
+    }
+    for (const { app } of runnable) {
+      const binary = path.join(app, 'Contents', 'MacOS', productName)
+      for (const input of launchInputs(program)) {
+        // The input comes first: a guard that skips the first argument must not pass by finding the settings directory there
+        const result = launch(binary, [...input.args, settings()], { ...inherited, ...input.env }, REFUSAL_LIMIT_MS)
+        if (fs.existsSync(ran)) throw new Error(`${productName}.app ran the program named by ${input.name}`)
+        if (!result.exited || result.signal || result.status !== REFUSED_EXIT_CODE) {
+          throw new Error(
+            `${productName}.app did not refuse ${input.name}: ${launchOutcome(result)}. ` +
+              `A packaged app must exit with exit code ${REFUSED_EXIT_CODE} before it loads anything when a launch carries this input.`
+          )
+        }
+      }
+      const plain = launch(binary, [settings()], inherited, PLAIN_LAUNCH_MS)
+      if (plain.exited) {
+        throw new Error(`${productName}.app did not stay up on a launch with only its settings directory: ${launchOutcome(plain)}`)
+      }
+      log(`[mac] ${app} refuses every launch input tried and stays up on a plain launch`)
+    }
+  } finally {
+    // As with the ZIP's extraction: a failed removal neither fails a check that passed nor replaces the error of one that failed
+    try {
+      fs.rmSync(dir, { recursive: true, force: true })
+    } catch (error) {
+      console.warn(`[mac] could not remove the temporary directory ${dir}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+}
+
 function parseAcceptedSubmission(stdout) {
   const result = JSON.parse(stdout)
   if (result.status !== 'Accepted') {
@@ -351,7 +457,7 @@ function submitForNotarization(file, { credentials, run, writeError }) {
  * notarization stays off; the release profile notarizes each .app through the afterSign hook instead, after signing
  * and before that arch's DMG is built. Signatures, and in release the stapled tickets, are confirmed on the result.
  */
-function packageMac({ profile, env, run, outputDir, productName, version, arches, zip = false, hookPath }) {
+function packageMac({ profile, env, run, outputDir, productName, version, arches, zip = false, hookPath, launch = launchApp, hostArch = process.arch, log = console.log }) {
   if (profile !== 'local' && profile !== 'release') throw new Error(`unknown profile: ${profile}`)
   const release = profile === 'release'
   // Both checks come before the build: the hook would otherwise fail only after minutes of packing
@@ -398,6 +504,9 @@ function packageMac({ profile, env, run, outputDir, productName, version, arches
     // In release every app must leave the build stapled; a hook that never ran would leave it bare
     if (release) run('xcrun', ['stapler', 'validate', app])
   }
+
+  // Launching leaves the bundle's bytes as they are, so this can follow the signature checks and the tickets
+  checkLaunchInputs(apps, { productName, env, launch, hostArch, log })
 
   // DMG signing writes no log line, so each DMG's signature is checked against the team of the app inside it
   const dmgs = arches.map((arch) => {
@@ -671,9 +780,11 @@ module.exports = {
   assertDmgSignature,
   certificateSource,
   checkArtifactSet,
+  checkLaunchInputs,
   configuredArches,
   findBuiltApps,
   findMountedApp,
+  launchApp,
   main,
   notarizeDmg,
   packageMac,
