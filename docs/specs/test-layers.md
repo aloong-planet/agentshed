@@ -66,8 +66,6 @@ cases stay together and helpers are not copied.
 - test-layers::US-003/AC-08: A file is split only where part of it is a sub-topic that stands alone, and the new file's
   name starts with the feature's slug. Size alone is no reason.
 
-> Pending: the largest spec file holds cases of several features.
-
 > Pending: the update feature, the token statistics and the lifecycle cases each sit in several files, whose launchers
 > and fixtures differ.
 
