@@ -30,21 +30,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
-import { startApp } from './support/launch'
+import { launchWindow as launch, closeWindow as close } from './support/launch'
 import { ERR } from '../src/shared/errors'
-
-interface Launched {
-  app: ElectronApplication
-  win: Page
-  errors: string[]
-  userData: string
-}
-
-/** `startApp` with its first window, over an isolated userData and a fixture home */
-async function launch(home: string, extraEnv: Record<string, string> = {}, userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gs-'))): Promise<Launched> {
-  const { app, errors } = await startApp({ userData, home, env: extraEnv })
-  return { app, win: await app.firstWindow(), errors, userData }
-}
 
 const DAY = 86_400_000
 /** A moment `days` days and `min` minutes before now, an hour past the day boundary so "N days ago" holds */
@@ -137,11 +124,6 @@ function mkHome(): { home: string; files: Record<string, string>; paths: Record<
   files.orphan = join(sdir, `rollout-${ORPHAN}.jsonl`)
   writeFileSync(files.orphan, [meta(ago(1), ORPHAN, { forked_from_id: '019fb0c0-dead-7af3-af7d-8505cedf1ec9' }), q(ago(1, 1), 'Orphan asks to notarize too'), usage(ago(1, 2))].join('\n') + '\n')
   return { home, files, paths }
-}
-
-async function close(l: Launched, ...dirs: string[]): Promise<void> {
-  await closeApp(l.app)
-  for (const d of [l.userData, ...dirs]) rmSync(d, { recursive: true, force: true })
 }
 
 const searchItem = (win: Page) => win.locator('.rail .ri').nth(2)
@@ -963,7 +945,7 @@ test('leaving the session for the search page and coming back keeps it with its 
 })
 
 /**
- * Each control in the session page's exits row: its text's line boxes (counted as settings-updates.spec counts
+ * Each control in the session page's exits row: its text's line boxes (counted as app-update.spec counts
  * them), whether the text is cut and drawn with an ellipsis, and whether the control ends inside the header's
  * content box; with how many tops the controls sit on
  */
@@ -1092,7 +1074,7 @@ test('⌘⇧F through the application menu: from settings, a session page and th
   const l = await launch(home)
   const { app, win } = l
   try {
-    // The test window is never shown: focus emulation lets it hold a real focus, as token-span.spec.ts does
+    // The test window is never shown: focus emulation lets it hold a real focus, as token-stats.spec.ts does
     const cdp = await win.context().newCDPSession(win)
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
     // The Edit menu ends with a separator and the item, bound to ⌘⇧F (US-004/AC-02)

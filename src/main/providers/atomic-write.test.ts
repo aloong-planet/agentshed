@@ -5,7 +5,7 @@
 // fails a write after it has created its file, and nothing fails only the rename while the target stays a good file. Each
 // case asserts that the failure fired, so a writer that stopped reaching it goes red rather than passing on nothing. The
 // real failures — a directory at the temporary path, a read-only directory, the rename blocked by a directory at the
-// target — are driven in archive.test.ts, token-stats.test.ts, prefs-store.test.ts and e2e/archive-write-failure.spec.ts.
+// target — are driven in archive.test.ts, token-stats.test.ts, prefs-store.test.ts and e2e/token-stats.spec.ts.
 //
 // Gap: a real full disk is not in the suite, since it needs a volume of its own. Measured once on a disk image, the archive
 // answered ENOSPC with its last good file and no temporary file left.
