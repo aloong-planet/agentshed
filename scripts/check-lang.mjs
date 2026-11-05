@@ -254,6 +254,7 @@ const RULES = [
       f === 'e2e/skills-view.spec.ts' ||
       f === 'e2e/token-stats.spec.ts' ||
       f === 'e2e/support/launch.ts' ||
+      f === 'e2e/support/launch.spec.ts' ||
       // With English the pinned language, a case that switches languages can only switch to Chinese, so
       // these assert Chinese copy too (ADR-0035)
       f === 'e2e/settings-updates.spec.ts' ||

@@ -1,7 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { _electron as electron, type ElectronApplication } from '@playwright/test'
+import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { closeApp } from '../close-app'
 import { mkEmptyProjectHome } from './homes'
 
@@ -21,6 +21,29 @@ export interface Launched {
   userData: string
   /** The fixture home used this time (cleaned up with close if there is one) */
   home?: string
+}
+
+/** What counts as a failure signal in what the main process writes to stderr; `startApp` says why each part is here */
+const MAIN_ERRORS = /Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/
+
+export interface StartOptions {
+  userData: string
+  home: string
+  /** Per-case seams, which can also replace a pinned value */
+  env?: Record<string, string>
+  args?: string[]
+  /** `null` removes Playwright's light emulation (launchAppearance says why) */
+  colorScheme?: null
+  /** A list to collect into instead of a new one, as `failOnMainErrors` needs */
+  errors?: string[]
+}
+
+export interface Started {
+  app: ElectronApplication
+  /** What the main process reported that counts as a failure signal */
+  errors: string[]
+  /** Everything it wrote to stderr */
+  stderr: string[]
 }
 
 /**
@@ -55,31 +78,28 @@ export interface Launched {
  * so results vary with each person's data volume — green in CI where home is empty, timing out locally.
  * "Remembering to pass it" cannot hold the line, so typecheck does.
  */
-export async function launch(
-  cacheContent: string | undefined,
-  home: string,
-  extraEnv?: Record<string, string>,
-  extraArgs: string[] = []
-): Promise<Launched> {
-  const userData = makeUserData(cacheContent)
-  const errors: string[] = []
+export async function startApp(options: StartOptions): Promise<Started> {
+  const errors = options.errors ?? []
+  const stderr: string[] = []
   const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`, ...extraArgs],
+    args: ['.', `--user-data-dir=${options.userData}`, ...(options.args ?? [])],
+    ...(options.colorScheme === null ? { colorScheme: null } : {}),
     env: {
       ...process.env,
       NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: home,
+      AGENTSHED_HOME_OVERRIDE: options.home,
       // Test silencing: do not steal the foreground (the macOS accessory policy, see src/main/index.ts)
       AGENTSHED_NO_FOREGROUND: '1',
       // Pin the test language to English: the UI language follows the system by default, and without pinning it
       // every assertion locating by English copy would vary with the system language of whoever runs the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
       // Per-case seams (e.g. AGENTSHED_SCAN_DELAY_MS for the startup-skeleton cases) ride on top
-      ...extraEnv
+      ...options.env
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
+    stderr.push(t)
     // An uncaught main-process error, an IPC handler exception, or any structured failure all count as a
 // failure signal.
     // `agentshed-error:` is the marker common to every cross-process failure since ticket 05 — it replaced the
@@ -88,12 +108,38 @@ export async function launch(
     // so that pattern had become a dead pattern that could never match anything again (silently weakening the
 // detection net).
     // `[parse-pool]`: a parse worker failed and its file was parsed on the main thread instead. The figures
-    // stay right, so without this the built app could lose its workers with every case still green; the
-    // same pattern is in every launcher below.
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
-      errors.push(t.trim())
-    }
+    // stay right, so without this the built app could lose its workers with every case still green.
+    if (MAIN_ERRORS.test(t)) errors.push(t.trim())
   })
+  return { app, errors, stderr }
+}
+
+/**
+ * For a file whose cases carry no check of their own (test-layers::US-004/AC-04): after each case, once its app has
+ * closed, fails it on an error its main process reported that it did not allow, and on an allowance nothing matched.
+ * Call it at the top level of the file, and pass `errors` to every `startApp` there.
+ */
+export function failOnMainErrors(): { errors: string[]; allow: (provoked: RegExp) => void } {
+  const errors: string[] = []
+  const allowed: RegExp[] = []
+  test.afterEach(() => {
+    // One chunk of stderr can hold several reports, so each line is judged by itself
+    const reported = errors.splice(0).flatMap((chunk) => chunk.split('\n').filter((line) => MAIN_ERRORS.test(line)))
+    const patterns = allowed.splice(0)
+    expect(reported.filter((line) => !patterns.some((p) => p.test(line)))).toEqual([])
+    for (const p of patterns) expect(reported.filter((line) => p.test(line)), `nothing reported what the case allowed: ${p}`).not.toEqual([])
+  })
+  return { errors, allow: (provoked) => { allowed.push(provoked) } }
+}
+
+export async function launch(
+  cacheContent: string | undefined,
+  home: string,
+  extraEnv?: Record<string, string>,
+  extraArgs: string[] = []
+): Promise<Launched> {
+  const userData = makeUserData(cacheContent)
+  const { app, errors } = await startApp({ userData, home, env: extraEnv, args: extraArgs })
   return { app, errors, userData, home }
 }
 
@@ -128,24 +174,7 @@ export async function close(l: Launched): Promise<void> {
  */
 export async function launchAppearance(home: string): Promise<Launched> {
   const userData = makeUserData()
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    colorScheme: null,
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: home,
-      AGENTSHED_NO_FOREGROUND: '1',
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
-    }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
-      errors.push(t.trim())
-    }
-  })
+  const { app, errors } = await startApp({ userData, home, colorScheme: null })
   return { app, errors, userData, home }
 }
 
@@ -163,22 +192,6 @@ export async function launchWithLangs(sysLangs: string, homeOverride?: string, p
   // A preference file seeded before launch, as an earlier run would have left it
   if (prefs) writeFileSync(join(userData, 'prefs.json'), JSON.stringify(prefs))
   const home = homeOverride ?? mkEmptyProjectHome()
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: home,
-      AGENTSHED_NO_FOREGROUND: '1',
-      AGENTSHED_SYSTEM_LANGUAGES: sysLangs
-    }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
-      errors.push(t.trim())
-    }
-  })
+  const { app, errors } = await startApp({ userData, home, env: { AGENTSHED_SYSTEM_LANGUAGES: sysLangs } })
   return { app, errors, userData, home }
 }

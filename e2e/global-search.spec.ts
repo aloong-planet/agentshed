@@ -28,8 +28,9 @@
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
+import { startApp } from './support/launch'
 import { ERR } from '../src/shared/errors'
 
 interface Launched {
@@ -39,17 +40,9 @@ interface Launched {
   userData: string
 }
 
-/** The same launcher as support/launch.ts: an isolated userData, a fixture home, the window not shown, English */
+/** `startApp` with its first window, over an isolated userData and a fixture home */
 async function launch(home: string, extraEnv: Record<string, string> = {}, userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gs-'))): Promise<Launched> {
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US', ...extraEnv }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t.trim())
-  })
+  const { app, errors } = await startApp({ userData, home, env: extraEnv })
   return { app, win: await app.firstWindow(), errors, userData }
 }
 

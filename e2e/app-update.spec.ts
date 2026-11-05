@@ -10,8 +10,9 @@ import { createRequire } from 'node:module'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
+import { failOnMainErrors, startApp } from './support/launch'
 
 interface Fixture {
   home: string
@@ -28,6 +29,8 @@ function cleanup(f: Fixture): void {
   rmSync(f.home, { recursive: true, force: true })
   rmSync(f.userData, { recursive: true, force: true })
 }
+const mainErrors = failOnMainErrors()
+/** For the second instance a case spawns itself, which Playwright does not drive */
 const launchEnv = (f: Fixture): Record<string, string> => ({
   ...(process.env as Record<string, string>),
   NODE_ENV: 'production',
@@ -39,11 +42,13 @@ const launchEnv = (f: Fixture): Record<string, string> => ({
 /** `followAppearance`: Playwright pins prefers-color-scheme to light unless told not to, and then a mode
  *  switch never reaches the renderer (see launchAppearance in support/launch.ts) */
 function launch(f: Fixture, opts: { followAppearance?: boolean } = {}): Promise<ElectronApplication> {
-  return electron.launch({
-    args: ['.', `--user-data-dir=${f.userData}`],
-    env: launchEnv(f),
+  return startApp({
+    userData: f.userData,
+    home: f.home,
+    errors: mainErrors.errors,
+    env: { AGENTSHED_UPDATE_SCRIPT: f.script },
     ...(opts.followAppearance ? { colorScheme: null } : {})
-  })
+  }).then((started) => started.app)
 }
 function script(f: Fixture, s: object): void {
   writeFileSync(f.script, JSON.stringify(s))

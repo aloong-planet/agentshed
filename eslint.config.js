@@ -67,8 +67,18 @@ export default defineConfig(
     rules: {
       // Framework constraint: a Playwright fixture that needs no fixtures must still destructure its
       // first argument (`async ({}, testInfo) => …`). Retires if Playwright drops that requirement.
-      'no-empty-pattern': 'off'
+      'no-empty-pattern': 'off',
+      // One way to start the app (test-layers::US-004): its pinned environment and error watch are not copied
+      'no-restricted-imports': ['error', { paths: [{
+        name: '@playwright/test',
+        importNames: ['_electron'],
+        message: 'Start the app through startApp in e2e/support/launch.ts.'
+      }] }]
     }
+  },
+  {
+    files: ['e2e/support/launch.ts'],
+    rules: { 'no-restricted-imports': 'off' }
   },
   {
     files: ['src/renderer/**/*.{ts,tsx}'],

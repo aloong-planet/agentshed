@@ -8,8 +8,9 @@ import type {} from '../src/renderer/src/env'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
+import { failOnMainErrors, startApp } from './support/launch'
 
 const EN = 'Usage history can’t be saved right now because its file in the settings directory can’t be read or written.'
 const ZH = '用量历史暂时无法保存，因为设置目录中的历史文件无法读取或写入。'
@@ -42,13 +43,10 @@ function fixture(): Fixture {
   return f
 }
 
+const mainErrors = failOnMainErrors()
+
 async function start(f: Fixture, env: Record<string, string> = {}): Promise<{ app: ElectronApplication; win: Page; stderr: string[] }> {
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${f.userData}`],
-    env: { ...(process.env as Record<string, string>), NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: f.home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US', AGENTSHED_RESCAN_MS: '300', ...env }
-  })
-  const stderr: string[] = []
-  app.process().stderr?.on('data', (b: Buffer) => stderr.push(b.toString()))
+  const { app, stderr } = await startApp({ userData: f.userData, home: f.home, errors: mainErrors.errors, env: { AGENTSHED_RESCAN_MS: '300', ...env } })
   const win = await app.firstWindow()
   await win.waitForSelector('.toasts', { state: 'attached' })
   return { app, win, stderr }

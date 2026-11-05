@@ -7,10 +7,10 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect, _electron as electron } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import { closeApp } from './close-app'
 import { mkUsageHome, questionLine } from './support/homes'
-import { makeUserData, launch, close } from './support/launch'
+import { makeUserData, launch, close, startApp } from './support/launch'
 
 test('an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors', async () => {
   // The previous version's structure: the Codex agg has only totals/byDay and no events, and the version
@@ -97,23 +97,10 @@ test('automatic refresh: a new session appears on its own, and the detail page\'
   writeFileSync(join(cdir, 'a.jsonl'), usage(new Date(Date.now() - 3600e3), 111111) + '\n')
 
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: home,
-      AGENTSHED_NO_FOREGROUND: '1',
-      // Pin the test language to English: the UI language follows the system by default, and without pinning it
-      // every assertion locating by English copy would vary with the system language of whoever runs the tests
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
-      AGENTSHED_RESCAN_MS: '1500' // The E5 test seam: a shortened backstop interval drives the whole chain
-    }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t)
+  const { app, errors } = await startApp({
+    userData,
+    home,
+    env: { AGENTSHED_RESCAN_MS: '1500' } // The E5 test seam: a shortened backstop interval drives the whole chain
   })
   const win = await app.firstWindow()
   const total = win.locator('.stats .v').first()
@@ -161,7 +148,7 @@ test('automatic refresh: a new session appears on its own, and the detail page\'
  *   scan fail, and a fixture contrived to crash scan() would pin the crash, not the rule. Testable
  *   once a failure seam exists.
  * - Keyboard unreachability is not asserted: focus semantics differ in a hidden window (see the
- *   launch() note on AGENTSHED_NO_FOREGROUND), so a focus assertion here would be unreliable —
+ *   startApp note on AGENTSHED_NO_FOREGROUND), so a focus assertion here would be unreliable —
  *   the pointer side is covered by the hit-test below.
  * - A4c gets a weak assertion (no skeleton after a later scan completes): catching a scan mid-flight
  *   would race, so "never goes back mid-scan" rests on the render condition being "no snapshot yet",
@@ -339,17 +326,7 @@ test('a failed token cache write on the first scan: the app comes up with its da
   const userData = makeUserData()
   // A non-empty directory where the cache file goes: the temporary file writes and the rename fails
   mkdirSync(join(userData, 'token-cache.json', 'x'), { recursive: true })
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US' }
-  })
-  const stderr: string[] = []
-  const errors: string[] = []
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    stderr.push(t)
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t.trim())
-  })
+  const { app, errors, stderr } = await startApp({ userData, home })
   const win = await app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()

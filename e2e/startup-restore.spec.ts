@@ -3,11 +3,19 @@ import type {} from '../src/renderer/src/env'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync, statSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
+import { failOnMainErrors, startApp } from './support/launch'
 import { emptySnapshot } from '../src/shared/domain'
 
+const mainErrors = failOnMainErrors()
+
 test('restart restores viewed project, questions and read answer before a new scan finishes', async () => {
+  // Its refused reads, and the skill file it deletes and recreates
+  mainErrors.allow(/artifact-not-whitelisted/)
+  mainErrors.allow(/session-not-whitelisted/)
+  mainErrors.allow(/session-not-indexed/)
+  mainErrors.allow(/skill-file-unreadable/)
   const home = mkdtempSync(join(tmpdir(), 'agentshed-restore-home-'))
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-restore-data-'))
   const proj = join(home, 'restore-project')
@@ -48,11 +56,10 @@ test('restart restores viewed project, questions and read answer before a new sc
     await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   }
   let app: ElectronApplication | undefined
-  const launch = () => electron.launch({ args: ['.', `--user-data-dir=${userData}`], env: {
-    ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home,
-    AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
-    ...(app ? { AGENTSHED_SCAN_DELAY_MS: '20000', AGENTSHED_FETCH_DELAY_MS: '1000' } : {})
-  } })
+  const launch = () => startApp({
+    userData, home, errors: mainErrors.errors,
+    env: app ? { AGENTSHED_SCAN_DELAY_MS: '20000', AGENTSHED_FETCH_DELAY_MS: '1000' } : {}
+  }).then((started) => started.app)
   try {
     app = await launch()
     let win = await app.firstWindow()
@@ -233,6 +240,7 @@ test('restart restores viewed project, questions and read answer before a new sc
 // listing retires that admission while the file is still on disk (R1; a restore authorizes no read the current rules
 // would refuse).
 test('a root CONTEXT.md registered by a page saved before it moved under docs/ is refused after the current detail', async () => {
+  mainErrors.allow(/artifact-not-whitelisted/)
   const home = mkdtempSync(join(tmpdir(), 'agentshed-ctx-move-home-'))
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-ctx-move-data-'))
   const proj = join(home, 'moved-project')
@@ -243,10 +251,7 @@ test('a root CONTEXT.md registered by a page saved before it moved under docs/ i
   const docsContext = join(proj, 'docs', 'CONTEXT.md'), rootContext = join(proj, 'CONTEXT.md')
   writeFileSync(docsContext, '# Glossary\nGlossary body')
   let app: ElectronApplication | undefined
-  const launch = () => electron.launch({ args: ['.', `--user-data-dir=${userData}`], env: {
-    ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1',
-    AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
-  } })
+  const launch = () => startApp({ userData, home, errors: mainErrors.errors }).then((started) => started.app)
   try {
     app = await launch()
     let win = await app.firstWindow()
@@ -310,10 +315,7 @@ test('a snapshot saved before instruction entries carried their paths restores w
   } }))
   let app: ElectronApplication | undefined
   try {
-    app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`], env: {
-      ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1',
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US', AGENTSHED_SCAN_DELAY_MS: '20000'
-    } })
+    app = (await startApp({ userData, home, errors: mainErrors.errors, env: { AGENTSHED_SCAN_DELAY_MS: '20000' } })).app
     const win = await app.firstWindow()
     const paths = win.locator('.pane-body .instructions-path')
     await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
@@ -337,9 +339,7 @@ test('a failed startup scan keeps the saved display and retries automatically wi
   mkdirSync(first)
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [first]: {} } }))
   let app: ElectronApplication | undefined
-  const launch = (env: Record<string, string> = {}) => electron.launch({ args: ['.', `--user-data-dir=${userData}`], env: {
-    ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US', ...env
-  } })
+  const launch = (env: Record<string, string> = {}) => startApp({ userData, home, errors: mainErrors.errors, env }).then((started) => started.app)
   try {
     app = await launch()
     let win = await app.firstWindow()

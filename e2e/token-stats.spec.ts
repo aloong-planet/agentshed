@@ -1,12 +1,12 @@
 import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect, _electron as electron } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import { closeApp } from './close-app'
 import { AGENT_SIDES } from '../src/shared/validate'
 import { localDayOffset } from './support/dates'
 import { mkUsageHome, mkEmptyProjectHome } from './support/homes'
-import { makeUserData, launch, close, launchAppearance } from './support/launch'
+import { makeUserData, launch, close, launchAppearance, startApp } from './support/launch'
 import { effectiveDark } from './support/colors'
 
 test('the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors', async () => {
@@ -32,7 +32,6 @@ test('the archive: a seeded historical archive file → the trend includes an ar
       ]
     })
   )
-  const errors: string[] = []
   // A fixture home is mandatory: this case only cares about the archive file in userData, but without an
   // injected home it scanned
   // **the developer's real ~/.claude**; and since makeUserData() gives a fresh temporary directory every
@@ -40,24 +39,7 @@ test('the archive: a seeded historical archive file → the trend includes an ar
   // is always cold, so the first-paint time follows each person's data volume. CI stayed green because its
   // home is empty, while locally with 600MB+
   // of data it failed two runs out of three (2026-08-03, ticket 03a).
-  // This one slipped past the discipline stated on launch in support/launch.ts — it did not go through launch()
-  // and called electron.launch directly.
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: mkEmptyProjectHome(),
-      AGENTSHED_NO_FOREGROUND: '1',
-      // Pin the test language to English: the UI language follows the system by default, and without pinning it
-      // every assertion locating by English copy would vary with the system language of whoever runs the tests
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
-    }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t)
-  })
+  const { app, errors } = await startApp({ userData, home: mkEmptyProjectHome() })
   const win = await app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
   // The archive note appears (that day's source file is absent → it counts toward archivedDays)
@@ -105,15 +87,7 @@ test('the archive retains a past day whose live figure fell under the same stamp
       superseded: []
     })
   )
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US' }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t)
-  })
+  const { app, errors } = await startApp({ userData, home })
   const win = await app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
   // Cross-project page: the retained day carries the archived figure and no hatching
@@ -148,20 +122,13 @@ test('token-stats::REQ-005: an archive holding rows of a side this build does no
   writeFileSync(join(userData, 'usage-archive.json'),
     JSON.stringify({ version: 2, rows: [row('2020-01-02', 'claude', 12_000), ...theirs], stamps: {}, observed: {}, superseded: [] }))
   const home = mkEmptyProjectHome()
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US' }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]|scan failed/.test(t)) errors.push(t)
-  })
+  const { app, errors, stderr } = await startApp({ userData, home })
   const win = await app.firstWindow()
   await expect(win.locator('.arch-note')).toContainText('For 1 of those days (earliest 2020-01-02)')
   await expect(win.locator('.sk-page')).toHaveCount(0)
   await expect(win.locator('.pane-head .tot-row .tot-c').first().locator('.v')).toHaveText('12k')
   expect(errors).toEqual([])
+  expect(stderr.filter((t) => t.includes('scan failed'))).toEqual([])
   await closeApp(app)
   const file = JSON.parse(readFileSync(join(userData, 'usage-archive.json'), 'utf8')) as { rows: Array<{ side: string }> }
   expect(file.rows.filter((r) => r.side === outside)).toEqual(theirs)

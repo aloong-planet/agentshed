@@ -8,8 +8,9 @@ import type {} from '../src/renderer/src/env'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
+import { failOnMainErrors, startApp } from './support/launch'
 
 interface Fixture {
   home: string
@@ -26,20 +27,18 @@ function cleanup(f: Fixture): void {
   rmSync(f.home, { recursive: true, force: true })
   rmSync(f.userData, { recursive: true, force: true })
 }
+const mainErrors = failOnMainErrors()
 function launch(f: Fixture, opts: { updates?: boolean; env?: Record<string, string> } = {}): Promise<ElectronApplication> {
-  return electron.launch({
-    args: ['.', `--user-data-dir=${f.userData}`],
+  return startApp({
+    userData: f.userData,
+    home: f.home,
+    errors: mainErrors.errors,
     env: {
-      ...(process.env as Record<string, string>),
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: f.home,
-      AGENTSHED_NO_FOREGROUND: '1',
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
       // Without the seam the run is a development run: no update source at all (app-update::US-005)
       ...(opts.updates === false ? {} : { AGENTSHED_UPDATE_SCRIPT: f.script }),
       ...opts.env
     }
-  })
+  }).then((started) => started.app)
 }
 function script(f: Fixture, s: object): void {
   writeFileSync(f.script, JSON.stringify(s))
@@ -453,6 +452,7 @@ test.describe('the automatic-checks switch (US-002, REQ-003/AC-03)', () => {
 
 test('a preference file that cannot be read: no automatic check, a check asked for runs, a save fails and leaves the file, and the next launch reads it (#367)', async () => {
   test.skip(process.getuid?.() === 0, 'a mode does not hold back root')
+  mainErrors.allow(/prefs-write-failed/)
   const f = fixture()
   script(f, { check: 'upToDate' })
   const file = join(f.userData, 'prefs.json')
