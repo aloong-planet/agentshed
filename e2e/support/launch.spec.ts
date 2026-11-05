@@ -58,6 +58,13 @@ test('an allowance nothing matched fails the case', async () => {
   })
 })
 
+test('an allowance nothing matched fails the case even when another did match', async () => {
+  test.fail()
+  main.allow(/artifact-not-whitelisted/)
+  main.allow(/an error no case provokes/)
+  await withApp(provoke)
+})
+
 test('an error sharing a chunk of stderr with an allowed one still fails the case', async () => {
   test.fail()
   main.allow(/prefs-write-failed/)
