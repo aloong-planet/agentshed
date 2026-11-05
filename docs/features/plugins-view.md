@@ -15,7 +15,7 @@ package in full, in place** (review before enabling).
   across sides
 - Each Claude row: name, version, enablement, and **inline chips for each installation record**
   (scope and owning project; multiple records are not merged; if the owning project no longer exists
-  it is marked "project lost")
+  it is marked "project stale")
 - Enablement is read differently per page: the global page uses the user layer; project detail merges
   the layers actually in effect for that project (local > project > user) and states which layer the
   enabled/disabled judgement came from — a plugin installed for one project only shows as enabled in

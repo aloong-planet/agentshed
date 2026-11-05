@@ -5,7 +5,7 @@
 // Known gaps: E2 (the lost-projectPath label), F4 (the Codex group note on the detail page) and the
 // per-side grouped rendering are all UI layer,
 //   not unit tested per ADR-0038; the data pass-through is pinned by E1/E8 and F3's whole chain by e2e.
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -77,6 +77,25 @@ describe('global plugins: the scope semantics fix', () => {
     const [ok, gone] = snap.global.plugins[0].installs
     expect(ok.projectMissing).toBe(false)
     expect(gone.projectMissing).toBe(true)
+  })
+
+  it.skipIf(process.getuid?.() === 0)('E2 a record whose project cannot be reached is not marked missing; one whose project is not there is', async () => {
+    const locked = join(dir, 'locked')
+    const blocked = join(locked, 'blocked')
+    mkdirSync(blocked, { recursive: true })
+    mkInstalled({
+      'p@mp': [
+        { scope: 'project', version: '1.0.0', installPath: '/x', projectPath: blocked },
+        { scope: 'project', version: '1.0.0', installPath: '/x', projectPath: join(dir, 'gone-proj') }
+      ]
+    })
+    chmodSync(locked, 0o000)
+    try {
+      const snap = await scan(roots(), { now: () => 1 })
+      expect(snap.global.plugins[0].installs.map((r) => r.projectMissing)).toEqual([false, true])
+    } finally {
+      chmodSync(locked, 0o755)
+    }
   })
 
   it('E3 a scope of local or an unknown value is kept as written; a record with no scope field → unknown', async () => {

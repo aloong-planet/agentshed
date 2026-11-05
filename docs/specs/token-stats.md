@@ -310,10 +310,11 @@ next to A/B, so that no existing reference is renumbered)
   so no page, state form or control is added or changed, only one sentence in the existing toast form
   (the prototype exemption, declared). A standing state for this would need a prototype.
 - C25 **A settings directory already read-only or full at launch never reaches a scan**: the runtime cannot create its
-  single-instance lock there, the lock request answers no, and the application exits as a second instance
-  does, with no window and nothing on screen (measured 2026-11-05, on a directory at mode 555 and on a
-  volume with no room). C4 and C8 govern what happens once the application is running: a directory that
-  goes read-only or full later, or a volume with room for the lock and not for the archive.
+  single-instance lock there, so the application cannot start. It says so in a native dialog naming the
+  directory and exits non-zero, with no window ([i18n](i18n.md), The launch dialog; measured 2026-11-05, on
+  a directory at mode 555 and on a volume with no room). C4 and C8 govern what happens once the application
+  is running: a directory that goes read-only or full later, or a volume with room for the lock and not for
+  the archive.
 
 **Sequence D: trend and axis rendering**
 - D1 The plotted calendar span follows token-stats::REQ-002/AC-02.

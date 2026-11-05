@@ -122,8 +122,8 @@ numbers share a source and reconcile against each other.
 - If the newer version stored the history archive in a format this version does not read, this version
   leaves the archive untouched and shows only what its own refreshes find: past days only the archive
   held read lower or empty, without hatching, until the newer version is opened again
-- With the settings directory already read-only or full when it is opened, the application does not open,
-  and nothing says why
+- With the settings directory already read-only or full when it is opened, the application does not open:
+  a dialog names the directory and says why
 - While usage history cannot be saved, a day's usage that only this run of the application has counted,
   and that the agent deletes before saving works again, is not kept. While the history file cannot be
   read, past days only it held read lower or empty, without hatching, until it can be read

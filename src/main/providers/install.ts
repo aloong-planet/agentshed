@@ -8,6 +8,7 @@ import { PROJECT_SKILLS_DIR, type AgentSide } from '@shared/domain'
 import { skillLandings } from '@shared/skill-landing'
 import type { ScanRoots } from './types'
 import { globalSkillEntry } from './skill-package'
+import { isAbsent } from './read-utils'
 import { ERR, type ErrorCode, type ErrorParams } from '@shared/errors'
 
 export interface InstallArgs {
@@ -35,7 +36,8 @@ function projectSkillsDir(side: AgentSide, projectPath: string): string {
 export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {
   const { skillName, side, targetProjectPath } = args
   if (badName(skillName)) return { ok: false, reason: ERR.skillBadName }
-  if (!existsSync(targetProjectPath))
+  // A target that cannot be reached is not stale: the copy below fails on it, with the failed-copy notice (A10)
+  if (isAbsent(targetProjectPath))
     return { ok: false, reason: ERR.skillStaleTarget }
   // The copy the side uses, which is the one its list shows (skill-install::REQ-001/AC-05)
   const source = globalSkillEntry(roots, side, skillName)

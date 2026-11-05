@@ -69,7 +69,12 @@ and are never written back to any agent configuration.
   number of sides.
 - A5 Trailing-slash or casing differences in the path → normalised, producing no duplicates.
 - A6 A registry record whose directory has been deleted → marked stale, and does not vanish from the
-  list.
+  list. Stale means the directory is really not there. A directory that cannot be reached (it sits behind a
+  directory that cannot be entered, or macOS privacy protection refuses it) is not stale: the stale note's "no
+  longer exists" would be untrue of it, and acting on that note removes a live project's records. Such a project
+  keeps a normal row and opens its normal page. Its Instructions say they cannot be read and its sessions, which live
+  on the agent's side, still read; the sections that come back empty stay empty, and its resume command carries no
+  warning. There is no state of its own for this (see Further Notes).
 - A7 A directory that has sessions on a side but **no registry record** on it → not a project from
   that side's point of view: it does not enter the list and does not raise the count of an entry that
   other sides did register. Its tokens still count toward global totals (ADR-0019, and the same rule
@@ -322,3 +327,10 @@ pointer input by hit-testing (not attribute checks), and the in-place fill asser
 - Adding or removing project registrations from this app (the registries are read-only).
 - Cross-project content search, beyond the session questions global search covers
   ([global-search](global-search.md)).
+- A state of its own for a directory that cannot be reached (A6): it would be a new form, needing a prototype.
+
+## Further Notes
+
+- **Prototype gate (2026-11-05), a directory that cannot be reached (A6)**: it adds no state, control or form. Such a
+  project draws the normal row and page, which exist already; only which projects count as stale changes. Declared here as
+  the exemption rather than assumed.

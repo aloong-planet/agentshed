@@ -50,6 +50,9 @@ clicks or quits — without ever interrupting what they are doing.
 - Checking for updates is the one thing the app itself fetches from the network: it asks GitHub
   Releases about new versions and downloads the one it finds. Nothing else in the app reaches the network,
   and with automatic checks off it reaches it only when you check from settings or the menu
+- While the preference file cannot be read, the app cannot know you allowed automatic checks, so the switch
+  reads off and none runs. "Check now" and the menu still check, and turning the switch on lasts until the app
+  restarts
 - A development run (an app built from source and not packaged) never checks for updates: its switch,
   "Check now" and the menu's "Check for Updates…" are unavailable, and settings says why
 - No release notes are shown in the app, and an update cannot be skipped or postponed; the release

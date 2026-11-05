@@ -30,3 +30,9 @@ form's `agent.md`. Each has a case with the directory at mode 000. The rule is a
 The other `existsSync` sites were read one by one and stay, since no spec requires a read error there and most degrade the
 same either way. Two stay for a reason worth knowing: `readClaudeActivity`'s guards a `readdirSync` with no catch, and
 `skill-package.ts`'s containment check must fail closed on a root it cannot reach.
+
+Later the same day the same answer turned out to call a live project stale, and the stale note told the user to have the
+agent delete its records. So the rule also covers a place that tells the user something is gone and offers a way to remove
+it, and the stale flag, an install's target and a plugin record's project now ask `isAbsent` too (projects-list A6). Three
+sites still say something is missing for a path they could not look at, and stay, since none offers a removal:
+`plugins.ts`'s install directory, and an install's source and an uninstall's target in `install.ts`.

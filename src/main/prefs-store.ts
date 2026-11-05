@@ -1,6 +1,6 @@
 // The app's own preferences (userData/prefs.json). Never the agent configuration. Atomic writes:
 // a temporary file + rename, so an interruption leaves no half file.
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   DEFAULT_MODE,
@@ -20,6 +20,7 @@ import { ERR, appError } from '@shared/errors'
 
 import { isTrendSpan, TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
 import { writeFileAtomicSync } from './providers/atomic-write'
+import { isAbsent } from './providers/read-utils'
 
 export type { Prefs }
 
@@ -27,6 +28,12 @@ export class PrefsStore {
   private readonly file: string
   private readonly dir: string
   private prefs: Prefs
+  /**
+   * The file exists and could not be read at launch, so memory holds defaults and not the user's choices: writing them
+   * would overwrite those choices (#367). It holds for the whole run, even if the file becomes readable, since what
+   * memory holds has not changed.
+   */
+  private unreadable = false
 
   constructor(storeDir: string) {
     this.dir = storeDir
@@ -68,6 +75,21 @@ export class PrefsStore {
     return this.get()
   }
 
+  private load(): Prefs {
+    let text: string
+    try {
+      text = readFileSync(this.file, 'utf8')
+    } catch (error) {
+      if (isAbsent(this.file)) return { ...DEFAULT_PREFS }
+      console.error('[prefs] read failed, so no save will replace the file this run:', error)
+      this.unreadable = true
+      // Off, unlike the other defaults: the default is on, and the app cannot know the user allowed them (AGENTS.md, on
+      // automatic update checks). Turning them on from here is the user asking, so that holds
+      return { ...DEFAULT_PREFS, autoCheckUpdates: false }
+    }
+    return this.parse(text)
+  }
+
   /**
    * Reading degrades **per field**: one invalid entry falls back on its own without affecting the others.
    * This is the "degradation may only hurt itself" invariant applied to preferences — back when there was
@@ -75,10 +97,9 @@ export class PrefsStore {
    * "revert the whole thing" and "revert per field" behaved identically, and they parted ways the moment
    * a second field was added.
    */
-  private load(): Prefs {
-    if (!existsSync(this.file)) return { ...DEFAULT_PREFS }
+  private parse(text: string): Prefs {
     try {
-      const raw: unknown = JSON.parse(readFileSync(this.file, 'utf8'))
+      const raw: unknown = JSON.parse(text)
       if (typeof raw !== 'object' || raw === null) return { ...DEFAULT_PREFS }
       const r = raw as Record<string, unknown>
       const theme = r['theme']
@@ -104,6 +125,7 @@ export class PrefsStore {
    * The cause stays in the log, the one place it is any use.
    */
   private persist(): void {
+    if (this.unreadable) throw appError(ERR.prefsWriteFailed)
     try {
       writeFileAtomicSync(this.file, join(this.dir, `.prefs.json.tmp-${process.pid}`), JSON.stringify(this.prefs, null, 2))
     } catch (error) {

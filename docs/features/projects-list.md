@@ -20,6 +20,9 @@ activity.
   narrows the list to one side and stacks with search and the stale filter
 - Stale projects (in the registry, directory deleted) are filtered out by default with a count
   shown; a toggle reveals them, struck through and marked "stale"
+- A project whose directory cannot be reached, because a folder above it cannot be entered or macOS
+  refused access, is not stale: it keeps its normal row and page. Its Instructions say they cannot be
+  read, its sessions still read, and sections that have nothing to read stay empty
 - Clicking a project name opens its detail page; the selected row is marked by a deeper tint than
   the hover tint (no border ring), and adjacent rows stay visually separate even when a selected
   and a hovered row touch

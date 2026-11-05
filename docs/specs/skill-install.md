@@ -48,7 +48,8 @@ can be uninstalled. The global library itself is read-only.
   not overwritten.
 - A5 The target project directory does not exist (a stale project) → the picker lists it disabled
   (skill-install::REQ-003/AC-01); an install that reaches it anyway — it went stale after the picker was
-  drawn — is refused with a notice.
+  drawn — is refused with a notice. A directory that cannot be reached is not stale
+  ([projects-list](projects-list.md) A6): the picker offers it and the install fails as A10.
 - A6 The source is missing from the global library → missing-source, and **no half-finished directory
   is left** (copy to a temporary name first, then rename; clean up on failure).
 - A7 A skill name containing path traversal (`../` and so on) → refused.
@@ -56,7 +57,7 @@ can be uninstalled. The global library itself is read-only.
   the project does not belong to that side, no install.
 - A9 Several target directories qualify → install to each, each reporting its own success or failure;
   Codex and Antigravity qualifying together are one directory and one landing (skill-install::REQ-001).
-- A10 The copy fails (a project that cannot be written, a source file that cannot be read, a full disk) →
+- A10 The copy fails (a project that cannot be written or reached, a source file that cannot be read, a full disk) →
   one failure notice naming the skill, the project and the side or shared directory, saying the copy
   failed and was cleaned up, in the current UI language. It carries no system error; that goes to the log.
 
