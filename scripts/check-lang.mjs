@@ -246,7 +246,13 @@ const RULES = [
   },
   {
     match: (f) =>
-      f === 'e2e/app.spec.ts' ||
+      f === 'e2e/agents-overview.spec.ts' ||
+      f === 'e2e/i18n.spec.ts' ||
+      f === 'e2e/project-detail.spec.ts' ||
+      f === 'e2e/session-view.spec.ts' ||
+      f === 'e2e/skill-install.spec.ts' ||
+      f === 'e2e/skills-view.spec.ts' ||
+      f === 'e2e/token-stats.spec.ts' ||
       f === 'e2e/support/launch.ts' ||
       // With English the pinned language, a case that switches languages can only switch to Chinese, so
       // these assert Chinese copy too (ADR-0035)

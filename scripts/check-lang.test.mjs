@@ -24,7 +24,7 @@ const SEEDS = {
   'scripts/check-shared-ui.mjs': `const side = /${CN}/\n`,
   'src/shared/i18n/zh.ts': `export const zh = { a: '${CN}' }\n`,
   'site/src/i18n/ui.ts': `export const ui = { a: '${CN}' }\n`,
-  'e2e/app.spec.ts': `const label = '${CN}'\n`,
+  'e2e/i18n.spec.ts': `const label = '${CN}'\n`,
   'docs/specs/i18n.md': `The value \`${CN}\` is cited.\n`,
   'docs/prototypes/seed/prototype-seed.html': `<p>${CN}</p>\n`,
   'README.md': `${CN}\n`,

@@ -184,60 +184,6 @@ export function mkUsageHome(): string {
   return home
 }
 
-/**
- * Ticket 03b: the fixture home for a Codex fork.
- * **There are 0 real forks in this machine's real data** (of 244 sessions, all 9 with a parent are
- * subagents,
- * unlisted per A3), so this path can only be covered by construction — shaped by the fields codex.ts
- * actually reads:
- * payload.id / payload.forked_from_id / the top-level timestamp as the fork moment.
- */
-export function mkForkHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-fork-'))
-  const proj = join(home, 'fork-proj')
-  mkdirSync(proj, { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-  const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
-  mkdirSync(sdir, { recursive: true })
-
-  const PARENT = '019fb0c0-aaaa-7af3-af7d-8505cedf1ec2'
-  const q = (at: Date, message: string): string =>
-    JSON.stringify({ timestamp: at.toISOString(), type: 'event_msg', payload: { type: 'user_message', message } })
-  const usage = (at: Date, inTok: number, outTok: number): string =>
-    JSON.stringify({
-      timestamp: at.toISOString(),
-      type: 'event_msg',
-      payload: {
-        type: 'token_count',
-        info: { last_token_usage: { input_tokens: inTok, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: outTok, total_tokens: inTok + outTok } }
-      }
-    })
-  const meta = (at: Date, id: string, extra: Record<string, unknown> = {}): string =>
-    JSON.stringify({ timestamp: at.toISOString(), type: 'session_meta', payload: { cwd: proj, id, ...extra } })
-  const ctx = (at: Date): string =>
-    JSON.stringify({ timestamp: at.toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } })
-
-  // The parent session: two questions
-  writeFileSync(
-    join(sdir, `rollout-${PARENT}.jsonl`),
-    [meta(localDayOffset(4), PARENT), ctx(localDayOffset(4)), q(localDayOffset(4), 'Parent first question'), usage(localDayOffset(4), 500, 100), q(localDayOffset(3), 'Parent second question'), usage(localDayOffset(3), 300, 60)].join('\n') + '\n'
-  )
-  // The child: forked from the parent, replaying its two entries (with rewritten timestamps) plus one new
-// one → 1 should remain, marked "fork"
-  const CHILD = '019fb0c0-bbbb-7af3-af7d-8505cedf1ec2'
-  writeFileSync(
-    join(sdir, `rollout-${CHILD}.jsonl`),
-    [meta(localDayOffset(2), CHILD, { forked_from_id: PARENT }), ctx(localDayOffset(2)), q(localDayOffset(2), 'Parent first question'), q(localDayOffset(2), 'Parent second question'), q(localDayOffset(2), 'Child new question'), usage(localDayOffset(2), 200, 40)].join('\n') + '\n'
-  )
-  // An orphan fork: the parent is not in the scan set → the heuristic only, marked "uncertain strip"
-  const ORPHAN = '019fb0c0-cccc-7af3-af7d-8505cedf1ec2'
-  writeFileSync(
-    join(sdir, `rollout-${ORPHAN}.jsonl`),
-    [meta(localDayOffset(1), ORPHAN, { forked_from_id: '019fb0c0-dead-7af3-af7d-8505cedf1ec2' }), ctx(localDayOffset(1)), q(localDayOffset(1), 'Orphan session question'), usage(localDayOffset(1), 100, 20)].join('\n') + '\n'
-  )
-  return home
-}
-
 /** A registered project with no sessions at all — the sessions section's empty state */
 export function mkEmptyProjectHome(): string {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-noses-'))

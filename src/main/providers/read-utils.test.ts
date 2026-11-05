@@ -43,7 +43,7 @@ describe('isAbsent', () => {
     expect(isAbsent(join(dir, 'a-file', 'under'))).toBe(true)
   })
 
-  // EPERM is the code macOS privacy protection is expected to give, not measured (app.spec.ts's header), and EIO a failing
+  // EPERM is the code macOS privacy protection is expected to give, not measured (projects-list.spec.ts's header), and EIO a failing
   // volume's: neither says the path is gone
   it.each(['EACCES', 'EPERM', 'EIO'])('a stat refused with %s is not absent: it could not look', (code) => {
     refused.code = code
