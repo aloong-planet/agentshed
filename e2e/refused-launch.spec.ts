@@ -9,8 +9,9 @@ import { chmodSync, existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect, _electron as electron } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import { closeApp } from './close-app'
+import { startApp } from './support/launch'
 
 test.skip(process.getuid?.() === 0, 'a mode does not hold back root')
 
@@ -91,10 +92,7 @@ test('at mode 555 the sentence is in the stored language, over the system\'s', a
 
 test('with a first instance running and the directory gone unwritable, the launch still ends, and the first is told', async () => {
   const f = fixture()
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${f.userData}`],
-    env: launchEnv(f)
-  })
+  const { app } = await startApp({ userData: f.userData, home: f.home, env: { AGENTSHED_UPDATE_SCRIPT: f.script } })
   try {
     const win = await app.firstWindow()
     await win.waitForSelector('.rail .ri')

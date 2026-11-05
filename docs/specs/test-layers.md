@@ -66,8 +66,22 @@ cases stay together and helpers are not copied.
 - test-layers::US-003/AC-08: A file is split only where part of it is a sub-topic that stands alone, and the new file's
   name starts with the feature's slug. Size alone is no reason.
 
-> Pending: the update feature, the token statistics and the lifecycle cases each sit in several files, whose launchers
-> and fixtures differ.
+> Pending: the update feature, the token statistics and the lifecycle cases each sit in several files, whose fixtures
+> differ.
+
+### test-layers::US-004 One way to start the app in e2e
+
+As someone writing an e2e case, I want one function that starts the app, so that its pinned environment and the watch
+on the main process's errors do not depend on what I copied.
+
+- test-layers::US-004/AC-01: One file under `e2e/support/` holds the only import of Playwright's Electron launcher, and
+  lint fails on an import of it anywhere else.
+- test-layers::US-004/AC-02: Every start gets the case's own home and user data, a window that takes no foreground, and
+  English pinned, and a case can add or replace an environment value.
+- test-layers::US-004/AC-03: Every start collects what the main process reports through one pattern.
+- test-layers::US-004/AC-04: In a file whose cases carry no check of their own, a case fails when its main process
+  reported an error the case did not allow.
+- test-layers::US-004/AC-05: A case that allows an error nothing then reports fails too.
 
 ## Quality Requirements
 
@@ -120,6 +134,13 @@ location.
 - **A new case for a feature whose older cases still sit in another file.** It goes in the feature's own file under
   test-layers::US-003/AC-01, and the older cases join it when they are moved.
 - **A file that keeps growing.** Nothing stops it. It is split only under test-layers::US-003/AC-08.
+- **A case that provokes a main-process error on purpose.** It allows that error by pattern. The check then fails only
+  on the others, and on the pattern if nothing matched it.
+- **An error reported after a case's last step.** The check runs after the case, once its app has closed, so it counts.
+- **A launch that exits before any window.** Playwright cannot drive it, so the case spawns the binary itself and is
+  outside test-layers::US-004/AC-01.
+- **A case in a file that checks case by case, with no check of its own.** Not covered by
+  test-layers::US-004/AC-04, which is about the files with no check at all. A few such cases exist.
 
 ## Testing Decisions
 

@@ -13,8 +13,9 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect, _electron as electron } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import { closeApp } from './close-app'
+import { startApp } from './support/launch'
 import { ERR } from '../src/shared/errors'
 import { headingLadder, expectLadder, codeStyle, contentLineHeight, tableStyle, expectTableStyle, listIndent, expectCodeStyle } from './support/markdown-styles'
 import { pixelAt, paintedBackground, rgb, near } from './support/colors'
@@ -133,24 +134,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {}, [late]: {} } }))
 
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: home,
-      // Test silencing: do not steal the foreground (the macOS accessory policy, see src/main/index.ts)
-      AGENTSHED_NO_FOREGROUND: '1',
-      // Pin the test language to English: the UI language follows the system by default, and without pinning it
-      // every assertion locating by English copy would vary with the system language of whoever runs the tests
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
-    }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t)
-  })
+  const { app, errors } = await startApp({ userData, home })
   const win = await app.firstWindow()
   const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
   await app.evaluate(({ shell }) => {

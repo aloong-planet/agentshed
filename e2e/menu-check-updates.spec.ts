@@ -7,8 +7,9 @@ import type {} from '../src/renderer/src/env'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
+import { failOnMainErrors, startApp } from './support/launch'
 
 interface Fixture {
   home: string
@@ -25,18 +26,14 @@ function cleanup(f: Fixture): void {
   rmSync(f.home, { recursive: true, force: true })
   rmSync(f.userData, { recursive: true, force: true })
 }
+const mainErrors = failOnMainErrors()
 function launch(f: Fixture, opts: { updates?: boolean } = {}): Promise<ElectronApplication> {
-  return electron.launch({
-    args: ['.', `--user-data-dir=${f.userData}`],
-    env: {
-      ...(process.env as Record<string, string>),
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: f.home,
-      AGENTSHED_NO_FOREGROUND: '1',
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
-      ...(opts.updates === false ? {} : { AGENTSHED_UPDATE_SCRIPT: f.script })
-    }
-  })
+  return startApp({
+    userData: f.userData,
+    home: f.home,
+    errors: mainErrors.errors,
+    env: opts.updates === false ? {} : { AGENTSHED_UPDATE_SCRIPT: f.script }
+  }).then((started) => started.app)
 }
 function script(f: Fixture, s: object): void {
   writeFileSync(f.script, JSON.stringify(s))

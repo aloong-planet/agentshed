@@ -662,7 +662,7 @@ test('session page (Codex, cold rollout): a .jsonl.zst session is listed, counte
 // Ticket 08: session search — questions by default, the full-text toggle, hits grouped, and going straight
 // to a question.
 // Input uses fill() (setting the value through CDP without depending on window focus semantics; the
-// :focus assertion boundary noted on launch in support/launch.ts
+// :focus assertion boundary noted on startApp in support/launch.ts
 // does not apply to this case).
 test('session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question', async () => {
   const l = await launch(undefined, mkUsageHome())

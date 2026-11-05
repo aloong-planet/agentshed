@@ -85,6 +85,8 @@ a retried "does not appear" check cannot prove absence.
   `pnpm bench:scan` (the chunk-size reasoning is in `src/main/providers/jsonl.ts`).
 - Every e2e case closes its app through `closeApp` (`e2e/close-app.ts`), and a teardown warning on an
   unloaded run is a defect.
+- An e2e case starts its app through `startApp` (`e2e/support/launch.ts`); `pnpm lint` fails on any other import of
+  Playwright's Electron launcher (test-layers::US-004).
 - An e2e case goes in the file named after the `docs/features/` document whose rule it asserts, or in the
   lifecycle file when it is about how the app starts, refreshes or keeps its cache; moving between pages
   makes no home of its own (ADR-0041).

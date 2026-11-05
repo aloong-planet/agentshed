@@ -7,8 +7,9 @@ import type {} from '../src/renderer/src/env'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
+import { failOnMainErrors, startApp } from './support/launch'
 import { ERR } from '../src/shared/errors'
 
 function day(ago: number): string {
@@ -42,11 +43,9 @@ function readPrefs(userData: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(userData, 'prefs.json'), 'utf8')) as Record<string, unknown>
 }
 
+const mainErrors = failOnMainErrors()
 async function launch(f: ReturnType<typeof fixture>, env: Record<string, string> = {}): Promise<ElectronApplication> {
-  return electron.launch({ args: ['.', `--user-data-dir=${f.userData}`], env: {
-    ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: f.home,
-    AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US', ...env
-  } })
+  return (await startApp({ userData: f.userData, home: f.home, errors: mainErrors.errors, env })).app
 }
 const choice = (win: Page, span: number) => win.locator('.trend-span-options').getByRole('button', { name: String(span), exact: true })
 async function checkSpan(win: Page, span: number, total: string): Promise<void> {
@@ -231,6 +230,7 @@ for (const [span, cache] of [[30, undefined], [60, 'broken'], [90, '{"version":-
 }
 
 test('global span save failure keeps live views consistent and reopens the last successful value', async () => {
+  mainErrors.allow(/prefs-write-failed/)
   const f = fixture()
   // The automatic check's switch is available only with an update source; this is the scripted one
   const script = join(f.home, 'update.json')
@@ -238,11 +238,6 @@ test('global span save failure keeps live views consistent and reopens the last 
   let app: ElectronApplication | undefined
   try {
     app = await launch(f, { AGENTSHED_UPDATE_SCRIPT: script })
-    const handlerErrors: string[] = []
-    app.process().stderr?.on('data', (b: Buffer) => {
-      const t = b.toString()
-      if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) handlerErrors.push(t)
-    })
     let win = await app.firstWindow()
     const toasts = await recordToasts(win)
     await choice(win, 60).click()
@@ -319,8 +314,8 @@ test('global span save failure keeps live views consistent and reopens the last 
 
     // Nothing reached the disk, and the main process logged each failure by its code
     expect(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).toBe(prefsBefore)
-    expect(handlerErrors.length).toBeGreaterThan(0)
-    for (const e of handlerErrors) expect(e.includes(ERR.prefsWriteFailed), `a handler error without the code:\n${e}`).toBe(true)
+    expect(mainErrors.errors.length).toBeGreaterThan(0)
+    for (const e of mainErrors.errors) expect(e.includes(ERR.prefsWriteFailed), `a handler error without the code:\n${e}`).toBe(true)
 
     rmSync(blocked, { recursive: true })
     await closeApp(app)
