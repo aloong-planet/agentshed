@@ -1,6 +1,6 @@
 # Test layers
 
-> Related: ADR-0038 (test layers)
+> Related: ADR-0038 (test layers) · ADR-0040 (rendering branch tests)
 
 ## Problem Statement
 
@@ -11,7 +11,8 @@ nothing bounded what went into that suite.
 ## Solution
 
 ADR-0038 decides what e2e is for and what it admits. Whether a layer below e2e should take renderer behaviour
-over was measured rather than argued, and the layer was not adopted (see Out of Scope).
+over was measured rather than argued, and the layer was not adopted (see Out of Scope). ADR-0040 admits component
+tests for one narrow case, the rendering branches nothing else checks.
 
 ## User Stories
 
@@ -27,11 +28,50 @@ do not default to appending to the largest e2e file.
 - test-layers::US-001/AC-03: No spec and no source comment cites ADR-0002 as the rule in force; only
   ADR-0002's own file, the ADR index and ADR-0038 name it.
 
+### test-layers::US-002 A rendering branch fails a test when broken
+
+As someone changing the session page, I want the branches it takes on less common data to fail a test when I
+break them, so that a wrong row or banner on those sessions does not reach anyone unnoticed.
+
+- test-layers::US-002/AC-01: A question whose turn dispatched no subagent shows no subagent count and nothing in
+  its place, while one that dispatched some shows the count.
+- test-layers::US-002/AC-02: A question with no timestamp shows a dash where its time would be.
+- test-layers::US-002/AC-03: A Claude session with no branch points has no banner, while one with branch points
+  says how many.
+- test-layers::US-002/AC-04: In a session listed flat because a question has no timestamp, newest first, expanding
+  a row shows that row's turn.
+- test-layers::US-002/AC-05: A tool whose recorded output is empty shows an empty output, and one with no recorded
+  output says so.
+
+## Quality Requirements
+
+### test-layers::QR-002 The cost of the gap tests
+
+Scope: the component tests ADR-0040 admits, measured on one machine.
+
+- test-layers::QR-002/AC-01: Each behaviour in test-layers::US-002, broken on purpose, fails the test naming it and
+  no other, with the suite green before and after.
+- test-layers::QR-002/AC-02: `vitest run` on the file takes under 2 s, by the median of 20 runs.
+- test-layers::QR-002/AC-03: 20 consecutive runs without a failure.
+- test-layers::QR-002/AC-04: The tests and their harness hold no more than 186 lines.
+
+## Constraints
+
+### test-layers::CON-005 Tests only (direct acceptance)
+
+Scope: the gap tests. No shipped file changes, and no e2e case is moved, edited or removed.
+
 ## Failure modes and boundaries
 
-- **A behaviour needs only the DOM and no pure function can be extracted from it.** There is no layer below e2e
-  for it, so it is written at e2e, as ADR-0038's consequences say. Extracting a pure function comes first where
-  one exists.
+- **A behaviour needs only the DOM and no pure function can be extracted from it.** A branch in what a component
+  renders, chosen by the shape of the data, goes to a component test under ADR-0040. Anything else is written at
+  e2e, as ADR-0038's consequences say. Extracting a pure function comes first where one exists.
+- **A shape no provider produces.** Not tested, though the validators accept it: a sub block with inner steps, and
+  a Codex page marked stripped with no parent file. The test file's header names them, for when a provider starts
+  producing either.
+- **A derivation in new code.** Kept in a pure function and unit tested, under ADR-0038. The branches in
+  test-layers::US-002 are an existing gap, tested without changing shipped code.
+- **A behaviour across several interactions.** Stays in e2e.
 - **An existing case fails the criterion.** ADR-0038 moves no existing case by itself, so that case is not a
   defect.
 - **One case proves wiring and also asserts details.** It belongs in e2e for the wiring. Details a pure function
@@ -40,6 +80,8 @@ do not default to appending to the largest e2e file.
 ## Testing Decisions
 
 Seams are ADR-0038's: the data layer, the contract, and e2e, with pure functions of the renderer unit tested.
+ADR-0040 adds the renderer's boundary to the main process, for rendering branches only. A case's figures there are
+chosen to differ from anything that could stand in for them: an index, a position, another count.
 
 ## Out of Scope
 
@@ -57,6 +99,7 @@ Seams are ADR-0038's: the data layer, the contract, and e2e, with pure functions
 
   Reopened by a decision that sets new criteria, because most of the time and much of the lines are one-time
   costs (the jsdom start and the harness) rather than per case; the measurement stands as its evidence.
+  ADR-0040's tests do not reopen it: they move no e2e case.
 - Moving existing e2e cases to meet ADR-0038.
 - A budget on test file sizes, a rule for which e2e file a new case goes in, and splitting the largest spec.
 - Real-browser component tests.
@@ -64,4 +107,6 @@ Seams are ADR-0038's: the data layer, the contract, and e2e, with pure functions
 
 ## Further Notes
 
-The thresholds in the pilot's criteria were that pilot's own, not an industry standard.
+The thresholds in the pilot's criteria were that pilot's own, not an industry standard. Those in
+test-layers::QR-002 are this change's own, set after a spike had measured about the same figures, so they guard
+against drift and prove nothing about the approach.

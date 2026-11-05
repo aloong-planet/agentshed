@@ -1,6 +1,6 @@
 # Session view
 
-> Related: [features](../features/session-view.md) · ADR-0038 (test layers) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side)
+> Related: [features](../features/session-view.md) · ADR-0038 (test layers) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0040 (rendering branch tests)
 > Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1); amended 2026-09-12 for atomic opening and cached revisits (P, UI decisions); amended 2026-10-28 for the session ID and resume (session-view::US-001, session-view::CON-001 to session-view::CON-003; prototype gate passed the same day).
 
 > Startup restoration uses the original page prototypes confirmed on 2026-09-14.
@@ -1209,6 +1209,10 @@ the other sides, and e2e opens an Antigravity fork from the Sessions tab and exp
 (session-view::US-001) joins the session ID cases above: the ID read from the database's name at the
 providers seam, the `agy --conversation` form in the command builder's unit tests, and at the e2e seam
 the fork's own ID copied, its command copied, and the database handed to Finder.
+
+The branches the page takes on less common data (no subagents, no time, no branch points, a flat newest-first list,
+an empty tool output) are asserted at the renderer's boundary to the main process under ADR-0040;
+[test-layers::US-002](test-layers.md) lists them.
 
 ## Out of Scope
 
