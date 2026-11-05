@@ -6,18 +6,20 @@
 
 macOS trusts a signed build: what the user has granted it, and what it can read, belong to whatever runs inside it. The
 Electron fuses (`electron-builder.yml`) close Node's entries into a packaged build, `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS`
-and `--inspect`, and nothing closed the others. Measured on the notarized v0.1.0-beta.5 (macOS 26, Electron 43.2.0),
+and `--inspect`, and nothing closed the others. Measured on the notarized v0.1.0-beta.5 and v0.1.0-beta.6 (macOS 26, Electron 43.2.0),
 launched by a process running as the same user, against temporary directories:
 
 | Input | What the build did |
 |---|---|
 | `--remote-debugging-port`, with one dash or two | Opened the port; a client could drive the window |
+| `--remote-debugging-pipe` | Answered on the pipe |
 | `--gpu-launcher=<program>` | Ran the program |
 | `ELECTRON_RENDERER_URL=<url>` | Loaded the URL in the window, trusted its IPC, and gave it the preload's 41 methods |
 | `--renderer-cmd-prefix`, `--utility-cmd-prefix` | Ran nothing, and crashed |
 
 `--gpu-launcher` turned up only by trying a few more switches, not from any list: Chromium's switches are not a published
-contract. The app also read eleven `AGENTSHED_*` test seams in a packaged build, one of which replaces the update source.
+contract. The helper executable, run directly with the port switch, opened the port too. The app also read eleven
+`AGENTSHED_*` test seams in a packaged build, one of which replaces the update source.
 
 ## Options
 
@@ -63,7 +65,7 @@ between the app and that check, so a crash never passes for a refusal.
   check would not show it, because it starts the process directly. Measured on macOS 26: `open` passes only what it is given,
   and the updater's relaunch passes nothing. A launch through `open` is part of checking a package by hand.
 - Neutral: a copy of the bundle with its executable renamed would read as unpackaged (not measured), but its signature no
-  longer holds, so it is no longer the app macOS trusts. A symlink does not: measured, the build still reads as packaged.
+  longer holds, so it is no longer the app macOS trusts. A symlink does not, and neither does a helper executable run directly: measured, each still reads as packaged, and refuses.
 
 ## Sources
 

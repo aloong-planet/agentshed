@@ -273,7 +273,8 @@ not a packaged build.
 - F2 `--` is switch-shaped and refused. An argument with no leading dash is not a switch, and is ignored as before.
 - F3 A `-psn_` argument, which older macOS launches carried: accepted. It is not a Chromium switch, and refusing it would
   stop the app opening.
-- F4 A launch through a symlink, named `electron` or anything else: the build still reads as packaged, and refuses.
+- F4 A launch through a symlink, named `electron` or anything else, or of a helper executable run directly: each still reads
+  as packaged, and refuses.
 - F5 Someone starts the installed app from a terminal with an `AGENTSHED_*` variable exported: refused, and the sentence names
   the variable, so the reason is on their screen.
 - F6 A new test seam without the `AGENTSHED_` prefix would not be refused (`AGENTS.md` holds the constraint).
