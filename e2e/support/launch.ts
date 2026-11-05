@@ -115,9 +115,9 @@ export async function startApp(options: StartOptions): Promise<Started> {
 }
 
 /**
- * For cases that carry no check of their own (test-layers::US-004/AC-04): after each case, once its app has closed, fails
+ * For cases whose `startApp` is passed `errors` (test-layers::US-004/AC-04): after each case, once its app has closed, fails
  * it on an error its main process reported that it did not allow, and on an allowance nothing matched. Call it at the top
- * level of the file, and pass `errors` to the `startApp` of each such case.
+ * level of the file. A case whose start is not passed `errors` is not watched.
  */
 export function failOnMainErrors(): { errors: string[]; allow: (provoked: RegExp) => void } {
   const errors: string[] = []

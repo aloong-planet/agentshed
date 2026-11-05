@@ -76,8 +76,8 @@ on the main process's errors do not depend on what I copied.
 - test-layers::US-004/AC-02: Every start gets the case's own home and user data, a window that takes no foreground, and
   English pinned, and a case can add or replace an environment value.
 - test-layers::US-004/AC-03: Every start collects what the main process reports through one pattern.
-- test-layers::US-004/AC-04: A case that carries no check of its own fails when its main process reported an error the
-  case did not allow.
+- test-layers::US-004/AC-04: A case whose start reports to its file's check fails when its main process reported an
+  error the case did not allow.
 - test-layers::US-004/AC-05: A case fails too when nothing reports an error it allowed, each allowance being judged by
   itself.
 
@@ -145,8 +145,10 @@ sites too.
   would have to pin its own environment.
 - **A launch that exits before any window.** Playwright cannot drive it, so the case spawns the binary itself and is
   outside test-layers::US-004/AC-01.
-- **A case in a file that checks case by case, with no check of its own.** Not covered by
-  test-layers::US-004/AC-04, which is about the files with no check at all. A few such cases exist.
+- **A case with no check of its own, whose start does not report to a file's check.** Not covered by
+  test-layers::US-004/AC-04. An error its main process reports fails nothing. Such cases came from the files that check
+  case by case; the cases from the files with no check at all do report. Reporting would edit a case's text, so moving
+  a case does not add it.
 
 ## Testing Decisions
 
