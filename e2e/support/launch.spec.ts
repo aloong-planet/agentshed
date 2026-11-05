@@ -58,12 +58,16 @@ test('an allowance nothing matched fails the case', async () => {
   })
 })
 
-test('an allowance nothing matched fails the case even when another did match', async () => {
-  test.fail()
-  main.allow(/artifact-not-whitelisted/)
-  main.allow(/an error no case provokes/)
-  await withApp(provoke)
-})
+for (const [position, allowances] of [
+  ['last', [/artifact-not-whitelisted/, /an error no case provokes/]],
+  ['first', [/an error no case provokes/, /artifact-not-whitelisted/]]
+] as const) {
+  test(`an allowance nothing matched fails the case even when another did match, with the stale one ${position}`, async () => {
+    test.fail()
+    for (const allowance of allowances) main.allow(allowance)
+    await withApp(provoke)
+  })
+}
 
 test('an error sharing a chunk of stderr with an allowed one still fails the case', async () => {
   test.fail()
