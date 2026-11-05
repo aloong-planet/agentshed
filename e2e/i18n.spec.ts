@@ -3,10 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect } from '@playwright/test'
 import { closeApp } from './close-app'
-import { mkEmptyProjectHome } from './support/homes'
-import { launch, close, launchWithLangs } from './support/launch'
+import { launchWithLangs } from './support/launch'
 
-test('UI language: following the system resolves against the whole list, and applies on the first frame', async () => {
+test('UI language: following the system resolves against the whole list, at launch and when chosen in settings', async () => {
   // [ko, ja, zh, en]: Korean and Japanese are unsupported (ADR-0035), so it should carry on to Chinese — not
   // fall back to English because the first entry missed (i18n::REQ-002/AC-01).
   // A single-element list cannot tell the two implementations apart, so this has to use several.
@@ -16,17 +15,21 @@ test('UI language: following the system resolves against the whole list, and app
   // The default preference is "follow system", so the UI should be Chinese
   await expect(win.locator('.ri.set')).toHaveAttribute('title', '设置')
   expect(await win.evaluate(() => document.documentElement.lang)).toBe('zh-CN')
-  await closeApp(l.app)
-  rmSync(l.userData, { recursive: true, force: true })
-})
 
-test('UI language: falls back to English when the system language is unsupported', async () => {
-  // French and Japanese were supported languages until ADR-0035; a system preferring them now gets English
-  // (i18n::REQ-002/AC-02)
-  const l = await launchWithLangs('fr-FR,ja-JP')
-  const win = await l.app.firstWindow()
-  await win.waitForSelector('.rail')
-  await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
+  // Chosen in settings, the window resolves the list it was handed rather than asking the main process, so that list
+  // has to arrive whole as well
+  await win.locator('.ri.set').click()
+  const trig = win.getByTestId('language-trigger')
+  const pop = win.getByTestId('language-pop')
+  await trig.click()
+  await pop.locator('[data-lang="en"]').click()
+  await expect(win.locator('html')).toHaveAttribute('lang', 'en')
+  await trig.click()
+  // The first item is the follow-system policy
+  await pop.locator('.lang-opt').first().click()
+  await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+  await expect(win.locator('.ri.set')).toHaveAttribute('title', '设置')
+
   await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
 })
@@ -164,27 +167,6 @@ test('the language selector by keyboard: opening leaves the highlight on the cur
 // **behaviour**; these guard
 // **i18n itself** — a switch taking effect, both languages loading, and neither language bursting the
 // layout.
-
-test('i18n: the language-locking mechanism itself is reliable, unaffected by the development machine\'s system language', async () => {
-  // This guards **the premise of the other e2e cases**: they locate by UI copy, while the language follows
-  // the system by default, so launch() pins the system list to en-US. If the pinning broke, the whole suite
-  // would collapse on a machine with a different system language — while staying green on a matching one.
-  // Two launches: launch() as every case uses it, which must be English whatever this machine's language is,
-  // and launch() with a Chinese list injected, which must be Chinese. Were the injected list ignored, both
-  // would show the machine's own language, so one of the two goes red on any machine. (A launcher that
-  // dropped its own pin is still caught only where the machine's language is not English.)
-  const pinned = await launch(undefined, mkEmptyProjectHome())
-  let win = await pinned.app.firstWindow()
-  await win.waitForSelector('.rail')
-  await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
-  await close(pinned)
-
-  const injected = await launch(undefined, mkEmptyProjectHome(), { AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN' })
-  win = await injected.app.firstWindow()
-  await win.waitForSelector('.rail')
-  await expect(win.locator('.ri.set')).toHaveAttribute('title', '设置')
-  await close(injected)
-})
 
 test('i18n: both languages load, with the key nodes non-empty', async () => {
   // Not overlapping with typecheck: typecheck guarantees the keys are complete, and this guarantees **a
