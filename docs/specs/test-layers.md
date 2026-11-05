@@ -66,9 +66,6 @@ cases stay together and helpers are not copied.
 - test-layers::US-003/AC-08: A file is split only where part of it is a sub-topic that stands alone, and the new file's
   name starts with the feature's slug. Size alone is no reason.
 
-> Pending: the update feature, the token statistics and the lifecycle cases each sit in several files, whose fixtures
-> differ.
-
 ### test-layers::US-004 One way to start the app in e2e
 
 As someone writing an e2e case, I want one function that starts the app, so that its pinned environment and the watch
@@ -79,8 +76,8 @@ on the main process's errors do not depend on what I copied.
 - test-layers::US-004/AC-02: Every start gets the case's own home and user data, a window that takes no foreground, and
   English pinned, and a case can add or replace an environment value.
 - test-layers::US-004/AC-03: Every start collects what the main process reports through one pattern.
-- test-layers::US-004/AC-04: In a file whose cases carry no check of their own, a case fails when its main process
-  reported an error the case did not allow.
+- test-layers::US-004/AC-04: A case whose start reports to its file's check fails when its main process reported an
+  error the case did not allow.
 - test-layers::US-004/AC-05: A case fails too when nothing reports an error it allowed, each allowance being judged by
   itself.
 
@@ -106,7 +103,9 @@ Scope: the gap tests. No shipped file changes, and no e2e case is moved, edited 
 
 Scope: moving e2e cases and helpers to meet ADR-0041. `playwright test --list` names the same cases before and after,
 and the text of each case and helper is unchanged, apart from `export`, import lines and comments that name the old
-location.
+location. Two helpers that land in one file under one name are the exception. Copies that differ only in a temporary
+directory's name or in their options become one, and helpers that do different things take distinct names, at their call
+sites too.
 
 ## Failure modes and boundaries
 
@@ -129,6 +128,8 @@ location.
   reasonably differ. Nothing checks the placement; review does.
 - **A case asserting several features' rules.** When moved, it goes with its main assertion and is not split, under
   test-layers::CON-006.
+- **A skip or hook at the top of a file being folded.** It would reach every case in the new file, so a skip goes in an
+  untitled `test.describe` with its own cases, which leaves their names as they were.
 - **A rule no spec states.** The rule goes into the spec first, and that spec then gives the case its file.
 - **A first case for a feature with no document.** The document comes with the feature, so the case takes its slug.
 - **A test of the e2e harness itself.** It is no feature's, and stays beside what it tests.
@@ -144,8 +145,10 @@ location.
   would have to pin its own environment.
 - **A launch that exits before any window.** Playwright cannot drive it, so the case spawns the binary itself and is
   outside test-layers::US-004/AC-01.
-- **A case in a file that checks case by case, with no check of its own.** Not covered by
-  test-layers::US-004/AC-04, which is about the files with no check at all. A few such cases exist.
+- **A case with no check of its own, whose start does not report to a file's check.** Not covered by
+  test-layers::US-004/AC-04. An error its main process reports fails nothing. Such cases came from the files that check
+  case by case; the cases from the files with no check at all do report. Reporting would edit a case's text, so moving
+  a case does not add it.
 
 ## Testing Decisions
 

@@ -1,7 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
+import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from '../close-app'
 import { mkEmptyProjectHome } from './homes'
 
@@ -115,9 +115,9 @@ export async function startApp(options: StartOptions): Promise<Started> {
 }
 
 /**
- * For a file whose cases carry no check of their own (test-layers::US-004/AC-04): after each case, once its app has
- * closed, fails it on an error its main process reported that it did not allow, and on an allowance nothing matched.
- * Call it at the top level of the file, and pass `errors` to every `startApp` there.
+ * For cases whose `startApp` is passed `errors` (test-layers::US-004/AC-04): after each case, once its app has closed, fails
+ * it on an error its main process reported that it did not allow, and on an allowance nothing matched. Call it at the top
+ * level of the file. A case whose start is not passed `errors` is not watched.
  */
 export function failOnMainErrors(): { errors: string[]; allow: (provoked: RegExp) => void } {
   const errors: string[] = []
@@ -147,6 +147,29 @@ export async function close(l: Launched): Promise<void> {
   await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
   if (l.home) rmSync(l.home, { recursive: true, force: true })
+}
+
+export interface WindowLaunched {
+  app: ElectronApplication
+  win: Page
+  errors: string[]
+  userData: string
+}
+
+/** `startApp` with its first window, over an isolated userData and a fixture home */
+export async function launchWindow(
+  home: string,
+  extraEnv: Record<string, string> = {},
+  userData = makeUserData(),
+  options: { colorScheme?: null } = {}
+): Promise<WindowLaunched> {
+  const { app, errors } = await startApp({ userData, home, env: extraEnv, ...options })
+  return { app, win: await app.firstWindow(), errors, userData }
+}
+
+export async function closeWindow(l: WindowLaunched, ...dirs: string[]): Promise<void> {
+  await closeApp(l.app)
+  for (const d of [l.userData, ...dirs]) rmSync(d, { recursive: true, force: true })
 }
 
 /**

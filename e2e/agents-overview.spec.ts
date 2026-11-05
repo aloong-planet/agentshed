@@ -1,13 +1,15 @@
-import { chmodSync, mkdtempSync, mkdirSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
+import { chmodSync, mkdtempSync, mkdirSync, utimesSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator } from '@playwright/test'
 import { MEASURED_TITLE, callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation, writeSummaries, type UsageFixture } from '../src/main/testing/agy-fixture'
 import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, writeTranscript } from '../src/main/testing/agy-transcript-fixture'
 import { localDayOffset } from './support/dates'
 import { mkUsageHome, mkAgyComponentsHome } from './support/homes'
-import { launch, close, launchAppearance } from './support/launch'
+import { launch, close, launchAppearance, launchWindow, closeWindow, type WindowLaunched } from './support/launch'
 import { effectiveDark } from './support/colors'
+import { closeApp } from './close-app'
+import { mkLinkHome, CLAUDE_LINE, card, countOf, toAgents, toProjects, dropdown, toggle, rows, chooseSide } from './support/side-link'
 
 /** A day key (YYYY-MM-DD) in local time — the form a bar's data-day carries */
 function dayKey(d: Date): string {
@@ -918,4 +920,247 @@ test('the Antigravity side whole: its card read in one pass, and a project every
 
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+// A side card's project count (agents-overview::REQ-007), under the built Electron app, over a fixture home. The list it
+// opens is in projects-list.spec.ts.
+//
+// Known gap, recorded rather than faked:
+//   - "A scan lands between reading the card and activating the control" (agents-overview::REQ-007) has no driver for
+//     the exact race: the card and the handler read the same snapshot from one render. The scan case in
+//     projects-list.spec.ts asserts that the card and the rows agree once a scan has landed.
+
+const ZERO_LINE = '0 projects · 0 global skills · 0 subagents'
+
+/** The theme's token values, spelled out: the default colour scheme of theme.css */
+const LOOK = {
+  light: { secondary: 'rgb(120, 119, 116)', strongLine: 'rgb(217, 220, 224)', primary: 'rgb(55, 53, 47)', accent: 'rgb(138, 103, 171)' },
+  dark: { secondary: 'rgb(155, 154, 151)', strongLine: 'rgb(52, 55, 60)', primary: 'rgb(230, 230, 229)', accent: 'rgb(160, 132, 199)' }
+} as const
+
+const paint = (link: Locator): Promise<{ color: string; line: string; underline: string; thickness: string; outline: string; width: string; outlineColor: string; focusVisible: boolean }> =>
+  link.evaluate((el) => {
+    const s = getComputedStyle(el)
+    return {
+      color: s.color,
+      line: s.textDecorationLine,
+      underline: s.textDecorationColor,
+      thickness: s.textDecorationThickness,
+      outline: s.outlineStyle,
+      width: s.outlineWidth,
+      outlineColor: s.outlineColor,
+      focusVisible: el.matches(':focus-visible')
+    }
+  })
+
+// agents-overview::REQ-007/AC-01 (keyboard), AC-02, AC-03, AC-04, AC-05.
+test('the count\'s look in light and dark, its keyboard path, plain text at zero, and a card measuring the same', async () => {
+  const { home } = mkLinkHome()
+  const l = await launchWindow(home, {}, undefined, { colorScheme: null })
+  const { win } = l
+  try {
+    const link = countOf(win, 'cl')
+    await expect(link).toHaveText('3 projects')
+
+    for (const mode of ['light', 'dark'] as const) {
+      await win.evaluate((m) => window.agentshed.setMode(m), mode)
+      await expect.poll(() => win.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)).toBe(mode === 'dark')
+      const look = LOOK[mode]
+
+      // At rest: the line's secondary colour and a thin underline in the strong line colour
+      await win.mouse.move(5, 5)
+      await expect.poll(() => paint(link)).toMatchObject({ color: look.secondary, line: 'underline', underline: look.strongLine, thickness: 'auto', outline: 'none' })
+      // The line around it has that same colour: the control does not stand out from its line at rest
+      expect(await card(win, 'cl').locator('.s').evaluate((el) => getComputedStyle(el).color)).toBe(look.secondary)
+
+      // On hover: the text and the underline both take the primary colour
+      await link.hover()
+      await expect.poll(() => paint(link)).toMatchObject({ color: look.primary, underline: look.primary })
+      await win.mouse.move(5, 5)
+
+      // A keyboard focus: Tab reaches it and draws the ring
+      for (let i = 0; i < 40 && !(await link.evaluate((el) => el === document.activeElement)); i++) await win.keyboard.press('Tab')
+      await expect.poll(() => paint(link)).toMatchObject({ focusVisible: true, outline: 'solid', width: '2px', outlineColor: look.accent })
+
+      // Enter activates it
+      await win.keyboard.press('Enter')
+      await expect(dropdown(win)).toHaveText('Claude Code')
+      await expect(rows(win)).toHaveText(['live-a', 'live-b', 'ghost-a'])
+      await toAgents(win)
+      await expect(link).toBeVisible()
+    }
+
+    // A zero count is plain text, whether the side registered nothing or is not detected, hit-tested at the words
+    // themselves. The same test on the control finds it, so the test can see one.
+    const hitAt = (badge: string, from: number, to: number): Promise<string | null> =>
+      win.evaluate(([b, a, z]) => {
+        const line = document.querySelector(`.pane-head .stats .stat:has(.badge.${b}) .s`)
+        if (!line) throw new Error('no third line')
+        const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT)
+        const range = document.createRange()
+        let at = 0
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const len = (n.textContent ?? '').length
+          if (at + len > a) {
+            range.setStart(n, a - at)
+            range.setEnd(n, Math.min(z - at, len))
+            break
+          }
+          at += len
+        }
+        const r = range.getBoundingClientRect()
+        if (r.width === 0) throw new Error('the words have no box')
+        const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return el?.closest('button')?.className ?? null
+      }, [badge, from, to] as const)
+    await expect(card(win, 'gk').locator('.k')).toContainText('Detected')
+    await expect(card(win, 'gk').locator('.s')).toHaveText(ZERO_LINE)
+    await expect(card(win, 'ag').locator('.k')).toContainText('Not detected')
+    await expect(card(win, 'ag').locator('.s')).toHaveText(ZERO_LINE)
+    expect(await hitAt('gk', 0, '0 projects'.length)).toBeNull()
+    expect(await hitAt('ag', 0, '0 projects'.length)).toBeNull()
+    expect(await card(win, 'gk').locator('button').count()).toBe(0)
+    expect(await card(win, 'ag').locator('button').count()).toBe(0)
+    expect(await hitAt('cl', 0, '3 projects'.length)).toBe('stat-link')
+
+    // Only the project count is a control: the skill and subagent counts, here one each, stay text
+    expect(await card(win, 'cl').locator('.s button').count()).toBe(1)
+    expect(await hitAt('cl', '3 projects · '.length, '3 projects · 1 global skill'.length)).toBeNull()
+    expect(await hitAt('cl', '3 projects · 1 global skill · '.length, CLAUDE_LINE.length)).toBeNull()
+
+    // The card measures the same with a link as with plain text. `.stats` stretches its cards to one height, so
+    // comparing them as drawn is always equal: the third lines are measured directly, and the cards with the stretch
+    // off. The width is measured on one line, the control swapped for its own text and put back in the same call.
+    const measured = await win.evaluate(() => {
+      const stats = document.querySelector<HTMLElement>('.pane-head .stats')
+      const stat = (b: string): HTMLElement => {
+        const el = document.querySelector<HTMLElement>(`.pane-head .stats .stat:has(.badge.${b})`)
+        if (!el) throw new Error(`no card ${b}`)
+        return el
+      }
+      const line = (b: string): HTMLElement => {
+        const el = stat(b).querySelector<HTMLElement>('.s')
+        if (!el) throw new Error(`no line ${b}`)
+        return el
+      }
+      if (!stats) throw new Error('no stats')
+      stats.style.alignItems = 'flex-start'
+      const heights = { linkCard: stat('cl').getBoundingClientRect().height, zeroCard: stat('gk').getBoundingClientRect().height, linkLine: line('cl').getBoundingClientRect().height, zeroLine: line('gk').getBoundingClientRect().height }
+      stats.style.alignItems = ''
+      const widthOf = (el: HTMLElement): number => {
+        const r = document.createRange()
+        r.selectNodeContents(el)
+        return r.getBoundingClientRect().width
+      }
+      const clLine = line('cl')
+      const button = clLine.querySelector('button')
+      if (!button) throw new Error('no control')
+      const withControl = { width: widthOf(clLine), height: clLine.getBoundingClientRect().height, card: stat('cl').getBoundingClientRect().height }
+      const text = document.createTextNode(button.textContent ?? '')
+      button.replaceWith(text)
+      const withText = { width: widthOf(clLine), height: clLine.getBoundingClientRect().height, card: stat('cl').getBoundingClientRect().height }
+      text.replaceWith(button)
+      return { heights, withControl, withText }
+    })
+    expect(measured.heights.linkLine).toBeGreaterThan(0)
+    expect(measured.heights.linkLine).toBe(measured.heights.zeroLine)
+    expect(measured.heights.linkCard).toBe(measured.heights.zeroCard)
+    expect(measured.withControl.width).toBeGreaterThan(0)
+    expect(measured.withControl).toEqual(measured.withText)
+
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+// agents-overview::REQ-007, the startup skeleton: its third line is a placeholder, so there is no control until the
+// first scan fills it.
+test('the startup skeleton has no control, and the count is one once the first scan has filled the card', async () => {
+  const { home } = mkLinkHome()
+  const l = await launchWindow(home, { AGENTSHED_SCAN_DELAY_MS: '3000' })
+  const { win } = l
+  try {
+    await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
+    // Both read at one moment, so the count of controls is known to come from the skeleton
+    const skeleton = await win.evaluate(() => ({
+      placeholders: document.querySelectorAll('.pane-head .stats .sk-ph').length,
+      controls: document.querySelectorAll('.pane-head .stats button').length
+    }))
+    expect(skeleton.placeholders).toBeGreaterThan(0)
+    expect(skeleton.controls).toBe(0)
+    await expect(win.locator('.pane-head .stats button')).toHaveText(['3 projects', '1 project'], { timeout: 15000 })
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+// agents-overview::REQ-007, the third line replaced by an error or by the unreadable count: the line has no project
+// count, so no control, even when the side has a project; the side can still be chosen in the dropdown.
+test('a third line showing an error or the unreadable count has no control, and the dropdown still offers the side', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-link-agy-'))
+  const proj = join(home, 'trusted-proj')
+  mkdirSync(proj)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const agy = join(home, '.gemini', 'antigravity-cli')
+  const conversations = join(agy, 'conversations')
+  mkdirSync(conversations, { recursive: true })
+  writeFileSync(join(agy, 'settings.json'), '{ not json')
+  // A conversation in a format this build does not read: the shape the Antigravity usage cases use
+  const at = Date.now()
+  const { step, gen } = callRecord({ conversationId: 'c-new', stepIdx: 1, genIdx: 0, usage: { messageId: 'e-new', input: 50 }, createdAt: at - 5_000, completedAt: at, responseModel: 'gemini-3.6-flash' })
+  writeConversation(conversations, 'c-new', encodeTrajectoryMetadata({ folders: [proj], conversationId: 'c-new' }), { steps: [step], gens: [gen], userVersion: 2 })
+  const l = await launchWindow(home, { AGENTSHED_RESCAN_MS: '250' })
+  const { win } = l
+  try {
+    const ag = card(win, 'ag')
+    await expect(ag.locator('.stat-err')).toBeVisible()
+    await expect(countOf(win, 'cl')).toHaveText('1 project')
+    expect(await ag.locator('button').count()).toBe(0)
+
+    // Repaired, trusting a folder: the side now has a project, and the line shows the unreadable count instead
+    writeFileSync(join(agy, 'settings.json'), settingsJson([proj]))
+    await expect(ag.locator('.side-warn')).toHaveText('1 conversation couldn’t be read')
+    expect(await ag.locator('button').count()).toBe(0)
+
+    await toProjects(win)
+    await chooseSide(win, 'Antigravity')
+    await expect(rows(win)).toHaveText(['trusted-proj'])
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+// agents-overview::REQ-007, a restored snapshot during the first scan: the control works from the restored data and the
+// list shows that same data. The registry gained a project between the launches and the scan is held, so only the
+// restored copy can give three.
+test('during the first scan the count works from the restored snapshot, and the list shows that same data', async () => {
+  const { home } = mkLinkHome()
+  const first = await launchWindow(home)
+  const later = join(home, 'later-proj')
+  let second: WindowLaunched | undefined
+  try {
+    await expect(countOf(first.win, 'cl')).toHaveText('3 projects')
+    await closeApp(first.app)
+    mkdirSync(later)
+    const registry = JSON.parse(readFileSync(join(home, '.claude.json'), 'utf8')) as { projects: Record<string, object> }
+    writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { ...registry.projects, [later]: {} } }))
+
+    second = await launchWindow(home, { AGENTSHED_SCAN_DELAY_MS: '20000' }, first.userData)
+    const { win } = second
+    await expect(countOf(win, 'cl')).toHaveText('3 projects', { timeout: 5000 })
+    await countOf(win, 'cl').click()
+    await expect(dropdown(win)).toHaveText('Claude Code')
+    await expect(rows(win)).toHaveText(['live-a', 'live-b', 'ghost-a'])
+    await expect(toggle(win)).toBeChecked()
+    expect(await win.locator('.startup-display-hint').getAttribute('data-state'), 'the first scan is still held').not.toBe('ready')
+    expect(first.errors).toEqual([])
+    expect(second.errors).toEqual([])
+  } finally {
+    if (second) await closeApp(second.app).catch(() => {})
+    rmSync(first.userData, { recursive: true, force: true })
+    rmSync(home, { recursive: true, force: true })
+  }
 })

@@ -1,13 +1,17 @@
-import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
+import type {} from '../src/renderer/src/env'
+import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, chmodSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
 import { AGENT_SIDES } from '../src/shared/validate'
 import { localDayOffset } from './support/dates'
 import { mkUsageHome, mkEmptyProjectHome } from './support/homes'
-import { makeUserData, launch, close, launchAppearance, startApp } from './support/launch'
+import { makeUserData, launch, close, launchAppearance, startApp, failOnMainErrors } from './support/launch'
 import { effectiveDark } from './support/colors'
+import { ERR } from '../src/shared/errors'
+
+const mainErrors = failOnMainErrors()
 
 test('the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors', async () => {
   // Build a historical row whose source file is long gone (simulating the state after the agent cleaned up
@@ -784,5 +788,707 @@ test('selectable trend span: localized controls fit both pages in light and dark
     expect(l.errors).toEqual([])
   } finally {
     await close(l)
+  }
+})
+
+// The selectable trend span.
+// Real isolated profiles, real IPC and filesystem failures; no owned-module mocks.
+// Real assistant/message/usage keys were inspected in a local Claude JSONL sample; values and dates
+// below are synthetic. Delayed initial preference reads are tested at the public backfill seam.
+// This suite does not force IPC acknowledgement reordering: replies are ignored by the span owner.
+// If that changes, add an external transport-delay seam and exercise reversed replies here.
+
+function day(ago: number): string {
+  const date = new Date()
+  date.setDate(date.getDate() - ago)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function spanFixture(): { home: string; userData: string; project: string } {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-span-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-span-data-'))
+  const project = join(home, 'alpha'), other = join(home, 'beta')
+  mkdirSync(project); mkdirSync(other)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [project]: {}, [other]: {} } }))
+  const add = (proj: string, records: [number, number, string][]) => {
+    const dir = join(home, '.claude', 'projects', proj.replace(/[^a-zA-Z0-9]/g, '-'))
+    mkdirSync(dir, { recursive: true })
+    const source = join(dir, 'usage.jsonl')
+    writeFileSync(source, records.map(([ago, input, model]) => JSON.stringify({
+      type: 'assistant', timestamp: `${day(ago)}T12:00:00`,
+      message: { model, usage: { input_tokens: input, output_tokens: 1, cache_read_input_tokens: 2, cache_creation_input_tokens: 3 } }
+    })).join('\n') + '\n')
+  }
+  // Literal sums: alpha 16/42/78; beta 46/102/168; global 62/144/246.
+  add(project, [[0, 10, 'claude-recent'], [45, 20, 'claude-middle'], [75, 30, 'claude-oldest']])
+  add(other, [[2, 40, 'claude-recent'], [35, 50, 'claude-middle'], [65, 60, 'claude-oldest']])
+  return { home, userData, project }
+}
+
+function readPrefs(userData: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(join(userData, 'prefs.json'), 'utf8')) as Record<string, unknown>
+}
+async function launchSpan(f: ReturnType<typeof spanFixture>, env: Record<string, string> = {}): Promise<ElectronApplication> {
+  return (await startApp({ userData: f.userData, home: f.home, errors: mainErrors.errors, env })).app
+}
+const choice = (win: Page, span: number) => win.locator('.trend-span-options').getByRole('button', { name: String(span), exact: true })
+async function checkSpan(win: Page, span: number, total: string): Promise<void> {
+  await expect(choice(win, span)).toHaveAttribute('aria-pressed', 'true')
+  await expect(win.locator('.chart .col')).toHaveCount(span)
+  await expect(win.locator('.tot-c').nth(3).locator('.k')).toHaveText(`Last ${span} days`)
+  await expect(win.locator('.tot-c').nth(3).locator('.v')).toHaveText(total)
+}
+function cleanup(f: ReturnType<typeof spanFixture>): void {
+  rmSync(f.home, { recursive: true, force: true })
+  rmSync(f.userData, { recursive: true, force: true })
+}
+
+/** Every toast from now on, whatever its lifetime, as "kind: text"; each call states the ones that appear next, and no more */
+async function recordToasts(win: Page): Promise<(next: string[]) => Promise<void>> {
+  await win.waitForSelector('.toasts', { state: 'attached' })
+  await win.evaluate(() => {
+    const seen: string[] = []
+    ;(window as unknown as { __toasts: string[] }).__toasts = seen
+    new MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of r.addedNodes) {
+          if (n instanceof HTMLElement && n.classList.contains('toast')) seen.push(`${n.classList.contains('err') ? 'err' : 'ok'}: ${n.textContent ?? ''}`)
+        }
+      }
+    }).observe(document.querySelector('.toasts') as Element, { childList: true })
+  })
+  let read = 0
+  return async (next) => {
+    await expect.poll(() => win.evaluate(() => [...(window as unknown as { __toasts: string[] }).__toasts]).then((all) => all.slice(read))).toEqual(next)
+    read += next.length
+  }
+}
+/** The application menu as built: each top-level menu's label and its first item's (what macOS draws is accepted by hand, i18n spec) */
+function menuHeads(app: ElectronApplication): Promise<string[][]> {
+  return app.evaluate(({ Menu }) => (Menu.getApplicationMenu()?.items ?? []).map((i) => [i.label, i.submenu?.items[0]?.label ?? '']))
+}
+const MENU_EN = [['Agentshed', 'About Agentshed'], ['Edit', 'Undo'], ['View', 'Reload'], ['Window', 'Minimize']]
+const MENU_ZH = [['Agentshed', '关于 Agentshed'], ['编辑', '撤销'], ['显示', '重新载入'], ['窗口', '最小化']]
+/** Reaching a control lower on the settings page scrolled it, and a scroll closes the language list (the i18n table): the list is opened again until the click lands */
+async function chooseLanguage(win: Page, id: string): Promise<void> {
+  await expect(async () => {
+    if (!(await win.getByTestId('language-pop').isVisible())) await win.getByTestId('language-trigger').click()
+    await win.locator(`.lang-opt[data-lang="${id}"]`).click({ timeout: 1000 })
+  }).toPass()
+}
+const failedEn = (name: string): string => `err: Couldn’t save ${name}. It stays in effect until the app restarts, then goes back.`
+const failedZh = (name: string): string => `err: 保存${name}失败。当前选择在重启前有效，重启后恢复。`
+
+// The backfill rule itself is unit-tested; this pins the wiring around it — the app must hand the
+// backfill the choices made since mount, not the values it mounted with (#61).
+test('a theme chosen while the initial preference read is in flight survives that read landing', async () => {
+  const f = spanFixture()
+  writeFileSync(join(f.userData, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'en', mode: 'dark', trendSpan: 30 }))
+  const app = await launchSpan(f, { AGENTSHED_PREFS_DELAY_MS: '5000' })
+  try {
+    const win = await app.firstWindow()
+    await win.getByTitle('Settings').click()
+    // Before the read lands the language preference is still the default, follow-system
+    await expect(win.getByTestId('language-trigger')).toContainText('Follow')
+    await win.locator('[data-theme-option="amber"]').click()
+    await expect.poll(() => win.locator('html').getAttribute('data-theme')).toBe('amber')
+    // The read lands: the untouched language takes its value, the touched theme keeps the user's choice
+    await expect(win.getByTestId('language-trigger')).not.toContainText('Follow', { timeout: 10000 })
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'amber')
+    await expect(win.locator('[data-theme-option="amber"]')).toHaveAttribute('aria-checked', 'true')
+  } finally { await closeApp(app); cleanup(f) }
+})
+
+test('global span defaults an older or invalid preference without resetting valid appearance and language', async () => {
+  for (const trendSpan of [undefined, 45, '60']) {
+    const f = spanFixture()
+    writeFileSync(join(f.userData, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'en', mode: 'dark', trendSpan }))
+    const app = await launchSpan(f, { AGENTSHED_SYSTEM_LANGUAGES: 'fr-FR' })
+    try {
+      const win = await app.firstWindow()
+      // Let Electron's saved appearance drive media queries instead of Playwright's light default.
+      await win.emulateMedia({ colorScheme: null })
+      await checkSpan(win, 30, '62')
+      await expect(win.locator('html')).toHaveAttribute('data-theme', 'blue')
+      await expect.poll(() => win.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)).toBe(true)
+      await win.locator('.rail .ri').nth(1).click()
+      await win.locator('.side .row', { hasText: 'alpha' }).click()
+      await checkSpan(win, 30, '16')
+      await choice(win, 60).click()
+      // The file never held the update switch: it is written back on, the specified fallback, beside the rest
+      await expect.poll(() => readPrefs(f.userData)).toEqual({
+        theme: 'blue', language: 'en', mode: 'dark', trendSpan: 60, autoCheckUpdates: true
+      })
+    } finally { await closeApp(app); cleanup(f) }
+  }
+})
+
+test('global span links exact totals and active breakdowns on both entries, and survives full restarts', async () => {
+  const f = spanFixture()
+  let app: ElectronApplication | undefined
+  try {
+    app = await launchSpan(f)
+    let win = await app.firstWindow()
+    await checkSpan(win, 30, '62')
+    const unchanged = await win.locator('.tot-c .v').allTextContents()
+    for (const [span, total, uncached, output, cached] of [[60, '144', '132', '4', '8'], [90, '246', '228', '6', '12'], [30, '62', '56', '2', '4']] as const) {
+      await choice(win, span).click()
+      await checkSpan(win, span, total)
+      expect((await win.locator('.tot-c .v').allTextContents()).slice(0, 3)).toEqual(unchanged.slice(0, 3))
+      await expect(win.locator('.tot-c').first()).toHaveAttribute('aria-pressed', 'true')
+      await win.locator('.tot-c').nth(3).click()
+      await expect(win.locator('.stats .stat').first().locator('.v')).toHaveText(total)
+      await expect(win.locator('.comp-lg span').nth(0)).toHaveAttribute('title', `${cached} · input served from cache, never recomputed`)
+      await expect(win.locator('.comp-lg span').nth(1)).toHaveAttribute('title', `${uncached} · cache writes included: everything the model read afresh this turn`)
+      await expect(win.locator('.comp-lg span').nth(2)).toHaveAttribute('title', `${output} · tokens the model generated`)
+      await expect(win.locator('.pane-body .grp-t').last()).toContainText(`Last ${span} days`)
+      await expect(win.locator('.models .m')).toHaveCount(span / 30)
+      await expect(win.locator('.chart .col.out')).toHaveCount(0)
+      await win.locator('.tot-c').first().click()
+    }
+    // Keep the fourth card active across span changes; activation is identity, not a fixed 30-day range.
+    await win.locator('.tot-c').nth(3).click()
+    await choice(win, 60).click()
+    await expect(win.locator('.tot-c').nth(3)).toHaveAttribute('aria-pressed', 'true')
+    await expect(win.locator('.stats .stat').first().locator('.v')).toHaveText('144')
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'alpha' }).click()
+    await checkSpan(win, 60, '42')
+    await win.locator('.tot-c').nth(3).click()
+    await choice(win, 90).click()
+    await checkSpan(win, 90, '78')
+    await expect(win.locator('.tot-sides b').first()).toHaveText('78')
+    await expect(win.locator('.models .num')).toHaveText(['36', '26', '16'])
+    await win.locator('.side .row', { hasText: 'beta' }).click()
+    await checkSpan(win, 90, '168')
+    await win.locator('.rail .ri').first().click()
+    await checkSpan(win, 90, '246')
+    // Consecutive user events, followed by a real quit; the acknowledged final value is the persisted one.
+    for (const span of [30, 90, 30, 60]) await choice(win, span).click()
+    await expect.poll(() => readPrefs(f.userData).trendSpan).toBe(60)
+    await closeApp(app)
+    app = await launchSpan(f, { AGENTSHED_SCAN_DELAY_MS: '3000' })
+    win = await app.firstWindow()
+    await checkSpan(win, 60, '144')
+    await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+    await expect(win.locator('.tot-c').first()).toHaveAttribute('aria-pressed', 'true')
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'scanning')
+    const before = await win.locator('.chart').boundingBox()
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready', { timeout: 8000 })
+    expect((await win.locator('.chart').boundingBox())?.y).toBe(before?.y)
+    await choice(win, 90).click()
+    await expect.poll(() => readPrefs(f.userData).trendSpan).toBe(90)
+    await closeApp(app)
+    app = await launchSpan(f, { AGENTSHED_SCAN_DELAY_MS: '3000' })
+    win = await app.firstWindow()
+    await checkSpan(win, 90, '246')
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'alpha' }).click()
+    await checkSpan(win, 90, '78')
+  } finally {
+    if (app) await closeApp(app).catch(() => {})
+    cleanup(f)
+  }
+})
+
+for (const [span, cache] of [[30, undefined], [60, 'broken'], [90, '{"version":-1,"data":{}}']] as const) {
+  test(`global span ${span}: saved preference survives an unusable display cache and skeleton fill`, async () => {
+    const f = spanFixture()
+    writeFileSync(join(f.userData, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'en', mode: 'dark', trendSpan: span }))
+    if (cache) writeFileSync(join(f.userData, 'display-cache.json'), cache)
+    const app = await launchSpan(f, { AGENTSHED_SCAN_DELAY_MS: '3000' })
+    try {
+      const win = await app.firstWindow()
+      const buttons = win.locator('.trend-span-choice')
+      await expect(buttons).toHaveCount(3)
+      for (const button of await buttons.all()) await expect(button).toBeDisabled()
+      await expect(win.locator('.trend-span-choice[aria-pressed="true"]')).toHaveText(String(span))
+      await expect(win.locator('.tot-c').nth(3).locator('.k')).toHaveText(`Last ${span} days`)
+      const before = await win.locator('.trend-span-options').boundingBox()
+      await expect(win.locator('.sk-page')).toHaveCount(0, { timeout: 8000 })
+      await checkSpan(win, span, span === 30 ? '62' : span === 60 ? '144' : '246')
+      expect((await win.locator('.trend-span-options').boundingBox())?.y).toBe(before?.y)
+      await expect(win.locator('html')).toHaveAttribute('data-theme', 'blue')
+    } finally { await closeApp(app); cleanup(f) }
+  })
+}
+
+test('global span save failure keeps live views consistent and reopens the last successful value', async () => {
+  mainErrors.allow(/prefs-write-failed/)
+  const f = spanFixture()
+  // The automatic check's switch is available only with an update source; this is the scripted one
+  const script = join(f.home, 'update.json')
+  writeFileSync(script, JSON.stringify({ check: 'upToDate' }))
+  let app: ElectronApplication | undefined
+  try {
+    app = await launchSpan(f, { AGENTSHED_UPDATE_SCRIPT: script })
+    let win = await app.firstWindow()
+    const toasts = await recordToasts(win)
+    await choice(win, 60).click()
+    await expect.poll(() => readPrefs(f.userData).trendSpan).toBe(60)
+    const prefsBefore = readFileSync(join(f.userData, 'prefs.json'), 'utf8')
+    const archiveBefore = readFileSync(join(f.userData, 'usage-archive.json'), 'utf8')
+    const configBefore = readFileSync(join(f.home, '.claude.json'), 'utf8')
+    const pid = app.process().pid
+    const blocked = join(f.userData, `.prefs.json.tmp-${pid}`)
+    mkdirSync(blocked)
+    await choice(win, 90).click()
+    await toasts([failedEn('the trend span')])
+    await checkSpan(win, 90, '246')
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'alpha' }).click()
+    await checkSpan(win, 90, '78')
+    expect(readFileSync(join(f.userData, 'usage-archive.json'), 'utf8')).toBe(archiveBefore)
+    expect(readFileSync(join(f.home, '.claude.json'), 'utf8')).toBe(configBefore)
+    expect(readPrefs(f.userData).trendSpan).toBe(60)
+
+    // The other four, in English: one toast each, and the choice in effect
+    const theme = (id: string) => win.locator(`[data-theme-option="${id}"]`)
+    const mode = (id: string) => win.locator(`[data-mode-option="${id}"]`)
+    const auto = (id: string) => win.getByTestId('auto-check-seg').locator(`[data-auto-option="${id}"]`)
+    await win.locator('.ri.set').click()
+    await theme('blue').click()
+    await toasts([failedEn('the theme')])
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'blue')
+    await mode('dark').click()
+    await toasts([failedEn('the appearance mode')])
+    await expect(mode('dark')).toHaveAttribute('aria-checked', 'true')
+    await auto('off').click()
+    await toasts([failedEn('the automatic update check setting')])
+    await expect(auto('off')).toHaveAttribute('aria-checked', 'true')
+
+    // The language: the window, its notices and the application menu all move together
+    expect(await menuHeads(app)).toEqual(MENU_EN)
+    await chooseLanguage(win, 'zh')
+    await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+    await toasts(['ok: 界面语言已切换为 简体中文', failedZh('语言')])
+    expect(await menuHeads(app)).toEqual(MENU_ZH)
+
+    // The same four in Chinese
+    await theme('amber').click()
+    await toasts([failedZh('主题')])
+    await mode('light').click()
+    await toasts([failedZh('外观模式')])
+    await auto('on').click()
+    await toasts([failedZh('自动检查更新设置')])
+    await win.locator('.rail .ri').nth(0).click()
+    await choice(win, 30).click()
+    await toasts([failedZh('趋势天数')])
+    await expect(choice(win, 30)).toHaveAttribute('aria-pressed', 'true')
+
+    // Writes in flight when the language changes: their notices use the new language (the i18n table). An IPC reply
+    // needs a macrotask, so with only microtasks between the clicks no rejection can arrive before the switch
+    await win.locator('.ri.set').click()
+    await win.evaluate(async () => {
+      for (const selector of ['[data-theme-option="blue"]', '[data-auto-option="off"]', '[data-testid="language-trigger"]', '.lang-opt[data-lang="en"]']) {
+        const el = document.querySelector(selector)
+        if (!(el instanceof HTMLElement)) throw new Error(`nothing to click at ${selector}`)
+        el.click()
+        await Promise.resolve()
+      }
+    })
+    await expect(win.locator('html')).toHaveAttribute('lang', 'en')
+    await toasts(['ok: Interface language switched to English', failedEn('the theme'), failedEn('the automatic update check setting'), failedEn('the language')])
+    expect(await menuHeads(app)).toEqual(MENU_EN)
+
+    // Left in Chinese, so the next launch's English is the disk's and not what the session ended on
+    await chooseLanguage(win, 'zh')
+    await toasts(['ok: 界面语言已切换为 简体中文', failedZh('语言')])
+    expect(await menuHeads(app)).toEqual(MENU_ZH)
+
+    // Nothing reached the disk, and the main process logged each failure by its code
+    expect(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).toBe(prefsBefore)
+    expect(mainErrors.errors.length).toBeGreaterThan(0)
+    for (const e of mainErrors.errors) expect(e.includes(ERR.prefsWriteFailed), `a handler error without the code:\n${e}`).toBe(true)
+
+    rmSync(blocked, { recursive: true })
+    await closeApp(app)
+    app = await launchSpan(f, { AGENTSHED_UPDATE_SCRIPT: script })
+    win = await app.firstWindow()
+    await checkSpan(win, 60, '144')
+    await expect(win.locator('html')).toHaveAttribute('lang', 'en')
+    expect(await menuHeads(app)).toEqual(MENU_EN)
+    await win.locator('.ri.set').click()
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'purple')
+    await expect(mode('system')).toHaveAttribute('aria-checked', 'true')
+    await expect(auto('on')).toHaveAttribute('aria-checked', 'true')
+    await expect(win.getByTestId('language-trigger')).toContainText('Follow system')
+  } finally { if (app) await closeApp(app).catch(() => {}); cleanup(f) }
+})
+
+test('global span includes archived and retained older rows in both charts and fourth cards', async () => {
+  const f = spanFixture()
+  const beta = join(f.home, 'beta')
+  const stamp = `${(JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version}+c19`
+  writeFileSync(join(f.userData, 'usage-archive.json'), JSON.stringify({
+    version: 2, rows: [
+      { day: day(75), side: 'claude', projectKey: f.project.toLowerCase(), model: 'claude-oldest', input: 90, output: 5, cacheRead: 2, cacheWrite: 3, total: 100 },
+      { day: day(85), side: 'claude', projectKey: beta.toLowerCase(), model: 'claude-archived', input: 90, output: 10, cacheRead: 0, cacheWrite: 0, total: 100 }
+    ], stamps: { [`${day(75)}\u0000claude`]: stamp, [`${day(85)}\u0000claude`]: stamp }, observed: {}, superseded: []
+  }))
+  const app = await launchSpan(f)
+  try {
+    const win = await app.firstWindow()
+    await checkSpan(win, 30, '62')
+    await choice(win, 90).click()
+    await checkSpan(win, 90, '410')
+    await expect(win.locator(`.col[data-day="${day(75)}"]`)).not.toHaveClass(/\barch\b/)
+    await expect(win.locator(`.col[data-day="${day(75)}"]`)).toHaveAttribute('data-tip', /total 100\n/)
+    await expect(win.locator(`.col[data-day="${day(85)}"]`)).toHaveClass(/\barch\b/)
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'alpha' }).click()
+    await checkSpan(win, 90, '142')
+    await win.locator('.side .row', { hasText: 'beta' }).click()
+    await checkSpan(win, 90, '268')
+    await expect(win.locator(`.col[data-day="${day(85)}"] .sp`)).toHaveCSS('background-image', /repeating-linear-gradient/)
+  } finally { await closeApp(app); cleanup(f) }
+})
+
+test('global span numeric choices support keyboard activation and retain every card and side identity', async () => {
+  const f = spanFixture()
+  const app = await launchSpan(f)
+  try {
+    const win = await app.firstWindow()
+    // CDP enables real focus in the hidden Electron window; no synthetic click/key events.
+    const cdp = await win.context().newCDPSession(win)
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+    for (const entry of [0, 1]) {
+      await win.locator('.rail .ri').nth(entry).click()
+      if (entry) await win.locator('.side .row', { hasText: 'alpha' }).click()
+      await choice(win, 30).focus()
+      await win.keyboard.press('Tab')
+      await expect(choice(win, 60)).toBeFocused()
+      await expect(choice(win, 60)).toHaveCSS('outline-style', 'solid')
+      await expect(choice(win, 60)).toHaveCSS('outline-offset', '-2px')
+      await win.keyboard.press('Space')
+      await checkSpan(win, 60, entry ? '42' : '144')
+      await win.keyboard.press('Tab')
+      await win.keyboard.press('Enter')
+      await checkSpan(win, 90, entry ? '78' : '246')
+      for (let card = 0; card < 4; card++) {
+        await win.locator('.tot-c').nth(card).click()
+        const unchangedModels = await win.locator('.models').textContent()
+        for (const side of ['Total', 'Claude', 'Codex', 'Grok']) {
+          await win.locator('.seg button', { hasText: side }).click()
+          for (const span of [30, 60, 90]) {
+            await choice(win, span).click()
+            await expect(win.locator('.tot-c').nth(card)).toHaveAttribute('aria-pressed', 'true')
+            await expect(win.locator('.seg button.on')).toHaveText(side)
+            await expect(win.locator('.chart .col.out')).toHaveCount(card === 1 ? span - 1 : card === 2 ? span - 7 : 0)
+            if (card < 3) expect(await win.locator('.models').textContent()).toBe(unchangedModels)
+          }
+        }
+      }
+    }
+    await cdp.detach()
+  } finally { await closeApp(app); cleanup(f) }
+})
+
+// A usage archive that cannot be written or read, in the running app (token-stats C4, C8, agents-overview A4d). The real
+// failures: the settings directory made read-only while the app runs, a directory where the archive goes from before
+// launch, and the archive's own mode from before launch.
+//
+// Gap: a real change of window focus is not driven, because Playwright emulates focus. The cases shadow
+// document.hasFocus and dispatch the event, which are the two facts a real window was measured to give.
+
+const EN = 'Usage history can’t be saved right now because its file in the settings directory can’t be read or written.'
+const ZH = '用量历史暂时无法保存，因为设置目录中的历史文件无法读取或写入。'
+/** A mode on a directory does not hold back root */
+const ROOT = process.getuid?.() === 0
+/** Holds the first scan until the record is running, on a machine under load too */
+const HOLD_MS = '3000'
+/** A past day, so the archive's own rule treats the row as history */
+const AT = new Date(Date.now() - 90_000_000).toISOString()
+
+interface Fixture { home: string; proj: string; sessions: string; userData: string }
+
+function session(f: Fixture, name: string): void {
+  writeFileSync(join(f.sessions, `${name}.jsonl`), [
+    JSON.stringify({ parentUuid: null, isSidechain: false, type: 'user', message: { role: 'user', content: `Question ${name}` }, uuid: `${name}-q`, timestamp: AT, cwd: f.proj, sessionId: name }),
+    JSON.stringify({ parentUuid: `${name}-q`, isSidechain: false, type: 'assistant', message: { role: 'assistant', model: 'claude-fable-5', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }, uuid: `${name}-a`, timestamp: AT, cwd: f.proj, sessionId: name })
+  ].join('\n') + '\n')
+}
+
+function archiveFixture(): Fixture {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-archive-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-archive-data-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const sessions = join(home, '.claude', 'projects', proj.replace(/[^a-zA-Z0-9]/g, '-'))
+  mkdirSync(sessions, { recursive: true })
+  const f = { home, proj, sessions, userData }
+  session(f, 'first')
+  return f
+}
+
+async function start(f: Fixture, env: Record<string, string> = {}): Promise<{ app: ElectronApplication; win: Page; stderr: string[] }> {
+  const { app, stderr } = await startApp({ userData: f.userData, home: f.home, errors: mainErrors.errors, env: { AGENTSHED_RESCAN_MS: '300', ...env } })
+  const win = await app.firstWindow()
+  await win.waitForSelector('.toasts', { state: 'attached' })
+  return { app, win, stderr }
+}
+
+function cleanUp(f: Fixture): void {
+  chmodSync(f.userData, 0o755)
+  rmSync(f.home, { recursive: true, force: true })
+  rmSync(f.userData, { recursive: true, force: true })
+}
+
+/** Records every toast as it is added and counts the snapshots from now on: a toast is gone in seconds, and "one toast
+ * however many scans" reads nothing until scans have happened */
+async function watch(win: Page): Promise<void> {
+  await win.evaluate(() => {
+    const w = window as unknown as { toastsSeen: string[]; snapshotsSeen: number; agentshed: { onSnapshot: (f: () => void) => void } }
+    w.toastsSeen = []
+    w.snapshotsSeen = 0
+    w.agentshed.onSnapshot(() => { w.snapshotsSeen++ })
+    new MutationObserver((records) => {
+      for (const r of records) for (const n of r.addedNodes) if (n instanceof HTMLElement && n.classList.contains('toast')) w.toastsSeen.push(n.textContent ?? '')
+    }).observe(document.querySelector('.toasts') as Element, { childList: true })
+  })
+}
+const toastsSeen = (win: Page): Promise<string[]> => win.evaluate(() => (window as unknown as { toastsSeen: string[] }).toastsSeen)
+const snapshotsSeen = (win: Page): Promise<number> => win.evaluate(() => (window as unknown as { snapshotsSeen: number }).snapshotsSeen)
+/** Waits for this many more scans to have gone out */
+async function scansPass(win: Page, n = 5): Promise<void> {
+  const from = await snapshotsSeen(win)
+  await expect.poll(() => snapshotsSeen(win), { timeout: 15_000 }).toBeGreaterThanOrEqual(from + n)
+}
+/** What a failed write could leave in the directory */
+const temporaries = (f: Fixture): string[] => readdirSync(f.userData).filter((n) => /^\.(usage-archive\.w|token-cache\.j)-/.test(n))
+/** The all-history figure, the first totals card's */
+const allHistory = (win: Page): ReturnType<Page['locator']> => win.locator('.pane-head .tot-row .tot-c').first().locator('.v')
+const sessionRows = (win: Page): ReturnType<Page['locator']> => win.locator('.pane-body .card .se')
+const openSessions = async (win: Page): Promise<void> => {
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(sessionRows(win)).toHaveCount(1, { timeout: 15_000 })
+}
+
+test('token-stats C4: the settings directory read-only after launch — a new session arrives, one toast in the run, and the file catches up', async () => {
+  test.skip(ROOT, 'root ignores the directory mode')
+  const f = archiveFixture()
+  const { app, win, stderr } = await start(f)
+  try {
+    await openSessions(win)
+    await watch(win)
+    chmodSync(f.userData, 0o555)
+    session(f, 'second')
+    await expect(sessionRows(win)).toHaveCount(2, { timeout: 15_000 })
+    await expect(win.locator('.toast.err')).toHaveText(EN)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([EN])
+    expect(temporaries(f)).toEqual([])
+    expect(stderr.join('')).toContain('[usage-archive] save failed:')
+    // The application menu's reload is a new document in the same run: it is not told again
+    await win.reload()
+    await win.waitForSelector('.toasts', { state: 'attached' })
+    await watch(win)
+    // A toast from the mount may have landed before the record began, and would still be on screen
+    expect(await win.locator('.toast').count()).toBe(0)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([])
+    // Writable again, with no restart: the next scan writes both sessions
+    chmodSync(f.userData, 0o755)
+    await expect.poll(() => {
+      const file = JSON.parse(readFileSync(join(f.userData, 'usage-archive.json'), 'utf8')) as { rows: Array<{ total: number }> }
+      return file.rows.reduce((sum, r) => sum + r.total, 0)
+    }, { timeout: 15_000 }).toBe(4)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([])
+    // A second failure in the same run: once told is once
+    chmodSync(f.userData, 0o555)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([])
+  } finally {
+    chmodSync(f.userData, 0o755)
+    await closeApp(app)
+    cleanUp(f)
+  }
+})
+
+for (const [language, sentence] of [['en-US', EN], ['zh-CN', ZH]] as const) {
+  test(`agents-overview A4d, token-stats C4: the archive's rename blocked from launch — the first scan leaves the placeholder, and the toast is told in ${language}`, async () => {
+    const f = archiveFixture()
+    // A non-empty directory where the archive goes: the temporary file writes and the rename fails
+    mkdirSync(join(f.userData, 'usage-archive.json', 'x'), { recursive: true })
+    // The first scan held, so the record starts before the toast
+    const { app, win, stderr } = await start(f, { AGENTSHED_SYSTEM_LANGUAGES: language, AGENTSHED_SCAN_DELAY_MS: HOLD_MS })
+    try {
+      await watch(win)
+      await expect(win.locator('.sk-page')).toHaveCount(0, { timeout: 15_000 })
+      await expect(allHistory(win)).toHaveText('2')
+      await expect(win.locator('.toast.err')).toHaveText(sentence)
+      await scansPass(win)
+      expect(await toastsSeen(win)).toEqual([sentence])
+      expect(temporaries(f)).toEqual([])
+      expect(stderr.join('')).toContain('[usage-archive] save failed:')
+      expect(stderr.join('')).not.toContain('[startup] scan failed')
+    } finally {
+      await closeApp(app)
+      cleanUp(f)
+    }
+  })
+}
+
+test('token-stats C8: the archive unreadable from launch — the figures are the live rows, nothing is written, and its history returns once it can be read', async () => {
+  test.skip(ROOT, 'root ignores the file mode')
+  const f = archiveFixture()
+  const file = join(f.userData, 'usage-archive.json')
+  const seeded = { day: '2020-01-02', side: 'claude', projectKey: '/legacy', model: 'claude-fable-5', input: 12_000, output: 0, cacheRead: 0, cacheWrite: 0, total: 12_000 }
+  writeFileSync(file, JSON.stringify({ version: 2, rows: [seeded], stamps: {}, observed: {}, superseded: [] }))
+  const before = statSync(file)
+  chmodSync(file, 0o000)
+  const { app, win, stderr } = await start(f, { AGENTSHED_SCAN_DELAY_MS: HOLD_MS })
+  try {
+    await watch(win)
+    await expect(win.locator('.sk-page')).toHaveCount(0, { timeout: 15_000 })
+    await expect(allHistory(win)).toHaveText('2')
+    await expect(win.locator('.toast.err')).toHaveText(EN)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([EN])
+    expect([statSync(file).mtimeMs, statSync(file).size]).toEqual([before.mtimeMs, before.size])
+    expect(temporaries(f)).toEqual([])
+    expect(stderr.join('')).toContain('[usage-archive] read failed:')
+    // Readable again, with no restart and no change to the file's signature
+    chmodSync(file, 0o644)
+    await expect(allHistory(win)).toHaveText('12k', { timeout: 15_000 })
+    await expect.poll(() => (JSON.parse(readFileSync(file, 'utf8')) as { rows: Array<{ day: string }> }).rows.some((r) => r.day === seeded.day && r.day !== ''), { timeout: 15_000 }).toBe(true)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([EN])
+  } finally {
+    chmodSync(file, 0o644)
+    await closeApp(app)
+    cleanUp(f)
+  }
+})
+
+test('agents-overview REQ-002, token-stats C4: a relaunch over a saved display with the rename blocked — the saved figure shows, the scan replaces it, and the toast is told', async () => {
+  const f = archiveFixture()
+  const first = await start(f)
+  await expect(allHistory(first.win)).toHaveText('2', { timeout: 15_000 })
+  await closeApp(first.app)
+  session(f, 'second')
+  const file = join(f.userData, 'usage-archive.json')
+  rmSync(file)
+  mkdirSync(join(file, 'x'), { recursive: true })
+  const { app, win } = await start(f, { AGENTSHED_SCAN_DELAY_MS: HOLD_MS })
+  try {
+    await watch(win)
+    await expect(allHistory(win)).toHaveText('2')
+    await expect(win.locator('.scan-hint')).toBeVisible()
+    await expect(allHistory(win)).toHaveText('4', { timeout: 15_000 })
+    await expect(win.locator('.scan-hint')).not.toBeVisible()
+    await expect(win.locator('.toast.err')).toHaveText(EN)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([EN])
+  } finally {
+    await closeApp(app)
+    cleanUp(f)
+  }
+})
+
+const loseFocus = (win: Page): Promise<void> => win.evaluate(() => { document.hasFocus = () => false })
+const regainFocus = (win: Page): Promise<void> => win.evaluate(() => {
+  delete (document as unknown as { hasFocus?: unknown }).hasFocus
+  window.dispatchEvent(new Event('focus'))
+})
+
+/**
+ * The launch where one ask alone can take the notice: the archive's rename blocked, the first scan held until the window has
+ * no focus, and no other scan for ten minutes. So the one snapshot's ask is withheld, and what tells the user next is whichever
+ * ask the case then makes possible, with no timed scan to do it instead.
+ */
+async function oneWithheldScan(f: Fixture): Promise<{ app: ElectronApplication; win: Page }> {
+  mkdirSync(join(f.userData, 'usage-archive.json', 'x'), { recursive: true })
+  const { app, win } = await start(f, { AGENTSHED_SCAN_DELAY_MS: HOLD_MS, AGENTSHED_RESCAN_MS: '600000' })
+  await watch(win)
+  await loseFocus(win)
+  await expect.poll(() => snapshotsSeen(win), { timeout: 15_000 }).toBe(1)
+  expect(await toastsSeen(win)).toEqual([])
+  return { app, win }
+}
+
+test('token-stats C4: the window getting focus tells a waiting notice, with no scan to do it', async () => {
+  const f = archiveFixture()
+  const { app, win } = await oneWithheldScan(f)
+  try {
+    await regainFocus(win)
+    await expect(win.locator('.toast.err')).toHaveText(EN)
+    expect(await snapshotsSeen(win)).toBe(1)
+    expect(await toastsSeen(win)).toEqual([EN])
+  } finally {
+    await closeApp(app)
+    cleanUp(f)
+  }
+})
+
+test('token-stats C4: a failure while the window has no focus waits for it, and is told in the language on screen then', async () => {
+  test.skip(ROOT, 'root ignores the directory mode')
+  const f = archiveFixture()
+  const { app, win } = await start(f)
+  try {
+    // Switched after the window's language was read at launch; the switch's own toast waited out, so the next is fresh
+    await win.locator('.rail .ri.set').click()
+    await win.getByTestId('language-trigger').click()
+    await win.getByTestId('language-pop').locator('[data-lang="zh"]').click()
+    await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+    await expect(win.locator('.toast.ok')).toBeVisible()
+    await expect(win.locator('.toast.ok')).toHaveCount(0)
+    await watch(win)
+    await loseFocus(win)
+    chmodSync(f.userData, 0o555)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([])
+    await regainFocus(win)
+    await expect(win.locator('.toast.err')).toHaveText(ZH)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([ZH])
+  } finally {
+    chmodSync(f.userData, 0o755)
+    await closeApp(app)
+    cleanUp(f)
+  }
+})
+
+test('token-stats C4: a failure that clears before the window has focus tells nothing, and a later one still tells', async () => {
+  test.skip(ROOT, 'root ignores the directory mode')
+  const f = archiveFixture()
+  const { app, win } = await start(f)
+  try {
+    await expect(win.locator('.sk-page')).toHaveCount(0, { timeout: 15_000 })
+    await watch(win)
+    await loseFocus(win)
+    chmodSync(f.userData, 0o555)
+    await scansPass(win)
+    chmodSync(f.userData, 0o755)
+    // Past any scan already under way, so the last one here wrote
+    await scansPass(win)
+    await regainFocus(win)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([])
+    chmodSync(f.userData, 0o555)
+    await expect(win.locator('.toast.err')).toHaveText(EN)
+    await scansPass(win)
+    expect(await toastsSeen(win)).toEqual([EN])
+  } finally {
+    chmodSync(f.userData, 0o755)
+    await closeApp(app)
+    cleanUp(f)
+  }
+})
+
+test('token-stats C4: a window that subscribed after the failure is told when it mounts, with no scan to do it', async () => {
+  const f = archiveFixture()
+  const { app, win } = await oneWithheldScan(f)
+  try {
+    // A new document: its focus is the emulated one again, and it missed the snapshot that came with the failure
+    await win.reload()
+    await expect(win.locator('.toast.err')).toHaveText(EN)
+  } finally {
+    await closeApp(app)
+    cleanUp(f)
   }
 })

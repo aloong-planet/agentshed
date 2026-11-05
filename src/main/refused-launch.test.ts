@@ -2,7 +2,7 @@
 // sentences are written out here, so a wrong dictionary entry or a system error in the sentence fails them.
 //
 // Gaps, by reading only (the ticket's Evidence): the native dialog, a real full disk, and the focus of a first instance.
-// e2e/refused-launch.spec.ts reads the exit code and the sentence through index.ts.
+// e2e/lifecycle.spec.ts reads the exit code and the sentence through index.ts.
 import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

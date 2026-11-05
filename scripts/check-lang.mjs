@@ -257,13 +257,9 @@ const RULES = [
       f === 'e2e/support/launch.spec.ts' ||
       // With English the pinned language, a case that switches languages can only switch to Chinese, so
       // these assert Chinese copy too (ADR-0035)
-      f === 'e2e/settings-updates.spec.ts' ||
       f === 'e2e/app-update.spec.ts' ||
       f === 'e2e/global-search.spec.ts' ||
-      f === 'e2e/menu-check-updates.spec.ts' ||
-      f === 'e2e/token-span.spec.ts' ||
-      f === 'e2e/archive-write-failure.spec.ts' ||
-      f === 'e2e/refused-launch.spec.ts' ||
+      f === 'e2e/lifecycle.spec.ts' ||
       f === 'src/main/app-menu.test.ts' ||
       f === 'src/main/refused-launch.test.ts' ||
       f === 'src/renderer/src/update-toasts.test.ts' ||

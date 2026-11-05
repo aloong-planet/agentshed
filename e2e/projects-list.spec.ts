@@ -5,12 +5,13 @@
 import { chmodSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
 import { settingsJson } from '../src/main/testing/agy-fixture'
 import { localDayOffset } from './support/dates'
 import { mkUsageHome } from './support/homes'
-import { launch, close, launchWithLangs } from './support/launch'
+import { launch, close, launchWithLangs, launchWindow, closeWindow } from './support/launch'
+import { mkLinkHome, CLAUDE_LINE, card, countOf, toAgents, toProjects, dropdown, toggle, rows, chooseSide } from './support/side-link'
 
 // This used to be one if/else: with real projects it took branch A, without them branch B. The
 // consequence was **undefined coverage**
@@ -498,4 +499,369 @@ test('project list: selection is a deeper wash with no ring, and adjacent rows k
   expect(s.gap, '1px breathing between adjacent rows').toBe('1px')
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+// The list a side card's project count opens (projects-list::REQ-002), under the built Electron app, over a fixture home.
+// The count itself is in agents-overview.spec.ts.
+//
+// Known gap, recorded rather than faked:
+//   - The arrival's own supersede of a pending search jump (projects-list::REQ-002) has no reachable state today: the
+//     rail, the only way from the search page to the agents page, has already superseded it. The search spec's case
+//     goes red only when both are gone. Re-test when another way reaches the agents page with a jump pending.
+
+const CODEX_LINE = '1 project · 0 global skills · 0 subagents'
+
+const search = (win: Page): Locator => win.locator('.sh-field input')
+
+const counter = (win: Page): Locator => win.locator('.opts .cnt')
+
+const selectedRow = (win: Page): Locator => win.locator('.side .row.sel .nm')
+
+const guidance = (win: Page): Locator => win.locator('.startup-project-placeholder .empty')
+
+// agents-overview::REQ-007/AC-01 (pointer), B2 and its boundaries for coming back and the time window;
+// projects-list::REQ-002/AC-01, AC-02, AC-03, AC-07 and its boundaries for another side and for unticking.
+test('a side card\'s count opens that side\'s projects, the controls work from there, and the rail opens all sides', async () => {
+  const { home } = mkLinkHome()
+  const l = await launchWindow(home)
+  const { win } = l
+  try {
+    await expect(card(win, 'cl').locator('.s')).toHaveText(CLAUDE_LINE)
+    await expect(card(win, 'cx').locator('.s')).toHaveText(CODEX_LINE)
+
+    // An earlier visit leaves a search behind
+    await toProjects(win)
+    await search(win).fill('zzz')
+    await expect(rows(win)).toHaveCount(0)
+    await toAgents(win)
+
+    // A window and a tab of the page's own: the count depends on neither, and neither survives the switch
+    await win.locator('.tot-c').nth(1).click()
+    await expect(win.locator('.tot-c').nth(1)).toHaveAttribute('aria-pressed', 'true')
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+    await expect(card(win, 'cl').locator('.s')).toHaveText(CLAUDE_LINE)
+
+    // A side with a stale project: its rows are every project the card counts, so the toggle is on with no counter
+    await countOf(win, 'cl').click()
+    await expect(win.locator('.app')).toHaveClass(/dim-projects/)
+    await expect(dropdown(win)).toHaveText('Claude Code')
+    await expect(rows(win)).toHaveText(['live-a', 'live-b', 'ghost-a'])
+    await expect(toggle(win)).toBeChecked()
+    await expect(search(win)).toHaveValue('')
+    await expect(counter(win)).toHaveCount(0)
+
+    // From there: another side keeps the toggle as it is
+    await chooseSide(win, 'Codex')
+    await expect(rows(win)).toHaveText(['live-a'])
+    await expect(toggle(win)).toBeChecked()
+    await chooseSide(win, 'Claude Code')
+    await expect(rows(win)).toHaveText(['live-a', 'live-b', 'ghost-a'])
+    // Unticking hides the stale project and C9's counter shows it
+    await toggle(win).uncheck()
+    await expect(rows(win)).toHaveText(['live-a', 'live-b'])
+    await expect(counter(win)).toHaveText('1 stale project filtered out')
+    // The side, the toggle and search stack (C1)
+    await search(win).fill('live-b')
+    await expect(rows(win)).toHaveText(['live-b'])
+    await expect(dropdown(win)).toHaveText('Claude Code')
+
+    // Back on the agents page: Token and the all-history window, as after any departure
+    await toAgents(win)
+    await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Token')
+    await expect(win.locator('.tot-c').first()).toHaveAttribute('aria-pressed', 'true')
+
+    // A side with no stale project: the toggle is off and there is nothing for a counter to count
+    await countOf(win, 'cx').click()
+    await expect(dropdown(win)).toHaveText('Codex')
+    await expect(rows(win)).toHaveText(['live-a'])
+    await expect(toggle(win)).not.toBeChecked()
+    await expect(search(win)).toHaveValue('')
+    await expect(counter(win)).toHaveCount(0)
+
+    // Judged on arrival only: another side with a stale project leaves the toggle off, and C9 counts it
+    await chooseSide(win, 'Claude Code')
+    await expect(rows(win)).toHaveText(['live-a', 'live-b'])
+    await expect(toggle(win)).not.toBeChecked()
+    await expect(counter(win)).toHaveText('1 stale project filtered out')
+
+    // Leaving and coming back by the rail: all sides with the toggle off
+    await toAgents(win)
+    await toProjects(win)
+    await expect(dropdown(win)).toHaveText('All')
+    await expect(toggle(win)).not.toBeChecked()
+    await expect(rows(win)).toHaveText(['live-a', 'live-b'])
+    await expect(counter(win)).toHaveText('1 stale project filtered out')
+
+    // The count activated and another dimension chosen before that update lands: the list never mounted, and its next
+    // way in still opens on all sides. Two click events dispatched in one task, which is what puts the rail's update first.
+    await toAgents(win)
+    await expect(countOf(win, 'cx')).toBeVisible()
+    await win.evaluate(() => {
+      document.querySelector<HTMLElement>('.pane-head .stats .stat:has(.badge.cx) .stat-link')?.click()
+      document.querySelectorAll<HTMLElement>('.rail .ri')[2]?.click()
+    })
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await toProjects(win)
+    await expect(dropdown(win)).toHaveText('All')
+    await expect(toggle(win)).not.toBeChecked()
+
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+// projects-list::REQ-002/AC-04, AC-05 and the boundaries for a kept stale project and a cleared open session.
+test('a selection registered on that side stays on the stage, and one that is not is cleared', async () => {
+  const { home } = mkLinkHome()
+  const l = await launchWindow(home)
+  const { win } = l
+  const title = win.locator('.det-title h1')
+  const sessionTitle = win.locator('.pane-head .stitle')
+  const openSession = async (question: string): Promise<void> => {
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+    await win.locator('.pane-body .card .se', { hasText: question }).click()
+    await expect(sessionTitle).toHaveText(question)
+  }
+  try {
+    // Kept: its project page
+    await toProjects(win)
+    await win.locator('.side .row', { hasText: 'live-b' }).click()
+    await expect(title).toHaveText('live-b')
+    await toAgents(win)
+    await countOf(win, 'cl').click()
+    await expect(dropdown(win)).toHaveText('Claude Code')
+    await expect(selectedRow(win)).toHaveText('live-b')
+    await expect(title).toHaveText('live-b')
+    await expect(guidance(win)).toHaveCount(0)
+
+    // Kept: its open session page
+    await openSession('Question in live-b')
+    await toAgents(win)
+    await countOf(win, 'cl').click()
+    await expect(selectedRow(win)).toHaveText('live-b')
+    await expect(sessionTitle).toHaveText('Question in live-b')
+
+    // Kept, and stale: the side has a stale project, so the toggle is on and its row and note page show
+    await win.locator('.side .row', { hasText: 'ghost-a' }).click()
+    await expect(win.locator('.stale-note')).toBeVisible()
+    await toAgents(win)
+    await countOf(win, 'cl').click()
+    await expect(toggle(win)).toBeChecked()
+    await expect(selectedRow(win)).toHaveText('ghost-a')
+    await expect(win.locator('.stale-note')).toBeVisible()
+
+    // Cleared: not registered on that side. No row is selected and the guidance shows, as with no selection at all
+    await toAgents(win)
+    await countOf(win, 'cx').click()
+    await expect(rows(win)).toHaveText(['live-a'])
+    await expect(guidance(win)).toHaveText('Select a project to see its details')
+    await expect(selectedRow(win)).toHaveCount(0)
+    await expect(win.locator('.stale-note')).toHaveCount(0)
+
+    // It stays cleared: the rail back to the list shows the guidance over all sides
+    await toAgents(win)
+    await toProjects(win)
+    await expect(dropdown(win)).toHaveText('All')
+    await expect(rows(win)).toHaveText(['live-a', 'live-b'])
+    await expect(guidance(win)).toBeVisible()
+    await expect(selectedRow(win)).toHaveCount(0)
+
+    // Cleared with its open session page
+    await win.locator('.side .row', { hasText: 'live-b' }).click()
+    await openSession('Question in live-b')
+    await toAgents(win)
+    await countOf(win, 'cx').click()
+    await expect(guidance(win)).toHaveText('Select a project to see its details')
+    await expect(sessionTitle).toHaveCount(0)
+    await expect(selectedRow(win)).toHaveCount(0)
+
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+// projects-list::REQ-002, the kept row below the fold and a side with only stale projects.
+test('a kept row below the fold leaves the list at its top, and a side with only stale projects shows them all', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-link-many-'))
+  const projects: Record<string, object> = {}
+  for (let i = 0; i < 40; i++) {
+    const p = join(home, `proj-${String(i).padStart(2, '0')}`)
+    mkdirSync(p)
+    projects[p] = {}
+  }
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects }))
+  mkdirSync(join(home, '.grok'))
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${join(home, 'grok-ghost')}"]\ntrusted = true\n`)
+  const l = await launchWindow(home)
+  const { win } = l
+  const list = win.locator('.side .list')
+  const scrollTop = (): Promise<number> => list.evaluate((el) => el.scrollTop)
+  try {
+    await toProjects(win)
+    await expect(win.locator('.side .row')).toHaveCount(40)
+    await win.locator('.side .row').last().click()
+    const kept = await selectedRow(win).innerText()
+    expect(await scrollTop(), 'the row was reached by scrolling').toBeGreaterThan(0)
+
+    await toAgents(win)
+    await countOf(win, 'cl').click()
+    await expect(dropdown(win)).toHaveText('Claude Code')
+    await expect(selectedRow(win)).toHaveText(kept)
+    expect(await scrollTop()).toBe(0)
+    await expect(win.locator('.side .row.sel')).not.toBeInViewport()
+
+    // A side with only stale projects: the card's count, every row struck through, the toggle on and no counter
+    await toAgents(win)
+    await expect(countOf(win, 'gk')).toHaveText('1 project')
+    await countOf(win, 'gk').click()
+    await expect(rows(win)).toHaveText(['grok-ghost'])
+    expect(await rows(win).evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe('line-through')
+    await expect(toggle(win)).toBeChecked()
+    await expect(counter(win)).toHaveCount(0)
+
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+/** Everything an arrival must get right, read off the page */
+interface Frame {
+  dim: string | undefined
+  side: string | null
+  stale: boolean | null
+  rows: number
+  selected: string | null
+  stage: 'note' | 'session' | 'project' | 'guidance' | 'none'
+}
+
+/**
+ * Starts recording a frame on every change to the page, replacing any earlier recording. "No frame shows all sides" is
+ * a claim over every moment, so it is recorded in the page and read afterwards rather than polled.
+ */
+const startRecording = (win: Page): Promise<void> =>
+  win.evaluate(() => {
+    const g = globalThis as unknown as { __frames: string[]; __recorder?: MutationObserver }
+    g.__recorder?.disconnect()
+    g.__frames = []
+    const read = (): void => {
+      const frame: Frame = {
+        dim: [...(document.querySelector('.app')?.classList ?? [])].find((c) => c.startsWith('dim-')),
+        side: document.querySelector('.opts .dd-trigger')?.textContent ?? null,
+        stale: document.querySelector<HTMLInputElement>('.side input[type="checkbox"]')?.checked ?? null,
+        rows: document.querySelectorAll('.side .row').length,
+        selected: document.querySelector('.side .row.sel .nm')?.textContent ?? null,
+        stage: document.querySelector('.stale-note') ? 'note'
+          : document.querySelector('.pane-head .stitle') ? 'session'
+          : document.querySelector('.det-title') ? 'project'
+          : document.querySelector('.startup-project-placeholder') ? 'guidance'
+          : 'none'
+      }
+      g.__frames.push(JSON.stringify(frame))
+    }
+    g.__recorder = new MutationObserver(read)
+    g.__recorder.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true })
+  })
+
+/** The distinct frames recorded under the Projects dimension, in order */
+const projectFrames = async (win: Page): Promise<Frame[]> => {
+  const all = await win.evaluate(() => (globalThis as unknown as { __frames: string[] }).__frames)
+  return [...new Set(all)].map((f) => JSON.parse(f) as Frame).filter((f) => f.dim === 'dim-projects')
+}
+
+// projects-list::REQ-002/AC-06 and its technical prerequisite: the first frame is already the filtered list, and the
+// dimension, the list and the detail area change in one update. The rail's run is the positive case: it does draw all
+// sides and a project's page, so the recording can see what the arrivals must never show. The list is long on purpose:
+// over three rows, a filter set in an effect after mounting stayed green here, and over this one it goes red (measured
+// 2026-11-03, the first implementation's review).
+test('arriving is one update: no frame shows all sides or the wrong stage, recorded over every moment', async () => {
+  const { home } = mkLinkHome(400)
+  const l = await launchWindow(home)
+  const { win } = l
+  const arrive = async (badge: 'cl' | 'cx'): Promise<Frame[]> => {
+    await toAgents(win)
+    await expect(countOf(win, badge)).toBeVisible()
+    await startRecording(win)
+    await countOf(win, badge).click()
+    await expect(dropdown(win)).toHaveText(badge === 'cl' ? 'Claude Code' : 'Codex')
+    const frames = await projectFrames(win)
+    expect(frames.length).toBeGreaterThan(0)
+    return frames
+  }
+  try {
+    await toProjects(win)
+    await win.locator('.side .row', { hasText: 'live-b' }).click()
+    await expect(win.locator('.det-title h1')).toHaveText('live-b')
+
+    // A selection on that side: the filtered list and its project page from the first frame
+    for (const f of await arrive('cl')) {
+      expect(f).toEqual({ dim: 'dim-projects', side: 'Claude Code', stale: true, rows: 403, selected: 'live-b', stage: 'project' })
+    }
+
+    // The positive case: the rail's way in does show all sides and that page, and the recording sees them
+    await toAgents(win)
+    await expect(countOf(win, 'cl')).toBeVisible()
+    await startRecording(win)
+    await toProjects(win)
+    await expect(dropdown(win)).toHaveText('All')
+    await expect(win.locator('.det-title h1')).toHaveText('live-b')
+    expect(await projectFrames(win)).toContainEqual({ dim: 'dim-projects', side: 'All', stale: false, rows: 402, selected: 'live-b', stage: 'project' })
+
+    // The same with its session page open
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+    await win.locator('.pane-body .card .se', { hasText: 'Question in live-b' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('Question in live-b')
+    for (const f of await arrive('cl')) {
+      expect(f).toEqual({ dim: 'dim-projects', side: 'Claude Code', stale: true, rows: 403, selected: 'live-b', stage: 'session' })
+    }
+
+    // A selection off that side: the filtered list and the guidance from the first frame, never the old session page
+    for (const f of await arrive('cx')) {
+      expect(f).toEqual({ dim: 'dim-projects', side: 'Codex', stale: false, rows: 1, selected: null, stage: 'guidance' })
+    }
+
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+// projects-list::REQ-002 and agents-overview::REQ-007, a scan landing: rows update in place, the dropdown and the toggle
+// stay, and a side gaining its first stale project shows it through C9. Afterwards the card and a new arrival agree.
+test('a scan landing while the list is open keeps its filters, and the card and the rows agree afterwards', async () => {
+  const { home, liveA, liveB } = mkLinkHome()
+  const l = await launchWindow(home, { AGENTSHED_RESCAN_MS: '250' })
+  const { win } = l
+  try {
+    await countOf(win, 'cx').click()
+    await expect(rows(win)).toHaveText(['live-a'])
+    await expect(toggle(win)).not.toBeChecked()
+
+    // The side's registry gains a project: the row arrives in place
+    writeFileSync(join(home, '.codex', 'config.toml'), `[projects."${liveA}"]\ntrust_level = "trusted"\n[projects."${liveB}"]\ntrust_level = "trusted"\n`)
+    await expect(rows(win)).toHaveText(['live-a', 'live-b'])
+    await expect(dropdown(win)).toHaveText('Codex')
+    await expect(toggle(win)).not.toBeChecked()
+
+    // The side's first stale project does not turn the toggle on: C9's counter shows it
+    rmSync(liveA, { recursive: true, force: true })
+    await expect(counter(win)).toHaveText('1 stale project filtered out')
+    await expect(rows(win)).toHaveText(['live-b'])
+    await expect(dropdown(win)).toHaveText('Codex')
+    await expect(toggle(win)).not.toBeChecked()
+
+    // The card reads the scan's count, and a new arrival is judged afresh, so its rows equal that count
+    await toAgents(win)
+    await expect(card(win, 'cx').locator('.s')).toHaveText('2 projects · 0 global skills · 0 subagents')
+    await countOf(win, 'cx').click()
+    await expect(toggle(win)).toBeChecked()
+    await expect(rows(win)).toHaveText(['live-a', 'live-b'])
+    await expect(counter(win)).toHaveCount(0)
+
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
 })
