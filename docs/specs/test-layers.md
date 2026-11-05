@@ -1,18 +1,20 @@
 # Test layers
 
-> Related: ADR-0038 (test layers) · ADR-0040 (rendering branch tests)
+> Related: ADR-0038 (test layers) · ADR-0040 (rendering branch tests) · ADR-0041 (which e2e file a case goes in)
 
 ## Problem Statement
 
 Whoever writes a test here, usually an agent, had no rule for which layer it belongs at. The written
 decision said the UI was covered by hand while the e2e suite had become its only automated coverage, and
-nothing bounded what went into that suite.
+nothing bounded what went into that suite. Nor did anything say which of its files a case goes in, so one file took
+most of them, and a case that went elsewhere brought its own copy of the helpers.
 
 ## Solution
 
 ADR-0038 decides what e2e is for and what it admits. Whether a layer below e2e should take renderer behaviour
 over was measured rather than argued, and the layer was not adopted (see Out of Scope). ADR-0040 admits component
-tests for one narrow case, the rendering branches nothing else checks.
+tests for one narrow case, the rendering branches nothing else checks. ADR-0041 decides which e2e file a case goes in
+and where a helper lives.
 
 ## User Stories
 
@@ -43,6 +45,32 @@ break them, so that a wrong row or banner on those sessions does not reach anyon
 - test-layers::US-002/AC-05: A tool whose recorded output is empty shows an empty output, and one with no recorded
   output says so.
 
+### test-layers::US-003 Knowing which e2e file a case goes in
+
+As someone writing an e2e case, I want one rule for where it goes and where its helpers live, so that a feature's
+cases stay together and helpers are not copied.
+
+- test-layers::US-003/AC-01: A case goes in the file named after the `docs/features/` document whose rule it asserts,
+  and that file is created if it does not exist yet.
+- test-layers::US-003/AC-02: A case that moves between pages only to reach what it asserts goes with the feature it
+  asserts on.
+- test-layers::US-003/AC-03: A case whose rule is the move itself goes with the spec that states that rule, wherever
+  the move starts.
+- test-layers::US-003/AC-04: Where two specs each state part of a behaviour, each part's assertions go with their own
+  spec.
+- test-layers::US-003/AC-05: A case about how the application starts, refreshes or keeps its cache, rather than what
+  a feature shows, goes in the one lifecycle file.
+- test-layers::US-003/AC-06: A helper that cases of two or more features use lives in `e2e/support/`, and one that a
+  single feature uses stays in that feature's file.
+- test-layers::US-003/AC-07: A helper needed in a second file moves to `e2e/support/` and is not copied.
+- test-layers::US-003/AC-08: A file is split only where part of it is a sub-topic that stands alone, and the new file's
+  name starts with the feature's slug. Size alone is no reason.
+
+> Pending: the largest spec file holds cases of several features.
+
+> Pending: the update feature, the token statistics and the lifecycle cases each sit in several files, whose launchers
+> and fixtures differ.
+
 ## Quality Requirements
 
 ### test-layers::QR-002 The cost of the gap tests
@@ -61,6 +89,12 @@ Scope: the component tests ADR-0040 admits, measured on one machine.
 
 Scope: the gap tests. No shipped file changes, and no e2e case is moved, edited or removed.
 
+### test-layers::CON-006 Moving a case only moves it (direct acceptance)
+
+Scope: moving e2e cases and helpers to meet ADR-0041. `playwright test --list` names the same cases before and after,
+and the text of each case and helper is unchanged, apart from `export`, import lines and comments that name the old
+location.
+
 ## Failure modes and boundaries
 
 - **A behaviour needs only the DOM and no pure function can be extracted from it.** A branch in what a component
@@ -76,6 +110,18 @@ Scope: the gap tests. No shipped file changes, and no e2e case is moved, edited 
   defect.
 - **One case proves wiring and also asserts details.** It belongs in e2e for the wiring. Details a pure function
   or the data layer can hold go there.
+- **A behaviour seen on one page and ruled by another's spec.** The rule decides, not the page: leaving the Projects
+  dimension for settings and coming back keeps the selection under project-detail's rule, so that assertion belongs there.
+- **A case that names no spec identifier.** Most do not. It is placed by reading what it asserts, and two authors can
+  reasonably differ. Nothing checks the placement; review does.
+- **A case asserting several features' rules.** When moved, it goes with its main assertion and is not split, under
+  test-layers::CON-006.
+- **A rule no spec states.** The rule goes into the spec first, and that spec then gives the case its file.
+- **A first case for a feature with no document.** The document comes with the feature, so the case takes its slug.
+- **A test of the e2e harness itself.** It is no feature's, and stays beside what it tests.
+- **A new case for a feature whose older cases still sit in another file.** It goes in the feature's own file under
+  test-layers::US-003/AC-01, and the older cases join it when they are moved.
+- **A file that keeps growing.** Nothing stops it. It is split only under test-layers::US-003/AC-08.
 
 ## Testing Decisions
 
@@ -101,7 +147,7 @@ chosen to differ from anything that could stand in for them: an index, a positio
   costs (the jsdom start and the harness) rather than per case; the measurement stands as its evidence.
   ADR-0040's tests do not reopen it: they move no e2e case.
 - Moving existing e2e cases to meet ADR-0038.
-- A budget on test file sizes, a rule for which e2e file a new case goes in, and splitting the largest spec.
+- A cap or budget on the size of test files: rejected under ADR-0041.
 - Real-browser component tests.
 - Running e2e in parallel, and the cases that have failed repeatedly in CI.
 
