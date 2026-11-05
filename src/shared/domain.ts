@@ -491,7 +491,7 @@ export interface TurnSubBlock {
   /** The dispatch name (Claude takes subagent_type, falling back to the tool name; Codex is always spawn_agent); **null = unknown tool**, and the renderer produces the wording (ticket 07) */
   name: string | null
   prompt: string
-  /** Internal steps: Claude groups the turn's sidechain lines by agentId; Codex has no reference chain and this is always empty */
+  /** Internal steps: every producer leaves this empty, because no provider gives a key joining a subagent's lines to its dispatch; the field and its rendering stay for when one does (session-view C3) */
   steps: TurnSubStep[]
   result: string | null
   /** Codex: a sub-thread's transcript has no stable reference chain and is unattributed (ruled 2026-08-06, labelled in the UI) */
