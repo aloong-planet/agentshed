@@ -36,7 +36,7 @@ interface Launched {
   userData: string
 }
 
-/** The same launcher as app.spec.ts: an isolated userData, a fixture home, the window not shown, English */
+/** The same launcher as support/launch.ts: an isolated userData, a fixture home, the window not shown, English */
 async function launch(home: string, extraEnv: Record<string, string> = {}, userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gs-'))): Promise<Launched> {
   const errors: string[] = []
   const app = await electron.launch({
@@ -123,7 +123,7 @@ function mkHome(): { home: string; files: Record<string, string>; paths: Record<
   claude(home, paths.loose, 'loose-1', ['notarize from a loose directory'], 3)
 
   // Codex: a parent, its fork replaying the parent's question (stripped) and an orphan fork (uncertain strip),
-  // in the shape mkForkHome in app.spec.ts uses
+  // in the shape mkForkHome in support/homes.ts uses
   const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
   mkdirSync(sdir, { recursive: true })
   const q = (at: Date, message: string): string => JSON.stringify({ timestamp: at.toISOString(), type: 'event_msg', payload: { type: 'user_message', message } })

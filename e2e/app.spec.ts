@@ -34,130 +34,12 @@ import { ERR } from '../src/shared/errors'
 import { AGENT_SIDES } from '../src/shared/validate'
 import { MEASURED_TITLE, callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation, writeSummaries, type UsageFixture } from '../src/main/testing/agy-fixture'
 import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTranscript } from '../src/main/testing/agy-transcript-fixture'
-
-/** Each case gets its own userData with no cross-contamination; a cache file can be seeded */
-function makeUserData(cacheContent?: string): string {
-  const dir = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
-  if (cacheContent !== undefined) {
-    mkdirSync(dir, { recursive: true })
-    writeFileSync(join(dir, 'token-cache.json'), cacheContent)
-  }
-  return dir
-}
-
-interface Launched {
-  app: ElectronApplication
-  errors: string[]
-  userData: string
-  /** The fixture home used this time (cleaned up with close if there is one) */
-  home?: string
-}
-
-/**
- * A fixture directory as home is injected through AGENTSHED_HOME_OVERRIDE (see src/main/roots.ts).
- *
- * **Always pass home, without exception.** Omitting it reads the development machine's real ~/.claude,
- * which is bad in two ways:
- *   1. a data-asserting case's result depends on how many sessions whoever runs it has — green on their
- *      machine, red in CI;
- *   2. even when only asserting generic UI, every case has its own userData so the cache is always empty,
- *      meaning every run does
- *      a full rescan of real data (638 MB on this machine). That pushes cases to the edge of the
- *      assertion timeout — after the 2026-08-02
- *      CACHE_VERSION bump, the only two remaining cases reading the real home went red exactly this way.
- *
- * **Test silencing (AGENTSHED_NO_FOREGROUND)**: on local macOS the window is not shown, so 18 instances
- * do not take turns
- * stealing the foreground; CI's xvfb is unaffected (the seam has a darwin guard). Its validity has been
- * verified: DOM text, geometry,
- * computed styles and toBeVisible all go through layout and CDP, independent of whether the window is on
- * screen (two known red-able mutations replayed
- * red under the hidden regime, 2026-08-04). **The boundary: real focus semantics are the exception** —
- * document.hasFocus(),
- * autofocus and :focus styles behave differently in a hidden window; when writing input-box cases (ticket
- * 08's search, say),
- * either focus explicitly through CDP or drop this variable for that case alone — never depend silently on
- * window focus.
- */
-/**
- * `home` is **required** (changed from optional on 2026-08-03): omitting it makes the app scan the
- * developer's real `~/.claude`,
- * so results vary with each person's data volume — green in CI where home is empty, timing out locally.
- * "Remembering to pass it" cannot hold the line, so typecheck does.
- */
-async function launch(
-  cacheContent: string | undefined,
-  home: string,
-  extraEnv?: Record<string, string>,
-  extraArgs: string[] = []
-): Promise<Launched> {
-  const userData = makeUserData(cacheContent)
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`, ...extraArgs],
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: home,
-      // Test silencing: do not steal the foreground (the macOS accessory policy, see src/main/index.ts)
-      AGENTSHED_NO_FOREGROUND: '1',
-      // Pin the test language to English: the UI language follows the system by default, and without pinning it
-      // every assertion locating by English copy would vary with the system language of whoever runs the tests
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
-      // Per-case seams (e.g. AGENTSHED_SCAN_DELAY_MS for the startup-skeleton cases) ride on top
-      ...extraEnv
-    }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    // An uncaught main-process error, an IPC handler exception, or any structured failure all count as a
-// failure signal.
-    // `agentshed-error:` is the marker common to every cross-process failure since ticket 05 — it replaced the
-// earlier match on
-    // the Chinese wording "契约校验失败", which no longer exists after ticket 06,
-    // so that pattern had become a dead pattern that could never match anything again (silently weakening the
-// detection net).
-    // `[parse-pool]`: a parse worker failed and its file was parsed on the main thread instead. The figures
-    // stay right, so without this the built app could lose its workers with every case still green; the
-    // same pattern is in every launcher below.
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
-      errors.push(t.trim())
-    }
-  })
-  return { app, errors, userData, home }
-}
-
-async function close(l: Launched): Promise<void> {
-  await closeApp(l.app)
-  rmSync(l.userData, { recursive: true, force: true })
-  if (l.home) rmSync(l.home, { recursive: true, force: true })
-}
-
-/** The local day (the same rule as the main process's localDay); the trend window is the last 30 days, so
- * timestamps have to be computed relative to now */
-function localDayOffset(daysAgo: number): Date {
-  const d = new Date()
-  d.setDate(d.getDate() - daysAgo)
-  d.setHours(12, 0, 0, 0) // Midday, so no time zone pushes the date outside the window
-  return d
-}
-
-/** Waits for `n` scans to reach the page, counted from now: a change on disk is certainly in the second one */
-function scansLanded(win: Page, n: number): Promise<void> {
-  return win.evaluate(
-    (count) =>
-      new Promise<void>((resolve) => {
-        let seen = 0
-        const off = (window as unknown as { agentshed: { onSnapshot: (cb: () => void) => () => void } }).agentshed.onSnapshot(() => {
-          if (++seen === count) {
-            off()
-            resolve()
-          }
-        })
-      }),
-    n
-  )
-}
+import { localDayOffset, dayKey } from './support/dates'
+import { mkUsageHome, mkForkHome, mkEmptyProjectHome, mkAgyComponentsHome, questionLine } from './support/homes'
+import { makeUserData, launch, close, launchAppearance, launchWithLangs } from './support/launch'
+import { scansLanded } from './support/waits'
+import { headingLadder, expectLadder, codeStyle, contentLineHeight, tableStyle, expectTableStyle, listIndent, expectCodeStyle } from './support/markdown-styles'
+import { type Win, type Rgb, pixelAt, paintedBackground, rgb, near, effectiveDark } from './support/colors'
 
 /**
  * Counts the error toasts that appear from now on, because a toast leaves after about 3 seconds and what is on screen does
@@ -188,249 +70,6 @@ async function errorToastsAdded(win: Page): Promise<() => Promise<number>> {
     read = total
     return added
   }
-}
-
-/**
- * Build a fixture home with usage on both sides: Claude (→ the Anthropic segment) + Codex (→ the OpenAI
- * segment).
- * The trend chart segments by provider, so both are needed — otherwise "switching to the Claude side zeroes
- * the OpenAI segment"
- * would be **tautologically true** with no OpenAI data, testing nothing at all.
- */
-function mkUsageHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-usage-'))
-  const proj = join(home, 'demo-proj')
-  mkdirSync(proj, { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-
-  // Claude: a whole-tree scan of projects, with directory names unrelated to the registry (an unregistered
-// directory counts toward the global total too)
-  const enc = proj.replace(/[^a-zA-Z0-9]/g, '-') // The same rule as encodeClaudeProjectDir
-  const cdir = join(home, '.claude', 'projects', enc)
-  mkdirSync(cdir, { recursive: true })
-  const usage = (model: string, at: Date, inTok: number, outTok: number): string =>
-    JSON.stringify({
-      type: 'assistant',
-      timestamp: at.toISOString(),
-      message: {
-        model,
-        usage: {
-          input_tokens: inTok,
-          output_tokens: outTok,
-          cache_read_input_tokens: 0,
-          cache_creation_input_tokens: 0
-        }
-      }
-    })
-  writeFileSync(
-    join(cdir, 'a.jsonl'),
-    [
-      JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: 'Sample question' } }),
-      // The real shape: an assistant line carries both content (the prose segments) and usage; ticket 05's
-// expansion assertions use that prose.
-      // Ticket 07: thinking/text/tool_use mixed on one line (the whole segment spectrum from the full
-// enumeration), for the rich content assertions
-      JSON.stringify({
-        type: 'assistant',
-        timestamp: localDayOffset(2).toISOString(),
-        message: {
-          model: 'claude-fable-5',
-          content: [
-            { type: 'thinking', thinking: 'Take a look at the directory layout' },
-            { type: 'text', text: 'This is the first turn reply body' },
-            { type: 'tool_use', id: 'tu_e2e_1', name: 'Bash', input: { command: 'ls -la src' } }
-          ],
-          usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
-        }
-      }),
-      // A tool return containing a tool-results/ sidecar path → the truncation label (spec C7, a
-// mechanism-based criterion)
-      JSON.stringify({
-        type: 'user',
-        timestamp: localDayOffset(2).toISOString(),
-        message: {
-          role: 'user',
-          content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_1', content: '12 files in total\noutput saved to: /x/tool-results/e2e.txt' }]
-        }
-      }),
-      // A subagent dispatch → a sidechain step within the turn → a return carrying toolUseResult.agentId (the
-// measured chain)
-      JSON.stringify({
-        type: 'assistant',
-        timestamp: localDayOffset(2).toISOString(),
-        message: {
-          role: 'assistant',
-          content: [{ type: 'tool_use', id: 'tu_e2e_ag', name: 'Agent', input: { description: 'check logs', prompt: 'Check today logs', subagent_type: 'debugger' } }]
-        }
-      }),
-      JSON.stringify({
-        type: 'assistant',
-        timestamp: localDayOffset(2).toISOString(),
-        isSidechain: true,
-        agentId: 'ag_e2e',
-        message: { role: 'assistant', content: [{ type: 'tool_use', id: 'stu1', name: 'Bash', input: { command: 'tail -5 app.log' } }] }
-      }),
-      JSON.stringify({
-        type: 'user',
-        timestamp: localDayOffset(2).toISOString(),
-        toolUseResult: { agentId: 'ag_e2e', status: 'completed' },
-        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_ag', content: [{ type: 'text', text: 'Logs are clean, nothing unusual' }] }] }
-      }),
-      // An unknown type outside the display allow-list → a trace rather than a silent drop (spec C8)
-      JSON.stringify({ type: 'agent_snapshot', timestamp: localDayOffset(2).toISOString(), payload: { blob: 'x' } }),
-      usage('claude-fable-5', localDayOffset(2), 1200, 300),
-      // A second real question — making the two sides' question counts differ, so the count assertion can
-// distinguish "really read"
-      // from "both happen to be 1". A tool result is fed back in between, which does not count as a question
-// (spec B1).
-      JSON.stringify({
-        type: 'user',
-        timestamp: localDayOffset(1).toISOString(),
-        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'Tool return' }] }
-      }),
-      JSON.stringify({ type: 'user', timestamp: localDayOffset(1).toISOString(), message: { role: 'user', content: 'Second question' } }),
-      usage('claude-opus-5', localDayOffset(1), 800, 200),
-      usage('claude-fable-5', localDayOffset(0), 500, 100)
-    ].join('\n') + '\n'
-  )
-
-  // A warmup session: a single Warmup with tokens but nothing anyone asked (spec A3a → not listed)
-  writeFileSync(
-    join(cdir, 'warmup.jsonl'),
-    [
-      JSON.stringify({ type: 'user', timestamp: localDayOffset(1).toISOString(), message: { role: 'user', content: 'Warmup' } }),
-      usage('claude-fable-5', localDayOffset(1), 300, 60)
-    ].join('\n') + '\n'
-  )
-
-  // Codex: a whole-tree scan of sessions, with the first line's session_meta cwd deciding attribution
-  const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
-  mkdirSync(sdir, { recursive: true })
-  const turn = (at: Date, inTok: number, outTok: number): string =>
-    JSON.stringify({
-      timestamp: at.toISOString(),
-      type: 'event_msg',
-      payload: {
-        type: 'token_count',
-        info: {
-          last_token_usage: {
-            input_tokens: inTok,
-            cached_input_tokens: 0,
-            cache_write_input_tokens: 0,
-            output_tokens: outTok,
-            total_tokens: inTok + outTok
-          }
-        }
-      }
-    })
-  writeFileSync(
-    join(sdir, 'rollout-019fb0c0-1111-7af3-af7d-8505cedf1ec2.jsonl'),
-    [
-      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'session_meta', payload: { cwd: proj } }),
-      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
-      // A real question: without it this session is not listed per spec A3a
-      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'user_message', message: 'Codex side question' } }),
-      // Ticket 07: reasoning sub-headings / tool pairing / spawn_agent (unattributable) / traces of unknown
-// events
-      JSON.stringify({
-        timestamp: localDayOffset(2).toISOString(),
-        type: 'response_item',
-        payload: { type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: 'Compare both sides directory conventions' }, { type: 'summary_text', text: 'Confirm the field differences' }], encrypted_content: 'gAAA' }
-      }),
-      JSON.stringify({
-        timestamp: localDayOffset(2).toISOString(),
-        type: 'response_item',
-        payload: { type: 'custom_tool_call', id: 'ri1', call_id: 'c_e2e', name: 'exec', input: 'rg skills -l', status: 'completed' }
-      }),
-      JSON.stringify({
-        timestamp: localDayOffset(2).toISOString(),
-        type: 'response_item',
-        payload: { type: 'custom_tool_call_output', call_id: 'c_e2e', output: '7 files' }
-      }),
-      JSON.stringify({
-        timestamp: localDayOffset(2).toISOString(),
-        type: 'response_item',
-        payload: { type: 'function_call', id: 'ri2', call_id: 'c_sp', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"migration check"}' }
-      }),
-      JSON.stringify({
-        timestamp: localDayOffset(2).toISOString(),
-        type: 'response_item',
-        payload: { type: 'function_call_output', call_id: 'c_sp', output: 'Sub-task created' }
-      }),
-      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'exotic_event', data: 1 } }),
-      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'agent_message', message: 'The two sides use different directory conventions; see the comparison.' } }),
-      turn(localDayOffset(2), 900, 150),
-      // Stopping at yesterday: putting distance from the Claude side (today), so "newest first" has something to
-// judge.
-      // With identical timestamps on both sides, the sort assertion could only prove reverse works, not that it
-// sorts by time.
-      turn(localDayOffset(1), 400, 80)
-    ].join('\n') + '\n'
-  )
-  return home
-}
-
-/**
- * Ticket 03b: the fixture home for a Codex fork.
- * **There are 0 real forks in this machine's real data** (of 244 sessions, all 9 with a parent are
- * subagents,
- * unlisted per A3), so this path can only be covered by construction — shaped by the fields codex.ts
- * actually reads:
- * payload.id / payload.forked_from_id / the top-level timestamp as the fork moment.
- */
-function mkForkHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-fork-'))
-  const proj = join(home, 'fork-proj')
-  mkdirSync(proj, { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-  const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
-  mkdirSync(sdir, { recursive: true })
-
-  const PARENT = '019fb0c0-aaaa-7af3-af7d-8505cedf1ec2'
-  const q = (at: Date, message: string): string =>
-    JSON.stringify({ timestamp: at.toISOString(), type: 'event_msg', payload: { type: 'user_message', message } })
-  const usage = (at: Date, inTok: number, outTok: number): string =>
-    JSON.stringify({
-      timestamp: at.toISOString(),
-      type: 'event_msg',
-      payload: {
-        type: 'token_count',
-        info: { last_token_usage: { input_tokens: inTok, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: outTok, total_tokens: inTok + outTok } }
-      }
-    })
-  const meta = (at: Date, id: string, extra: Record<string, unknown> = {}): string =>
-    JSON.stringify({ timestamp: at.toISOString(), type: 'session_meta', payload: { cwd: proj, id, ...extra } })
-  const ctx = (at: Date): string =>
-    JSON.stringify({ timestamp: at.toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } })
-
-  // The parent session: two questions
-  writeFileSync(
-    join(sdir, `rollout-${PARENT}.jsonl`),
-    [meta(localDayOffset(4), PARENT), ctx(localDayOffset(4)), q(localDayOffset(4), 'Parent first question'), usage(localDayOffset(4), 500, 100), q(localDayOffset(3), 'Parent second question'), usage(localDayOffset(3), 300, 60)].join('\n') + '\n'
-  )
-  // The child: forked from the parent, replaying its two entries (with rewritten timestamps) plus one new
-// one → 1 should remain, marked "fork"
-  const CHILD = '019fb0c0-bbbb-7af3-af7d-8505cedf1ec2'
-  writeFileSync(
-    join(sdir, `rollout-${CHILD}.jsonl`),
-    [meta(localDayOffset(2), CHILD, { forked_from_id: PARENT }), ctx(localDayOffset(2)), q(localDayOffset(2), 'Parent first question'), q(localDayOffset(2), 'Parent second question'), q(localDayOffset(2), 'Child new question'), usage(localDayOffset(2), 200, 40)].join('\n') + '\n'
-  )
-  // An orphan fork: the parent is not in the scan set → the heuristic only, marked "uncertain strip"
-  const ORPHAN = '019fb0c0-cccc-7af3-af7d-8505cedf1ec2'
-  writeFileSync(
-    join(sdir, `rollout-${ORPHAN}.jsonl`),
-    [meta(localDayOffset(1), ORPHAN, { forked_from_id: '019fb0c0-dead-7af3-af7d-8505cedf1ec2' }), ctx(localDayOffset(1)), q(localDayOffset(1), 'Orphan session question'), usage(localDayOffset(1), 100, 20)].join('\n') + '\n'
-  )
-  return home
-}
-
-/** A registered project with no sessions at all — the sessions section's empty state */
-function mkEmptyProjectHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-noses-'))
-  const proj = join(home, 'demo-proj')
-  mkdirSync(proj, { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-  return home
 }
 
 test('cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors', async () => {
@@ -1398,11 +1037,6 @@ test('the Antigravity badge takes its own pair in light and in dark, the same un
   await close(l)
 })
 
-/** A day key (YYYY-MM-DD) in local time — the form a bar's data-day carries */
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 /**
  * Ticket antigravity-side/#323: a folder Claude Code registers and agy trusts. Claude made one call two days ago (1k);
  * agy made 3k today (gemini-3.8-flash-n), 4k two days ago — the same day as Claude's, with cache reads in it — 10k
@@ -1780,84 +1414,6 @@ test('a subagent\'s corrupt toml keeps its label, and its detail line carries no
   expect(l.errors).toEqual([])
   await close(l)
 })
-
-/**
- * Ticket antigravity-side/#325: a fixture home holding Antigravity CLI's components in the shapes agy loaded in the
- * samples (research §10.9): its three global skills directories — one name in all three, one also Claude's, one the
- * shared directory of a project holds too — a built-in skill, the official `flutter` plugin (fresh install: no enabled
- * key) with a bundled skill, agent and server, a disabled plugin, the global MCP file with a disabled server, global
- * subagents in both forms (one not usable as a main agent, one Claude also defines), and two projects: `agy-demo`,
- * registered on Antigravity alone, with the shared skills directory, a project-level subagent and the project MCP file
- * agy does not load; `transfer`, registered on every side. A third registered folder is gone (stale).
- */
-function mkAgyComponentsHome(): { home: string; agOnly: string; all: string; stale: string } {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-agycomp-'))
-  const agOnly = join(home, 'agy-demo')
-  const all = join(home, 'transfer')
-  const stale = join(home, 'gone-proj')
-  mkdirSync(agOnly, { recursive: true })
-  mkdirSync(all, { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [all]: {}, [stale]: {} } }))
-  mkdirSync(join(home, '.codex'), { recursive: true })
-  writeFileSync(join(home, '.codex', 'config.toml'), `[projects."${all}"]\ntrust_level = "trusted"\n`)
-  mkdirSync(join(home, '.grok'), { recursive: true })
-  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${all}"]\ntrusted = true\n`)
-  const agy = join(home, '.gemini', 'antigravity-cli')
-  const cfg = join(home, '.gemini', 'config')
-  mkdirSync(join(agy, 'conversations'), { recursive: true })
-  writeFileSync(join(agy, 'settings.json'), settingsJson([agOnly, all]))
-  const file = (path: string, text: string): void => {
-    mkdirSync(join(path, '..'), { recursive: true })
-    writeFileSync(path, text)
-  }
-  const skill = (base: string, name: string, description: string, body: string): void =>
-    file(join(base, name, 'SKILL.md'), `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`)
-  // agy's three global directories, in the order it prefers a same-name copy
-  skill(join(agy, 'skills'), 'release-notes', 'Draft release notes from git log', 'Release notes, the CLI copy')
-  skill(join(cfg, 'skills'), 'release-notes', 'config copy', 'Release notes, the config copy')
-  skill(join(home, '.gemini', 'skills'), 'release-notes', 'root copy', 'Release notes, the root copy')
-  skill(join(cfg, 'skills'), 'commit-style', 'The global commit style', 'Commit style, agy global copy')
-  skill(join(home, '.gemini', 'skills'), 'tdd', 'agy tdd', 'TDD, the Antigravity copy')
-  skill(join(home, '.claude', 'skills'), 'tdd', 'Red before green', 'TDD, the Claude copy')
-  skill(join(home, '.agents', 'skills'), 'decision-form', 'Codex form', 'Decision form, Codex global')
-  skill(join(agy, 'builtin', 'skills'), 'agy-customizations', 'built in', 'Built-in body')
-  // The official flutter plugin as agy installed it, and a second plugin agy disabled
-  const flutter = join(cfg, 'plugins', 'flutter')
-  file(join(flutter, 'plugin.json'), JSON.stringify({ name: 'flutter', displayName: 'Dart and Flutter', version: '1.0.6', license: 'BSD-3-Clause' }))
-  skill(join(flutter, 'skills'), 'dart-add-unit-test', 'Write and organize unit tests', 'Dart unit tests, the plugin copy')
-  file(join(flutter, 'agents', 'a11y_agent.md'), '---\nname: flutter_a11y_agent\ndescription: "Audits Flutter code for accessibility."\ntools:\n  - view_file\n  - grep_search\nmainAgent: true\nsubagent: true\n---\n\n# Persona\n')
-  file(join(flutter, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'dart-mcp-server': { command: 'dart', args: ['mcp-server'] } } }))
-  file(join(flutter, 'rules', 'flutter-hot-reload.md'), '---\ntrigger: glob\n---\nrule\n')
-  const gdocs = join(cfg, 'plugins', 'gdocs')
-  file(join(gdocs, 'plugin.json'), JSON.stringify({ name: 'gdocs', version: '0.0.3' }))
-  skill(join(gdocs, 'skills'), 'draft-doc', 'Draft a doc', 'Draft doc, readable while disabled')
-  file(join(gdocs, 'mcp_config.json'), JSON.stringify({ mcpServers: { docs: { command: 'gdocs-mcp' } } }))
-  const fromOfficial = (name: string, version: string): object => ({
-    installedFrom: { id: `antigravity-plugins-official/plugin/${name}`, marketplace: 'antigravity-plugins-official', version }
-  })
-  file(join(cfg, 'config.json'), JSON.stringify({ plugins: { flutter: fromOfficial('flutter', '1.0.6'), gdocs: { ...fromOfficial('gdocs', '0.0.3'), enabled: false } } }))
-  file(join(cfg, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'sqlite-explorer': { command: 'node', args: ['/usr/local/bin/sqlite-mcp-server.js'] }, github: { serverUrl: 'https://api.githubcopilot.com/mcp/', disabled: true } } }))
-  // Global subagents: both forms, one not usable as a main agent, one Claude defines too
-  file(join(cfg, 'agents', 'sample-flat.md'), '---\nname: sample-flat\ndescription: Sample global subagent (flat file form).\n---\nYou answer in one sentence.\n')
-  file(join(cfg, 'agents', 'sample-reviewer', 'agent.md'), '---\nname: sample-reviewer\ndescription: Sample global subagent (directory form).\nsubagent: true\nmainAgent: false\n---\nYou review diffs.\n')
-  file(join(cfg, 'agents', 'code-reviewer', 'agent.md'), '---\nname: code-reviewer\ndescription: agy reviewer\ntools:\n  - view_file\n  - grep_search\n---\nAntigravity reviewer persona.\n')
-  file(join(home, '.claude', 'agents', 'code-reviewer.md'), '---\ndescription: Review code\ntools: Read, Grep\n---\nClaude reviewer persona.\n')
-  // agy-demo: the shared skills directory (one name agy's global library holds too), a project-level subagent, and the
-  // project MCP file agy was not observed to load
-  skill(join(agOnly, '.agents', 'skills'), 'commit-style', 'This repository\'s commit style', 'Commit style, the project copy')
-  skill(join(agOnly, '.agents', 'skills'), 'demo-skill', 'Project-level sample skill', 'Explain calc.py briefly.')
-  file(join(agOnly, '.agents', 'agents', 'demo-agent', 'agent.md'), '---\nname: demo-agent\ndescription: Project-level sample subagent.\nsubagent: true\n---\nYou explain calc.py.\n')
-  file(join(agOnly, '.agents', 'mcp_config.json'), JSON.stringify({ mcpServers: { 'demo-stdio': { command: '/usr/bin/true', disabled: true } } }))
-  // transfer: a Claude project-level skill, and in the shared directory one name of its own and one (tdd) Claude's and
-  // agy's global libraries hold too
-  skill(join(all, '.claude', 'skills'), 'ui-design', 'UI review rules', 'UI design, the project copy')
-  skill(join(all, '.agents', 'skills'), 'changelog-entry', 'Add a changelog entry', 'Changelog entry, the shared copy')
-  skill(join(all, '.agents', 'skills'), 'tdd', 'The project TDD', 'TDD, the shared project copy')
-  // transfer's own Claude and Codex subagents, so project detail heads each side's project group by its directory
-  file(join(all, '.claude', 'agents', 'proj-claude.md'), '---\ndescription: Project Claude helper\n---\nClaude project persona.\n')
-  file(join(all, '.codex', 'agents', 'proj-codex.toml'), 'name = "proj-codex"\ndescription = "Project Codex helper"\ndeveloper_instructions = "You help."\n')
-  return { home, agOnly, all, stale }
-}
 
 // skills-view::REQ-001/AC-01…AC-05, subagents-view::REQ-001/AC-01…AC-04 and AC-06, plugins-view::REQ-001/AC-01…AC-04
 // and AC-06, agents-overview::REQ-003/AC-01 (the counts), AC-03 and AC-04: the agents page with Antigravity CLI's
@@ -3057,7 +2613,7 @@ test('session page (Codex, cold rollout): a .jsonl.zst session is listed, counte
 // Ticket 08: session search — questions by default, the full-text toggle, hits grouped, and going straight
 // to a question.
 // Input uses fill() (setting the value through CDP without depending on window focus semantics; the
-// :focus assertion boundary noted in this file's header
+// :focus assertion boundary noted on launch in support/launch.ts
 // does not apply to this case).
 test('session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question', async () => {
   const l = await launch(undefined, mkUsageHome())
@@ -3161,7 +2717,7 @@ test('the archive: a seeded historical archive file → the trend includes an ar
   // is always cold, so the first-paint time follows each person's data volume. CI stayed green because its
   // home is empty, while locally with 600MB+
   // of data it failed two runs out of three (2026-08-03, ticket 03a).
-  // This one slipped past the discipline stated at the top of this file — it did not go through launch()
+  // This one slipped past the discipline stated on launch in support/launch.ts — it did not go through launch()
   // and called electron.launch directly.
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
@@ -3354,208 +2910,6 @@ test('the provider colours apply: the segments and the legend match, with their 
   await close(l)
 })
 
-/**
- * The rendered-markdown heading ladder (spec appearance.md, sequence E): one ladder on every
- * markdown surface, probed as computed styles — the technique the light/dark cases already use,
- * not screenshot comparison. Sizes are the spec's em table × the 12.5px body both surfaces set.
- */
-async function headingLadder(
-  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
-  scope: string
-): Promise<
-  Record<'h1' | 'h2' | 'h3' | 'h4' | 'h5', { size: number; color: string; bottomRule: string; leftBar: string }>
-> {
-  return win.evaluate((sel) => {
-    const root = document.querySelector(sel)
-    if (!root) throw new Error(`ladder probe: no node for ${sel}`)
-    const pick = (h: string) => {
-      const el = root.querySelector(h)
-      if (!el) throw new Error(`ladder probe: no ${h} under ${sel}`)
-      const cs = getComputedStyle(el)
-      return {
-        size: parseFloat(cs.fontSize),
-        color: cs.color,
-        bottomRule: cs.borderBottomWidth,
-        leftBar: cs.borderLeftWidth
-      }
-    }
-    return { h1: pick('h1'), h2: pick('h2'), h3: pick('h3'), h4: pick('h4'), h5: pick('h5') }
-  }, scope)
-}
-
-function expectLadder(l: Awaited<ReturnType<typeof headingLadder>>, label: string): void {
-  expect(l.h1.size, `${label}: h1 size`).toBeCloseTo(16.5, 1)
-  expect(l.h2.size, `${label}: h2 size`).toBeCloseTo(14.5, 1)
-  expect(l.h3.size, `${label}: h3 size`).toBeCloseTo(13.25, 1)
-  expect(l.h4.size, `${label}: h4 size`).toBeCloseTo(11.875, 1)
-  // Shape cues: the h1 bottom rule and the h2 left bar. Deliberately NOT asserted:
-  // borderLeftColor === color — border-color's initial value is currentColor, so that comparison
-  // holds even with no border rule at all (a constant-true assertion).
-  expect(l.h1.bottomRule, `${label}: h1 bottom rule`).toBe('2px')
-  expect(l.h2.leftBar, `${label}: h2 left bar`).toBe('3px')
-  // Colour steps: h2 → h3 → h4 all differ, and h4 has left the accent family for the muted grey h5 uses
-  expect(l.h3.color, `${label}: h3 differs from h2`).not.toBe(l.h2.color)
-  expect(l.h4.color, `${label}: h4 differs from h3`).not.toBe(l.h3.color)
-  expect(l.h4.color, `${label}: h4 shares the muted colour with h5`).toBe(l.h5.color)
-}
-
-/**
- * Rendered-markdown code styling (spec appearance.md, sequence E): inline code and fenced blocks
- * take the document card's paper style on every surface — a bordered inset for the fence, no inner
- * box on the code element inside it, a bordered pill for inline code.
- */
-async function codeStyle(
-  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
-  scope: string
-): Promise<{ preBorder: string; preBg: string; hostBg: string; innerBorder: string; innerBg: string; inlineBorder: string }> {
-  return win.evaluate((sel) => {
-    const root = document.querySelector(sel)
-    if (!root) throw new Error(`code probe: no node for ${sel}`)
-    const pre = root.querySelector('pre')
-    const preCode = root.querySelector('pre code')
-    const inline = Array.from(root.querySelectorAll('code')).find((c) => !c.closest('pre'))
-    if (!pre || !preCode || !inline) throw new Error(`code probe: pre/code missing under ${sel}`)
-    return {
-      preBorder: getComputedStyle(pre).borderTopWidth,
-      preBg: getComputedStyle(pre).backgroundColor,
-      hostBg: getComputedStyle(root).backgroundColor,
-      innerBorder: getComputedStyle(preCode).borderTopWidth,
-      innerBg: getComputedStyle(preCode).backgroundColor,
-      inlineBorder: getComputedStyle(inline).borderTopWidth
-    }
-  }, scope)
-}
-
-/** Body line-height is part of the shared rule set too (spec appearance E7c, settled 2026-08-20 at
- * the document card's 1.75): probed on a paragraph, 1.75 × the 12.5px body = 21.875px. */
-async function contentLineHeight(
-  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
-  scope: string
-): Promise<number> {
-  return win.evaluate((sel) => {
-    const p = document.querySelector(`${sel} p`)
-    if (!p) throw new Error(`line-height probe: no p under ${sel}`)
-    return parseFloat(getComputedStyle(p).lineHeight)
-  }, scope)
-}
-
-/** Tables take the paper style too (spec appearance E7d, settled 2026-08-21): a bordered frame,
- * an accent-soft header with deep-accent text, bg-striped even rows, and GFM alignment
- * (:-: / --:) winning over the default left. */
-async function tableStyle(
-  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
-  scope: string
-): Promise<{
-  border: string
-  thColor: string
-  thNowrap: string
-  thAlign: string
-  colSep: string
-  rowSep: string
-  oddBg: string
-  evenBg: string
-  alignRight: string
-  alignCenter: string
-}> {
-  return win.evaluate((sel) => {
-    const table = document.querySelector(`${sel} table`)
-    if (!table) throw new Error(`table probe: no table under ${sel}`)
-    const th = table.querySelector('th')
-    const rows = table.querySelectorAll('tbody tr')
-    const oddTd = rows[0]?.querySelector('td')
-    const evenTd = rows[1]?.querySelector('td')
-    const rightTd = rows[0]?.querySelector('td:last-child')
-    const centerTd = rows[0]?.querySelector('td:nth-child(2)')
-    if (!th || !oddTd || !evenTd || !rightTd || !centerTd)
-      throw new Error(`table probe: cells missing under ${sel}`)
-    return {
-      border: getComputedStyle(table).borderTopWidth,
-      thColor: getComputedStyle(th).color,
-      thNowrap: getComputedStyle(th).whiteSpace,
-      thAlign: getComputedStyle(th).textAlign,
-      colSep: getComputedStyle(oddTd).borderRightColor,
-      rowSep: getComputedStyle(oddTd).borderBottomColor,
-      oddBg: getComputedStyle(oddTd).backgroundColor,
-      evenBg: getComputedStyle(evenTd).backgroundColor,
-      alignRight: getComputedStyle(rightTd).textAlign,
-      alignCenter: getComputedStyle(centerTd).textAlign
-    }
-  }, scope)
-}
-
-function expectTableStyle(
-  tb: Awaited<ReturnType<typeof tableStyle>>,
-  h1Color: string,
-  label: string
-): void {
-  expect(tb.border, `${label}: table frame`).toBe('1px')
-  expect(tb.thColor, `${label}: header text takes the deep accent (h1's colour)`).toBe(h1Color)
-  expect(tb.thNowrap, `${label}: header cells never wrap`).toBe('nowrap')
-  // Ruled 2026-08-21: headers are always centred; GFM alignment applies to body cells only —
-  // the attribute lands on th too, and without this rule it drags the header along
-  expect(tb.thAlign, `${label}: header text centred regardless of column alignment`).toBe('center')
-  expect(tb.colSep, `${label}: column separators stronger than row separators`).not.toBe(tb.rowSep)
-  expect(tb.evenBg, `${label}: striped even row`).not.toBe(tb.oddBg)
-  expect(tb.alignRight, `${label}: GFM right alignment wins`).toBe('right')
-  expect(tb.alignCenter, `${label}: GFM centre alignment wins`).toBe('center')
-}
-
-/** List indentation is part of the shared rule set (spec appearance E7c): 20px on every surface —
- * the drawer previously fell to the browser's 40px default. */
-async function listIndent(
-  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
-  scope: string
-): Promise<string> {
-  return win.evaluate((sel) => {
-    const ul = document.querySelector(`${sel} ul`)
-    if (!ul) throw new Error(`list probe: no ul under ${sel}`)
-    return getComputedStyle(ul).paddingLeft
-  }, scope)
-}
-
-function expectCodeStyle(c: Awaited<ReturnType<typeof codeStyle>>, label: string): void {
-  expect(c.preBorder, `${label}: fenced block border`).toBe('1px')
-  expect(c.preBg, `${label}: fenced block is a paper inset, not the host background`).not.toBe(c.hostBg)
-  expect(c.innerBorder, `${label}: no inner box on the code element inside the fence`).toBe('0px')
-  expect(c.innerBg, `${label}: inner code transparent`).toBe('rgba(0, 0, 0, 0)')
-  expect(c.inlineBorder, `${label}: inline code pill border`).toBe('1px')
-}
-
-type Win = Awaited<ReturnType<ElectronApplication['firstWindow']>>
-type Rgb = [number, number, number]
-
-/** One pixel of the window as drawn, at a CSS position. A scrollbar is no element, so its colour has no computed
- * style to read: the window is captured around the point (at the device's scale) and the capture decoded in the
- * page, where a canvas gives RGBA whatever the platform's bitmap order */
-async function pixelAt(win: Win, x: number, y: number): Promise<Rgb> {
-  const png = await win.screenshot({ clip: { x: Math.floor(x), y: Math.floor(y), width: 1, height: 1 } })
-  return win.evaluate(async (b64) => {
-    const img = new Image()
-    img.src = `data:image/png;base64,${b64}`
-    await img.decode()
-    const c = document.createElement('canvas')
-    c.width = img.naturalWidth
-    c.height = img.naturalHeight
-    const ctx = c.getContext('2d') as CanvasRenderingContext2D
-    ctx.drawImage(img, 0, 0)
-    const d = ctx.getImageData(Math.floor(img.naturalWidth / 2), Math.floor(img.naturalHeight / 2), 1, 1).data
-    return [d[0], d[1], d[2]] as [number, number, number]
-  }, png.toString('base64'))
-}
-
-/** The colour an area paints beneath its content: the first painted background up its ancestors */
-async function paintedBackground(area: ReturnType<Win['locator']>): Promise<Rgb> {
-  return area.evaluate((node) => {
-    for (let n: Element | null = node; n; n = n.parentElement) {
-      const c = getComputedStyle(n).backgroundColor
-      if (!/rgba\(.*,\s*0\)$/.test(c) && c !== 'transparent') {
-        return (c.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number) as [number, number, number]
-      }
-    }
-    return [] as unknown as [number, number, number]
-  })
-}
-
 /** A scrolling area's vertical scrollbar, measured: how far its content overflows, how wide the scrollbar is (the
  * box less the client area less the borders), the column the scrollbar occupies, where its thumb is at the current
  * scroll position, and the colour the area paints beneath it (the first painted background up its ancestors) */
@@ -3588,15 +2942,6 @@ async function scrollArea(win: Win, selector: string): Promise<{
       trackY: r.bottom - bb - 3
     }
   }).then(async (measured) => ({ ...measured, background: await paintedBackground(win.locator(selector)) }))
-}
-
-/** A colour for a failure message */
-function rgb(c: Rgb): string {
-  return c.join(',')
-}
-
-function near(got: Rgb, want: Rgb, tolerance = 2): boolean {
-  return got.every((v, i) => Math.abs(v - want[i]) <= tolerance)
 }
 
 /** A colour at the given opacity laid over a background: the expected thumb, from the spec's literal values */
@@ -5754,58 +5099,6 @@ test('project list: selection is a deeper wash with no ring, and adjacent rows k
  * is accepted by hand.
  */
 
-/**
- * A launch helper dedicated to appearance mode: Playwright's own prefers-color-scheme emulation **must**
- * be turned off.
- *
- * `electron.launch` defaults to `colorScheme: 'light'`, sending the page an Emulation that pins
- * prefers-color-scheme; a themeSource change never reaches the renderer and the media query stays light.
- * **This was hit by measurement**: the main process side was already `themeSource='dark'` /
- * `shouldUseDarkColors=true`,
- * while the renderer still had `matchMedia(...).matches === false` and a light body background —
- * that is, "the implementation is right and the test harness is masking it". `'no-override'` removes the
- * emulation and lets the real value through.
- *
- * Other cases keep the default (emulating light): they do not test light/dark, and pinning it is steadier,
- * so results do not vary with the
- * system appearance of whoever runs them — the same reason as pinning the test language. This group
- * explicitly selects a mode before every assertion,
- * so it is unaffected by the development machine's system appearance.
- *
- * `null` removes the emulation (the value that expresses "reset to the system default" in this version's
- * Playwright types);
- * the `'no-override'` the docs also mention works at runtime but is not in this version's type union, so
- * typecheck would go red.
- */
-async function launchAppearance(home: string): Promise<Launched> {
-  const userData = makeUserData()
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    colorScheme: null,
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: home,
-      AGENTSHED_NO_FOREGROUND: '1',
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
-    }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
-      errors.push(t.trim())
-    }
-  })
-  return { app, errors, userData, home }
-}
-
-/** The UI's effective light/dark right now: a themeSource change directly changes how this media query
- * evaluates */
-async function effectiveDark(win: Awaited<ReturnType<ElectronApplication['firstWindow']>>): Promise<boolean> {
-  return win.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)
-}
-
 /** Each theme card's **paper sample** (the first swatch = --card), read back from the computed CSS */
 async function paperSwatches(
   win: Awaited<ReturnType<ElectronApplication['firstWindow']>>
@@ -6191,40 +5484,6 @@ test('scrollbars: the same 6px scrollbar whether macOS draws overlay or classic 
     await close(l)
   }
 })
-
-/**
- * UI language (i18n ticket 03).
- *
- * The system's preferred languages are injected through AGENTSHED_SYSTEM_LANGUAGES (see
- * src/main/system-language.ts) —
- * "follow system" behaviour depends on the system language, which cannot be changed in tests, and without
- * this hatch the only way
- * to verify it would be a human repeatedly changing system settings.
- */
-async function launchWithLangs(sysLangs: string, homeOverride?: string, prefs?: object): Promise<Launched> {
-  const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
-  // A preference file seeded before launch, as an earlier run would have left it
-  if (prefs) writeFileSync(join(userData, 'prefs.json'), JSON.stringify(prefs))
-  const home = homeOverride ?? mkEmptyProjectHome()
-  const errors: string[] = []
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      AGENTSHED_HOME_OVERRIDE: home,
-      AGENTSHED_NO_FOREGROUND: '1',
-      AGENTSHED_SYSTEM_LANGUAGES: sysLangs
-    }
-  })
-  app.process().stderr?.on('data', (b: Buffer) => {
-    const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
-      errors.push(t.trim())
-    }
-  })
-  return { app, errors, userData, home }
-}
 
 test('UI language: following the system resolves against the whole list, and applies on the first frame', async () => {
   // [ko, ja, zh, en]: Korean and Japanese are unsupported (ADR-0035), so it should carry on to Chinese — not
@@ -7180,10 +6439,6 @@ test('a project search with one session file that cannot be read shows the other
   expect(l.errors).toEqual([])
   await close(l)
 })
-
-/** A user's question line, in the shape mkUsageHome writes */
-const questionLine = (text: string): string =>
-  JSON.stringify({ type: 'user', timestamp: localDayOffset(0).toISOString(), message: { role: 'user', content: text } })
 
 test('a failed token cache write on a session page: a session whose index has to be rebuilt opens, with no raw error, and the failure is logged (P6, C4)', async () => {
   const home = mkUsageHome()
