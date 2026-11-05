@@ -18,6 +18,9 @@
 //   - A hit row with no width yet (session-view's hit-row failure item) is unreachable: the search page and the
 //     Sessions tab unmount when left, and no hit row is mounted hidden. Re-test once a page keeps hit rows mounted
 //     while hidden: show it and assert its rows are judged.
+//   - A new focus for a session page already on screen has no route today: the page unmounts off Projects, and a hit is
+//     only clicked off it or from the project page it replaces. Re-test once a hit can be clicked beside an open session
+//     page: the page relocates to the new row, once.
 //   - The hit-row case's "in view" measure lays out an ellipsis probe in the row and compares overflow, as the
 //     component does, so a mis-measured ellipsis common to both would not show; its independent anchor is the
 //     window sized from the highlight's own box and an ellipsis measured another way, on a canvas given the row's
@@ -153,6 +156,30 @@ const box = (win: Page) => win.locator('.gsearch .sbar input')
 const body = (win: Page) => win.locator('.gsearch .pane-body')
 const headings = (win: Page) => win.locator('.gsearch .ph .pn')
 const NOTARIZE_HEADER = 'Found 10 hits · 6 sessions · 5 projects'
+/** The session page's scrolling body */
+const sessionBody = (win: Page) => win.locator('.pane-body').filter({ has: win.locator('.qlist') })
+const sessionTop = (win: Page): Promise<number> => sessionBody(win).evaluate((el) => el.scrollTop)
+
+/**
+ * The page has arrived at 'xenon 37', which newest first puts far below the fold, so being in view means it was scrolled
+ * to. A real wheel away then holds across two ticks of the display clock, with the bar still on its row.
+ * Returns where it holds.
+ */
+async function wheelAwayFromLocated(win: Page): Promise<number> {
+  const located = win.locator('.qlist .q.focused')
+  await expect(located.locator('.txt')).toHaveText('xenon 37', { timeout: 10000 })
+  await expect(located).toBeInViewport()
+  const entered = await sessionTop(win)
+  expect(entered).toBeGreaterThan(1000)
+  const at = await sessionBody(win).boundingBox()
+  await win.mouse.move((at?.x ?? 0) + 200, (at?.y ?? 0) + 200)
+  await win.mouse.wheel(0, -600)
+  await expect.poll(() => sessionTop(win)).toBe(entered - 600)
+  await win.waitForTimeout(2200)
+  expect(await sessionTop(win)).toBe(entered - 600)
+  await expect(located).toHaveCount(1)
+  return entered - 600
+}
 
 test('the global search page: the rail item, typing, results grouped by project, sorting, and every answer the results area gives', async () => {
   const { home, paths } = mkHome()
@@ -388,6 +415,106 @@ test('going to a hit: the search page holds, then Projects with the project sele
     await searchItem(win).click()
     await expect(box(win)).toHaveValue('')
     await expect(body(win).locator('.gs-note')).toContainText('Search what you asked')
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+test('a located question is scrolled to once, on arrival; the position is then the reader\'s through the display clock, a row click, the sort, a folded day and a rescan (session-view D4)', async () => {
+  const { home, files } = mkHome()
+  const l = await launch(home, { AGENTSHED_RESCAN_MS: '1500' })
+  const { win } = l
+  const located = win.locator('.qlist .q.focused')
+  const top = (): Promise<number> => sessionTop(win)
+  try {
+    await searchItem(win).click()
+    await box(win).fill('xenon')
+    await expect(body(win).locator('.hit')).toHaveCount(150, { timeout: 15000 })
+    await body(win).locator('.hit', { hasText: 'xenon 37' }).click()
+    const away = await wheelAwayFromLocated(win)
+
+    // Expanding a question in view moves attention on, and not the position
+    const other = win.locator('.qlist .q', { hasText: 'xenon 57' })
+    await expect(other).toBeInViewport()
+    await other.click()
+    await expect(other).toHaveClass(/\bopen\b/)
+    await expect(located).toHaveCount(0)
+    expect(await top()).toBe(away)
+
+    // The sort at the top of the page: the list turns over under it, and the page stays at the top
+    await sessionBody(win).evaluate((el) => { el.scrollTop = 0 })
+    await expect.poll(top).toBe(0)
+    await win.locator('.qbar .seg button', { hasText: 'Oldest first' }).click()
+    await expect(win.locator('.qlist .q .txt').first()).toHaveText('xenon 1')
+    expect(await top()).toBe(0)
+
+    // Reopening a folded day puts the located row back on the page, which is not an arrival. The fixture's questions
+    // can straddle midnight, so its day is found from the row.
+    const day = await win.locator('.daygrp').evaluateAll((groups) =>
+      groups.findIndex((g) => [...g.querySelectorAll('.q .txt')].some((t) => t.textContent === 'xenon 37'))
+    )
+    const dayHead = win.locator('.dayhd').nth(day)
+    await dayHead.click()
+    const row = win.locator('.qlist .q', { hasText: 'xenon 37' })
+    await expect(row).toHaveCount(0)
+    await dayHead.scrollIntoViewIfNeeded()
+    const folded = await top()
+    await dayHead.click()
+    await expect(row).toHaveCount(1)
+    expect(await top()).toBe(folded)
+
+    // A rescan brings a question in by transfusion, at the far end of oldest first, and nothing moves
+    appendQuestion(files.many, 'xenon newcomer')
+    await expect(win.locator('.qlist .q', { hasText: 'xenon newcomer' })).toHaveCount(1, { timeout: 15000 })
+    expect(await top()).toBe(folded)
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+test('a located question from a project\'s Sessions tab: the page arrives once, and the reader can scroll away from it (session-view D4)', async () => {
+  const { home } = mkHome()
+  const l = await launch(home)
+  const { win } = l
+  try {
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'target-proj' }).click()
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+    await win.locator('.sbar input').fill('xenon')
+    await win.locator('.grp .hit', { hasText: 'xenon 37' }).click()
+    await wheelAwayFromLocated(win)
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+test('a located question a saved page does not have yet is scrolled to when its refresh brings it in (session-view D4, P4)', async () => {
+  const { home, files } = mkHome()
+  const l = await launch(home, { AGENTSHED_RESCAN_MS: '5000', AGENTSHED_FETCH_DELAY_MS: '1500' })
+  const { win } = l
+  try {
+    // Going through the session once leaves its page in the cache
+    await searchItem(win).click()
+    await box(win).fill('xenon')
+    await expect(body(win).locator('.hit')).toHaveCount(150, { timeout: 15000 })
+    await body(win).locator('.hit', { hasText: 'xenon 37' }).click()
+    await expect(win.locator('.qlist .q')).toHaveCount(150, { timeout: 10000 })
+    await searchItem(win).click()
+
+    // The session grows, and the search sees it before the page does
+    for (let k = 1; k <= 40; k++) appendQuestion(files.many, `zircon ${k}`)
+    await box(win).fill('zircon')
+    await expect(body(win).locator('.hit')).toHaveCount(40, { timeout: 15000 })
+    await body(win).locator('.hit').filter({ has: win.locator('.t', { hasText: /^zircon 1$/ }) }).click()
+
+    // The saved page opens at once without the row; the refresh brings it in, 40 newer rows down, and it is scrolled to
+    await expect(win.locator('.qlist .q')).toHaveCount(150, { timeout: 700 })
+    const located = win.locator('.qlist .q.focused')
+    await expect(located.locator('.txt')).toHaveText('zircon 1', { timeout: 10000 })
+    await expect(located).toBeInViewport()
     expect(l.errors).toEqual([])
   } finally {
     await close(l, home)

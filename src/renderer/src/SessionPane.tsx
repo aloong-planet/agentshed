@@ -7,7 +7,7 @@ import { StartupHint } from './StartupHint'
 // fetch a whole turn is this page's on-demand action (ticket 05).
 // The organising layer (ticket 06): day grouping with collapse + ascending/descending + the three tiers
 // of banner at the top.
-import { Fragment, useState } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { SIDE_BADGE, SIDE_FULL_NAME } from './side-badge'
 import type { SessionPage } from '@shared/domain'
 import { fmtAgo } from './ProjectsPane'
@@ -277,8 +277,8 @@ function SessionPageBody({
   onOpenSession
 }: {
   page: SessionPage
-  /** Going straight to a search hit (ticket 08): after mounting, scroll to the question row with that
-   * index; null or omitted means no locating */
+  /** Going straight to a search hit (ticket 08): scroll once to the question row with that index, when
+   * it arrives; null or omitted means no locating */
   focusQ?: number | null
   /** The banner's jump to the parent session (App switches session); without it the parent title is
    * plain text */
@@ -311,6 +311,15 @@ function SessionPageBody({
     setFocused(focusQ ?? null)
     setPulseDone(false)
   }
+  /** The row a search jumped to, for the one scroll that goes with arriving at it */
+  const locatedRow = useRef<HTMLDivElement>(null)
+  // A saved page can predate the question, which its background refresh then brings in (session-view P4): arriving at it waits for that
+  const locatedHere = page.questions.some((q) => q.i === focusQ)
+  // Going straight to a search hit: scroll to the row once, when it arrives. The position is then the reader's, so nothing
+  // else here may scroll: this page renders on every tick of the display clock and on every rescan.
+  useLayoutEffect(() => {
+    if (locatedHere) locatedRow.current?.scrollIntoView({ block: 'center' })
+  }, [focusQ, locatedHere])
 
   const toggle = (i: number): void => {
     // Clicking any question row counts as attention moving on: clear the locating bar (the clearing
@@ -337,14 +346,7 @@ function SessionPageBody({
           }`}
           onClick={() => toggle(idx)}
           onAnimationEnd={focused === q.i ? (): void => setPulseDone(true) : undefined}
-          ref={
-            focusQ != null && q.i === focusQ
-              ? (el): void => {
-                  // Going straight to a search hit: scroll to the row after mounting
-                  el?.scrollIntoView({ block: 'center' })
-                }
-              : undefined
-          }
+          ref={q.i === focusQ ? locatedRow : undefined}
         >
           <i className="cv">
             <ChevronRight size={10} />

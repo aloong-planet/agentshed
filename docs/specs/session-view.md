@@ -425,6 +425,9 @@ hands the command over; it never runs it.
   accent bar stays at the left edge**, cleared by clicking any question row; a remount such as changing
   the sort does not replay the pulse (the played state is remembered). The functional colours are written per rule — a default plus a dark media query — and do not
   change with the theme.
+  **The page scrolls to the row once**, when the row arrives: on opening, or on the background refresh that brings it in
+  when a saved page predates the question (P4). The position is then the reader's: nothing that re-renders the page —
+  the display clock, a rescan, a row click, the sort, folding a day — moves it back.
   **Landed (2026-08-06)**: `searchSessions(path, needle≤200, fullText)` — the session set is
   taken by the main process from its own per-project statistics, since the renderer cannot supply file
   paths; question mode = a coarse pass over raw byte ranges from `readRangeBuffers` (`searchBytes` case
