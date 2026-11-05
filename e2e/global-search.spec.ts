@@ -57,7 +57,7 @@ const DAY = 86_400_000
 /** A moment `days` days and `min` minutes before now, an hour past the day boundary so "N days ago" holds */
 const ago = (days: number, min = 0): Date => new Date(Date.now() - days * DAY - 3_600_000 + min * 60_000)
 
-/** A Claude session in a real session's line shape (a parent/uuid chain, as app.spec.ts's homes keep it) */
+/** A Claude session in a real session's line shape (a parent/uuid chain) */
 function claude(home: string, cwd: string, name: string, questions: string[], days: number): string {
   const dir = join(home, '.claude', 'projects', cwd.replace(/[^a-zA-Z0-9]/g, '-'))
   mkdirSync(dir, { recursive: true })
@@ -126,7 +126,7 @@ function mkHome(): { home: string; files: Record<string, string>; paths: Record<
   claude(home, paths.loose, 'loose-1', ['notarize from a loose directory'], 3)
 
   // Codex: a parent, its fork replaying the parent's question (stripped) and an orphan fork (uncertain strip),
-  // in the shape mkForkHome in support/homes.ts uses
+  // in the shape mkForkHome in session-view.spec.ts uses
   const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
   mkdirSync(sdir, { recursive: true })
   const q = (at: Date, message: string): string => JSON.stringify({ timestamp: at.toISOString(), type: 'event_msg', payload: { type: 'user_message', message } })
