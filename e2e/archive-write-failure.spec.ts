@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
-import { startApp } from './support/launch'
+import { failOnMainErrors, startApp } from './support/launch'
 
 const EN = 'Usage history can’t be saved right now because its file in the settings directory can’t be read or written.'
 const ZH = '用量历史暂时无法保存，因为设置目录中的历史文件无法读取或写入。'
@@ -43,8 +43,10 @@ function fixture(): Fixture {
   return f
 }
 
+const mainErrors = failOnMainErrors()
+
 async function start(f: Fixture, env: Record<string, string> = {}): Promise<{ app: ElectronApplication; win: Page; stderr: string[] }> {
-  const { app, stderr } = await startApp({ userData: f.userData, home: f.home, env: { AGENTSHED_RESCAN_MS: '300', ...env } })
+  const { app, stderr } = await startApp({ userData: f.userData, home: f.home, errors: mainErrors.errors, env: { AGENTSHED_RESCAN_MS: '300', ...env } })
   const win = await app.firstWindow()
   await win.waitForSelector('.toasts', { state: 'attached' })
   return { app, win, stderr }

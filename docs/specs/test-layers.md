@@ -74,14 +74,15 @@ cases stay together and helpers are not copied.
 As someone writing an e2e case, I want one function that starts the app, so that its pinned environment and the watch
 on the main process's errors do not depend on what I copied.
 
-- test-layers::US-004/AC-01: One file under `e2e/support/` holds the only import of Playwright's Electron launcher, and
-  lint fails on an import of it anywhere else.
+- test-layers::US-004/AC-01: Under `e2e/`, one file in `e2e/support/` holds the only import of Playwright's Electron
+  launcher, and lint fails on a static import of it anywhere else there.
 - test-layers::US-004/AC-02: Every start gets the case's own home and user data, a window that takes no foreground, and
   English pinned, and a case can add or replace an environment value.
 - test-layers::US-004/AC-03: Every start collects what the main process reports through one pattern.
 - test-layers::US-004/AC-04: In a file whose cases carry no check of their own, a case fails when its main process
   reported an error the case did not allow.
-- test-layers::US-004/AC-05: A case that allows an error nothing then reports fails too.
+- test-layers::US-004/AC-05: A case fails too when nothing reports an error it allowed, each allowance being judged by
+  itself.
 
 ## Quality Requirements
 
@@ -137,6 +138,10 @@ location.
 - **A case that provokes a main-process error on purpose.** It allows that error by pattern. The check then fails only
   on the others, and on the pattern if nothing matched it.
 - **An error reported after a case's last step.** The check runs after the case, once its app has closed, so it counts.
+- **Several reports in one chunk of stderr.** Each line is judged by itself, so an allowed report does not carry another
+  one through.
+- **An import lint cannot see.** A dynamic import under `e2e/`, or a script outside it, is not caught, and such a start
+  would have to pin its own environment.
 - **A launch that exits before any window.** Playwright cannot drive it, so the case spawns the binary itself and is
   outside test-layers::US-004/AC-01.
 - **A case in a file that checks case by case, with no check of its own.** Not covered by

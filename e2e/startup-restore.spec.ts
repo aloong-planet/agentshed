@@ -12,7 +12,10 @@ const mainErrors = failOnMainErrors()
 
 test('restart restores viewed project, questions and read answer before a new scan finishes', async () => {
   // Its refused reads, and the skill file it deletes and recreates
-  mainErrors.allow(/artifact-not-whitelisted|session-not-whitelisted|session-not-indexed|skill-file-unreadable/)
+  mainErrors.allow(/artifact-not-whitelisted/)
+  mainErrors.allow(/session-not-whitelisted/)
+  mainErrors.allow(/session-not-indexed/)
+  mainErrors.allow(/skill-file-unreadable/)
   const home = mkdtempSync(join(tmpdir(), 'agentshed-restore-home-'))
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-restore-data-'))
   const proj = join(home, 'restore-project')

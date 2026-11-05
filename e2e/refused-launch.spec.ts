@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect } from '@playwright/test'
 import { closeApp } from './close-app'
-import { startApp } from './support/launch'
+import { failOnMainErrors, startApp } from './support/launch'
 
 test.skip(process.getuid?.() === 0, 'a mode does not hold back root')
 
@@ -33,6 +33,8 @@ function cleanup(f: Fixture): void {
   rmSync(f.home, { recursive: true, force: true })
   rmSync(f.userData, { recursive: true, force: true })
 }
+const mainErrors = failOnMainErrors()
+
 const launchEnv = (f: Fixture, systemLanguages = 'en-US'): Record<string, string> => ({
   ...(process.env as Record<string, string>),
   NODE_ENV: 'production',
@@ -92,7 +94,7 @@ test('at mode 555 the sentence is in the stored language, over the system\'s', a
 
 test('with a first instance running and the directory gone unwritable, the launch still ends, and the first is told', async () => {
   const f = fixture()
-  const { app } = await startApp({ userData: f.userData, home: f.home, env: { AGENTSHED_UPDATE_SCRIPT: f.script } })
+  const { app } = await startApp({ userData: f.userData, home: f.home, errors: mainErrors.errors, env: { AGENTSHED_UPDATE_SCRIPT: f.script } })
   try {
     const win = await app.firstWindow()
     await win.waitForSelector('.rail .ri')

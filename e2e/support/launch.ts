@@ -23,6 +23,9 @@ export interface Launched {
   home?: string
 }
 
+/** What counts as a failure signal in what the main process writes to stderr; `startApp` says why each part is here */
+const MAIN_ERRORS = /Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/
+
 export interface StartOptions {
   userData: string
   home: string
@@ -106,9 +109,7 @@ export async function startApp(options: StartOptions): Promise<Started> {
 // detection net).
     // `[parse-pool]`: a parse worker failed and its file was parsed on the main thread instead. The figures
     // stay right, so without this the built app could lose its workers with every case still green.
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
-      errors.push(t.trim())
-    }
+    if (MAIN_ERRORS.test(t)) errors.push(t.trim())
   })
   return { app, errors, stderr }
 }
@@ -122,10 +123,11 @@ export function failOnMainErrors(): { errors: string[]; allow: (provoked: RegExp
   const errors: string[] = []
   const allowed: RegExp[] = []
   test.afterEach(() => {
-    const reported = errors.splice(0)
+    // One chunk of stderr can hold several reports, so each line is judged by itself
+    const reported = errors.splice(0).flatMap((chunk) => chunk.split('\n').filter((line) => MAIN_ERRORS.test(line)))
     const patterns = allowed.splice(0)
-    expect(reported.filter((e) => !patterns.some((p) => p.test(e)))).toEqual([])
-    for (const p of patterns) expect(reported.filter((e) => p.test(e)), `nothing reported what the case allowed: ${p}`).not.toEqual([])
+    expect(reported.filter((line) => !patterns.some((p) => p.test(line)))).toEqual([])
+    for (const p of patterns) expect(reported.filter((line) => p.test(line)), `nothing reported what the case allowed: ${p}`).not.toEqual([])
   })
   return { errors, allow: (provoked) => { allowed.push(provoked) } }
 }
