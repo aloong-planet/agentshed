@@ -85,5 +85,10 @@ a retried "does not appear" check cannot prove absence.
   `pnpm bench:scan` (the chunk-size reasoning is in `src/main/providers/jsonl.ts`).
 - Every e2e case closes its app through `closeApp` (`e2e/close-app.ts`), and a teardown warning on an
   unloaded run is a defect.
+- An e2e case goes in the file named after the `docs/features/` document whose rule it asserts, or in the
+  lifecycle file when it is about how the app starts, refreshes or keeps its cache; moving between pages
+  makes no home of its own (ADR-0041).
+- A helper that cases of two or more features use lives in `e2e/support/` and is imported, never copied; one
+  that a single feature uses stays in that feature's file (ADR-0041).
 - Every workflow action is pinned as `owner/repo@<40-hex commit> # v<x.y.z>`, at the same commit in every
   workflow; `scripts/workflow-actions.test.mjs` enforces the form.
