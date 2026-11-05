@@ -11,8 +11,8 @@ Declared in `capabilities.toml` under `macos-distribution.profiles`:
 
 | Command | Profile | What it does |
 |---|---|---|
-| `pnpm dist:mac:local` | local | Checks for the Developer ID identity, then one electron-builder call builds and signs the `.app`, the DMG and the ZIP of the app (with the update metadata); never notarizes, even with Apple credentials loaded. Policy §1, §3 |
-| `pnpm dist:mac:release` | release | Checks the identity and the Apple credentials before building; the same call notarizes and staples the `.app` through the `afterSign` hook before its DMG and ZIP are built; then checks the ZIP's app and the update metadata, and signs, notarizes, staples and gates the DMG. Policy §3, §6, §7 |
+| `pnpm dist:mac:local` | local | Checks for the Developer ID identity, then one electron-builder call builds and signs the `.app`, the DMG and the ZIP of the app (with the update metadata); never notarizes, even with Apple credentials loaded. Launches the built app to check the inputs it must refuse. Policy §1, §3, §6 |
+| `pnpm dist:mac:release` | release | Checks the identity and the Apple credentials before building; the same call notarizes and staples the `.app` through the `afterSign` hook before its DMG and ZIP are built; then launches the app to check the inputs it must refuse, checks the ZIP's app and the update metadata, and signs, notarizes, staples and gates the DMG. Policy §3, §6, §7 |
 
 Both run `build/mac-packaging.cjs`, the electron-scaffold packaging asset, with its tests in
 `build/mac-packaging.test.cjs` (run by `pnpm test:scripts`, part of `pnpm verify` and of CI). **The two files
@@ -94,6 +94,20 @@ stat -f %z "$ZIP"
 
 A local package passes the signature lines and fails the `stapler` and `spctl --type open` lines: it is never
 notarized, by design.
+
+What the app refuses at launch (ADR-0042, mac-distribution::CON-008). Every packaging checks this on the built app; by hand,
+the launch through `open` is what that check cannot do, since it starts the process directly:
+
+```bash
+APP=release/<version>/mac-arm64/Agentshed.app
+BIN="$APP/Contents/MacOS/Agentshed"
+"$BIN" --remote-debugging-port=9222; echo $?            # 64, and a sentence on stderr naming the switch
+AGENTSHED_HOME_OVERRIDE=/tmp "$BIN"; echo $?            # 64, naming the variable
+D=$(mktemp -d) && open -n "$APP" --args --user-data-dir="$D"   # opens its window; ps shows only that argument
+```
+
+A packaged build takes no test seam and no debugging port, so it cannot be given a fixture home or be driven by a client: its
+own `--user-data-dir` is the one thing a check can set. To drive a release's code, build its tag and run it from source.
 
 ## CI
 

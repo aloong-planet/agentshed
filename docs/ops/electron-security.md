@@ -8,6 +8,7 @@ verified**.
 - Full pass date: **2026-08-02** (Electron 43.2.0)
 - Partial re-pass: **2026-10-14**, for app updates (ADR-0032) — the main process's first outbound request
   and two new IPC channels; items 1, 7, 17 and 20 re-checked
+- Partial re-pass: **2026-11-05**, for launch inputs (ADR-0042) — item 21 added
 - When to redo: changing the main process's window / session / protocol / IPC configuration, upgrading
   Electron's major version, or introducing a new "render someone else's content" capability
 
@@ -33,6 +34,7 @@ verified**.
 | **18** | Avoid file:// | ✅ The renderer page runs on `app://bundle` | `app-protocol.ts`; unit tests cover encoded traversal; e2e asserts the packaged build's URL starts with `app://` |
 | **19** | Fuses | ✅ **7 of them** (including disabling `grantFileProtocolExtraPrivileges`) | `electron-builder.yml electronFuses`; `scripts/check-fuses.mjs` validates by **reading the built binary** |
 | 20 | No raw API exposure in preload | ✅ Exposes wrapper functions, discarding `IpcRendererEvent` in callbacks | `preload/index.ts` (verified, no changes needed) |
+| **21** | No launch input steers a packaged build (beyond the official list) | ✅ Exit code 64 before anything loads, on any switch outside the allow-list, the development server's URL or an `AGENTSHED_*` seam | `launch-inputs.ts` (decision) and `launch-guard.ts` (first import of main); unit tests cover the bypass vectors; the packaging asset launches the built app in both profiles |
 
 ## The gates put in place (the tools are unreliable — these are the defence)
 
@@ -40,7 +42,7 @@ verified**.
 |---|---|
 | Unit tests | `src/main/security.test.ts` (15 cases: navigation allow/deny, external-link allow-list, IPC sender, four CSP profiles), `src/main/app-protocol.test.ts` (7 cases: path resolution and encoded traversal) |
 | e2e | The packaged build's URL must be `app://`; clicking a link inside a document leaves **the window URL unchanged**; a full pass through the new sections produces no main-process errors |
-| Packaging | `node scripts/check-fuses.mjs` reads the Electron Framework binary's fuse wire and compares it against the expected values in `electron-builder.yml` |
+| Packaging | `node scripts/check-fuses.mjs` reads the Electron Framework binary's fuse wire and compares it against the expected values in `electron-builder.yml`. Every packaging also launches the built app with inputs it must refuse, and with only its settings directory (`build/mac-packaging.cjs`) |
 
 ## Backlog (outside the current change surface, destination already assigned)
 
