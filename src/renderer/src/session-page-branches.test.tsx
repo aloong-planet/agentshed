@@ -72,8 +72,8 @@ afterEach(cleanup)
 
 describe('the session page on less common data', () => {
   it('a row counts subagents only when its turn dispatched some', async () => {
-    await open(page({ questions: [question(1), question(2, { subagents: 1 }), question(3, { subagents: 5 })] }))
-    expect(all('.qlist .q').map(words)).toEqual(['03Q30 5 12:00', '02Q20 1 12:00', '01Q10 12:00'])
+    await open(page({ questions: [question(1, { tools: 4 }), question(2, { subagents: 1 }), question(3, { tools: 7, subagents: 5 })] }))
+    expect(all('.qlist .q').map(words)).toEqual(['03Q37 5 12:00', '02Q20 1 12:00', '01Q14 12:00'])
   })
 
   it('a question with no time shows a dash', async () => {
