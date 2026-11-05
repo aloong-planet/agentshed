@@ -1,0 +1,67 @@
+# Test layers
+
+> Related: ADR-0038 (test layers)
+
+## Problem Statement
+
+Whoever writes a test here, usually an agent, had no rule for which layer it belongs at. The written
+decision said the UI was covered by hand while the e2e suite had become its only automated coverage, and
+nothing bounded what went into that suite.
+
+## Solution
+
+ADR-0038 decides what e2e is for and what it admits. Whether a layer below e2e should take renderer behaviour
+over was measured rather than argued, and the layer was not adopted (see Out of Scope).
+
+## User Stories
+
+### test-layers::US-001 Knowing where a new test goes
+
+As someone writing a test for a behaviour, I want one place that says which layer admits it, so that I
+do not default to appending to the largest e2e file.
+
+- test-layers::US-001/AC-01: ADR-0038 names the seams and says what e2e admits: wiring, the application's
+  lifecycle, reacting to files, real layout and paint, and one case per page through the real chain.
+- test-layers::US-001/AC-02: ADR-0002 reads as superseded by ADR-0038, in its own status line and in the
+  ADR index.
+- test-layers::US-001/AC-03: No spec and no source comment cites ADR-0002 as the rule in force; only
+  ADR-0002's own file, the ADR index and ADR-0038 name it.
+
+## Failure modes and boundaries
+
+- **A behaviour needs only the DOM and no pure function can be extracted from it.** There is no layer below e2e
+  for it, so it is written at e2e, as ADR-0038's consequences say. Extracting a pure function comes first where
+  one exists.
+- **An existing case fails the criterion.** ADR-0038 moves no existing case by itself, so that case is not a
+  defect.
+- **One case proves wiring and also asserts details.** It belongs in e2e for the wiring. Details a pure function
+  or the data layer can hold go there.
+
+## Testing Decisions
+
+Seams are ADR-0038's: the data layer, the contract, and e2e, with pure functions of the renderer unit tested.
+
+## Out of Scope
+
+- **A component-test layer below e2e: measured and not adopted.** Six e2e cases (the session page's question
+  list, expansion, day groups, Claude and Codex rich content, and the tab a project opens on) were moved on a
+  branch to tests that mount the real component tree over a fake `window.agentshed` whose payloads pass the real
+  contract, measured on one machine on 2026-11-05 against criteria set beforehand:
+  - **Detection, passed as parity.** On 57 injected renderer bugs chosen knowing the assertions, and 24 chosen
+    without seeing any test, the new tests and the old cases caught the same ones: all 57, and 5 of the 24.
+  - **Stability, passed.** 20 consecutive runs without a failure.
+  - **Time, failed.** 2.33 s against a limit of 2.05 s, one fifth of the 10.27 s of e2e replaced.
+  - **Lines, failed.** 585 lines of tests and harness against the 451 of e2e replaced.
+  - Real past changes went red as they should: the source from before #363 and before #357 failed the behaviours
+    each introduced. The behaviours of #363 took 72 lines of the new tests, against +139 −31 in the e2e case.
+
+  Reopened by a decision that sets new criteria, because most of the time and much of the lines are one-time
+  costs (the jsdom start and the harness) rather than per case; the measurement stands as its evidence.
+- Moving existing e2e cases to meet ADR-0038.
+- A budget on test file sizes, a rule for which e2e file a new case goes in, and splitting the largest spec.
+- Real-browser component tests.
+- Running e2e in parallel, and the cases that have failed repeatedly in CI.
+
+## Further Notes
+
+The thresholds in the pilot's criteria were that pilot's own, not an industry standard.

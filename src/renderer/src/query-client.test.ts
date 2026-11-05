@@ -1,5 +1,5 @@
 // query-client: the renderer's one QueryClient (ADR-0028). Pinning the options as data, not behaviour,
-// since there is no renderer component-test seam to observe refetch timing directly (ADR-0002).
+// since there is no renderer component-test seam to observe refetch timing directly (ADR-0038).
 import { describe, it, expect } from 'vitest'
 import { queryClientOptions } from './query-client'
 

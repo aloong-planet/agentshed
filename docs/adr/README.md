@@ -10,7 +10,7 @@ hard to reverse, baffling without context, and a real trade-off.
 | # | Decision | Status |
 |---|---|---|
 | [0001](0001-ipc-contract-single-source.md) | Single type source for the IPC contract, with runtime validation on both sides | Accepted |
-| [0002](0002-dual-seam-testing.md) | Dual-seam testing strategy (data-layer injection + IPC contract) | Accepted |
+| [0002](0002-dual-seam-testing.md) | Dual-seam testing strategy (data-layer injection + IPC contract) | Superseded by 0038 |
 | [0003](0003-token-accounting.md) | Token accounting rules | Superseded by 0005 |
 | [0004](0004-skill-install-by-copy.md) | Skills install by copy (symlinks rejected) | Accepted |
 | [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage (whole tree + dedup + four-field rule) | Accepted (cache-write clause superseded in part by 0023) |
@@ -46,4 +46,5 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Chinese and English; French, Spanish, Russian and Japanese are dropped before the first release | Accepted |
 | [0036](0036-injected-text-stays-a-question.md) | Text the agent tools write into a session as the user (compaction summaries, messages between agents, Codex's ambient state) stays a question | Accepted |
 | [0037](0037-antigravity-cli-as-fourth-agent-side.md) | Antigravity CLI as the fourth agent side: its trust ledger as registry, usage from its conversation databases counted once per call, a four-field total, `.agents/skills` shared with Codex | Accepted |
+| [0038](0038-test-layers.md) | Test layers: the data layer, the contract, and e2e as the UI's automated layer, admitting only what the assembled app alone can show | Accepted |
 | [0039](0039-archive-file-failure-stops-no-scan.md) | An archive file that cannot be written or read stops no scan: memory carries the figures, the disk keeps the last good file, and the user is told once per run | Accepted (the launch consequence amended 2026-11-05) |

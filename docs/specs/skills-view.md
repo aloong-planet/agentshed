@@ -1,6 +1,6 @@
 # Skills view
 
-> Related: [features/skills-view](../features/skills-view.md) · [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0002 · ADR-0004 · ADR-0010 · ADR-0037  
+> Related: [features/skills-view](../features/skills-view.md) · [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0038 · ADR-0004 · ADR-0010 · ADR-0037  
 > Status: **delivered** (prototype gate passed 2026-08-06; expand-to-preview + enumerate-and-read + inline package stats + `differs` removed + same-name override in detail). **Filtering by name and hover-for-full-name added 2026-08-10** (prototype gate passed the same day). **Listing at any depth added 2026-11-04** (prototype gate passed the same day).
 
 ## Problem Statement
@@ -585,7 +585,7 @@ Matching the current behaviour of
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam:
+Following ADR-0038's seams:
 
 1. **The providers / security seam**: tested on fixture directories — files listed at any depth, the
    inline stats matching the table, a link cycle repeating no file, extension filtering, junk directory skipping, symlink following, out-of-package path

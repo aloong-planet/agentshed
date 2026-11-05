@@ -2,7 +2,7 @@
 //
 // Extracted from index.ts for one reason only: to make these behaviours testable. They were previously
 // guaranteed only by the order of statements in index.ts,
-// and index.ts is the assembly layer, deliberately not unit tested per ADR-0002 — so an ordering
+// and index.ts is the assembly layer, deliberately not unit tested per ADR-0038 — so an ordering
 // requirement such as "set themeSource
 // before persisting" had no test that would go red. Turned into a factory taking injections, the same
 // behaviour can be driven

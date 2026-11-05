@@ -1,6 +1,6 @@
 # Plugins view
 
-> Related: [features](../features/plugins-view.md) · [skills-view](skills-view.md) (preview infrastructure) · ADR-0012 (preview decoupled from enablement) · ADR-0010 (plugin skills join the effective view) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0002 · ADR-0037 (Antigravity CLI side)
+> Related: [features](../features/plugins-view.md) · [skills-view](skills-view.md) (preview infrastructure) · ADR-0012 (preview decoupled from enablement) · ADR-0010 (plugin skills join the effective view) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
@@ -245,7 +245,7 @@ Settled during implementation (2026-10-29):
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam:
+Following ADR-0038's seams:
 1. **The providers seam**: fixture unit tests covering sequences E/F/G/H — several installation
    records, layered settings merging and corruption degradation, merging the four bundled categories,
    refusing path escapes, Codex cache enumeration with one unreadable layer, the namespaced join and

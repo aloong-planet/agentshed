@@ -1,7 +1,7 @@
 // The global Memory summary (spec: subagents-memory-plugin, sequence C):
 // metadata and the filename list enter the snapshot, contents do not (C8); the project registry is
 // authoritative (C5); Codex is probe-style (C6).
-// Known gaps: (1) the drawer's read paths are in the UI layer, not unit tested per ADR-0002; e2e covers the
+// Known gaps: (1) the drawer's read paths are in the UI layer, not unit tested per ADR-0038; e2e covers the
 //   normal read, an empty file and a file removed after the scan, while an allow-list refusal is only reached
 //   by removing a registration (no product path refuses a listed file);
 //   (2) D4's empty-state copy for a Codex-only project is likewise UI layer.

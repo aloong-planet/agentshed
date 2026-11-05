@@ -930,7 +930,7 @@ unrelated-setting preservation, failed/interrupted writes and late responses. Te
 these existing boundaries, not component state layout. The protocol and preference contract need
 extension; usage-cache/archive structures and provider accounting stay unchanged.
 
-Following ADR-0002's dual seam: fixture unit tests at the providers layer cover every side's parsing
+Following ADR-0038's seams: fixture unit tests at the providers layer cover every side's parsing
 rules, deduplication, the cache and the archive — one fixture per side, because the formulas
 deliberately differ and a shared fixture would let one side's rule stand in for another's. The
 reconciliation test is the guard against exactly that substitution. Adding a side also requires a case

@@ -1,6 +1,6 @@
 // project-detail-query: the query-layer wrapper around getProjectDetail (ADR-0028, spec project-detail
 // T10). Only fetchProjectDetail and the query key are unit-tested here — useProjectDetailQuery itself
-// wires useSuspenseQuery to window.agentshed and has no renderer component-test seam (ADR-0002).
+// wires useSuspenseQuery to window.agentshed and has no renderer component-test seam (ADR-0038).
 import { describe, it, expect } from 'vitest'
 import type { ProjectDetail } from '@shared/domain'
 import { fetchProjectDetail, projectDetailQueryKey } from './project-detail-query'

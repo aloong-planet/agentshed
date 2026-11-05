@@ -5,7 +5,7 @@ written for whoever is about to change that code.
 
 - **Invariants**: one document per feature, with **slugs corresponding one-to-one to
   `docs/features/`**, except a spec whose subject the feature catalogue leaves out (distribution, the
-  prototype pages), which has no entry there; it describes the present and is **rewritten in place** (no change history —
+  prototype pages, the test layers), which has no entry there; it describes the present and is **rewritten in place** (no change history —
   that lives in git); removing a feature deletes the file (in the same batch as its features entry).
 - **Why it persists**: "Failure modes and boundaries" is the only place in the whole documentation set
   that records *which boundaries this feature enumerated and which things are explicitly not done* —
@@ -42,6 +42,7 @@ written for whoever is about to change that code.
 | [mac-distribution](mac-distribution.md) | None: the feature catalogue leaves distribution out |
 | [prototype-pages](prototype-pages.md) | None: the feature catalogue leaves the prototypes out |
 | [landing-page](landing-page.md) | [Landing page](../features/landing-page.md) |
+| [test-layers](test-layers.md) | None: the feature catalogue leaves testing out |
 
 > Note on reconstruction: this directory was created on 2026-08-01 (when specs became persistent
 > artifacts). Specs for features predating that were discarded along with `.scratch/` and have been

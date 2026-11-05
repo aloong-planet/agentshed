@@ -5,7 +5,7 @@
 // an unconditional backfill pushes the new choice back to the old value — leaving the control and the
 // value actually in effect out of step,
 // with no self-healing. It is extracted as a pure function to make the rule testable: React components
-// themselves are not unit tested per ADR-0002.
+// themselves are not unit tested per ADR-0038.
 import type { Prefs } from '@shared/prefs'
 
 /** Preference field names. Derived with keyof rather than written out again as literals, so adding a

@@ -1,6 +1,6 @@
 # Agents overview
 
-> Related: [features](../features/agents-overview.md) · ADR-0001 (single type source) · ADR-0002 (dual seam) · ADR-0037 (Antigravity CLI side)
+> Related: [features](../features/agents-overview.md) · ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01. Each section's component-level requirements and boundaries live in its own
 > spec (subagents-view / memory-view / plugins-view / token-stats / skill-install); this document
@@ -407,7 +407,7 @@ until it carries it.
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam: fixture unit tests at the providers layer cover single-side absence
+Following ADR-0038's seams: fixture unit tests at the providers layer cover single-side absence
 and corruption degradation and snapshot assembly; the contract validation round trip; e2e covers that
 switching through every section renders with no main-process errors (adding a section requires
 updating the tab count assertion).

@@ -1,6 +1,6 @@
 # Project list
 
-> Related: [features](../features/projects-list.md) · ADR-0002 (dual seam) · ADR-0019 (what a registry is, per side) · ADR-0021 (side colour) · ADR-0022 (manual hiding removed) · ADR-0037 (Antigravity CLI side)
+> Related: [features](../features/projects-list.md) · ADR-0038 (test layers) · ADR-0019 (what a registry is, per side) · ADR-0021 (side colour) · ADR-0022 (manual hiding removed) · ADR-0037 (Antigravity CLI side)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the requirements and boundaries were inferred from features, the existing
 > test cases and the code's behaviour, since the original reasoning was lost with `.scratch/`. The
@@ -286,7 +286,7 @@ registrations follow A6 and project-detail's S6/S7 rather than retaining ghost l
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam: `ScanRoots` fixture unit tests at the providers layer cover the
+Following ADR-0038's seams: `ScanRoots` fixture unit tests at the providers layer cover the
 registry union, corruption degradation, path normalisation, activity attribution and subagent
 exclusion — with a fixture per side, since each side's registry and session layout differ while the
 resulting entries must not. The A7/A8 distinction (sessions without a registry record) needs its own

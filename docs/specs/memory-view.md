@@ -1,6 +1,6 @@
 # Memory view
 
-> Related: [features](../features/memory-view.md) · ADR-0001 (single type source) · ADR-0002 (dual seam) · ADR-0037 (Antigravity CLI side)
+> Related: [features](../features/memory-view.md) · ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
@@ -217,10 +217,10 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam: (1) fixture unit tests at the providers layer (covering sequence C:
+Following ADR-0038's seams: (1) fixture unit tests at the providers layer (covering sequence C:
 an empty directory, topics only, stale, registry leftovers, Codex's three states and the
 dotted-key form, degradation on a parse failure); (2) the contract validation round trip. The UI
-layer's drawer read paths are not unit tested (per ADR-0002 the UI is not unit tested); e2e covers the
+layer's drawer read paths are not unit tested (per ADR-0038 the UI is not unit tested); e2e covers the
 normal read, an empty file and a file removed after the scan.
 
 memory-view::US-001 is tested end to end on the built app (the highest seam; prior art: the skills-view
