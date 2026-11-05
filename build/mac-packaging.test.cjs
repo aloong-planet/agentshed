@@ -7,8 +7,9 @@
 // `main` runs real commands and is tested only for its argument and location checks and for the DMG gate checking the
 // artifact set before it runs any command: the hook path it derives and the DMG gate's loop over the selected DMGs
 // are covered only by a real release packaging run, which is also the only check of a real ZIP's extraction and of
-// the app inside it. The launch gate's decisions run against an injected launcher, and only launchApp, its adapter,
-// starts a real process (a shell script); whether a real app refuses is what a real packaging run shows.
+// the app inside it. The launch gate's decisions run against an injected launcher. Two things here do start a real process:
+// launchApp, its adapter, starts shell scripts, and one case runs the gate's generated program. Whether a real app refuses
+// is what a real packaging run shows.
 const { test, describe, afterEach } = require('node:test')
 const assert = require('node:assert/strict')
 const { spawnSync } = require('node:child_process')
