@@ -120,7 +120,7 @@ sessions, one per row, with "how many questions I asked in this conversation".
   the keyword lies too far in to be seen, the row starts shortly before it, after an ellipsis (or at the
   keyword itself when a long keyword leaves no room), and it is judged again when the window changes size
 - **Clicking a hit goes straight to** that question in that session: the session page opens scrolled
-  into position, the row holds a yellow highlight for about 10 seconds before fading, and a purple
+  into position once and then stays wherever you scroll it, the row holds a yellow highlight for about 10 seconds before fading, and a purple
   bar stays at the left edge to mark "this is the row you jumped to", disappearing when any question
   row is clicked; the sort toggle is the same one as in the session list and applies to hit groups too
 - Hits in fork replay copies and on abandoned branches **do not masquerade as results**: in full-text
