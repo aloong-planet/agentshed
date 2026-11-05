@@ -13,7 +13,7 @@ export default defineConfig({
     // The data layer and the contract validation are pure Node modules, depending on neither Electron nor
     // jsdom — the electron alias above keeps that true for modules that import it for their runtime half
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
     globals: false
   }
 })
