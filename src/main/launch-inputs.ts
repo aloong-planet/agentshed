@@ -22,3 +22,18 @@ export function refusedLaunchInputs(args: readonly string[], env: Readonly<Recor
   const variables = Object.keys(env).filter((name) => name === DEV_SERVER_URL || name.startsWith(SEAM_PREFIX))
   return [...switches, ...variables]
 }
+
+/** EX_USAGE: the packaging check tells a refusal from a crash by this code (mac-distribution::CON-008/AC-05) */
+const REFUSED_EXIT_CODE = 64
+
+/** What a launch has to do about its inputs: nothing from source, where e2e, smoke and development use their seams */
+export function launchRefusal(run: {
+  packaged: boolean
+  argv: readonly string[]
+  env: Readonly<Record<string, string | undefined>>
+}): { message: string; exitCode: number } | null {
+  if (!run.packaged) return null
+  const refused = refusedLaunchInputs(run.argv.slice(1), run.env)
+  if (refused.length === 0) return null
+  return { message: `Agentshed: an installed copy does not start with ${refused.join(', ')}.`, exitCode: REFUSED_EXIT_CODE }
+}

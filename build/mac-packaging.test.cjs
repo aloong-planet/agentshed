@@ -11,6 +11,7 @@
 // starts a real process (a shell script); whether a real app refuses is what a real packaging run shows.
 const { test, describe, afterEach } = require('node:test')
 const assert = require('node:assert/strict')
+const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
@@ -931,6 +932,7 @@ describe('the launch inputs a packaged app must refuse', () => {
       { args: ['--remote-debugging-port=0'], url: undefined },
       { args: ['-remote-debugging-port=0'], url: undefined },
       { args: ['--remote-debugging-pipe'], url: undefined },
+      { args: ['--type='], url: undefined },
       { args: ['--gpu-launcher=<program>'], url: undefined },
       { args: ['--renderer-cmd-prefix=<program>'], url: undefined },
       { args: ['--utility-cmd-prefix=<program>'], url: undefined },
@@ -942,6 +944,8 @@ describe('the launch inputs a packaged app must refuse', () => {
     const dirs = calls.map(({ args }) => args.find((arg) => arg.startsWith('--user-data-dir=')))
     assert.ok(dirs.every(Boolean), 'every launch names a settings directory, so none touches the real one')
     assert.equal(new Set(dirs).size, calls.length)
+    // A guard that skips the first argument must not pass by finding the settings directory there
+    for (const { args } of calls) assert.ok(args.at(-1).startsWith('--user-data-dir='), args.join(' '))
   })
 
   test('the app is given only a small environment, never the signing and Apple secrets', () => {
@@ -955,6 +959,7 @@ describe('the launch inputs a packaged app must refuse', () => {
     const { calls, launch } = launcher(({ args }) => (args.some((arg) => arg === '--remote-debugging-pipe') ? { exited: false } : undefined))
     assert.throws(() => check(launch), { message: /Demo\.app did not refuse --remote-debugging-pipe: it was still running at the limit/ })
     assert.equal(calls.length, 3, 'the first input it does not refuse ends the check')
+    assert.equal(calls.at(-1).args[0], '--remote-debugging-pipe')
   })
 
   for (const [name, result, shown] of [
@@ -963,7 +968,7 @@ describe('the launch inputs a packaged app must refuse', () => {
     ['crashes', { exited: true, status: null, signal: 'SIGTRAP' }, 'it ended on SIGTRAP']
   ]) {
     test(`an app that ${name} on an input has not refused it`, () => {
-      const { launch } = launcher(({ args }) => (args[1] === '--remote-debugging-port=0' ? result : undefined))
+      const { launch } = launcher(({ args }) => (args[0] === '--remote-debugging-port=0' ? result : undefined))
       assert.throws(() => check(launch), (error) => {
         assert.match(error.message, /did not refuse --remote-debugging-port/)
         assert.ok(error.message.includes(shown), error.message)
@@ -974,12 +979,15 @@ describe('the launch inputs a packaged app must refuse', () => {
   }
 
   test('a program named on the command line that ran fails the packaging, even when the app then exits 64', () => {
+    // The real generated program, run the way a launcher prefix is: it records that it ran, then does what it is asked
+    let ran = null
     const { launch } = launcher(({ args }) => {
       const named = args.find((arg) => arg.startsWith('--gpu-launcher='))
-      if (named) fs.writeFileSync(`${named.slice('--gpu-launcher='.length)}.ran`, '')
+      if (named) ran = spawnSync(named.slice('--gpu-launcher='.length), ['/bin/sh', '-c', 'exit 7'])
       return undefined
     })
     assert.throws(() => check(launch), { message: /Demo\.app ran the program named by --gpu-launcher/ })
+    assert.equal(ran.status, 7, 'the program goes on to run what it is given')
   })
 
   for (const [name, result, shown] of [
@@ -994,6 +1002,34 @@ describe('the launch inputs a packaged app must refuse', () => {
         assert.ok(error.message.includes(shown), error.message)
         return true
       })
+    })
+  }
+
+  for (const [outcome, answer, message] of [
+    ['passed', () => undefined, null],
+    ['failed', () => ({ exited: false }), /did not refuse/]
+  ]) {
+    test(`a temporary directory that cannot be fully removed leaves the outcome of a check that ${outcome} as it is`, () => {
+      let locked = null
+      const { launch } = launcher(({ args }) => {
+        if (!locked) {
+          // A read-only directory with a file in it, which makes removing the temporary directory throw
+          locked = path.join(args.at(-1).slice('--user-data-dir='.length), 'locked')
+          fs.mkdirSync(locked)
+          fs.writeFileSync(path.join(locked, 'file'), '')
+          fs.chmodSync(locked, 0o555)
+        }
+        return answer()
+      })
+      try {
+        if (message) assert.throws(() => check(launch), { message })
+        else check(launch)
+        // The removal did fail, so the case exercised what it is named for
+        assert.equal(fs.existsSync(locked), true)
+      } finally {
+        fs.chmodSync(locked, 0o755)
+        fs.rmSync(path.dirname(path.dirname(locked)), { recursive: true, force: true })
+      }
     })
   }
 
@@ -1045,8 +1081,9 @@ describe('the launch inputs a packaged app must refuse', () => {
       const { commands, run } = buildRunner(outputDir)
       const passing = launcher()
       pkg(outputDir, run, profile, env, false, passing.launch)
-      assert.ok(passing.calls.length > 0)
-      assert.ok(passing.calls.every(({ binary }) => /\/mac-(arm64|universal)\/Demo\.app\//.test(binary)), 'only the apps an arm64 machine can run')
+      const launched = new Set(passing.calls.map(({ binary }) => /\/(mac[^/]*)\/Demo\.app\//.exec(binary)[1]))
+      assert.deepEqual([...launched].sort(), ['mac-arm64', 'mac-universal'], 'every app an arm64 machine can run, and only those')
+      assert.equal(passing.calls.length, 2 * 10, 'each of them gets all nine inputs and the plain launch')
 
       const failedDir = tempDir()
       const failed = buildRunner(failedDir)

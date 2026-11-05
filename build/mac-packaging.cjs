@@ -289,8 +289,10 @@ const LAUNCH_ENV = ['HOME', 'PATH', 'TMPDIR', 'USER', 'LOGNAME', 'LANG']
 /**
  * The inputs tried. The switches are the ones measured to open the debugging port or to run a program on a notarized
  * build (or to crash it), and a made-up one that only an allow-list refuses, since Chromium's switches are no fixed list.
- * The variable is the URL the common Electron templates load in development; a project's own test seams are its own
- * unit tests' to cover.
+ * An empty --type reaches the main process as any other launch does; with a process type's name, --type never reaches it,
+ * because Chromium reads that first, and a build started that way by hand crashes with or without a guard, so it is not
+ * tried. The variable is the URL the common Electron templates load in development; a project's own test seams are its
+ * own unit tests' to cover.
  */
 function launchInputs(program) {
   const named = (input) => ({ name: input.split('=')[0], args: [input] })
@@ -298,6 +300,7 @@ function launchInputs(program) {
     named('--remote-debugging-port=0'),
     named('-remote-debugging-port=0'),
     named('--remote-debugging-pipe'),
+    named('--type='),
     named(`--gpu-launcher=${program}`),
     named(`--renderer-cmd-prefix=${program}`),
     named(`--utility-cmd-prefix=${program}`),
@@ -352,7 +355,8 @@ function checkLaunchInputs(apps, { productName, env = process.env, launch = laun
     for (const { app } of runnable) {
       const binary = path.join(app, 'Contents', 'MacOS', productName)
       for (const input of launchInputs(program)) {
-        const result = launch(binary, [settings(), ...input.args], { ...inherited, ...input.env }, REFUSAL_LIMIT_MS)
+        // The input comes first: a guard that skips the first argument must not pass by finding the settings directory there
+        const result = launch(binary, [...input.args, settings()], { ...inherited, ...input.env }, REFUSAL_LIMIT_MS)
         if (fs.existsSync(ran)) throw new Error(`${productName}.app ran the program named by ${input.name}`)
         if (!result.exited || result.signal || result.status !== REFUSED_EXIT_CODE) {
           throw new Error(

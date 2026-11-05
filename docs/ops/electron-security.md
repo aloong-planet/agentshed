@@ -9,8 +9,9 @@ verified**.
 - Partial re-pass: **2026-10-14**, for app updates (ADR-0032) — the main process's first outbound request
   and two new IPC channels; items 1, 7, 17 and 20 re-checked
 - Partial re-pass: **2026-11-05**, for launch inputs (ADR-0042) — item 21 added
-- When to redo: changing the main process's window / session / protocol / IPC configuration, upgrading
-  Electron's major version, or introducing a new "render someone else's content" capability
+- When to redo: changing the main process's window / session / protocol / IPC configuration, the main process
+  reading a new environment variable or switch, upgrading Electron's major version, or introducing a new
+  "render someone else's content" capability
 
 | # | Item | Status here | Location / verification |
 |---|---|---|---|

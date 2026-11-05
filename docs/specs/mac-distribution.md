@@ -188,7 +188,7 @@ not a packaged build.
 - mac-distribution::CON-008/AC-01: A launch carrying a command-line switch other than the settings directory's
   (`--user-data-dir`) exits with code 64 before anything loads: no window opens, no program named on the command line runs and
   no debugging port answers. Any spelling Chromium's command line accepts counts, one dash or two, whether or not the switch
-  is one anybody knows.
+  is one anybody knows. The one exception is `--type` naming a process type (Failure F10).
 - mac-distribution::CON-008/AC-02: A launch whose environment holds the development server's URL (`ELECTRON_RENDERER_URL`) or
   any test seam (`AGENTSHED_*`) does the same, whatever the value.
 - mac-distribution::CON-008/AC-03: The refusal is said on standard error, naming each refused input without its value. There
@@ -284,6 +284,10 @@ not a packaged build.
   no built app can run there, the packaging fails rather than passing unchecked.
 - F9 The plain launch in the packaging check is killed at its limit. It has its own temporary settings directory, so it
   touches no real settings and meets no running copy's single-instance lock.
+- F10 `--type` naming a process type is read by Chromium before any JavaScript, so it never reaches the guard and no exit 64
+  comes. Started by hand, such a process has no parent to talk to and crashes, with or without the guard: measured for
+  `gpu-process`, `renderer`, `utility`, `zygote`, `browser` and an unknown name, each alone and beside the switches that open a
+  port or name a program, and none opened a port or ran a program. An empty `--type=` does reach the guard, and is refused.
 
 ## Implementation Decisions
 
@@ -350,10 +354,12 @@ not a packaged build.
   publish or touch the mirror, and that the mirror and pointer jobs depend on the gate job. It evaluates each
   condition with GitHub's published expression evaluator against the documented contexts of each trigger, and
   runs with the script tests. This is a regression guard only, and does not replace a real run.
-- **The launch guard's decision** is tested as a pure function against its bypass vectors, at the unit level. Its wiring cannot
-  be: an unpackaged run never reaches it, so the packaging check on the built app is what holds it, and a pull request that
-  breaks the wiring goes red only at the next packaging, before anything is published. The check's own decisions are tested in
-  the asset's tests against an injected launcher, and its adapter against a real process.
+- **The launch guard's decision** is tested as a pure function against its bypass vectors, at the unit level, including which
+  argument it starts from and the sentence it says. Its three lines of wiring cannot be: an unpackaged run never reaches them, so
+  the packaging check on the built app holds the exit code, and a pull request that breaks them goes red only at the next
+  packaging, before anything is published. The check does not read standard error, so the sentence on a real package is checked
+  by hand. The check's own decisions are tested in the asset's tests against an injected launcher, its adapter against a real
+  process, and its generated program by running it.
 - **The publish step** is tested against a model of the repository's releases standing in for GitHub, which
   records every state in which a release is public, so "never public with part of the set" is asserted over all
   of them, and an artifact without each of its update files is refused before the model is touched; its adapter to

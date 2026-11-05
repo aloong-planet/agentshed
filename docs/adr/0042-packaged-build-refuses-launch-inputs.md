@@ -16,6 +16,8 @@ launched by a process running as the same user, against temporary directories:
 | `--gpu-launcher=<program>` | Ran the program |
 | `ELECTRON_RENDERER_URL=<url>` | Loaded the URL in the window, trusted its IPC, and gave it the preload's 41 methods |
 | `--renderer-cmd-prefix`, `--utility-cmd-prefix` | Ran nothing, and crashed |
+| `--type=`, empty, beside the port switch | Reached the main process like any launch, and opened the port |
+| `--type=<process type>` | Crashed: Chromium reads it before any JavaScript, and a child with no parent cannot start. Opened nothing |
 
 `--gpu-launcher` turned up only by trying a few more switches, not from any list: Chromium's switches are not a published
 contract. The helper executable, run directly with the port switch, opened the port too. The app also read eleven
@@ -64,6 +66,8 @@ between the app and that check, so a crash never passes for a refusal.
 - Negative: if a future macOS added an argument of its own to every launch, the app would refuse to open, and the packaging
   check would not show it, because it starts the process directly. Measured on macOS 26: `open` passes only what it is given,
   and the updater's relaunch passes nothing. A launch through `open` is part of checking a package by hand.
+- Neutral: `--type` naming a process type gets no exit 64, since nothing of ours runs. It crashes the same with or without the
+  guard, and the packaging check does not try it.
 - Neutral: a copy of the bundle with its executable renamed would read as unpackaged (not measured), but its signature no
   longer holds, so it is no longer the app macOS trusts. A symlink does not, and neither does a helper executable run directly: measured, each still reads as packaged, and refuses.
 
