@@ -2613,7 +2613,7 @@ test('session page (Codex, cold rollout): a .jsonl.zst session is listed, counte
 // Ticket 08: session search — questions by default, the full-text toggle, hits grouped, and going straight
 // to a question.
 // Input uses fill() (setting the value through CDP without depending on window focus semantics; the
-// :focus assertion boundary noted in this file's header
+// :focus assertion boundary noted on launch in support/launch.ts
 // does not apply to this case).
 test('session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question', async () => {
   const l = await launch(undefined, mkUsageHome())
@@ -2717,7 +2717,7 @@ test('the archive: a seeded historical archive file → the trend includes an ar
   // is always cold, so the first-paint time follows each person's data volume. CI stayed green because its
   // home is empty, while locally with 600MB+
   // of data it failed two runs out of three (2026-08-03, ticket 03a).
-  // This one slipped past the discipline stated at the top of this file — it did not go through launch()
+  // This one slipped past the discipline stated on launch in support/launch.ts — it did not go through launch()
   // and called electron.launch directly.
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],

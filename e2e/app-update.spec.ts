@@ -37,7 +37,7 @@ const launchEnv = (f: Fixture): Record<string, string> => ({
   AGENTSHED_UPDATE_SCRIPT: f.script
 })
 /** `followAppearance`: Playwright pins prefers-color-scheme to light unless told not to, and then a mode
- *  switch never reaches the renderer (see launchAppearance in app.spec.ts) */
+ *  switch never reaches the renderer (see launchAppearance in support/launch.ts) */
 function launch(f: Fixture, opts: { followAppearance?: boolean } = {}): Promise<ElectronApplication> {
   return electron.launch({
     args: ['.', `--user-data-dir=${f.userData}`],

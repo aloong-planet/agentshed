@@ -22,7 +22,7 @@ interface Launched {
   userData: string
 }
 
-/** The same launcher as app.spec.ts: an isolated userData, a fixture home, the window not shown, English */
+/** The same launcher as support/launch.ts: an isolated userData, a fixture home, the window not shown, English */
 async function launch(
   home: string,
   extraEnv: Record<string, string> = {},
