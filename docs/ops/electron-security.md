@@ -9,9 +9,11 @@ verified**.
 - Partial re-pass: **2026-10-14**, for app updates (ADR-0032) — the main process's first outbound request
   and two new IPC channels; items 1, 7, 17 and 20 re-checked
 - Partial re-pass: **2026-11-05**, for launch inputs (ADR-0042) — item 21 added
+- Partial re-pass: **2026-11-06**, item 21 again (ADR-0042 amended): a switch after whitespace got past the guard of
+  v0.1.0-beta.7, so arguments are now compared as given
 - When to redo: changing the main process's window / session / protocol / IPC configuration, the main process
-  reading a new environment variable or switch, upgrading Electron's major version, or introducing a new
-  "render someone else's content" capability
+  reading a new environment variable or switch, upgrading Electron's major version, introducing a new
+  "render someone else's content" capability, or adding a packaging platform
 
 | # | Item | Status here | Location / verification |
 |---|---|---|---|
@@ -35,7 +37,7 @@ verified**.
 | **18** | Avoid file:// | ✅ The renderer page runs on `app://bundle` | `app-protocol.ts`; unit tests cover encoded traversal; e2e asserts the packaged build's URL starts with `app://` |
 | **19** | Fuses | ✅ **7 of them** (including disabling `grantFileProtocolExtraPrivileges`) | `electron-builder.yml electronFuses`; `scripts/check-fuses.mjs` validates by **reading the built binary** |
 | 20 | No raw API exposure in preload | ✅ Exposes wrapper functions, discarding `IpcRendererEvent` in callbacks | `preload/index.ts` (verified, no changes needed) |
-| **21** | No launch input steers a packaged build (beyond the official list) | ✅ Exit code 64 before anything loads, on any switch outside the allow-list, the development server's URL or an `AGENTSHED_*` seam | `launch-inputs.ts` (decision) and `launch-guard.ts` (first import of main); unit tests cover the bypass vectors; the packaging asset launches the built app in both profiles |
+| **21** | No launch input steers a packaged build (beyond the official list) | ✅ Exit code 64 before anything loads, on any argument other than the exact spelling of an accepted one, the development server's URL or an `AGENTSHED_*` seam in any case | `launch-inputs.ts` (decision) and `launch-guard.ts` (first import of main); unit tests cover the bypass vectors; the packaging asset launches the built app in both profiles |
 
 ## The gates put in place (the tools are unreliable — these are the defence)
 

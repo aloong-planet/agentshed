@@ -185,14 +185,16 @@ not copy the policy.
 Applies to: every launch of a packaged build, from either profile (ADR-0042). A run from source (development, e2e, smoke) is
 not a packaged build.
 
-- mac-distribution::CON-008/AC-01: A launch carrying a command-line switch other than the settings directory's
-  (`--user-data-dir`) exits with code 64 before anything loads: no window opens, no program named on the command line runs and
-  no debugging port answers. Any spelling Chromium's command line accepts counts, one dash or two, whether or not the switch
-  is one anybody knows. The one exception is `--type` naming a process type (Failure F10).
+- mac-distribution::CON-008/AC-01: A launch carrying any argument other than the settings directory's, written exactly as
+  `--user-data-dir=<path>`, exits with code 64 before anything loads: no window opens, no program named on the command line
+  runs and no debugging port answers. Every argument counts, switch or not, whether or not it is one anybody knows, and only
+  the exact spelling of an accepted one passes: the guard does not read the command line the way Chromium does (ADR-0042).
+  The exceptions are a `-psn_` token (Failure F3) and `--type` naming a process type (Failure F10).
 - mac-distribution::CON-008/AC-02: A launch whose environment holds the development server's URL (`ELECTRON_RENDERER_URL`) or
-  any test seam (`AGENTSHED_*`) does the same, whatever the value.
-- mac-distribution::CON-008/AC-03: The refusal is said on standard error, naming each refused input without its value. There
-  is no dialog.
+  any test seam (`AGENTSHED_*`) does the same, whatever the value and whatever the case of the name (ADR-0042).
+- mac-distribution::CON-008/AC-03: The refusal is said on standard error, naming each refused input without its value: a
+  switch by its name, read past any leading whitespace and up to its `=`, and an argument that is not a switch only as such,
+  without its text. There is no dialog.
 - mac-distribution::CON-008/AC-04: A launch with neither opens as it always has: from Finder, the Dock or `open`, on the
   updater's relaunch, and with only the settings directory.
 - mac-distribution::CON-008/AC-05: Every packaging, in either profile, launches the built app with inputs it must refuse and
@@ -270,7 +272,8 @@ not a packaged build.
 
 - F1 A switch nobody has listed, including one a later Chromium adds: refused, since the allow-list names what is accepted
   (mac-distribution::CON-008/AC-01).
-- F2 `--` is switch-shaped and refused. An argument with no leading dash is not a switch, and is ignored as before.
+- F2 `--`, and an argument with no leading dash such as a file path, are refused. No launch of the app carries one: Finder,
+  the Dock and `open` pass none, and neither does the updater's relaunch (ADR-0042).
 - F3 A `-psn_` argument, which older macOS launches carried: accepted. It is not a Chromium switch, and refusing it would
   stop the app opening.
 - F4 A launch through a symlink, named `electron` or anything else, or of a helper executable run directly: each still reads
@@ -288,6 +291,9 @@ not a packaged build.
   comes. Started by hand, such a process has no parent to talk to and crashes, with or without the guard: measured for
   `gpu-process`, `renderer`, `utility`, `zygote`, `browser` and an unknown name, each alone and beside the switches that open a
   port or name a program, and none opened a port or ran a program. An empty `--type=` does reach the guard, and is refused.
+- F11 An argument close to an accepted one: a switch after leading whitespace, which Chromium trims away before it reads the
+  switch; `--user-data-dir` with no value, in another case, or after one dash; a `-psn_` token after whitespace. Each is refused,
+  since only the exact spelling passes (mac-distribution::CON-008/AC-01).
 
 ## Implementation Decisions
 
@@ -337,7 +343,8 @@ not a packaged build.
 - **The launch guard** runs first in the main process, gated on the build being packaged, and exits while the module loads:
   at that point the debugging server has not started and no other process has (measured on Electron 43.2.0), and `app.exit`
   ends the process there and then, so nothing after it runs. Its decision is a pure function over the arguments and the
-  environment. The check of mac-distribution::CON-008/AC-05 lives in the packaging asset, and exit code 64 is the contract between
+  environment, which compares each argument with the accepted spellings as it was given, without trimming or parsing it. The
+  check of mac-distribution::CON-008/AC-05 lives in the packaging asset, and exit code 64 is the contract between
   the two.
 - **The README change** ships in the same change as the first release, in both languages. The
   instructions point to the landing page and to GitHub Releases, give the same requirements the landing

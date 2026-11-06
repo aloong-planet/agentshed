@@ -51,8 +51,9 @@ a retried "does not appear" check cannot prove absence.
 - A record that must describe the installed copy alone is never read or written by a development run,
   because `agentshed` and `Agentshed` resolve to one userData directory on a case-insensitive volume
   (app-update spec, Implementation Decisions).
-- A packaged build exits before anything loads when a launch carries a switch outside its allow-list or a test seam, and a
-  new seam takes the `AGENTSHED_` prefix so that the refusal covers it (ADR-0042, mac-distribution::CON-008).
+- A packaged build exits before anything loads when a launch carries an argument other than an accepted spelling, compared as
+  given, or a test seam in any case, and a new seam takes the `AGENTSHED_` prefix so that the refusal covers it (ADR-0042,
+  mac-distribution::CON-008).
 
 ### Navigation and rendering
 

@@ -102,6 +102,7 @@ the launch through `open` is what that check cannot do, since it starts the proc
 APP=release/<version>/mac-arm64/Agentshed.app
 BIN="$APP/Contents/MacOS/Agentshed"
 "$BIN" --remote-debugging-port=9222; echo $?            # 64, and a sentence on stderr naming the switch
+"$BIN" ' --remote-debugging-port=9222'; echo $?          # 64 too: an argument is compared as given
 AGENTSHED_HOME_OVERRIDE=/tmp "$BIN"; echo $?            # 64, naming the variable
 D=$(mktemp -d) && open -n "$APP" --args --user-data-dir="$D"   # opens its window; ps shows only that argument
 ```
