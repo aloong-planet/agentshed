@@ -51,6 +51,17 @@ carries a switch other than `--user-data-dir` or an environment variable that is
 `--user-data-dir` stays because it only moves where the settings live and runs nothing, and it lets a packaged build be
 started without touching the real settings.
 
+> **Amended (2026-11-06)**: every argument counts, not only a switch, and only the exact spelling of an accepted one passes:
+> `--user-data-dir=<path>`, and a `-psn_` token. Everything else is refused, an argument with no dash included. The guard as
+> first shipped took an argument for a switch when it began with a dash, and Chromium trims whitespace from each argument
+> before it reads it: measured on the notarized v0.1.0-beta.7, `--remote-debugging-port=0` after a space, or after a tab, got
+> past the guard and the port opened. Chromium's reading also differs by platform, per its `base/command_line.cc`: on Windows
+> a slash starts a switch too, and a switch's name is lowercased. Rejected: teaching the guard Chromium's reading (trim, then
+> the platform's prefixes), since it fails again at the next difference nobody has read. Cost: an argument the app has no use
+> for, such as a file path, is refused too, and no launch of the app carries one (Consequences, on `open` and the updater).
+> For the same reason an environment variable's name is compared in any case: Windows reads the environment that way, per
+> Node's documentation, and macOS does not, so on macOS this refuses only names nobody sets.
+
 The refusal is checked on the real package, since an unpackaged run never reaches it: every packaging, in either profile,
 launches the built app with inputs it must refuse and then with only its settings directory. The check lives in
 electron-scaffold's packaging asset, so a project using the asset cannot ship this door. The exit code is the contract

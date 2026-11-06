@@ -43,6 +43,11 @@ describe('the launch inputs a packaged build refuses (mac-distribution::CON-008)
     expect(refusedLaunchInputs([arg], {})).toEqual([name])
   })
 
+  // The two arguments that got past the guard of v0.1.0-beta.7 and opened the port: Chromium trims each argument first
+  it.each([' --remote-debugging-port=0', '\t--remote-debugging-port=0'])('refuses a switch after leading whitespace, named past it: %j', (arg) => {
+    expect(refusedLaunchInputs([arg], {})).toEqual(['--remote-debugging-port'])
+  })
+
   it('refuses an empty --type, which reaches the main process as any other launch does', () => {
     expect(refusedLaunchInputs(['--type='], {})).toEqual(['--type'])
   })
@@ -51,9 +56,17 @@ describe('the launch inputs a packaged build refuses (mac-distribution::CON-008)
     expect(refusedLaunchInputs(['--a=1', '--user-data-dir=/tmp/x', '--b'], {})).toEqual(['--a', '--b'])
   })
 
-  it('refuses the end-of-switches marker, and not an argument with no dash', () => {
+  it('refuses the end-of-switches marker, and an argument with no dash, named only as such', () => {
     expect(refusedLaunchInputs(['--'], {})).toEqual(['--'])
-    expect(refusedLaunchInputs(['/tmp/some-file'], {})).toEqual([])
+    expect(refusedLaunchInputs(['/tmp/some-file'], {})).toEqual(['an argument that is not a switch'])
+  })
+
+  it.each([
+    ['--user-data-dir', '--user-data-dir'],
+    [' --user-data-dir=/tmp/x', '--user-data-dir'],
+    [' -psn_0_1', '-psn_0_1']
+  ])('refuses what is close to an accepted argument but not its exact spelling: %j', (arg, name) => {
+    expect(refusedLaunchInputs([arg], {})).toEqual([name])
   })
 
   it('accepts the token older macOS launches carried', () => {
@@ -65,6 +78,10 @@ describe('the launch inputs a packaged build refuses (mac-distribution::CON-008)
   })
 
   it.each(['AGENTSHED_HOME_OVERRIDE', 'AGENTSHED_UPDATE_SCRIPT', 'AGENTSHED_A_SEAM_NOT_WRITTEN_YET'])('refuses a test seam by its prefix: %s', (name) => {
+    expect(refusedLaunchInputs([], { [name]: '1' })).toEqual([name])
+  })
+
+  it.each(['agentshed_home_override', 'electron_renderer_url'])('refuses a seam or the development URL whatever the case of its name: %s', (name) => {
     expect(refusedLaunchInputs([], { [name]: '1' })).toEqual([name])
   })
 
@@ -108,5 +125,11 @@ describe('what a launch does about its inputs (mac-distribution::CON-008)', () =
     expect(launchRefusal({ packaged: true, argv: ['/x/Agentshed', '--a=/Users/a/secret', '--user-data-dir=/tmp/x'], env: { AGENTSHED_HOME_OVERRIDE: '/Users/a/secret' } })?.message).toBe(
       'Agentshed: an installed copy does not start with --a, AGENTSHED_HOME_OVERRIDE.'
     )
+  })
+
+  it('says an argument that is not a switch without its text', () => {
+    const message = launchRefusal({ packaged: true, argv: ['/x/Agentshed', '/Users/a/secret/file'], env: {} })?.message
+    expect(message).toBe('Agentshed: an installed copy does not start with an argument that is not a switch.')
+    expect(message).not.toContain('secret')
   })
 })
