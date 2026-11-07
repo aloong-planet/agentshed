@@ -90,10 +90,8 @@ a retried "does not appear" check cannot prove absence.
   unloaded run is a defect.
 - An e2e case starts its app through `startApp` (`e2e/support/launch.ts`); `pnpm lint` fails on any other static import of
   Playwright's Electron launcher under `e2e/` (test-layers::US-004).
-- An e2e case goes in the file named after the `docs/features/` document whose rule it asserts, or in the
-  lifecycle file when it is about how the app starts, refreshes or keeps its cache; moving between pages
-  makes no home of its own (ADR-0041).
-- A helper that cases of two or more features use lives in `e2e/support/` and is imported, never copied; one
-  that a single feature uses stays in that feature's file (ADR-0041).
+- A feature's e2e cases go in `e2e/<feature slug>.spec.ts`, or `e2e/<feature slug>-<sub-topic>.spec.ts` for a
+  split, and a case about how the app starts, refreshes or keeps its cache in `e2e/lifecycle.spec.ts` (ADR-0041).
+- Shared e2e helpers live in `e2e/support/` (ADR-0041).
 - Every workflow action is pinned as `owner/repo@<40-hex commit> # v<x.y.z>`, at the same commit in every
   workflow; `scripts/workflow-actions.test.mjs` enforces the form.
