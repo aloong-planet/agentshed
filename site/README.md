@@ -44,6 +44,10 @@ files), which is why CI installs the site's dependencies before linting.
   retake 2026-10-21). The memory, search and English session cuts show made-up data (the English session
   retaken 2026-11-09). They change only by retaking them from the app, at the same sizes (the hero
   2560×1536, every feature cut 1840×1035).
+- `public/media/agentshed-intro-poster.jpg`: the English hero's approved 1600×900 poster. The 67.1-second
+  walkthrough is hosted at https://youtu.be/lQ-Bg8nXJKM; its MP4 is not checked in. `src/scripts/hero-video.ts`
+  loads the privacy-enhanced YouTube iframe only after activation, while the poster and the separate
+  “Watch on YouTube” link work without scripts. Narration and music are part of the uploaded video.
 - `public/icon-64.png`, `public/icon-256.png`: the app icon, scaled from `build/icon.png`:
   `sips -z 64 64 build/icon.png --out site/public/icon-64.png` (and 256 for the other), from the repository
   root.

@@ -24,8 +24,11 @@ can be read. It prototypes the landing page feature (`landing-page`).
   progress dots and no hint to scroll. On a phone the steps stack, each screenshot under its text.
 - **The six steps** take one form, in the order the owner confirmed: the overview, what each project has, what
   the agents remember, token usage and trends, sessions revisited, search across projects. Each screenshot is a
-  cut of the app screen its image's alt text names; the hero's screenshot is the whole app window, with the
+  cut of the app screen its image's alt text names; the Chinese hero's screenshot is the whole app window, with the
   Search item in its rail.
+- **The English hero media** occupies the existing screenshot frame. A poster is shown before playback;
+  the visitor selects “Watch demo” to load the YouTube player and start the narrated walkthrough. No YouTube
+  player loads before that action. A separate “Watch on YouTube” link remains available. The Chinese hero keeps its screenshot.
 - **The language toggle** (中文 / EN, at the right of the header) is part of the design: the landing page's own
   switch between its two languages, Chinese and English. It is not demo scaffolding and does not follow the
   gallery's interface-language setting.
