@@ -13,7 +13,10 @@ explains the install, and always offers whichever release exists, without being 
 - The header stays at the top while scrolling: the app's icon and name, links to the Features, Install
   and Download sections and to GitHub (hidden on narrow screens), and the language toggle
 - The hero shows the app icon, a title and a one-paragraph description, the download button with
-  "macOS 12 or later · Apple Silicon" beneath it, and a screenshot of the whole app window
+  "macOS 12 or later · Apple Silicon" beneath it, and an English walkthrough video or a Chinese screenshot of the whole app window
+- The English walkthrough shows a poster until “Watch demo” is selected. It then loads YouTube and
+  starts playback when the browser allows it, with inline and fullscreen controls. “Watch on YouTube”
+  stays available; without scripts, the poster also opens YouTube directly
 - The download button offers the release that exists:
   - when a stable version exists, "Download Agentshed <version>" downloads its disk image directly, with
     a link to every version on GitHub beneath it
@@ -40,6 +43,7 @@ explains the install, and always offers whichever release exists, without being 
 - Links to GitHub open in a new tab; a direct download starts in place
 
 ## Boundaries and non-goals
+- Watching the walkthrough requires access to YouTube; a playback problem does not prevent downloading the app
 - Chinese and English only
 - One download only: the disk image for Macs with Apple Silicon on macOS 12 or later. There is no Intel,
   Windows or Linux download

@@ -60,11 +60,12 @@ const t = ui[locale]
       </div>
     </footer>
     <script>
-      // The features section, then the language switch, which may scroll back to the visitor's place and set
-      // the current step
+      import { initHeroVideo } from '../scripts/hero-video'
       import { initDownload } from '../scripts/download'
       import { initFeatures } from '../scripts/features'
       import { initLanguageSwitch } from '../scripts/language-switch'
+      initHeroVideo()
+      // Initialize features before the language switch, which may restore the visitor's current step.
       initFeatures()
       initLanguageSwitch()
       // Should anything fail before a state is shown, the page stays in the list state it was served in, which is a

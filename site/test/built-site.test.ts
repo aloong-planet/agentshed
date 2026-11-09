@@ -5,7 +5,8 @@
 //
 // Not covered here, by the seam the owner chose: the features section's pinned showcase and how the scroll
 // turns its steps (landing-page::REQ-004, Failures C1–C3 and C5–C7), the layout across widths (landing-page::QR-001), and
-// what the page looks like in light and dark (landing-page::REQ-006, Failure D1). They are measured in a browser
+// what the page looks like in light and dark (landing-page::REQ-006, Failure D1), and YouTube playback and click-to-load geometry.
+// They are measured in a browser
 // against the built site, and the measurement record is kept with the ticket's evidence; they would become tests
 // only with a browser seam in these tests.
 import { readdirSync, readFileSync } from 'node:fs'
@@ -124,13 +125,26 @@ describe('the download as served: the list state', () => {
 })
 
 describe('the sections', () => {
-  test.each(LOCALES)('%s: the hero has the icon, the title, a paragraph, the button and the whole window', (locale) => {
+  test.each(LOCALES)('%s: the hero introduces the app with the media for its language', (locale) => {
     const hero = pages[locale].getElementById('top')
     expect(hero?.querySelector('img.icon')?.getAttribute('src')).toMatch(/^\/icon-\d+\.png$/)
     expect(text(hero?.querySelector('h1'))).toBe(ui[locale].hero.title)
     expect(text(hero?.querySelector('p'))).toBe(ui[locale].hero.lede)
     expect(hero?.querySelector('.cta a.btn')).not.toBeNull()
-    expect(hero?.querySelector('.shot img')?.getAttribute('src')).toBe(`/shots/hero-${locale}.png`)
+    if (locale === 'en') {
+      const play = hero?.querySelector('.hero-video-play')
+      expect(play?.getAttribute('href')).toBe('https://www.youtube.com/watch?v=lQ-Bg8nXJKM')
+      expect(play?.getAttribute('aria-label')).toBe('Watch demo · 1:07')
+      expect(play?.getAttribute('data-video-title')).toBe('Agentshed product walkthrough')
+      expect(play?.querySelector('img')?.getAttribute('src')).toBe('/media/agentshed-intro-poster.jpg')
+      expect(hero?.querySelector('iframe, video')).toBeNull()
+      expect(hero?.querySelector('.hero-video-fallback')?.getAttribute('href')).toBe('https://www.youtube.com/watch?v=lQ-Bg8nXJKM')
+      expect(files()).toContain('media/agentshed-intro-poster.jpg')
+      expect(files().filter((file) => /\.(mp4|webm|mov)$/i.test(file))).toEqual([])
+    } else {
+      expect(hero?.querySelector('.shot img')?.getAttribute('src')).toBe('/shots/hero-zh.png')
+      expect(hero?.querySelector('video')).toBeNull()
+    }
   })
 
   test('the English heading reads as the spec’s', () => {
@@ -218,16 +232,17 @@ describe('screenshots and links', () => {
     return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) }
   }
 
-  test.each(LOCALES)('%s: every image declares its size, and the size is the file’s own', (locale) => {
+  test.each(LOCALES)('%s: images declare their proportions, and PNG dimensions match the shipped file', (locale) => {
     const images = [...pages[locale].querySelectorAll('img')]
-    // The brand, the hero icon, the hero window, and the six steps' screenshots twice: in the showcase and stacked
+    // Brand and hero icons, six feature shots in each presentation, plus the hero poster or screenshot.
     expect(images).toHaveLength(15)
     for (const img of images) {
       const src = img.getAttribute('src')!
       const declared = { width: Number(img.getAttribute('width')), height: Number(img.getAttribute('height')) }
       expect(declared.width, src).toBeGreaterThan(0)
       expect(declared.height, src).toBeGreaterThan(0)
-      const real = pngSize(src.slice(1))
+      // The JPEG poster's actual dimensions are checked in the browser alongside playback.
+      const real = src.endsWith('.jpg') ? { width: 1600, height: 900 } : pngSize(src.slice(1))
       expect(declared.width / declared.height, src).toBeCloseTo(real.width / real.height, 6)
     }
   })
@@ -254,8 +269,8 @@ describe('two languages', () => {
 
   /** The words a page shows or announces: its text and the attributes read out or shown */
   function words(doc: Document): string {
-    const attrs = [...doc.querySelectorAll('[alt], [aria-label], meta[name="description"]')].map(
-      (el) => el.getAttribute('alt') ?? el.getAttribute('aria-label') ?? el.getAttribute('content') ?? ''
+    const attrs = [...doc.querySelectorAll('[alt], [aria-label], [data-video-title], meta[name="description"]')].flatMap(
+      (el) => ['alt', 'aria-label', 'data-video-title', 'content'].map((name) => el.getAttribute(name) ?? '')
     )
     return [doc.title, text(doc.body), ...attrs].join('\n').replace(/\s+/g, ' ')
   }
@@ -269,9 +284,11 @@ describe('two languages', () => {
   test.each(LOCALES)('%s: every string of the language’s copy is on its page, but the copy of the states a read brings', (locale) => {
     // The formal and test states' copy appears only once a read brings that state: the apply check holds it
     const { formal, test: testState, ...served } = ui[locale].download
+    const { shotAlt, videoLabel, videoFallback, videoPlay, ...sharedHero } = ui[locale].hero
+    const hero = locale === 'en' ? { ...sharedHero, videoLabel, videoFallback, videoPlay } : { ...sharedHero, shotAlt }
     expect(leaves(formal).length + leaves(testState).length).toBeGreaterThan(5)
     const page = words(pages[locale])
-    const missing = leaves({ ...ui[locale], download: served }).filter((s) => !page.includes(s.replace(/\s+/g, ' ')))
+    const missing = leaves({ ...ui[locale], hero, download: served }).filter((s) => !page.includes(s.replace(/\s+/g, ' ')))
     expect(missing).toEqual([])
   })
 
