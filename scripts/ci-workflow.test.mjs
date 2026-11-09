@@ -21,7 +21,10 @@ test('every target PR and main push gets classification, policy and a gate with 
   assert.deepEqual(workflow.on, { push: { branches: ['main'] }, pull_request: { branches: ['main'] } })
   assert.deepEqual(workflow.permissions, { contents: 'read' })
   assert.deepEqual(workflow.concurrency, { group: '${{ github.workflow }}-${{ github.ref }}', 'cancel-in-progress': true })
-  for (const id of ['changes', 'repo-policy']) assert.equal(job(id).if, undefined)
+  for (const id of ['changes', 'repo-policy']) {
+    assert.equal(job(id).if, undefined)
+    assert.equal(job(id)['continue-on-error'], undefined)
+  }
   assert.ok(commands('changes').includes('node scripts/ci-scope.mjs'))
   assert.equal(job('changes').steps.find((step) => step.uses?.startsWith('actions/checkout@')).with['fetch-depth'], 0)
   assert.deepEqual(job('changes').outputs, { app: '${{ steps.scope.outputs.app }}', site: '${{ steps.scope.outputs.site }}' })
@@ -52,6 +55,14 @@ test('the split retains the original product and repository checks with independ
     'repo-policy': ['pnpm install --frozen-lockfile', 'pnpm test:ci', 'pnpm check:ui', 'pnpm check:lang', 'pnpm check:nul']
   }
   for (const [id, runs] of Object.entries(expected)) assert.deepEqual(commands(id), runs, id)
+  for (const [id, config] of Object.entries(workflow.jobs)) {
+    for (const step of config.steps) {
+      const label = `${id}: ${step.name ?? step.run ?? step.uses}`
+      const failureArtifact = id === 'e2e' && step.uses?.startsWith('actions/upload-artifact@')
+      assert.equal(step.if, failureArtifact ? 'failure()' : undefined, `${label} must not skip required work`)
+      assert.equal(step['continue-on-error'], undefined, `${label} must not swallow failure`)
+    }
+  }
   for (const id of ['app-checks', 'e2e', 'repo-policy']) {
     assert.ok(job(id).steps.every((step) => step['working-directory'] !== 'site'), id)
   }
@@ -89,6 +100,7 @@ test('the stable gate and compatibility check propagate real command failures an
   assert.equal(legacy.name, 'typecheck + unit tests + shared-piece consistency')
   assert.equal(job('e2e').name, 'e2e(Electron)')
   assert.equal(legacy.if, '${{ always() }}')
+  assert.equal(legacy['continue-on-error'], undefined)
   assert.deepEqual([legacy.needs].flat(), ['ci-gate'])
   for (const result of ['success', 'failure', 'cancelled', 'skipped', '']) {
     const alias = legacy.steps.find((item) => item.run)
