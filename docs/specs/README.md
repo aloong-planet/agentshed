@@ -43,6 +43,7 @@ written for whoever is about to change that code.
 | [prototype-pages](prototype-pages.md) | None: the feature catalogue leaves the prototypes out |
 | [landing-page](landing-page.md) | [Landing page](../features/landing-page.md) |
 | [test-layers](test-layers.md) | None: the feature catalogue leaves testing out |
+| [ci-routing](ci-routing.md) | None: repository verification, not product behavior |
 
 > Note on reconstruction: this directory was created on 2026-08-01 (when specs became persistent
 > artifacts). Specs for features predating that were discarded along with `.scratch/` and have been
