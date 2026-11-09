@@ -36,7 +36,7 @@ it without reading the repository.
 - landing-page::US-001/AC-02: When a formal release exists, the hero button downloads that release's
   DMG directly.
 - landing-page::US-001/AC-03: When only pre-releases exist, the hero button leads to the newest
-  pre-release on GitHub, and the page says plainly that it is a test version and that no stable release
+  pre-release on GitHub, and the page says plainly that it is a pre-release version and that no stable release
   exists yet.
 - landing-page::US-001/AC-04: When the page cannot tell what exists, the button still leads to the
   downloads: GitHub's release list.
@@ -96,11 +96,11 @@ notice does not alarm me.
   buttons: Download (the R2 DMG) and GitHub (the same DMG on GitHub).
 - landing-page::REQ-002/AC-02: **Formal (from GitHub)**: the same as AC-01, except that every link goes
   to GitHub and the download row has the one Download button.
-- landing-page::REQ-002/AC-03: **Test**: the hero button reads "Download test version <version>" and
-  leads to that pre-release's page on GitHub. Beneath it, the platform line carries a "Test version"
-  pill, followed by the note "No stable release yet. The test version downloads from GitHub and may
-  still be rough in places." The download section reads "Only a test version so far: <version>", with
-  the pill, and its one button reads "Download the test version from GitHub".
+- landing-page::REQ-002/AC-03: **Test**: the hero button reads "Download pre-release version <version>" and
+  leads to that pre-release's page on GitHub. Beneath it, the platform line carries a "Pre-release version"
+  pill, followed by the note "No stable release yet. The pre-release version downloads from GitHub and may
+  still be rough in places." The download section reads "Only a pre-release version so far: <version>", with
+  the pill, and its one button reads "Download the pre-release version from GitHub".
 - landing-page::REQ-002/AC-04: **List**: the hero button reads "Download Agentshed from GitHub" and leads
   to the release list. Beneath it is the platform line, with no pill and no version anywhere in the
   buttons. The download section reads "Version details can't be loaded right now — download from
@@ -136,12 +136,13 @@ Releases and the copyright line.
 
 ### landing-page::REQ-005 The screenshots
 
-- landing-page::REQ-005/AC-01: The hero screenshot and the overview, project, token and session
+- landing-page::REQ-005/AC-01: The hero screenshot and the overview, project, token and Chinese session
   screenshots come from the built app over the owner's own agent data, approved for publication by the
   owner (on 2026-10-13; the hero's retake on 2026-10-21). The memory and search screenshots come from the
   built app over a made-up home whose projects, memory files and questions have the shape of real
   ones, the same projects in both (the owner's choice, 2026-10-21). There is one set per language, taken
-  in the light appearance.
+  in the light appearance. The English session screenshot is retaken from the built app over an English
+  example conversation (2026-11-09), including English questions, replies and tool details.
 - landing-page::REQ-005/AC-02: The hero screenshot is the whole window, its rail showing the Search
   item. Each feature screenshot is cut to the part of the window its step is about. All six are the
   same size (16:9) at the same zoom, so the text stays one size as the steps turn. Each cut ends between
@@ -258,8 +259,8 @@ since they never reach it (mac-distribution::CON-004).
 - E1 The pointer and GitHub's answer are external data. Only validated version strings and URLs on the
   expected hosts (the download host and github.com) reach the page, rendered as text and as link
   targets. Release notes and other release text are never inserted into the page.
-- E2 The hero and the overview, project, token and session screenshots show real project names, paths,
-  usage and session text by the owner's decision; the memory and search screenshots show none of the
+- E2 The hero and the overview, project, token and Chinese session screenshots show real project names, paths,
+  usage and session text by the owner's decision; the English session, memory and search screenshots show none of the
   owner's data (landing-page::REQ-005/AC-01). Retaking them is the only way to change what they show, so the hero,
   overview and project screenshots keep showing the Instructions section's former name and place until they are
   next retaken.
@@ -290,7 +291,7 @@ since they never reach it (mac-distribution::CON-004).
   visitor's view (the view starts below the sticky header), the page scrolls by the block's change, so
   what the visitor sees does not move; while the block is in view it changes in view (Failure A7).
 - **The palette** is the app's purple palette, with light and dark both declared and switched by the
-  system appearance. The test version's pill and note use the app's warning pair. The GitHub button
+  system appearance. The pre-release version's pill and note use the app's warning pair. The GitHub button
   beside Download is a secondary button: the card ground with the strong line, and the accent border on
   the soft accent ground on hover. Icons are inline SVG copied from Lucide (download). The text is set in
   the system font stack; the page loads no web font.
@@ -316,7 +317,8 @@ since they never reach it (mac-distribution::CON-004).
   pixels from a window 1280pt wide and 800pt tall. Each feature cut is 920×517pt (16:9), the narrowest that
   holds the token page's trend chart and per-model figures whole. The search and memory screenshots are
   taken from a window narrowed to 984pt, so that the pane reflows into the 920pt cut; the memory cut
-  expands a project with only a few memory files, so that other projects stay in view.
+  expands a project with only a few memory files, so that other projects stay in view. The English session
+  retake uses a 1240pt window so the session pane fits the 920pt cut without truncating its right edge.
 
 ## Testing Decisions
 

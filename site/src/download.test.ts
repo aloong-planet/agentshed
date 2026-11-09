@@ -95,16 +95,16 @@ describe('the formal state from GitHub', () => {
 })
 
 describe('the test state', () => {
-  test('English: the test version on GitHub, said plainly', () => {
+  test('English: the pre-release version on GitHub, said plainly', () => {
     const v = view({ kind: 'test', version: '0.1.0-beta' }, 'en')
     const page = `${REPO}/releases/tag/v0.1.0-beta`
-    expect(v.hero).toEqual({ label: 'Download test version 0.1.0-beta', href: page, newTab: true, kind: 'primary' })
-    expect(v.pill).toBe('Test version')
-    expect(v.note).toBe('No stable release yet. The test version downloads from GitHub and may still be rough in places.')
+    expect(v.hero).toEqual({ label: 'Download pre-release version 0.1.0-beta', href: page, newTab: true, kind: 'primary' })
+    expect(v.pill).toBe('Pre-release version')
+    expect(v.note).toBe('No stable release yet. The pre-release version downloads from GitHub and may still be rough in places.')
     expect(v.every).toBeNull()
-    expect(v.section.pill).toBe('Test version')
-    expect(v.section.line).toBe('Only a test version so far: 0.1.0-beta')
-    expect(v.section.buttons).toEqual([{ label: 'Download the test version from GitHub', href: page, newTab: true, kind: 'primary' }])
+    expect(v.section.pill).toBe('Pre-release version')
+    expect(v.section.line).toBe('Only a pre-release version so far: 0.1.0-beta')
+    expect(v.section.buttons).toEqual([{ label: 'Download the pre-release version from GitHub', href: page, newTab: true, kind: 'primary' }])
   })
 })
 
