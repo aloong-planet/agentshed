@@ -39,9 +39,10 @@ files), which is why CI installs the site's dependencies before linting.
 - `src/scripts/`: the features section's pinned showcase, whose step follows the scroll (`features.ts`), the language switch that keeps
   the current step and scroll position (`language-switch.ts`), and the download script that reads, decides and
   shows the state in place (`download.ts`, applying it with `apply-download.ts`).
-- `src/shots.ts` and `public/shots/`: the screenshots, one set per language: the hero and four feature cuts
-  over the owner's data, approved for publication (2026-10-13; the hero's retake 2026-10-21), and the memory and
-  search cuts over made-up data. They change only by retaking them from the app, at the same sizes (the hero
+- `src/shots.ts` and `public/shots/`: the screenshots, one set per language. The hero, overview, project,
+  token and Chinese session cuts show the owner's data, approved for publication (2026-10-13; the hero's
+  retake 2026-10-21). The memory, search and English session cuts show made-up data (the English session
+  retaken 2026-11-09). They change only by retaking them from the app, at the same sizes (the hero
   2560×1536, every feature cut 1840×1035).
 - `public/icon-64.png`, `public/icon-256.png`: the app icon, scaled from `build/icon.png`:
   `sips -z 64 64 build/icon.png --out site/public/icon-64.png` (and 256 for the other), from the repository

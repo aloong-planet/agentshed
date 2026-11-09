@@ -17,15 +17,15 @@ explains the install, and always offers whichever release exists, without being 
 - The download button offers the release that exists:
   - when a stable version exists, "Download Agentshed <version>" downloads its disk image directly, with
     a link to every version on GitHub beneath it
-  - when only a test version exists, "Download test version <version>" leads to that version's page on
-    GitHub, and the page says plainly that it is a test version and that no stable release exists yet
+  - when only a pre-release version exists, "Download pre-release version <version>" leads to that version's page on
+    GitHub, and the page says plainly that it is a pre-release version and that no stable release exists yet
   - when the page cannot tell what exists (offline, for example), "Download Agentshed from GitHub" leads
     to the list of releases on GitHub
 - Until the page has found out what exists it offers the list of releases, which is already a way to
   download. When the answer arrives, the buttons change in place; a visitor who has scrolled past the
   hero sees nothing move
 - The download section at the end of the page makes the same offer: the current version with its
-  download, the test version with its "Test version" pill, or a button to the list on GitHub
+  download, the pre-release version with its "Pre-release version" pill, or a button to the list on GitHub
 - The features section walks through six of the app's views — the overview, what each project has, what
   the agents remember, token usage and trends, sessions revisited, and search across projects — each with a
   screenshot. On a wide screen the section stays pinned under the header while the page scrolls past it,
@@ -43,8 +43,9 @@ explains the install, and always offers whichever release exists, without being 
 - Chinese and English only
 - One download only: the disk image for Macs with Apple Silicon on macOS 12 or later. There is no Intel,
   Windows or Linux download
-- When a stable version exists, a newer test version is not offered on the page; it is reached through
+- When a stable version exists, a newer pre-release version is not offered on the page; it is reached through
   the link to every version on GitHub
 - No release notes and no download counts are shown
 - The feature steps turn with the scroll only; there is nothing to click between them
-- The screenshots are real screenshots of the app; they change only when they are retaken
+- The screenshots are real screenshots of the app; they change only when they are retaken. The English
+  sessions screenshot shows an English example conversation, including its questions, replies and tool details

@@ -217,11 +217,11 @@ const en: Dictionary = {
       github: 'GitHub'
     },
     test: {
-      hero: 'Download test version {version}',
-      pill: 'Test version',
-      note: 'No stable release yet. The test version downloads from GitHub and may still be rough in places.',
-      line: 'Only a test version so far: {version}',
-      button: 'Download the test version from GitHub'
+      hero: 'Download pre-release version {version}',
+      pill: 'Pre-release version',
+      note: 'No stable release yet. The pre-release version downloads from GitHub and may still be rough in places.',
+      line: 'Only a pre-release version so far: {version}',
+      button: 'Download the pre-release version from GitHub'
     }
   },
   footer: { github: 'GitHub', releases: 'Releases', copyright: '© 2026 aloongplanet' }

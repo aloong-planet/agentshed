@@ -84,15 +84,15 @@ describe('a state applied to the served page', () => {
     applyView(doc, view({ kind: 'test', version: '0.1.0-beta' }, 'en'))
     const got = read(doc)
     const tag = `${REPO}/releases/tag/v0.1.0-beta`
-    expect(got.hero).toEqual({ text: 'Download test version 0.1.0-beta', href: tag, target: '_blank', rel: 'noopener' })
-    expect(got.pill).toBe('Test version')
-    expect(got.meta).toBe('Test version macOS 12 or later · Apple Silicon')
-    expect(got.note).toBe('No stable release yet. The test version downloads from GitHub and may still be rough in places.')
+    expect(got.hero).toEqual({ text: 'Download pre-release version 0.1.0-beta', href: tag, target: '_blank', rel: 'noopener' })
+    expect(got.pill).toBe('Pre-release version')
+    expect(got.meta).toBe('Pre-release version macOS 12 or later · Apple Silicon')
+    expect(got.note).toBe('No stable release yet. The pre-release version downloads from GitHub and may still be rough in places.')
     expect(got.every).toBeNull()
     expect(got.ctaChildren).toEqual(['btn btn-primary', 'meta', 'beta-note'])
-    expect(got.linePill).toBe('Test version')
-    expect(got.line).toBe('Test version Only a test version so far: 0.1.0-beta')
-    expect(got.buttons).toEqual([{ text: 'Download the test version from GitHub', href: tag, target: '_blank', rel: 'noopener', kind: 'primary', icon: 1 }])
+    expect(got.linePill).toBe('Pre-release version')
+    expect(got.line).toBe('Pre-release version Only a pre-release version so far: 0.1.0-beta')
+    expect(got.buttons).toEqual([{ text: 'Download the pre-release version from GitHub', href: tag, target: '_blank', rel: 'noopener', kind: 'primary', icon: 1 }])
   })
 
   test.each(['zh', 'en'] as const)('%s: a later state replaces an earlier one in place, leaving nothing of it (Failure A7)', (locale) => {

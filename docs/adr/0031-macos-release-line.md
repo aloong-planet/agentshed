@@ -77,7 +77,7 @@ We choose **option 1**:
   download host is `dl.agentshed.aloongplanet.com`; the fallback is not used.
 - **Landing page**: `agentshed.aloongplanet.com`, a `site/` project built with Astro and deployed by
   Cloudflare Pages, in Chinese and English. Its download points at the latest formal release on R2; while
-  no formal release exists, it points at the GitHub pre-release and labels it a test version.
+  no formal release exists, it points at the GitHub pre-release and labels it a pre-release version.
 - **First release**: `v0.1.0-beta`, a pre-release.
 
 ## Consequences
