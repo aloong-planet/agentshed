@@ -60,7 +60,7 @@
 
 需要 macOS 12 及以上、Apple Silicon(M 系列芯片)的 Mac。
 
-1. 从 [Agentshed 官网](https://agentshed.aloongplanet.com/) 或 [GitHub Releases](https://github.com/aloong-planet/agentshed/releases) 下载 DMG。
+1. 从 [Agentshed 官网](https://agentshed.aloongplanet.com/zh/) 或 [GitHub Releases](https://github.com/aloong-planet/agentshed/releases) 下载 DMG。
 2. 打开 DMG,把 Agentshed 拖进「应用程序」文件夹。
 3. 从「应用程序」打开 Agentshed。第一次打开时,macOS 会询问一次是否打开这个从互联网下载的 App,并注明 Apple 已检查过它、未发现恶意软件;点「打开」即可。
 

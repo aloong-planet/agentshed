@@ -79,7 +79,7 @@ Website: [agentshed.aloongplanet.com](https://agentshed.aloongplanet.com)
 
 Agentshed needs macOS 12 or later on an Apple Silicon (M-series) Mac.
 
-1. Download the DMG from [the Agentshed website](https://agentshed.aloongplanet.com/en/) or from [GitHub Releases](https://github.com/aloong-planet/agentshed/releases).
+1. Download the DMG from [the Agentshed website](https://agentshed.aloongplanet.com/) or from [GitHub Releases](https://github.com/aloong-planet/agentshed/releases).
 2. Open it and drag Agentshed into your Applications folder.
 3. Open Agentshed from Applications. The first time, macOS asks once whether to open an app downloaded from the internet, and notes that Apple checked it for malicious software and found none. Click Open.
 

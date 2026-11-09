@@ -15,7 +15,7 @@ version, and keep doing so release after release without being edited.
 ## Solution
 
 A `site/` project in this repository, built with Astro and deployed by Cloudflare Pages at
-`agentshed.aloongplanet.com`, in Chinese (at `/`) and English (at `/en`), as Transfer's site is. It is
+`agentshed.aloongplanet.com`, in English (at `/`) and Chinese (at `/zh/`). It is
 one long page (form "L1"): header, hero with the download, a scroll-linked features section, three
 install steps, a download section and a footer. The visitor's browser decides what to offer. It reads
 the R2 latest pointer for a formal release. Failing that, it reads GitHub's public releases API, which
@@ -45,10 +45,12 @@ it without reading the repository.
 
 As a visitor, I want the page in Chinese or English, so that I can read it comfortably.
 
-- landing-page::US-002/AC-01: Chinese is at `/` and English at `/en`. A toggle at the right of the
-  header switches between them.
+- landing-page::US-002/AC-01: English is served at `/`, regardless of the browser language, and Chinese
+  at `/zh/`. A toggle at the right of the header links directly between them.
 - landing-page::US-002/AC-02: Both languages carry the same sections, the same download states and
   their own set of screenshots.
+- landing-page::US-002/AC-03: Old `/en` and `/en/` links permanently redirect to `/`, preserving
+  query parameters and page fragments, including when JavaScript is disabled.
 
 ### landing-page::US-003 See what the app shows
 
@@ -169,6 +171,11 @@ The features section's project step lists what a project has using the app's own
 ([project-detail::REQ-004](project-detail.md)): "Skills, subagents, plugins, MCP servers and instructions" in English,
 and the same list with the section's Chinese label in Chinese.
 
+### landing-page::REQ-009 Author homepage (direct acceptance)
+
+In both languages, the existing footer copyright line links the author name "aloongplanet" to
+`https://aloongplanet.com` in a new tab, with the existing footer layout and styling.
+
 ## Quality Requirements
 
 ### landing-page::QR-001 Layout holds across widths, languages and appearances
@@ -226,10 +233,11 @@ since they never reach it (mac-distribution::CON-004).
 
 **Sequence B: languages and navigation**
 
-- B1 A direct visit to `/en` → English, with the toggle on EN. Toggling goes to the other language's
-  page.
+- B1 A direct visit to `/` → English, even with a Chinese browser preference; `/zh/` → Chinese.
+  Old `/en` and `/en/` links redirect to `/`, including links with query parameters or a section fragment,
+  without requiring scripts (landing-page::US-002/AC-03). The toggle links to the other language directly.
 - B2 The navigation's GitHub link opens the repository in a new tab. The section links scroll within
-  the page.
+  the page. The footer author name opens the owner's homepage in a new tab (landing-page::REQ-009).
 
 **Sequence C: the features section**
 
@@ -267,9 +275,10 @@ since they never reach it (mac-distribution::CON-004).
 
 ## Implementation Decisions
 
-- **The Astro project follows Transfer's site**: an i18n configuration with Chinese as the default at
-  `/` and English under `/en`, a base layout, one component per section, and a two-language
-  dictionary. Pages is configured as in Transfer's Pages guide (root directory `site`).
+- **The Astro project follows Transfer's site**: an i18n configuration with English as the default at
+  `/` and Chinese under `/zh/`, a base layout, one component per section, and a two-language
+  dictionary. Pages is configured as in Transfer's Pages guide (root directory `site`). Legacy English URLs
+  have permanent host redirects; the static build also carries a redirect fallback for local previews.
 - **Deciding the download state is one pure function** from the two read results (pointer: a version,
   absent or unreadable; GitHub: a latest formal release, a newest pre-release, nothing, or unreadable)
   to one of the four states. A small browser script performs the reads and applies the result. The
@@ -328,7 +337,8 @@ Seams confirmed by the owner on 2026-10-13:
   pointer and GitHub bodies, drafts, a release without the DMG, and URLs on unexpected hosts.
 - **A check of the built site**: both pages are generated, the served HTML is in the list state with
   the release-list links, both languages' copy and screenshots are present, and every screenshot
-  declares its size. It reads a fresh build made for the run, never a previous one.
+  declares its size. It also checks language routes, the legacy redirect fallback and host rules, and
+  the footer author link. It reads a fresh build made for the run, never a previous one.
 - **The palette**: a unit test holds every token the page shares with the app to the app's purple values,
   in light and in dark, and every token to a declaration in both.
 
@@ -341,7 +351,8 @@ Beside them, for the parts the state function does not reach:
   read back from the page; the requests the page's script makes, at the injected fetch (landing-page::CON-003).
 - **Evidence**: the features section's scroll behaviour, the four states' rendering, and
   landing-page::QR-001 are measured in a browser, as they were on the prototype (geometry and computed
-  styles, not pixels), and the measurement record is kept.
+  styles, not pixels), and the measurement record is kept. Browser checks also exercise the language
+  switch and legacy redirects through the host runtime, including query strings and fragments.
 
 Prior art: Transfer's site tests for its download configuration, and the prototype's browser checks.
 

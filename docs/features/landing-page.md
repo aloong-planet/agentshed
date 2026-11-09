@@ -8,8 +8,10 @@ download it. The landing page at `agentshed.aloongplanet.com` introduces the app
 explains the install, and always offers whichever release exists, without being changed for a release.
 
 ## Capabilities
-- The page is in Chinese at `agentshed.aloongplanet.com` and in English at `/en`. The toggle at the right
-  of the header switches between them and keeps the visitor where they were on the page
+- The root address shows English regardless of browser language; Chinese is at `/zh/`. The toggle at
+  the right of the header switches between them and keeps the visitor where they were on the page
+- Old `/en` and `/en/` links redirect to the English homepage, keeping query parameters and page fragments,
+  including with JavaScript disabled
 - The header stays at the top while scrolling: the app's icon and name, links to the Features, Install
   and Download sections and to GitHub (hidden on narrow screens), and the language toggle
 - The hero shows the app icon, a title and a one-paragraph description, the download button with
@@ -38,6 +40,7 @@ explains the install, and always offers whichever release exists, without being 
   Open is enough, and that an update button appears in the app when a new version comes out
 - The page follows the visitor's light or dark appearance, in the app's colours; the screenshots stay light
 - Links to GitHub open in a new tab; a direct download starts in place
+- The footer's `aloongplanet` signature opens [the author's homepage](https://aloongplanet.com) in a new tab
 
 ## Boundaries and non-goals
 - Chinese and English only

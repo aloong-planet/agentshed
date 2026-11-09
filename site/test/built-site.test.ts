@@ -8,6 +8,8 @@
 // what the page looks like in light and dark (landing-page::REQ-006, Failure D1). They are measured in a browser
 // against the built site, and the measurement record is kept with the ticket's evidence; they would become tests
 // only with a browser seam in these tests.
+// Host HTTP status and query/fragment preservation require a Cloudflare Pages runtime browser check;
+// this suite checks the emitted redirect fallback and host configuration, not the host itself.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { JSDOM } from 'jsdom'
@@ -26,8 +28,8 @@ function files(dir = outDir): string[] {
 const pages: Record<'zh' | 'en', Document> = {} as Record<'zh' | 'en', Document>
 
 beforeAll(() => {
-  pages.zh = new JSDOM(readFileSync(join(outDir, 'index.html'), 'utf8')).window.document
-  pages.en = new JSDOM(readFileSync(join(outDir, 'en/index.html'), 'utf8')).window.document
+  pages.zh = new JSDOM(readFileSync(join(outDir, 'zh/index.html'), 'utf8')).window.document
+  pages.en = new JSDOM(readFileSync(join(outDir, 'index.html'), 'utf8')).window.document
 })
 
 const REPOSITORY = 'https://github.com/aloong-planet/agentshed'
@@ -56,7 +58,7 @@ describe('page structure', () => {
     expect(current).toEqual([locale === 'zh' ? '中文' : 'EN'])
     // Toggling goes to the other language's page (Failure B1)
     const other = links.find((a) => a.getAttribute('aria-current') !== 'page')
-    expect(other?.getAttribute('href')).toBe(locale === 'zh' ? '/en/' : '/')
+    expect(other?.getAttribute('href')).toBe(locale === 'zh' ? '/' : '/zh/')
   })
 
   test('the English navigation reads as the spec’s', () => {
@@ -82,10 +84,21 @@ describe('page structure', () => {
     const footer = pages.en.querySelector('footer')
     expect([...(footer?.querySelectorAll('a') ?? [])].map((a) => [text(a), a.getAttribute('href')])).toEqual([
       ['GitHub', REPOSITORY],
-      ['Releases', `${REPOSITORY}/releases`]
+      ['Releases', `${REPOSITORY}/releases`],
+      ['aloongplanet', 'https://aloongplanet.com']
     ])
     expect(text(footer)).toContain('© 2026 aloongplanet')
   })
+})
+
+test.each(LOCALES)('%s: the footer author opens the owner’s homepage in a new tab', (locale) => {
+  const signature = pages[locale].querySelector('footer span')
+  expect(text(signature)).toBe('© 2026 aloongplanet')
+  const author = signature?.querySelector('a')
+  expect(text(author)).toBe('aloongplanet')
+  expect(author?.getAttribute('href')).toBe('https://aloongplanet.com')
+  expect(author?.getAttribute('target')).toBe('_blank')
+  expect(author?.getAttribute('rel') ?? '').toMatch(/(^|\s)noopener(\s|$)/)
 })
 
 describe('the download as served: the list state', () => {
@@ -246,10 +259,18 @@ describe('screenshots and links', () => {
 })
 
 describe('two languages', () => {
-  test('exactly two pages: Chinese at the root and English under /en', () => {
-    expect(files().filter((f) => f.endsWith('.html')).sort()).toEqual(['en/index.html', 'index.html'])
+  test('English at the root, Chinese under /zh, and a legacy redirect', () => {
+    expect(files().filter((f) => f.endsWith('.html')).sort()).toEqual(['en/index.html', 'index.html', 'zh/index.html'])
     expect(pages.zh.documentElement.lang).toBe('zh-CN')
     expect(pages.en.documentElement.lang).toBe('en')
+  })
+
+  test('legacy English links redirect to the root in the static fallback and on Cloudflare Pages', () => {
+    const legacy = new JSDOM(readFileSync(join(outDir, 'en/index.html'), 'utf8')).window.document
+    expect(legacy.querySelector('meta[http-equiv="refresh"]')?.getAttribute('content')).toMatch(/^0;url=\/$/)
+    expect(legacy.querySelector('a')?.getAttribute('href')).toBe('/')
+    const rules = readFileSync(join(outDir, '_redirects'), 'utf8').trim().split('\n')
+    expect(rules).toEqual(['/en / 301', '/en/ / 301'])
   })
 
   /** The words a page shows or announces: its text and the attributes read out or shown */
