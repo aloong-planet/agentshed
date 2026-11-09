@@ -17,8 +17,10 @@ pnpm test       # unit tests and the built-site check
 ```
 
 From the repository root, `pnpm test:site` runs `check` and `test`. It is part of `pnpm verify`, and CI runs
-it in its checks job; the root `pnpm lint` covers the site's TypeScript and scripts too (not its `.astro`
-files), which is why CI installs the site's dependencies before linting.
+it in `site-checks` when website inputs change. That job also runs `pnpm lint:site` with the root ESLint
+configuration, covering the site's TypeScript and scripts (not its `.astro` files), so it installs both
+packages. Application-only checks use `pnpm lint:app` and need no website install. Changing the app's
+theme also selects website checks because the palette test reads it. See [CI routing](../docs/ops/ci.md).
 
 ## Where things are
 
@@ -73,7 +75,7 @@ The page is served by Cloudflare Pages at `agentshed.aloongplanet.com`. The Page
 | Root directory | `site` |
 | Build command | `pnpm install --frozen-lockfile && pnpm build` |
 | Build output directory | `dist` (relative to the root directory) |
-| Build watch path | `site/*`: a push that changes nothing under `site/` is skipped (Cloudflare still builds a push of more than 20 commits or 3000 files). The build reads nothing outside `site/`; a change that makes it depend on a file elsewhere must widen this path |
+| Build watch path | `site/*`: a push that changes nothing under `site/` is skipped (Cloudflare still builds a push with no changed files, at least 20 commits or at least 3000 files). The build reads nothing outside `site/`; a change that makes it depend on a file elsewhere must widen this path |
 | `NODE_VERSION` | 22.23.3, on production and preview. At least 22.22.2: Astro 7 refuses a Node older than 22.22.0, and the corepack in Pages' build image warns below 22.22.2 |
 | `PNPM_VERSION` | 9.12.3, on production and preview, so the build runs the site's pnpm rather than the build image's default pnpm 10 |
 

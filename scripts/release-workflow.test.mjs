@@ -12,7 +12,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { Evaluator, Lexer, Parser, data } from '@actions/expressions'
+import { evaluate } from './testing/workflow.mjs'
 import { truthy } from '@actions/expressions/result'
 import { parse as parseToml } from 'smol-toml'
 
@@ -22,22 +22,7 @@ const yaml = require('../build/mac-packaging.cjs').yamlParser()
 const workflow = yaml.load(readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8'))
 const profiles = parseToml(readFileSync(new URL('../capabilities.toml', import.meta.url), 'utf8'))['macos-distribution'].profiles
 
-function toData(value) {
-  if (value === undefined || value === null) return new data.Null()
-  if (typeof value === 'string') return new data.StringData(value)
-  if (typeof value === 'boolean') return new data.BooleanData(value)
-  const dictionary = new data.Dictionary()
-  for (const [key, item] of Object.entries(value)) dictionary.add(key, toData(item))
-  return dictionary
-}
-
 const TEMPLATE = /^\$\{\{([\s\S]*)\}\}$/
-
-/** One expression, as GitHub's evaluator reads it; a status function (success(), always()…) is not known here */
-function evaluate(expression, context) {
-  const { tokens } = new Lexer(expression.trim().replace(TEMPLATE, '$1')).lex()
-  return new Evaluator(new Parser(tokens, Object.keys(context), []).parse(), toData(context)).evaluate()
-}
 
 /** Whether a job's or a step's `if` holds; no `if` always holds */
 const holds = (condition, context) => condition === undefined || truthy(evaluate(condition, context))
