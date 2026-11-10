@@ -81,8 +81,8 @@ We choose **option 1**.
 
 > CI routing update (2026-11-10): the message-language check remains independent and required. The
 > active default-branch ruleset now requires `CI gate` directly alongside it. The old composite
-> forwarding job is removed; Electron E2E remains conditional on application changes and is enforced
-> through the gate. See [the CI runbook](../ops/ci.md#required-checks-and-migration).
+> forwarding job is removed; in a pull request Electron E2E remains conditional on application changes,
+> and it is enforced through the gate. See [the CI runbook](../ops/ci.md#required-checks-and-migration).
 
 - Positive: what reaches `master` is checked twice — at commit time and again in the pull request —
   and the commit-time check fails before the commit exists, where fixing it costs nothing.

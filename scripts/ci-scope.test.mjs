@@ -1,5 +1,7 @@
 // CI routing rules. Paths come from the repository's tracked tree; expected scopes come from
 // ci-routing::REQ-001. GitHub scheduling itself is covered by the PR run, not these local tests.
+// Gap: what a real push to main selects on the hosted runner. A pull request's own run is a pull_request
+// event, so that shows only in the default-branch run after a merge, as does a newer push cancelling it.
 import { after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -7,7 +9,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, w
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { classifyPaths, comparisonForEvent } from './ci-scope.mjs'
+import { classifyPaths, collectChanges, comparisonForEvent } from './ci-scope.mjs'
+
+const pr = (from, to) => ({ pull_request: { base: { sha: from }, head: { sha: to } } })
 
 test('changes select the affected products and retain a reason for every path', () => {
   const cases = [
@@ -53,17 +57,28 @@ test('invalid path lists fail rather than becoming documentation-only changes', 
   }
 })
 
-test('event comparisons use the complete PR branch or the push endpoints and reject missing inputs', () => {
+test('event comparisons use the complete PR branch and reject unsupported events and malformed commits', () => {
   const a = 'a'.repeat(40)
   const b = 'b'.repeat(40)
-  assert.equal(comparisonForEvent('pull_request', { pull_request: { base: { sha: a }, head: { sha: b } } }), `${a}...${b}`)
-  assert.equal(comparisonForEvent('push', { before: a, after: b }), `${a}..${b}`)
-  assert.equal(comparisonForEvent('push', { before: '0'.repeat(40), after: b }), null)
+  assert.equal(comparisonForEvent('pull_request', pr(a, b)), `${a}...${b}`)
   for (const [name, event] of [
-    ['workflow_dispatch', {}], ['push', {}], ['pull_request', { before: a, after: b }],
-    ['push', { before: '--bad-option', after: b }], ['push', { before: a, after: '0'.repeat(40) }],
-    ['pull_request', { pull_request: { base: { sha: '0'.repeat(40) }, head: { sha: b } } }]
+    ['workflow_dispatch', {}], ['pull_request', { before: a, after: b }],
+    ['pull_request', pr('0'.repeat(40), b)], ['pull_request', pr(a, '0'.repeat(40))],
+    ['pull_request', pr('--bad-option', b)]
   ]) assert.throws(() => comparisonForEvent(name, event), /event|SHA/)
+})
+
+// ci-routing::REQ-001/AC-06. Commits no repository holds, no commits named, and equal endpoints: a push is
+// neither compared nor checked, so none of them can fail or narrow the selection.
+test('a push selects both products whatever its event names, without reading a comparison', () => {
+  const a = 'a'.repeat(40)
+  const b = 'b'.repeat(40)
+  for (const event of [{ before: a, after: b }, {}, { before: a, after: a }]) {
+    const actual = collectChanges('push', event)
+    assert.equal(actual.app, true, JSON.stringify(event))
+    assert.equal(actual.site, true, JSON.stringify(event))
+    assert.ok(actual.reasons.length > 0)
+  }
 })
 
 // One immutable Git history for the CLI wiring cases; no application build or network is involved.
@@ -107,15 +122,15 @@ git('add', '.')
 git('commit', '-qm', 'large change set')
 const large = git('rev-parse', 'HEAD')
 
-test('the CLI carries real PR and push diffs, moves, deletions and large path sets into workflow outputs', () => {
+test('the CLI carries real PR diffs, moves, deletions and large path sets into workflow outputs, and both products for a push', () => {
   const script = fileURLToPath(new URL('./ci-scope.mjs', import.meta.url))
   const cases = [
-    ['pull_request', { pull_request: { base: { sha: advancedBase }, head: { sha: head } } }, 'app=true\nsite=true\n'],
-    ['push', { before: products, after: head }, 'app=false\nsite=false\n'],
-    ['push', { before: base, after: large }, 'app=true\nsite=false\n'],
-    ['push', { before: head, after: head }, 'app=false\nsite=false\n'],
-    ['push', { before: '0'.repeat(40), after: head }, 'app=true\nsite=true\n'],
-    ['push', { before: 'f'.repeat(40), after: head }, null]
+    ['pull_request', pr(advancedBase, head), 'app=true\nsite=true\n'],
+    // The pushed commit adds README.md alone: both products cannot come from its paths (ci-routing::REQ-001/AC-06)
+    ['push', { before: products, after: head }, 'app=true\nsite=true\n'],
+    ['pull_request', pr(base, large), 'app=true\nsite=false\n'],
+    ['pull_request', pr(head, head), 'app=false\nsite=false\n'],
+    ['pull_request', pr('f'.repeat(40), head), null]
   ]
   for (const [i, [name, event, expected]] of cases.entries()) {
     const eventPath = join(dir, `event-${i}.json`)

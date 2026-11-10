@@ -8,7 +8,8 @@ checks, while accepting every skipped job would hide failures in jobs that shoul
 
 ## Solution
 
-Classify the complete change set, run each affected product's checks, and report a stable CI gate.
+Classify a pull request's complete change set, run each affected product's checks, and report a stable
+CI gate. A default-branch push runs both products' checks whatever it changed.
 Repository policy checks remain unconditional. The online ruleset requires the stable `CI gate` and
 the independent message-language check; conditional product jobs are enforced through the gate.
 
@@ -27,15 +28,17 @@ the independent message-language check; conditional product jobs are enforced th
   the website tests compare the two palettes.
 - ci-routing::REQ-001/AC-05: Mixed changes take the union of their scopes. Shared dependency/tooling
   configuration, CI definitions, the routing/gate implementation and unknown paths select both scopes.
+- ci-routing::REQ-001/AC-06: A default-branch push selects both product scopes whatever it changed; only
+  a pull request is routed by its changed paths.
 
 ### ci-routing::REQ-002 Classify the whole change set
 
 - ci-routing::REQ-002/AC-01: A pull request compares its merge base with its head, including earlier
-  commits in the same pull request. A default-branch push compares the event's before and after commits.
+  commits in the same pull request.
 - ci-routing::REQ-002/AC-02: Deletions and both sides of a move participate. Whitespace and newlines in
   filenames do not split or discard paths, and large diffs are not restricted to an API's file limit.
-- ci-routing::REQ-002/AC-03: Invalid events, missing commits, failed Git operations or malformed input
-  fail classification. A new branch with no before commit conservatively selects both product scopes.
+- ci-routing::REQ-002/AC-03: An unsupported event fails classification, and so do a pull request's
+  missing commits, failed Git operations or malformed input.
 - ci-routing::REQ-002/AC-04: Classification exposes explicit boolean strings and a readable explanation
   of the selected scopes, including unknown-path fallback.
 
@@ -64,8 +67,8 @@ the independent message-language check; conditional product jobs are enforced th
 
 ## Failure modes and boundaries
 
-- A code change followed by a documentation-only commit still selects application checks
-  (ci-routing::REQ-002/AC-01).
+- A code change followed by a documentation-only commit in the same pull request still selects
+  application checks (ci-routing::REQ-002/AC-01).
 - Moving code into documentation still selects its former product scope; deleting the last source
   file does not turn the change into an empty set (ci-routing::REQ-002/AC-02).
 - Markdown used as application/site content or a fixture stays in its consumer's scope rather than
@@ -76,13 +79,29 @@ the independent message-language check; conditional product jobs are enforced th
   a green documentation-only result (ci-routing::REQ-002/AC-03; ci-routing::REQ-003/AC-02).
 - A failed, cancelled or unexpectedly skipped selected job cannot make the final check pass by
   dependency skipping (ci-routing::REQ-003/AC-01 and ci-routing::REQ-003/AC-03).
-- A valid empty diff still runs policy checks and produces a gate result (ci-routing::REQ-004/AC-02).
+- A pull request with a valid empty diff still runs policy checks and produces a gate result
+  (ci-routing::REQ-004/AC-02).
 - Editing only PR metadata retains the separate message-language recheck; it does not launch product
   tests (ci-routing::REQ-004/AC-03).
+- An application merge followed, before its default-branch run finishes, by a documentation-only merge:
+  the newer push cancels the unfinished run, and its own run checks both products, so the application
+  change is still checked on the default branch. The same holds for any number of merges in a row: the
+  last run checks both products (ci-routing::REQ-001/AC-06; ci-routing::REQ-004/AC-03).
+- A default-branch run that failed is not hidden by the next merge: that push runs both products again,
+  whatever it changed (ci-routing::REQ-001/AC-06).
+- A change that breaks the other product through a file the routing rules do not list for it passes its
+  pull request, where that product's checks are not selected; the default-branch run after the merge
+  runs both products and fails there (ci-routing::REQ-001/AC-06).
+- A default-branch push reads no comparison, so a push with no changed files, or one whose earlier commit
+  cannot be read, still runs both products rather than failing or selecting none
+  (ci-routing::REQ-001/AC-06).
 
 ## Implementation Decisions
 
-Use a complete local Git comparison with NUL-delimited paths and rename detection disabled. Keep
+For a pull request, use a complete local Git comparison with NUL-delimited paths and rename detection
+disabled; a push reads no comparison. A default-branch push selects both scopes because a newer push
+cancels the unfinished run on the same branch (ci-routing::REQ-004/AC-03): each run has to cover what
+the run it cancels would have checked. Keep
 classification and final-result decisions as pure functions behind small command-line adapters.
 Require `CI gate` directly after the ruleset migration; retain the separate required message-language
 check. Product jobs remain conditional, with no compatibility forwarding job. Do not introduce
@@ -92,7 +111,7 @@ another dependency or a privileged pull-request event to classify changes.
 
 Rules use pure-function tests with explicit expected scopes and job outcomes. A temporary Git
 repository verifies event-to-diff-to-workflow-output wiring, including a divergent base and moved
-files. Workflow tests use the existing YAML loader and GitHub expression evaluator pattern, execute
+files, and that a push selects both products whatever its commits changed. Workflow tests use the existing YAML loader and GitHub expression evaluator pattern, execute
 the actual run blocks, and verify the job graph and retained commands. Lint scope enumeration proves
 the two scopes cover the full lint input. No new application E2E is needed for CI-only behavior.
 GitHub runner scheduling and online ruleset enforcement require CI evidence; local tests do not claim
@@ -100,5 +119,6 @@ to reproduce GitHub's scheduler.
 
 ## Out of Scope
 
-Zero Actions runs for documentation, business-module-level test selection, merge queue enablement,
+Zero Actions runs for documentation, selecting checks by changed paths on a default-branch push,
+business-module-level test selection, merge queue enablement,
 Cloudflare account changes, release behavior changes, and automatic PR merging.
