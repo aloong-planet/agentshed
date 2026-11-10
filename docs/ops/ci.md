@@ -59,6 +59,27 @@ When changing required check names again, first make the replacement report a su
 update and read back the online ruleset, and only then remove the old job. Verify that a failed
 required result blocks merging. Opening a PR does not itself change the online ruleset.
 
+## Merging without the owner's approval
+
+`capabilities.toml` declares `docs-auto-merge`: the agent merges a pull request that changes no executable
+content once every CI run on its head has succeeded, without waiting for the owner. Every other pull
+request waits for the owner's approval. The conditions, and how the agent establishes each of them, are
+the delivery rules of the `implement` skill and are not repeated here.
+
+The owner chose this on 2026-11-10, with these costs stated:
+
+- The owner sees a change to a spec, an ADR or the glossary only after it is in `main`.
+- Such a pull request has had no independent review: with no executable content changed, the delivery
+  sends it to none.
+- A change of comments alone in a JavaScript, TypeScript or Python file counts as no executable content,
+  although a tool can read a comment. The owner kept this case in on 2026-11-11.
+
+The checks such a pull request passes are those the table above gives its paths. One that changes only
+the documentation paths of the first row passes repository policy, the CI gate and the message-language
+check; one that changes comments in source also passes the product jobs of those paths.
+
+To end it, set `enabled = false` under `[docs-auto-merge]`.
+
 ## Other workflows and deployment
 
 Message language remains separate and also runs when the PR title/body is edited; that edit does not
