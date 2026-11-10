@@ -17,7 +17,7 @@ pnpm test       # unit tests and the built-site check
 ```
 
 From the repository root, `pnpm test:site` runs `check` and `test`. It is part of `pnpm verify`, and CI runs
-it in `site-checks` when website inputs change. That job also runs `pnpm lint:site` with the root ESLint
+it in `site-checks` when a pull request changes website inputs, and on every push to `main`. That job also runs `pnpm lint:site` with the root ESLint
 configuration, covering the site's TypeScript and scripts (not its `.astro` files), so it installs both
 packages. Application-only checks use `pnpm lint:app` and need no website install. Changing the app's
 theme also selects website checks because the palette test reads it. See [CI routing](../docs/ops/ci.md).

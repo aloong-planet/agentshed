@@ -1,5 +1,6 @@
-// Product impact for CI. Unknown paths select both products; documentation is an explicit exception,
-// never a repository-wide Markdown exemption (ci-routing::REQ-001).
+// Product impact for CI. A pull request is routed by its paths: unknown paths select both products;
+// documentation is an explicit exception, never a repository-wide Markdown exemption. A push selects both
+// products without looking at its paths (ci-routing::REQ-001).
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -39,27 +40,21 @@ export function classifyPaths(paths) {
 }
 
 export function comparisonForEvent(name, event) {
-  let base
-  let head
-  if (name === 'pull_request') {
-    base = event?.pull_request?.base?.sha
-    head = event?.pull_request?.head?.sha
-  } else if (name === 'push') {
-    base = event?.before
-    head = event?.after
-  } else {
-    throw new Error(`Unsupported CI event: ${name}`)
-  }
-  if (![base, head].every((sha) => typeof sha === 'string' && /^[0-9a-f]{40}$/.test(sha)) || /^0+$/.test(head) || (name === 'pull_request' && /^0+$/.test(base))) {
+  // A push is not compared (ci-routing::REQ-001/AC-06): on the default branch a newer push cancels the
+  // unfinished run, so every run has to check what the cancelled one would have.
+  if (name === 'push') return null
+  if (name !== 'pull_request') throw new Error(`Unsupported CI event: ${name}`)
+  const base = event?.pull_request?.base?.sha
+  const head = event?.pull_request?.head?.sha
+  if (![base, head].every((sha) => typeof sha === 'string' && /^[0-9a-f]{40}$/.test(sha) && !/^0+$/.test(sha))) {
     throw new Error('CI event must supply valid commit SHAs')
   }
-  if (/^0+$/.test(base)) return null
-  return `${base}${name === 'pull_request' ? '...' : '..'}${head}`
+  return `${base}...${head}`
 }
 
 export function collectChanges(name, event, cwd = process.cwd()) {
   const comparison = comparisonForEvent(name, event)
-  if (comparison === null) return { app: true, site: true, reasons: ['New branch without a before commit: run both products'] }
+  if (comparison === null) return { app: true, site: true, reasons: ['Push: both products run, whatever it changed'] }
   // No API pagination limit; a failed command or exhausted buffer fails classification, never an empty diff.
   const output = execFileSync('git', ['diff', '--no-renames', '--name-only', '-z', comparison, '--'], {
     cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024

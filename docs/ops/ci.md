@@ -6,11 +6,15 @@ result even when no product tests are necessary.
 
 ## Jobs and paths
 
-`changes` compares the event's commits using Git: the merge base to the head for a pull request, before
-to after for a push. Its summary explains every path. Deletions count, moves count at both locations,
+`changes` routes a pull request by its changed paths. It compares the merge base with the head using Git,
+and its summary explains every path. Deletions count, moves count at both locations,
 and unfamiliar paths select both products. Failure to read the comparison fails the check.
 
-| Input | Jobs in addition to repository policy |
+A push to `main` is not compared: it selects both products whatever it changed. A newer push cancels an
+unfinished run on `main`, so every default-branch run has to check what the cancelled one would have. It
+is also where a dependency the table below does not list shows up.
+
+| Pull request input | Jobs in addition to repository policy |
 |---|---|
 | Root README files, `AGENTS.md`, `CLAUDE.md`, `LICENSE`, `site/README.md`, `build/README.md`, `docs/**/*.md`, `docs/prototypes/**` | No product jobs |
 | Other `site/**` files | `site-checks` |
@@ -48,7 +52,7 @@ The stored configuration was read back: enforcement is active, the target is the
 and there are no bypass actors. Other protection settings were retained.
 
 The old `typecheck + unit tests + shared-piece consistency` forwarding job is removed. The actual
-`e2e(Electron)` job still runs for application changes; its result is enforced by `CI gate` rather
+`e2e(Electron)` job still runs whenever the application scope is selected; its result is enforced by `CI gate` rather
 than being independently required. Deliberately skipped product jobs therefore do not strand a PR.
 
 When changing required check names again, first make the replacement report a successful result,
