@@ -1,18 +1,16 @@
 # Prototype pages
 
-> Related: none in the feature catalogue (the prototypes are project tooling, not product behaviour). The rules
-> applied here come from the prototype skill and the implement skill in the skills repository.
+> Related: the rules applied here come from the prototype skill and the implement skill in the skills
+> repository.
 
 ## Problem Statement
 
-A UI prototype page is the baseline the app's interface is built from, so an agent implementing an interface
-change reads the page, or the diff a confirmed prototype change made to it. Whatever else the page holds is read
-with it: reviewer notes in its header (the question it answers, a dated log of rulings, the reasons behind them)
-and comments across its markup, styles and scripts recording past decisions. Measured on 2026-10-29 on the agents
-page, with its notes still in the page, reading the whole page cost about 38,400 tokens, of which the header was
-about 4,100 and the comments in its markup and styles about 2,150 more. What an agent reads stays in its context
-and is re-read with every later call: the implementation of the fourth agent side re-read the prototype diffs it
-took in at its start about 197 times.
+A UI prototype page is the baseline the app's interface is built from, so an agent implementing an
+interface change reads the page, or the diff a confirmed prototype change made to it. Whatever else
+the page holds is read with it: reviewer notes in its header (the question it answers, a dated log
+of rulings, the reasons behind them) and comments across its markup, styles and scripts recording
+past decisions. What an agent reads stays in its context and is re-read with every later call, so
+the notes and comments are paid for again with each call.
 
 A log of rulings kept in a page also rots: its entries are appended and never removed, later entries reverse
 earlier ones, and some come to warn that the data cannot support what the app has since shipped. Reading it in
@@ -22,8 +20,7 @@ order gives contradictory answers.
 
 Every UI prototype page keeps only one line of header, pointing to a notes file named after the page that holds
 the notes the prototype skill requires; past rulings and their reasons are deleted from the page once each is
-found in a spec, an ADR or the feature catalogue. Nothing the page shows or does changes. A gate keeps pages in
-this shape.
+found in a spec or an ADR. Nothing the page shows or does changes. A gate keeps pages in this shape.
 
 ## Functional Requirements
 
@@ -56,8 +53,8 @@ the page it concerns.
 ### prototype-pages::REQ-003 Past rulings are deleted only once each has a home
 
 - prototype-pages::REQ-003/AC-01: Before a still-valid ruling is deleted from a page's header or comments, it is
-  found as a conclusion in a spec, an ADR or the feature catalogue; one found nowhere is added, as a conclusion,
-  to the spec of the feature the page depicts first.
+  found as a conclusion in a spec or an ADR; one found nowhere is added, as a conclusion, to the spec of the
+  feature the page depicts first.
 - prototype-pages::REQ-003/AC-02: A statement that no longer holds (a form a later ruling replaced, a warning
   about something the app has since shipped, a count or side list that has since changed) is deleted without
   being carried anywhere.
@@ -83,8 +80,8 @@ The shared-UI check (`pnpm check:ui`) fails when a UI prototype page leaves this
 
 ### prototype-pages::CON-001 Which pages (direct acceptance)
 
-Applies to: the UI prototype pages, 13 on 2026-10-30. The logic prototypes, the gallery shell, the files copied
-from the prototype skill and the shared pieces are not changed by this.
+Applies to: the UI prototype pages. The logic prototypes, the gallery shell, the files copied from
+the prototype skill and the shared pieces are not changed by this.
 
 ### prototype-pages::CON-002 What stays in the page (direct acceptance)
 
@@ -102,9 +99,9 @@ prototypes directory stays checked.
 
 - **Opening a page on its own or in the gallery**: nothing it loads changes, so it opens as before
   (prototype-pages::REQ-004/AC-02).
-- **Removing a comment from code**: a comment-like sequence inside a string, a template or a regular expression is
-  not a comment; removing it would change what the page renders. Comments are found by parsing each script and
-  style block, as the shared-UI check already does, not by matching text (prototype-pages::REQ-004/AC-01).
+- **Removing a comment from code**: a comment-like sequence inside a string, a template or a regular
+  expression is not a comment; removing it would change what the page renders. Comments are found by
+  parsing each script and style block, not by matching text (prototype-pages::REQ-004/AC-01).
 - **HTML comments are nodes of the page**: removing them changes the document's comment nodes and nothing else;
   the comparison leaves comment nodes out for that reason.
 - **The header's mandatory notes**: the notes the prototype skill requires in the header (the question, the
@@ -131,35 +128,8 @@ prototypes directory stays checked.
 
 ## Implementation Decisions
 
-- Pairing is by name: `prototype-<topic>.html` and `prototype-<topic>.md` (or `candidates-<topic>.html` and
-  `candidates-<topic>.md`) in the same module directory.
 - The notes file's sections follow the order of the prototype skill's list of required notes; a section with
   nothing to say is left out.
-- The shared-UI check gains the rules of prototype-pages::REQ-005; the language check's prototype exemption is
-  extended to the notes files (prototype-pages::CON-003).
-
-## Testing Decisions
-
-- **The shared-UI check's rules** are tested through the check's existing test suite, which runs each rule
-  against fixture trees: every new rule gets a fixture that must fail and one that must pass (prior art: the
-  existing rules' cases there).
-- **The language check's exemption** is tested in the language check's existing suite: a Chinese line in a notes
-  file passes, the same line in another Markdown file under the prototypes directory fails.
-- **The rendered pages** are compared before and after the change in a headless browser: for each page, the
-  default state, every harness option one at a time and each drawn language, each recorded as tag, attributes,
-  collapsed text and laid-out box per element, comment nodes left out; the two recordings must be identical
-  (prototype-pages::REQ-004/AC-01). The comparison is the evidence for the change, not a standing gate.
-- **The page source** is compared structurally before and after the change, as the verification of
-  prototype-pages::CON-002; unlike the rendered comparison it does not depend on which states are exercised. Three
-  parts must each be identical: the page's DOM as parsed with scripts disabled (comment nodes left out, adjacent text
-  joined, white space collapsed); each style block's rules as a browser parses them (each rule's text from the
-  CSSOM, not from jsdom, which drops declarations it does not know); and each script's syntax tree printed without
-  comments, by the same parser the shared-UI check uses. Collapsing white space misses regions drawn with
-  `white-space: pre`; the rendered comparison's laid-out boxes catch those. The rendered comparison and the
-  screenshots are supporting evidence for CON-002.
-- **Screenshots** of each page's default state in Chinese and English, light and dark, before and after, are kept
-  for the owner to look over.
-- **Sizes**: each page's size before and after is recorded.
 
 ## Out of Scope
 
@@ -175,7 +145,5 @@ prototypes directory stays checked.
 
 ## Further Notes
 
-- The prototype skill's rules are changed in the skills repository to match: the notes it requires of a page go
-  to the notes file instead of the page header. The implement skill is changed there to have an implementing
-  agent take what to build from the spec and read only the page itself — not its notes file — at the elements the
-  change touches.
+- An implementing agent takes what to build from the spec and reads only the page itself — not its notes
+  file — at the elements the change touches.

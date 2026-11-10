@@ -1,6 +1,6 @@
 # Memory view
 
-> Related: [features](../features/memory-view.md) · ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
+> Related: ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
@@ -82,9 +82,9 @@ section (a topic row, or a link in the rendered main file).
 Applies to the memory file drawer and the skill file drawer (which also shows a plugin's skill files):
 they are one form — the same frame (width, close button, title block, padding), the same preview frame
 (bar, switch, body) and the same content rules — so a change to either one's appearance is a change to
-both. The form is the one confirmed on the prototype on 2026-10-21: the width is min(720px, 80% of the
-content area), and the preview bar fades from the page ground into the card. The two differ only in
-where the file is read from and in what the title block names.
+both. The form: the width is min(720px, 80% of the content area), and the preview bar fades from
+the page ground into the card. The two differ only in where the file is read from and in what the
+title block names.
 
 ### memory-view::CON-002 What rendered text keeps (direct acceptance)
 
@@ -101,14 +101,14 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
 **Sequence C: global page → Memory section**
 - C1 No project has any memory → empty state.
 - C2 The memory directory exists but is empty → does not count as having memories, not listed.
-- C3 Only topic files, no main memory file (the shape measured on this machine's Transfer project) →
-  counts as having memories, with the main file slot showing "none".
-- C4 The summary set: all registered projects (including stale, with its existing badge; manual
-  hiding was removed by ADR-0022) — so nothing that has memories is invisible; sorted by last
-  modification, most recent first.
-- C5 An encoded directory with no corresponding project in the registry (a leftover) → not listed (the
-  summary follows the project registry and reuses the existing encoding mapping rather than writing a
-  new decoder).
+- C3 Only topic files, no main memory file → counts as having memories, with the main file slot
+  showing "none".
+- C4 The summary set: all registered projects (including stale, with its existing badge; no manual
+  hiding, ADR-0022) — so nothing that has memories is invisible; sorted by last modification, most
+  recent first.
+- C5 An encoded directory with no corresponding project in the registry (a leftover) → not listed
+  (the summary goes from each registered project to its encoded directory; directory names are not
+  decoded back into projects).
 - C6 **Codex memory has three states** (an experimental feature requiring manual enabling, judged on
   both the toggle and the content):
   - Not enabled (`features.memories` in config.toml is not true, including a missing config) → show
@@ -129,11 +129,10 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
   structural parsing).
 - C8 What enters the snapshot for a summary entry is **only metadata and the file name list** — no
   content (so many projects' full text does not balloon the snapshot); content is read on demand when
-  clicked (reusing the artifact read channel's allow-list mechanism, extended to memory directories;
-  a first-read failure → "file cannot be read" inside the drawer, no crash —
-  memory-view::US-001/AC-07). An already-read
-  successful body is saved separately and restored immediately on reopening, including after a
-  restart; a failed refresh retains it (project-detail::REQ-001/AC-05, ADR-0029). This does not
+  clicked (a first-read failure → "file cannot be read" inside the drawer, no crash —
+  memory-view::US-001/AC-07). An already-read successful
+  body is saved separately and restored immediately on reopening, including after a restart; a
+  failed refresh retains it (project-detail::REQ-001/AC-05, ADR-0029). This does not
   restore the open drawer or authorize a new source read.
 - C9 The expansion state is keyed by project path rather than list index — so an expanded row does not
   shift when a snapshot refresh reorders the list.
@@ -141,9 +140,8 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
 **Sequence D: project detail → Memory section**
 - D1 No memory → empty-state copy.
 - D2 The main memory file is rendered (sanitised as in subagents A7), capped at 200,000 text code
-  units by the existing provider read. Topics open in the memory file drawer (memory-view::US-001),
-  which reads through the artifact read channel, whose existing cap is 500,000 text code units. Saved
-  display data preserves these truncation markers.
+  units. Topics open in the memory file drawer (memory-view::US-001), capped at 500,000 text code
+  units. Saved display data preserves these truncation markers.
 - D3 Subagent-level memory (`agents/<name>/memory/`) is not read (Out of Scope, not shown in the
   section).
 - D4 A Codex-only project → an empty state explaining that "memory is a Claude-side mechanism" (Codex
@@ -153,8 +151,8 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
   directory): if the target is in the readable list → the memory file drawer opens at that file
   (memory-view::US-001); if not → the error toast "the link target is outside the readable scope";
   **under no circumstances may the whole window navigate** — letting a rendered link's default
-  behaviour through loses all app state (a 2026-08-02 bug). External http(s) links go to the system
-  browser.
+  behaviour through loses all app state. External http(s) links go to the system browser.
+- D7 The project's main memory file is `MEMORY.md`.
 
 **Sequence E: reading a file in the memory file drawer** (memory-view::US-001)
 - E1 An already-read body restored on reopening (C8), including after a restart, opens in preview like
@@ -181,55 +179,23 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
   the content area)); only memory files move to the file drawer form.
 
 **Cross-cutting regression points**
-- R1 The IPC contract (`validate`) must be extended along with any new domain type field (the same
-  lesson as the cache-crash postmortem).
-- R2 Times are displayed uniformly in relative form (matching the app-wide `fmtAgo` convention),
-  never as absolute dates.
+- R1 The IPC contract (`validate`) must be extended along with any new domain type field.
+- R2 Times are displayed uniformly in relative form, never as absolute dates.
 
 ## Implementation Decisions
 
-- **Types**: the summary entry (metadata + file name list, no content) and the project detail entry
-  (main file content + topic metadata) are modelled separately; ADR-0001's single type source, with
-  contract validation extended in step.
-- **Read layer**: injected through `ScanRoots`; the summary follows the project registry and reuses
-  the existing encoding mapping; the Codex side is directory enumeration + toggle detection (a TOML
-  parse) only.
-- **On-demand read channel**: file contents do not enter the snapshot, reusing the existing artifact
-  read allow-list mechanism (only files listed in a snapshot or detail can be read), extended to
-  memory directories.
-- **Container structure (prototype ruling)**: on the global page, clicking a row expands the file list
+- **On-demand read channel**: file contents do not enter the snapshot; only files listed in a
+  snapshot or detail can be read.
+- **Container structure**: on the global page, clicking a row expands the file list
   and clicking a file opens a drawer; on the detail page, the main file is rendered directly (the same
   pattern as the Instructions section) with topics in a drawer. Esc and clicking the overlay are
   equivalent.
-- **The memory file drawer (prototype ruling, 2026-10-21)**: one drawer frame and one preview frame
-  serve both the memory file drawer and the skill file drawer (memory-view::CON-001); each supplies its
-  title block, its content source (the artifact read channel for memory, the skill read channel for
-  skills) and its readable list for links (the memory directory's listed files; the package's listed
-  files). Link destinations come from the shared link interception; the drawer only decides what an
-  in-directory target switches to.
 - **The main file is on project detail's readable list**: the project detail entry carries the main
   memory file's entry — name, path, modification time; null when there is none — beside its content,
-  and its path joins the topics on
-  the project's read allow-list, so a topic's link to the main file opens it in the drawer
-  (memory-view::US-001/AC-05) without depending on the global summary having listed it. Contract
-  validation is extended with the field (R1); saved display data from before the field degrades to
-  "not listed" until the live read replaces it.
-
-## Testing Decisions
-
-Following ADR-0038's seams: (1) fixture unit tests at the providers layer (covering sequence C:
-an empty directory, topics only, stale, registry leftovers, Codex's three states and the
-dotted-key form, degradation on a parse failure); (2) the contract validation round trip. The UI
-layer's drawer read paths are not unit tested (per ADR-0038 the UI is not unit tested); e2e covers the
-normal read, an empty file and a file removed after the scan.
-
-memory-view::US-001 is tested end to end on the built app (the highest seam; prior art: the skills-view
-drawer test and the Memory section test in the e2e suite): a seeded home whose memory files carry the
-real shapes — front matter with a nested key, `[[name]]` references with and without a remark written
-straight after them, `<slug>`-style placeholders, links to a sibling, to the main file, external and to an
-unlisted file, a Codex memory file, one past the read cap, and one large file under it with wide content.
-memory-view::CON-002 is tested at the one carrier (the shared renderer's unit tests). Link resolution
-itself stays covered by the shared link module's unit tests.
+  and its path joins the topics on the project's read allow-list, so a topic's link to the main file
+  opens it in the drawer (memory-view::US-001/AC-05) without depending on the global summary having
+  listed it. Saved display data from before the field degrades to "not listed" until the live read
+  replaces it.
 
 ## Out of Scope
 

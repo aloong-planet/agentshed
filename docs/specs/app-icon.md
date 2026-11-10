@@ -1,7 +1,5 @@
 # Application icon
 
-> Related: [feature](../features/app-icon.md)
-
 ## Problem Statement
 
 Agentshed needs an application identity that is recognisable in macOS and distinguishes a development
@@ -63,17 +61,8 @@ or change its existing data location or single-instance behaviour.
 The macOS bundle owns the production icon. Only an unpackaged macOS process sets the development
 Dock icon after application readiness. Supply a multi-resolution native icon for packaging and a PNG
 for development. The raster application identity is separate from ADR-0018's renderer control SVGs.
-
-## Testing Decisions
-
-This is asset/configuration integration, so skip unit-level TDD that would only mirror a setter.
-The raw-NUL gate recognises PNG/ICNS binary signatures together with their extensions. CLI regression
-tests use real artwork in temporary Git indexes, while NUL-bearing source and mislabeled text remain
-rejected. Stage new assets before the final gateway so Git-index-based checks include them.
-Validate actual PNG alpha, inspect rendered small and large assets, decode the generated native icon,
-and inspect a fresh packaged app's icon declaration and resource. Exercise a real unpackaged Electron
-startup with isolated data and run the existing full verification gate. Record any system UI evidence
-that cannot be obtained; resource presence alone does not prove the Dock appearance.
+The repository's raw-NUL check recognises PNG and ICNS binary signatures together with their
+extensions, so the icon assets pass it while NUL-bearing source and mislabeled text stay rejected.
 
 ## Out of Scope
 

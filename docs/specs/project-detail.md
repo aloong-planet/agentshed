@@ -1,13 +1,11 @@
 # Project detail
 
-> Related: [features](../features/project-detail.md) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0028 (query layer) · ADR-0037 (Antigravity CLI side)
-> Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
-> artifacts on 2026-08-01. Each section's component-level requirements and boundaries live in its own
-> spec (subagents-view / memory-view / plugins-view / skill-install / token-stats); this document
-> covers **page-level** rules and the **artifacts section** (artifacts being a capability unique to
-> this page).
+> Related: ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0028 (query layer) ·
+> ADR-0037 (Antigravity CLI side)
+> Each section's component-level requirements and boundaries live in its own spec (subagents-view /
+> memory-view / plugins-view / skill-install / token-stats); this document covers **page-level**
+> rules and the **artifacts section** (artifacts being a capability unique to this page).
 
-> Startup restoration uses the original page prototypes confirmed on 2026-09-14.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
 
 ## Problem Statement
@@ -49,30 +47,30 @@ is read-only; the one write operation is uninstalling a project-level skill.
 **Sequence A: page composition**
 - A1 The sections, in this order = Overview / Instructions / Skills / Subagents / Plugins / MCP / Memory /
   Sessions / Artifacts (project-detail::REQ-004); a new component type extends this list.
-- A2 A stale project opens as the **stale note page** (settled 2026-08-23, superseding the earlier
-  "sections show empty states" behaviour): the shell — struck-through name, stale tag, path — plus a
-  single note card, with **no section tabs and no data areas** and no back control, the project list being beside it. The trade-off that the
-  project's own token history is no longer reachable from its page was accepted; the global totals
-  still include it (see agents-overview B3). Sequence S below owns the card. A directory that cannot be reached is
-  not stale ([projects-list](projects-list.md) A6), so such a project opens its sections.
-- A3 Detail is fetched on demand (it does not enter the overview snapshot), and **a project switch is
-  atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the invariant of that date,
-  now in AGENTS.md): the page on screen stays whole until the next project's page can be drawn whole, then
-  the pane switches in one frame — no empty pane, no loading label, no new header over an old body.
-  Only the list highlight moves at once. A project with a saved successful page is a **cached visit**: its
-  page is drawn immediately from what was last shown and refreshed in the background. A refetch that
-  reaches a page already on screen — a snapshot update (an automatic rescan, see token-stats sequence
-  E), a background revalidation, a page-local change — is a **transfusion**: the rendered content stays
-  and the new data replaces it on arrival, so a section's local state (expansion, search, scroll
-  position) survives the refresh (settled 2026-08-08). Sequence T below owns the switch.
+- A2 A stale project opens as the **stale note page**: the shell — struck-through name, stale tag,
+  path — plus a single note card, with **no section tabs and no data areas** and no back control,
+  the project list being beside it. The project's own token history is not reachable from its page;
+  the global totals still include it (see agents-overview B3). Sequence S below owns the card. A
+  directory that cannot be reached is not stale ([projects-list](projects-list.md) A6), so such a
+  project opens its sections.
+- A3 Detail is fetched on demand (it does not enter the overview snapshot), and **a project switch
+  is atomic** (an invariant in AGENTS.md): the page on screen stays whole until the next project's
+  page can be drawn whole, then the pane switches in one frame — no empty pane, no loading label, no
+  new header over an old body. Only the list highlight moves at once. A project with a saved
+  successful page is a **cached visit**: its page is drawn immediately from what was last shown and
+  refreshed in the background. A refetch that reaches a page already on screen — a snapshot update
+  (an automatic rescan, see token-stats sequence E), a background revalidation, a page-local change
+  — is a **transfusion**: the rendered content stays and the new data replaces it on arrival, so a
+  section's local state (expansion, search, scroll position) survives the refresh. Sequence T below
+  owns the switch.
 - A4 Instructions section: a missing project CLAUDE.md / AGENTS.md shows "None" rather than an error;
   oversized files are truncated.
 - A5 The detail drawer's width = min(a fixed width, **the right-hand content area's** width × 80%) —
   where the content area = the viewport minus the fixed elements on the left (the rail; and in the
-  Projects dimension, the project sidebar as well). It was previously computed as a percentage of the
-  viewport, so in a narrow window the drawer covered the entire content area and lost its "drawer"
-  meaning (a 2026-08-02 bug); the left-hand fixed elements' width changes when the dimension changes,
-  so the formula has to change with it.
+  Projects dimension, the project sidebar as well).
+- A6 The MCP section lists the servers in the project's `.mcp.json` with their enabled / disabled /
+  default state; with none, it points to the Agents page for the global ones.
+- A7 A conversation on any side, Antigravity CLI's included, moves the project's activity in the list.
 
 **Sequence T: switching and revisiting** (ADR-0028; saved successful pages also qualify as
 cached visits under project-detail::REQ-001)
@@ -107,9 +105,9 @@ cached visits under project-detail::REQ-001)
   form, an empty pane body under the new project's header — no error card is invented (Out of
   Scope). A failed background revalidation leaves the shown page as it is. Either failure is logged
   by the main process as every IPC failure is.
-- T11 The query layer may collect an inactive in-memory entry under its existing default window.
-  A valid persisted page remains a cached visit under project-detail::REQ-001; collection alone
-  must not erase the cross-restart recovery copy. Without either copy the visit follows T1.
+- T11 An inactive in-memory entry may be discarded. A valid persisted page remains a cached
+  visit under project-detail::REQ-001; discarding alone must not erase the cross-restart
+  recovery copy. Without either copy the visit follows T1.
 - T12 Changing the UI language or the theme refetches nothing: the detail carries no natural
   language (ADR-0016), so the cache is language-independent.
 - T13 Window focus refetches nothing by itself: the snapshot is the app's one refresh clock (the
@@ -129,7 +127,7 @@ never writes to any agent's registry; it tells the user what happened and hands 
   current UI language.
 - S3 Only the sides whose registries record the project appear — as the uppercase full-name side
   chips, in both the cause and the send line; a single-side project shows a single chip. The card
-  consumes the entry's side list and the AgentSide-total display Records: a future side joins by
+  follows the entry's side list: a future side joins by
   construction, and neither code nor copy enumerates the sides as a closed set (chips are
   interpolated, never written out).
 - S4 Copying: success shows a transient confirmation beside the button; a clipboard failure shows the
@@ -140,8 +138,7 @@ never writes to any agent's registry; it tells the user what happened and hands 
   from the snapshot entry alone — entering it fires no detail fetch and shows no loading state.
 - S7 After the records are removed and a refresh runs, the project leaves the list; if it was the
   selected project, the pane shows the existing not-in-snapshot empty state rather than a ghost
-  selection(the mechanism that has always answered a vanished entry — a selection reset would hide
-  what happened, the message says it). The message names selecting another project, which clears it; with none left
+  selection. The message names selecting another project, which clears it; with none left
   in the list it stays until a record comes back or the window reloads.
 - S8 Introduced-content dimension: the card renders first-party copy plus the path **as text** (a
   path containing markup-like characters displays literally); the copy button is the only
@@ -173,8 +170,7 @@ never writes to any agent's registry; it tells the user what happened and hands 
 - B9 Markdown opens for reading in place (relative-path images resolve against the artifact's own
   directory); prototypes' HTML is handed to the system default application (it needs to actually run).
   A read that fails (the file was removed after the scan listed it) shows a toast and no overlay,
-  rather than the click doing nothing — landed 2026-09-13 on the query layer (ADR-0028), the read
-  going through `artifact-content-query`'s result wrapper rather than an unhandled rejection.
+  rather than the click doing nothing.
   Each click on a file whose read fails reads it again and shows one toast, the answer to that read,
   so a file that has come back opens with none. The toast states the failure in a sentence in the
   current UI language, never the raw IPC error. A scan landing afterwards adds no toast, and does not
@@ -194,7 +190,7 @@ never writes to any agent's registry; it tells the user what happened and hands 
   the reader, and a target outside the allow-list gets a notice; external http(s) links go to the
   system browser. The main process's `will-navigate` backstop covers every render site, including
   ones added in future. The Instructions section's CLAUDE.md / AGENTS.md previews use the same
-  allow-list (settled 2026-08-21): a relative link resolving to a listed project document opens the
+  allow-list: a relative link resolving to a listed project document opens the
   reader overlay — the very one the Artifacts section uses — and anything else relative gets the
   notice; a prototype target keeps its open-in-browser route.
 - R2 When adding an artifact type, update four places together: the type enum, the read source, the
@@ -224,10 +220,11 @@ Applies to: the project detail page.
   rows include it ([token-stats::REQ-003](token-stats.md)); the Memory section shows nothing for it, so
   a project registered only on Antigravity gets the memory-view D4 empty state.
 
-Failure modes and boundaries: a project registered only on Antigravity opens with the ANTIGRAVITY chip
-alone and its own sessions; the MCP section's Antigravity group appears on a project's page only when it
-has servers, since it repeats global facts (settled 2026-10-29); an instruction file that cannot be read, one inside a directory that cannot be entered included, shows the read error under its
-path, the other entry unaffected — in the "None" line's form under the path heading, the same declared
+Failure modes and boundaries: a project registered only on Antigravity opens with the ANTIGRAVITY
+chip alone and its own sessions; the MCP section's Antigravity group appears on a project's page
+only when it has servers, since it repeats global facts; an instruction file that cannot be read,
+one inside a directory that cannot be entered included, shows the read error under its path, the
+other entry unaffected — in the "None" line's form under the path heading, the same declared
 prototype exemption as the agents page's (agents-overview::REQ-004 failure modes); the Instructions
 previews keep R3's link destinations.
 
@@ -237,29 +234,33 @@ Applies to: the tab row of a project's page. A stale project's note page has no 
 
 - project-detail::REQ-004/AC-01: The section's tab has the agents page's label
   ([agents-overview::REQ-006/AC-01](agents-overview.md)).
-- project-detail::REQ-004/AC-02: The tabs run Overview / Instructions / Skills / Subagents / Plugins / MCP / Memory /
-  Sessions / Artifacts. The selected tab carries to the next project: selecting another project keeps it, and the next
-  project shows it (the owner's decision of 2026-11-04). A stale project's note page and the not-in-snapshot state have no
-  tabs, and neither change nor use what the next page starts on: the next project selected, or the same project when a scan
-  brings its page back, opens on the tab from the last page that had tabs, however many such pages came between. A project
-  opens on Overview when no earlier tab applies: its first selection, with a note page before it or not, and coming back
-  through the rail or a side card's project count, with a note page on the way or not, because coming back is not switching
-  projects. Leaving a session for a project lands on Sessions, whichever way the session was entered, Overview's session
-  card included: coming back from it (T8), or selecting a project in the list from its page, another project or the
-  session's own, which shows the tab's empty sentence for a project with no sessions. It does so once: from there the tab
-  carries as above, and leaving by the rail or a side card's project count and coming back starts on Overview. When a
-  session is left onto a note page or the not-in-snapshot state, the next page with tabs opens on Sessions, by the same rule.
-  A return overtaken by a move to another dimension draws no page, and the next page starts on Overview too (the owner's
-  decisions of 2026-11-04).
+- project-detail::REQ-004/AC-02: The tabs run Overview / Instructions / Skills / Subagents / Plugins
+  / MCP / Memory / Sessions / Artifacts. The selected tab carries to the next project: selecting
+  another project keeps it, and the next project shows it. A stale project's note page and the
+  not-in-snapshot state have no tabs, and neither change nor use what the next page starts on: the
+  next project selected, or the same project when a scan brings its page back, opens on the tab from
+  the last page that had tabs, however many such pages came between. A project opens on Overview
+  when no earlier tab applies: its first selection, with a note page before it or not, and coming
+  back through the rail or a side card's project count, with a note page on the way or not, because
+  coming back is not switching projects. Leaving a session for a project lands on Sessions,
+  whichever way the session was entered, Overview's session card included: coming back from it (T8),
+  or selecting a project in the list from its page, another project or the session's own, which
+  shows the tab's empty sentence for a project with no sessions. It does so once: from there the tab
+  carries as above, and leaving by the rail or a side card's project count and coming back starts on
+  Overview. When a session is left onto a note page or the not-in-snapshot state, the next page with
+  tabs opens on Sessions, by the same rule. A return overtaken by a move to another dimension draws
+  no page, and the next page starts on Overview too.
 
-Failure modes and boundaries, a narrow window (the owner's decisions of 2026-11-03): the row keeps its one form at every
-window width, and no narrow form is designed. It does not move onto a second row, a sideways wheel over it does not move it,
-and the pane clips it, so the pointer cannot reach a tab past the right edge until the window is widened. The default 1100px
-window shows every tab in both languages. Measured on macOS: in English the row shows whole from about 1040px; narrower, the
-pane cuts Artifacts first, and at the 800px minimum window Memory, Sessions and Artifacts lie past the edge. In Chinese the
-row is shorter and shows whole from about 870px, but below about 940px its two-character labels wrap inside their tabs and
-the row grows taller; at 800px Sessions is cut and Artifacts lies past the edge. The agents page's seven tabs fit at the
-minimum window in both languages. This is the one exception to [i18n::QR-001](i18n.md).
+Failure modes and boundaries, a narrow window: the row keeps its one form at every window width, and
+no narrow form is designed. It does not move onto a second row, a sideways wheel over it does not
+move it, and the pane clips it, so the pointer cannot reach a tab past the right edge until the
+window is widened. The default 1100px window shows every tab in both languages. Measured on macOS:
+in English the row shows whole from about 1040px; narrower, the pane cuts Artifacts first, and at
+the 800px minimum window Memory, Sessions and Artifacts lie past the edge. In Chinese the row is
+shorter and shows whole from about 870px, but below about 940px its two-character labels wrap inside
+their tabs and the row grows taller; at 800px Sessions is cut and Artifacts lies past the edge. The
+agents page's seven tabs fit at the minimum window in both languages. This is the one exception to
+[i18n::QR-001](i18n.md).
 
 The keyboard does reach those tabs, and that is accepted as it is, with no product change. Measured on macOS at 800px: Tab
 moves along the row to a tab past the edge, Enter opens it, and the pane shifts sideways to bring the focused tab into view,
@@ -311,119 +312,38 @@ The saved page includes successful detail data and separately fetched preview bo
 from that page. Restoring these bodies does not restore the open drawer or authorize new file reads.
 Error results and pending requests are never stored as successful page content.
 
-Test through the shared cross-process restart scenario in
-[agents-overview](agents-overview.md#startup-verification-decisions), followed by selecting a cached
-project, a never-viewed project and a project removed before refresh. T1–T10, T12/T13 and S6/S7 are
-regressions within this round; artifact collection rules and unrelated section layouts are unchanged.
-
 ## Implementation Decisions
 
-- **Artifact type order**: the constant's order is the single source, shared by the reader and the UI,
-  so the ordering is not written twice.
-- **Detail fetching**: on-demand IPC rather than entering the overview snapshot (so the snapshot does
-  not balloon when there are many projects), read through the query layer below.
-- **The query layer** (ADR-0028): the detail is a suspense query keyed by the project path, and the
-  selection change that alters the key runs inside a Transition. The list highlight is driven by the
-  immediate selection and the pane by the transitioned one — that is the whole of "the highlight
-  moves at once, the pane waits". One Suspense boundary wraps the detail slot of the Projects
-  dimension; its fallback draws nothing.
-  **Measured, not assumed (2026-09-13)**: with React 18's `createRoot`, once a Suspense boundary has
-  committed real content, a later update that suspends it — whether wrapped in `startTransition` or
-  a plain `setState` — holds that content rather than reverting to the fallback, and an update that
-  arrives before an earlier one has committed preempts it, again regardless of Transition. A mutation
-  removing the Transition around the selection change was rebuilt and run against the hold e2e case
-  (T1) and it stayed green: the fallback never appeared. The Transition is kept anyway — it is
-  React's documented pattern for this exact scenario, costs nothing, and is the seam that would
-  matter the day a competing high-priority update needs to preempt a pending switch, which nothing
-  here currently exercises. Its correctness is therefore asserted by matching the documented pattern
-  and by the passing hold/interruption cases, not by a mutation that turns them red.
-  A snapshot arrival invalidates every query (the mounted one refetches, the
-  others on their next mount); a page-local change invalidates its own project's query. Every mount
-  revalidates (T2); window focus does not (T13); a failed fetch is not retried, so failures surface
-  at once as they do today. Collection keeps the library's default window (T11). A query function
-  resolves to a result value (the detail, or the failure) and never throws, so no error boundary
-  exists and T10 is a branch of the page, not of a boundary.
-- **Section state is keyed by project**: the pane body subtree is keyed by the project path, so a
-  section's local state resets on a project change exactly as it does today (the Skills filter rule)
-  and survives a transfusion of the same project (A3).
-- **The selected tab lives above what the pane draws** (project-detail::REQ-004/AC-02): the pane stays mounted while a
-  project is on the stage and holds it, so a note page or the not-in-snapshot state drawn in the sectioned page's place
-  neither changes nor uses it, with no flag for either. A session page or another dimension unmounts the pane, which is what
-  starts the next one afresh; a new pane reads the landing on Sessions when it mounts.
-- **The selected window lives in the Projects dimension's detail slot** ([token-stats](token-stats.md) G11), above the choice
-  between the session page and the pane and below the project list. Neither page unmounts it, and leaving the dimension does,
-  so its lifetime is the rule itself and no way out has to clear it. A click on a totals card re-renders the slot, not the list.
+- **The query layer** (ADR-0028): a failed fetch is not retried, so failures surface at once.
+- **Section state is per project**: a section's local state resets on a project change (the
+  Skills filter rule) and survives a transfusion of the same project (A3).
+- **The selected window** ([token-stats](token-stats.md) G11) is held while the Projects dimension
+  is shown, across the session page and the project pane; leaving the dimension clears it.
 - **Allow-list**: when detail is returned, the artifact and memory file paths are registered in the
   allow-list, and both reading and external opening validate against it.
-- **The stale note page renders from the snapshot entry alone** (path, sides, staleness are already
-  there), so the stale branch sits above the detail fetch and never fires it.
-- **The copy icon** joins the icon module (Lucide copy, chosen 2026-08-23 over clipboard); the side
-  chips reuse the uppercase full-name chip form the side cards already wear.
 - **Copying goes through the main process** (an IPC channel writing the OS clipboard): the renderer
   clipboard API rejects under automation — measured, not assumed — and the OS clipboard is
   main-process territory anyway. The channel validates its sender and input like every other.
-- **The `{sides}` slot is a checked contract**: a unit guard asserts every language's cause and send
-  sentences carry exactly one slot and the prompt embeds its path — the type alignment cannot see
-  string content, so a dropped slot would otherwise fail silently.
-- **The section's code names**: as on the agents page ([agents-overview](agents-overview.md), Implementation
-  Decisions); the page and the agents page share one section component.
-- **Instruction entries carry their paths** (project-detail::REQ-002/AC-02): the detail sends each of
-  the project's two files with its path and its contents, or none for a file that exists but cannot be
-  read, and null for an absent one; the agents page's section and this page's share one section
-  component. A project detail saved before the files carried their paths restores with each file at its
-  place in the project and without the settings summary (AGENTS.md: a saved page restores across an
-  update).
-
-## Testing Decisions
-
-Following ADR-0038's seams: fixture unit tests at the providers layer cover recognising the six
-types (CONTEXT.md under `docs/`, a root one not recognised), excluding READMEs, the prototypes recursion and exclusion rules, the title fallback, and the
-no-`docs`-directory empty state; the type order is pinned as a contract in a unit test (so it is not
-changed unintentionally). The UI's chip filtering and reading overlay are not unit tested and rely on
-e2e and manual testing.
-
-The stale note page's seam is the e2e harness over a fixture home with a registry entry whose
-directory does not exist (prior art: the three-side fixture in the projects-list tests): assert the
-page structure (card present, no tabs, no loading state), the chip set following the recorded sides,
-and the copy feedback. The copy's clipboard write is verified at the behaviour level (feedback
-appears); the dictionary keys are covered by the type alignment.
-
-The atomic switch and the cached visit (sequence T) are asserted at the e2e seam under an **injected
-fetch delay**: an environment knob of the same test-seam family as the startup-skeleton scan delay,
-read only by the project-detail IPC handler, zero in production and set only by the e2e cases that
-need it. With the delay in force: after clicking B, the list highlight is on B while the pane header
-still names A and its body is non-empty (sampled inside the delay window — the hold is asserted at
-an instant, and the absence of an empty frame rests on the delay being far longer than the sampling
-gap); after the delay the header names B; clicking A again shows A's header and body before the
-delay could have elapsed (the cached visit); and the transfusion after a snapshot update is the
-existing "expansion state survives the automatic refresh" case, which must stay green. The
-Transition itself is verified by mutation once: without it the same case goes red on the hold.
-No renderer unit test mounts a page (none does today), so the query layer has no unit seam; the
-main-process side of the knob is a one-line read and is not unit tested.
-
-project-detail::REQ-002 is asserted at the e2e seam over a fixture home with a project registered on
-Antigravity only and one on every side: the header chips and the Antigravity MCP group. The two
-Instructions entries with their path headings, "None", an unreadable file and the absence of a settings
-summary are asserted over any project — the files are read by path, whatever the registration — and
-the restore of a detail saved before the paths at the display store's filesystem seam. project-detail::REQ-004 reads
-the tab row at the same seam, in both languages, asserts that it fits the default window, and reads the selected tab from
-the ways into a page that project-detail::REQ-004/AC-02 names. The clipping in a narrow
-window and the keyboard's sideways shift are measured rather than asserted: they are accepted limits, not behaviours to keep.
-The agents page's tab row is measured only as well: no test at any width guards that it fits, including at the default
-window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-03).
+- **The `{sides}` slot**: every language's cause and send sentences carry exactly one slot, and the
+  prompt embeds its path.
+- **Instruction entries carry their paths** (project-detail::REQ-002/AC-02): the detail sends each
+  of the project's two files with its path and its contents, or none for a file that exists but
+  cannot be read, and null for an absent one. A project detail saved before the files carried their
+  paths restores with each file at its place in the project and without the settings summary
+  (AGENTS.md: a saved page restores across an update).
 
 ## Out of Scope
 
 - ~~Rendering session contents (metadata only)~~ (2026-08-06: fully shipped by
   `docs/specs/session-view.md`, moved out of this spec's boundary).
 - Editing or creating artifacts (read-only viewing).
-- Removing a stale project's registry records from inside the app (the hint-only stance, settled
-  2026-08-23: the registries are the agents' own live files and Agentshed never writes to them).
-- Per-agent removal commands or registry file paths on the stale note card (retired 2026-08-22 in
-  favour of the agent-agnostic prompt line).
-- A token-history view for stale projects (accepted trade-off of the note-only page; the global
+- Removing a stale project's registry records from inside the app (the hint-only stance: the
+  registries are the agents' own live files and Agentshed never writes to them).
+- Per-agent removal commands or registry file paths on the stale note card (the prompt line is
+  agent-agnostic).
+- A token-history view for stale projects (the note-only page; the global
   totals still include them).
-- Cross-project artifact aggregation (ruled a false requirement, see CONTEXT.md's flagged
+- Cross-project artifact aggregation (see CONTEXT.md's flagged
   ambiguities). Global search ([global-search](global-search.md)) covers session questions only, not
   artifacts.
 - Full-text search of artifact contents.
@@ -432,11 +352,11 @@ window, where [i18n::QR-001](i18n.md) holds it (the owner's decision of 2026-11-
 - An error card for a failed detail fetch: the body stays empty as before (T10); a card is a new
   visible state and needs a prototype.
 - A pending indicator while a first visit is in flight (dimming the clicked row, a progress bar):
-  the list highlight moving at once is the only feedback, by the 2026-09-12 ruling; an indicator is
+  the list highlight moving at once is the only feedback; an indicator is
   a new visible state and needs a prototype.
-- A narrow form of a project's tab row (wrapping onto a second row, scrolling, an overflow menu): a tab past the window's
-  edge stays out of the pointer's reach until the window is widened, and the keyboard's sideways shift of the pane stays,
-  both accepted on 2026-11-03 (project-detail::REQ-004).
+- A narrow form of a project's tab row (wrapping onto a second row, scrolling, an overflow menu): a
+  tab past the window's edge stays out of the pointer's reach until the window is widened, and the
+  keyboard's sideways shift of the pane stays, both accepted (project-detail::REQ-004).
 
 ## Further Notes
 

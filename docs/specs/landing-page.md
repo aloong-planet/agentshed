@@ -1,6 +1,6 @@
 # Landing page
 
-> Related: [features](../features/landing-page.md) · [ADR-0031](../adr/0031-macos-release-line.md) ·
+> Related: [ADR-0031](../adr/0031-macos-release-line.md) ·
 > [mac-distribution](mac-distribution.md) (the releases and the pointer it reads) ·
 > [app-update](app-update.md) (the update button its install steps mention)
 
@@ -15,7 +15,7 @@ version, and keep doing so release after release without being edited.
 ## Solution
 
 A `site/` project in this repository, built with Astro and deployed by Cloudflare Pages at
-`agentshed.aloongplanet.com`, in Chinese (at `/`) and English (at `/en`), as Transfer's site is. It is
+`agentshed.aloongplanet.com`, in Chinese (at `/`) and English (at `/en`). It is
 one long page (form "L1"): header, hero with the download, a scroll-linked features section, three
 install steps, a download section and a footer. The visitor's browser decides what to offer. It reads
 the R2 latest pointer for a formal release. Failing that, it reads GitHub's public releases API, which
@@ -136,13 +136,13 @@ Releases and the copyright line.
 
 ### landing-page::REQ-005 The screenshots
 
-- landing-page::REQ-005/AC-01: The Chinese hero screenshot and the overview, project, token and Chinese session
-  screenshots come from the built app over the owner's own agent data, approved for publication by the
-  owner (on 2026-10-13; the hero's retake on 2026-10-21). The memory and search screenshots come from the
-  built app over a made-up home whose projects, memory files and questions have the shape of real
-  ones, the same projects in both (the owner's choice, 2026-10-21). There is one set per language, taken
-  in the light appearance. The English session screenshot is retaken from the built app over an English
-  example conversation (2026-11-09), including English questions, replies and tool details.
+- landing-page::REQ-005/AC-01: The Chinese hero screenshot and the overview, project, token and
+  Chinese session screenshots come from the built app over the owner's own agent data, approved for
+  publication by the owner. The memory and search screenshots come from the built app over a made-up
+  home whose projects, memory files and questions have the shape of real ones, the same projects in
+  both. There is one set per language, taken in the light appearance. The English session screenshot
+  is retaken from the built app over an English example conversation, including English questions,
+  replies and tool details.
 - landing-page::REQ-005/AC-02: The Chinese hero screenshot is the whole window, its rail showing the Search
   item. Each feature screenshot is cut to the part of the window its step is about. All six are the
   same size (16:9) at the same zoom, so the text stays one size as the steps turn. Each cut ends between
@@ -294,17 +294,11 @@ since they never reach it (mac-distribution::CON-004).
 ## Implementation Decisions
 
 - **The English hero video** uses a local 1600×900 poster and a progressively enhanced YouTube link.
-  Activation creates an iframe on `youtube-nocookie.com` with playback requested, inline playback and
-  fullscreen allowed, and `strict-origin-when-cross-origin` referrer policy to identify the embedding
-  origin. No YouTube API library is loaded. The approved source is uploaded separately, not checked in.
+  Activation creates an iframe on `youtube-nocookie.com` with playback requested, inline playback
+  and fullscreen allowed, and `strict-origin-when-cross-origin` referrer policy to identify the
+  embedding origin. No YouTube API library is loaded.
 
-- **The Astro project follows Transfer's site**: an i18n configuration with Chinese as the default at
-  `/` and English under `/en`, a base layout, one component per section, and a two-language
-  dictionary. Pages is configured as in Transfer's Pages guide (root directory `site`).
-- **Deciding the download state is one pure function** from the two read results (pointer: a version,
-  absent or unreadable; GitHub: a latest formal release, a newest pre-release, nothing, or unreadable)
-  to one of the four states. A small browser script performs the reads and applies the result. The
-  served HTML renders the list state.
+- **The Pages project** has its root directory set to `site`.
 - **The pointer read** takes a pointer only when its version is a formal version and its files name the
   arm64 DMG, by its packaged name, at exactly the URL the mirror's layout gives that version. Anything
   else is unreadable; a 404 means there is no pointer yet.
@@ -322,28 +316,24 @@ since they never reach it (mac-distribution::CON-004).
   visitor's view (the view starts below the sticky header), the page scrolls by the block's change, so
   what the visitor sees does not move; while the block is in view it changes in view (Failure A7).
 - **The palette** is the app's purple palette, with light and dark both declared and switched by the
-  system appearance. The pre-release version's pill and note use the app's warning pair. The GitHub button
-  beside Download is a secondary button: the card ground with the strong line, and the accent border on
-  the soft accent ground on hover. Icons are inline SVG copied from Lucide (download). The text is set in
-  the system font stack; the page loads no web font.
-- **The app icon** is the production artwork with its transparent exterior. In the hero its shadow follows
-  the icon's outline: a shadow round the image's square box showed the transparent margin as a tile
-  (decided 2026-10-18). The browser tab shows the app icon and "Agentshed — " followed by the hero title;
-  the page's description is the hero paragraph.
+  system appearance. The pre-release version's pill and note use the app's warning pair. The GitHub
+  button beside Download is a secondary button: the card ground with the strong line, and the accent
+  border on the soft accent ground on hover. The text is set in the system font stack; the page
+  loads no web font.
+- **The app icon** is the production artwork with its transparent exterior. In the hero its shadow
+  follows the icon's outline. The browser tab shows the app icon and "Agentshed — " followed by the
+  hero title; the page's description is the hero paragraph.
 - **The language toggle** is a link to the other language's page, so it works without scripts. Before
   leaving, a script notes the element in view, its distance from the top of the window and the current
   step; the other page puts the same element back at the same distance and makes the same step current
   (landing-page::REQ-004/AC-07). An element rather than a scroll offset, because the two languages' texts
   wrap to different heights. The pinned showcase is never that element (Failure C5).
-- **The features section** is built as the prototype was: the showcase is pinned inside a block one
-  window tall plus 60% of a window for each further step; the turns are empty blocks after the pinned
-  part, so the number of steps sets the block's height. The current step is the distance scrolled past the
-  point where it pins, in turns, rounded and kept within the steps, both measured from the page; it is
-  computed on scroll and on resize, throttled to animation frames. Without scripts the stylesheet shows
-  the stacked steps in place of the showcase (Failure C7). The steps' texts share one place, and
-  so do their screenshots; the others are hidden with visibility as well as opacity, since a transparent
-  screenshot would still lie on top and take the pointer. The screenshot's width is capped by the
-  window's height so that it stays whole. Below 760px the stacked steps replace the showcase.
+- **The features section**: the showcase is pinned inside a block one window tall plus 60% of a
+  window for each further step, so the number of steps sets the block's height. The current step is
+  the distance scrolled past the point where it pins, in turns, rounded and kept within the steps,
+  both measured from the page; it is computed on scroll and on resize. The steps' texts share one
+  place, and so do their screenshots; the others are hidden with visibility as well as opacity,
+  since a transparent screenshot would still lie on top and take the pointer.
 - **The screenshots** ship as static assets with their width and height declared. They are taken at 2×
   pixels from a window 1280pt wide and 800pt tall. Each feature cut is 920×517pt (16:9), the narrowest that
   holds the token page's trend chart and per-model figures whole. The search and memory screenshots are
@@ -351,61 +341,21 @@ since they never reach it (mac-distribution::CON-004).
   expands a project with only a few memory files, so that other projects stay in view. The English session
   retake uses a 1240pt window so the session pane fits the 920pt cut without truncating its right edge.
 
-## Testing Decisions
-
-Seams confirmed by the owner on 2026-10-13:
-
-- **The download-state function**: unit tests cover every branch of landing-page::REQ-001, malformed
-  pointer and GitHub bodies, drafts, a release without the DMG, and URLs on unexpected hosts.
-- **A check of the built site**: both pages are generated, the served HTML is in the list state with
-  the release-list links, both languages' copy and screenshots are present, and every screenshot
-  declares its size. It reads a fresh build made for the run, never a previous one.
-- **The palette**: a unit test holds every token the page shares with the app to the app's purple values,
-  in light and in dark, and every token to a declaration in both.
-
-Beside them, for the parts the state function does not reach:
-
-- **The two reads**, through an injected fetch, so no case reaches the network: real-shaped answers (the
-  pointer as the release script writes it, GitHub's answer as GitHub gives it) and each way they can be
-  unreadable.
-- **A state applied to the built page**: each state's view applied to a fresh copy of the served page,
-  read back from the page; the requests the page's script makes, at the injected fetch (landing-page::CON-003).
-- **The walkthrough activation**, on a fresh built page with the script initialized: both locale paths,
-  no iframe before activation, the published embed after activation, focus handoff, preserved direct link,
-  and modified-click behavior. Browser evidence verifies actual playback, keyboard activation, no early
-  third-party resource loads, poster dimensions and responsive geometry.
-- **Evidence**: the features section's scroll behaviour, the four states' rendering, and
-  landing-page::QR-001 are measured in a browser, as they were on the prototype (geometry and computed
-  styles, not pixels), and the measurement record is kept.
-
-Prior art: Transfer's site tests for its download configuration, and the prototype's browser checks.
-
 ## Out of Scope
 
 - Retaking the screenshots only because the Instructions section changed its name and place (E2).
 - Download statistics (deferred, ADR-0031 option 10).
 - More than two languages (ADR-0031 option 6).
 - A copy of the page in mainland China (ADR-0031 option 8).
-- A version constant built into the site (rejected 2026-10-13 in favour of reading at run time).
+- A version constant built into the site (rejected in favour of reading at run time).
 - Clicking or keying between the feature steps: the showcase shows one step at a time and turns with the
   scroll (landing-page::REQ-004/AC-08).
-- Keeping the hero's heading and paragraph word for word the same as the README's opening (dropped
-  2026-10-24: the owner does not need the two to match).
+- Any download other than the disk image for Macs with Apple Silicon on macOS 12 or later: there is
+  no Intel, Windows or Linux download.
+- Keeping the hero's heading and paragraph word for word the same as the README's opening (the owner
+  does not need the two to match).
 
 ## Further Notes
-
-- Prototype gate: passed on 2026-10-13 for the page structure, the copy, the privacy-flavoured subtitle,
-  the install steps, the scroll-linked features section and the cropped screenshots. The owner also
-  chose to read the pointer at run time and approved the screenshots for publication. The same day the
-  owner confirmed the revised prototype's list state (landing-page::REQ-002/AC-04) and its
-  formal-from-GitHub state (landing-page::REQ-002/AC-02). On 2026-10-18 the owner chose the app icon for
-  the browser tab, and confirmed the revised prototype's hero icon: the real artwork, its shadow on its
-  outline. On 2026-10-19 the owner confirmed the revised prototype's dark warning colours, brought to the
-  app's own (the test state's pill and note). On 2026-10-21 the owner confirmed the revised prototype:
-  a step for memory and one for search across projects, the sessions step's wording, the retaken hero,
-  the pinned features section (after the layout of a reference page the owner supplied; a slide between
-  steps was tried and dropped, since it made the screenshot jump), the heading and the README's summary
-  in the hero, and made-up data in the memory and search screenshots.
 
 - The download host is `dl.agentshed.aloongplanet.com` (mac-distribution::REQ-004), and the pointer is
   `latest.json` at its root; the pointer's shape is in mac-distribution's Implementation Decisions.

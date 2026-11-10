@@ -1,16 +1,16 @@
 # Plugins view
 
-> Related: [features](../features/plugins-view.md) · [skills-view](skills-view.md) (preview infrastructure) · ADR-0012 (preview decoupled from enablement) · ADR-0010 (plugin skills join the effective view) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0037 (Antigravity CLI side)
+> Related: [skills-view](skills-view.md) (preview infrastructure) · ADR-0012 (preview decoupled from enablement) · ADR-0010 (plugin skills join the effective view) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
 A plugin can be installed at the user level or only for one project, and its package bundles skills,
-subagents, hooks, MCP servers and other components. The viewer previously treated plugins as a purely
-global concept and could not see the bundled components, which caused two problems: a project-scope
-plugin showed as "installed but disabled" in every project (reproduced with superpowers-demo); and
-enabling a plugin was flying blind — no way to know what it injects. Even once the components became
-visible, one blind spot remained: only the names of a plugin's bundled skills were visible, so there
-was no reviewing what they instruct the agent to do before enabling.
+subagents, hooks, MCP servers and other components. Treating plugins as a purely global concept
+hides the bundled components, which causes two problems: a project-scope plugin shows as "installed
+but disabled" in every project; and enabling a plugin is flying blind — no way to know what it
+injects. Even with the components visible, one blind spot remains: only the names of a plugin's
+bundled skills are visible, so there is no reviewing what they instruct the agent to do before
+enabling.
 
 ## Solution
 
@@ -19,13 +19,12 @@ effective enabled set** truthfully (the global page uses the user layer; project
 local > project > user and states which layer the judgement came from). Enablement and installation
 records appear inline on the plugin row; clicking a row expands into **category tabs**
 (Skills/Subagents/Hooks/MCP; empty categories get no tab). **The Skills tab is a row list** (name +
-description + file count · size): clicking a row expands the package's file table and clicking a file
-opens a drawer to read it (reusing the skills-view preview infrastructure) — **readability is
-independent of enablement** (ADR-0012, review before enabling). The Codex group is probe-style, with
-only the Skills category expandable for preview, and it **does not join the Skills section** (there
-are no enablement semantics, and we do not manufacture false signals — ADR-0012). The skills bundled
-with effectively enabled plugins join the Skills section as namespaced entries (ADR-0010). Everything
-is read-only.
+description + file count · size): clicking a row expands the package's file table and clicking a
+file opens a drawer to read it — **readability is independent of enablement** (ADR-0012, review
+before enabling). The Codex group is probe-style, with only the Skills category expandable for
+preview, and it **does not join the Skills section** (there are no enablement semantics, and we do
+not manufacture false signals — ADR-0012). The skills bundled with effectively enabled plugins join
+the Skills section as namespaced entries (ADR-0010). Everything is read-only.
 
 ## User Stories
 
@@ -88,6 +87,7 @@ is read-only.
   the AGENTS.md invariant that a failure reading one entry affects only that entry).
 - E11 A manifest-declared relative path pointing outside the package (`../`) → refuse to read (closing
   the path escape hole).
+- E12 In the expanded area, subagents and MCP servers are listed by name.
 
 **Sequence F: project detail → Plugins section**
 - F1 The effective enabled set = the local > project > user three-layer merge, where the first layer
@@ -95,13 +95,13 @@ is read-only.
   true at the user layer; not mentioned in any layer → not enabled.
 - F2 A missing or corrupt project `settings.json` / `settings.local.json` → skip that layer and fall
   through to a lower one, no crash.
-- F3 The acceptance scenario (an existing fixture): a project-scope plugin displays as not enabled in
+- F3 The acceptance scenario: a project-scope plugin displays as not enabled in
   a non-owning project and on the global page, and as enabled in the owning project's detail, noting
   that it came from the project layer.
 - F4 The detail page's CODEX group lists the same as the global page, labelled "globally in effect, no
   project-level enablement semantics".
 - F5 The detail page's Skills tab has the same preview capability as the global page (the same
-  component, the same package root rule).
+  package root rule).
 
 **Sequence G: plugin entries joining the Skills section** (ADR-0010; the inclusion rule is
 **unchanged by preview**, ADR-0012)
@@ -114,7 +114,7 @@ is read-only.
 - G3 Plugin entries have no install/uninstall buttons (ADR-0004 confines install/uninstall to the
   global library); entries are distinguished by a source badge; they **expand and preview on equal
   footing with on-disk skills** (file table / inline stats / markdown preview, see the skills-view
-  spec; unlocked 2026-08-07, overturning its v1 exclusion).
+  spec).
 - G4 They do not take part in cross-side merging (each side's plugin ecosystem is independent), and
   `sides` is always the plugin's own side: Claude's and Antigravity's plugin skills join
   (plugins-view::REQ-001/AC-04), Codex plugin skills **do not join** (ADR-0012).
@@ -139,16 +139,16 @@ both pages and on every side whose plugins expand)
   version directory in the cache (Codex) — guaranteeing that "the summary you see" and "the contents
   you open" are always the same package.
 - H6 A row whose stats cannot be read is greyed out and unclickable, with the reason in the row's
-  stats slot (**a defensive rule**, verified and written back during implementation 2026-08-08: under
-  directory-convention enumeration an entry with a missing directory or entry point never enters the
-  list at all, so greying out only appears under a race or anomaly such as the package changing after
-  the scan; it fails before the click and no routinely reachable scenario is promised).
+  stats slot (**a defensive rule**: under directory-convention enumeration an entry with a missing
+  directory or entry point never enters the list at all, so greying out only appears under a race or
+  anomaly such as the package changing after the scan; it fails before the click and no routinely
+  reachable scenario is promised).
 - H7 A readable package root with a missing `SKILL.md` → the file table lists the other text files as
   usual without fabricating an entry point (as in skills-view C5).
-- H8 Security (an extension of the C9 family): the scan registers the **summary-source package roots**
-  in an in-process set; the enumeration entry point must hit that set (fail-closed, the same pattern
-  as openedProjects and the artifact allow-list); reading a file still goes through the exact path
-  allow-list registered by the enumeration. The renderer cannot forge a package root outside the set.
+- H8 Security (an extension of the C9 family): the scan registers the **summary-source package
+  roots** in an in-process set; the enumeration entry point must hit that set (fail-closed); reading
+  a file still goes through the exact path allow-list registered by the enumeration. The renderer
+  cannot forge a package root outside the set.
 - H9 Whether switching tabs in the expanded area preserves an already-expanded file table is not
   guaranteed (switch back and expand again; v1 promises no state preservation).
 - H10 Expanding a row whose file table cannot be enumerated → one error toast. A reopen adds one, a scan
@@ -156,10 +156,11 @@ both pages and on every side whose plugins expand)
   expansion adds one in the new language, and the expanded area states the failure in the toast's sentence
   (all as [skills-view](skills-view.md) A11). Opening another row is another listing, and its failure adds
   one.
+- H11 Reopening a row that was already expanded shows its file table at once and refreshes it quietly
+  in the background, rather than reloading from a blank state.
 
 **Cross-cutting regression points**
-- R1 The IPC contract (`validate`) must be extended along with any new domain type field (the same
-  lesson as the cache-crash postmortem).
+- R1 The IPC contract (`validate`) must be extended along with any new domain type field.
 - R2 Existing skill install/uninstall is unaffected: it touches only the global library and the
   project's skills directory; plugin entries have two lines of defence (no button + a level guard).
 - R3 Plugins are read once per scan and consumed in three places (plugins / the Skills join / MCP) to
@@ -202,7 +203,7 @@ skills out of the Skills section and its servers out of the MCP section at the n
 plugin's MCP server that cannot start (a missing command) still lists, since listing reads the file and
 starts nothing; a manifest path pointing outside the package is refused (E11).
 
-Settled during implementation (2026-10-29):
+Further rules:
 
 - A plugin is identified by its directory name: the key agy's configuration records it under, and the
   namespace of its skills and servers. Its manifest is the top-level `plugin.json`, the form sampled.
@@ -221,51 +222,10 @@ Settled during implementation (2026-10-29):
 
 ## Implementation Decisions
 
-- **Types**: an installation record array (with scope / owning project / stale marker) + layered
-  enablement (the user-layer rule for the global page / `enabledFrom` attribution for the detail page)
-  + four kinds of bundled component summary. A bundled skill entry extends to name + description +
-  **package stats (file count / bytes) + readability (a missing package root or subdirectory means
-  unreadable, with the reason)**; plugin entries (global and detail) carry the **summary-source
-  package root** identity. Codex plugin entries add bundled skills (that category only). ADR-0001's
-  single type source, with contract validation extended in step.
-- **Read layer**: injected through `ScanRoots`; bundled components are merged from two paths, the
-  directory convention and manifest fields, with manifest relative paths confined to the package; the
-  Codex side enumerates the cache's three directory levels plus the `skills` subdirectory under the
-  highest version directory (the same directory convention as Claude), enumerating safely level by
-  level. During the scan, each plugin skill gets stat-only package stats and its package root
-  registered (H8).
-- **Preview channel**: reuses skills-view's enumerate / read-file IPC channels and allow-list
-  discipline, with the entry point extended to the "registered plugin package root + skill name" form;
-  no new arbitrary-path read hole is opened.
 - **UI**: two sections grouped by side; a row = name + version + enablement/source + installation
   record chips; the expansion = category tabs (a segmented control, distinct from page-level tabs) +
-  one category panel; the Skills tab reuses skills-view's row / file table / drawer mechanism. The
-  expanded area keeps the plugin row's own left inset: its category tabs and panel start level with the
-  row's chevron, with no further indent.
-
-## Testing Decisions
-
-Following ADR-0038's seams:
-1. **The providers seam**: fixture unit tests covering sequences E/F/G/H — several installation
-   records, layered settings merging and corruption degradation, merging the four bundled categories,
-   refusing path escapes, Codex cache enumeration with one unreadable layer, the namespaced join and
-   its non-participation in shadowing; **added**: Codex skill enumeration (highest version, directory
-   convention), plugin skill package stats and readability (a missing package, a missing single
-   directory), and the package root set refusing an unregistered entry point (a fail-closed negative
-   case).
-2. **The contract seam**: round-trip validation of the new fields (skill metadata / package root /
-   Codex skills); a bad payload is rejected.
-3. **e2e**: with a seeded fixture home — expanding a plugin shows category tabs; clicking a row in the
-   Skills tab shows the file table and clicking a file shows the contents in a drawer; a disabled
-   plugin is readable; a missing one is greyed out; the Codex group has only a Skills tab; the detail
-   page's F3 scenario regresses in both directions.
-4. **The Antigravity side** (plugins-view::REQ-001): fixtures shaped from the `flutter` sample — a fresh
-   install (no enabled key), a disabled one, a missing configuration file — asserting the group, the
-   three category tabs, the namespaced skills joining only while enabled, and the bundled server
-   names.
-
-A good test asserts only external behaviour (directory → the set of entries / stats / readability;
-entry point → admitted or the reason for refusal), never the traversal implementation details.
+  one category panel. The expanded area keeps the plugin row's own left inset: its category tabs and
+  panel start level with the row's chevron, with no further indent.
 
 ## Out of Scope
 
@@ -274,21 +234,8 @@ entry point → admitted or the reason for refusal), never the traversal impleme
   other than skills (ADR-0012's restart condition: the enablement semantics being wired up
   officially).
 - Click-through or detail preview for subagent / hook / MCP entries (each its own ticket).
-- Navigation or locate-and-highlight between the Plugins and Skills sections (ruled obsolete
-  2026-08-07, ADR-0012 option 4).
+- Navigation or locate-and-highlight between the Plugins and Skills sections (ADR-0012).
 - A dedicated hooks section (a merged view of the five sources) — the hooks summary inside a plugin's
   expansion does not count; that is a separate future item.
 - Installation forms other than the cache, such as `plugins/repos`; interpreting local scope's
   semantics (labelled as written).
-
-## Further Notes
-
-- **Prototype gate: passed** (2026-08-07, finalised over four iterations: inline installation records
-  and enablement, category tabs, the Skills row list with stats, the greyed-out missing state, and the
-  Codex group's Skills-only tab).
-- **Prototype gate (2026-11-05), the mark's word**: the prototypes' word for a stale owning project (E2) is brought to
-  the label's, "project stale". It is copy only: no state, control or form changes. Declared here as the exemption
-  rather than assumed.
-- Implementation wrap-up (step 8) must update: `docs/features/plugins-view.md` (the expansion form and
-  preview capability), and the wording about "plugins cannot be previewed" in
-  `docs/features/skills-view.md` and `docs/features/agents-overview.md`.

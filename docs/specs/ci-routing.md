@@ -101,21 +101,8 @@ the independent message-language check; conditional product jobs are enforced th
 For a pull request, use a complete local Git comparison with NUL-delimited paths and rename detection
 disabled; a push reads no comparison. A default-branch push selects both scopes because a newer push
 cancels the unfinished run on the same branch (ci-routing::REQ-004/AC-03): each run has to cover what
-the run it cancels would have checked. Keep
-classification and final-result decisions as pure functions behind small command-line adapters.
-Require `CI gate` directly after the ruleset migration; retain the separate required message-language
-check. Product jobs remain conditional, with no compatibility forwarding job. Do not introduce
-another dependency or a privileged pull-request event to classify changes.
-
-## Testing Decisions
-
-Rules use pure-function tests with explicit expected scopes and job outcomes. A temporary Git
-repository verifies event-to-diff-to-workflow-output wiring, including a divergent base and moved
-files, and that a push selects both products whatever its commits changed. Workflow tests use the existing YAML loader and GitHub expression evaluator pattern, execute
-the actual run blocks, and verify the job graph and retained commands. Lint scope enumeration proves
-the two scopes cover the full lint input. No new application E2E is needed for CI-only behavior.
-GitHub runner scheduling and online ruleset enforcement require CI evidence; local tests do not claim
-to reproduce GitHub's scheduler.
+the run it cancels would have checked. Do not introduce another dependency or a privileged
+pull-request event to classify changes.
 
 ## Out of Scope
 

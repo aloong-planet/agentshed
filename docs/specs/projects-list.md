@@ -1,13 +1,7 @@
 # Project list
 
-> Related: [features](../features/projects-list.md) · ADR-0038 (test layers) · ADR-0019 (what a registry is, per side) · ADR-0021 (side colour) · ADR-0022 (manual hiding removed) · ADR-0037 (Antigravity CLI side)
-> Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
-> artifacts on 2026-08-01 — the requirements and boundaries were inferred from features, the existing
-> test cases and the code's behaviour, since the original reasoning was lost with `.scratch/`. The
-> boundary entries all have corresponding tests and are trustworthy; where one conflicts with the
-> implementation, the implementation wins and this document is rewritten in place.
+> Related: ADR-0038 (test layers) · ADR-0019 (what a registry is, per side) · ADR-0021 (side colour) · ADR-0022 (manual hiding removed) · ADR-0037 (Antigravity CLI side)
 
-> Startup restoration uses the original page prototypes confirmed on 2026-09-14.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
 
 ## Problem Statement
@@ -38,24 +32,19 @@ and are never written back to any agent configuration.
 2. As a user, I want the default sort to be activity (most recent session time) with the relative
    time shown, so that what I have been working on lately is at the top.
 
-> The row's trailing session count was removed on 2026-08-16 with the side-count badge's arrival
-> (settled in the project-list prototype): two numbers at the row's end read as one, and the number
-> that matters per project lives in the sessions tab. `ProjectEntry.sessionCount` stays in the
-> contract — activity keeps both quantities — but currently surfaces nowhere. The engine's backfill
-> covers every side's listed sessions.
+> The row shows no session count: two numbers at the row's end read as one, and the number that
+> matters per project lives in the sessions tab. Activity still keeps both quantities, but the session
+> count surfaces nowhere in the list. The backfill covers every side's listed sessions.
 3. As a user, I want to search by name or path and filter by agent side, so that I can find things
    quickly when there are many projects.
 4. As a user, I want stale projects (in the registry, directory deleted) collapsed by default but
    revealable, so that the list stays clean without losing the cleanup lead.
 5. As a user, I want the list's structure with placeholder rows rather than an empty list before the
    first scan finishes, so that I do not mistake "not scanned yet" for "no projects" and the app
-   never looks blank on launch (changed 2026-08-21; it used to be a bare hint on an empty stage).
+   never looks blank on launch.
 
-> Manual hiding was story 5 until 2026-08-16, when it was removed (ADR-0022). The constraint it
-> answered to — registries are read-only to this app, so directories the user does not care about
-> accumulate in the list — still holds; the judgement was that the clutter has not materialised at a
-> scale worth a permanent hover slot for. Recorded here because the constraint outliving the feature
-> is what would make someone re-propose it.
+> Registries are read-only to this app, so directories the user does not care about accumulate in the
+> list; the clutter is judged not worth a permanent hover slot for manual hiding (ADR-0022).
 
 ## Failure modes and boundaries
 
@@ -84,14 +73,13 @@ and are never written back to any agent configuration.
 - A9 A side that is installed but has registered nothing (its data directory exists, its registry is
   absent or empty) → `detected=true` with no projects contributed. This is a normal state for a
   newly adopted side, not a failure, and must not be reported as one.
-- A10 First scan of this launch not finished and no usable saved snapshot → the dimension renders a **skeleton**: the sidebar
-  shows its real structure — the search field and the filter row greyed with their static labels —
-  above placeholder rows whose geometry (row height, name/count/activity slots) matches real rows;
-  the detail area shows the scanning hint centred **in place of** the pick-a-project empty state,
-  because with nothing to pick yet that guidance would be false. The hint copy is one dictionary
-  entry shared with the agents overview; its old parenthetical promised the pre-skeleton behaviour
-  and is rewritten in every language. The scanning hint appears once on the screen: while the skeleton
-  is up, the detail area shows no other scanning hint.
+- A10 First scan of this launch not finished and no usable saved snapshot → the dimension renders a
+  **skeleton**: the sidebar shows its real structure — the search field and the filter row greyed
+  with their static labels — above placeholder rows whose geometry (row height, name/count/activity
+  slots) matches real rows; the detail area shows the scanning hint centred **in place of** the
+  pick-a-project empty state, because with nothing to pick yet that guidance would be false. The
+  scanning hint appears once on the screen: while the skeleton is up, the detail area shows no other
+  scanning hint.
 - A11 The skeleton is non-interactive: search, the side dropdown, the stale toggle and the
   placeholder rows all refuse input; the rail stays live (dimension switch, settings).
 - A12 The skeleton exists only while no live or restored snapshot is available; later scans keep the
@@ -130,21 +118,18 @@ and are never written back to any agent configuration.
 **Sequence C: filtering**
 - C1 Search, side filtering and stale filtering all **stack**, never overriding one another.
 - C2 No browsing preference is written to any agent configuration (uninstalling this app does not
-  affect the agents). This outlives the hiding feature it was originally written for: it governs any
-  preference this list grows.
+  affect the agents). It governs any preference this list grows.
 - C3 — withdrawn with manual hiding (ADR-0022). The number is left unused rather than reassigned, so
   that an old reference to C3 fails to find anything instead of finding a different rule.
-- C4 Scan triggers that coincide are deduplicated (no concurrent scans): with the manual control gone
-  (2026-08-23) the coinciding pair is the timed backstop and a focus trigger, and the second one
-  joins the in-flight scan rather than starting another.
-- C5 Side filtering is a **single-choice dropdown** defaulting to all sides, not one control per side:
-  the row of controls has to stay readable as sides are added, and in the narrowest supported sidebar
-  the longer of the two UI languages must not push it out of the column. The row's occupants *can*
-  outgrow that column (found 2026-08-16: the prototype's width readout was blind to the stale toggle
-  and the stale counter, which it hard-coded in Chinese — the shorter of the UI languages). Ruled the same
-  day: the stale counter yields first, ellipsizing down to a floor with its full sentence on its
-  title; the toggle label wraps onto a second text line only when its own natural width exceeds the
-  column; nothing crosses the column's content edge.
+- C4 Scan triggers that coincide are deduplicated (no concurrent scans): the coinciding pair is the
+  timed backstop and a focus trigger, and the second one joins the in-flight scan rather than
+  starting another.
+- C5 Side filtering is a **single-choice dropdown** defaulting to all sides, not one control per
+  side: the row of controls has to stay readable as sides are added, and in the narrowest supported
+  sidebar the longer of the two UI languages must not push it out of the column. The row's occupants
+  can outgrow that column: the stale counter yields first, ellipsizing down to a floor with its full
+  sentence on its title; the toggle label wraps onto a second text line only when its own natural
+  width exceeds the column; nothing crosses the column's content edge.
 - C6 Hovering the side count opens a layer naming the sides in full. It is a layer over a clipped,
   scrollable list, so it owes both floating-layer obligations (the AGENTS.md invariant): it escapes the
   ancestors' clipping, and it answers for a stale anchor — dismissed on any scroll but its own, and
@@ -157,6 +142,9 @@ and are never written back to any agent configuration.
   project, by default) stays hidden.
 - C9 The stale counter shows only while the stale toggle is off and at least one stale project is
   filtered out; with the toggle on, or with no stale project, the filter row has no counter.
+- C10 Clicking a project's row opens its detail page and marks the row selected.
+- C11 A rescan triggered by the window regaining focus runs at most once a minute; the list updates in
+  place when a scan lands.
 
 ## The Antigravity CLI side
 
@@ -260,77 +248,39 @@ registrations follow A6 and project-detail's S6/S7 rather than retaining ghost l
   side's colour — it says "how many", and colouring it would read as "which". The count follows the
   Bot glyph, the same glyph on every row.
 - **Row tooltip**: a row's tooltip is the project's path.
-- **Refresh**: scanning is automatic only (focus + timed backstop, in-flight deduplicated). The rail's
-  global refresh control was removed on 2026-08-23 — it held ⌘R, shadowing the platform reload, and
-  the automatic triggers already covered staleness. See Out of Scope for what that costs.
-- **Selection is a deeper wash, not a ring** (settled 2026-08-21 on the project-list prototype):
-  hover = `--accent-soft`, selected = `--accent-soft-deep` (a new token, accent mixed 26% into card,
-  baked per theme × light/dark), no outline. The old ring was an outline, which paints outside the
-  border box and rode on the neighbouring row's hover background; hovering the selected row keeps
-  the deep wash. Adjacent rows keep a 1px gap so a selected and a hovered wash never read as one
-  block.
-- **Skeleton**: a render-layer state of this dimension, driven by "no snapshot yet" — the main
-  process is untouched. The sidebar's static labels come from the dictionaries (the same keys the
-  loaded page uses); placeholder blocks take the separator-line grey with a subtle opacity pulse
-  that honours reduced-motion preferences, and placeholder rows share the real rows' geometry
-  (settled in the prototype, 2026-08-21). One skeleton form language across both dimensions — the
-  agents overview's skeleton uses the same placeholder colour and pulse.
+- **Refresh**: scanning is automatic only (focus + timed backstop, in-flight deduplicated).
+- **Selection is a deeper wash, not a ring**: hover = `--accent-soft`, selected =
+  `--accent-soft-deep` (accent mixed 26% into card, baked per theme × light/dark), no outline.
+  Hovering the selected row keeps the deep wash. Adjacent rows keep a 1px gap so a selected and a
+  hovered wash never read as one block.
+- **Skeleton**: placeholder blocks take the separator-line grey with a subtle opacity pulse that
+  honours reduced-motion preferences. One skeleton form language across both dimensions — the agents
+  overview's skeleton uses the same placeholder colour and pulse.
 
-- **Arrival is one update and an initial value**: the side and the toggle reach the list as the state it mounts with, not
-  through an effect after mounting, which would draw one frame of all sides. The dimension change, those values and any
-  clearing of the selection run in one Transition, the same one that wraps opening a session from global search. The
-  decision (given the side, the projects and the selection: the toggle and whether the selection stays) is a pure
-  function. Every other way in clears those values, rather than the list clearing them when it mounts: a rail click can
-  land before the Transition, and then the list never mounts. For the same reason the arrival drops a reveal request a
-  global search hit left behind (C8).
-
-## Testing Decisions
-
-Following ADR-0038's seams: `ScanRoots` fixture unit tests at the providers layer cover the
-registry union, corruption degradation, path normalisation, activity attribution and subagent
-exclusion — with a fixture per side, since each side's registry and session layout differ while the
-resulting entries must not. The A7/A8 distinction (sessions without a registry record) needs its own
-fixture case, because it is the one place where "has sessions" and "is a project" come apart.
-projects-list::REQ-001 adds an Antigravity fixture home to the same seam: a settings file trusting one
-folder, conversations in that folder and in an untrusted one (the A7/A8 case for this side), a subagent
-conversation, and a conversation with a log beside it whose modification time is later than the
-database's (projects-list::REQ-001/AC-04).
-
-UI interactions are covered by e2e, and the two floating layers (C6/C7) need **geometric** assertions
-rather than existence ones: a clipped or mislaid layer reports a perfectly ordinary bounding box, so
-the check that distinguishes it is hit-testing the layer's own centre and confirming the point belongs
-to it. Their opposite resize answers are each asserted, since a layer that dismisses when it should
-reposition looks identical to one that was never opened.
-
-projects-list::REQ-002 is tested at the e2e seam over the fixture of [agents-overview](agents-overview.md)'s link
-cases, activating the control from the agents page: the dropdown's text, the row count against the card, the toggle in
-both states, search empty, a selection on the side kept and one off it cleared, and the rail afterwards opening all
-sides. "No frame shows all sides" is an assertion over every moment, so it is recorded in the page by a mutation
-observer and read afterwards, with one positive case each way, rather than polled. It runs over a list of several
-hundred rows: over three rows, a filter set in an effect after mounting was not recorded (measured 2026-11-03). The
-toggle and selection decision has a unit test over the pure function.
-
-The skeleton (A10–A13) is tested at the e2e seam: an environment-injected delay holds the first scan
-open (the same injection family as the rescan intervals), making the skeleton a stable state rather
-than a race. Assertions are render-level — placeholder rows visible, the sidebar's controls refusing
-pointer input by hit-testing (not attribute checks), and the in-place fill asserted geometrically
-(row height and first-row position measured before and after the snapshot arrives).
+- **Arrival is one update and an initial value**: the side and the toggle reach the list as the
+  state it mounts with, not through an effect after mounting, which would draw one frame of all
+  sides. The dimension change, those values and any clearing of the selection happen in one update.
+  Every other way in clears those values, rather than the list clearing them when it mounts: a rail
+  click can land before the update, and then the list never mounts. For the same reason the arrival
+  drops a reveal request a global search hit left behind (C8).
 
 ## Out of Scope
 
 - Remembering a filter across visits: a filter set on arrival lasts until the dimension is left.
 - A control that goes back to the agents page from the list; the rail does that.
 - Live file watching: data only updates on the startup scan and the automatic rescans.
-- A manual refresh control (removed 2026-08-23). The cost is accepted: an action taken outside the
-  app — or an install made inside it — becomes visible at the next automatic scan rather than on
-  demand.
+- A manual refresh control. The cost is accepted: an action taken outside the app — or an install
+  made inside it — becomes visible at the next automatic scan rather than on demand.
 - Adding or removing project registrations from this app (the registries are read-only).
+- Manual hiding of projects: every registered project is listed, and projects hidden under the earlier
+  feature reappear (ADR-0022).
+- Reading the Antigravity desktop app's and IDE's data; reading Antigravity CLI's conversations
+  changes nothing in its directories.
 - Cross-project content search, beyond the session questions global search covers
   ([global-search](global-search.md)).
 - A state of its own for a directory that cannot be reached (A6): it would be a new form, needing a prototype.
 
 ## Further Notes
 
-- **Prototype gate (2026-11-05), a directory that cannot be reached (A6)**: it adds no state, control or form. Such a
-  project draws the normal row and page, which exist already; only which projects count as stale changes. Declared here as
-  the exemption rather than assumed.
+- **A directory that cannot be reached (A6)**: it adds no state, control or form. Such a project
+  draws the normal row and page, which exist already; only which projects count as stale changes.

@@ -37,6 +37,10 @@ asserts. The spec that holds the rule decides:
 - A case asserting several features' rules goes with its main assertion when it is moved. Moving does not split it.
 - When no spec states the rule, the spec is written first.
 
+> **Amended (2026-11-10)**: the feature catalogue was merged into the specs and `docs/features/` removed, so
+> `<slug>` names the document in `docs/specs/`. Every document the catalogue held has a spec of the same name, so
+> no e2e file changes its name.
+
 A case about how the application starts, refreshes or keeps its cache, rather than what a feature shows, goes in
 `e2e/lifecycle.spec.ts`. A test of the e2e harness itself is not a feature's and stays beside what it tests.
 
