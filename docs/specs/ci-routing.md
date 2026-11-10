@@ -9,8 +9,8 @@ checks, while accepting every skipped job would hide failures in jobs that shoul
 ## Solution
 
 Classify the complete change set, run each affected product's checks, and report a stable CI gate.
-Repository policy checks remain unconditional. The existing required check names remain compatible
-until the repository ruleset can switch to the stable gate without blocking open pull requests.
+Repository policy checks remain unconditional. The online ruleset requires the stable `CI gate` and
+the independent message-language check; conditional product jobs are enforced through the gate.
 
 ## Functional Requirements
 
@@ -57,9 +57,10 @@ until the repository ruleset can switch to the stable gate without blocking open
   remain unconditional. The full local verification command remains available.
 - ci-routing::REQ-004/AC-03: Pull request and default-branch push triggers, cancellation of obsolete
   runs, the separate message-language workflow and release triggers retain their existing behavior.
-- ci-routing::REQ-004/AC-04: Existing required check names continue reporting meaningful results while
-  the stable CI gate is introduced. Switching the online ruleset and removing compatibility names
-  follows successful verification of the new gate; it is not implied by opening its implementation PR.
+- ci-routing::REQ-004/AC-04: The online ruleset requires `CI gate` and
+  `message language (PR title, body, commits)`, with no legacy forwarding check or independently
+  required product job. Removing the compatibility job follows successful verification of the gate
+  and the online ruleset switch; opening an implementation PR alone does not change that ruleset.
 
 ## Failure modes and boundaries
 
@@ -83,7 +84,8 @@ until the repository ruleset can switch to the stable gate without blocking open
 
 Use a complete local Git comparison with NUL-delimited paths and rename detection disabled. Keep
 classification and final-result decisions as pure functions behind small command-line adapters.
-Use the existing job names as compatibility checks during the ruleset migration. Do not introduce
+Require `CI gate` directly after the ruleset migration; retain the separate required message-language
+check. Product jobs remain conditional, with no compatibility forwarding job. Do not introduce
 another dependency or a privileged pull-request event to classify changes.
 
 ## Testing Decisions

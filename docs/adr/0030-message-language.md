@@ -80,9 +80,9 @@ We choose **option 1**.
 ## Consequences
 
 > CI routing update (2026-11-10): the message-language check remains independent and required. The
-> composite CI check now forwards the stable CI gate's result, and Electron E2E is conditional on
-> application changes. The existing required names remain compatible while the ruleset naming
-> migration described in [the CI runbook](../ops/ci.md#required-checks-and-migration) is pending.
+> active default-branch ruleset now requires `CI gate` directly alongside it. The old composite
+> forwarding job is removed; Electron E2E remains conditional on application changes and is enforced
+> through the gate. See [the CI runbook](../ops/ci.md#required-checks-and-migration).
 
 - Positive: what reaches `master` is checked twice — at commit time and again in the pull request —
   and the commit-time check fails before the commit exists, where fixing it costs nothing.
@@ -93,9 +93,8 @@ We choose **option 1**.
 - Negative: `core.hooksPath` is repository configuration, shared by every worktree. A worktree whose
   checkout predates `.husky/`, or that has not run `pnpm install`, has no hook and commits unchecked
   without a message; the CI layer is what catches those commits.
-- Negative: any local hook can be bypassed with `--no-verify`; the CI layer exists for that, but while
-  required checks are unavailable on this plan it only reports — a red message-language check does not
-  stop the merge, so the reviewer has to read it.
+- Negative: any local hook can be bypassed with `--no-verify`; the required message-language check
+  catches that bypass before merge, as established by the amendment above.
 - Negative: issues are not mechanically checked.
 - Negative: the hook recognises comment lines by `core.commentChar` only; with `commentChar = auto` or a
   multi-character `core.commentString` it falls back to `#`, and a localized git template commented

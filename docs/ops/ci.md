@@ -38,21 +38,22 @@ and workflow wiring without building the app or website.
 
 ## Required checks and migration
 
-The existing ruleset requires `typecheck + unit tests + shared-piece consistency`, `e2e(Electron)` and
-`message language (PR title, body, commits)`. The first name is retained by the `checks` compatibility
-job: it succeeds only when **CI gate** succeeds. The existing E2E name stays attached to the conditional
-Electron job. Thus the existing rules already enforce the stable gate indirectly for every PR.
+The active default-branch ruleset requires exactly these GitHub Actions checks:
 
-To finish the naming migration after the new gate has passed on a pull request:
+- `CI gate`
+- `message language (PR title, body, commits)`
 
-1. In Settings → Rules → Rulesets → main, require `CI gate` from GitHub Actions and keep
-   `message language (PR title, body, commits)`.
-2. Remove the old composite and E2E names from the required list in the same ruleset update; retain
-   active enforcement, the default-branch target and no bypass actors. Read back the stored ruleset.
-3. Only then remove the compatibility job. Product jobs remain conditional and are enforced by the gate.
+The ruleset was switched on 2026-11-10, after the gate passed on the implementation PR and `main`.
+The stored configuration was read back: enforcement is active, the target is the default branch,
+and there are no bypass actors. Other protection settings were retained.
 
-Do not delete or rename an old required job before that switch. Opening a PR does not perform this
-online configuration change. Test a required-result failure as well as a successful run before switching.
+The old `typecheck + unit tests + shared-piece consistency` forwarding job is removed. The actual
+`e2e(Electron)` job still runs for application changes; its result is enforced by `CI gate` rather
+than being independently required. Deliberately skipped product jobs therefore do not strand a PR.
+
+When changing required check names again, first make the replacement report a successful result,
+update and read back the online ruleset, and only then remove the old job. Verify that a failed
+required result blocks merging. Opening a PR does not itself change the online ruleset.
 
 ## Other workflows and deployment
 

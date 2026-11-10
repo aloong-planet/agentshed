@@ -134,18 +134,6 @@ jobs:
           NEEDS_JSON: ${{ toJSON(needs) }}
         run: node scripts/ci-gate.mjs
 
-  # Keep the current required check working until the ruleset is migrated to CI gate.
-  # This alias must fail when the gate fails or is skipped; it does not rerun any tests.
-  checks:
-    name: typecheck + unit tests + shared-piece consistency
-    needs: ci-gate
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - env:
-          GATE_RESULT: ${{ needs.ci-gate.result }}
-        run: test "$GATE_RESULT" = success
-
 # smoke does not run in CI: scripts/smoke.sh is macOS-local only — BSD stat (-f %m), macOS process paths
 # (Electron.app/Contents/MacOS/Electron) — and its value lies in scanning **the development machine's real
 # ~/.claude data**
