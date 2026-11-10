@@ -4,17 +4,17 @@
 
 ## Problem Statement
 
-Whoever writes a test here, usually an agent, had no rule for which layer it belongs at. The written
-decision said the UI was covered by hand while the e2e suite had become its only automated coverage, and
-nothing bounded what went into that suite. Nor did anything say which of its files a case goes in, so one file took
-most of them, and a case that went elsewhere brought its own copy of the helpers.
+Whoever writes a test here, usually an agent, needs a rule for which layer it belongs at. Without
+one the e2e suite becomes the UI's only automated coverage and nothing bounds what goes into it.
+Without a rule for which of its files a case goes in, one file takes most of them, and a case that
+goes elsewhere brings its own copy of the helpers.
 
 ## Solution
 
-ADR-0038 decides what e2e is for and what it admits. Whether a layer below e2e should take renderer behaviour
-over was measured rather than argued, and the layer was not adopted (see Out of Scope). ADR-0040 admits component
-tests for one narrow case, the rendering branches nothing else checks. ADR-0041 decides which e2e file a case goes in
-and where a helper lives.
+ADR-0038 decides what e2e is for and what it admits. A layer below e2e is not adopted for renderer
+behaviour (see Out of Scope). ADR-0040 admits component tests for one narrow case, the rendering
+branches nothing else checks. ADR-0041 decides which e2e file a case goes in and where a helper
+lives.
 
 ## User Stories
 
@@ -50,7 +50,7 @@ break them, so that a wrong row or banner on those sessions does not reach anyon
 As someone writing an e2e case, I want one rule for where it goes and where its helpers live, so that a feature's
 cases stay together and helpers are not copied.
 
-- test-layers::US-003/AC-01: A case goes in the file named after the `docs/features/` document whose rule it asserts,
+- test-layers::US-003/AC-01: A case goes in the file named after the `docs/specs/` document whose rule it asserts,
   and that file is created if it does not exist yet.
 - test-layers::US-003/AC-02: A case that moves between pages only to reach what it asserts goes with the feature it
   asserts on.
@@ -113,8 +113,7 @@ sites too.
   renders, chosen by the shape of the data, goes to a component test under ADR-0040. Anything else is written at
   e2e, as ADR-0038's consequences say. Extracting a pure function comes first where one exists.
 - **A shape no provider produces.** Not tested, though the validators accept it: a sub block with inner steps, and
-  a Codex page marked stripped with no parent file. The test file's header names them, for when a provider starts
-  producing either.
+  a Codex page marked stripped with no parent file.
 - **A derivation in new code.** Kept in a pure function and unit tested, under ADR-0038. The branches in
   test-layers::US-002 are an existing gap, tested without changing shipped code.
 - **A behaviour across several interactions.** Stays in e2e.
@@ -158,21 +157,15 @@ chosen to differ from anything that could stand in for them: an index, a positio
 
 ## Out of Scope
 
-- **A component-test layer below e2e: measured and not adopted.** Six e2e cases (the session page's question
-  list, expansion, day groups, Claude and Codex rich content, and the tab a project opens on) were moved on a
-  branch to tests that mount the real component tree over a fake `window.agentshed` whose payloads pass the real
-  contract, measured on one machine on 2026-11-05 against criteria set beforehand:
-  - **Detection, passed as parity.** On 57 injected renderer bugs chosen knowing the assertions, and 24 chosen
-    without seeing any test, the new tests and the old cases caught the same ones: all 57, and 5 of the 24.
-  - **Stability, passed.** 20 consecutive runs without a failure.
-  - **Time, failed.** 2.33 s against a limit of 2.05 s, one fifth of the 10.27 s of e2e replaced.
-  - **Lines, failed.** 585 lines of tests and harness against the 451 of e2e replaced.
-  - Real past changes went red as they should: the source from before #363 and before #357 failed the behaviours
-    each introduced. The behaviours of #363 took 72 lines of the new tests, against +139 −31 in the e2e case.
+- **A component-test layer below e2e: not adopted.** A pilot that mounted the real component tree
+  over a fake `window.agentshed` whose payloads pass the real contract caught the same injected
+  renderer bugs as the e2e cases it replaced and ran stably, but failed its time and line-count
+  criteria: the criteria were a run time within one fifth of the e2e time replaced and no more
+  lines of tests and harness than the e2e replaced; the pilot ran over both limits.
 
-  Reopened by a decision that sets new criteria, because most of the time and much of the lines are one-time
-  costs (the jsdom start and the harness) rather than per case; the measurement stands as its evidence.
-  ADR-0040's tests do not reopen it: they move no e2e case.
+  Reopened by a decision that sets new criteria, because most of the time and much of the lines are
+  one-time costs (the jsdom start and the harness) rather than per case. ADR-0040's tests do not
+  reopen it: they move no e2e case.
 - Moving existing e2e cases to meet ADR-0038.
 - A cap or budget on the size of test files: rejected under ADR-0041.
 - Real-browser component tests.
@@ -180,6 +173,4 @@ chosen to differ from anything that could stand in for them: an index, a positio
 
 ## Further Notes
 
-The thresholds in the pilot's criteria were that pilot's own, not an industry standard. Those in
-test-layers::QR-002 are this change's own, set after a spike had measured about the same figures, so they guard
-against drift and prove nothing about the approach.
+The thresholds in test-layers::QR-002 guard against drift and prove nothing about the approach.

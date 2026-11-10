@@ -1,6 +1,6 @@
 # Appearance
 
-> Related: [features](../features/appearance.md) · app-wide UI tokens; rendered markdown follows the
+> Related: app-wide UI tokens; rendered markdown follows the
 > accent and shares one heading ladder (sequence E)  
 > Two orthogonal dimensions: **mode** (follow system / light / dark, defaulting to follow system) ×
 > **theme** (purple (default) / mist blue / amber brown).  
@@ -9,14 +9,13 @@
 >
 > **On the naming**: the two dimensions are *appearance* and *theme* (see CONTEXT for why —
 > `prefers-color-scheme` and SwiftUI's `ColorScheme` both already mean light/dark, so "colour scheme"
-> was naming the wrong axis). Prose and code now agree, down to the persisted key. The rename shipped
-> without reading the old `scheme` key, so an existing choice falls back to purple once on upgrade —
-> a deliberate call, not a missing migration.
+> was naming the wrong axis). A choice stored under the old `scheme` key is not read, so an
+> existing choice falls back to purple once on upgrade — a deliberate call, not a missing migration.
 
 ## Problem Statement
 
 The app needs to follow macOS's light/dark mode and let the user choose between several UI accent /
-paper feels. The existing `theme.css` already does light/dark with CSS variables and
+paper feels. The app already does light/dark with CSS variables and
 `prefers-color-scheme`, but only in a fixed brand purple. The user wants to keep **the shipped
 default purple** and add reading-oriented themes such as **mist blue and amber brown**; a switch
 must apply to **the whole app** (rail, lists, detail, drawers, the future skill preview and so on)
@@ -92,13 +91,13 @@ platform's.
 
 - A1 The default theme = **`purple`** (a fresh install with no storage file looks like the shipped
   build).  
-- A2 The user changes to `blue` / `amber` / back to `purple` → set
-  `document.documentElement.dataset.theme` immediately and write atomically to userData.  
+- A2 The user changes to `blue` / `amber` / back to `purple` → apply
+  the theme immediately and write atomically to userData.  
 - A3 On restart the theme is read back; an invalid value or a corrupt file → fall back to
   **`purple`**, no crash.  
 - A4 Storage = the app's own file in `userData` (written atomically — a temporary file + rename, so
   an interruption leaves no half file; **never written to the agent configuration**). Field:
-  `theme: "purple"|"blue"|"amber"`.  
+  `theme: "purple"|"blue"|"amber"`, `mode: "system"|"light"|"dark"`.  
 - A5 Switching themes triggers no full rescan and no window reload (only a DOM attribute and CSS).  
 - A6 **The scope of effect = the whole app**: the rail, the Agents/Projects main area, detail pages,
   the session page, toasts, overlays and drawers, the settings page itself, and the accent-following
@@ -149,17 +148,17 @@ platform's.
 
 **Sequence D: the settings entry point**
 
-- D1 The rail's **settings dimension, "Settings"** (`Dim = agents | projects | search | settings`; search
-  joined with [global-search](global-search.md)).  
+- D1 The rail's **settings dimension, "Settings"** (the rail's dimensions are agents, projects,
+  search and settings; see [global-search](global-search.md)).
 - D2 Switching to settings makes the main area the settings page.  
 - D3 The settings page's "Appearance" section is **one card with two rows**: the top row "Mode" = a
   three-segment control (follow system / light / dark), the bottom row "Theme" = three
   palette cards. The two rows are joined by a divider, with the label on the left and the control on
   the right, in the same form as the "Language" section.  
-- D3a The palette cards are compact: **a swatch plus a name**, with no full sentence of description;
-  the "purple is the default" information moves into the explanatory text below the section.  
-- D4 The settings entry point is anchored at the bottom of the rail (it shared that area with the global
-  refresh until that control was removed on 2026-08-23, and inherited the bottom anchor from it). While
+- D3a The palette cards are compact: **a swatch plus a name**, with no full sentence of description
+  (the first swatch is the paper sample; the fourth takes `--text`); the "purple is the default"
+  information lives in the explanatory text below the section.
+- D4 The settings entry point is anchored at the bottom of the rail. While
   an app update is in flight, the update button sits directly above it
   ([app-update](app-update.md) `app-update::REQ-001/AC-01`).  
 - D5 A selection takes effect immediately, with no save button.  
@@ -190,45 +189,33 @@ document by its headings)
   (the hardest real case: `### x` directly followed by `#### y` in a SKILL.md).
 - E4 Long headings that wrap in the narrow drawer keep their cues: the h1 rule underlines the whole
   block, the h2 bar spans every wrapped line.
-- E5 No oversized display headings in panel contexts: h1 caps at 1.32em (the previous drawer h1
-  rendered at 2em ≈ 25px, out of scale for a 680px drawer).
+- E5 No oversized display headings in panel contexts: h1 caps at 1.32em.
 - E6 The ladder holds in all 3 themes × light/dark: `--md-h3` keeps contrast against `--card` in
   both modes per theme; the h1 rule uses `--line-strong` so it stays visible on dark.
 - E7 Body size, the frontmatter card, links and the raw view are untouched by the ladder and
   code rules (regression line for the surfaces sharing them).
-- E7b **Code shares the same two-surface rule set as the ladder** (settled 2026-08-19, chosen
-  against the drawer's previous dark terminal-style block): inline code is a bordered pill, a
+- E7b **Code shares the same two-surface rule set as the ladder**: inline code is a bordered pill, a
   fenced block is a bordered paper inset on the surface's background, and the code element inside
   a fence carries **no box of its own** — without that reset the inline-pill rule draws a second
-  border inside every fenced block (the document card shipped with that artefact).
-- E7c List indentation is part of the shared rule set: 20px on every surface (the drawer previously
-  fell to the browser's 40px default). Link colours are shared too (settled 2026-08-20): accent at
-  rest, deep accent on hover, on both surfaces. Body line-height is shared as well (settled
-  2026-08-20 at the document card's 1.75) — with that, the surfaces have **no** remaining authored
-  content-styling differences.
-- E7d Tables take the paper form on every surface (settled 2026-08-21 on the comparison prototype;
-  previously both surfaces rendered bare browser-default tables — borderless, padless, barely
-  legible as tables): a bordered frame — **6px corner radius, one value shared by the table frame,
-  the fenced-code inset and the frontmatter card** (ruled 2026-08-21 after comparing 8px/1px/3px
-  candidates on the prototype) — and row lines in `--line`, **column separators one
-  step stronger** (`--line-strong`) so columns stay readable, an `--accent-soft` header with
-  `--accent-deep` text whose **cells never wrap** (a wide table scrolls its container instead) and
-  are **always centred**, and `--bg`-striped even rows — every value an existing token. **GFM
-  alignment (`:-:` / `--:`) applies to body cells and wins over their default left**; it does not
-  drag the header along (the parser puts the align attribute on th too). Two traps this section
-  pins: the pre-existing prototype style pinned `text-align: left` on every cell, silently
-  swallowing the alignment the parser had already delivered as attributes; and an align-attribute
-  override written against th as well as td re-drags the centred header.
+  border inside every fenced block.
+- E7c List indentation is part of the shared rule set: 20px on every surface. Link colours are
+  shared too: accent at rest, deep accent on hover, on both surfaces. Body line-height is shared as
+  well (1.75) — with that, the surfaces have **no** remaining authored content-styling differences.
+- E7d Tables take the paper form on every surface: a bordered frame — **6px corner radius, one value
+  shared by the table frame, the fenced-code inset and the frontmatter card** — and row lines in
+  `--line`, **column separators one step stronger** (`--line-strong`) so columns stay readable, an
+  `--accent-soft` header with `--accent-deep` text whose **cells never wrap** (a wide table scrolls
+  its container instead) and are **always centred**, and `--bg`-striped even rows — every value an
+  existing token. **GFM alignment (`:-:` / `--:`) applies to body cells and wins over their default
+  left**; it does not drag the header along (the parser puts the align attribute on th too).
 - E7e Code carries no syntax colouring on any surface: a fenced block's keywords, strings and comments
   take the same text colour as the rest of the block.
 - E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
   elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
   and the AGENTS.md link-interception invariant).
 - E9 A container that hosts a rendered-markdown body (the artifact reader overlay today) must not
-  let its own chrome-heading rules out-cascade the ladder: a descendant selector like "overlay h2"
-  ties with the ladder on specificity and wins on source order, silently restyling every h2 inside
-  the rendered body. Chrome headings are scoped with a child combinator (or a dedicated class);
-  the same applies to any future container that starts hosting markdown.
+  restyle the headings inside the rendered body with its own chrome-heading rules; the same applies
+  to any future container that starts hosting markdown.
 
 **Sequence F: scrollbars** (the user scrolls any list, page, drawer or code block, with a mouse or a
 trackpad, in light or dark)
@@ -272,55 +259,34 @@ trackpad, in light or dark)
 - **Appearance section**: one card with two rows — "Mode" as a three-segment control + "Theme"
   as three palette cards (swatch + name, no full sentence), followed by an explanatory paragraph (the
   light/dark following rule, the two dimensions' independence, purple being the default).  
-- **The section's closing explanation is plain text with no bold** (settled on 2026-08-08,
-  a deliberate deviation from the prototype): the prototype bolded the words "follow system", but for a
-  dictionary entry to carry inline markup the whole sentence would have to be split into three
-  fragment keys maintained in every language — which conflicts with i18n's "rich text must not be
-  assembled from fragment keys" convention and with ADR-0014's "the copy layer does not depend on
-  React". Breaking the copy layer's shape for one decorative bold is not worth it; the paragraph
-  already distinguishes the policy name from the prose with quotation marks.  
-- **The Language and Appearance sections share one set of row-form class names** (card container + row
-  + left-hand label) rather than each writing its own: the two sections are the same form, and writing
-  them separately would store the same styles twice, so changing one would inevitably miss the other.  
-- The segmented control reuses the existing `.seg` form (outer frame + overflow clipping + an
-  accent-soft selected state), sized slightly larger than its use in the chart toolbar to suit the
-  settings page context.  
+- **The section's closing explanation is plain text with no bold**: inline markup would need the
+  sentence split into fragment keys maintained in every language, which conflicts with i18n's "rich
+  text must not be assembled from fragment keys" convention and with ADR-0014's "the copy layer
+  does not depend on React"; the paragraph already distinguishes the policy name from the prose with
+  quotation marks.  
 - A selection recolours the whole app immediately (including the rail's selected state), with no save
   button.  
-- Palette samples come in two sets by effective light/dark, so the preview is what you get.  
 - **Side badges share one tier**: every side's badge colour pair — the text on its background — sits at
   one lightness and chroma tier, so each side's badge text has its contrast in one band, in light and in
   dark.  
 - The skill preview drawer's layout is still option A, see skills-view.  
-- **Rendered-markdown heading ladder: the shape-layered direction** (settled 2026-08-19, chosen from
-  a four-way comparison against the status quo, a pure-size ladder and a dual-track form): hierarchy
+- **Rendered-markdown heading ladder: the shape-layered direction**: hierarchy
   is carried by shape (h1 bottom rule, h2 left bar) and colour steps (accent-deep → accent →
-  `--md-h3` → `--text-2`) with only a gentle size decrease — the pure-size direction loses hierarchy
-  on wrapped headings, and the dual-track form jumps too hard for this app's restraint. Values in
-  sequence E. Before this, the two surfaces disagreed (the drawer used UA sizes with h1 ≈ 2em; the
-  document card flattened h1/h2/h3 to one size) and h4–h6 had no rules at all on either.
-- **Scrollbars** (settled 2026-10-23 on the prototype): a 6px thumb with 3px rounded ends, on no track,
+  `--md-h3` → `--text-2`) with only a gentle size decrease. Values in
+  sequence E.
+- **Scrollbars**: a 6px thumb with 3px rounded ends, on no track,
   shown whenever the content overflows, in a neutral grey that follows light and dark but not the
-  theme, darker under the pointer — values in appearance::REQ-001. Chosen over 8px, over the engine's
-  own thin scrollbar (an 11px gutter it sets itself, with no hover shade), over showing the thumb only
-  while the pointer is over its area, over keeping the platform's scrollbar for all but the longest
-  lists, and over taking the theme's accent.
+  theme, darker under the pointer — values in appearance::REQ-001.
 
 ## Implementation Decisions
 
-- Rendered markdown goes through **one React carrier** (a MarkdownBody component): the sanitising
-  exit and the link-interception invariant hold by construction, and the shared content rules hang
-  off the single class it emits — a new render surface gets all of sequence E by using it. The
-  link context is required by the component's type; a surface with no in-app targets passes an
-  empty readable list, which routes every relative link to the explicit out-of-scope notice.
-- Chrome-heading rules of containers that can host a rendered body are scoped with a child
-  combinator (E9): the shared content rules sit at single-class specificity, so an unscoped
-  descendant rule later in the file would win the cascade.
-- CSS: `html[data-theme="purple"|"blue"|"amber"]` plus a `@media (prefers-color-scheme: dark)` under
-  each theme.  
-- Set `data-theme` at startup, defaulting to `purple`.  
-- Components have zero theme branches and write only `var(--accent)` and the like.  
-
+- Rendered markdown goes through **one carrier**: the sanitising exit and the link-interception
+  invariant hold by construction, and a new render surface gets all of sequence E by using it. A
+  surface with no in-app targets routes every relative link to the explicit out-of-scope notice.
+- Each theme's palette is a block selected by the theme attribute on the document root, with its dark
+  values in a `prefers-color-scheme: dark` block under it; the attribute is set at startup from the
+  stored preference (`purple` when none), and components bind only to token names, with no theme
+  branches.
 ### Light/dark is delivered by nativeTheme, with zero CSS changes
 
 - The main process sets `nativeTheme.themeSource = 'system' | 'light' | 'dark'` from the preference.
@@ -333,114 +299,39 @@ trackpad, in light or dark)
   `matchMedia('(prefers-color-scheme: dark)').matches` is `true` and the body background takes the
   dark table's value.
 - **The preference's values are deliberately named the same as `themeSource`'s three states, so the
-  mapping is the identity**; if the two value domains ever diverge, typecheck must catch it. The
-  crucial detail: the interface receiving the assignment declares the property's type as
-  `NativeTheme['themeSource']` and **not** as our own `AppearanceMode` — the latter looks equivalent
-  and **measurably guards nothing**: an object property's assignability is covariant, so the wider
-  `AppearanceMode` still satisfies the interface and `nativeTheme` passes without a word. With
-  Electron's type, that assignment becomes "writing into Electron's value domain", the assignment is
-  an invariant check, and any extra value reports `TS2322`.
+  mapping is the identity**.
 - **On a switch, set `themeSource` before persisting**, the same rule as the theme (sequence
-  A2) and language. The order matters: written the other way round, a persistence failure (a full or
-  read-only disk) would throw before `themeSource` is set, so the renderer would have optimistically
-  ticked the chosen mode while the UI did not change — the notice says it failed and the UI does not
-  move either, a double frustration. In the current order a failure loses only the persistence — it
-  stays in effect until the app restarts, then goes back to the on-disk value.
-- **Explicitly not adopted**: having the renderer compute light/dark itself and write a DOM attribute
-  (such as `data-theme`). That would require every dark value to be written twice, once in the media
-  query block and once in the manual override block (3 themes × 2 = 6 duplicated sets, so a colour
-  change would inevitably miss one), it could not reach the window chrome, and it would add another
-  first-frame flicker risk.
+  A2) and language. On a persistence failure (a full or
+  read-only disk) the switch still takes effect and lasts until the app restarts, then goes back to
+  the on-disk value.
 - `themeSource` must be set before the window's content renders, to avoid a first-frame light/dark
   jump.
 - If the renderer needs to know the current effective light/dark (for the palette preview samples), it
   reads `matchMedia('(prefers-color-scheme: dark)')` — which follows `themeSource` changes and whose
   `change` event can be listened to.
-- Preference storage: `mode` shares a table with `theme` and `language`, reusing the existing atomic
-  write and degradation strategy; an invalid single field degrades only that field.
-
-**A leftover finding (outside this change surface)**: `theme.css` has 4 sets of
-`:root[data-theme='dark'|'light']` rules (mark / question locating / risk banner / in-turn warning),
-and excluding `theme.css` itself, the whole of git history proves no code has ever set that attribute
-— they are **dead code**. Adopting the `nativeTheme` approach leaves them still untriggered. The
-recommended handling is in "Out of Scope".
+- Preference storage: `mode` shares a table with `theme` and `language`; an invalid single field
+  degrades only that field.
 
 ### Scrollbars are drawn by the app
 
-- Every element's scrollbar is drawn through WebKit's scrollbar pseudo-elements, from the theme
-  stylesheet, with no per-component rule: the scrollbar, the track, the corner, the thumb and its hover
+- Every element's scrollbar is drawn through WebKit's scrollbar pseudo-elements, with no
+  per-component rule: the scrollbar, the track, the corner, the thumb and its hover
   state. The thumb's two colours are tokens with a light and a dark declaration and none per theme (C2).
-- Measured in the app's Electron 43 window (2026-10-23): with no rule, a 15px classic scrollbar with a
-  light track in dark; declaring a dark `color-scheme` turns that track dark but keeps its 15px and the
-  track; the standard `scrollbar-width: thin` with `scrollbar-color` gives a transparent track but an
-  11px gutter the engine sets, with no hover state; the drawn scrollbar is exactly as specified. A drawn
-  scrollbar replaces macOS's overlay one, which is why the thumb does not hide when idle (F1): in Chromium's
-  source, an element with scrollbar pseudo-element styles gets a custom scrollbar, which is never an overlay
-  one, whatever the platform uses (read 2026-10-23 on Chromium's main branch), and measured: launched with
-  macOS's per-process scroll bar setting at "when scrolling" (the overlay style) and at "always", the app's list
-  keeps its 6px scrollbar.
+- Measured in the app's Electron 43 window: with no rule, a 15px classic scrollbar with a light
+  track in dark; declaring a dark `color-scheme` turns that track dark but keeps its 15px and the
+  track; the standard `scrollbar-width: thin` with `scrollbar-color` gives a transparent track but
+  an 11px gutter the engine sets, with no hover state; the drawn scrollbar is exactly as specified.
+  A drawn scrollbar replaces macOS's overlay one, which is why the thumb does not hide when idle
+  (F1): in Chromium's source, an element with scrollbar pseudo-element styles gets a custom
+  scrollbar, which is never an overlay one, whatever the platform uses (read 2026-10-23 on
+  Chromium's main branch), and measured: launched with macOS's per-process scroll bar setting (the
+  `-AppleShowScrollBars` argument, which macOS reads for that process only) at "when scrolling" (the
+  overlay style) and at "always", the app's list keeps its 6px scrollbar. The hover shade can be
+  observed on macOS only: on Linux a synthetic pointer on the thumb reaches the page but Chromium
+  does not take the scrollbar as hovered (measured 2026-10-23).
 - The corner needs its own rule: left out, it stays a light square where two scrollbars meet.
 - No element sets the standard `scrollbar-width` or `scrollbar-color`: Chromium then ignores the
-  pseudo-element rule for that element and draws the platform's scrollbar instead (the e2e's control block
-  uses exactly this to show the platform's style).
-
-## Testing Decisions
-
-- Prefs: `theme` defaults to `purple`, `mode` defaults to `system`; three-value read/write, and
-  fallback on corruption or an invalid value; **an invalid single field does not drag down the
-  others**.  
-- Deriving the effective light/dark is a pure function (`mode` + system appearance → `light|dark`),
-  covering the locked / following / switching-back paths.  
-- IPC validation.  
-- The `data-theme` switch (a light test).  
-- No pixel testing.  
-- **Read before writing a light/dark e2e**: Playwright's `electron.launch` **emulates
-  `prefers-color-scheme: light` by default**, which pins the media query, so a `themeSource` change
-  never reaches the renderer. A light/dark test case must pass `colorScheme: null` to remove the
-  emulation (the `'no-override'` the docs also mention works at runtime but is not in this version's
-  type union, so typecheck goes red). **This was hit once**: the main process side was already dark
-  while the renderer's media query was still light, which looked like the implementation not working
-  and was actually the test harness masking it. Other cases keep the default emulation, so results do
-  not vary with the system appearance of whoever runs the tests.
-- **Assert light/dark in both directions** (locked dark → matches dark, locked light → matches light).
-  Asserting one direction only gives a **tautological pass** to the half of people whose development
-  machine's system appearance happens to match — this repository's development machine is dark, and in
-  the mutation check the "locked dark" assertion was indeed tautological; what actually caught the
-  mutation was the "locked light" one.
-- **The palette sample assertion targets only the paper sample (the first swatch)**, not "no sample is
-  near-white in dark mode": the fourth swatch takes `--text`, which *should* be near-white in dark
-  mode, so the literal version would be a guaranteed false positive.
-- **A known test gap (no fake greens)**: `nativeTheme.themeSource`'s effect on the window chrome and
-  the macOS native menu is system-drawn and cannot be tested by automation; what is testable is "the
-  property was set" and "the renderer's media query changed accordingly", while the actual appearance
-  of the menu and the chrome can only be accepted by hand. The former must not be passed off as the
-  latter.
-- **Also not automated**: "after locking, later system appearance changes do not affect the UI". The
-  test environment cannot change the real system appearance, and using `themeSource` itself to
-  simulate a "system change" is circular — it tests the value we just set. Filed as evidence; do not
-  "add the missing test case".
-- **Heading ladder (sequence E)**: e2e, on one drawer preview and one document-card preview, asserts
-  the discriminating properties rather than a screenshot — computed font sizes strictly decreasing
-  h1 → h4, h4's colour differing from h3's, the h1 bottom rule and h2 left bar present. Reading
-  computed styles is not the pixel testing ruled out above (that refers to screenshot comparison);
-  it is the same technique the light/dark cases already use on the body background.
-- **Code styling (E7b)**: the same two surfaces assert the fence's border and paper inset, the
-  absence of an inner box on the code element inside the fence, and the inline pill's border.
-- **Scrollbars (appearance::REQ-001)**: e2e, on a list that overflows in the running app, in light and
-  dark. The width is geometry: the area's width less its client width, 6px — without the rule the
-  platform's scrollbar measures 0 (overlay) or 15 (classic), so the measure tells them apart. The colours are not
-  readable through computed styles (a scrollbar is no element), so they are read from a capture of the
-  window: a pixel beside the thumb equals the area's own background (no track), and a pixel inside the
-  thumb equals the thumb colour laid over that background, at rest and under the pointer. Reading a
-  few pixels at measured positions is not the screenshot comparison ruled out above. Dark goes
-  through the colour-scheme emulation, as the other dark cases do. The two thumb tokens' variation —
-  light and dark differ, the three themes do not — is asserted across all six states in the six-combination
-  case. macOS's two styles (F1, F2) are driven by launching the app with a per-process
-  `-AppleShowScrollBars` argument, which macOS reads for that process only; a control block given the
-  standard `scrollbar-width` draws the platform's own scrollbar and shows which style took effect. The
-  hover shade (appearance::REQ-001/AC-05) is read on macOS only, where the app ships: on ubuntu, where CI
-  runs e2e, a synthetic pointer on the thumb reaches the page but Chromium does not take the scrollbar as
-  hovered (measured 2026-10-23), so that case skips there by name.
+  pseudo-element rule for that element and draws the platform's scrollbar instead.
 
 ## Out of Scope
 
@@ -455,7 +346,7 @@ recommended handling is in "Out of Scope".
   is not part of the scrollbar change.  
 - **The landing page's scrollbars**: the site is a project of its own.  
 - **Cleaning up the 4 sets of dead `:root[data-theme]` rules in `theme.css`**: the evidence is
-  conclusive (see the implementation decisions), but deleting them touches four non-adjacent regions
+  conclusive (no code has ever set that attribute, so they are never triggered), but deleting them touches four non-adjacent regions
   of `theme.css` and does not overlap this change surface (the settings page + the main process's
   `themeSource`), so per "existing dead code is raised, not deleted, by default" they stay. A separate
   ticket has been filed to clean them up (carrying the full proof required to authorise deletion and

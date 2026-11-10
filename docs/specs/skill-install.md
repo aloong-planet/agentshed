@@ -1,9 +1,6 @@
 # Skills install
 
-> Related: [features](../features/skill-install.md) · ADR-0004 (land by copy, symlinks rejected) · ADR-0038 (test layers) · ADR-0037 (shared skills directory)
-> Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
-> artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases; the
-> trade-offs behind the landing method are in ADR-0004 and are not restated here.
+> Related: ADR-0004 (land by copy, symlinks rejected) · ADR-0038 (test layers) · ADR-0037 (shared skills directory)
 
 ## Problem Statement
 
@@ -38,11 +35,9 @@ can be uninstalled. The global library itself is read-only.
 
 **Sequence A: install**
 - A1 Installing on the Claude side → copies into the project's `.claude/skills/`, contents intact.
-- A2 Installing on the Codex side → lands in `.agents/skills/`; on the Grok side →
-  `.grok/skills/`; on the Antigravity side → `.agents/skills/`, the same directory as Codex's
-  (skill-install::REQ-001). A side's skill never lands in a directory that side does not load — the
-  mapping is the shared PROJECT_SKILLS_DIR record, so a new side is a compile error rather than a wrong
-  landing.
+- A2 Installing on the Codex side → lands in `.agents/skills/`; on the Grok side → `.grok/skills/`;
+  on the Antigravity side → `.agents/skills/`, the same directory as Codex's
+  (skill-install::REQ-001). A side's skill never lands in a directory that side does not load.
 - A3 The source is a symlink → **dereferenced and copied as a real directory** (ADR-0004).
 - A4 The target already has a project-level skill of the same name → conflict, blocked with a notice,
   not overwritten.
@@ -60,6 +55,12 @@ can be uninstalled. The global library itself is read-only.
 - A10 The copy fails (a project that cannot be written or reached, a source file that cannot be read, a full disk) →
   one failure notice naming the skill, the project and the side or shared directory, saying the copy
   failed and was cleaned up, in the current UI language. It carries no system error; that goes to the log.
+- A11 "Install to…" is offered on each row of the Agents page's Skills section and opens a target
+  project picker sorted by activity; each target row shows where the skill would land.
+- A12 The picker stays open while it is looked through: scrolling its list reaches targets below the
+  fold, and resizing the window moves it along with its button rather than closing it. It closes
+  when a target is picked, when the page behind it scrolls, or when typing starts in its filter box
+  — in each of those the row it was opened from has moved or gone.
 
 **Sequence B: uninstall**
 - B1 Deletes the project-level copy; **the global library is unaffected**.
@@ -72,17 +73,17 @@ can be uninstalled. The global library itself is read-only.
   2026-11-05). It carries no system error; that goes to the log. The empty directory still holds the name,
   so a later install of that skill is blocked by A4 until the directory is removed; left so, since it
   takes a read-only parent over a writable copy, and the same-name check is not worth loosening for it.
+- B6 Uninstall is offered on a project-level entry in project detail's Skills section, behind a
+  confirmation (B4).
 
 **Cross-cutting**
 - R1 Install and uninstall touch only the global library and the project's skills directory, and
   nothing else (plugin entries have no install/uninstall entry point, plus a level guard as a second
   line of defence).
-- R2 An operation triggers no rescan at all, and none is needed (restated 2026-08-23, when the copy
-  claiming "only this project was refreshed" was retired): a project's detail — the view an install
-  or uninstall changes — is read when the project is opened, and the snapshot holds nothing an
-  operation could make stale. Uninstall, which happens with that view already on screen, refetches
-  it in place. Measured context for why a rescan is not added "to be safe": a warm rescan of a real
-  data set costs ~13s.
+- R2 An operation triggers no rescan at all, and none is needed: a project's detail — the view an
+  install or uninstall changes — is read when the project is opened, and the snapshot holds nothing
+  an operation could make stale. Uninstall, which happens with that view already on screen,
+  refetches it in place.
 
 ## The shared skills directory
 
@@ -90,10 +91,10 @@ can be uninstalled. The global library itself is read-only.
 
 Applies to: installing into a project whenever Codex or Antigravity is among the install sides.
 
-- skill-install::REQ-001/AC-01: Codex and Antigravity both load the project's `.agents/skills`, so the
-  picker offers it as one target: one outlined mark naming both sides that load it (CX AG), whatever
-  the project is registered on (owner's ruling 2026-10-28) — never a Codex target and an Antigravity
-  target that land in the same place (ADR-0037).
+- skill-install::REQ-001/AC-01: Codex and Antigravity both load the project's `.agents/skills`, so
+  the picker offers it as one target: one outlined mark naming both sides that load it (CX AG),
+  whatever the project is registered on — never a Codex target and an Antigravity target that land
+  in the same place (ADR-0037).
 - skill-install::REQ-001/AC-02: Whether a project offers it follows A8: the skill's sides ∩ the project's
   sides must include Codex or Antigravity. A project whose intersection is empty overall gets the
   existing notice that it does not belong to the skill's sides.
@@ -112,20 +113,20 @@ Applies to: installing into a project whenever Codex or Antigravity is among the
   loaded by Codex and Antigravity, so that once it is deleted none of them has the skill.
 
 Failure modes and boundaries: a skill on Codex and Antigravity both, installed into a project
-registered on both, lands once, and a second attempt hits the same-name block (A4); a project registered
-only on Antigravity still sees the mark name both loaders, and the uninstall warning names both,
-because Codex loads the directory whenever it runs there; the copy-to-temporary-then-rename rule (A6)
-and name validation (A7, B3) apply to the one landing unchanged. When Codex and Antigravity both
-qualify, the copy landed is the first side's in side order — Codex's (settled 2026-10-29: the rule the
-drawer's default side already follows, A1); an Antigravity-only install takes the copy agy uses (AC-05).
-A failure in the shared landing names the directory, not a side.
+registered on both, lands once, and a second attempt hits the same-name block (A4); a project
+registered only on Antigravity still sees the mark name both loaders, and the uninstall warning
+names both, because Codex loads the directory whenever it runs there; the
+copy-to-temporary-then-rename rule (A6) and name validation (A7, B3) apply to the one landing
+unchanged. When Codex and Antigravity both qualify, the copy landed is the first side's in side
+order — Codex's (the rule the drawer's default side already follows, A1); an Antigravity-only
+install takes the copy agy uses (AC-05). A failure in the shared landing names the directory, not a
+side.
 
 ## The install picker's rows
 
 ### skill-install::REQ-003 What a target row says before it is chosen
 
-Applies to: every row of the "Install to…" picker (owner's ruling 2026-10-28: the prototype, the
-interface baseline, already drew both; the app had neither).
+Applies to: every row of the "Install to…" picker.
 
 - skill-install::REQ-003/AC-01: A stale project is listed in the picker, disabled and labelled as stale;
   it cannot be chosen (A5).
@@ -134,37 +135,21 @@ interface baseline, already drew both; the app had neither).
   and installs nothing.
 
 Failure modes and boundaries: a project that turns stale or gains the same name after the picker was
-drawn is caught by A5's and A4's refusals at install time; a project whose landings include the shared
-skills directory is tagged when that directory holds the name (skill-install::REQ-001/AC-03). Choosing a
-tagged project installs nothing in any of its landings, a free one included (AC-02's "installs
-nothing"). The tags belong to one opening of the picker: a reopened picker draws none until its own
-arrive, never the previous opening's (settled 2026-10-29); a target untagged meanwhile is still refused
-at install time (A4).
+drawn is caught by A5's and A4's refusals at install time; a project whose landings include the
+shared skills directory is tagged when that directory holds the name (skill-install::REQ-001/AC-03).
+Choosing a tagged project installs nothing in any of its landings, a free one included (AC-02's
+"installs nothing"). The tags belong to one opening of the picker: a reopened picker draws none
+until its own arrive, never the previous opening's; a target untagged meanwhile is still refused at
+install time (A4).
 
 ## Implementation Decisions
 
 - **Landing method**: see ADR-0004 (land by copy; copy to a temporary name in the same directory
   first, then rename, cleaning up on failure).
-- **Per-side directories**: Claude = `.claude/skills/`, Codex = `.agents/skills/`, Grok = `.grok/skills/`,
-  Antigravity = `.agents/skills/`; the install sides = the skill's available sides ∩ the project's sides,
-  and the landings are those sides' directories with duplicates merged, so the shared skills directory
-  is one landing.
-- **Name validation**: path traversal is refused at both the install and uninstall ends (the caller is
-  not trusted).
-- **Notices**: an install's or uninstall's success and failure notices differ only in their colour; their
-  text carries no mark such as ✓ or ⚠. A failed uninstall's notice names the skill whatever the reason.
-  A landing's failure notice and the same-name notice share one sentence shape from the dictionary, with
+- **Notices**: an install's or uninstall's success and failure notices differ only in their colour;
+  their text carries no mark such as ✓ or ⚠. A failed uninstall's notice names the skill whatever
+  the reason. A landing's failure notice and the same-name notice share one sentence shape, with
   each language's own punctuation.
-
-## Testing Decisions
-
-Following ADR-0038's seams: the providers layer **measures real filesystem effects** on a
-temporary fixture directory (after installing the files are really there, after uninstalling they are
-really gone, a symlink is really dereferenced, a failure really leaves no residue) rather than
-mocking `fs`. The shared skills directory (skill-install::REQ-001, skill-install::REQ-002) adds a skill
-installed for Codex and Antigravity together landing once, with one result, and its same-name block;
-e2e reads the picker's one shared mark on a project registered on Antigravity only and the uninstall
-confirmation's sentence.
 
 ## Out of Scope
 

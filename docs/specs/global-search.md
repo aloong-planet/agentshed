@@ -1,12 +1,11 @@
 # Global search
 
-> Related: [features](../features/global-search.md) · [ADR-0034](../adr/0034-global-search-question-corpus-in-memory.md)
+> Related: [ADR-0034](../adr/0034-global-search-question-corpus-in-memory.md)
 > (question texts held in memory) · [ADR-0028](../adr/0028-tanstack-query-as-the-renderer-query-layer.md)
 > (query layer, page switches as Transitions) · [ADR-0015](../adr/0015-structured-ipc-errors.md) /
 > [ADR-0016](../adr/0016-no-natural-language-across-ipc.md) · [session-view](session-view.md) (the session
 > page a hit opens, and a project's own session search) · CONTEXT: **Global search**, **Session**,
 > **Project**, **Stale project**, **Transfusion**
-> Status: specified 2026-10-19 (prototype gate passed the same day); every user story below has shipped.
 
 ## Problem Statement
 
@@ -95,9 +94,8 @@ opened, or go on into its project, so that looking through hits does not mean se
   without "· Sessions", and shows the project's stale note page, which has no Sessions tab; the next page with tabs opens on
   Sessions.
 - global-search::US-003/AC-04: Only the session opened directly from a hit has the two exits. A fork
-  parent reached through that session's banner, a session opened after going into the project, and any
-  session opened inside a project show the single back control ("Back to <project> · Sessions"), as
-  before.
+  parent reached through that session's banner, a session opened after going into the project, and
+  any session opened inside a project show the single back control ("Back to <project> · Sessions").
 - global-search::US-003/AC-05: The rail's Search item shows the page as it was left, from anywhere in
   the app, for the rest of the run. After the app restarts the page starts empty.
 
@@ -190,7 +188,7 @@ renderer's dictionaries.
 
 Applies to: every new string — the rail tooltip, the menu item, the page's title, placeholders, hints,
 counts, the reading hint, the failure line, the two exits. Each exists in both supported languages,
-with plural forms through the existing plural rules; no string enumerates the agent sides as a set.
+with plural forms; no string enumerates the agent sides as a set.
 
 ## Failure modes and boundaries
 
@@ -233,6 +231,11 @@ with plural forms through the existing plural rules; no string enumerates the ag
   the next automatic rescan.
 - S16 Leave the page while the texts are being read: the reading goes on and is not started twice;
   coming back before it ends shows the reading hint again until it does.
+- S17 A question undone with Antigravity CLI's rewind is not in a session's question set and cannot
+  be found.
+- S18 Text an agent tool wrote into a session as if the user had typed it (the summary after a
+  context compaction, a message from a subagent or another session) is searched like any question,
+  so it can appear among the hits; a long compaction summary matches many keywords.
 
 **Sequence J: going to a hit and coming back**
 - J1 Click a hit: global-search::US-002/AC-01 and US-002/AC-03; the header shows the two exits
@@ -279,67 +282,34 @@ with plural forms through the existing plural rules; no string enumerates the ag
 
 ## Implementation Decisions
 
-- **Main process**: a question corpus for global search — the displayed question texts of every listed
-  session in every project — built on first demand in a run and kept in memory (ADR-0034). It is read
-  through the existing range reader (cold rollouts in one streaming pass each) with the existing bounded
-  concurrency, from the question index the token engine already keeps, and each session's texts are
-  keyed by that session's question-index identity — the file (device and inode) and the byte ranges of its
-  displayed questions — so an index whose questions moved, grew or were stripped differently replaces the
-  texts, while an answer appended to a session does not. After each scan, a corpus that exists is brought
-  up to date for the changed, new and removed sessions, asked for before the snapshot is sent so the
-  renderer's search on receiving it waits for the update; a corpus never asked for is not built. Matching
-  folds case on the parsed texts.
-- **IPC**: two channels — one that starts reading (idempotent; it resolves when the texts are read), and
-  one that searches a keyword and resolves with the matching sessions, each carrying its project's
-  path, name and stale flag, its title, side, fork state and last activity, and its hits (turn number,
-  question text, time). The search waits for a reading under way. Both are validated on both sides from
-  the shared contract (ADR-0001); failures are structured errors (global-search::CON-003). The keyword's
-  length limit is the project search's.
-- **Presentation order**: grouping by project and the two sort directions are one pure function over the
-  payload, so the order is tested without the page.
-- **Renderer**: the rail gains a fourth dimension, search, third in its top group. The page keeps its
-  keyword, sort, scroll position and last answer for the run across leaving and returning; its query is a
-  non-suspense query keyed by the keyword (ADR-0028), invalidated by every snapshot like the session page's,
-  so a rescan refreshes it by transfusion. While the next keyword's answer is on its way the previous one
-  stays, highlighted with its own keyword, so the area never empties between keystrokes. The page asks the
-  main process to start reading when it is shown — once per run when the reading succeeds, again on the
-  next showing after a failure — and its box takes the focus, as the prototype's does: on every showing, and
-  whenever the application menu's "Search Sessions…" asks for it, the page already on screen included.
-- **The jump**: one transitioned update switches the dimension to Projects, selects the project, and
-  opens the session (with the question to locate, for a hit) — with the session page's data fetched
-  before the switch, so the search page holds until the session page can be drawn whole. The open session
-  carries whether it was opened from a hit, so replacing or leaving it drops that origin — the fork-parent
-  jump, going into the project, any other session or project selection — while the rail leaves it; going into
-  the project is the single back control's own move, to the project's Sessions tab.
+- **Main process**: a question corpus for global search — the displayed question texts of every
+  listed session in every project — built on first demand in a run and kept in memory (ADR-0034). It
+  is read from the question index (cold rollouts in one streaming pass each) with bounded
+  concurrency, and each session's texts are keyed by that session's question-index identity — the
+  file (device and inode) and the byte ranges of its displayed questions — so an index whose
+  questions moved, grew or were stripped differently replaces the texts, while an answer appended to
+  a session does not. After each scan, a corpus that exists is brought up to date for the changed,
+  new and removed sessions, asked for before the snapshot is sent so the renderer's search on
+  receiving it waits for the update; a corpus never asked for is not built. Matching folds case on
+  the parsed texts.
+- **IPC**: a search resolves with the matching sessions, each carrying its project's path, name and
+  stale flag, its title, side, fork state and last activity, and its hits (turn number, question
+  text, time). The search waits for a reading under way. The payloads are validated on both sides
+  from the shared contract (ADR-0001); failures are structured errors (global-search::CON-003).
+- **Renderer**: the page keeps its last answer for the run across leaving and returning, and every
+  snapshot refreshes it by transfusion. While the next keyword's answer is on its way the previous
+  one stays, highlighted with its own keyword, so the area never empties between keystrokes. The
+  page asks for the reading when it is shown — once per run when the reading succeeds, again on the
+  next showing after a failure — and its box takes the focus on every showing, and whenever the
+  application menu's "Search Sessions…" asks for it, the page already on screen included.
+- **The jump** switches the dimension to Projects, selects the project, and opens the session (with
+  the question to locate, for a hit) — with the session page's data fetched before the switch, so
+  the search page holds until the session page can be drawn whole. The open session carries whether
+  it was opened from a hit, so replacing or leaving it drops that origin — the fork-parent jump,
+  going into the project, any other session or project selection — while the rail leaves it; going
+  into the project is the single back control's own move, to the project's Sessions tab.
 - **The application menu**: the Edit menu gains a separator and "Search Sessions…" with
-  CmdOrCtrl+Shift+F; it reaches the renderer the way the Settings item does.
-- **Copy and icons**: dictionary entries in both languages; the rail label is exempted in the
-  shared-UI check's rail-label rule by its rail key, as the other rail labels are ordinary words; the
-  magnifier and both chevrons are already in the icon module.
-
-## Testing Decisions
-
-Following ADR-0038's seams, through the seams that already exist:
-
-1. **Providers seam (fixture homes)**: the corpus and its search over a fixture home with several
-   projects — a stale one, a directory with sessions but no registry record, warmup and subagent
-   sessions, a stripped fork, a cold rollout and its plain twin. Assert what is and is not searched
-   (global-search::REQ-001), case folding beyond ASCII and escaped characters (S6, S7), and that a session
-   whose file changes is re-read while unchanged ones are not (global-search::REQ-004/AC-02). At least one
-   fixture keeps the shape of a real sample, as session-view's do.
-2. **Presentation**: the grouping-and-order function — the projects' order by their newest session, the
-   sessions' order inside a project, the oldest-first reversal of both layers, hits in question order
-   (global-search::US-001/AC-07).
-3. **IPC contract**: the validation round trip of both channels' payloads and the refusal of a malformed
-   one.
-4. **e2e (Playwright under Electron, fixture home)**: the rail item → type → grouped results → click a
-   hit → the session page at that question with the two exits → back to the results as left → go to the
-   project's Sessions tab → the fork parent's single back control; ⌘⇧F through the application menu; the
-   empty home's no-session state; the reading state, held open by the existing injected fetch-delay knob
-   extended to the reading channel, sampled inside the delay window.
-
-Prior art: the project search's providers tests and its query-layer test, the session page's e2e under
-the injected delay, and the application menu's e2e (Settings and Check for Updates).
+  CmdOrCtrl+Shift+F.
 
 ## Out of Scope
 
@@ -355,22 +325,5 @@ the injected delay, and the application menu's e2e (Settings and Check for Updat
 
 ## Further Notes
 
-- **Prototype gate: passed 2026-10-19.** Interface points and where each was confirmed: the rail's Search
-  item and its magnifier (the global search prototype and every page with the shared rail); the page
-  frame and header with its hint slot; the search box and its placeholders; the idle hint; the results
-  header with the sort segment; the project heading with the stale marking; the session cards and hit
-  rows (shared with the project search's hits); the no-hit line; the no-session state; the reading state;
-  the failure line — all on the global search prototype; the session page's two exits and their
-  chevrons — on the session page prototype. **Exemptions, declared:** the Edit menu item is a native menu
-  (the i18n spec's exemption for the application menu applies: no design freedom, only copy); the stale
-  project's exit text "Go to <project>" is a copy variant of a drawn control; the project list scrolling
-  its selected row into view adds no visible state; the atomic jump adds no visible state
-  (global-search::US-002/AC-03, as session-view's atomic opening).
-- The costs behind ADR-0034 (measured 2026-10-19, under Electron, on this machine): one search over every
-  project read from disk took about 3.2 s, dominated by cold rollouts; reading every question text took
-  about 3.3 s for 4776 questions and 2.27 MB of text; a match over them took about 4 ms; full text over
-  every project took 18–23 s with about 2.6 GB at peak, which is part of why global search matches
-  questions only.
-- On this machine, 945 listed sessions in 461 directories that are not projects are outside global search,
-  most of them test fixtures and runtime directories; a user who works in such a directory registers it
-  with its agent to have it searched.
+- Sessions in directories that are not projects are outside global search; a user who works in such
+  a directory registers it with its agent to have it searched.

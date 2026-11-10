@@ -1,53 +1,42 @@
 # Spec directory
 
 This directory describes **each feature's full requirements and boundaries in the current version**,
-written for whoever is about to change that code.
+written for whoever is about to change that code. It is also the overview of what the app does today:
+the table below says it in one line per feature.
 
-- **Invariants**: one document per feature, with **slugs corresponding one-to-one to
-  `docs/features/`**, except a spec whose subject the feature catalogue leaves out (distribution, the
-  prototype pages, the test layers), which has no entry there; it describes the present and is **rewritten in place** (no change history —
-  that lives in git); removing a feature deletes the file (in the same batch as its features entry).
+- **Invariants**: one document per feature; it describes the present and is **rewritten in place**
+  (no change history — that lives in git); removing a feature deletes the file.
 - **Why it persists**: "Failure modes and boundaries" is the only place in the whole documentation set
   that records *which boundaries this feature enumerated and which things are explicitly not done* —
-  ADRs record decisions and trade-offs, features records current behaviour, and neither covers this
-  layer. Lose it and the next person changing this code has no way to judge whether they have thought
-  of everything.
-- **Division of labour with features**: features is written for users and covers visible behaviour
-  (zero implementation detail); a spec is written for developers and covers the full requirements
-  (user stories, boundary enumeration, testing decisions, explicit non-goals, abstraction-level
-  implementation decisions).
+  ADRs record decisions and trade-offs and do not cover this layer. Lose it and the next person
+  changing this code has no way to judge whether they have thought of everything.
+- **No separate feature catalogue**: a spec states the user-visible behaviour as well as the
+  requirements behind it.
 - **Division of labour with ADRs**: decisions and trade-offs belong in ADRs; a spec cites the number
   and does not restate them.
 - **Consistency**: step 8 of every development round runs a single cross-regression
-  (spec ↔ implementation ↔ features ↔ ADR ↔ CONTEXT ↔ prototypes).
+  (spec ↔ implementation ↔ ADR ↔ CONTEXT ↔ prototypes).
 - Tickets are the disposable working documents (`.scratch/`); a spec is not.
 
-| Spec | Corresponding feature |
+| Spec | In one line |
 |---|---|
-| [app-icon](app-icon.md) | [Application icon](../features/app-icon.md) |
-| [agents-overview](agents-overview.md) | [Agents overview](../features/agents-overview.md) |
-| [projects-list](projects-list.md) | [Project list](../features/projects-list.md) |
-| [project-detail](project-detail.md) | [Project detail](../features/project-detail.md) |
-| [subagents-view](subagents-view.md) | [Subagents view](../features/subagents-view.md) |
-| [memory-view](memory-view.md) | [Memory view](../features/memory-view.md) |
-| [plugins-view](plugins-view.md) | [Plugins view](../features/plugins-view.md) |
-| [token-stats](token-stats.md) | [Token statistics](../features/token-stats.md) |
-| [session-view](session-view.md) | [Session view](../features/session-view.md) |
-| [global-search](global-search.md) | [Global search](../features/global-search.md) |
-| [i18n](i18n.md) | [UI language](../features/i18n.md) |
-| [skill-install](skill-install.md) | [Skills install](../features/skill-install.md) |
-| [skills-view](skills-view.md) | [Skills view](../features/skills-view.md) |
-| [appearance](appearance.md) | [Appearance](../features/appearance.md) |
-| [app-update](app-update.md) | [App updates](../features/app-update.md) |
-| [mac-distribution](mac-distribution.md) | None: the feature catalogue leaves distribution out |
-| [prototype-pages](prototype-pages.md) | None: the feature catalogue leaves the prototypes out |
-| [landing-page](landing-page.md) | [Landing page](../features/landing-page.md) |
-| [test-layers](test-layers.md) | None: the feature catalogue leaves testing out |
-| [ci-routing](ci-routing.md) | None: repository verification, not product behavior |
-
-> Note on reconstruction: this directory was created on 2026-08-01 (when specs became persistent
-> artifacts). Specs for features predating that were discarded along with `.scratch/` and have been
-> **reconstructed backwards** from features + the existing test cases + the code's behaviour (each
-> document says so in its header) — the boundary entries all have corresponding tests and are
-> trustworthy, but the original requirements reasoning cannot be recovered; where one conflicts with
-> the implementation, the implementation wins and the document is rewritten in place.
+| [app-icon](app-icon.md) | A reactor identity: cyan production and yellow development |
+| [agents-overview](agents-overview.md) | The default landing page: every agent side's global picture and total consumption at a glance |
+| [projects-list](projects-list.md) | The union of every side's registered projects, filterable and searchable |
+| [project-detail](project-detail.md) | What one project has installed: each component's effective view, MCP, instructions and artifacts |
+| [subagents-view](subagents-view.md) | The agent sides' subagent definitions merged into one view, showing at a glance which ones are in effect in a project |
+| [memory-view](memory-view.md) | What the agent remembers about each project, as a summary and in full |
+| [plugins-view](plugins-view.md) | Plugins grouped by side, enablement reported truthfully per viewpoint, bundled components expandable |
+| [token-stats](token-stats.md) | Per-project and cross-project token consumption, trends and session traces |
+| [session-view](session-view.md) | Session list → question trunk → fetch a whole turn on demand (tools / subagents / reasoning) → search jumps straight there; forks and branches are normalised, and anything unrecoverable is labelled explicitly; the page copies a session's own ID and the command to resume it in its tool |
+| [global-search](global-search.md) | Search what you asked across every project's sessions, and open a hit's session inside its project |
+| [i18n](i18n.md) | The UI switches between Chinese and English (menus, failure notices, dates and numbers included), following the system's preferred language by default |
+| [skill-install](skill-install.md) | Install and uninstall skills from the global library for a given project, guarded throughout |
+| [skills-view](skills-view.md) | Filter either skills list by name, and expand to preview a package's files and contents (no cross-side diff) |
+| [appearance](appearance.md) | App-wide light/dark (follow system / light / dark) × theme (purple / mist blue / amber brown), the two independent |
+| [app-update](app-update.md) | New versions are found and downloaded in the background, and installed with one click or on quit |
+| [mac-distribution](mac-distribution.md) | How the macOS app is packaged, signed, notarized and published |
+| [prototype-pages](prototype-pages.md) | How the prototype pages are organised and checked |
+| [landing-page](landing-page.md) | The website that introduces Agentshed in Chinese and English and offers whichever release exists |
+| [test-layers](test-layers.md) | Which test layers there are and what goes in each |
+| [ci-routing](ci-routing.md) | Which checks run for which changed paths |

@@ -1,6 +1,6 @@
 # Subagents view
 
-> Related: [features](../features/subagents-view.md) · ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
+> Related: ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
@@ -44,10 +44,10 @@ Everything is read-only.
 - A4 Claude markdown with no frontmatter or no description → the filename becomes the name, missing
   fields are left blank.
 - A5 The same name on both sides (key: Claude = filename, Codex = the toml `name` field) → merged onto
-  one row with both side badges, with the drawer showing each side's source; no `differs` field.
+  one row with both side badges, with the drawer showing each side's source; the row does not flag whether the two sides
+  differ.
 - A6 A definition file over 200 KB → truncated for display.
-- A7 Source containing malicious HTML → goes through the existing sanitising render pipeline
-  (regression point: the PR #10 rules).
+- A7 Source containing malicious HTML → goes through the existing sanitising render pipeline.
 - A8 The file exists but cannot be read (permissions / IO, or the directory form's directory cannot be
   entered) → the entry stays with an "unreadable"
   label, and **does not silently disappear** — silently disappearing would pollute the same-name
@@ -55,6 +55,9 @@ Everything is read-only.
   side the name is unknowable, so only its existence is listed).
 - A9 Two files in one layer with the same Codex `name` → the first wins (by filename order, matching
   `agent_roles.rs`, which skips later duplicates within a layer).
+- A10 An entry present on some sides but not on another shows that other side's badge dashed.
+- A11 The drawer's metadata rows by side: tools and model on the Claude side; model and sandbox on the
+  Codex side (the Antigravity side's rows are given in subagents-view::REQ-001's boundaries).
 
 **Sequence B: project detail → Subagents section**
 - B1 The project has no `.claude/agents` / `.codex/agents` → only the global effective entries are
@@ -62,7 +65,7 @@ Everything is read-only.
 - B2 Claude same name: the project level shadows the global one (shadows/shadowed).
 - B3 Codex same name: the project level shadows the user level (confirmed at source level —
   `agent_roles.rs` overrides by config layer, Project=25 > User=20) — **the opposite of Codex skills'
-  same-name coexistence semantics**, so the implementation comments must be written per component.
+  same-name coexistence semantics**.
   Known simplification: field-level backfill (a project-level entry inheriting a missing description
   from the user level) is not modelled.
 - B4 A Codex custom name ∈ {default, worker, explorer} → an "overrides built-in" badge; the built-ins
@@ -72,17 +75,15 @@ Everything is read-only.
 
 **Cross-cutting regression points**
 - R1 The IPC contract (`validate`) must be extended along with any new domain type field — forgetting
-  means the boundary passes silently (the same lesson as the cache-crash postmortem; listed as a
-  review checklist item).
-- R2 Snapshot size: subagent source text enters the snapshot; at this machine's scale (single-digit
-  file counts × a 200 KB cap) that is acceptable and no lazy loading is done.
+  means the boundary passes silently.
+- R2 Snapshot size: subagent source text enters the snapshot; no lazy loading is done.
 
 ## The Antigravity CLI side
 
 ### subagents-view::REQ-001 Antigravity CLI subagents
 
-Applies to: the Subagents section of the agents page and of project detail (ADR-0037; shapes measured
-2026-10-28 with samples agy confirmed loading).
+Applies to: the Subagents section of the agents page and of project detail (ADR-0037; shapes measured 2026-10-28
+with samples agy confirmed loading).
 
 - subagents-view::REQ-001/AC-01: Global definitions are read from `~/.gemini/config/agents/`, in both
   forms agy loads: `<name>.md` and `<name>/agent.md`. Project-level definitions are read from
@@ -113,33 +114,18 @@ inherits the main one was not measured, so the drawer claims nothing.
 
 ## Implementation Decisions
 
-- **Types**: the merged global entry (with per-side source text and fields) and the effective-view
-  entry (reusing the shadows/shadowed semantics) are modelled separately, sharing a per-side detail
-  structure. ADR-0001's single type source, with contract validation extended in step.
-- **Read layer**: injected through `ScanRoots` (so it can be fixtured); Codex toml is parsed with
-  **smol-toml**, never with a regex.
-- **Container structure (prototype ruling)**: a full-width list; clicking a row **opens the drawer
+- **Read layer**: Codex toml goes through a real TOML parse, never a regex.
+- **Container structure**: a full-width list; clicking a row **opens the drawer
   directly** (metadata key-values + source; the both-sides switch lives inside the drawer and
   refreshes in place without closing; Esc and clicking the overlay are equivalent). Rejected:
   master-detail two-column (compresses the list's information density) and "inline metadata expansion
   + overlay" (the expansion is a redundant stop on the way to the drawer).
 - **Sorting**: project level first, then by name within each group (as with skills).
-- **Project detail's layout** (settled 2026-10-29 with subagents-view::REQ-001/AC-05): the effective view
-  is grouped — each side's project-level group headed by the directory that side reads (`.claude/agents`,
-  `.codex/agents`, `.agents/agents`), then each side's global group ("Global level · <side>"), each
-  heading counted; Claude's and Codex's shadowing badges are unchanged, Antigravity's rows carry none.
-  One grouped side among flat ones would read wrong.
-
-## Testing Decisions
-
-Following ADR-0038's seams, adding nothing new: (1) `ScanRoots` fixture unit tests at the
-providers layer (covering the failure mode table: corrupt toml, missing name, duplicate names within
-a layer, unreadable files, the shadowing judgement); (2) the contract validation round trip. The
-standard for a good test: exercise only the reader's external behaviour (fixture directory → domain
-entries), not its internal parsing functions. Unreadable files use a `chmod 000` fixture, explicitly
-skipped when running as root. subagents-view::REQ-001 adds Antigravity fixtures of both global forms, a
-project-level definition, a definition not usable as a main agent, and a same-name pair with another
-side.
+- **Project detail's layout**: the effective view is grouped — each side's project-level group headed
+  by the directory that side reads (`.claude/agents`, `.codex/agents`, `.agents/agents`), then each
+  side's global group ("Global level · <side>"), each heading counted; Claude's and Codex's
+  shadowing badges are unchanged, Antigravity's rows carry none. One grouped side among flat ones
+  would read wrong.
 
 ## Out of Scope
 
@@ -147,3 +133,5 @@ side.
 - Codex shadowing's field-level backfill semantics.
 - Subagent-level private memory directories (belongs to the memory-view spec's Out of Scope).
 - Enumerating built-in subagents (not on disk, no source to read).
+- Grok agent definitions: there is no real sample to ground a parser on, so the Grok side contributes
+  nothing to this section rather than a guessed reading.

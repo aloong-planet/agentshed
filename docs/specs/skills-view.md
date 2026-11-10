@@ -1,7 +1,7 @@
 # Skills view
 
-> Related: [features/skills-view](../features/skills-view.md) · [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0038 · ADR-0004 · ADR-0010 · ADR-0037  
-> Status: **delivered** (prototype gate passed 2026-08-06; expand-to-preview + enumerate-and-read + inline package stats + `differs` removed + same-name override in detail). **Filtering by name and hover-for-full-name added 2026-08-10** (prototype gate passed the same day). **Listing at any depth added 2026-11-04** (prototype gate passed the same day).
+> Related: [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0038 · ADR-0004 · ADR-0010 · ADR-0037  
+> Status: **delivered**
 
 ## Problem Statement
 
@@ -17,39 +17,35 @@ discipline of "switch sides and read the source, no cross-side diff".
 ## Solution
 
 On both lists — global Agents · Skills and project detail · Skills — a skill row from an **on-disk
-source** can **expand** to show the package's text files, however deeply they nest; **clicking a file** opens a
-drawer to read it (markdown previewable by default). The payload carries path metadata only;
-**on expansion** the files are enumerated and registered in the allow-list, and contents are fetched
-on demand when a file is read. Modelled for **N sides**: only sides with a definition get a badge and
-a segment in the expanded area — two vendors are not hard-coded. The cross-agent-side skill content
-diff (`differs` / "the two sides differ") is **retired and removed**.
+source** can **expand** to show the package's text files, however deeply they nest; **clicking a
+file** opens a drawer to read it (markdown previewable by default). The payload carries path
+metadata only; **on expansion** the files are enumerated and registered in the allow-list, and
+contents are fetched on demand when a file is read. Modelled for **N sides**: only sides with a
+definition get a badge and a segment in the expanded area — two vendors are not hard-coded. There is
+no cross-agent-side skill content diff.
 
-**The project detail presentation rule (settled as part of this feature)**: within one **agent side**,
-if a project-level and a global-layer entry have the **same name**, the list **shows only the
-project-level one** (the project overrides the global one for display purposes), without listing the
-covered global row alongside and without any "shadows / shadowed / coexists" label. Names that exist
-only globally are still listed from the global layer. This is a **presentation rule for this app's
-lists**; it does not rewrite the documentation of either side's runtime loading semantics (Codex may
-still coexist at runtime on a same-name pair — see CONTEXT; this UI simply chooses not to display
-that global copy alongside).
+**The project detail presentation rule**: within one **agent side**, if a project-level and a
+global-layer entry have the **same name**, the list **shows only the project-level one** (the
+project overrides the global one for display purposes), without listing the covered global row
+alongside and without any "shadows / shadowed / coexists" label. Names that exist only globally are
+still listed from the global layer. This is a **presentation rule for this app's lists**; it does
+not rewrite the documentation of either side's runtime loading semantics (Codex may still coexist at
+runtime on a same-name pair — see CONTEXT; this UI simply chooses not to display that global copy
+alongside).
 
-Plugin-sourced entries have, since 2026-08-07, **expanded and previewed on equal footing with on-disk
-skills** (ADR-0012, overturning the v1 exclusion; the package root and security rules are in the
-plugins-view spec, sequence H); still with no install or uninstall. Install/uninstall behaviour is
-unchanged, see skill-install.
+Plugin-sourced entries **expand and preview on equal footing with on-disk skills** (ADR-0012; the
+package root and security rules are in the plugins-view spec, sequence H); still with no install or
+uninstall. Install/uninstall behaviour is unchanged, see skill-install.
 
-**Filtering by name** (2026-08-10): both lists carry a search box that narrows them to skills whose
-**name** contains what was typed. This is a **filter**, not a search: everything it needs is already in the
-snapshot and the project-detail payload, so it is a pure client-side narrowing of a list already on screen.
-The sessions search it visually resembles is a different thing entirely — that one crosses IPC, scans file
-contents, and reports hit counts and folded groups. Keeping the two apart matters because the resemblance
-invites someone to "make skills filtering consistent" by routing it through IPC as well, which would buy
-nothing and cost a round trip per keystroke.
+**Filtering by name**: both lists carry a search box that narrows them to skills whose **name**
+contains what was typed. This is a **filter**, not a search: everything it needs is already in the
+snapshot and the project-detail payload, so it is a pure client-side narrowing of a list already on
+screen. The sessions search it visually resembles is a different thing entirely — that one crosses
+IPC, scans file contents, and reports hit counts and folded groups.
 
-Because the name column has a fixed width and has always truncated long names to an ellipsis, filtering
-makes an existing annoyance land more often — the user arrives at a row *by name* and then cannot read the
-name. So a truncated name **reveals itself in full on hover**. Only a truncated one: showing a tooltip that
-repeats what is already legible is noise.
+The name column has a fixed width and truncates long names to an ellipsis, so a truncated name
+**reveals itself in full on hover**. Only a truncated one: showing a tooltip that repeats what is
+already legible is noise.
 
 ## User Stories
 
@@ -99,13 +95,12 @@ repeats what is already legible is noise.
   side's package while the row stays expanded.
 - A3 Only one side has a definition → no side switcher; that side's files are listed directly.
 - A4 A plugin source (`origin=plugin`) → **expandable and previewable, on equal footing with on-disk
-  skills** (file table / inline stats / drawer; ADR-0012 overturned the v1 exclusion on 2026-08-07;
-  the package root rule and security registration are in the plugins-view spec, sequence H); the
-  "plugin" badge remains (list rows do not show the description, see the UI decisions); no install or
-  uninstall (the existing G3 / ADR-0004).
-- A5 The list **no longer** shows a cross-side content diff badge; the domain model **removes**
-  `differs` (or any equivalent field), and the scan **no longer** reads each side's `SKILL.md` in full
-  for diffing.
+  skills** (file table / inline stats / drawer; ADR-0012; the package root rule and security
+  registration are in the plugins-view spec, sequence H); the "plugin" badge remains (list rows do
+  not show the description, see the UI decisions); no install or uninstall (the existing G3 /
+  ADR-0004).
+- A5 The list **no longer** shows a cross-side content diff badge; no field anywhere flags whether
+  the sides differ, and the scan does not read each side's `SKILL.md` in full for diffing.
 - A6 A symlinked directory → enumerate and read the real package after resolution; the row's symlink
   badge is retained.
 - A7 "Install to…" versus expanding and clicking files: the action buttons `stopPropagation`; clicking
@@ -134,12 +129,10 @@ repeats what is already legible is noise.
   previewable; there is no "shadowed" row to click.
 - B3 **Names only present in the project**: only the project-level entry is listed, previewable and
   uninstallable (as before).
-- B4 The list **no longer** shows `shadows` / `shadowed` / `coexists` badges for skills (the same-name
-  global row no longer appears, so those badges have nothing to attach to). This feature's acceptance
-  was "the list emits no covered global row", with the filtering done while assembling the effective
-  list; the three fields were briefly retained as constant false during implementation and were
-  **removed from the `ProjectSkillEntry` contract at wrap-up on 2026-08-07** (no consumer anywhere in
-  the repository, never persisted; subagents' identically named fields are unaffected, R8).
+- B4 The list shows **no** `shadows` / `shadowed` / `coexists` badges for skills (the same-name
+  global row does not appear, so those badges have nothing to attach to), and the project skill
+  entry carries no such fields (never persisted; subagents' identically named fields are unaffected,
+  R8).
 - B5 Every row in the on-disk list (the filtered project-level ones plus the uncovered global-layer
   ones) → **previewable**.
 - B6 A project detail row is already bound to a single `side` → the drawer has **no** side switcher;
@@ -155,12 +148,11 @@ repeats what is already legible is noise.
 
 **Sequence C: inside the drawer · package enumeration and file reading**
 
-- C1 The package's files are enumerated and registered in the readable allow-list **when the skill row
-  is expanded**; contents are fetched on demand when a file is clicked. The list and the snapshot do
-  **not** pre-enumerate contents or full file path lists; the snapshot carries, per side, only
-  **aggregate package stats (file count, total bytes; obtainable by `stat` alone without reading
-  contents; revised 2026-08-06 for inline display)** and the minimum identity needed to locate the
-  skill root.
+- C1 The package's files are enumerated and registered in the readable allow-list **when the skill
+  row is expanded**; contents are fetched on demand when a file is clicked. The list and the
+  snapshot do **not** pre-enumerate contents or full file path lists; the snapshot carries, per
+  side, only **aggregate package stats (file count, total bytes; obtainable by `stat` alone without
+  reading contents)** and the minimum identity needed to locate the skill root.
 - C2 Enumeration rules: **no depth limit** (skills-view::REQ-003); only **text extensions** enter the
   list; known junk directory names are excluded (any segment that is `.git`, `node_modules`,
   `__pycache__`, `.DS_Store` and the like).
@@ -188,9 +180,7 @@ repeats what is already legible is noise.
   known agent skills root (each side's global library skills directory, or an opened project's
   project-level skills directory) — fail-closed; a plugin-sourced entry's package root follows the
   scan registration set (plugins-view spec H8); when the entry point is a symlink, **its target is
-  unconstrained** and is followed only during enumeration and reading (A6; nailed down by the
-  2026-08-07 revision — checking the resolved path had previously caused a symlinked skill with an
-  out-of-root target to be wrongly refused).
+  unconstrained** and is followed only during enumeration and reading (A6).
 
 **Sequence D: what imported content can do to the host** (raw + markdown preview)
 
@@ -204,14 +194,16 @@ repeats what is already legible is noise.
   ([memory-view::CON-002](memory-view.md)).
 - D3 **Links** in the preview: the in-app / file allow-list and the destination of external http(s)
   links follow the existing "a rendered link must never navigate the whole window" invariant
-  (AGENTS.md); clicking inside a preview must not lose app state. Concretely (settled 2026-08-20): a
-  relative link resolving to one of the package's **listed files** switches the drawer to that file
-  (raw for non-markdown, same as opening it from the file table); anything else relative — outside
-  the package, or inside it but not listed (C4) — gets the explicit out-of-scope notice, fail-closed.
+  (AGENTS.md); clicking inside a preview must not lose app state. Concretely: a relative link
+  resolving to one of the package's **listed files** switches the drawer to that file (raw for
+  non-markdown, same as opening it from the file table); anything else relative — outside the
+  package, or inside it but not listed (C4) — gets the explicit out-of-scope notice, fail-closed.
 - D4 **Images** in the preview: relative paths resolve against the skill package root and must be
   allow-listed files; on failure a placeholder is shown, and this must not become a way to read paths
   outside the package.
 - D5 Oversized text: truncated for display (C7), with the layout not breaking the drawer's scroll area.
+- D6 An external http(s) link in a preview opens in the system browser; no link in a preview ever
+  navigates the app away.
 
 **Sequence E: global page → Skills section → filtering by name**
 
@@ -228,11 +220,10 @@ repeats what is already legible is noise.
   existing "the global library is empty". Reusing the latter would state something false.
 - E6 The global library is empty to begin with → the existing empty state, and **no search box**: there is
   nothing to narrow.
-- E7 A row expanded before typing: rows that still match **keep** their expanded state; rows filtered out
-  are unmounted, so when they match again they come back collapsed. This follows from keyed reconciliation
-  and is the behaviour to preserve — a filter must not silently collapse what the user opened.
-- E8 The "Install to…" popover is open when typing starts → it closes. It is a `fixed` layer positioned
-  from its trigger's rect, and the row it was measured against may be about to leave the list.
+- E7 A row expanded before typing: rows that still match **keep** their expanded state; rows
+  filtered out are unmounted, so when they match again they come back collapsed. A filter must not
+  silently collapse what the user opened.
+- E8 The "Install to…" popover is open when typing starts → it closes.
 - E9 A snapshot refresh while filtering → the keyword survives, because the section
   is not unmounted (the transfusion update, project-detail A3).
 - E10 Leaving the tab, or switching project, clears the keyword: it is a way of looking at one list, not a
@@ -252,24 +243,19 @@ repeats what is already legible is noise.
 - F5 The uninstall confirmation dialog is unaffected: it is a modal over the page, not part of the list.
 - F6 Switching project clears the keyword (F is a fresh list, and a keyword carried over would make a
   populated project look empty).
-- F7 A project with no skills at all → the existing empty state and **no search box**, the same rule as
-  E6. Recorded during implementation: E6 stated it for the global list only, and the detail list needs it
-  said too — otherwise a box appears above a section whose only content is "there is nothing here".
+- F7 A project with no skills at all → the existing empty state and **no search box**, the same rule
+  as E6.
 
 **Sequence G: a truncated name → hover for the full name**
 
 - G1 The name column is a fixed width with an ellipsis. Hovering a name that **fits** shows nothing.
 - G2 Hovering a **truncated** name reveals the complete name.
 - G3 "Truncated" is decided by **measuring** at hover time (rendered width against available width),
-  never by counting characters — character counts are wrong for any name that is not plain Latin, and the
-  measurement is one layout read taken exactly when the user asks. Nothing is cached: a cached value
-  would need something to invalidate it, and there is nothing to buy with that. (Neither resizing nor
-  font loading actually moves this answer — the column is a fixed width and the fonts are system ones —
-  measured 2026-08-10, so the reason to measure on demand is simplicity, not staleness.)
+  never by counting characters — character counts are wrong for any name that is not plain Latin,
+  and the measurement is one layout read taken exactly when the user asks. Nothing is cached: a
+  cached value would need something to invalidate it, and there is nothing to buy with that.
 - G4 The tooltip must **escape the list's overflow clipping**. The skills card clips, and a layer
-  positioned against a row *within that card's coordinate space* is cut away entirely — it still reports
-  a bounding box, so this cannot be checked by asking whether the element exists. Measured 2026-08-10:
-  such a layer's own centre hit-tests to the pane body.
+  positioned against a row *within that card's coordinate space* is cut away entirely.
 - G5 Escaping the clip and staying anchored are **two separate obligations**: one makes it visible at all,
   the other stops it lying about where it points. Positioning against the viewport discharges the first
   by itself — the element's containing block is then the viewport, so no ancestor's overflow reaches it,
@@ -297,9 +283,9 @@ it can do to the host. Where it comes from decides how loose it is:
 So the looser half of the surface is the one that is easy to overlook, because "it's just a directory
 name" reads as if the filesystem had already constrained it.
 
-- G′1 **Very long names**: the column truncates, so the row is safe. The tooltip is the exposed surface —
-  it must be bounded and wrap rather than run off-screen on a single line. Unbounded, one long name turns
-  into a layer spanning the display (measured at 901px). Wrapping must break **anywhere**: skill names
+- G′1 **Very long names**: the column truncates, so the row is safe. The tooltip is the exposed
+  surface — it must be bounded and wrap rather than run off-screen on a single line. Unbounded, one
+  long name turns into a layer spanning the display. Wrapping must break **anywhere**: skill names
   are mostly kebab-case with no spaces, so a word-boundary wrap finds nowhere to break and the bound
   achieves nothing.
 - G′2 **Names as text, never as markup**: the tooltip renders the name as text. Nothing about a name may
@@ -319,7 +305,7 @@ name" reads as if the filesystem had already constrained it.
   ADR-0012); the package root and security rules belong to the plugins-view spec (H5/H8); the
   inclusion rule itself is unchanged by preview (effectively enabled only, G1).
 - R3 The IPC contract: `differs` removed; the fields and validation for "open a skill package / list
-  files / read a file" added in step with ADR-0001 — forgetting means the boundary passes silently.
+  files / read a file" added in step with ADR-0001.
 - R4 Snapshot size: a skill's **contents and package file list do not enter** the global snapshot (the
   same discipline as memory's "contents do not enter the snapshot"); only two aggregate numbers per
   side, file count and total bytes, enter it (C1); the scan no longer retains full text for diffing.
@@ -329,19 +315,17 @@ name" reads as if the filesystem had already constrained it.
   model stays N-side.
 - R6 The existing "the two sides differ" copy: everything in features / prototypes / tests depending on
   `differs` is deleted or rewritten, so the documentation does not lie.
-- R7 The old project detail Skills rule of "project-level and global-layer side by side + shadowing /
-  coexistence badges" is **overturned** by B1–B4; `docs/features/project-detail.md` and the related
-  tests are rewritten at implementation wrap-up.
+- R7 The old project detail Skills rule of "project-level and global-layer side by side + shadowing
+  / coexistence badges" is **overturned** by B1–B4.
 - R8 **The Subagents effective view does not change with this rule**: subagents may still list
   project-level and global-layer side by side with shadowing labelled (the existing subagents-view);
   only Skills adopts "same name shows the project-level entry only".
 - R9 **Filtering is layered on top of the assembled list and changes no assembly rule** (E11): the
   same-name override, the plugin join, and group membership are all decided upstream. If a future change
   makes filtering influence which rows exist, it stops being a filter.
-- R10 **The install popover and the name tooltip are both floating layers over the same clipped list**, so
-  they answer to the same two obligations (G5). A third such layer must satisfy them too; this is recorded
-  as an invariant in AGENTS.md rather than rediscovered each time — it was already got wrong once, in the
-  popover, where a stale selector left it positioned against the document and it landed off-screen.
+- R10 **The install popover and the name tooltip are both floating layers over the same clipped
+  list**, so they answer to the same two obligations (G5). A third such layer must satisfy them too;
+  this is recorded as an invariant in AGENTS.md.
 - R11 **Subagents, Plugins, Memory and MCP do not get a search box in this change.** Adding one where the
   list is short is noise, and each list would need its own decision about what a match means.
 
@@ -374,11 +358,10 @@ Applies to: the agents page's Skills section, and the global library every insta
 
 Applies to: the project detail page's Skills section.
 
-- skills-view::REQ-002/AC-01: The project's `.agents/skills` is one group, the shared skills directory
-  (CONTEXT.md), headed "Shared · .agents/skills" with the CX and AG badges. It sits between the Codex
-  groups and the Antigravity groups and replaces what used to be Codex's project-level group (ADR-0037).
-  The badges name both sides that load the directory, whatever the project is registered on (owner's
-  ruling 2026-10-28).
+- skills-view::REQ-002/AC-01: The project's `.agents/skills` is one group, the shared skills
+  directory (CONTEXT.md), headed "Shared · .agents/skills" with the CX and AG badges. It sits
+  between the Codex groups and the Antigravity groups (ADR-0037). The badges name both sides that
+  load the directory, whatever the project is registered on.
 - skills-view::REQ-002/AC-02: Its entries are project-level: each is previewable (B5) and uninstallable
   ([skill-install::REQ-002](skill-install.md)).
 - skills-view::REQ-002/AC-03: B1 holds for both of its owners: a name in the shared directory hides the
@@ -388,8 +371,7 @@ Applies to: the project detail page's Skills section.
 - skills-view::REQ-002/AC-05: The plugin-bundled group's rows carry their side's badge, since more than
   one side contributes to it.
 - skills-view::REQ-002/AC-06: A project registered on neither Codex nor Antigravity still shows the
-  group when the directory holds skills, as the Codex project-level group did; an empty or absent
-  directory shows no group (F3).
+  group when the directory holds skills; an empty or absent directory shows no group (F3).
 
 ### Failure modes and boundaries: the Antigravity side and the shared directory
 
@@ -440,15 +422,12 @@ Skills section, project detail's Skills section and the Plugins section's Skills
 
 - A file whose type is off the list stays unlisted at any depth (C4): binaries, `.xsd` schemas,
   extensionless scripts. A link to one gets the out-of-scope notice (D3).
-- A large package: rows are not capped; the table grows with the package and the section scrolls. Measured
-  2026-11-04 across this machine's 195 packages: at most 127 rows in one package, at most 2 MB of listed
-  text read for line counts on expansion, and a longest path of 80 characters.
-- A junk directory is skipped at any depth (C2). A directory the junk set does not name, such as a virtual
-  environment or build output, is listed in full; none appears in those 195 packages, so the set is not
-  extended on a guess.
-- A directory symlink to an unrelated directory outside the package lists that directory's text files, and
-  they become readable by their exact registered paths (C9): enumeration still follows what the package
-  links to, as it did for shallow paths, and reading stays local.
+- A large package: rows are not capped; the table grows with the package and the section scrolls.
+- A junk directory is skipped at any depth (C2). A directory the junk set does not name, such as a
+  virtual environment or build output, is listed in full.
+- A directory symlink to an unrelated directory outside the package lists that directory's text
+  files, and they become readable by their exact registered paths (C9): enumeration follows what the
+  package links to, and reading stays local.
 - A broken symlink, or one pointing at itself, is skipped, and the rest of the package lists. So is a named
   pipe or socket with a text name: reading one would block the main process.
 - A file that cannot be read when the table is built (its permissions, say) is left out of the table but still
@@ -467,12 +446,12 @@ Matching the current behaviour of
 
 - **Container**: a full-width list. An on-disk skill **expands and collapses on a row click** to show
   the package's file table; **clicking a file** opens a drawer to read it.
-- **Expanded area**: headers "file / lines / size / modification date"; type badges (one 22px square whatever the
-  label, markdown in the accent's tint, shell scripts in the success colour's, every other type neutral); a marker on the
-  `SKILL.md` entry point; an **N-side segmented control** inside the expanded area when there are
-  several sides; plugin rows expand on equal footing with
-  on-disk rows (ADR-0012, 2026-08-07). **Flat** (finalised 2026-08-06): zero indentation, no inner
-  card, no summary bar, with the header and file rows sharing a 14px baseline.
+- **Expanded area**: headers "file / lines / size / modification date"; type badges (one 22px square
+  whatever the label, markdown in the accent's tint, shell scripts in the success colour's, every
+  other type neutral); a marker on the `SKILL.md` entry point; an **N-side segmented control**
+  inside the expanded area when there are several sides; plugin rows expand on equal footing with
+  on-disk rows (ADR-0012). **Flat**: zero indentation, no inner card, no summary bar, with the
+  header and file rows sharing a 14px baseline.
 - **Drawer**: the title = the skill name; the subtitle = level · side · path; the body full width. Its
   form is shared with the memory file drawer ([memory-view::CON-001](memory-view.md)): a change to
   either drawer's frame or preview is a change to both, and a switched-to file starts at the top.
@@ -484,34 +463,28 @@ Matching the current behaviour of
 - **Project detail**: same side, same name keeps the project-level entry only; no shadowing or
   coexistence badges.
 - **Interaction**: expanding / clicking files and install/uninstall do not compete.
-- **List rows do not show the description** (global and detail, on-disk and plugin rows alike; ruled
-  during implementation on 2026-08-06, a deviation from the prototype written back here) — a row =
-  the expansion arrow + name + side badges + source/level/symlink pills + package stats +
+- **List rows do not show the description** (global and detail, on-disk and plugin rows alike) — a
+  row = the expansion arrow + name + side badges + source/level/symlink pills + package stats +
   install/uninstall buttons; a skill's description is carried by expanding the file table and
   previewing SKILL.md.
-- **Inline package stats** (ruled 2026-08-06; the plugin clause revised 2026-08-12): a row that can be
-  expanded shows "N files · size" on the right, **excluding line counts** (line counts are per file in
-  the expanded table); they follow along when switching sides. **Plugin rows show them too** — the
-  original ruling said plugin rows had none, which was correct while plugin rows could not be expanded
-  at all, and was left behind when ADR-0012 overturned that on 2026-08-07. A row shows no stats only
-  when it cannot be expanded, which for a plugin row means its package root is unknown (A4 /
-  plugins-view H5, fail-closed).
+- **Inline package stats**: a row that can be expanded shows "N files · size" on the right,
+  **excluding line counts** (line counts are per file in the expanded table); they follow along when
+  switching sides. **Plugin rows show them too.** A row shows no stats only when it cannot be
+  expanded, which for a plugin row means its package root is unknown (A4 / plugins-view H5,
+  fail-closed).
 - **A row that cannot be expanded** shows a dot in place of the expansion arrow.
-- **Row density** (finalised 2026-08-06): 8px row padding, a visual row height of about 32px, aligned
-  with the rows in other sections.
+- **Row density**: 8px row padding, a visual row height of about 32px, aligned with the rows in
+  other sections.
 
-**Filtering and hover (prototype gate passed 2026-08-10)**
+**Filtering and hover**
 
 - **The search box** sits at the very top of the section's content, above the existing hint line. It
   reuses the search input already used by the sessions section — same visual treatment, and no second
   variant of "a box you type into" — but renders **only** the input, without that section's scope toggle.
-- **Width**: 300px, not full width and **not** tied to the name column. Matching the name column (200px)
-  was tried first on the reasoning that a box searching names should not outgrow them; in practice the
-  typing area was too cramped. The two were then deliberately decoupled: the box is sized for typing, the
-  name column keeps the row geometry it shares with other sections, and truncation is compensated by
-  hover instead.
-- **No icon in the box.** The sessions box has none either, and the icon module forbids using a character
-  as an icon; adding a real one would mean a separate icon selection for no gain here.
+- **Width**: 300px, not full width and **not** tied to the name column: the box is sized for typing,
+  the name column keeps the row geometry it shares with other sections, and truncation is
+  compensated by hover instead.
+- **No icon in the box.** The sessions box has none either.
 - **No extra feedback while filtering**: no match-count line. The list getting shorter is the feedback,
   and in project detail the group counts already move. A count line would also push the list down on every
   keystroke.
@@ -525,24 +498,21 @@ Matching the current behaviour of
 - **Module boundary**: this spec governs Skills' **read-only viewing and preview** and the list signals
   (including removing the diff); install/uninstall still belongs to skill-install, and the page shells
   to agents-overview / project-detail.
-- **Data fetching**: the list and the snapshot carry only the metadata needed to locate a skill package
-  (name, side, source, description, symlink, shadowing and the other existing fields + the root path
-  identity needed to open a preview); **on expanding a row** the package's files are enumerated and
-  registered in the allow-list, and **on clicking a file** the contents are read on demand by path —
-  reusing the same "exact path allow-list + read on demand" discipline as memory and artifacts, with
-  no new arbitrary-path read hole.
+- **Data fetching**: the list and the snapshot carry only the metadata needed to locate a skill
+  package (name, side, source, description, symlink, shadowing and the other existing fields + the
+  root path identity needed to open a preview); **on expanding a row** the package's files are
+  enumerated and registered in the allow-list, and **on clicking a file** the contents are read on
+  demand by path — under an exact-path allow-list, with no arbitrary-path read hole.
 - **Depth**: enumeration has no depth limit, and the listing contract carries the files alone, with no
   depth verdict and no unlisted paths; a saved listing's older depth fields are ignored rather than
   required. The walk knows the real directories it is inside, which is what decides
   skills-view::REQ-003/AC-05.
-- **Text extensions** (an initial set, adjustable during implementation but pinned by a unit test):
-  `md` `txt` `json` `yml` `yaml` `toml` `sh` `bash` `zsh` `js` `ts` `mjs` `cjs` `jsx` `tsx` `py` `rb`
-  `go` `rs` `css` `html` `svg` (svg read as text) and so on — the single constant set in the
-  implementation is authoritative; unlisted extensions do not appear in the list.
+- **Text extensions**: `md` `txt` `json` `yml` `yaml` `toml` `sh` `bash` `zsh` `js` `ts` `mjs` `cjs`
+  `jsx` `tsx` `py` `rb` `go` `rs` `css` `html` `svg` (svg read as text) and so on — the single
+  constant set in the implementation is authoritative; unlisted extensions do not appear in the
+  list.
 - **Junk directory segment names** (whose whole subtree is skipped during enumeration): `.git`,
-  `node_modules`, `__pycache__`, `.DS_Store` and the like, as a single constant set.
-- **Cross-side diff**: the field, the comparison logic, the UI and the tests are all deleted; no
-  deprecated compatibility slot is retained.
+  `node_modules`, `__pycache__`, `.DS_Store` and the like.
 - **N sides**: in the domain, a skill's "sides it exists on" is a list or set rather than a hard-coded
   binary structure; adding an agent side only adds a recognisable side to the preview UI, without
   changing the interaction skeleton.
@@ -550,113 +520,23 @@ Matching the current behaviour of
   that side's project-level names; the project-level set is kept whole. The filtering happens while
   assembling the detail data (or in a pure selector), so the IPC exit and the UI agree and there is no
   "the contract has a row, the UI hides it".
-- **Filtering by name is client-side only.** No IPC command, no contract change, no snapshot field: both
-  lists already hold every name they display. The keyword lives with the section that owns the list, which
-  is what makes E9 (survives a refresh) and E10 (cleared on leaving) fall out rather than need arranging.
-- **The two lists share the control, not the filtering.** The box itself is one component — otherwise the
-  placeholder, the class and the input attributes drift apart between two boxes that are meant to look
-  identical. Everything behind it stays per-list: each keeps its own keyword state and applies the rule to
-  its own shape (one flat list; five groups with counts). The rule is a pure predicate in its own module,
-  shared because it is genuinely one rule; no component wraps the *filtering*, because there is nothing
-  common in the shapes around it.
-- **The box carries a modifier rather than restyling the shared search-bar rule**, because that rule also
-  serves the sessions search, whose box shares its row with a scope toggle and must flex. Widening it
-  there would resize a box in another section — the kind of change that is invisible until someone opens
-  that other section.
+- **Filtering by name is client-side only.** No IPC command, no contract change, no snapshot field:
+  both lists already hold every name they display.
 - **Floating layers over the skills list** follow one shared discipline (R10): position against the
-  viewport from the anchor's measured rect — which is also what carries them out of the list's clipping —
-  and dismiss on anything that invalidates that rect.
-- **Their surface is one component; their placement is not.** The look (fixed positioning, background,
-  border, radius, shadow) is defined once and shared, because it genuinely is the same and the two copies
-  it replaced had already drifted apart. Placement is not shared: one layer flips between above and below
-  its anchor, the other clamps against the window edge, and merging those would be an abstraction built
-  on two instances whose successor is unknown. That merge is deferred to its own task.
-- **The surface's shadow is a theme variable**, defined for every palette and both light and dark. It was
-  previously a literal in each copy, which made this surface the one thing in the UI that could not
-  follow the palette — and a single alpha cannot serve both, since one that reads on a light backdrop
-  disappears on a dark one.
+  viewport from the anchor's measured rect — which is also what carries them out of the list's
+  clipping — and dismiss on anything that invalidates that rect.
+- **Their surface is shared; their placement is not.** The two layers look the same (fixed
+  positioning, background, border, radius, shadow), but they are placed differently: the install
+  popover flips between above and below its anchor, while the name tooltip stays below its name and
+  clamps against the window edge (shifts left near it, G7). The placements are deliberately not
+  merged into one rule.
+- **The surface's shadow is a theme variable**, defined for every palette and both light and dark.
 - **Antigravity's roots** (skills-view::REQ-001, skills-view::REQ-002): the known global skills roots
   that C9's container check admits gain agy's three global directories; the project's `.agents/skills`
   is already a known project root. The detail assembly emits the shared directory as one group owned
   by both of its loading sides, and the same-name override runs against each owner's global set.
-- **New copy goes through the dictionaries**: the placeholder and the "no name matched" empty states are
-  user-visible strings, so they exist in both languages. The empty state is a **new** string, not a
-  reuse of the existing "library is empty" one (E5/F4) — reusing it would be cheaper and would lie.
-
-## Testing Decisions
-
-Following ADR-0038's seams:
-
-1. **The providers / security seam**: tested on fixture directories — files listed at any depth, the
-   inline stats matching the table, a link cycle repeating no file, extension filtering, junk directory skipping, symlink following, out-of-package path
-   refusal, an unregistered path being unreadable, a missing `SKILL.md`, an empty package; the open
-   enumeration does not pre-hide contents in the scan snapshot; **on a same-side same-name pair the
-   detail skills list contains no covered global row** (at least one Claude and one Codex fixture).
-2. **The contract seam**: round-trip validation after removing `differs`; validation of the new
-   preview-related fields and commands; plugin entries have no preview path; a saved listing validates
-   with or without the older depth fields.
-3. **e2e**: opening an on-disk skill from global or detail → see a fragment of `SKILL.md`; clicking
-   another text file in the package, a deeply nested one included, switches the content; plugin rows are not previewable (if a
-   fixture can be built); on a same-name pair in detail, no second global row appears in the UI.
-
-A good test asserts only external behaviour (directory → the set of relative paths listed / the text
-read / the reason for refusal), never the internal traversal details. Drawer animations are not unit
-tested.
-
-**The Antigravity side** (skills-view::REQ-001, skills-view::REQ-002) adds fixture cases at the providers
-seam: one name in two and in all three of agy's global directories (the copy agy uses is the one
-listed), a built-in skill present (not listed), and a shared-directory name that hides both owners'
-global entries; e2e reads the shared group's heading and badges in project detail.
-
-**Filtering and hover** add no provider-side surface, so they sit on the seams that already exist:
-
-4. **The matching rule** is a pure predicate over (name, keyword) and is unit tested there: case
-   insensitivity, substring rather than subsequence, regex metacharacters treated literally, whitespace
-   treated as empty, and the namespace prefix counting as part of the name.
-5. **e2e** covers what only assembly can show: both lists narrow and recover; a group heading's count
-   follows the filter and a group with no matches disappears; the two "nothing here" states are distinct
-   sentences; an expanded row survives filtering while a row that left and returned comes back collapsed.
-
-**Two traps specific to this feature, both of which produce green tests that prove nothing:**
-
-- **A clipped element still reports a bounding box.** Asserting that the tooltip "is visible" in the
-  library's usual sense passes even when nothing of it is painted. The tooltip's visibility must be
-  asserted by **hit-testing its own centre** — if the point resolves to something behind it, it was cut
-  away. The same trap applies to the install popover, whose regression test already works this way.
-- **Assertions keyed to a class name can be permanently true.** The clipping box is named differently in
-  the prototype and in the app, so a check written against one name silently never fires against the
-  other. Assert the **property** (an ancestor that clips) rather than the name of the element that
-  happens to have it today.
-
-A third, hit while testing this and worth the same treatment:
-
-- **An assertion can be satisfied by the wrong cause.** "Typing closes the install popover" was first
-  asserted by opening the popover on a row the keyword then filtered away — so the popover vanished with
-  its row, and the assertion passed with the deliberate close deleted. Whenever a test removes something
-  and then checks that something else is gone, pin the thing that was supposed to *stay*: assert the
-  anchor row is still there, so only the behaviour under test can explain the disappearance.
-
-Related, for browser assertions specifically: dismissal-on-scroll and dismissal-on-resize must be driven
-by **dispatching the event**, not by really scrolling or resizing. Doing it for real moves the row out
-from under the pointer, the layer goes away via the pointer leaving, and the assertion passes whether or
-not the listener was ever attached.
-
-All of these were hit while building this, which is why they are recorded here rather than left as advice.
-
-**Coverage gaps, recorded rather than papered over** (a stated gap is worth more than a green that means
-nothing):
-
-- **E6 / F7** (no box when the list is empty to begin with) — guaranteed structurally, since the empty
-  case returns before the box is rendered, but nothing pins it.
-- ~~**E9 / E10 / F6**~~ — **closed 2026-08-12, and closing it found F6 was never true.** Switching
-  project kept the keyword: the section was handed new data rather than remounted, so a word typed for
-  one project silently filtered another's skills, and a populated project looked empty. The gap was not
-  a risk of future breakage as recorded — it was hiding a defect that shipped with the feature.
-- **G7** (shifting left near the window edge) — the name column sits far from the right edge, so the
-  clamp effectively never binds; reproducing it needs an extreme window size.
-- **F5** (the uninstall dialog being unaffected) — it is a page-level modal with no coupling to the list.
-- **G′4** (a name that is entirely whitespace or holds control characters) — needs a fixture with such a
-  directory name.
+- **New copy goes through the dictionaries**: the placeholder and the "no name matched" empty states
+  are user-visible strings, so they exist in both languages.
 
 ## Out of Scope
 
@@ -671,16 +551,15 @@ nothing):
   and the UI to be **extensible to N sides**, while still consuming the existing ones.
 - **Matching anything other than the name** — descriptions, file contents, frontmatter. Rows do not show
   a description, so a hit explained by text the user cannot see reads as a malfunction (E2).
-- **Fuzzy or ranked matching.** Subsequence matching (`gwd` → `grill-with-docs`) was considered and
-  declined: it needs scoring to be usable, and scoring makes the result order a thing that must itself be
+- **Fuzzy or ranked matching.** Subsequence matching (`gwd` → `grill-with-docs`) is not done: it
+  needs scoring to be usable, and scoring makes the result order a thing that must itself be
   explained.
 - **Highlighting the matched fragment**, and any count-of-matches readout.
 - **Persisting the keyword** across sessions, or sharing it between the global and detail lists.
 - **A search box on the other sections** (Subagents, Plugins, Memory, MCP) — see R11.
 - **Listing text kinds off the extension list.** Most are `.xsd` schemas that office skills read by
-  machine (117 of 143 such files on this machine, 2026-11-04), which would add rows by the dozen, and an
-  extensionless script cannot be told from a binary without reading it, which the inline stats must not
-  do (C1). Owner's ruling 2026-11-04.
+  machine, which would add rows by the dozen, and an extensionless script cannot be told from a
+  binary without reading it, which the inline stats must not do (C1).
 - **Widening the name column, or making it flexible.** The 200px is shared row geometry across sections;
   changing it is a separate decision about that geometry, not a consequence of filtering.
 - **Reaching the full name by keyboard.** The reveal is hover-only for now; the name is also readable in
@@ -689,14 +568,6 @@ nothing):
 
 ## Further Notes
 
-- **Prototype gate: passed** (2026-08-06). The user confirmed implementing the prototype's current
-  behaviour (a list expanding into a file table with lines / size / date; clicking a file opens a
-  drawer; markdown preview with a frontmatter card, and raw/preview shown for markdown only).
-
-- **Existing descriptions that must be rewritten** (at implementation wrap-up, step 8; this spec pins
-  the contract first): "same-name content differing between the two sides is badged" in
-  `docs/features/agents-overview.md`; the difference explanation in the skill-install prototype's copy;
-  any test title depending on `differs`.
 - **The parallel with subagents-view**: switch sides and read the source, no cross-side diff — skills
   aligns with it; the only difference is that a skill is a **package**, hence the multi-file
   enumeration rules.

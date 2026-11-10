@@ -94,8 +94,8 @@ pnpm verify   # the full check: types, lint, unit tests, script and site tests, 
               # checks, the end-to-end tests on a fresh build, and a smoke run of the app in development
 ```
 
-- [`docs/features/`](docs/features/README.md): what the app does today, feature by feature.
-- [`docs/specs/`](docs/specs/README.md): the requirements behind each feature, and its edge cases.
+- [`docs/specs/`](docs/specs/README.md): what the app does today, feature by feature, with the
+  requirements behind each feature and its edge cases.
 - [`docs/adr/`](docs/adr/README.md): the architecture decisions.
 - [`docs/CONTEXT.md`](docs/CONTEXT.md): the vocabulary the code and the documents share.
 - [`site/`](site/README.md): the website, a project of its own.

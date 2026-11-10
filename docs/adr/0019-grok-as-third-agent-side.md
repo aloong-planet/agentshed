@@ -36,6 +36,8 @@ cost** rather than token counts alone.
    Claude and Codex records carry no cost at all, so the metric would exist on one side of a
    three-side comparison and read as breakage on the other two; `docs/features/token-stats.md` states
    "no dollar cost estimation" as a boundary and that boundary stays
+   > **Amended (2026-11-10)**: the feature catalogue was merged into the specs and `docs/features/` removed; the
+   > boundary is now in the token-stats spec's Out of Scope.
 5. Session identity = the session directory — rejected: it is the more honest reading (a Grok session
    *is* a directory), but the four mechanisms hanging off `SessionMeta.file` — the `(path, mtime,
    size)` cache signature, the read allow-list, byte-range turn fetching, and search — are all

@@ -1,11 +1,8 @@
 # Token statistics
 
-> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan)
-> Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
-> artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases (the
-> accounting decisions are in the ADRs and are not restated here).
+> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan)
 
-> Startup restoration uses the original page prototypes confirmed on 2026-09-14.
+> Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
 
 ## Problem Statement
@@ -102,34 +99,31 @@ all of them.
   the difference between the two cumulatives. Using "the per-turn figure repeats" instead would be
   wrong in both directions — two genuinely identical consecutive turns would be dropped, and a
   repeat that varies the per-turn figure would be kept. The cumulative rule also drops a real
-  response whose running total did not advance: measured 2026-09-10 over every rollout carrying
-  usage records, in 17 of 345 the events under this rule sum below the records, by up to 2.9% of a
-  session. That is why the usage records are the source from the boundary on — two records with one
-  response id are one response (none observed in 5029 records) and nothing else is compared.
-- B8 A day's **four-field split is measured, not apportioned**. The per-turn events already carry all
-  four figures and a timestamp, so each day accumulates its own four buckets. Apportioning the
-  session's totals across its days by each day's share of the total — the earlier rule — rounds four
-  times per day and the roundings do not cancel: measured 2026-08-21 on real data, the three
-  cross-side buckets summed to 4 tokens less than the row totals over 12.7B. The drift is negligible
-  in magnitude and disqualifying in kind, because "the segments sum to the total" is the whole reason
-  those three buckets are the chosen cut (G8).
+  response whose running total did not advance (measured: in some rollouts the events under this
+  rule sum below the records). That is why the usage records are the source from the boundary on —
+  two records with one response id are one response (none observed) and nothing else is compared.
+- B8 A day's **four-field split is measured, not apportioned**. The per-turn events already carry
+  all four figures and a timestamp, so each day accumulates its own four buckets. Apportioning the
+  session's totals across its days by each day's share of the total would round four times per day
+  and the roundings do not cancel. The drift is negligible in magnitude and disqualifying in kind,
+  because "the segments sum to the total" is the whole reason those three buckets are the chosen cut
+  (G8).
 - B2 Sessions spanning midnight are apportioned to their respective dates by event timestamp (not
   piled onto the first day).
 - B3 Subagent sessions' tokens count toward the statistics but do not enter the session list.
 - B4 Titles come from `session_index`.
 - B9 **The usage boundary is by line order.** The first usage record line in a rollout is the
   boundary: usage events after it are ignored whatever their timestamps, usage events before it
-  count under B7. Measured on every dual-source rollout on this machine (345), line order and
-  timestamp select the same events; line order is the rule because the writer appends in order and
-  the migration preserves it, so no tie or reordering rule is needed. Only two rollouts carry usage
-  events before their boundary (1.69 B tokens between them): they are why the events are not simply
-  discarded once a record exists.
+  count under B7. Measured on every dual-source rollout, line order and timestamp select the same
+  events; line order is the rule because the writer appends in order and the migration preserves it,
+  so no tie or reordering rule is needed. A few rollouts carry usage events before their boundary:
+  they are why the events are not simply discarded once a record exists.
 - B10 **A paginated fork or subagent thread carries no replayed usage**: Codex copies neither usage
   records nor, in paginated mode, usage events into a child thread, so the child's rollout holds
   only its own usage and the replay-prefix stripping finds nothing to strip. Legacy children still
   carry the replayed prefix as usage events, and the existing by-value stripping against the parent
-  stays for them. A record whose thread id is not the rollout's own is not expected (0 of 5029) and
-  counts as the rollout's, since the archive's grain carries no thread.
+  stays for them. A record whose thread id is not the rollout's own is not expected and counts as
+  the rollout's, since the archive's grain carries no thread.
 - B11 **A compacted window has lost its usage for good**: the rollout keeps the summary and the
   span's messages but no usage records for it, and the thread's running total does not restore
   them. A day whose sessions were compacted therefore reads lower than before the compaction; on a
@@ -139,21 +133,17 @@ all of them.
   stream, so every rule above applies unchanged. Its identity is its `.jsonl.zst` path, so the day
   Codex compresses a rollout the plain path leaves the scan set and the compressed one enters it as
   a new file — parsed once, then cached like any other. The decoder's output chunk is the line
-  reader's read chunk (1 MB, the size the plain reader measured): at the decoder's 16 KB default the
-  same per-chunk cost the plain reader pays under Electron returned — measured 2026-09-11 with
-  `pnpm bench:scan` over ten real cold rollouts (525 MB plain, 264 MB compressed): 9.0 s compressed
-  against 0.95 s plain, and 1.24 s once the chunks matched. A cold rollout therefore costs about a
-  third more than its plain twin to scan, the decompression itself. A cold rollout that cannot be
-  decompressed (truncated, not zstd) is skipped like an unreadable plain file, hurting only itself.
-  "Truncated" is judged by the recorder's mechanism, not by the decoder: Node's zstd decoder reports nothing for
-  a cut frame (measured 2026-09-11, synchronously and as a stream alike — it yields the first half
-  and ends cleanly), while every rollout line ends with a newline and a cold rollout is never
-  mid-write, so a decompressed stream that does not end with a newline is cut short (all 1391
-  rollouts on this machine end with one, the 935 cold ones included). A cut landing exactly on a
-  line end escapes this and reads as a shorter session — that file only.
+  reader's read chunk (1 MB): at the decoder's 16 KB default the same per-chunk cost the plain
+  reader pays under Electron returns. A cold rollout that cannot be decompressed (truncated, not
+  zstd) is skipped like an unreadable plain file, hurting only itself. "Truncated" is judged by the
+  recorder's mechanism, not by the decoder: Node's zstd decoder reports nothing for a cut frame
+  (measured 2026-09-11, synchronously and as a stream alike — it yields the first half and ends
+  cleanly), while every rollout line ends with a newline and a cold rollout is never mid-write, so a
+  decompressed stream that does not end with a newline is cut short (every rollout measured ends
+  with one, the cold ones included). A cut landing exactly on a line end escapes this and reads as a
+  shorter session — that file only.
 
-**Sequence F: Grok-side aggregation** (lettered after the existing sequences rather than inserted
-next to A/B, so that no existing reference is renumbered)
+**Sequence F: Grok-side aggregation**
 - F1 Per-turn usage is read from the session's authoritative update stream, which is also the only
   file carrying the conversation and the tool calls — one file serves both metering and display.
 - F2 The accounting rule follows the Codex shape, not the Claude one: reported input **already
@@ -161,12 +151,12 @@ next to A/B, so that no existing reference is renumbered)
   read, and the total is input + output — exactly the total the side reports for itself. Copying the
   Claude four-field sum would double-count the cache. Cache creation is not collected here either:
   B5's rule holds on this side unchanged, for the same reason (ADR-0023).
-- F3 The model is taken from the per-turn usage record's own model key, which names the model that was
-  actually billed. This is **exact**, unlike the Codex approximation, and it can differ from the model
-  the session summary names — the billed name wins, and is not normalised into the summary's name.
-  A record without the per-model map falls back to its top-level figures with no model bucket (the
-  same rule as a Claude synthetic model: the tokens count, no bucket). The record shapes were grounded
-  by full enumeration (224 records, 2026-08-16): two variants exist — an empty usage object, and one
+- F3 The model is taken from the per-turn usage record's own model key, which names the model that
+  was actually billed. This is **exact**, unlike the Codex approximation, and it can differ from the
+  model the session summary names — the billed name wins, and is not normalised into the summary's
+  name. A record without the per-model map falls back to its top-level figures with no model bucket
+  (the same rule as a Claude synthetic model: the tokens count, no bucket). The record shapes were
+  grounded by full enumeration (2026-08-16): two variants exist — an empty usage object, and one
   flagged incomplete without a cost figure — and both parse as what they report.
 - F4 A turn record carries a cost figure. It is **neither read nor archived** (ADR-0019): a metric
   present on one side of a three-side comparison reads as breakage on the other two.
@@ -218,8 +208,8 @@ next to A/B, so that no existing reference is renumbered)
   figures now lack the archived days.
 - C9 The set of archived-only **days** — a day the archive holds rows for and no side has live rows
   on — stays queryable, for the existing hatching and note. Retained (day, side) pairs are **not**
-  exposed to the interface: retention is accounting-only (ADR-0026, amended 2026-09-10), and a day
-  on which one side is archived-only while another is live carries no marking either.
+  exposed to the interface: retention is accounting-only (ADR-0026), and a day on which one side is
+  archived-only while another is live carries no marking either.
 - C10 **A past (day, side) never falls silently** (ADR-0026, the invariant in AGENTS.md) — within an
   archive this build reads; a corrupt or unreadable one (C8) or one of a newer format
   (token-stats::REQ-006) gives the rule nothing to hold. Every
@@ -245,9 +235,8 @@ next to A/B, so that no existing reference is renumbered)
   re-judged on every scan: the observed value tracks the latest live figure, and retention holds no
   state beyond the archive rows, their stamp and the observed value.
 - C13 Superseded values are kept without a cap, each with the stamp and scan time that replaced it.
-  Growth is bounded by how rarely past days change (measured 2026-09-09: over one afternoon of
-  scans no past day's row changed); the point to revisit the cap is the archive file passing about
-  5 MB.
+  Growth is bounded by how rarely past days change; the point to revisit the cap is the archive file
+  passing about 5 MB.
 - C14 An archive file written before stamps existed reads back with every row treated as written
   under an unknown stamp, which differs from every real one: the first scan accepts whatever it
   finds, exactly as before, and stamps the rows. Nothing is retained against a file that had no
@@ -292,7 +281,7 @@ next to A/B, so that no existing reference is renumbered)
   C10's different-stamp branch takes it and the retained value becomes a superseded value. The
   restore is then re-applied by hand (C16), after which the observed value is recorded under the new
   stamp and retention holds again. This is the price of C12's figure-moved clause being exact rather
-  than tolerant; it fell due on 2026-09-10 for the Codex usage-record change (ADR-0027).
+  than tolerant.
 - C22 **While a write is blocked, the file is what counts as the archive** (ADR-0039). Within the run
   memory holds the effective rows: C10 retains a lower past figure, and writes that fail and are tried
   again keep one superseded value (C13). A restart reads the last good file and compares against that, so
@@ -309,12 +298,12 @@ next to A/B, so that no existing reference is renumbered)
 - C24 Interface for C4, C8 and C22: the scan's result appears where it was stuck and the notice is a toast,
   so no page, state form or control is added or changed, only one sentence in the existing toast form
   (the prototype exemption, declared). A standing state for this would need a prototype.
-- C25 **A settings directory already read-only or full at launch never reaches a scan**: the runtime cannot create its
-  single-instance lock there, so the application cannot start. It says so in a native dialog naming the
-  directory and exits non-zero, with no window ([i18n](i18n.md), The launch dialog; measured 2026-11-05, on
-  a directory at mode 555 and on a volume with no room). C4 and C8 govern what happens once the application
-  is running: a directory that goes read-only or full later, or a volume with room for the lock and not for
-  the archive.
+- C25 **A settings directory already read-only or full at launch never reaches a scan**: the runtime
+  cannot create its single-instance lock there, so the application cannot start. It says so in a
+  native dialog naming the directory and exits non-zero, with no window ([i18n](i18n.md), The launch
+  dialog; measured 2026-11-05). C4 and C8 govern what happens once the application is running: a
+  directory that goes read-only or full later, or a volume with room for the lock and not for the
+  archive.
 
 **Sequence D: trend and axis rendering**
 - D1 The plotted calendar span follows token-stats::REQ-002/AC-02.
@@ -338,27 +327,27 @@ next to A/B, so that no existing reference is renumbered)
   and the algorithm terminates.
 - D9 No data at all → no labels.
 - D10 Chart span and totals-card highlighting compose as token-stats::REQ-002/AC-04 specifies.
+- D11 In combined mode, hovering a bar shows each provider's number and percentage; the legend lists
+  only the providers that appear.
+- D12 Days outside the selected totals window are dimmed rather than removed, and the legend says so.
 
-**Sequence E: automatic snapshot refresh (settled 2026-08-08, fixing "today's statistics are
-missing" — the only rescan triggers had been startup and manual ↻, so leaving the app running
-overnight froze `scannedAt` and today's data was not shown)**
+**Sequence E: automatic snapshot refresh**
 - E1 Triggers: window focus (only if at least a throttle window has passed since the last successful
-  scan, 60 s by default, debounced) plus a timed backstop (5 minutes by default). Since the manual
-  control was removed (2026-08-23) these two are the **only** triggers after startup.
+  scan, 60 s by default, debounced) plus a timed backstop (5 minutes by default). These two are the
+  **only** triggers after startup.
 - E2 Concurrency: both triggers share one scan entry point with in-flight deduplication (at most one
   scan running at any moment), so a focus arriving during the backstop's scan joins it.
 - E3 A scan that fails → **silently keeps the existing snapshot**, without interrupting the user or
   clearing data, and waits for the next trigger.
-- E4 A new snapshot is delivered through the existing push channel; an open project detail page
-  **updates by transfusion** (no "loading" flash, section local state preserved — the behaviour entry
-  is in the project-detail spec).
-- E5 The throttle window and the backstop interval are injected from the environment (a test seam;
-  production uses the defaults).
+- E4 A new snapshot is delivered to the window; an open project detail page **updates by
+  transfusion** (no "loading" flash, section local state preserved — the behaviour entry is in the
+  project-detail spec).
+- E5 The throttle window and the backstop interval are injected from the environment.
 - E6 The overnight case is a corollary of E1: focus or the backstop triggers a rescan, the `scannedAt`
   anchor moves forward, and today's data and the axis recover under D1's semantics — no special-casing
   of "crossing midnight" is needed.
 
-**Sequence G: the time window and the composition** (settled 2026-08-21)
+**Sequence G: the time window and the composition**
 - G1 Four windows — all history / today / the last 7 days / the last N days under
   token-stats::REQ-002/AC-08 — presented as four cards
   that are **themselves the selector**: the card shows that window's total and clicking it selects the
@@ -372,10 +361,10 @@ overnight froze `scannedAt` and today's data was not shown)**
   window — a page where some figures moved and others did not is worse than one that offers no
   windowing at all, because the reader has no way to tell which is which.
 - G4 **All history and the trend chart deliberately disagree in span**, and the card says so in its
-  own label. The chart shows the selected 30, 60 or 90 calendar days; the cumulative total is
-  every day on record. This mismatch already existed and already misread — an unlabelled cumulative
-  total sitting above a chart captioned "last 30 days" is read as a 30-day figure. Naming the window
-  on the card is the fix; making them agree is not, since neither span is wrong for its own purpose.
+  own label. The chart shows the selected 30, 60 or 90 calendar days; the cumulative total is every
+  day on record. An unlabelled cumulative total sitting above a chart captioned "last 30 days" would
+  be read as a 30-day figure. Naming the window on the card is the rule; making them agree is not,
+  since neither span is wrong for its own purpose.
 - G5 A window with no usage: total 0, **no composition bar drawn** (a zero-width bar would be a
   drawing of nothing), the model breakdown shows its empty state, and each side reads 0 while still
   reporting itself as detected — detection is about whether the side is installed, which is
@@ -386,35 +375,30 @@ overnight froze `scannedAt` and today's data was not shown)**
   and retained ones — filtered by project where a project page asks. The archive stores the same
   per-model, four-field rows with their project key, so a window covering only archived days still
   yields a composition and a model breakdown on either page, and the two pages agree about the same
-  day by construction. Until 2026-09-09 a project page drew such a day as a zero-height bar with the
-  archived marking; that boundary is closed, and a project page now shows the day's value, hatched
-  under the same per-day rule as the cross-project view. No prototype was made for this: the
-  hatched bar already exists on the cross-project page, and giving it a height on the project page
-  is a data-semantics change, not a new form (the prototype exemption for such changes, declared
-  here rather than assumed).
-- G15 **Retention has no marking** (ruled 2026-09-10, after a prototype of one was judged visually
-  poor). A retained day is drawn exactly like any other day: no pattern, no note, no tooltip
-  annotation, and the observed value appears nowhere in the interface. The existing archived-only
-  marking is unchanged — a day is hatched and counted in the note when the archive holds it and no
-  side has live rows on it. Consequence, accepted: a user cannot tell a retained day from a live
-  one on screen; the archive's superseded values are the only trace.
+  day by construction. A project page shows such a day's value, hatched under the same per-day rule
+  as the cross-project view. No prototype was made for this: the hatched bar already exists on the
+  cross-project page, and giving it a height on the project page is a data-semantics change, not a
+  new form (the prototype exemption for such changes, declared here rather than assumed).
+- G15 **Retention has no marking**. A retained day is drawn exactly like any other day: no pattern,
+  no note, no tooltip annotation, and the observed value appears nowhere in the interface. The
+  existing archived-only marking is unchanged — a day is hatched and counted in the note when the
+  archive holds it and no side has live rows on it. Consequence, accepted: a user cannot tell a
+  retained day from a live one on screen; the archive's superseded values are the only trace.
 - G7 An entry carrying no timestamp cannot be attributed to any day, and therefore to any window. To
-  keep this from silently detaching a total from its own breakdown, **every figure on the page derives
-  from the same row set** — including all history and each side's total. The windowed figures and the
-  side totals are then equal by construction rather than by coincidence. Measured 2026-08-21: zero
-  undated rows on real data across all three sides, and the row sums matched the side totals exactly
-  on all three, so the change is neutral on today's data and load-bearing the day it is not.
+  keep this from silently detaching a total from its own breakdown, **every figure on the page
+  derives from the same row set** — including all history and each side's total. The windowed
+  figures and the side totals are then equal by construction rather than by coincidence.
 - G8 The composition cuts the selected window's total into the three cross-side comparable buckets —
   `input + cacheWrite` / `output` / `cacheRead` — which carry one meaning each on every side and
   sum exactly to the total (the invariant in AGENTS.md). It is rendered **below the totals and
   outside any card**: it decomposes the same number the side figures decompose, by a different axis,
   so the two are siblings rather than one being contained in the other.
-- G9 The smallest bucket is a fraction of a percent of the total on real data (output at 0.28%,
-  measured 2026-08-21). Percentages are therefore part of the legend rather than something the reader
-  infers from width, and each segment keeps a minimum width so the smallest one exists on screen at
-  all. The legend also carries the absolute figure and states that cache writes are counted inside
-  uncached input — that grouping is not inferable from the label, and "where did cache creation go" is
-  the first question the bar provokes.
+- G9 The smallest bucket is a fraction of a percent of the total on real data. Percentages are
+  therefore part of the legend rather than something the reader infers from width, and each segment
+  keeps a minimum width so the smallest one exists on screen at all. The legend also carries the
+  absolute figure and states that cache writes are counted inside uncached input — that grouping is
+  not inferable from the label, and "where did cache creation go" is the first question the bar
+  provokes.
 - G10 Composition colours: cache read blue, uncached input yellow, output green (ADR-0024).
 - G11 The selected totals-card identity is view state (the global trend-span preference has its
   own lifetime under token-stats::REQ-002/AC-05 and token-stats::REQ-002/AC-07): it survives switching
@@ -437,6 +421,8 @@ overnight froze `scannedAt` and today's data was not shown)**
   which external content is rendered or loaded, so it adds no interaction surface beyond the controls
   named above — stated rather than skipped, because "no new surface" is a conclusion that has to be
   reached rather than a default.
+- G16 A part of the composition at exactly zero draws nothing.
+- G17 A project with no sessions shows zeros and an empty state rather than an error.
 
 ## Selectable trend span
 
@@ -541,20 +527,17 @@ content rendering; G14's external-content boundary is unchanged.
 The display copy follows [agents-overview::CON-001](agents-overview.md); it never feeds restored
 figures into archive merging. A stale copy containing no rows for the new day shows the computed
 empty-day result while its startup scan indicator remains visible, then receives the live rows.
-Reuse the existing injected-clock aggregation seam and the restart fixture's before/after day data.
-In e2e the page's fake clock is installed after the page has mounted, so the display clock's
-once-a-second timer, set at mount, keeps real time and reads the fake time at its next real tick: a
-step that crosses midnight waits for that tick and the render after it, not for a fixed second.
-G2/G3/G6/G7/G11/G13, D1/D10, C10/C11/C20 and E2–E4 are in-scope regressions; parser formulae and
-archive retention policy are not changed by this feature.
 
 ## The Antigravity CLI side
 
 Antigravity CLI (`agy`) is the fourth agent side (ADR-0037). Each of its conversations is a SQLite
 database whose rows carry protobuf records, one usage record per model call; the schema is not
-published and is read from the descriptors embedded in agy 1.4.9. The facts below were measured on
-this machine on 2026-10-28, against real conversations in both of agy's sign-in modes, a fork, a
-rewind, a subagent and failed calls. Only the latest format is supported.
+published and is read from the descriptors embedded in agy 1.4.9. The facts below were measured
+against real conversations in both of agy's sign-in modes, a fork, a rewind, a subagent and failed
+calls. The field mapping and the de-duplication were reconciled call by call on 2026-10-28 against
+agy's own per-call usage output: 16 de-duplicated calls across seven databases matched to the token,
+the differences explained by one rewound call and three subagent calls. Only the latest format is
+supported.
 
 ### token-stats::CON-001 What the Antigravity CLI side reads (direct acceptance)
 
@@ -648,14 +631,14 @@ Applies to: every conversation database of the side, forks and subagent conversa
   before the database, so agy exiting between the two copies also leaves a database copy that holds
   everything; a checkpoint agy runs while it keeps writing could still split the pair (not observed),
   and a read of it that fails is retried at the next scan.
-- While a conversation has a log, every scan that reads it copies the database and the log in full: no
-  copy-on-write clone is made through the runtime on macOS (measured 2026-10-29: 400 MB in 0.4–0.7 s).
-  A conversation that changed is read twice in one scan — once for its folder (the activity walk) and
-  once for its usage — so one agy is writing is copied twice. A conversation whose database time and
-  log did not change since its last read is not read again, and a conversation found unreadable keeps
-  that verdict, counted at every scan, until its database or its log changes. The activity walk keeps
-  only successful reads, so it opens an unreadable conversation again at every scan — in place, or
-  through a copy while a log is beside it — and finds it unreadable again.
+- While a conversation has a log, every scan that reads it copies the database and the log in full:
+  no copy-on-write clone is made through the runtime on macOS. A conversation that changed is read
+  twice in one scan — once for its folder (the activity walk) and once for its usage — so one agy is
+  writing is copied twice. A conversation whose database time and log did not change since its last
+  read is not read again, and a conversation found unreadable keeps that verdict, counted at every
+  scan, until its database or its log changes. The activity walk keeps only successful reads, so it
+  opens an unreadable conversation again at every scan — in place, or through a copy while a log is
+  beside it — and finds it unreadable again.
 - A read cut short by the application being killed leaves its copy in a temporary directory only the
   user can read; nothing is left under agy's directories.
 - A conversation is credited to the first of its trajectory metadata's workspace URIs or, in a record
@@ -680,14 +663,12 @@ Applies to: every conversation database of the side, forks and subagent conversa
 - A model call agy runs on a Claude model reports cache writes; the four-field total includes them, and
   ADR-0037 counts cache writes among the figures the Claude Code and
   Antigravity CLI sides report.
-- Usage agy never writes to a database — the `/btw` side question (deleted once answered) and the Auto
-  mode's command reviewer — is not counted; this under-count is stated in the features page, not in the
-  interface.
+- Usage agy never writes to a database — the `/btw` side question (deleted once answered) and the
+  Auto mode's command reviewer — is not counted; this under-count is not signalled in the interface.
 - The generator metadata holds each call's full prompt and can reach hundreds of megabytes in one
   database: decoding skips those fields by their length prefix and never decodes them. The runtime's
   SQLite module returns a record whole, so one record's bytes are in memory while it is read; the
-  records are read one at a time (measured 2026-10-29: thirty 20 MB records peak at 132 MB, against
-  713 MB read at once).
+  records are read one at a time.
 - A zero-byte or non-SQLite `.db` file fails to open in the supported format and is counted as
   unreadable (token-stats::REQ-004/AC-01).
 - The settings file or the data root is missing or corrupt: projects-list A1–A3 and A9 apply to this
@@ -697,8 +678,8 @@ Applies to: every conversation database of the side, forks and subagent conversa
   not decode is left out of the figures and counted, while its folder still takes the database's time —
   activity is the file's time, a separate pipeline (projects-list). A read that fails while agy writes
   keeps the conversation's last folder as well as its last usage.
-- A call carrying no identity (none of the 51 measured): it counts where it is — within its database
-  its step and its generator record are joined through the step the record names — and is never matched
+- A call carrying no identity (none measured): it counts where it is — within its database its step
+  and its generator record are joined through the step the record names — and is never matched
   across databases.
 - A conversation deleted between the scan's listing and its read is not unreadable: deleted before its
   read starts, it leaves the figures in that scan; deleted while it is read, that scan keeps its last
@@ -765,6 +746,8 @@ Applies to: an archive file whose format version is a whole number above the one
   for a side it does not know.
 - A restore (C16) names a side this build knows: it writes that side's pairs only, and rows of a side
   it does not know are carried through (token-stats::REQ-005/AC-03).
+- A restore (C16) against an archive of a newer format refuses before reading the snapshot and
+  leaves the file as it was; against this build's format its dry run reports and writes nothing.
 - An archive of a newer format while this build runs alone: the days only the archive held read lower
   or empty, with no hatching (token-stats::REQ-006/AC-02, token-stats::REQ-006/AC-04). This is the
   one place besides a corrupt or unreadable archive (C8) where a past day reads lower than the archive
@@ -782,263 +765,121 @@ Applies to: an archive file whose format version is a whole number above the one
 
 ## Implementation Decisions
 
-- **Global preference and derived window**: reuse the app-owned preference store and its validated
-  process boundary for the selected number. All chart entries consume one shared choice. Keep
-  the selected totals-card identity separate from its resolved day count: the fourth card derives
-  its window from the global span. Compute real amounts from effective usage rows under ADR-0025,
-  never from the prototype's mock scaling. This extends preferences, not cached usage or archive
-  structures; the accounting stamp and parser rules do not change.
+- **Global preference and derived window**: the selected number is an app-owned preference. All
+  chart entries consume one shared choice. Keep the selected totals-card identity separate from its
+  resolved day count: the fourth card derives its window from the global span. Compute real amounts
+  from effective usage rows under ADR-0025, never from the prototype's mock scaling. The span lives
+  in the preferences alone, not in cached usage or archive structures; the accounting stamp and
+  parser rules do not depend on it.
 
-- **Accounting**: see ADR-0005/0006 (the sides' total formulas differ and must not be copied from one
-  another) and ADR-0019 for the third side's onboarding rules.
-- **Day usage shape**: a day's per-side figures are keyed by side rather than held in one field per
-  side (ADR-0020), so that adding a side makes typecheck enumerate every producer and consumer instead
-  of letting one silently omit it. The provider breakdown stays sparse — absence there means "no
-  segment", which is meaningful, whereas a missing side would only mean "the producer forgot".
-- **A new vendor**: adding one is a rule in the provider inference module, which ADR-0008 already
-  anticipated; the chart logic does not change. The side's identifying colour is that provider colour
-  (ADR-0021).
-- **Side badge colours**: ADR-0021 was carried out for one side only — the Grok badge was derived from
-  the retired Claude purple while the Claude badge kept that purple, so an accepted decision and the
-  shipped values contradicted each other, and the file's own comment called the still-live value
-  "retired". Completing it means the Claude badge takes the Anthropic hue. The badge is a fill behind
-  small bold text rather than the raw provider colour, so its pair is derived at the lightness and
-  chroma of the existing pairs rather than picked by eye; the resulting text-on-fill contrast lands
-  inside the range the other pairs already occupy. Side colours are **appearance-varying, not
-  theme-varying** (CONTEXT.md's variable classes): a colour scheme changes the interface, not the
-  data.
-- **Usage rows are the one source every figure derives from** (ADR-0025). Windowing needs
-  day × side × project × model at four-field grain, which the aggregation already computes and the
-  archive already persists; the pre-aggregated per-day and per-model fields were lossier projections
-  of it. Deriving every figure from one row set is also what makes G7 hold by construction. Measured
-  2026-08-21 on real data: 378 rows, 67 KB serialised, at most 20 rows on the busiest day — small
-  enough that the aggregation belongs where the selection lives.
-- **No cache version change**: the incremental cache stores per-file parse output, whose shape is
-  untouched; what changes is the combination step, which re-runs on every build. This is the
-  distinction the cache-version rule turns on — a *structure* change to what is cached must bump the
+- **Accounting**: see ADR-0005/0006 (the sides' total formulas differ and must not be copied from
+  one another) and ADR-0019 for the third side's onboarding rules. ccusage reads the Claude Code,
+  Codex and Grok sides and has no Antigravity CLI reader; for Codex its figures match only on days
+  whose rollouts carry no usage records.
+- **Day usage shape**: a day's per-side figures are keyed by side (ADR-0020). The provider breakdown
+  stays sparse — absence there means "no segment".
+- **A new vendor**: a provider is inferred from the model name (ADR-0008), and adding a vendor adds
+  an inference rule; the chart logic does not change. The side's identifying colour is that provider
+  colour (ADR-0021).
+- **Side badge colours**: the Claude badge takes the Anthropic hue (ADR-0021). The badge is a fill
+  behind small bold text rather than the raw provider colour, so its pair is derived at the
+  lightness and chroma of the existing pairs rather than picked by eye; the resulting text-on-fill
+  contrast lands inside the range the other pairs already occupy. Side colours are
+  **appearance-varying, not theme-varying** (CONTEXT.md's variable classes): a colour scheme changes
+  the interface, not the data.
+- **Usage rows are the one source every figure derives from** (ADR-0025). Windowing needs day × side
+  × project × model at four-field grain, which the archive persists. Deriving every figure from one
+  row set is also what makes G7 hold by construction.
+- **Cache version bumps**: the incremental cache stores per-file parse output, and the combination
+  step downstream of it re-runs on every build. A *structure* change to what is cached must bump the
   version, and a change downstream of the cache must not, or every release would force a full rescan
   for nothing.
 - **Archive**: see ADR-0007 for its existence and grain, ADR-0026 for the conflict rule. The archive
   is the sole owner of the effective row set: each scan hands it the live rows and the scan anchor,
-  and it returns the rows every figure derives from together with the archived-only days — no
-  caller patches archive rows into live figures on its own. The accounting
-  stamp is **injected** into the archive rather than read from the runtime inside it, so the unit
-  seam can move the stamp between merges; production composes it from the application version and
-  the cache structure version. The persisted archive gains a format version, a stamp per (day,
-  side) pair — the unit the rule judges, so every row of the pair carries it — the observed value
-  of each retained pair, and the superseded values each with the pair they belonged to; an older
-  format upgrades on read as C14 describes. The
-  snapshot contract keeps the list of archived-only days, computed per day as before; the retained
-  set never leaves the archive.
+  and it returns the rows every figure derives from together with the archived-only days — no caller
+  patches archive rows into live figures on its own. The accounting stamp is composed from the
+  application version and the cache structure version. The persisted archive carries a format
+  version, a stamp per (day, side) pair — the unit the rule judges, so every row of the pair carries
+  it — the observed value of each retained pair, and the superseded values each with the pair they
+  belonged to; an older format upgrades on read as C14 describes. The snapshot contract keeps the
+  list of archived-only days, computed per day; the retained set never leaves the archive.
 - **Restore**: a repository script, run by a developer, that reads a cache snapshot and applies C16
   through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
   so the restored rows are exactly what a scan of that data would have produced.
-- **An archive a newer build wrote** (token-stats::REQ-005, token-stats::REQ-006): the archive admits a
-  row's side against the agent-side set as it reads the file — the set the contract validation reads,
-  total over the side type, so a side added to the type is admitted from the build that adds it on. Rows
-  outside it are held apart from the rows the conflict rule judges: they never enter the effective row
-  set or the archived-only days, and every write puts them back as read; their pairs' stamps, observed
-  and superseded values stay in the file, since nothing this build does touches a pair it never sees
-  live. The figure derivation is not made to skip a side it has no bucket for: inside the process every
-  row's side is typed, the archive file is the one place a side enters the figures untyped, and a
-  derivation that skipped silently would hide a producer's mistake. A file of a newer format is held as
-  not this build's to write: the archive returns the live rows as the effective set and refuses every
-  write until the file on disk changes, judged again on the same re-read a restore relies on.
+- **An archive a newer build wrote** (token-stats::REQ-005, token-stats::REQ-006): the archive
+  admits a row's side against this build's set of agent sides as it reads the file, so a side is
+  admitted from the build that adds it on. Rows outside it are held apart from the rows the conflict
+  rule judges: they never enter the effective row set or the archived-only days, and every write
+  puts them back as read; their pairs' stamps, observed and superseded values stay in the file,
+  since nothing this build does touches a pair it never sees live. The figure derivation is not made
+  to skip a side it has no bucket for: inside the process every row's side is typed, the archive
+  file is the one place a side enters the figures untyped, and a derivation that skipped silently
+  would hide a producer's mistake. A file of a newer format is held as not this build's to write:
+  the archive returns the live rows as the effective set and refuses every write until the file on
+  disk changes, judged again on the same re-read a restore relies on.
 - **An archive file that fails** (ADR-0039): the merge reports whether its file failed rather than
-  throwing, and a restore still throws. Writing leaves the rows the merge moved in memory and the recorded
-  signature as they were, which is what keeps the next merge from reading the file back and lets it carry
-  them to the next write. The notice crosses IPC as a command the main process answers true once in a run:
-  it holds that state because a reload is a new renderer in the same run, and because the failure can come
-  before the window subscribes, and each merge that succeeds before the notice is taken withdraws it. The window asks at mount, with each snapshot and on focus, and asks nothing
-  while it has no focus. The notice stays out of the snapshot, which is saved with the display copy and
-  would restore a failure from an earlier run. The archive, the token cache, the preferences and the last
-  run's version share one atomic write, which removes its temporary file when it fails; the display copy's
-  asynchronous write already did.
+  throwing, and a restore still throws. Writing leaves the rows the merge moved in memory and the
+  recorded signature as they were, which is what keeps the next merge from reading the file back and
+  lets it carry them to the next write. The notice crosses IPC as a command the main process answers
+  true once in a run: it holds that state because a reload is a new renderer in the same run, and
+  because the failure can come before the window subscribes, and each merge that succeeds before the
+  notice is taken withdraws it. The window asks at mount, with each snapshot and on focus, and asks
+  nothing while it has no focus. The notice stays out of the snapshot, which is saved with the
+  display copy and would restore a failure from an earlier run. The archive, the token cache, the
+  preferences and the last run's version share one atomic write, which removes its temporary file
+  when it fails; the display copy's asynchronous write does the same.
 - **Codex usage sources**: see ADR-0027. The parser reads both sources in one pass and applies the
-  usage boundary as it goes; the per-file aggregate keeps its list of per-event increments and gains
-  the boundary index beside it, so that the replay stripping can stop at the legacy span — a shape
-  change and a computation change, both of which bump the cache structure version under the rule
-  below, which changes the accounting stamp (C21). Reading a cold rollout puts a
-  zstd decompression stream in front of the line reader; the byte offsets the question index records
-  for it are offsets in the decompressed stream.
+  usage boundary as it goes; the per-file aggregate keeps its list of per-event increments and the
+  boundary index beside it, so that the replay stripping can stop at the legacy span — a shape change
+  and a computation change, both of which bump the cache structure version under the rule below,
+  and the version is part of the accounting stamp (C21). Reading a cold rollout puts a zstd decompression stream in front of the
+  line reader; the byte offsets the question index records for it are offsets in the decompressed
+  stream.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **Cache**: incremental by file signature; **a structure change must bump the version number at the
   same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
   recomputes. The signature is read before a file is parsed, so a file that grows while it is read
   shows as changed on the next scan. **A Codex rollout that only grew is parsed from where the last
-  parse stopped**: its entry also keeps the inode, the size and the end of the last parsed line, with
-  everything the parser carries from line to line, and a rollout with the same inode and a larger size
-  resumes there. Codex's writer only appends to a rollout or replaces it by renaming a copy over the
-  path, so a new inode, a size that did not grow, a cold rollout, or fifty resumes in a row (bounding
-  an in-place edit nothing cheap can see) mean a whole parse. Measured 2026-10-09 with
-  `pnpm bench:scan grow` under Electron: an 839 MB rollout parses whole in 2956 ms and rescans in 8 ms
-  after a 1 MB append; a 1655 MB one in 4610 ms and 17 ms; both equal to a cold parse. The resume state
-  grows the cache by about 15% (13.7 → 15.8 MB on that machine). Claude and Grok files are parsed whole
-  when they change: Claude's question filter needs the whole parent graph, and Grok's streams are
-  small.
-- **Where parsing runs**: the scan is planned on the main process — cache hits, resumes, whole parses
-  — and the files that need parsing are parsed on a pool of worker threads (cores minus one, at most
-  four), several at once; the results are then taken in scan order, because the cross-file
+  parse stopped**: its entry also keeps the inode, the size and the end of the last parsed line,
+  with everything the parser carries from line to line, and a rollout with the same inode and a
+  larger size resumes there. Codex's writer only appends to a rollout or replaces it by renaming a
+  copy over the path, so a new inode, a size that did not grow, a cold rollout, or fifty resumes in
+  a row (bounding an in-place edit nothing cheap can see) mean a whole parse. A resumed parse equals
+  a whole parse. Claude and Grok files are parsed whole when they change: Claude's question filter
+  needs the whole parent graph, and Grok's streams are small.
+- **Where parsing runs**: the scan is planned on the main process — cache hits, resumes, whole
+  parses — and the files that need parsing are parsed on a pool of worker threads (cores minus one,
+  at most four), several at once; the results are then taken in scan order, because the cross-file
   deduplication keeps the first copy of a message and so the order is part of the result. Workers
   start when there is work and stop after ten idle seconds. A worker that fails or will not load
-  hands its file back to the main process, so a failure costs time, never a file. Measured 2026-10-09
-  with `pnpm bench:scan workers` under Electron, a cold scan of 4954 files: 24.8–26.3 s on the main
-  process at a 1.03 GB peak; on 2, 4 and 8 workers 12.9 s, 8.5 s and 7.4 s at peaks of 1.19, 1.48 and
-  2.20 GB. The largest file alone (1.6 GB, about 4.6 s) bounds the time, so workers past four mostly
-  cost memory. The main process's longest event-loop stall during the scan fell from 170–441 ms to
-  about 15 ms, and the pooled cache was identical to the main-process one file by file. Tests and the
-  session page's single-file rebuild parse on the main process.
-- **Automatic refresh**: the trigger layer lives entirely in the main process (focus + timer, with
-  parameters injected from the environment); the renderer gets no new channel (the existing snapshot
-  push is reused); the cost of a rescan is absorbed by the incremental cache.
+  hands its file back to the main process, so a failure costs time, never a file. The largest file
+  alone bounds the time, so workers past four mostly cost memory. The pooled cache is identical to
+  the main-process one file by file. The session page's single-file rebuild parses on the main
+  process.
+- **Automatic refresh**: the triggers (focus + timer) run entirely in the main process; the cost of
+  a rescan is absorbed by the incremental cache.
 - **Antigravity usage** (ADR-0037): the databases are opened through the runtime's built-in SQLite
-  module (available in Electron 43), under token-stats::CON-002. The records are decoded by field number
-  against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and skipping
-  the prompt fields by their length prefix; a field the reader reads arriving in another wire type than
-  its descriptor declares is a record that will not decode. The extraction script and the descriptor set
-  stay with the research record so a drift can be re-checked. Within a database a call's three records
-  are joined by identity — the step brings the time, the generator record the model; calls are
-  de-duplicated across databases after the per-file results are combined, since identity spans
-  databases (token-stats::REQ-003/AC-01), the first in scan order kept. The reads run on the parse
-  workers like the other sides'. The scan's count of unreadable conversations travels with the
-  snapshot as the side's own count, present only when not zero, and is saved with the display copy, so
-  the notice is back at the next launch before the first scan. A conversation's cache entry
-  is keyed by its path, the database's modification time and the log's presence, modification time and
-  size — never the database's size, which a checkpoint leaves unchanged (measured) — and, since the entry also carries
-  the conversation's session index (session-view::REQ-004), its transcript's modification time and size; a changed
-  conversation is re-read whole, as agy rewrites and truncates rows in place. The per-file aggregate
-  gains this side's variant, so the cache structure version is bumped in the same change; the usage
-  row already carries the side, so the archive format is unaffected. The side joins the agent-side
-  set, so typecheck enumerates every per-side producer and consumer (ADR-0020). Its models' provider
-  is inferred from the model name by the provider inference module (a Gemini model is Google's; a
-  Claude model run through agy is Anthropic's, D3), and its side colour is the Google provider colour
-  (ADR-0021).
-
-## Testing Decisions
-
-For token-stats::REQ-002, the highest existing seam is a real Electron user journey: use the
-inline numbers on both chart entries, read the fourth card and the active side/model/composition
-regions together, navigate between projects and global view, then quit and relaunch with the same
-isolated application profile. Verify actual restart persistence, not merely a reload or an in-memory
-value. Existing geometry checks cover localized choices, selected styling, keyboard focus, dense
-axes and startup alignment in the supported themes and appearances.
-
-Reuse the public usage-window/trend/axis unit seams for exact calendar boundaries and distinct
-amounts in each 30-day slice, sparse/empty/archived data, and the algebraic totals/composition
-identities. Reuse preference store/handler and preference-backfill seams for older/invalid fields,
-unrelated-setting preservation, failed/interrupted writes and late responses. Test behavior at
-these existing boundaries, not component state layout. The protocol and preference contract need
-extension; usage-cache/archive structures and provider accounting stay unchanged.
-
-Following ADR-0038's seams: fixture unit tests at the providers layer cover every side's parsing
-rules, deduplication, the cache and the archive — one fixture per side, because the formulas
-deliberately differ and a shared fixture would let one side's rule stand in for another's. The
-reconciliation test is the guard against exactly that substitution. Adding a side also requires a case
-where **two sides have volume on the same day**, since a per-side keying mistake is invisible while
-only one side has data; pure functions (trend/axis/provider) get their own
-unit tests covering the geometric constraints of segmentation and axis layout; e2e covers that an
-old-format cache does not crash at startup and the geometric checks on the trend chart's rendering
-(labels do not overlap, tooltips are not clipped). The reconciliation baseline: the day-by-day ccusage
-comparison, which covers **the Claude Code, Codex and Grok sides** — the third-party meter gained Grok
-support, so the side that once had no standing external baseline has one. The meter has no Antigravity
-CLI reader: that side's baseline is the call-by-call reconciliation of 2026-10-28 named in its testing
-decisions below. The comparison needs real data and a
-freshly generated baseline, so it stays out of the default gate; what it must not do is stay
-unrunnable, which is how a whole side's systematic drift went unnoticed for weeks. Its baseline is
-generated on demand rather than read from a fixed path — a path named after the day it was first
-sampled is a one-off, and a reconciliation that needs a manual, undocumented step before it can run
-is one nobody runs. Automatic refresh (sequence E): the focus throttle judgement is a pure function with
-unit tests; e2e drives the whole chain with a short interval injected — after appending session data
-it appears on its own, and an open detail page's section local state is preserved. Focus
-events are semantically unreliable under a hidden-window test regime (noted in the existing e2e
-header), and since the focus path shares its scan entry point with the timer, it gets no separate e2e.
-
-The archive rule (C5, C6, C10–C14) is tested at the archive's own unit seam with the stamp and the
-scan anchor injected: the cases are a same-stamp decrease on a past day (retained, observed value
-recorded, superseded list untouched), a different-stamp decrease (accepted, predecessor superseded),
-an increase under either stamp (accepted, predecessor superseded), the scan's own day decreasing
-(replaced, nothing kept), a side with no live rows on a day the other side is live on
-(archived-only, kept), a stampless file read back (accepted once, then stamped), and a shift
-between projects with an unchanged side total (accepted). Each case must be able to go red on the
-per-day reading the rule replaced, so the two-sides-one-day fixture the section above demands is
-mandatory here too. The restore script is tested through the same seam by feeding it a snapshot
-fixture and asserting the archive it produces equals a scan of that fixture's data. What the unit
-seam cannot reach is that the retained value is what the page shows: the seeded-archive e2e case
-grows a retained day (live data lower than the seeded archive under the same stamp) beside its
-archived-only day and reads, in one pass on the cross-project page and on a project page, that
-the retained day's tooltip total is the archived figure, that it carries no hatching, and that the
-archived-only day still does — the assertion that distinguishes "retained silently" from
-"overwritten silently", which look identical in every other respect.
-
-An archive a newer build wrote (token-stats::REQ-005, token-stats::REQ-006) is tested at the same unit
-seam. The side outside the set is a name generated to be absent from the agent-side set, not a
-hand-picked one a later side could take. The fixture holds rows of two known sides and the unknown
-one on one past day, an own-day row of the unknown side, and a day held only by it: the effective rows
-and the archived-only days leave the unknown rows out, and the file after two merges holds them, with
-their stamps, observed and superseded entries, as seeded. A file of the next format version stays byte
-for byte the same across merges and a restore while the effective rows are the live rows, and a file
-of that version appearing between two merges is left alone from the second on. The chain the unit seam
-cannot reach is the scan's merge feeding the figure derivation — where an unknown side would stop
-every scan and leave the first-scan skeleton up ([agents-overview](agents-overview.md) A4d) — so the seeded-archive
-e2e seeds a known side's past-day row beside a row of a side outside the set, launches, and reads that
-the agents page leaves the skeleton with the all-history figure equal to the known row, that the main
-process reports no error, and that the archive file still holds the unknown row after the scan. The restore
-script is run through its runner under `pnpm test:scripts`, as a developer runs it: against an archive of a
-newer format it refuses before reading the snapshot and leaves the file as it was, and against this build's
-format its dry run reports and writes nothing.
-
-An archive file that fails (C3, C4, C8, C22, C23) is tested at the archive's unit seam with real failures: a
-directory at the temporary path, the file's mode, the directory's mode. Two states no real means reaches are
-failed at the file-system boundary, for the archive, the token cache, the preferences and the last run's
-version alike: a write that stops halfway as a full disk does, and a rename that fails while the target stays
-a good file. Those cases assert the failure fired, so a writer that stops reaching it goes red. The chain the
-unit seam cannot reach is the running app: a directory made read-only after launch, a directory at the
-archive's path from launch, the file's mode from launch, and a relaunch over a saved display, reading the snapshots,
-the placeholder, the toast's whole text and its count over several scans. Two launches run with one scan and no timed
-rescan, so that the ask at mount and the ask on focus each have to tell the user alone. A real change of window focus is not driven, because the e2e driver
-emulates focus: those cases shadow `document.hasFocus` and dispatch the event, which are the two facts a real
-window was measured to give.
-
-The Codex usage sources (B1, B7, B9–B12) are tested at the providers seam with rollout fixtures
-whose shapes come from real paginated samples (the record's key set, the interleaving of events and
-records, a legacy span before the boundary, a compacted window, a subagent rollout with records): a
-dual-source rollout where the events under B7 miss a response the records carry (the case that
-distinguishes the sources), a legacy rollout unchanged, the boundary with events on both sides of it,
-a duplicate response id, and a cold rollout equal to its plain twin. The ccusage reconciliation keeps
-its meaning for legacy data only: it compares days whose Codex rollouts carry no usage records and
-reports the record-bearing days separately as an expected divergence.
-
-The Antigravity side (token-stats::CON-001, token-stats::CON-002, token-stats::REQ-003,
-token-stats::REQ-004) is tested at the providers seam
-with fixture databases encoded through the embedded descriptors, their shapes taken from the real
-conversations of 2026-10-28 rather than imagined: the triple record of one call; an API-key call with a
-`message_id` only and a signed-in call with a `response_id`; a failed attempt without tokens and a retry
-with tokens and an identity of its own; a fork with and without its parent present; a database after a
-rewind; a subagent conversation; a generator record with no step (undated); an empty conversation; a
-database with a log beside it; and the unreadable shapes (another user version, a missing column, a
-record that will not decode). The two-sides-one-day case above is mandatory for this side too.
-token-stats::CON-002 is asserted at the filesystem: after a scan the fixture conversations directory
-holds the same files with the same modification times, with and without a log present. The field
-mapping and the de-duplication rest on the 2026-10-28 reconciliation in the research record, where 16
-de-duplicated calls across seven databases matched agy's own per-call usage output to the token, the
-differences explained by one rewound call and three subagent calls; that reconciliation needs real
-agy data and stays out of the default gate.
-
-
-The window aggregation (sequence G) is a **pure function from the row set plus a window to the four
-figures a view needs**, which is the same seam the trend and axis functions already use — the highest
-seam that does not need a rendered page, and the one where the interesting cases live: a window with
-no rows, an undated row, a window whose only days are archived, and the identity that the three
-buckets sum to the total (G8) and that all history equals the side totals (G7). The last two are
-**algebraic identities over whatever fixture is supplied**, so they are asserted for every window on
-every fixture rather than for one hand-picked case — a per-case assertion would only prove the case.
-Sequence B8's "measured, not apportioned" needs a fixture whose session spans two days with a
-lopsided split, since apportioning and measuring agree whenever a session's days are proportionally
-alike, which is exactly what a casually written fixture produces. What unit tests cannot reach is that
-the **selection actually drives** the four regions: that a click changes the side figures, the
-composition, the model rows and the dimmed span together (G3). That is an e2e assertion, and it must
-read all four in one pass, because the failure being guarded against is precisely that some of them
-moved and others did not — checking them one at a time would pass on a page that is inconsistent.
+  module (available in Electron 43), under token-stats::CON-002. The records are decoded by field
+  number against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and
+  skipping the prompt fields by their length prefix; a field the reader reads arriving in another
+  wire type than its descriptor declares is a record that will not decode. The extraction script and
+  the descriptor set stay with the research record so a drift can be re-checked. Within a database a
+  call's three records are joined by identity — the step brings the time, the generator record the
+  model; calls are de-duplicated across databases after the per-file results are combined, since
+  identity spans databases (token-stats::REQ-003/AC-01), the first in scan order kept. The reads run
+  on the parse workers like the other sides'. The scan's count of unreadable conversations travels
+  with the snapshot as the side's own count, present only when not zero, and is saved with the
+  display copy, so the notice is back at the next launch before the first scan. A conversation's
+  cache entry is keyed by its path, the database's modification time and the log's presence,
+  modification time and size — never the database's size, which a checkpoint leaves unchanged
+  (measured) — and, since the entry also carries the conversation's session index
+  (session-view::REQ-004), its transcript's modification time and size; a changed conversation is
+  re-read whole, as agy rewrites and truncates rows in place. The per-file aggregate has this side's
+  variant, so the cache structure version is bumped in the same change; the usage row carries the
+  side, so the archive format is unaffected. The side joins the
+  agent-side set (ADR-0020). Its models' provider is inferred from the model name (a Gemini model is
+  Google's; a Claude model run through agy is Anthropic's, D3), and its side colour is the Google
+  provider colour (ADR-0021).
 
 ## Out of Scope
 
@@ -1053,9 +894,9 @@ moved and others did not — checking them one at a time would pass on a page th
   no threshold, however chosen, distinguishes a 30% fix from a 30% loss.
 - Detecting an agent's format change on its own. The archive reacts to what the figures do, not to
   why; recognising a rewritten record format is the parsers' job.
-- Marking a compacted window or a compacted session anywhere in the interface (ruled 2026-09-10):
-  past days are protected by the archive, and a session-level marking is a session-view design
-  question that needs a prototype.
+- Marking a compacted window or a compacted session anywhere in the interface: past days are
+  protected by the archive, and a session-level marking is a session-view design question that needs
+  a prototype.
 - ccusage alignment for rollouts carrying usage records (ADR-0027): the third-party meter reads only
   the legacy events and is expected to read lower on those days.
 - A cap on superseded values (revisited if the archive file passes about 5 MB, C13).
@@ -1072,8 +913,7 @@ moved and others did not — checking them one at a time would pass on a page th
 - Sub-day granularity. "Today" is as fine as the windows go, because a day is as fine as the source
   records are cut for aggregation; an hourly window would have to re-derive from timestamps that the
   aggregation deliberately collapses.
-- ~~Rendering session contents (metadata only)~~ (2026-08-06: fully shipped by
-  `docs/specs/session-view.md`, moved out of this spec's boundary).
+- Viewing session contents: not part of this feature (see [session-view](session-view.md)).
 - Gemini CLI as a side (ADR-0037 option 2: deferred until usage through a paid Gemini API key or an
   enterprise licence needs counting, when it would be a fifth side), and the Antigravity desktop app's
   and IDE's data roots (ADR-0037 option 3).

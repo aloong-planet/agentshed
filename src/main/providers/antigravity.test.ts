@@ -18,7 +18,7 @@
 // - A read killed half-way leaving its copy behind: killing the process is outside this seam. What the copy is left
 //   in — a directory only the user can read — is asserted while a read runs.
 // - Usage agy never writes to a database (the /btw side question, the Auto mode's command reviewer): there is nothing
-//   to read, so nothing to drive; the under-count is stated in the features page.
+//   to read, so nothing to drive; the under-count is stated in the token-stats spec.
 // - A conversation whose format and trajectory record read but one of whose usage records will not decode: the usage
 //   read counts it unreadable (driven below), while the walk, which reads only the trajectory record, still gives its
 //   folder the database's time — activity is the file's time by design (CONTEXT "Activity"); not driven as a case of
