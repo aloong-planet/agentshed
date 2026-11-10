@@ -74,6 +74,13 @@
   /* The tags carry width and height so the space is held before an image loads: without them, a language
      switch swaps in unloaded screenshots, everything above collapses and the page jumps */
   .shot img{display:block;width:100%;height:auto}
+  .hero-video-frame{aspect-ratio:16/9}
+  .hero-video-frame iframe{display:block;width:100%;height:100%;border:0}
+  .hero-video-play{display:block;position:relative;color:var(--text);text-decoration:none}
+  .hero-video-play span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:12px 20px;border-radius:10px;background:var(--card);border:1px solid var(--line-strong);font-weight:600;white-space:nowrap}
+  .hero-video-play:hover span{background:var(--accent-soft);border-color:var(--accent)}
+  .hero-video-play:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+  .hero-video-fallback{display:inline-block;margin-top:12px;color:var(--text-2);font-size:13px}
   .hero .shot{max-width:960px;margin:48px auto 0}
 
   /* ── Sections ── */
@@ -208,6 +215,9 @@
       betaNote: '正式版尚未发布。测试版从 GitHub 下载，可能还有不稳定之处。',
       allVersions: '在 GitHub 查看所有版本',
       shotHero: 'Agentshed 的 Agents 总览',
+      videoLabel: 'Agentshed 功能介绍',
+      videoFallback: '在 YouTube 观看',
+      videoPlay: '观看演示 · 1:07',
       featTitle: '一个应用，看清全部',
       featSub: '它只读取你本机上 coding agent 留下的文件。',
       feats: [
@@ -249,6 +259,9 @@
       betaNote: 'No stable release yet. The test version downloads from GitHub and may still be rough in places.',
       allVersions: 'See every version on GitHub',
       shotHero: 'The Agents overview in Agentshed',
+      videoLabel: 'Agentshed product walkthrough',
+      videoFallback: 'Watch on YouTube',
+      videoPlay: 'Watch demo · 1:07',
       featTitle: 'One app, the whole picture',
       featSub: 'It only reads the files your coding agents leave on your Mac.',
       feats: [
@@ -280,7 +293,7 @@
     },
   }
 
-  let lang = 'zh'
+  let lang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh'
   let rel = 'beta'
   /** The feature step the deck shows; kept across re-renders so switching language keeps the place */
   let feat = 0
@@ -329,7 +342,8 @@
         <h1>${esc(d.title)}</h1>
         <p class="lede">${esc(d.lede)}</p>
         <div class="cta">${heroCta}</div>
-        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/hero-${lang}.png" width="2560" height="1536" alt="${esc(d.shotHero)}"></div>
+        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div>${lang === 'en' ? `<div class="hero-video-frame"><a class="hero-video-play" href="https://www.youtube.com/watch?v=lQ-Bg8nXJKM" target="_blank" rel="noopener" aria-label="${esc(d.videoPlay)}"><img src="../../../site/public/media/agentshed-intro-poster.jpg" width="1600" height="900" alt=""><span>${esc(d.videoPlay)}</span></a></div>` : `<img src="shots/hero-${lang}.png" width="2560" height="1536" alt="${esc(d.shotHero)}">`}</div>
+        ${lang === 'en' ? `<a class="hero-video-fallback" href="https://www.youtube.com/watch?v=lQ-Bg8nXJKM" target="_blank" rel="noopener">${esc(d.videoFallback)}</a>` : ''}
       </div>
 
       <section class="soft" id="features">
@@ -422,6 +436,19 @@
         <b>已定</b>：(f) 下载域名为 dl.agentshed.aloongplanet.com，证书已于 2026-10-17 从 Cloudflare 外部检查通过（ADR-0031）。<br>
         <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。
       </div>`
+    const play = document.querySelector('.hero-video-play');
+    if (play) play.addEventListener('click', (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      const frame = document.createElement('iframe');
+      frame.src = 'https://www.youtube-nocookie.com/embed/lQ-Bg8nXJKM?autoplay=1&playsinline=1&rel=0';
+      frame.title = d.videoLabel;
+      frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      frame.allowFullscreen = true;
+      frame.referrerPolicy = 'strict-origin-when-cross-origin';
+      play.replaceWith(frame);
+      frame.focus();
+    });
   }
 
   /** The current step's text and screenshot show */

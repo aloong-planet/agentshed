@@ -40,6 +40,9 @@ export interface Dictionary {
     /** The line beneath the download button */
     platform: string
     shotAlt: string
+    videoPlay: string
+    videoLabel: string
+    videoFallback: string
   }
   features: {
     title: string
@@ -68,7 +71,10 @@ const zh: Dictionary = {
     title: '你的 coding agent，尽收眼底',
     lede: '一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，记住了什么，烧了多少 token；每次会话按提问回看，所有项目一起搜索；还能把全局 skill 装进任意项目。',
     platform: 'macOS 12 及以上 · Apple Silicon',
-    shotAlt: 'Agentshed 的 Agents 总览'
+    shotAlt: 'Agentshed 的 Agents 总览',
+    videoLabel: 'Agentshed 功能介绍',
+    videoFallback: '在 YouTube 观看',
+    videoPlay: '观看演示 · 1:07'
   },
   features: {
     title: '一个应用，看清全部',
@@ -151,7 +157,10 @@ const en: Dictionary = {
     title: 'Your coding agents, in full view',
     lede: 'See, across every project, which skills, plugins and MCP servers Claude Code, Codex and other coding agents have installed, what they remember and how many tokens they burned; revisit every session question by question, search what you asked across all of them, and install skills from your global library into any project.',
     platform: 'macOS 12 or later · Apple Silicon',
-    shotAlt: 'The Agents overview in Agentshed'
+    shotAlt: 'The Agents overview in Agentshed',
+    videoLabel: 'Agentshed product walkthrough',
+    videoFallback: 'Watch on YouTube',
+    videoPlay: 'Watch demo · 1:07'
   },
   features: {
     title: 'One app, the whole picture',
@@ -217,11 +226,11 @@ const en: Dictionary = {
       github: 'GitHub'
     },
     test: {
-      hero: 'Download test version {version}',
-      pill: 'Test version',
-      note: 'No stable release yet. The test version downloads from GitHub and may still be rough in places.',
-      line: 'Only a test version so far: {version}',
-      button: 'Download the test version from GitHub'
+      hero: 'Download pre-release version {version}',
+      pill: 'Pre-release version',
+      note: 'No stable release yet. The pre-release version downloads from GitHub and may still be rough in places.',
+      line: 'Only a pre-release version so far: {version}',
+      button: 'Download the pre-release version from GitHub'
     }
   },
   footer: { github: 'GitHub', releases: 'Releases', copyright: '© 2026 aloongplanet' }

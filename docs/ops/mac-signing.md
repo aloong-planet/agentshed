@@ -150,7 +150,8 @@ the mirror and pointer jobs then copy the release to R2 and rewrite its `latest.
   way, at the same commits (an `AGENTS.md` invariant; `scripts/workflow-actions.test.mjs` checks every workflow file).
   Update an action by its new release's commit, in every workflow at once.
 - **Tests.** `scripts/release-workflow.test.mjs` evaluates the workflow's conditions (`pnpm test:scripts`, which
-  CI's checks job and `pnpm verify` run). A change to a condition goes red there before any tag finds it.
+  CI's application checks job and `pnpm verify` run). Changes to release tooling or workflows select
+  those checks ([CI routing](ci.md)); a changed condition is checked before any tag finds it.
 
 ### Secrets
 

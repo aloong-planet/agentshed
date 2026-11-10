@@ -31,12 +31,12 @@ As a visitor, I want to see at a glance what Agentshed does and get it in one cl
 it without reading the repository.
 
 - landing-page::US-001/AC-01: The hero shows the app icon, the title, a one-paragraph description, the
-  download button with the platform line "macOS 12 or later · Apple Silicon", and a screenshot of the
+  download button with the platform line "macOS 12 or later · Apple Silicon", and the English walkthrough video or a Chinese screenshot of the
   whole app window.
 - landing-page::US-001/AC-02: When a formal release exists, the hero button downloads that release's
   DMG directly.
 - landing-page::US-001/AC-03: When only pre-releases exist, the hero button leads to the newest
-  pre-release on GitHub, and the page says plainly that it is a test version and that no stable release
+  pre-release on GitHub, and the page says plainly that it is a pre-release version and that no stable release
   exists yet.
 - landing-page::US-001/AC-04: When the page cannot tell what exists, the button still leads to the
   downloads: GitHub's release list.
@@ -96,11 +96,11 @@ notice does not alarm me.
   buttons: Download (the R2 DMG) and GitHub (the same DMG on GitHub).
 - landing-page::REQ-002/AC-02: **Formal (from GitHub)**: the same as AC-01, except that every link goes
   to GitHub and the download row has the one Download button.
-- landing-page::REQ-002/AC-03: **Test**: the hero button reads "Download test version <version>" and
-  leads to that pre-release's page on GitHub. Beneath it, the platform line carries a "Test version"
-  pill, followed by the note "No stable release yet. The test version downloads from GitHub and may
-  still be rough in places." The download section reads "Only a test version so far: <version>", with
-  the pill, and its one button reads "Download the test version from GitHub".
+- landing-page::REQ-002/AC-03: **Test**: the hero button reads "Download pre-release version <version>" and
+  leads to that pre-release's page on GitHub. Beneath it, the platform line carries a "Pre-release version"
+  pill, followed by the note "No stable release yet. The pre-release version downloads from GitHub and may
+  still be rough in places." The download section reads "Only a pre-release version so far: <version>", with
+  the pill, and its one button reads "Download the pre-release version from GitHub".
 - landing-page::REQ-002/AC-04: **List**: the hero button reads "Download Agentshed from GitHub" and leads
   to the release list. Beneath it is the platform line, with no pill and no version anywhere in the
   buttons. The download section reads "Version details can't be loaded right now — download from
@@ -136,13 +136,14 @@ Releases and the copyright line.
 
 ### landing-page::REQ-005 The screenshots
 
-- landing-page::REQ-005/AC-01: The hero screenshot and the overview, project, token and session
+- landing-page::REQ-005/AC-01: The Chinese hero screenshot and the overview, project, token and Chinese session
   screenshots come from the built app over the owner's own agent data, approved for publication by the
   owner (on 2026-10-13; the hero's retake on 2026-10-21). The memory and search screenshots come from the
   built app over a made-up home whose projects, memory files and questions have the shape of real
   ones, the same projects in both (the owner's choice, 2026-10-21). There is one set per language, taken
-  in the light appearance.
-- landing-page::REQ-005/AC-02: The hero screenshot is the whole window, its rail showing the Search
+  in the light appearance. The English session screenshot is retaken from the built app over an English
+  example conversation (2026-11-09), including English questions, replies and tool details.
+- landing-page::REQ-005/AC-02: The Chinese hero screenshot is the whole window, its rail showing the Search
   item. Each feature screenshot is cut to the part of the window its step is about. All six are the
   same size (16:9) at the same zoom, so the text stays one size as the steps turn. Each cut ends between
   list rows. The token cut leaves out the recent-sessions list. The memory cut shows a memory file open
@@ -167,6 +168,19 @@ The hero's heading is "Your coding agents, in full view" in English.
 The features section's project step lists what a project has using the app's own word for the section
 ([project-detail::REQ-004](project-detail.md)): "Skills, subagents, plugins, MCP servers and instructions" in English,
 and the same list with the section's Chinese label in Chinese.
+
+### landing-page::REQ-009 English walkthrough video
+
+- landing-page::REQ-009/AC-01: The English hero keeps the approved local poster in the existing window
+  frame, with “Watch demo · 1:07” as the playback entry. The Chinese hero keeps its screenshot.
+- landing-page::REQ-009/AC-02: No YouTube player, thumbnail, preconnect or script loads before activation.
+  Clicking the entry or activating it with Enter replaces the poster with the privacy-enhanced YouTube
+  player and requests playback. The player supports inline playback and fullscreen; browser playback
+  restrictions may require another press of the player's Play control. The frame stays 16:9 throughout.
+- landing-page::REQ-009/AC-03: “Watch on YouTube” remains available below the frame. Without site scripts,
+  the poster is also a direct YouTube link. Modified clicks keep normal link behavior.
+- landing-page::REQ-009/AC-04: The video is hosted on YouTube. Only the poster and the published video's
+  link ship in the website repository; the approved narration and music are unchanged.
 
 ## Quality Requirements
 
@@ -195,7 +209,8 @@ two languages (ADR-0035).
 ### landing-page::CON-003 What the page reads (direct acceptance)
 
 Applies to: the visitor's browser. The page reads the R2 latest pointer and GitHub's public releases
-API, and nothing else at run time, to decide what to offer. Pre-releases are never looked for on R2,
+API, and no other source, to decide what download to offer. The English walkthrough additionally loads
+YouTube only after the visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
 since they never reach it (mac-distribution::CON-004).
 
 ## Failure modes and boundaries
@@ -258,13 +273,30 @@ since they never reach it (mac-distribution::CON-004).
 - E1 The pointer and GitHub's answer are external data. Only validated version strings and URLs on the
   expected hosts (the download host and github.com) reach the page, rendered as text and as link
   targets. Release notes and other release text are never inserted into the page.
-- E2 The hero and the overview, project, token and session screenshots show real project names, paths,
-  usage and session text by the owner's decision; the memory and search screenshots show none of the
+- E2 The Chinese hero and the overview, project, token and Chinese session screenshots show real project names, paths,
+  usage and session text by the owner's decision; the English session, memory and search screenshots show none of the
   owner's data (landing-page::REQ-005/AC-01). Retaking them is the only way to change what they show, so the hero,
   overview and project screenshots keep showing the Instructions section's former name and place until they are
   next retaken.
 
+**Sequence F: watching the English walkthrough**
+
+- F1 A visitor opens the page → only the local poster loads; no sound or YouTube request starts.
+- F2 A mouse click or Enter on the poster → one player replaces it without changing the frame size;
+  focus moves to the iframe. Playback starts when allowed by the browser.
+- F3 Scripts disabled → the poster and the separate link open YouTube. A modified click also opens
+  YouTube using normal browser link behavior.
+- F4 YouTube is blocked, unavailable or refuses embedded playback → its player owns the error;
+  “Watch on YouTube” stays reachable, as do the site's download links. Direct playback also requires
+  YouTube access. Reloading the page restores the poster.
+- F5 Resize or use a phone → poster and player fit the same responsive 16:9 area, without horizontal overflow.
+
 ## Implementation Decisions
+
+- **The English hero video** uses a local 1600×900 poster and a progressively enhanced YouTube link.
+  Activation creates an iframe on `youtube-nocookie.com` with playback requested, inline playback and
+  fullscreen allowed, and `strict-origin-when-cross-origin` referrer policy to identify the embedding
+  origin. No YouTube API library is loaded. The approved source is uploaded separately, not checked in.
 
 - **The Astro project follows Transfer's site**: an i18n configuration with Chinese as the default at
   `/` and English under `/en`, a base layout, one component per section, and a two-language
@@ -290,7 +322,7 @@ since they never reach it (mac-distribution::CON-004).
   visitor's view (the view starts below the sticky header), the page scrolls by the block's change, so
   what the visitor sees does not move; while the block is in view it changes in view (Failure A7).
 - **The palette** is the app's purple palette, with light and dark both declared and switched by the
-  system appearance. The test version's pill and note use the app's warning pair. The GitHub button
+  system appearance. The pre-release version's pill and note use the app's warning pair. The GitHub button
   beside Download is a secondary button: the card ground with the strong line, and the accent border on
   the soft accent ground on hover. Icons are inline SVG copied from Lucide (download). The text is set in
   the system font stack; the page loads no web font.
@@ -316,7 +348,8 @@ since they never reach it (mac-distribution::CON-004).
   pixels from a window 1280pt wide and 800pt tall. Each feature cut is 920×517pt (16:9), the narrowest that
   holds the token page's trend chart and per-model figures whole. The search and memory screenshots are
   taken from a window narrowed to 984pt, so that the pane reflows into the 920pt cut; the memory cut
-  expands a project with only a few memory files, so that other projects stay in view.
+  expands a project with only a few memory files, so that other projects stay in view. The English session
+  retake uses a 1240pt window so the session pane fits the 920pt cut without truncating its right edge.
 
 ## Testing Decisions
 
@@ -337,6 +370,10 @@ Beside them, for the parts the state function does not reach:
   unreadable.
 - **A state applied to the built page**: each state's view applied to a fresh copy of the served page,
   read back from the page; the requests the page's script makes, at the injected fetch (landing-page::CON-003).
+- **The walkthrough activation**, on a fresh built page with the script initialized: both locale paths,
+  no iframe before activation, the published embed after activation, focus handoff, preserved direct link,
+  and modified-click behavior. Browser evidence verifies actual playback, keyboard activation, no early
+  third-party resource loads, poster dimensions and responsive geometry.
 - **Evidence**: the features section's scroll behaviour, the four states' rendering, and
   landing-page::QR-001 are measured in a browser, as they were on the prototype (geometry and computed
   styles, not pixels), and the measurement record is kept.

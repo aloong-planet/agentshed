@@ -354,7 +354,8 @@ not a packaged build.
 ## Testing Decisions
 
 - **The asset's tests**, which use an injected command runner, run in the verification gateway and in the CI
-  workflow's checks job through the script tests. They are placed so that the test command's arguments still
+  workflow's application checks job through the script tests when application or release tooling changes
+  ([CI routing](ci-routing.md)). They are placed so that the test command's arguments still
   reach the project's own test runner (`macos-signing.md` §3). They verify command order, failure propagation
   and clean-up, and never touch Apple; the green result must not be read as "notarized" (`macos-signing.md` §9).
 - **The workflow conditions** get a static test showing that the manual verification tier cannot

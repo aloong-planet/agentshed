@@ -79,6 +79,11 @@ We choose **option 1**.
 
 ## Consequences
 
+> CI routing update (2026-11-10): the message-language check remains independent and required. The
+> composite CI check now forwards the stable CI gate's result, and Electron E2E is conditional on
+> application changes. The existing required names remain compatible while the ruleset naming
+> migration described in [the CI runbook](../ops/ci.md#required-checks-and-migration) is pending.
+
 - Positive: what reaches `master` is checked twice — at commit time and again in the pull request —
   and the commit-time check fails before the commit exists, where fixing it costs nothing.
 - Positive: the two working-language gates share one definition of "Chinese" and of "cited", so a fix to

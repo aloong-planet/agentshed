@@ -1,7 +1,7 @@
 ---
 // The hero (landing-page::US-001/AC-01): the icon, the title, one paragraph, the download button with the
-// platform line, and a screenshot of the whole window. The button is rendered in the list state, which is
-// what the page offers until something tells it more (landing-page::REQ-001/AC-04).
+// platform line, and a walkthrough in English or a whole-window screenshot in Chinese. The button is rendered
+// in the list state, which is what the page offers until something tells it more (landing-page::REQ-001/AC-04).
 import { view } from '../download'
 import { ui, type Locale } from '../i18n/ui'
 import { HERO_SIZE, shotSrc } from '../shots'
@@ -29,6 +29,21 @@ const { hero } = view({ kind: 'list' }, locale)
   </div>
   <div class="shot">
     <div class="chrome"><i></i><i></i><i></i></div>
-    <img src={shotSrc('hero', locale)} width={HERO_SIZE.width} height={HERO_SIZE.height} alt={t.hero.shotAlt} />
+    {locale === 'en' ? (
+      <div class="hero-video-frame">
+        <a class="hero-video-play" href="https://www.youtube.com/watch?v=lQ-Bg8nXJKM"
+          target="_blank" rel="noopener" aria-label={t.hero.videoPlay} data-video-title={t.hero.videoLabel}>
+          <img src="/media/agentshed-intro-poster.jpg" width="1600" height="900" alt="" />
+          <span>{t.hero.videoPlay}</span>
+        </a>
+      </div>
+    ) : (
+      <img src={shotSrc('hero', locale)} width={HERO_SIZE.width} height={HERO_SIZE.height} alt={t.hero.shotAlt} />
+    )}
   </div>
+  {locale === 'en' && (
+    <a class="hero-video-fallback" href="https://www.youtube.com/watch?v=lQ-Bg8nXJKM" target="_blank" rel="noopener">
+      {t.hero.videoFallback}
+    </a>
+  )}
 </div>
