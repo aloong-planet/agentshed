@@ -61,8 +61,9 @@ test('event comparisons use the complete PR branch and reject unsupported events
   const a = 'a'.repeat(40)
   const b = 'b'.repeat(40)
   assert.equal(comparisonForEvent('pull_request', pr(a, b)), `${a}...${b}`)
+  // The unsupported event carries commits a pull request would be accepted with, so only its name can reject it
   for (const [name, event] of [
-    ['workflow_dispatch', {}], ['pull_request', { before: a, after: b }],
+    ['pull_request_target', pr(a, b)], ['pull_request', { before: a, after: b }],
     ['pull_request', pr('0'.repeat(40), b)], ['pull_request', pr(a, '0'.repeat(40))],
     ['pull_request', pr('--bad-option', b)]
   ]) assert.throws(() => comparisonForEvent(name, event), /event|SHA/)
