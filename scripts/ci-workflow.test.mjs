@@ -74,7 +74,8 @@ test('the split retains the original product and repository checks with independ
   assert.ok(pkg.scripts.verify.includes('pnpm e2e'))
 })
 
-test('the stable gate and compatibility check propagate real command failures and cannot be dependency-skipped', () => {
+test('the stable gate propagates real command failures and cannot be dependency-skipped', () => {
+  assert.deepEqual(Object.keys(workflow.jobs).sort(), ['app-checks', 'changes', 'ci-gate', 'e2e', 'repo-policy', 'site-checks'])
   const gate = job('ci-gate')
   assert.equal(gate.name, 'CI gate')
   assert.equal(gate.if, '${{ always() }}')
@@ -95,18 +96,6 @@ test('the stable gate and compatibility check propagate real command failures an
   assert.equal(failed.status, 1)
   assert.match(failed.stderr, /site-checks: failure/)
   assert.equal(run(step.run, { NEEDS_JSON: '{bad-json' }).status, 1)
-
-  const legacy = job('checks')
-  assert.equal(legacy.name, 'typecheck + unit tests + shared-piece consistency')
-  assert.equal(job('e2e').name, 'e2e(Electron)')
-  assert.equal(legacy.if, '${{ always() }}')
-  assert.equal(legacy['continue-on-error'], undefined)
-  assert.deepEqual([legacy.needs].flat(), ['ci-gate'])
-  for (const result of ['success', 'failure', 'cancelled', 'skipped', '']) {
-    const alias = legacy.steps.find((item) => item.run)
-    const env = { GATE_RESULT: evaluate(alias.env.GATE_RESULT, { needs: { 'ci-gate': { result } } }).coerceString() }
-    assert.equal(run(alias.run, env).status, result === 'success' ? 0 : 1, result)
-  }
 })
 
 test('application and website lint inputs partition the full lint input without requiring site packages to enumerate', async () => {
