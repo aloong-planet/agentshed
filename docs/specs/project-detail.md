@@ -80,7 +80,7 @@ cached visits under project-detail::REQ-001)
 - T2 Cached visit: selecting a project seen earlier draws its page immediately (header and body from
   what was last shown) and revalidates in the background; the fresh detail arrives by transfusion.
   The revalidation happens on every visit — there is no age below which a cached page is trusted
-  without one.
+  without one. Its token figures and session list follow project-detail::REQ-005.
 - T3 Snapshot update: an automatic rescan marks every cached page stale. The page on screen refetches
   by transfusion; a page not on screen is refetched on its next visit, which is still a cached visit
   (drawn from the stale copy first).
@@ -312,6 +312,39 @@ The saved page includes successful detail data and separately fetched preview bo
 from that page. Restoring these bodies does not restore the open drawer or authorize new file reads.
 Error results and pending requests are never stored as successful page content.
 
+## A page drawn from its copy
+
+### project-detail::REQ-005 A page drawn from its copy shows the latest scan's figures
+
+Applies to: a project page drawn from a saved copy — a cached visit (T2) or a page restored at launch
+(project-detail::REQ-001) — and the page on screen when a scan completes. A scan computes every
+project's token figures and session list, so the page never has to show older ones than the scan holds.
+
+- project-detail::REQ-005/AC-01: From the first frame of a cached visit, the page's token figures —
+  the totals cards, the composition, the trend and the model breakdown — and its session list are
+  those of the latest completed scan, not those the copy was saved with. The rest of the page is the
+  copy's until its revalidation arrives (T2).
+- project-detail::REQ-005/AC-02: A page restored at launch shows, until the first scan completes, the
+  figures and session list saved with the restored snapshot, which are the last scan's of the run that
+  saved them; these are the statistics and session list project-detail::REQ-001/AC-01 names. A project
+  the saved figures hold nothing for shows what its page copy carries.
+- project-detail::REQ-005/AC-03: When a scan completes, the page on screen takes that scan's figures
+  and session list with the snapshot, without waiting for its own refetch (T3).
+- project-detail::REQ-005/AC-04: Once a scan has completed in this run, a project that scan holds no
+  figures for shows zeros and an empty session list ([token-stats](token-stats.md) G17), as its
+  revalidation would, and not the copy's figures.
+
+> Pending: every scan sends each project's token figures and session list to the window with the
+> snapshot.
+
+Failure modes and boundaries: until the revalidation arrives, the copy's other sections can be older
+than the figures and the session list beside them. A session in that list opens, because the main
+process admits sessions from the same scan the list came from. The saved figures degrade entry by
+entry (the restart sequence in [agents-overview](agents-overview.md)), so one project's can be missing
+while its page copy restores; that page then shows its copy's figures until the first scan (AC-02),
+and never another project's. The same holds whenever the window holds no figures at all — none saved,
+and no scan completed yet.
+
 ## Implementation Decisions
 
 - **The query layer** (ADR-0028): a failed fetch is not retried, so failures surface at once.
@@ -321,6 +354,14 @@ Error results and pending requests are never stored as successful page content.
   is shown, across the session page and the project pane; leaving the dimension clears it.
 - **Allow-list**: when detail is returned, the artifact and memory file paths are registered in the
   allow-list, and both reading and external opening validate against it.
+- **Each scan's project figures reach the window beside the snapshot** (project-detail::REQ-005):
+  every project's token figures and session list, keyed the way the project list merges paths, and
+  checked on both sides of the boundary like every payload (ADR-0001). They are not part of the
+  snapshot (A3), and the display copy saves them beside it (ADR-0029). The detail a page fetches still
+  carries that project's figures as of the fetch.
+
+  > Pending: every scan sends each project's token figures and session list to the window with the
+  > snapshot.
 - **Copying goes through the main process** (an IPC channel writing the OS clipboard): the renderer
   clipboard API rejects under automation — measured, not assumed — and the OS clipboard is
   main-process territory anyway. The channel validates its sender and input like every other.
@@ -360,6 +401,10 @@ Error results and pending requests are never stored as successful page content.
 
 ## Further Notes
 
+- **Prototype gate (2026-11-11)**: a page drawn from its copy showing the latest scan's figures
+  (project-detail::REQ-005) adds no page, control, state or form: the Overview and the session list
+  keep theirs, and which scan a figure comes from has no form to draw; declared here as the exemption
+  rather than assumed.
 - **Prototype gate for project-detail::REQ-003**: the change moves where one artifact type is read from
   and adds no visible state or form; declared here as a data-source exemption.
 - **Prototype gate (2026-11-04)**: which tab a page drawn on leaving a session or after it starts on (REQ-004/AC-02), how
