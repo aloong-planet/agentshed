@@ -30,6 +30,7 @@ import { savedInstructionPaths } from './providers/global'
 import { CACHE_VERSION, sessionReadSource } from './providers/token-stats'
 import { settleScan } from './providers/scanner'
 import { startScans, type ScanClient } from './scan-client'
+import { settleForQuit } from './quit'
 import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
 import { installSkillToProject, skillHoldings, uninstallSkill } from './providers/install'
@@ -825,13 +826,15 @@ if (process.env['ELECTRON_RENDERER_URL']) {
 }
 
 // Normal quit waits for pending atomic writes, and for the scan worker to stop between two steps of what it is
-// doing, so that no cache write is cut short (ADR-0043). Forced termination may lose only unfinished writes.
+// doing, so that no cache write is cut short (ADR-0043); the order is settleForQuit's. Forced termination may lose
+// only unfinished writes.
 let quitFlushed = false
 app.on('before-quit', (event) => {
-  if (quitFlushed || !displayStore) return
+  const store = displayStore
+  if (quitFlushed || !store) return
   event.preventDefault()
-  const flushed = displayStore.flush().catch((error: unknown) => console.error('[display-cache] quit flush failed:', error))
-  void Promise.all([flushed, scans?.close()]).finally(() => {
+  const flush = (): Promise<void> => store.flush().catch((error: unknown) => console.error('[display-cache] quit flush failed:', error))
+  void settleForQuit(flush, () => scans?.close() ?? Promise.resolve()).finally(() => {
     quitFlushed = true
     app.quit()
   })
