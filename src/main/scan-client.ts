@@ -66,7 +66,8 @@ export class ScanClient {
    * For quitting: asks the worker to stop and resolves once its thread has ended. The worker stops between two
    * steps of whatever it is doing, so a scan under way is dropped with its results and the cache file on disk is
    * the last one written whole. What the worker has not answered when its thread ends is never answered, and
-   * nothing asked from here on is; an answer it gives before that arrives as any other (quit.ts flushes after it).
+   * nothing asked from here on is; an answer it gives before that arrives as any other, the result of a scan it
+   * finished before taking the stop among them (quit.ts flushes the display copy after it).
    */
   close(): Promise<void> {
     this.closing ??= new Promise<void>((resolve) => {

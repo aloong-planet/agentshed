@@ -28,10 +28,16 @@ class StandIn extends EventEmitter implements ScanWorker {
     super()
     answerScans(this.channel.port2, scans, () => {
       this.stops++
-      this.end(0)
+      // A thread's exit comes after everything it had posted: the end travels the channel behind the replies
+      this.channel.port2.postMessage(StandIn.LAST)
     })
-    this.channel.port1.on('message', (reply: ScanReply) => this.emit('message', reply))
+    this.channel.port1.on('message', (reply: ScanReply | typeof StandIn.LAST) => {
+      if ('last' in reply) this.end(0)
+      else this.emit('message', reply)
+    })
   }
+
+  private static readonly LAST = { last: true } as const
 
   postMessage(request: ScanRequest): void {
     this.channel.port1.postMessage(request)
@@ -340,6 +346,24 @@ describe('quitting (token-stats, Failure modes and boundaries: scans and the win
     expect(standIns).toHaveLength(1)
     expect(client.servedOn).toBe('worker')
     expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('a scan the worker finishes before it takes the stop still gives its result, and the close then resolves', async () => {
+    const finished = await reference().scan(home.roots)
+    const { client, worker } = clientOver({
+      // Answered within the turn the request arrives in: the stop, posted right behind it, is taken after
+      scan: () => Promise.resolve(finished),
+      sessionQuestions: () => Promise.reject(new Error('not asked in this case')),
+      isFresh: () => false
+    })
+
+    const scanning = client.scan(home.roots)
+    const closing = client.close()
+
+    // A client that drops what arrives once it is closing never settles this, and the case times out
+    expect(await scanning).toEqual(finished)
+    await closing
+    expect(worker().stops).toBe(1)
   })
 
   it('close resolves at once when no worker was ever started', async () => {
