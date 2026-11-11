@@ -120,12 +120,14 @@ until [ "$(stat -f %m "$CACHE" 2>/dev/null || echo 0)" -gt 0 ]; do
   if (( $(now_ms) - T1 > READY_TIMEOUT * 1000 )); then
     # A discriminating diagnosis: the isolated cache untouched while the real one moved =
     # --user-data-dir pass-through broke
-    # (an electron-vite upgrade dropping it, say), and the app went off to write the real userData
+    # (an electron-vite upgrade dropping it, say), and the app went off to write the real userData.
+    # The real one not moving does not rule that out: a scan that changed nothing in a cache it could
+    # load writes nothing, so the last message names both causes.
     REAL_NOW=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
     if [ "$REAL_NOW" -gt "$REAL_BEFORE" ]; then
       die "userData redirection failed: the isolated cache was not updated but the real one was — check that pnpm dev forwards --user-data-dir"
     fi
-    die "first scan did not finish within ${READY_TIMEOUT}s (isolated cache not updated)"
+    die "first scan did not finish within ${READY_TIMEOUT}s (isolated cache not updated) — or it ran against the real userData and found nothing to write there: check that pnpm dev forwards --user-data-dir"
   fi
   sleep 0.3
 done
