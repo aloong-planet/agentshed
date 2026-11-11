@@ -27,11 +27,11 @@ with `files` as `null`, as an array and as a string, and builds twice against ea
 with one, the file seeded again before the second build so that each build meets it. Against the code before the fix
 the `null` row fails with the TypeError at the lookup.
 
-The array was refused a day later than `null`. It threw nothing: it passed for a cache that holds no entry, every file
-was a miss and the figures came out right, so the case above was green on it. What it broke was the rule the same
-change had just written, that a file this build cannot read is replaced at the first scan even when there is nothing to
-parse (token-stats::QR-002/AC-02): that scan left the array where it was. The document check of the change found it,
-and a row of the case for what the first build of a run writes fails on it without the refusal.
+The array was refused later than `null`, in the same change. It threw nothing: it passed for a cache that holds no
+entry, every file was a miss and the figures came out right, so the case above was green on it. What it broke was the
+rule the same change had just written, that a file this build cannot read is replaced at the first scan even when there
+is nothing to parse (token-stats::QR-002/AC-02): that scan left the array where it was. The document check of the
+change found it, and a row of the case for what the first build of a run writes fails on it without the refusal.
 
 ## What remains
 

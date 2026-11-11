@@ -172,7 +172,9 @@ all of them.
   recomputed into the new structure — **the structure definition and the version number are two
   halves of the same change** (see postmortems/cache-version-crash).
 - C2 Garbage cache content does not crash and triggers a full recompute. A file of the current version
-  whose `files` is anything but an object of entries is garbage, like one that does not parse.
+  whose `files` is not a JSON object — it is missing, `null`, an array or a value of another type — is
+  garbage, like one that does not parse. Within an object, an entry that is not well formed is a miss,
+  and only its file is parsed again (Implementation Decisions, Cache).
 - C3 A second build gives the same result (idempotent); the cache file is valid JSON and lands
   atomically. A failed write of it (a blocked or full settings directory) does not fail the scan: what
   was computed is in memory and goes out as usual, the failure is logged, no temporary file stays behind
