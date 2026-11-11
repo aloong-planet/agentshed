@@ -66,13 +66,24 @@ content once every CI run on its head has succeeded, without waiting for the own
 request waits for the owner's approval. The conditions, and how the agent establishes each of them, are
 the delivery rules of the `implement` skill and are not repeated here.
 
-The owner chose this on 2026-11-10, with these costs stated:
+"No executable content" reaches further than the specs: it is every file under `docs/`, every Markdown
+file anywhere, and a change of comments alone in a JavaScript, TypeScript or Python file. Two kinds of
+file inside that reach still wait for approval, because the owner asks to see a pull request that changes
+either before it merges (the line under Engineering in `AGENTS.md`):
 
-- The owner sees a change to a spec, an ADR or the glossary only after it is in `main`.
-- Such a pull request has had no independent review: with no executable content changed, the delivery
-  sends it to none.
-- A change of comments alone in a JavaScript, TypeScript or Python file counts as no executable content,
-  although a tool can read a comment. The owner kept this case in on 2026-11-11.
+- `AGENTS.md` and `CLAUDE.md`: every session loads them, so a change binds all the work that follows.
+- Anything under `docs/prototypes/`, its scripts and styles included: the interface follows the prototypes
+  (ADR-0033).
+
+A pull request that changes one of those files together with other documents waits as a whole. The rest
+of that reach merges without approval: among it the specs, the ADRs, the glossary, the postmortems, the
+runbooks (this one included) and the READMEs, and those comment-only changes.
+
+The owner chose this on 2026-11-10 and set the two exceptions on 2026-11-11, with these costs stated:
+
+- The owner sees such a change only after it is in `main`.
+- It has had no independent review: with no executable content changed, the delivery sends it to none.
+- A tool can read a comment, and a comment-only change merges all the same.
 
 The checks such a pull request passes are those the table above gives its paths. One that changes only
 the documentation paths of the first row passes repository policy, the CI gate and the message-language
