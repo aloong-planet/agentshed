@@ -10,7 +10,10 @@
 //   pnpm bench:scan file <path>…       time the line reader over specific files
 //   pnpm bench:scan --node cold        the same bundle under plain Node, for the comparison
 //   pnpm bench:scan workers            a cold scan on the main thread, then one on the parse pool
-//   pnpm bench:scan rescan             two scans in one process: what the second one costs
+//   pnpm bench:scan rescan             two scans in one process, through the scan worker: what the second
+//                                      one costs, and how long it holds the main process
+//   pnpm bench:scan rescan --main      the same two scans on the main process, phase by phase
+//   pnpm bench:scan rescan --grow      with a session file grown between the two (a copy of a home only)
 //
 // AGENTSHED_HOME_OVERRIDE points the scan at a fixture home, exactly as it does for the app.
 import { build } from 'esbuild'
@@ -29,17 +32,20 @@ const passThrough = args.filter((a) => a !== '--node')
 
 const outDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-build-'))
 const outfile = join(outDir, 'bench-scan.cjs')
-// The parse worker is bundled beside the entry, as electron-vite builds it beside the app's main
+// The two workers are bundled beside the entry, as electron-vite builds them beside the app's main
 const workerFile = join(outDir, 'parse-worker.cjs')
-await build({
-  entryPoints: [join(repo, 'src/main/parse-worker.ts')],
-  bundle: true,
-  platform: 'node',
-  format: 'cjs',
-  tsconfig: join(repo, 'tsconfig.node.json'),
-  outfile: workerFile,
-  logLevel: 'warning'
-})
+const scanWorkerFile = join(outDir, 'scan-worker.cjs')
+for (const [entry, out] of [['parse-worker.ts', workerFile], ['scan-worker.ts', scanWorkerFile]]) {
+  await build({
+    entryPoints: [join(repo, 'src/main', entry)],
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    tsconfig: join(repo, 'tsconfig.node.json'),
+    outfile: out,
+    logLevel: 'warning'
+  })
+}
 await build({
   entryPoints: [join(here, 'bench-scan.entry.ts')],
   bundle: true,
@@ -62,5 +68,6 @@ if (!useNode) delete env['ELECTRON_RUN_AS_NODE']
 // a bare script under the Electron binary would otherwise be named "Electron"
 env['AGENTSHED_BENCH_APP_NAME'] = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).name
 env['AGENTSHED_BENCH_PARSE_WORKER'] = workerFile
+env['AGENTSHED_BENCH_SCAN_WORKER'] = scanWorkerFile
 const result = spawnSync(bin, [outfile, ...passThrough], { stdio: 'inherit', env, cwd: repo })
 process.exit(result.status ?? 1)

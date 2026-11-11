@@ -17,15 +17,23 @@
 //                 call could wait), and whether the two caches agree entry by entry.
 //                 `workers --pool-only` runs the pool's scan alone, for a peak-memory figure that is
 //                 not stacked on the main-thread run's.
-//   rescan        two scans in one process against a copy of the app's cache, in the app's order and on
-//                 the parse pool: what a scan costs once the run's first is behind it (Electron only).
-//                 For the second scan: each phase's time, the main process's longest event-loop stall,
-//                 how many files it parsed and whether it wrote the token cache file. A file an agent
-//                 writes between the two scans is parsed, and the cache is then written.
+//   rescan        two scans in one process against a copy of the app's cache, as the app runs them: on
+//                 the scan worker, with the archive merge on the main process (Electron only). What a
+//                 scan costs once the run's first is behind it, and what token-stats::QR-001 is judged
+//                 by: for the second scan, the main process's longest event-loop stall, whether the
+//                 token cache file was written, and where the scan ran — the scan worker, or the main
+//                 process when the worker failed. A file an agent writes between the two scans is
+//                 parsed, and the cache is then written.
+//                 `rescan --main` runs both scans on the main process instead, as the app does once
+//                 its scan worker has failed, and gives each phase's time and the files parsed.
+//                 `rescan --grow` appends to the newest Claude session file its own last line between
+//                 the two scans, so the second has a file to parse and a cache to write. It writes to
+//                 the scanned home, so it runs only when AGENTSHED_HOME_OVERRIDE points at a copy of
+//                 one, and starts from an empty cache: the app's cache knows none of the copy's paths.
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
-import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
+import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
@@ -34,7 +42,10 @@ import { scan, walkSessions } from '../src/main/providers/scan'
 import { CodexHeads } from '../src/main/providers/codex'
 import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
 import { ParsePool } from '../src/main/parse-pool'
+import { settleScan } from '../src/main/providers/scanner'
+import { startScans } from '../src/main/scan-client'
 import { UsageArchive } from '../src/main/providers/archive'
+import type { ScanRoots } from '../src/main/providers/types'
 import { eachJsonlLine } from '../src/main/providers/jsonl'
 import { realRoots } from '../src/main/roots'
 import { mergeKey } from '../src/shared/path-key'
@@ -237,12 +248,34 @@ function cacheFileId(cacheDir: string): string {
   return `${st.ino}:${st.mtimeMs}`
 }
 
-async function rescan(): Promise<void> {
-  const script = process.env['AGENTSHED_BENCH_PARSE_WORKER']
-  if (!script) throw new Error('AGENTSHED_BENCH_PARSE_WORKER is not set: run through scripts/bench-scan.mjs')
-  const cacheDir = await warmCacheDir('rescan')
-  const roots = realRoots()
-  const pool = new ParsePool(script, poolSize())
+/** One way of running the rescan mode's scans: `once` runs a scan and reports it, `counted` adds to the last line */
+interface RescanRun {
+  once(label: string): Promise<void>
+  counted(): string
+  close(): Promise<void>
+}
+
+/** The app's way: the scan on the scan worker, and what the main process makes of its result */
+function rescanThroughWorker(cacheDir: string, roots: ScanRoots, archive: UsageArchive, scanScript: string, parseScript: string): RescanRun {
+  const scans = startScans({ script: scanScript, parseScript, cacheDir, poolSize: poolSize() })
+  return {
+    once: async (label) => {
+      const start = performance.now()
+      const out = await scans.scan(roots)
+      const scanned = since(start)
+      const t0 = performance.now()
+      settleScan(out, archive)
+      const where = scans.servedOn === 'worker' ? 'on the scan worker' : 'on the main process, the scan worker having failed'
+      console.log(`[rescan] ${label} scan: the scan ${scanned} ${where}, archive merge and figures ${since(t0)}; total ${since(start)}`)
+    },
+    counted: () => '',
+    close: () => scans.close()
+  }
+}
+
+/** The scan on the main process, as the app runs it once its scan worker has failed: phase by phase, parses counted */
+function rescanOnMain(cacheDir: string, roots: ScanRoots, archive: UsageArchive, parseScript: string): RescanRun {
+  const pool = new ParsePool(parseScript, poolSize())
   let parsed = 0
   const counting: ParseRunner = {
     concurrency: pool.concurrency,
@@ -252,40 +285,90 @@ async function rescan(): Promise<void> {
     }
   }
   const engine = new TokenEngine(cacheDir, counting)
-  // The stamp only matters for the archive's conflict rule, which a benchmark never exercises
-  const archive = new UsageArchive(cacheDir, { stamp: 'bench' })
   // The run's first-line readings, as the app keeps them from one scan to the next
   const heads = new CodexHeads()
-  /** One scan in the app's order: the session walk, scan(), the token build, the archive merge */
-  const once = async (label: string): Promise<void> => {
-    const phases: string[] = []
-    const start = performance.now()
-    let t0 = start
-    const sessions = walkSessions(roots, heads)
-    phases.push(`session walk ${since(t0)}`)
-    t0 = performance.now()
-    const snap = await scan(roots, { now: () => Date.now(), sessions })
-    phases.push(`scan() ${since(t0)}`)
-    const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
-    const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
-    t0 = performance.now()
-    const built = await engine.build(roots, claudePaths, registered, sessions)
-    phases.push(`token build ${since(t0)}`)
-    t0 = performance.now()
-    archive.merge(built.rows, Date.now())
-    phases.push(`archive merge ${since(t0)}`)
-    console.log(`[rescan] ${label} scan: ${phases.join(', ')}; total ${since(start)}`)
+  return {
+    /** One scan in the app's order: the session walk, scan(), the token build, the archive merge */
+    once: async (label) => {
+      parsed = 0
+      const phases: string[] = []
+      const start = performance.now()
+      let t0 = start
+      const sessions = walkSessions(roots, heads)
+      phases.push(`session walk ${since(t0)}`)
+      t0 = performance.now()
+      const snap = await scan(roots, { now: () => Date.now(), sessions })
+      phases.push(`scan() ${since(t0)}`)
+      const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
+      const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
+      t0 = performance.now()
+      const built = await engine.build(roots, claudePaths, registered, sessions)
+      phases.push(`token build ${since(t0)}`)
+      t0 = performance.now()
+      archive.merge(built.rows, Date.now())
+      phases.push(`archive merge ${since(t0)}`)
+      console.log(`[rescan] ${label} scan on the main process: ${phases.join(', ')}; total ${since(start)}`)
+    },
+    counted: () => `files parsed ${parsed}; `,
+    close: () => {
+      pool.close()
+      return Promise.resolve()
+    }
   }
+}
+
+/** Appends to the most recently written Claude session file its own last line, and says so */
+function growNewestClaudeSession(roots: ScanRoots): void {
+  const projects = join(roots.claudeHome, 'projects')
+  let newest: { file: string; mtimeMs: number } | null = null
+  for (const dir of existsSync(projects) ? readdirSync(projects, { withFileTypes: true }) : []) {
+    if (!dir.isDirectory()) continue
+    for (const e of readdirSync(join(projects, dir.name), { withFileTypes: true })) {
+      if (!e.isFile() || !e.name.endsWith('.jsonl')) continue
+      const file = join(projects, dir.name, e.name)
+      const { mtimeMs } = statSync(file)
+      if (newest === null || mtimeMs > newest.mtimeMs) newest = { file, mtimeMs }
+    }
+  }
+  if (newest === null) throw new Error(`rescan --grow found no Claude session file under ${projects}`)
+  const tail = lastLines(newest.file, 1024 * 1024)
+  const line = tail.subarray(tail.lastIndexOf(0x0a, tail.length - 2) + 1)
+  appendFileSync(newest.file, line)
+  console.log(`[rescan] grown by its own last line, ${line.length} bytes: ${newest.file}`)
+}
+
+async function rescan(flags: string[]): Promise<void> {
+  const parseScript = process.env['AGENTSHED_BENCH_PARSE_WORKER']
+  const scanScript = process.env['AGENTSHED_BENCH_SCAN_WORKER']
+  if (!parseScript || !scanScript) throw new Error('AGENTSHED_BENCH_PARSE_WORKER and AGENTSHED_BENCH_SCAN_WORKER are not set: run through scripts/bench-scan.mjs')
+  const unknown = flags.filter((f) => f !== '--main' && f !== '--grow')
+  if (unknown.length > 0) throw new Error(`rescan takes --main and --grow, not ${unknown.join(' ')}`)
+  const home = process.env['AGENTSHED_HOME_OVERRIDE']
+  const grow = flags.includes('--grow')
+  if (grow && !home) throw new Error('rescan --grow appends to a session file, so it runs only when AGENTSHED_HOME_OVERRIDE points at a copy of a home')
+  let cacheDir: string
+  if (home) {
+    cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-'))
+    console.log(`[rescan] home ${home}: an empty cache, so the first scan parses every file`)
+  } else {
+    cacheDir = await warmCacheDir('rescan')
+  }
+  const roots = realRoots()
+  // The stamp only matters for the archive's conflict rule, which a benchmark never exercises
+  const archive = new UsageArchive(cacheDir, { stamp: 'bench' })
+  const run = flags.includes('--main')
+    ? rescanOnMain(cacheDir, roots, archive, parseScript)
+    : rescanThroughWorker(cacheDir, roots, archive, scanScript, parseScript)
   try {
-    await once('first')
+    await run.once('first')
+    if (grow) growNewestClaudeSession(roots)
     const before = cacheFileId(cacheDir)
-    parsed = 0
-    const stall = await longestStall(() => once('second'))
+    const stall = await longestStall(() => run.once('second'))
     console.log(
-      `[rescan] second scan: main-process event-loop stall max ${stall.max} ms; files parsed ${parsed}; token cache file written: ${cacheFileId(cacheDir) === before ? 'no' : 'yes'}`
+      `[rescan] second scan: main-process event-loop stall max ${stall.max} ms; ${run.counted()}token cache file written: ${cacheFileId(cacheDir) === before ? 'no' : 'yes'}`
     )
   } finally {
-    pool.close()
+    await run.close()
   }
 }
 
@@ -311,7 +394,7 @@ async function main(): Promise<void> {
     return
   }
   if (mode === 'rescan') {
-    await rescan()
+    await rescan(rest)
     return
   }
   throw new Error(`unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, workers, or file <path>…`)
