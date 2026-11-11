@@ -175,7 +175,8 @@ all of them.
 - C3 A second build gives the same result (idempotent); the cache file is valid JSON and lands
   atomically. A failed write of it (a blocked or full settings directory) does not fail the scan: what
   was computed is in memory and goes out as usual, the failure is logged, no temporary file stays behind
-  whichever step failed, and the next launch parses again.
+  whichever step failed, and the next launch parses again unless a later scan's write succeeds first
+  (token-stats::QR-002/AC-02).
 - C4 The archive is written on the first merge; a new instance reads it back. **A failed write does not
   fail the scan** (a settings directory gone read-only or full, ADR-0039): the effective rows computed in
   memory go out as usual and the failure is logged. Each later scan writes again, so the file catches up
@@ -782,7 +783,7 @@ event-loop stall across one rescan, on real data of the size the threshold was s
 
 ### token-stats::QR-002 A rescan repeats no reading or write whose input did not change
 
-Applies to: every scan after the first of a run.
+Applies to: every scan after the first of a run; token-stats::QR-002/AC-02 applies to the first as well.
 
 - token-stats::QR-002/AC-01: A Codex rollout whose modification time, size and inode are the ones the
   previous scan saw is not opened to read its first line again: everything the scan takes from that
@@ -790,10 +791,11 @@ Applies to: every scan after the first of a run.
   them — is what was read then. A rollout that differs in any of the three is read again.
 - token-stats::QR-002/AC-02: The token cache file is written at the end of a scan only when the file
   is not what the scan leaves in memory: the scan changed the cache — a parse gave a file a new entry,
-  or a file left the scan set — or the last write of the file failed (C3), or the file was no cache
-  this build reads when the run loaded it (C1, C2, or no file). A scan that changed nothing leaves the
-  file as it is; a parse that gave nothing, or that kept the entry the cache already held
-  (token-stats::REQ-004/AC-03), changed nothing.
+  or a file the cache held an entry for ends the scan with none (it left the scan set, or no longer
+  gives an entry) — or the last write of the file failed (C3), or the file was no cache this build
+  reads when the run loaded it (C1, C2, or no file). A scan that changed nothing leaves the file as it
+  is; a parse that gave nothing to a file the cache held no entry for, or that kept the entry the
+  cache already held (token-stats::REQ-004/AC-03), changed nothing.
 
 ### Failure modes and boundaries: scans and the window
 
