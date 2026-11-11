@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { JSDOM } from 'jsdom'
 import { expect, inject, test } from 'vitest'
+import { ui } from '../src/i18n/ui'
 import { initHeroVideo } from '../src/scripts/hero-video'
 
 const outDir = inject('builtSite')
@@ -27,7 +28,7 @@ test.each(['en', 'zh'] as const)('%s: the walkthrough loads only when its poster
   const frames = doc.querySelectorAll('iframe')
   expect(frames).toHaveLength(1)
   expect(frames[0].src).toBe(`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0`)
-  expect(frames[0].title).toBe(locale === 'zh' ? 'Agentshed 功能介绍' : 'Agentshed product walkthrough')
+  expect(frames[0].title).toBe(ui[locale].hero.videoLabel)
   expect(frames[0].allow).toContain('autoplay')
   expect(frames[0].allowFullscreen).toBe(true)
   expect(frames[0].referrerPolicy).toBe('strict-origin-when-cross-origin')

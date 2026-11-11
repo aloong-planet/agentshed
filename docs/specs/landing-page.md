@@ -170,7 +170,7 @@ and the same list with the section's Chinese label in Chinese.
 ### landing-page::REQ-009 Walkthrough video
 
 - landing-page::REQ-009/AC-01: Both pages show the approved local poster in the existing window frame. The playback entry reads
-  “Watch demo · 1:07” in English and “观看演示 · 1:07” in Chinese. Each page opens its own video with
+  “Watch demo · 1:07” in English and uses its localized label with the same duration in Chinese. Each page opens its own video with
   English narration and captions in the page language.
 - landing-page::REQ-009/AC-02: No YouTube player, thumbnail, preconnect or script loads before activation.
   Clicking the entry or activating it with Enter replaces the poster with the privacy-enhanced YouTube
