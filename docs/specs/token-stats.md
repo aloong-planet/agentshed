@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan)
+> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread)
 
 > Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
@@ -763,6 +763,63 @@ Applies to: an archive file whose format version is a whole number above the one
   existing pages count (the prototype exemption, declared). No new point renders or loads external
   content (G14 holds).
 
+## Scans and the window
+
+A scan reads every side's registries, components and session files, and E1 starts one on a timer and
+when the window gains focus. The two requirements below keep it from freezing the window and from
+repeating work.
+
+### token-stats::QR-001 A rescan does not hold up the window (direct acceptance)
+
+Applies to: every automatic rescan (E1) while the scan worker runs (ADR-0043); the first scan of a run
+takes the same path. During a rescan the main process is never busy for longer than 100 ms at a
+stretch, whether or not session files changed since the last scan. It is judged by the scan benchmark
+under Electron (the AGENTS.md invariant on main-process figures), as the main process's longest
+event-loop stall across one rescan, on real data of the size the threshold was set against: about
+7,000 session files and a 45 MB token cache.
+
+> Pending: every scan runs on the scan worker.
+
+### token-stats::QR-002 A rescan repeats no reading or write whose input did not change
+
+Applies to: every scan after the first of a run.
+
+- token-stats::QR-002/AC-01: A Codex rollout whose modification time, size and inode are the ones the
+  previous scan saw is not opened to read its first line again: everything the scan takes from that
+  line — the project it is credited to, whether it is a subagent's, its ids and its fork time among
+  them — is what was read then. A rollout that differs in any of the three is read again.
+
+  > Pending: a rescan keeps the first-line reading of a rollout that did not change.
+- token-stats::QR-002/AC-02: The token cache file is written at the end of a scan only when the scan
+  changed the cache — it parsed a file, or a file joined or left the scan set — or when the last write
+  of the file failed (C3). A scan that changed nothing leaves the file as it is.
+
+  > Pending: a scan that changed nothing does not write the token cache file.
+
+### Failure modes and boundaries: scans and the window
+
+- The scan worker cannot be started, fails or exits, during a scan or between two (ADR-0043): the scan
+  under way and every later scan and question-index read of that run are served on the main process,
+  and the failure is logged once. The figures are the same. token-stats::QR-001 does not hold for the
+  rest of that run.
+- A rollout replaced under its path, appended to or edited in place differs in its inode, its size or
+  its modification time, and its first line is read again (token-stats::QR-002/AC-01). An edit that
+  moves none of the three is not seen until the file next changes — the limit the token cache's own
+  signature has (Implementation Decisions, Cache).
+- The first-line readings are kept in memory for the run and are not saved: the first scan of a run
+  reads every rollout's first line.
+- A cache write that fails is tried again at each later scan until one succeeds, whether or not that
+  scan changes the cache (token-stats::QR-002/AC-02), so the file still catches up without a restart
+  once the directory is writable (C3).
+- A session page, a project search or global search asks for a question index while a scan runs: the
+  worker answers between the scan's steps, not after the scan, and the asking page keeps its existing
+  pending form until then.
+- Quitting while a scan runs: the scan is dropped with its results, and the quit waits for the worker to
+  stop between two steps, so the cache file on disk is the last one written whole (C3).
+- Interface: no page, state, copy or control is added or changed — these rules decide where a scan
+  runs and what it reads again, and the figures are the same (the prototype exemption, declared). No
+  new point renders or loads external content (G14 holds).
+
 ## Implementation Decisions
 
 - **Global preference and derived window**: the selected number is an app-owned preference. All
@@ -856,6 +913,15 @@ Applies to: an archive file whose format version is a whole number above the one
   alone bounds the time, so workers past four mostly cost memory. The pooled cache is identical to
   the main-process one file by file. The session page's single-file rebuild parses on the main
   process.
+- **Where a scan runs** (ADR-0043): on the scan worker, one worker thread kept for the run that owns
+  the token cache. Everything the paragraph above places on the main process moves there with the
+  cache — the planning, the pool of parse workers it starts, the single-file rebuild — together with
+  the session walk, the registry and component reads, the aggregation and the cache write. The main
+  process gives it the data roots and takes back the snapshot without its token figures, the usage
+  rows, each project's sessions and the session read allow-list. The archive merge and every step
+  after it stay on the main process, as does reading a project's detail.
+
+  > Pending: every scan runs on the scan worker.
 - **Automatic refresh**: the triggers (focus + timer) run entirely in the main process; the cost of
   a rescan is absorbed by the incremental cache.
 - **Antigravity usage** (ADR-0037): the databases are opened through the runtime's built-in SQLite
@@ -922,3 +988,9 @@ Applies to: an archive file whose format version is a whole number above the one
   (ADR-0037 option 7).
 - Recovering usage that a rewind deleted before any scan saw it: the database no longer holds it, and
   the transcript's token fields carry no model and no call identity.
+- Refreshing more often than E1's triggers, or watching the agents' data directories for changes
+  (ADR-0043 option 6): every scan marks every saved page stale and rewrites the display copy, and a
+  focus refresh that does not hold up the window already brings the figures up to date when they are
+  about to be read.
+- Keeping the rollouts' first-line readings from one run to the next: it needs a file of its own or a
+  new cache structure version, and a new version moves the accounting stamp (C10).
