@@ -95,3 +95,6 @@ a retried "does not appear" check cannot prove absence.
 - Shared e2e helpers live in `e2e/support/` (ADR-0041).
 - Every workflow action is pinned as `owner/repo@<40-hex commit> # v<x.y.z>`, at the same commit in every
   workflow; `scripts/workflow-actions.test.mjs` enforces the form.
+- A pull request that changes `AGENTS.md`, `CLAUDE.md` or anything under `docs/prototypes/` waits for the
+  owner's approval even when it changes no executable content: the owner asks to see it before it merges
+  (`docs/ops/ci.md`, Merging without the owner's approval).

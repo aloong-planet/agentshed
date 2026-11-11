@@ -27,6 +27,11 @@ enforced-by = ["pnpm e2e"]
 [mutation-testing]
 enabled = false
 
+[docs-auto-merge]
+enabled = true
+source = "docs/ops/ci.md"
+enforced-by = []
+
 [theming]
 enabled = true
 source = ["src/renderer/src/theme.css", "site/src/styles/global.css"]
