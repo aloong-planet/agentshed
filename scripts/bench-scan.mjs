@@ -10,6 +10,7 @@
 //   pnpm bench:scan file <path>…       time the line reader over specific files
 //   pnpm bench:scan --node cold        the same bundle under plain Node, for the comparison
 //   pnpm bench:scan workers            a cold scan on the main thread, then one on the parse pool
+//   pnpm bench:scan rescan             two scans in one process: what the second one costs
 //
 // AGENTSHED_HOME_OVERRIDE points the scan at a fixture home, exactly as it does for the app.
 import { build } from 'esbuild'
