@@ -35,8 +35,8 @@ export class Scanner {
   private readonly heads = new CodexHeads()
 
   /** `runner`: where the builds' parses run, a parse pool in the app; on the calling thread when absent */
-  constructor(cacheDir: string, private readonly runner?: ParseRunner & { close?: () => void }, agyTmpParent?: string) {
-    this.engine = new TokenEngine(cacheDir, runner, agyTmpParent)
+  constructor(cacheDir: string, private readonly runner?: ParseRunner & { close?: () => void }) {
+    this.engine = new TokenEngine(cacheDir, runner)
   }
 
   /** Stops the parse workers the runner holds idle, when it is a pool */

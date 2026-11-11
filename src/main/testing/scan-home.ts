@@ -10,7 +10,7 @@ import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, writeTranscript } from './
 
 export interface ScanHome {
   roots: ScanRoots
-  /** The one registered project, which every session below belongs to */
+  /** The one registered project, which every session below belongs to but the Codex stray */
   project: string
   claude: {
     /** One question and one dated call of 15 tokens: listed */
@@ -23,6 +23,8 @@ export interface ScanHome {
     parent: string
     /** A legacy fork replaying the parent's question and then asking FORK_TITLE: stripped, and titled by it */
     fork: string
+    /** One question, asked in a directory that is no registered project: read by a scan, and on no list */
+    stray: string
   }
   /** One question and one call of 33 tokens */
   grok: string
@@ -113,6 +115,13 @@ export function mkScanHome(home: string): ScanHome {
       question('2026-07-30T13:00:05Z', FORK_TITLE)
     ].join('\n') + '\n'
   )
+  // Codex takes a rollout's project from its first line, so only the registry tells this one from the others
+  const STRAY = '019f0000-cccc-7000-8000-000000000043'
+  const stray = join(codexDir, `rollout-${STRAY}.jsonl`)
+  writeFileSync(
+    stray,
+    [meta('2026-07-30T14:00:00Z', STRAY, { cwd: join(home, 'work', 'unregistered') }), question('2026-07-30T14:00:01Z', 'asked elsewhere')].join('\n') + '\n'
+  )
 
   // ── Grok ──
   const GROK = 'grok-session-1'
@@ -152,5 +161,5 @@ export function mkScanHome(home: string): ScanHome {
   const unreadable = join(conversations, 'broken.db')
   writeFileSync(unreadable, '')
 
-  return { roots, project, claude: { asked, silent }, codex: { parent, fork }, grok, antigravity: { listed, unreadable } }
+  return { roots, project, claude: { asked, silent }, codex: { parent, fork, stray }, grok, antigravity: { listed, unreadable } }
 }

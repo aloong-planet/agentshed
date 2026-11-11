@@ -37,6 +37,8 @@ describe('what a scan hands the main process (token-stats, "Where a scan runs")'
     const sessions = out.sessions.get(mergeKey(home.project)) ?? []
     expect(sessions.map((s) => s.file).sort()).toEqual([...listed].sort())
     expect(sessions.find((s) => s.file === home.codex.fork)?.title).toBe(FORK_TITLE)
+    // Not the Codex rollout from a directory that is no registered project, which asked a question too: the scan
+    // hands the build the registered set, and without it any rollout with a directory is admitted (session-view R1)
     expect([...out.sessionFiles].sort()).toEqual([...listed].sort())
     // 15 and the undated 9 on Claude, 42 on Codex, 33 on Grok, 110 on Antigravity
     expect(out.rows.reduce((sum, r) => sum + r.total, 0)).toBe(209)

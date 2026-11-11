@@ -236,10 +236,10 @@ describe('a scan worker that fails (token-stats, Failure modes and boundaries: s
       spawn: () => {
         throw new Error('no thread to be had')
       },
-      parsedOnMain: 7
+      parsedOnMain: 8
     },
-    { name: 'does not load its script', spawn: () => new Worker(join(dir, 'missing.mjs')), parsedOnMain: 7 },
-    { name: 'exits during the first scan', spawn: () => new Worker(exitingScript()), parsedOnMain: 7 },
+    { name: 'does not load its script', spawn: () => new Worker(join(dir, 'missing.mjs')), parsedOnMain: 8 },
+    { name: 'exits during the first scan', spawn: () => new Worker(exitingScript()), parsedOnMain: 8 },
     {
       name: 'exits between two scans',
       spawn: () => standIn(new Scanner(cacheDir)),
@@ -277,10 +277,38 @@ describe('a scan worker that fails (token-stats, Failure modes and boundaries: s
     expect(client.servedOn).toBe('main')
     expect(spawned).toBe(1)
     expect(fallbacks).toBe(1)
-    // The seven session files of the fixture, each parsed once by whichever scanner met them first
+    // The eight session files of the fixture, each parsed once by whichever scanner met them first
     expect(onMain.parses()).toBe(c.parsedOnMain)
     expect(warn).toHaveBeenCalledTimes(1)
     expect(String(warn.mock.calls[0][0])).toContain('[scan-worker]')
+  })
+
+  it('a worker that exits with a scan and a question-index read both unanswered: each is answered on the main process', async () => {
+    const onWorker = new Scanner(cacheDir)
+    let answering = true
+    const unanswered = <T>(): Promise<T> => new Promise<T>(() => {})
+    const client = new ScanClient({
+      spawn: () =>
+        standIn({
+          scan: (roots, holdMs) => (answering ? onWorker.scan(roots, holdMs) : unanswered()),
+          sessionQuestions: (roots, file) => (answering ? onWorker.sessionQuestions(roots, file) : unanswered()),
+          isFresh: (file) => onWorker.isFresh(file)
+        }),
+      fallback: () => new Scanner(cacheDir)
+    })
+    const direct = reference()
+    const here = timeless(await direct.scan(home.roots))
+    await client.scan(home.roots)
+    answering = false
+    const scanning = client.scan(home.roots)
+    const reading = client.sessionQuestions(home.roots, home.codex.fork)
+
+    standIns[0].end(1)
+
+    // A request the failure does not hand over never settles, and the case times out
+    expect(await reading).toEqual(await direct.sessionQuestions(home.roots, home.codex.fork))
+    expect(timeless(await scanning)).toEqual(here)
+    expect(client.servedOn).toBe('main')
   })
 })
 
