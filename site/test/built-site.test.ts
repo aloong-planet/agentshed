@@ -131,20 +131,16 @@ describe('the sections', () => {
     expect(text(hero?.querySelector('h1'))).toBe(ui[locale].hero.title)
     expect(text(hero?.querySelector('p'))).toBe(ui[locale].hero.lede)
     expect(hero?.querySelector('.cta a.btn')).not.toBeNull()
-    if (locale === 'en') {
-      const play = hero?.querySelector('.hero-video-play')
-      expect(play?.getAttribute('href')).toBe('https://www.youtube.com/watch?v=lQ-Bg8nXJKM')
-      expect(play?.getAttribute('aria-label')).toBe('Watch demo · 1:07')
-      expect(play?.getAttribute('data-video-title')).toBe('Agentshed product walkthrough')
-      expect(play?.querySelector('img')?.getAttribute('src')).toBe('/media/agentshed-intro-poster.jpg')
-      expect(hero?.querySelector('iframe, video')).toBeNull()
-      expect(hero?.querySelector('.hero-video-fallback')?.getAttribute('href')).toBe('https://www.youtube.com/watch?v=lQ-Bg8nXJKM')
-      expect(files()).toContain('media/agentshed-intro-poster.jpg')
-      expect(files().filter((file) => /\.(mp4|webm|mov)$/i.test(file))).toEqual([])
-    } else {
-      expect(hero?.querySelector('.shot img')?.getAttribute('src')).toBe('/shots/hero-zh.png')
-      expect(hero?.querySelector('video')).toBeNull()
-    }
+    const watchUrl = locale === 'en' ? 'https://www.youtube.com/watch?v=lQ-Bg8nXJKM' : 'https://www.youtube.com/watch?v=TpCgkGiVqlk'
+    const play = hero?.querySelector('.hero-video-play')
+    expect(play?.getAttribute('href')).toBe(watchUrl)
+    expect(play?.getAttribute('aria-label')).toBe(ui[locale].hero.videoPlay)
+    expect(play?.getAttribute('data-video-title')).toBe(ui[locale].hero.videoLabel)
+    expect(play?.querySelector('img')?.getAttribute('src')).toBe('/media/agentshed-intro-poster.jpg')
+    expect(hero?.querySelector('iframe, video')).toBeNull()
+    expect(hero?.querySelector('.hero-video-fallback')?.getAttribute('href')).toBe(watchUrl)
+    expect(files()).toContain('media/agentshed-intro-poster.jpg')
+    expect(files().filter((file) => /\.(mp4|webm|mov)$/i.test(file))).toEqual([])
   })
 
   test('the English heading reads as the spec’s', () => {
@@ -284,11 +280,9 @@ describe('two languages', () => {
   test.each(LOCALES)('%s: every string of the language’s copy is on its page, but the copy of the states a read brings', (locale) => {
     // The formal and test states' copy appears only once a read brings that state: the apply check holds it
     const { formal, test: testState, ...served } = ui[locale].download
-    const { shotAlt, videoLabel, videoFallback, videoPlay, ...sharedHero } = ui[locale].hero
-    const hero = locale === 'en' ? { ...sharedHero, videoLabel, videoFallback, videoPlay } : { ...sharedHero, shotAlt }
     expect(leaves(formal).length + leaves(testState).length).toBeGreaterThan(5)
     const page = words(pages[locale])
-    const missing = leaves({ ...ui[locale], hero, download: served }).filter((s) => !page.includes(s.replace(/\s+/g, ' ')))
+    const missing = leaves({ ...ui[locale], download: served }).filter((s) => !page.includes(s.replace(/\s+/g, ' ')))
     expect(missing).toEqual([])
   })
 

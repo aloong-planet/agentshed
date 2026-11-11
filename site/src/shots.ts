@@ -9,9 +9,6 @@ import type { Locale } from './i18n/ui'
 /** The features section's views, in the order of its steps (landing-page::US-003/AC-01) */
 export const FEATURE_SHOTS = ['overview', 'project', 'memory', 'tokens', 'session', 'search'] as const
 
-/** The hero's screenshot: the whole window, at 2× */
-export const HERO_SIZE = { width: 2560, height: 1536 } as const
-
 /** Every feature cut: 920×517pt (16:9) at 2×, one size so the text keeps one size as the steps turn */
 export const FEATURE_SIZE = { width: 1840, height: 1035 } as const
 
