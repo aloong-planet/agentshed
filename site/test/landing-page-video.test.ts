@@ -10,7 +10,7 @@ import { initHeroVideo } from '../src/scripts/hero-video'
 const outDir = inject('builtSite')
 
 test.each(['en', 'zh'] as const)('%s: the walkthrough loads only when its poster is activated', (locale) => {
-  const dom = new JSDOM(readFileSync(join(outDir, locale === 'en' ? 'en/index.html' : 'index.html'), 'utf8'))
+  const dom = new JSDOM(readFileSync(join(outDir, locale === 'en' ? 'index.html' : 'zh/index.html'), 'utf8'))
   const doc = dom.window.document
   initHeroVideo(doc)
   expect(doc.querySelector('iframe')).toBeNull()

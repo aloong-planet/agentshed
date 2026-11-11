@@ -15,7 +15,7 @@ version, and keep doing so release after release without being edited.
 ## Solution
 
 A `site/` project in this repository, built with Astro and deployed by Cloudflare Pages at
-`agentshed.aloongplanet.com`, in Chinese (at `/`) and English (at `/en`). It is
+`agentshed.aloongplanet.com`, in English (at `/`) and Chinese (at `/zh/`). It is
 one long page (form "L1"): header, hero with the download, a scroll-linked features section, three
 install steps, a download section and a footer. The visitor's browser decides what to offer. It reads
 the R2 latest pointer for a formal release. Failing that, it reads GitHub's public releases API, which
@@ -44,10 +44,12 @@ it without reading the repository.
 
 As a visitor, I want the page in Chinese or English, so that I can read it comfortably.
 
-- landing-page::US-002/AC-01: Chinese is at `/` and English at `/en`. A toggle at the right of the
-  header switches between them.
+- landing-page::US-002/AC-01: English is served at `/`, regardless of the browser language, and Chinese
+  at `/zh/`. A toggle at the right of the header links directly between them.
 - landing-page::US-002/AC-02: Both languages carry the same sections, the same download states and
   their own set of screenshots.
+- landing-page::US-002/AC-03: Old `/en` and `/en/` links permanently redirect to `/`, preserving
+  query parameters and page fragments, including when JavaScript is disabled.
 
 ### landing-page::US-003 See what the app shows
 
@@ -181,6 +183,11 @@ and the same list with the section's Chinese label in Chinese.
 - landing-page::REQ-009/AC-04: The video is hosted on YouTube. Only the poster and the published video's
   link ship in the website repository; the approved narration and music are unchanged.
 
+### landing-page::REQ-010 Author homepage (direct acceptance)
+
+In both languages, the existing footer copyright line links the author name "aloongplanet" to
+`https://aloongplanet.com` in a new tab, with the existing footer layout and styling.
+
 ## Quality Requirements
 
 ### landing-page::QR-001 Layout holds across widths, languages and appearances
@@ -239,10 +246,11 @@ since they never reach it (mac-distribution::CON-004).
 
 **Sequence B: languages and navigation**
 
-- B1 A direct visit to `/en` → English, with the toggle on EN. Toggling goes to the other language's
-  page.
+- B1 A direct visit to `/` → English, even with a Chinese browser preference; `/zh/` → Chinese.
+  Old `/en` and `/en/` links redirect to `/`, including links with query parameters or a section fragment,
+  without requiring scripts (landing-page::US-002/AC-03). The toggle links to the other language directly.
 - B2 The navigation's GitHub link opens the repository in a new tab. The section links scroll within
-  the page.
+  the page. The footer author name opens the owner's homepage in a new tab (landing-page::REQ-010).
 
 **Sequence C: the features section**
 
@@ -297,7 +305,7 @@ since they never reach it (mac-distribution::CON-004).
   and fullscreen allowed, and `strict-origin-when-cross-origin` referrer policy to identify the
   embedding origin. No YouTube API library is loaded.
 
-- **The Pages project** has its root directory set to `site`.
+- **The Pages project** has its root directory set to `site`. It permanently redirects the legacy English URLs; the static build includes a fallback for local previews.
 - **The pointer read** takes a pointer only when its version is a formal version and its files name the
   arm64 DMG, by its packaged name, at exactly the URL the mirror's layout gives that version. Anything
   else is unreadable; a 404 means there is no pointer yet.

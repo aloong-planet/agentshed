@@ -1,4 +1,4 @@
-// The landing page's copy, in its two languages (landing-page::CON-002). Chinese is at `/`, English at `/en`.
+// The landing page's copy, in its two languages (landing-page::CON-002). English is at `/`, Chinese at `/zh/`.
 //
 // This dictionary is the site's own and is separate from the app's (src/shared/i18n/): the page is a front
 // door outside ADR-0013's scope, so its two languages are its own choice (ADR-0031 option 6); the app
@@ -11,8 +11,8 @@ export type Locale = (typeof LOCALES)[number]
 /** The value of each page's `<html lang>` */
 export const HTML_LANG: Record<Locale, string> = { zh: 'zh-CN', en: 'en' }
 
-/** Each page's path: Chinese is the default language at the root */
-export const PAGE_PATH: Record<Locale, string> = { zh: '/', en: '/en/' }
+/** Each page's path: English is the default language at the root */
+export const PAGE_PATH: Record<Locale, string> = { zh: '/zh/', en: '/' }
 
 /** The language toggle names each language in its own script, the same on both pages */
 export const LANGUAGE_NAME: Record<Locale, string> = { zh: '中文', en: 'EN' }
@@ -60,7 +60,7 @@ export interface Dictionary {
     /** The test state (landing-page::REQ-002/AC-03): only a pre-release exists */
     test: { hero: string; pill: string; note: string; line: string; button: string }
   }
-  footer: { github: string; releases: string; copyright: string }
+  footer: { github: string; releases: string; copyright: string; author: string }
 }
 
 const zh: Dictionary = {
@@ -145,7 +145,7 @@ const zh: Dictionary = {
       button: '从 GitHub 下载测试版'
     }
   },
-  footer: { github: 'GitHub', releases: '版本发布', copyright: '© 2026 aloongplanet' }
+  footer: { github: 'GitHub', releases: '版本发布', copyright: '© 2026', author: 'aloongplanet' }
 }
 
 const en: Dictionary = {
@@ -230,7 +230,7 @@ const en: Dictionary = {
       button: 'Download the pre-release version from GitHub'
     }
   },
-  footer: { github: 'GitHub', releases: 'Releases', copyright: '© 2026 aloongplanet' }
+  footer: { github: 'GitHub', releases: 'Releases', copyright: '© 2026', author: 'aloongplanet' }
 }
 
 export const ui: Record<Locale, Dictionary> = { zh, en }

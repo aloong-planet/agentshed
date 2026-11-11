@@ -1,12 +1,13 @@
 // @ts-check
 import { defineConfig } from 'astro/config'
 
-// Agentshed's landing page (landing-page spec). Chinese is the default language at `/`, English is under
-// `/en`, as on Transfer's site.
+// English is the default at `/`; Chinese is at `/zh/`. The legacy English path also has
+// a static redirect fallback; public/_redirects supplies the HTTP redirect on Cloudflare Pages.
 export default defineConfig({
   site: 'https://agentshed.aloongplanet.com',
+  redirects: { '/en': '/' },
   i18n: {
-    defaultLocale: 'zh',
+    defaultLocale: 'en',
     locales: ['zh', 'en'],
     routing: { prefixDefaultLocale: false }
   }

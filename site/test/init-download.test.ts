@@ -20,8 +20,8 @@ const html: Record<'zh' | 'en', string> = { zh: '', en: '' }
 
 beforeAll(() => {
   const outDir = inject('builtSite')
-  html.zh = readFileSync(join(outDir, 'index.html'), 'utf8')
-  html.en = readFileSync(join(outDir, 'en/index.html'), 'utf8')
+  html.zh = readFileSync(join(outDir, 'zh/index.html'), 'utf8')
+  html.en = readFileSync(join(outDir, 'index.html'), 'utf8')
 })
 
 const page = (locale: 'zh' | 'en'): Document => new JSDOM(html[locale]).window.document

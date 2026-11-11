@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Reviewer notes: prototype-landing.md -->
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -245,7 +245,7 @@
       downloadGithub: '前往 GitHub 下载 Agentshed',
       dlSubUnknown: '暂时读不到版本信息，可前往 GitHub 下载',
       dlGithubAll: '前往 GitHub 下载',
-      foot: ['GitHub', '版本发布', '© 2026 aloongplanet'],
+      foot: ['GitHub', '版本发布', '© 2026', 'aloongplanet'],
     },
     en: {
       htmlLang: 'en',
@@ -289,11 +289,11 @@
       downloadGithub: 'Download Agentshed from GitHub',
       dlSubUnknown: 'Version details can’t be loaded right now — download from GitHub',
       dlGithubAll: 'Download from GitHub',
-      foot: ['GitHub', 'Releases', '© 2026 aloongplanet'],
+      foot: ['GitHub', 'Releases', '© 2026', 'aloongplanet'],
     },
   }
 
-  let lang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh'
+  let lang = new URLSearchParams(location.search).get('lang') === 'zh' ? 'zh' : 'en'
   let rel = 'beta'
   /** The feature step the deck shows; kept across re-renders so switching language keeps the place */
   let feat = 0
@@ -401,7 +401,7 @@
       <footer><div class="wrap">
         <a href="${REPO}" target="_blank" rel="noopener">${esc(d.foot[0])}</a>
         <a href="${REPO}/releases" target="_blank" rel="noopener">${esc(d.foot[1])}</a>
-        <span>${esc(d.foot[2])}</span>
+        <span>${esc(d.foot[2])} <a href="https://aloongplanet.com" target="_blank" rel="noopener">${esc(d.foot[3])}</a></span>
       </div></footer>
 
       <div class="note">

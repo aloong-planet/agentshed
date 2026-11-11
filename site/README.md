@@ -1,6 +1,6 @@
 # Agentshed's landing page (`site/`)
 
-An Astro static site in two languages: Chinese at `/`, English at `/en`. What it must do is in
+An Astro static site in two languages: English at `/`, Chinese at `/zh/`. What it must do is in
 [the landing-page spec](../docs/specs/landing-page.md); why it is a `site/` project in this repository is
 ADR-0031. It is a package of its own, with its own lockfile, outside the app's dependencies.
 
@@ -24,7 +24,9 @@ theme also selects website checks because the palette test reads it. See [CI rou
 
 ## Where things are
 
-- `src/pages/index.astro`, `src/pages/en/index.astro`: the two pages, the same sections in the same order.
+- `src/pages/index.astro`, `src/pages/zh/index.astro`: the two pages, the same sections in the same order.
+- `public/_redirects`: permanent Cloudflare Pages redirects from `/en` and `/en/` to `/`.
+  The Astro redirect also emits a static fallback for local previews.
 - `src/layouts/Base.astro`: the head, the sticky header (brand, navigation, language toggle), the footer, and
   the page's one script.
 - `src/components/`: one component per section (`Hero`, `Features`, `Install`, `Download`), and `Icon.astro`,

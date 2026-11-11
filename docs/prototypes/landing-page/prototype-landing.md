@@ -31,7 +31,9 @@ can be read. It prototypes the landing page feature (`landing-page`).
   player loads before that action. A separate “Watch on YouTube” link remains available. The Chinese hero keeps its screenshot.
 - **The language toggle** (中文 / EN, at the right of the header) is part of the design: the landing page's own
   switch between its two languages, Chinese and English. It is not demo scaffolding and does not follow the
-  gallery's interface-language setting.
+  gallery's interface-language setting. English is the initial language.
+- **The footer** retains GitHub, Releases and the copyright line; the author name links to the owner's
+  homepage in a new tab. Its placement follows the owner's selected footer-signature direction.
 - **Colours** follow the prototypes' shared purple theme (the app's palette), with this page's own tokens on
   top, in light and dark.
 
