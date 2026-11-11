@@ -497,6 +497,33 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     ])
   })
 
+  it.each([
+    {
+      name: 'whose first line no longer parses',
+      spoil: (f: string, good: Buffer): void => overwrite(f, Buffer.concat([Buffer.from('['), good.subarray(1)]), 3001)
+    },
+    {
+      name: 'that can no longer be opened',
+      spoil: (f: string): void => {
+        chmodSync(f, 0o000)
+        utimesSync(f, 3001, 3001)
+      }
+    }
+  ])('a changed rollout $name leaves the walk: the reading kept for it is not handed back', ({ spoil }) => {
+    const a = mkProject('gone-a')
+    const good = plainBytes(first(a))
+    const f = put('rollout-2026-07-30T01-00-00-gone.jsonl', good, 3000)
+    const heads = new CodexHeads()
+    expect(walk(heads).map((s) => s.cwd)).toEqual([a])
+    try {
+      spoil(f, good)
+      expect(walk(heads)).toEqual([])
+      expect(walk(heads), 'nor at the walk after it').toEqual([])
+    } finally {
+      chmodSync(f, 0o644)
+    }
+  })
+
   it('the readings are one run\'s: a walk with no earlier walk behind it reads the first line as it is on disk', () => {
     const a = mkProject('run-a')
     const b = mkProject('run-b')

@@ -1656,6 +1656,29 @@ describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () =>
     expect(await parsesOnRelaunch(), 'a new launch finds every current file in the saved cache').toBe(0)
   })
 
+  // A file that was no readable cache of this version when the run loaded it is not what memory holds, so the
+  // first build writes whether or not it parsed anything: a fresh directory gets its file, and a garbage or
+  // old-format one is replaced, also over a home that holds no session file
+  it.each([
+    { name: 'missing', seed: null },
+    { name: 'garbage', seed: 'not json at all' },
+    { name: 'of another version', seed: '{"version":3,"files":{"x":{"sig":"1:1","agg":{"kind":"claude"}}}}' },
+    { name: 'of this version with no files object', seed: `{"version":${CACHE_VERSION},"files":null}` }
+  ])('a cache file that was $name at launch is written by the first build though no session file exists, and left alone from then on', async ({ seed }) => {
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    if (seed !== null) writeFileSync(cacheFile(), seed)
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect(existsSync(cacheFile()) ? readFileSync(cacheFile(), 'utf8') : null, 'the first build wrote the file').not.toBe(seed)
+    const first = fileId()
+    await e.build(roots(), [proj])
+    expect(fileId(), 'the same run leaves it alone').toBe(first)
+    // A launch that loads it takes it for its cache: were it not a readable cache of this version, that
+    // launch's first build would write it again
+    await engine().build(roots(), [proj])
+    expect(fileId(), 'and so does the next launch').toBe(first)
+  })
+
   it('an entry the shape check turned down is parsed again under its unchanged signature, and the repaired entry is saved', async () => {
     const s = everySide()
     await engine().build(roots(), [proj])

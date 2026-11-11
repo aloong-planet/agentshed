@@ -109,9 +109,9 @@ done
 UP_MS=$(( $(now_ms) - T0 ))
 
 # The readiness criterion is "the scan finished": the app atomically writes token-cache.json at the end
-# of a scan that changed its cache (inside the isolated directory, where a fresh directory and a home that
-# holds session files guarantee the first scan parses and so writes), so an mtime appearing means the scan
-# really ran; a silent failure goes red on the timeout.
+# of the first scan into a directory that holds no cache — a later scan writes it only when its cache
+# changed — and the isolated directory is fresh every time, so an mtime appearing means the scan really
+# ran; a silent failure goes red on the timeout.
 T1=$(now_ms)
 until [ "$(stat -f %m "$CACHE" 2>/dev/null || echo 0)" -gt 0 ]; do
   if ! alive; then

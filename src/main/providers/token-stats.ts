@@ -507,8 +507,9 @@ export class TokenEngine {
   /** Where the summaries are copied when a log is beside them; the system's temporary directory unless given, as a
    * parse job's `tmpParent` is */
   private readonly agyTmpParent: string | undefined
-  /** Whether the last write of the cache file failed, a build's or a session page's: the file then lacks what
-   * memory holds, and the next build writes whether or not it changes the cache (token-stats::QR-002/AC-02) */
+  /** Whether the file is not what memory holds for a reason other than a build's own changes: it was no readable
+   * cache of this version when it was loaded, or its last write failed, a build's or a session page's. The next
+   * build then writes whether or not it changes the cache (token-stats::QR-002/AC-02). */
   private unsaved = false
 
   constructor(cacheDir: string, runner: ParseRunner = INLINE, agyTmpParent?: string) {
@@ -535,6 +536,8 @@ export class TokenEngine {
     } catch {
       // Cache missing / corrupt / an old version: recompute everything
     }
+    // The file is then not this cache: the first build replaces it, even one that parses nothing
+    this.unsaved = true
     return { version: CACHE_VERSION, files: {} }
   }
 
