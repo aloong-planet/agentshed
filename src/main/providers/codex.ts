@@ -38,16 +38,47 @@ export interface CodexSessionMeta {
  * A file whose first line is corrupt or has no cwd is skipped (without abandoning the whole scan).
  */
 export function readCodexSessions(codexHome: string): CodexSessionMeta[] {
-  const out: CodexSessionMeta[] = []
-  // Two data roots (matching ccusage's codex paths.rs): archived sessions count toward the statistics too
-  for (const name of ['sessions', 'archived_sessions']) {
-    const root = join(codexHome, name)
-    if (existsSync(root)) walk(root, out)
-  }
-  return out
+  return new CodexHeads().walk(codexHome)
 }
 
-function walk(dir: string, out: CodexSessionMeta[]): void {
+/** A rollout's first-line reading with the rest of the signature it was read under; the time is the meta's own */
+interface KeptHead {
+  size: number
+  ino: number
+  meta: CodexSessionMeta
+}
+
+/**
+ * The rollouts' first-line readings of one run (token-stats::QR-002/AC-01). A walk opens a rollout only when
+ * its modification time, size or inode differ from the ones the last walk saw, and otherwise hands back what
+ * was read then: on a machine with three thousand rollouts, most of them cold, reading every first line
+ * again was most of a rescan. An edit that moves none of the three is not seen until the file next changes,
+ * the limit the token cache's own signature has.
+ *
+ * Kept in memory and never saved, so a run's first walk reads every first line. Only a reading that gave a
+ * session is kept: a rollout that gave none is read again at every walk, because a failure can end without
+ * the signature moving (a change of mode does not touch it), and a kept failure would hide the session
+ * until the file next changed — which a cold rollout never does.
+ */
+export class CodexHeads {
+  private kept = new Map<string, KeptHead>()
+
+  /** As readCodexSessions, reading only the rollouts that changed since this object's last walk */
+  walk(codexHome: string): CodexSessionMeta[] {
+    const out: CodexSessionMeta[] = []
+    // Rebuilt at each walk, so a rollout that left the tree leaves the readings with it
+    const next = new Map<string, KeptHead>()
+    // Two data roots (matching ccusage's codex paths.rs): archived sessions count toward the statistics too
+    for (const name of ['sessions', 'archived_sessions']) {
+      const root = join(codexHome, name)
+      if (existsSync(root)) walk(root, out, this.kept, next)
+    }
+    this.kept = next
+    return out
+  }
+}
+
+function walk(dir: string, out: CodexSessionMeta[], kept: ReadonlyMap<string, KeptHead>, next: Map<string, KeptHead>): void {
   let entries
   try {
     entries = readdirSync(dir, { withFileTypes: true })
@@ -57,15 +88,37 @@ function walk(dir: string, out: CodexSessionMeta[]): void {
   for (const e of entries) {
     const p = join(dir, e.name)
     if (e.isDirectory()) {
-      walk(p, out)
+      walk(p, out, kept, next)
       continue
     }
     // Plain and cold rollouts alike (spec token-stats B12): a cold one is the same session under its
     // compressed path
     if (!isRolloutName(e.name)) continue
-    const meta = readHead(p)
+    const meta = keptOrRead(p, kept, next)
     if (meta) out.push(meta)
   }
+}
+
+/**
+ * A rollout's reading: the kept one while its signature stands, a fresh one otherwise. The signature is taken
+ * before the first line is read, as the token cache takes its own, so a rollout replaced while it is read
+ * shows as changed at the next walk instead of matching a signature its reading never saw.
+ */
+function keptOrRead(file: string, kept: ReadonlyMap<string, KeptHead>, next: Map<string, KeptHead>): CodexSessionMeta | null {
+  let st
+  try {
+    st = statSync(file)
+  } catch {
+    return null
+  }
+  const was = kept.get(file)
+  if (was && was.meta.mtimeMs === st.mtimeMs && was.size === st.size && was.ino === st.ino) {
+    next.set(file, was)
+    return was.meta
+  }
+  const meta = readHead(file, st.mtimeMs)
+  if (meta) next.set(file, { size: st.size, ino: st.ino, meta })
+  return meta
 }
 
 /** The first line measures up to 42 KB (session_meta embeds base_instructions), so it must be read up to
@@ -104,7 +157,8 @@ function readFirstLine(file: string): string | null {
  * goes through here, sharing its source with the full scan */
 export const readCodexSessionMeta = (file: string): CodexSessionMeta | null => readHead(file)
 
-function readHead(file: string): CodexSessionMeta | null {
+/** `mtimeMs` is the file's time when the caller has already taken it; read here when absent */
+function readHead(file: string, mtimeMs?: number): CodexSessionMeta | null {
   try {
     {
       const firstLine = readFirstLine(file)
@@ -140,7 +194,7 @@ function readHead(file: string): CodexSessionMeta | null {
         file,
         cwd,
         subagent,
-        mtimeMs: statSync(file).mtimeMs,
+        mtimeMs: mtimeMs ?? statSync(file).mtimeMs,
         sessionId,
         parentId,
         forkedAt: Number.isNaN(forkedAt) ? null : forkedAt,

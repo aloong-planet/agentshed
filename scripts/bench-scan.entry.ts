@@ -31,6 +31,7 @@ import { basename, join } from 'node:path'
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
 import { availableParallelism } from 'node:os'
 import { scan, walkSessions } from '../src/main/providers/scan'
+import { CodexHeads } from '../src/main/providers/codex'
 import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
 import { ParsePool } from '../src/main/parse-pool'
 import { UsageArchive } from '../src/main/providers/archive'
@@ -253,12 +254,14 @@ async function rescan(): Promise<void> {
   const engine = new TokenEngine(cacheDir, counting)
   // The stamp only matters for the archive's conflict rule, which a benchmark never exercises
   const archive = new UsageArchive(cacheDir, { stamp: 'bench' })
+  // The run's first-line readings, as the app keeps them from one scan to the next
+  const heads = new CodexHeads()
   /** One scan in the app's order: the session walk, scan(), the token build, the archive merge */
   const once = async (label: string): Promise<void> => {
     const phases: string[] = []
     const start = performance.now()
     let t0 = start
-    const sessions = walkSessions(roots)
+    const sessions = walkSessions(roots, heads)
     phases.push(`session walk ${since(t0)}`)
     t0 = performance.now()
     const snap = await scan(roots, { now: () => Date.now(), sessions })
