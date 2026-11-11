@@ -24,8 +24,8 @@
 //                 token cache file was written, and where the scan ran — the scan worker, or the main
 //                 process when the worker failed. A file an agent writes between the two scans is
 //                 parsed, and the cache is then written.
-//                 `rescan --main` runs both scans on the main process instead, as the app does once
-//                 its scan worker has failed, and gives each phase's time and the files parsed.
+//                 `rescan --main` runs both scans on the main process instead, by the scanner the app
+//                 falls back to once its scan worker has failed, and counts the files parsed.
 //                 `rescan --grow` appends to the newest Claude session file its own last line between
 //                 the two scans, so the second has a file to parse and a cache to write. It writes to
 //                 the scanned home, so it runs only when AGENTSHED_HOME_OVERRIDE points at a copy of
@@ -39,10 +39,9 @@ import { basename, join } from 'node:path'
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
 import { availableParallelism } from 'node:os'
 import { scan, walkSessions } from '../src/main/providers/scan'
-import { CodexHeads } from '../src/main/providers/codex'
 import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
 import { ParsePool } from '../src/main/parse-pool'
-import { settleScan } from '../src/main/providers/scanner'
+import { Scanner, settleScan, type ScanOutput } from '../src/main/providers/scanner'
 import { startScans } from '../src/main/scan-client'
 import { UsageArchive } from '../src/main/providers/archive'
 import type { ScanRoots } from '../src/main/providers/types'
@@ -255,63 +254,43 @@ interface RescanRun {
   close(): Promise<void>
 }
 
-/** The app's way: the scan on the scan worker, and what the main process makes of its result */
-function rescanThroughWorker(cacheDir: string, roots: ScanRoots, archive: UsageArchive, scanScript: string, parseScript: string): RescanRun {
-  const scans = startScans({ script: scanScript, parseScript, cacheDir, poolSize: poolSize() })
-  return {
-    once: async (label) => {
-      const start = performance.now()
-      const out = await scans.scan(roots)
-      const scanned = since(start)
-      const t0 = performance.now()
-      settleScan(out, archive)
-      const where = scans.servedOn === 'worker' ? 'on the scan worker' : 'on the main process, the scan worker having failed'
-      console.log(`[rescan] ${label} scan: the scan ${scanned} ${where}, archive merge and figures ${since(t0)}; total ${since(start)}`)
-    },
-    counted: () => '',
-    close: () => scans.close()
-  }
+/** One scan by `scan` and what the main process makes of its result, as the app's own scan routine does both */
+async function timedScan(label: string, scan: () => Promise<ScanOutput>, archive: UsageArchive, where: () => string): Promise<void> {
+  const start = performance.now()
+  const out = await scan()
+  const scanned = since(start)
+  const t0 = performance.now()
+  settleScan(out, archive)
+  console.log(`[rescan] ${label} scan: the scan ${scanned} ${where()}, archive merge and figures ${since(t0)}; total ${since(start)}`)
 }
 
-/** The scan on the main process, as the app runs it once its scan worker has failed: phase by phase, parses counted */
+/** The app's way: the scan on the scan worker */
+function rescanThroughWorker(cacheDir: string, roots: ScanRoots, archive: UsageArchive, scanScript: string, parseScript: string): RescanRun {
+  const scans = startScans({ script: scanScript, parseScript, cacheDir, poolSize: poolSize() })
+  const where = (): string => (scans.servedOn === 'worker' ? 'on the scan worker' : 'on the main process, the scan worker having failed')
+  return { once: (label) => timedScan(label, () => scans.scan(roots), archive, where), counted: () => '', close: () => scans.close() }
+}
+
+/** The scan on the main process, by the scanner the app falls back to once its scan worker has failed, its parses counted */
 function rescanOnMain(cacheDir: string, roots: ScanRoots, archive: UsageArchive, parseScript: string): RescanRun {
   const pool = new ParsePool(parseScript, poolSize())
   let parsed = 0
-  const counting: ParseRunner = {
+  const scanner = new Scanner(cacheDir, {
     concurrency: pool.concurrency,
     run: (job) => {
       parsed++
       return pool.run(job)
-    }
-  }
-  const engine = new TokenEngine(cacheDir, counting)
-  // The run's first-line readings, as the app keeps them from one scan to the next
-  const heads = new CodexHeads()
+    },
+    close: () => pool.close()
+  })
   return {
-    /** One scan in the app's order: the session walk, scan(), the token build, the archive merge */
-    once: async (label) => {
+    once: (label) => {
       parsed = 0
-      const phases: string[] = []
-      const start = performance.now()
-      let t0 = start
-      const sessions = walkSessions(roots, heads)
-      phases.push(`session walk ${since(t0)}`)
-      t0 = performance.now()
-      const snap = await scan(roots, { now: () => Date.now(), sessions })
-      phases.push(`scan() ${since(t0)}`)
-      const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
-      const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
-      t0 = performance.now()
-      const built = await engine.build(roots, claudePaths, registered, sessions)
-      phases.push(`token build ${since(t0)}`)
-      t0 = performance.now()
-      archive.merge(built.rows, Date.now())
-      phases.push(`archive merge ${since(t0)}`)
-      console.log(`[rescan] ${label} scan on the main process: ${phases.join(', ')}; total ${since(start)}`)
+      return timedScan(label, () => scanner.scan(roots), archive, () => 'on the main process')
     },
     counted: () => `files parsed ${parsed}; `,
     close: () => {
-      pool.close()
+      scanner.close()
       return Promise.resolve()
     }
   }

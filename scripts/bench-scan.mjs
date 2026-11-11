@@ -12,7 +12,7 @@
 //   pnpm bench:scan workers            a cold scan on the main thread, then one on the parse pool
 //   pnpm bench:scan rescan             two scans in one process, through the scan worker: what the second
 //                                      one costs, and how long it holds the main process
-//   pnpm bench:scan rescan --main      the same two scans on the main process, phase by phase
+//   pnpm bench:scan rescan --main      the same two scans on the main process, with the files parsed
 //   pnpm bench:scan rescan --grow      with a session file grown between the two (a copy of a home only)
 //
 // AGENTSHED_HOME_OVERRIDE points the scan at a fixture home, exactly as it does for the app.
