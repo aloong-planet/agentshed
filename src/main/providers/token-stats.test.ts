@@ -1642,18 +1642,34 @@ describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () =>
         return [s.codex, s.grok, s.agy]
       },
       claudeTotal: 0
+    },
+    {
+      // Still in the scan set, and the entry the cache held for it is gone all the same
+      name: 'a session file changed into one that cannot be read',
+      change: (s: ReturnType<typeof everySide>): string[] => {
+        appendFileSync(s.claude, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
+        chmodSync(s.claude, 0o000)
+        return [s.codex, s.grok, s.agy]
+      },
+      claudeTotal: 0,
+      // It has no entry to hit, so a launch tries it again
+      triedAgain: 1
     }
-  ])('a build after $name writes the file, which then holds the scan set as it is', async ({ change, claudeTotal }) => {
+  ])('a build after $name writes the file, which then holds every file that gives an entry', async ({ change, claudeTotal, triedAgain = 0 }) => {
     const s = everySide()
     const e = engine()
     await e.build(roots(), [proj])
     const first = fileId()
     const now = change(s)
-    const r2 = await e.build(roots(), [proj])
-    expect(r2.global.bySide.claude.total).toBe(claudeTotal)
-    expect(fileId()).not.toBe(first)
-    expect(savedFiles()).toEqual([...now].sort())
-    expect(await parsesOnRelaunch(), 'a new launch finds every current file in the saved cache').toBe(0)
+    try {
+      const r2 = await e.build(roots(), [proj])
+      expect(r2.global.bySide.claude.total).toBe(claudeTotal)
+      expect(fileId()).not.toBe(first)
+      expect(savedFiles()).toEqual([...now].sort())
+      expect(await parsesOnRelaunch(), 'a new launch parses only a file the saved cache has no entry for').toBe(triedAgain)
+    } finally {
+      if (existsSync(s.claude)) chmodSync(s.claude, 0o644)
+    }
   })
 
   // A file that was no readable cache of this version when the run loaded it is not what memory holds, so the
@@ -1663,7 +1679,8 @@ describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () =>
     { name: 'missing', seed: null },
     { name: 'garbage', seed: 'not json at all' },
     { name: 'of another version', seed: '{"version":3,"files":{"x":{"sig":"1:1","agg":{"kind":"claude"}}}}' },
-    { name: 'of this version with no files object', seed: `{"version":${CACHE_VERSION},"files":null}` }
+    { name: 'of this version with no files object', seed: `{"version":${CACHE_VERSION},"files":null}` },
+    { name: 'of this version with an array for its files', seed: `{"version":${CACHE_VERSION},"files":[]}` }
   ])('a cache file that was $name at launch is written by the first build though no session file exists, and left alone from then on', async ({ seed }) => {
     mkdirSync(join(dir, 'cache'), { recursive: true })
     if (seed !== null) writeFileSync(cacheFile(), seed)

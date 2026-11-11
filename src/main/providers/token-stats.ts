@@ -529,7 +529,9 @@ export class TokenEngine {
         (raw as Record<string, unknown>)['version'] === CACHE_VERSION &&
         typeof (raw as Record<string, unknown>)['files'] === 'object' &&
         // null is an object to typeof, and every lookup in it throws
-        (raw as Record<string, unknown>)['files'] !== null
+        (raw as Record<string, unknown>)['files'] !== null &&
+        // so is an array, which would pass for a cache that holds nothing and so be left in place
+        !Array.isArray((raw as Record<string, unknown>)['files'])
       ) {
         return raw as unknown as CacheShape
       }
@@ -648,8 +650,9 @@ export class TokenEngine {
       if (slot.plan) slot.entry = entryOf(slot.plan, await this.runner.run(slot.plan.job)) ?? slot.fallback ?? null
     })
     // Whether this build changed the cache: an entry that is not the one the cache held — a parse produced it —
-    // or, below, a file that left the scan set (token-stats::QR-002/AC-02). A parse that gave nothing, or fell
-    // back on the entry already held, changed nothing.
+    // or, below, a file the cache held an entry for that ends the build with none: it left the scan set, or
+    // gives no entry any more (token-stats::QR-002/AC-02). A parse that gave nothing to a file the cache held
+    // no entry for, or that fell back on the entry already held, changed nothing.
     const held = this.cache.files
     let changed = false
     for (const slot of slots) {
@@ -659,7 +662,7 @@ export class TokenEngine {
       if (!changed && !isHeldEntry(held[slot.file], slot.entry)) changed = true
       if (slot.admit(slot.entry.agg)) sessionFiles.add(slot.file)
     }
-    // With every entry the one already held, the two sets can differ only by a file that left
+    // With every entry the one already held, the two sets can differ only by a held file that has no entry now
     if (!changed && Object.keys(held).length !== Object.keys(seen).length) changed = true
 
     this.cache = { version: CACHE_VERSION, files: seen }
