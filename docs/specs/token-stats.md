@@ -171,11 +171,15 @@ all of them.
 - C1 An old-format cache (a historical file from before a structure change) does not crash and is
   recomputed into the new structure — **the structure definition and the version number are two
   halves of the same change** (see postmortems/cache-version-crash).
-- C2 Garbage cache content does not crash and triggers a full recompute.
+- C2 Garbage cache content does not crash and triggers a full recompute. A file of the current version
+  whose `files` is not a JSON object — it is missing, `null`, an array or a value of another type — is
+  garbage, like one that does not parse. Within an object, an entry that is not well formed is a miss,
+  and only its file is parsed again (Implementation Decisions, Cache).
 - C3 A second build gives the same result (idempotent); the cache file is valid JSON and lands
   atomically. A failed write of it (a blocked or full settings directory) does not fail the scan: what
   was computed is in memory and goes out as usual, the failure is logged, no temporary file stays behind
-  whichever step failed, and the next launch parses again.
+  whichever step failed, and the next launch parses again unless a later scan's write succeeds first
+  (token-stats::QR-002/AC-02).
 - C4 The archive is written on the first merge; a new instance reads it back. **A failed write does not
   fail the scan** (a settings directory gone read-only or full, ADR-0039): the effective rows computed in
   memory go out as usual and the failure is logged. Each later scan writes again, so the file catches up
@@ -782,19 +786,19 @@ event-loop stall across one rescan, on real data of the size the threshold was s
 
 ### token-stats::QR-002 A rescan repeats no reading or write whose input did not change
 
-Applies to: every scan after the first of a run.
+Applies to: every scan after the first of a run; token-stats::QR-002/AC-02 applies to the first as well.
 
 - token-stats::QR-002/AC-01: A Codex rollout whose modification time, size and inode are the ones the
   previous scan saw is not opened to read its first line again: everything the scan takes from that
   line — the project it is credited to, whether it is a subagent's, its ids and its fork time among
   them — is what was read then. A rollout that differs in any of the three is read again.
-
-  > Pending: a rescan keeps the first-line reading of a rollout that did not change.
-- token-stats::QR-002/AC-02: The token cache file is written at the end of a scan only when the scan
-  changed the cache — it parsed a file, or a file joined or left the scan set — or when the last write
-  of the file failed (C3). A scan that changed nothing leaves the file as it is.
-
-  > Pending: a scan that changed nothing does not write the token cache file.
+- token-stats::QR-002/AC-02: The token cache file is written at the end of a scan only when the file
+  is not what the scan leaves in memory: the scan changed the cache — a parse gave a file a new entry,
+  or a file the cache held an entry for ends the scan with none (it left the scan set, or no longer
+  gives an entry) — or the last write of the file failed (C3), or the file was no cache this build
+  reads when the run loaded it (C1, C2, or no file). A scan that changed nothing leaves the file as it
+  is; a parse that gave nothing to a file the cache held no entry for, or that kept the entry the
+  cache already held (token-stats::REQ-004/AC-03), changed nothing.
 
 ### Failure modes and boundaries: scans and the window
 
@@ -808,9 +812,19 @@ Applies to: every scan after the first of a run.
   signature has (Implementation Decisions, Cache).
 - The first-line readings are kept in memory for the run and are not saved: the first scan of a run
   reads every rollout's first line.
-- A cache write that fails is tried again at each later scan until one succeeds, whether or not that
-  scan changes the cache (token-stats::QR-002/AC-02), so the file still catches up without a restart
-  once the directory is writable (C3).
+- Only a reading that gave a session is kept. A rollout that gave none — it could not be opened, or its
+  first line is corrupt or names no project (projects-list B4) — is opened again at every scan, the one
+  exception to token-stats::QR-002/AC-01: such a failure can end without the signature moving, as a
+  change of mode touches none of the three, and a kept failure would hide the session until the file
+  next changed, which a cold rollout never does. A rollout with a kept reading that changes into one
+  giving none leaves the scan; its earlier reading is not used.
+- A cache write that fails, a scan's or a session page's (session-view C4), is tried again at each
+  later scan until one succeeds, whether or not that scan changes the cache
+  (token-stats::QR-002/AC-02), so the file still catches up without a restart once the directory is
+  writable (C3).
+- The first scan of a run that loaded no cache — no file, a garbage one or one of another version
+  (C1, C2) — writes the file even when it parses nothing, a home with no session file included: a
+  fresh settings directory gets its cache file, and a file this build cannot read is replaced.
 - A session page, a project search or global search asks for a question index while a scan runs: the
   worker answers between the scan's steps, not after the scan, and the asking page keeps its existing
   pending form until then.

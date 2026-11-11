@@ -1502,6 +1502,21 @@ describe('cache version migration (a real bug regression)', () => {
     const r = await engine().build(roots(), [proj])
     expect(r.global.bySide.claude.total).toBe(15)
   })
+
+  it.each(['null', '[]', '"none"'])('a cache of the current version whose files are %s is recomputed, with or without session files (C2)', async (files) => {
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    const seed = (): void => writeFileSync(join(dir, 'cache', 'token-cache.json'), `{"version":${CACHE_VERSION},"files":${files}}`)
+    seed()
+    const empty = await engine().build(roots(), [proj])
+    expect(empty.global.bySide.claude.total).toBe(0)
+    const f = mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    // Seeded again: each of the two builds meets the malformed cache itself
+    seed()
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.claude.total).toBe(15)
+    const saved = JSON.parse(readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')) as { files: Record<string, unknown> }
+    expect(Object.keys(saved.files)).toEqual([f])
+  })
 })
 
 describe('the incremental cache', () => {
@@ -1540,6 +1555,201 @@ describe('the incremental cache', () => {
     await engine().build(roots(), [proj])
     const r2 = await new TokenEngine(join(dir, 'cache')).build(roots(), [proj])
     expect(r2.global.bySide.claude.total).toBe(150)
+  })
+})
+
+// The cache file is written only when a build changed the cache, or when its last write failed
+// (token-stats::QR-002/AC-02). A write lands by renaming a new file over the old one, so the file's inode
+// tells whether a build wrote it.
+describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () => {
+  const cacheFile = (): string => join(dir, 'cache', 'token-cache.json')
+  const fileId = (): string => {
+    const st = statSync(cacheFile())
+    return `${st.ino}:${st.mtimeMs}`
+  }
+  /** A session on every side, so that a side whose files never hit the cache would show as a write */
+  function everySide(): { claude: string; codex: string; grok: string; agy: string } {
+    return {
+      claude: mkClaudeFile('a.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)]),
+      codex: mkCodexRollout('rollout-w-019f400.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_w1' }]),
+      grok: mkGrokSession(proj, 'gw1', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })]),
+      agy: mkAgyConversation('agy-w1', proj, [{ usage: { messageId: 'm-w1', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    }
+  }
+  /** How many files a new launch parses against the saved cache: none when the file holds everything current */
+  async function parsesOnRelaunch(): Promise<number> {
+    let parses = 0
+    const counting: ParseRunner = {
+      concurrency: 1,
+      run: (job) => {
+        parses++
+        return runParseJob(job)
+      }
+    }
+    await new TokenEngine(join(dir, 'cache'), counting).build(roots(), [proj])
+    return parses
+  }
+  const savedFiles = (): string[] => Object.keys((JSON.parse(readFileSync(cacheFile(), 'utf8')) as { files: Record<string, unknown> }).files).sort()
+
+  it('a build that changed nothing leaves the file as the build before it wrote it', async () => {
+    const s = everySide()
+    const e = engine()
+    const r1 = await e.build(roots(), [proj])
+    expect(savedFiles()).toEqual([s.claude, s.codex, s.grok, s.agy].sort())
+    const first = fileId()
+    const r2 = await e.build(roots(), [proj])
+    expect(fileId()).toBe(first)
+    expect(r2.global).toEqual(r1.global)
+  })
+
+  it('a file that no build can parse does not make an unchanged build write', async () => {
+    const s = everySide()
+    const locked = mkClaudeFile('locked.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
+    chmodSync(locked, 0o000)
+    try {
+      const e = engine()
+      await e.build(roots(), [proj])
+      expect(savedFiles(), 'the file that cannot be read has no entry').toEqual([s.claude, s.codex, s.grok, s.agy].sort())
+      const first = fileId()
+      await e.build(roots(), [proj])
+      expect(fileId()).toBe(first)
+    } finally {
+      chmodSync(locked, 0o644)
+    }
+  })
+
+  it.each([
+    {
+      name: 'a session file changed',
+      change: (s: ReturnType<typeof everySide>): string[] => {
+        appendFileSync(s.claude, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
+        return [s.claude, s.codex, s.grok, s.agy]
+      },
+      claudeTotal: 165
+    },
+    {
+      name: 'a session file joined the scan set',
+      change: (s: ReturnType<typeof everySide>): string[] => {
+        const joined = mkClaudeFile('b.jsonl', [usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50)])
+        return [s.claude, s.codex, s.grok, s.agy, joined]
+      },
+      claudeTotal: 165
+    },
+    {
+      name: 'a session file left the scan set',
+      change: (s: ReturnType<typeof everySide>): string[] => {
+        rmSync(s.claude)
+        return [s.codex, s.grok, s.agy]
+      },
+      claudeTotal: 0
+    },
+    {
+      // Still in the scan set, and the entry the cache held for it is gone all the same
+      name: 'a session file changed into one that cannot be read',
+      change: (s: ReturnType<typeof everySide>): string[] => {
+        appendFileSync(s.claude, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
+        chmodSync(s.claude, 0o000)
+        return [s.codex, s.grok, s.agy]
+      },
+      claudeTotal: 0,
+      // It has no entry to hit, so a launch tries it again
+      triedAgain: 1
+    }
+  ])('a build after $name writes the file, which then holds every file that gives an entry', async ({ change, claudeTotal, triedAgain = 0 }) => {
+    const s = everySide()
+    const e = engine()
+    await e.build(roots(), [proj])
+    const first = fileId()
+    const now = change(s)
+    try {
+      const r2 = await e.build(roots(), [proj])
+      expect(r2.global.bySide.claude.total).toBe(claudeTotal)
+      expect(fileId()).not.toBe(first)
+      expect(savedFiles()).toEqual([...now].sort())
+      expect(await parsesOnRelaunch(), 'a new launch parses only a file the saved cache has no entry for').toBe(triedAgain)
+    } finally {
+      if (existsSync(s.claude)) chmodSync(s.claude, 0o644)
+    }
+  })
+
+  // A file that was no readable cache of this version when the run loaded it is not what memory holds, so the
+  // first build writes whether or not it parsed anything: a fresh directory gets its file, and a garbage or
+  // old-format one is replaced, also over a home that holds no session file
+  it.each([
+    { name: 'missing', seed: null },
+    { name: 'garbage', seed: 'not json at all' },
+    { name: 'of another version', seed: '{"version":3,"files":{"x":{"sig":"1:1","agg":{"kind":"claude"}}}}' },
+    { name: 'of this version with no files object', seed: `{"version":${CACHE_VERSION},"files":null}` },
+    { name: 'of this version with an array for its files', seed: `{"version":${CACHE_VERSION},"files":[]}` }
+  ])('a cache file that was $name at launch is written by the first build though no session file exists, and left alone from then on', async ({ seed }) => {
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    if (seed !== null) writeFileSync(cacheFile(), seed)
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect(existsSync(cacheFile()) ? readFileSync(cacheFile(), 'utf8') : null, 'the first build wrote the file').not.toBe(seed)
+    const first = fileId()
+    await e.build(roots(), [proj])
+    expect(fileId(), 'the same run leaves it alone').toBe(first)
+    // A launch that loads it takes it for its cache: were it not a readable cache of this version, that
+    // launch's first build would write it again
+    await engine().build(roots(), [proj])
+    expect(fileId(), 'and so does the next launch').toBe(first)
+  })
+
+  it('an entry the shape check turned down is parsed again under its unchanged signature, and the repaired entry is saved', async () => {
+    const s = everySide()
+    await engine().build(roots(), [proj])
+    const saved = JSON.parse(readFileSync(cacheFile(), 'utf8')) as { files: Record<string, { sig: string; agg: unknown }> }
+    saved.files[s.claude].agg = { kind: 'claude' }
+    writeFileSync(cacheFile(), JSON.stringify(saved))
+    expect(await parsesOnRelaunch(), 'the drifted entry is a miss').toBe(1)
+    expect(await parsesOnRelaunch(), 'and the launch after it finds it repaired').toBe(0)
+  })
+
+  // A write that failed is tried again at each later build, whether or not that build changes the cache, so
+  // the file catches up without a restart once the directory is writable (C3)
+  it.each([
+    { name: 'at the first build', after: async (): Promise<void> => {} },
+    {
+      name: 'at a later build',
+      after: async (e: TokenEngine, s: ReturnType<typeof everySide>): Promise<void> => {
+        appendFileSync(s.claude, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
+        await e.build(roots(), [proj])
+      }
+    },
+    {
+      name: 'on a session page',
+      after: async (e: TokenEngine, s: ReturnType<typeof everySide>): Promise<void> => {
+        appendFileSync(s.claude, userLine('second') + '\n')
+        expect((await e.sessionQuestions(roots(), s.claude)).questions).toHaveLength(2)
+      }
+    }
+  ])('a write that failed $name is made by the next build that can, though that build changed nothing', async ({ name, after }) => {
+    const s = everySide()
+    const e = engine()
+    const block = join(dir, 'cache', `.token-cache.j-${process.pid}`)
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      if (name === 'at the first build') mkdirSync(block, { recursive: true })
+      await e.build(roots(), [proj])
+      const first = name === 'at the first build' ? null : fileId()
+      if (first !== null) mkdirSync(block)
+      await after(e, s)
+      expect(logged).toHaveBeenCalledWith('[token-cache] save failed:', expect.anything())
+      expect(existsSync(cacheFile()) ? fileId() : null, 'the failed write left the file as it was').toBe(first)
+
+      rmSync(block, { recursive: true })
+      await e.build(roots(), [proj])
+      const caughtUp = fileId()
+      expect(caughtUp).not.toBe(first)
+      expect(await parsesOnRelaunch(), 'the file holds what the failed write would have saved').toBe(0)
+      expect(logged).toHaveBeenCalledTimes(1)
+
+      await e.build(roots(), [proj])
+      expect(fileId(), 'once written, an unchanged build leaves it alone again').toBe(caughtUp)
+    } finally {
+      logged.mockRestore()
+    }
   })
 })
 

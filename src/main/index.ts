@@ -23,6 +23,7 @@ import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, as
 import { mergeKey } from '@shared/path-key'
 import { deriveStats } from '@shared/usage'
 import { scan, walkSessions } from './providers/scan'
+import { CodexHeads } from './providers/codex'
 import { questionTextOfRange } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
@@ -123,6 +124,9 @@ let prefsStore: PrefsStore | null = null
 let updates: UpdateController | null = null
 let settingsChecks: SettingsChecks | null = null
 let tokenEngine: TokenEngine | null = null
+// The Codex rollouts' first-line readings, one object for the run: every scan walks through it, so a rescan
+// opens only the rollouts that changed (token-stats::QR-002/AC-01)
+const codexHeads = new CodexHeads()
 // Global search's question texts (ADR-0034): built on the page's first demand in a run, then kept up to date
 // after every scan; held in memory only
 let questionCorpus: QuestionCorpus | null = null
@@ -212,7 +216,7 @@ async function doScan(): Promise<Snapshot> {
       let nextSessionFiles = sessionWhitelist
       let nextSessionTokens = sessionTokens
       // One walk of the Codex and Grok session trees, read by both scan() and the token build (#160)
-      const sessions = walkSessions(realRoots())
+      const sessions = walkSessions(realRoots(), codexHeads)
       const snap = await scan(realRoots(), { now: () => Date.now(), sessions })
       if (scanFailures > 0) { scanFailures--; throw new Error('Injected scan failure') }
       if (tokenEngine) {

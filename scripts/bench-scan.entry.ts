@@ -17,6 +17,11 @@
 //                 call could wait), and whether the two caches agree entry by entry.
 //                 `workers --pool-only` runs the pool's scan alone, for a peak-memory figure that is
 //                 not stacked on the main-thread run's.
+//   rescan        two scans in one process against a copy of the app's cache, in the app's order and on
+//                 the parse pool: what a scan costs once the run's first is behind it (Electron only).
+//                 For the second scan: each phase's time, the main process's longest event-loop stall,
+//                 how many files it parsed and whether it wrote the token cache file. A file an agent
+//                 writes between the two scans is parsed, and the cache is then written.
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
@@ -26,6 +31,7 @@ import { basename, join } from 'node:path'
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
 import { availableParallelism } from 'node:os'
 import { scan, walkSessions } from '../src/main/providers/scan'
+import { CodexHeads } from '../src/main/providers/codex'
 import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
 import { ParsePool } from '../src/main/parse-pool'
 import { UsageArchive } from '../src/main/providers/archive'
@@ -68,19 +74,23 @@ async function userDataDir(): Promise<string | null> {
   return join(app.getPath('appData'), name)
 }
 
-async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
+/** A fresh cache directory holding a copy of the app's token cache and archive */
+async function warmCacheDir(mode: string): Promise<string> {
   const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-'))
-  if (mode === 'warm') {
-    const from = await userDataDir()
-    if (from === null) throw new Error('warm needs the app cache, which only the Electron run can locate: drop --node')
-    const cache = join(from, 'token-cache.json')
-    // No cache is not a warm run at all; saying so beats reporting a cold run under the wrong label
-    if (!existsSync(cache)) throw new Error(`warm needs the app cache and none exists at ${cache}: launch the app once first`)
-    copyFileSync(cache, join(cacheDir, 'token-cache.json'))
-    console.log(`[warm] token-cache.json ${(statSync(cache).size / 1e6).toFixed(1)} MB copied from ${from}`)
-    const archive = join(from, 'usage-archive.json')
-    if (existsSync(archive)) copyFileSync(archive, join(cacheDir, 'usage-archive.json'))
-  }
+  const from = await userDataDir()
+  if (from === null) throw new Error(`${mode} needs the app cache, which only the Electron run can locate: drop --node`)
+  const cache = join(from, 'token-cache.json')
+  // No cache is not a warm run at all; saying so beats reporting a cold run under the wrong label
+  if (!existsSync(cache)) throw new Error(`${mode} needs the app cache and none exists at ${cache}: launch the app once first`)
+  copyFileSync(cache, join(cacheDir, 'token-cache.json'))
+  console.log(`[${mode}] token-cache.json ${(statSync(cache).size / 1e6).toFixed(1)} MB copied from ${from}`)
+  const archive = join(from, 'usage-archive.json')
+  if (existsSync(archive)) copyFileSync(archive, join(cacheDir, 'usage-archive.json'))
+  return cacheDir
+}
+
+async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
+  const cacheDir = mode === 'warm' ? await warmCacheDir(mode) : mkdtempSync(join(tmpdir(), 'agentshed-bench-'))
   console.log(`[mode] ${mode}, cache dir ${cacheDir}`)
   const roots = realRoots()
 
@@ -158,6 +168,23 @@ async function growScan(source: string): Promise<void> {
   }
 }
 
+/**
+ * The longest stretch the thread stayed busy while `work` ran, in ms. The monitor records the time between
+ * two of its own ticks, so one tick is let through before the work and one after it: a stretch that
+ * starts before the first tick, or ends with the work, is otherwise not recorded at all (measured: 11 ms
+ * reported for a scan that held the thread 1.3 s). An idle tick records its own interval, about 10 ms.
+ */
+async function longestStall(work: () => Promise<void>): Promise<{ max: string; p99: string }> {
+  const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 50))
+  const lag = monitorEventLoopDelay({ resolution: 10 })
+  lag.enable()
+  await tick()
+  await work()
+  await tick()
+  lag.disable()
+  return { max: (lag.max / 1e6).toFixed(0), p99: (lag.percentile(99) / 1e6).toFixed(0) }
+}
+
 /** The app's pool size, or AGENTSHED_BENCH_POOL_SIZE to measure another */
 function poolSize(): number {
   const forced = Number(process.env['AGENTSHED_BENCH_POOL_SIZE'])
@@ -174,15 +201,13 @@ async function workersScan(): Promise<void> {
   const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
   const run = async (label: string, runner?: ParseRunner): Promise<string> => {
     const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-'))
-    const lag = monitorEventLoopDelay({ resolution: 10 })
-    lag.enable()
-    const t0 = performance.now()
-    await new TokenEngine(cacheDir, runner).build(roots, claudePaths, registered, sessions)
-    const took = since(t0)
-    lag.disable()
-    console.log(
-      `[workers] ${label}: ${took}; main-thread event-loop stall max ${(lag.max / 1e6).toFixed(0)} ms, p99 ${(lag.percentile(99) / 1e6).toFixed(0)} ms`
-    )
+    let took = ''
+    const stall = await longestStall(async () => {
+      const t0 = performance.now()
+      await new TokenEngine(cacheDir, runner).build(roots, claudePaths, registered, sessions)
+      took = since(t0)
+    })
+    console.log(`[workers] ${label}: ${took}; main-thread event-loop stall max ${stall.max} ms, p99 ${stall.p99} ms`)
     return cacheDir
   }
   if (process.argv.includes('--pool-only')) {
@@ -206,6 +231,64 @@ async function workersScan(): Promise<void> {
   if (differ > 0) process.exitCode = 1
 }
 
+/** The token cache file's identity: a write replaces the file, so a new inode or time is a write */
+function cacheFileId(cacheDir: string): string {
+  const st = statSync(join(cacheDir, 'token-cache.json'))
+  return `${st.ino}:${st.mtimeMs}`
+}
+
+async function rescan(): Promise<void> {
+  const script = process.env['AGENTSHED_BENCH_PARSE_WORKER']
+  if (!script) throw new Error('AGENTSHED_BENCH_PARSE_WORKER is not set: run through scripts/bench-scan.mjs')
+  const cacheDir = await warmCacheDir('rescan')
+  const roots = realRoots()
+  const pool = new ParsePool(script, poolSize())
+  let parsed = 0
+  const counting: ParseRunner = {
+    concurrency: pool.concurrency,
+    run: (job) => {
+      parsed++
+      return pool.run(job)
+    }
+  }
+  const engine = new TokenEngine(cacheDir, counting)
+  // The stamp only matters for the archive's conflict rule, which a benchmark never exercises
+  const archive = new UsageArchive(cacheDir, { stamp: 'bench' })
+  // The run's first-line readings, as the app keeps them from one scan to the next
+  const heads = new CodexHeads()
+  /** One scan in the app's order: the session walk, scan(), the token build, the archive merge */
+  const once = async (label: string): Promise<void> => {
+    const phases: string[] = []
+    const start = performance.now()
+    let t0 = start
+    const sessions = walkSessions(roots, heads)
+    phases.push(`session walk ${since(t0)}`)
+    t0 = performance.now()
+    const snap = await scan(roots, { now: () => Date.now(), sessions })
+    phases.push(`scan() ${since(t0)}`)
+    const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
+    const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
+    t0 = performance.now()
+    const built = await engine.build(roots, claudePaths, registered, sessions)
+    phases.push(`token build ${since(t0)}`)
+    t0 = performance.now()
+    archive.merge(built.rows, Date.now())
+    phases.push(`archive merge ${since(t0)}`)
+    console.log(`[rescan] ${label} scan: ${phases.join(', ')}; total ${since(start)}`)
+  }
+  try {
+    await once('first')
+    const before = cacheFileId(cacheDir)
+    parsed = 0
+    const stall = await longestStall(() => once('second'))
+    console.log(
+      `[rescan] second scan: main-process event-loop stall max ${stall.max} ms; files parsed ${parsed}; token cache file written: ${cacheFileId(cacheDir) === before ? 'no' : 'yes'}`
+    )
+  } finally {
+    pool.close()
+  }
+}
+
 async function main(): Promise<void> {
   console.log(`[runtime] ${isElectron ? `electron ${process.versions['electron']}` : `node ${process.version}`}`)
   const [mode = 'cold', ...rest] = process.argv.slice(2)
@@ -227,7 +310,11 @@ async function main(): Promise<void> {
     await fullScan(mode)
     return
   }
-  throw new Error(`unknown mode "${mode}": expected cold, warm, grow <rollout>, workers, or file <path>…`)
+  if (mode === 'rescan') {
+    await rescan()
+    return
+  }
+  throw new Error(`unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, workers, or file <path>…`)
 }
 
 async function start(): Promise<void> {

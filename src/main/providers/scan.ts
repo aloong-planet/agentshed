@@ -7,7 +7,7 @@ import { emptySnapshot } from '@shared/domain'
 import { mergeKey, normalizePath } from '@shared/path-key'
 import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
-import { readCodexRegistry, readCodexSessions, type CodexSessionMeta } from './codex'
+import { readCodexRegistry, readCodexSessions, type CodexHeads, type CodexSessionMeta } from './codex'
 import { readGrokRegistry, readGrokSessions, type GrokSessionMeta } from './grok'
 import { readAntigravityRegistry, readAntigravitySessions, type AntigravitySessionMeta } from './antigravity'
 import { readGlobalLayer } from './global'
@@ -33,9 +33,13 @@ export interface SessionWalk {
   antigravity: AntigravitySessionMeta[]
 }
 
-export function walkSessions(roots: ScanRoots): SessionWalk {
+/**
+ * `heads` holds the run's first-line readings: given it, a walk opens only the rollouts that changed since
+ * its last walk (token-stats::QR-002/AC-01); without it every first line is read.
+ */
+export function walkSessions(roots: ScanRoots, heads?: CodexHeads): SessionWalk {
   return {
-    codex: readCodexSessions(roots.codexHome),
+    codex: heads ? heads.walk(roots.codexHome) : readCodexSessions(roots.codexHome),
     grok: readGrokSessions(roots.grokHome),
     antigravity: readAntigravitySessions(roots.antigravityHome)
   }

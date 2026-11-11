@@ -109,8 +109,8 @@ done
 UP_MS=$(( $(now_ms) - T0 ))
 
 # The readiness criterion is "the scan finished": the app atomically writes token-cache.json at the end
-# of every scan (inside the isolated directory,
-# where a fresh directory guarantees the first scan writes), so an mtime appearing means the scan really
+# of the first scan into a directory that holds no cache — a later scan writes it only when its cache
+# changed — and the isolated directory is fresh every time, so an mtime appearing means the scan really
 # ran; a silent failure goes red on the timeout.
 T1=$(now_ms)
 until [ "$(stat -f %m "$CACHE" 2>/dev/null || echo 0)" -gt 0 ]; do
@@ -120,12 +120,14 @@ until [ "$(stat -f %m "$CACHE" 2>/dev/null || echo 0)" -gt 0 ]; do
   if (( $(now_ms) - T1 > READY_TIMEOUT * 1000 )); then
     # A discriminating diagnosis: the isolated cache untouched while the real one moved =
     # --user-data-dir pass-through broke
-    # (an electron-vite upgrade dropping it, say), and the app went off to write the real userData
+    # (an electron-vite upgrade dropping it, say), and the app went off to write the real userData.
+    # The real one not moving does not rule that out: a scan that changed nothing in a cache it could
+    # load writes nothing, so the last message names both causes.
     REAL_NOW=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
     if [ "$REAL_NOW" -gt "$REAL_BEFORE" ]; then
       die "userData redirection failed: the isolated cache was not updated but the real one was — check that pnpm dev forwards --user-data-dir"
     fi
-    die "first scan did not finish within ${READY_TIMEOUT}s (isolated cache not updated)"
+    die "first scan did not finish within ${READY_TIMEOUT}s (isolated cache not updated) — or it ran against the real userData and found nothing to write there: check that pnpm dev forwards --user-data-dir"
   fi
   sleep 0.3
 done

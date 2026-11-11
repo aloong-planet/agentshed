@@ -243,9 +243,10 @@ hands the command over; it never runs it.
   signature is compared on every fetch and, on a mismatch, that one file is re-parsed and **the
   cache is written back to disk** (so it is not rebuilt again next time; a failed write is not the
   fetch's failure, since the new index is in memory and the page is served from it, and only the
-  next launch rebuilds again); the display-side stripping for a Codex fork shares its source with
-  the list (the same replay-prefix stripping and parent lookup), rather than reusing the token
-  metering side's conclusions.
+  next launch rebuilds again, unless a later scan's write of the file succeeds first —
+  [token-stats::QR-002/AC-02](token-stats.md)); the display-side stripping for a Codex fork shares
+  its source with the list (the same replay-prefix stripping and parent lookup), rather than reusing
+  the token metering side's conclusions.
   A session page left open while Codex compresses its file (2026-09-10): the plain path is gone, so
   the next fetch fails for that turn only (the in-turn error state, retry on click), and the session
   reappears under its compressed identity after the next scan — a new path, an index built once.

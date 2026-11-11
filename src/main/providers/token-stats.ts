@@ -507,6 +507,10 @@ export class TokenEngine {
   /** Where the summaries are copied when a log is beside them; the system's temporary directory unless given, as a
    * parse job's `tmpParent` is */
   private readonly agyTmpParent: string | undefined
+  /** Whether the file is not what memory holds for a reason other than a build's own changes: it was no readable
+   * cache of this version when it was loaded, or its last write failed, a build's or a session page's. The next
+   * build then writes whether or not it changes the cache (token-stats::QR-002/AC-02). */
+  private unsaved = false
 
   constructor(cacheDir: string, runner: ParseRunner = INLINE, agyTmpParent?: string) {
     this.cacheDir = cacheDir
@@ -523,13 +527,19 @@ export class TokenEngine {
         typeof raw === 'object' &&
         raw !== null &&
         (raw as Record<string, unknown>)['version'] === CACHE_VERSION &&
-        typeof (raw as Record<string, unknown>)['files'] === 'object'
+        typeof (raw as Record<string, unknown>)['files'] === 'object' &&
+        // null is an object to typeof, and every lookup in it throws
+        (raw as Record<string, unknown>)['files'] !== null &&
+        // so is an array, which would pass for a cache that holds nothing and so be left in place
+        !Array.isArray((raw as Record<string, unknown>)['files'])
       ) {
         return raw as unknown as CacheShape
       }
     } catch {
       // Cache missing / corrupt / an old version: recompute everything
     }
+    // The file is then not this cache: the first build replaces it, even one that parses nothing
+    this.unsaved = true
     return { version: CACHE_VERSION, files: {} }
   }
 
@@ -540,7 +550,9 @@ export class TokenEngine {
   private persist(): void {
     try {
       writeFileAtomicSync(this.cacheFile, join(this.cacheDir, `.token-cache.j-${process.pid}`), JSON.stringify(this.cache))
+      this.unsaved = false
     } catch (error) {
+      this.unsaved = true
       console.error('[token-cache] save failed:', error)
     }
   }
@@ -637,15 +649,24 @@ export class TokenEngine {
     await mapLimit(misses, this.runner.concurrency, async (slot) => {
       if (slot.plan) slot.entry = entryOf(slot.plan, await this.runner.run(slot.plan.job)) ?? slot.fallback ?? null
     })
+    // Whether this build changed the cache: an entry that is not the one the cache held — a parse produced it —
+    // or, below, a file the cache held an entry for that ends the build with none: it left the scan set, or
+    // gives no entry any more (token-stats::QR-002/AC-02). A parse that gave nothing to a file the cache held
+    // no entry for, or that fell back on the entry already held, changed nothing.
+    const held = this.cache.files
+    let changed = false
     for (const slot of slots) {
       if (!slot.entry) continue
       aggs.push(slot.entry.agg)
       seen[slot.file] = slot.entry
+      if (!changed && !isHeldEntry(held[slot.file], slot.entry)) changed = true
       if (slot.admit(slot.entry.agg)) sessionFiles.add(slot.file)
     }
+    // With every entry the one already held, the two sets can differ only by a held file that has no entry now
+    if (!changed && Object.keys(held).length !== Object.keys(seen).length) changed = true
 
     this.cache = { version: CACHE_VERSION, files: seen }
-    this.persist()
+    if (changed || this.unsaved) this.persist()
     // agy's titles: a failed read while agy writes its summaries keeps the last ones read
     this.agyTitles = readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? this.agyTitles ?? new Map()
     const result = combine(aggs, this.agyTitles)
@@ -1483,6 +1504,16 @@ function statOf(file: string): { sig: string; ino: number; size: number } | null
   } catch {
     return null
   }
+}
+
+/**
+ * Whether a build's entry for a file is the one the cache already held. A cache hit hands the held aggregate
+ * on, with its signature and resume state, and every parse makes a new aggregate, a resumed one included, so
+ * the aggregate being the very object held is the whole test. What the cache held came from a file and may be
+ * no entry at all.
+ */
+function isHeldEntry(held: CacheEntry | undefined, entry: CacheEntry): boolean {
+  return (held as Partial<CacheEntry> | null | undefined)?.agg === entry.agg
 }
 
 /** The cache entry a parse produces: a Codex rollout's carries the state its next resume starts from */

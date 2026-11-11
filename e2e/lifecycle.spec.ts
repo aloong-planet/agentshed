@@ -5,7 +5,7 @@ import type {} from '../src/renderer/src/env'
 // asserting the main process emits no errors.
 // The key scenario: **starting with an old-format cache** (the shape of the 2026-07-30 production crash;
 // the unit tests pin it and this guards the whole chain again).
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync, statSync, symlinkSync, unlinkSync, chmodSync, existsSync, realpathSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync, statSync, symlinkSync, unlinkSync, chmodSync, existsSync, realpathSync, openSync, writeSync, closeSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
@@ -343,6 +343,65 @@ test('a failed token cache write on the first scan: the app comes up with its da
   expect(stderr.join('')).not.toContain('scan failed')
   expect(errors).toEqual([])
   await close({ app, errors, userData, home })
+})
+
+// The first-line readings are the run's, not one scan's (token-stats::QR-002/AC-01): what tells a rescan that
+// kept a reading from one that read the line again is a first line rewritten under the same signature, which
+// the unit tests drive at the walk. This case is the wiring: the main process hands every scan the same readings.
+test('a rescan keeps the first-line reading of an unchanged rollout: its project is the one read at the first scan until the file changes', async () => {
+  const home = mkUsageHome()
+  const demo = join(home, 'demo-proj')
+  // The same length as the project it replaces, so the first line can be rewritten in place
+  const other = join(home, 'othr-proj')
+  mkdirSync(other)
+  const register = (...extra: string[]): void =>
+    writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: Object.fromEntries([demo, other, ...extra].map((p) => [p, {}])) }))
+  register()
+  const rollout = join(home, '.codex', 'sessions', '2026', '01', '01', 'rollout-019fb0c0-1111-7af3-af7d-8505cedf1ec2.jsonl')
+  // A whole second, so that the time can be put back exactly after the rewrite
+  const at = Math.floor(Date.now() / 1000) - 60
+  utimesSync(rollout, at, at)
+
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '300' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  const row = (name: string): ReturnType<Page['locator']> => win.locator('.side .list .row', { hasText: name })
+  // The rollout is the demo project's; the other project has no session, so no activity
+  await expect(row('othr-proj').locator('.meta')).toHaveText('—')
+
+  const before = statSync(rollout)
+  const text = readFileSync(rollout, 'utf8')
+  const first = text.slice(0, text.indexOf('\n'))
+  const moved = first.replace(JSON.stringify(demo), JSON.stringify(other))
+  expect(moved).not.toBe(first)
+  expect(Buffer.byteLength(moved)).toBe(Buffer.byteLength(first))
+  const fd = openSync(rollout, 'r+')
+  try {
+    writeSync(fd, moved, 0)
+  } finally {
+    closeSync(fd)
+  }
+  utimesSync(rollout, at, at)
+  const after = statSync(rollout)
+  expect([after.ino, after.size, after.mtimeMs], 'the rewrite moved none of the three').toEqual([before.ino, before.size, before.mtimeMs])
+
+  // Two projects registered one after the other: the scan that shows the second began after the one that
+  // showed the first, so its whole walk came after the rewrite
+  const lateA = join(home, 'late-a')
+  const lateB = join(home, 'late-b')
+  mkdirSync(lateA)
+  mkdirSync(lateB)
+  register(lateA)
+  await expect(row('late-a')).toBeVisible()
+  register(lateA, lateB)
+  await expect(row('late-b')).toBeVisible()
+  await expect(row('othr-proj').locator('.meta')).toHaveText('—')
+
+  // The file's time moves: the first line is read again, and the rollout is the other project's
+  utimesSync(rollout, at + 1, at + 1)
+  await expect(row('othr-proj').locator('.meta')).not.toHaveText('—')
+  expect(l.errors).toEqual([])
+  await close(l)
 })
 
 // Real Electron lifecycle: the display is earned by reading, then restored independently of indexing.
