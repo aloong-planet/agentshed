@@ -286,10 +286,11 @@ export function rowsFromCacheFile(file: string): UsageRow[] {
 /**
  * A project's figures derived from the effective row set (spec G6): the archive's rows carry the project
  * key, so a project page reports archived-only and retained days exactly as the cross-project view does.
- * Sessions stay as the scan found them; a project present only in the archive gets an entry with none.
+ * `sessions` holds each project's sessions as the scan found them, by merge key, and they stay; a project
+ * present only in the archive gets an entry with none.
  */
 export function projectStatsFromRows(
-  base: Map<string, ProjectStats>,
+  sessions: ReadonlyMap<string, SessionMeta[]>,
   rows: UsageRow[]
 ): Map<string, ProjectStats> {
   const byProject = new Map<string, UsageRow[]>()
@@ -300,7 +301,7 @@ export function projectStatsFromRows(
     else byProject.set(r.projectKey, [r])
   }
   const out = new Map<string, ProjectStats>()
-  for (const [key, p] of base) out.set(key, { tokens: deriveStats(byProject.get(key) ?? []), sessions: p.sessions })
+  for (const [key, own] of sessions) out.set(key, { tokens: deriveStats(byProject.get(key) ?? []), sessions: own })
   for (const [key, own] of byProject) {
     if (!out.has(key)) out.set(key, { tokens: deriveStats(own), sessions: [] })
   }
@@ -379,7 +380,7 @@ export interface TokenBuildResult {
 }
 
 /**
- * One file to parse, as plain data — what a parse worker receives (#159). The main thread builds it: it
+ * One file to parse, as plain data — what a parse worker receives (#159). The engine's thread builds it: it
  * owns the cache and every decision about it (hit, resume, whole parse); a parse touches only the file.
  */
 export type ParseJob =
@@ -389,7 +390,7 @@ export type ParseJob =
       file: string
       projectKey: string
       meta: CodexParseMeta
-      /** The session_index name for this rollout, looked up on the main thread */
+      /** The session_index name for this rollout, looked up on the engine's thread */
       threadName: string | undefined
       from?: { agg: CodexFileAgg; state: CodexResume }
     }
@@ -573,7 +574,7 @@ export class TokenEngine {
      * cwd and is never empty**,
      * so without an explicit set there is no telling registered from not. The default (for test
      * convenience) approximates it as "non-empty means registered",
-     * and the main process must pass the real set.
+     * and the app's scan must pass the real set.
      */
     registeredKeys?: ReadonlySet<string>,
     /** The scan's one session walk, shared with scan() (#160); walked here when absent */
@@ -584,7 +585,7 @@ export class TokenEngine {
     const aggs: FileAgg[] = []
     const seen: Record<string, CacheEntry> = {}
     const sessionFiles = new Set<string>()
-    // Every file in scan order. The cache is consulted here, on the main thread; the misses are parsed
+    // Every file in scan order. The cache is consulted here, on the engine's thread; the misses are parsed
     // together below, as many at once as the runner allows; then every file is taken in this order, so
     // the aggregation sees exactly the sequence a one-at-a-time build saw.
     const slots: Slot[] = []

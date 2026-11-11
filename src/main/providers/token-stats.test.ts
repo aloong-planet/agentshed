@@ -21,7 +21,6 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseRunner } from './token-stats'
-import { emptyTokenStats } from '@shared/domain'
 import { zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
@@ -2544,7 +2543,7 @@ describe('the archive restore path (spec C16) and project figures from the effec
 
   it('projectStatsFromRows: a project\'s figures come from the rows it owns in the effective set, its sessions stay, and a project present only in the archive gets an entry with none', () => {
     const base = new Map([
-      ['/live', { tokens: emptyTokenStats(), sessions: [{ side: 'claude', title: 't', at: 1, tokens: 5, file: '/f', questionCount: 1, forkState: 'none' }] }]
+      ['/live', [{ side: 'claude', title: 't', at: 1, tokens: 5, file: '/f', questionCount: 1, forkState: 'none' }]]
     ] as const)
     const rows = [
       { day: '2026-07-01', side: 'claude', projectKey: '/live', model: 'm', input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 300 },

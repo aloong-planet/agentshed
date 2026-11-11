@@ -9,8 +9,13 @@ export default defineConfig({
     resolve: { alias: { '@shared': shared } },
     build: {
       rollupOptions: {
-        // The parse worker is its own entry: ParsePool starts it as a worker thread from out/main
-        input: { index: resolve('src/main/index.ts'), 'parse-worker': resolve('src/main/parse-worker.ts') }
+        // The two workers are entries of their own, started as worker threads from out/main: the main process
+        // starts the scan worker (ADR-0043), and the scan worker's ParsePool starts the parse workers
+        input: {
+          index: resolve('src/main/index.ts'),
+          'scan-worker': resolve('src/main/scan-worker.ts'),
+          'parse-worker': resolve('src/main/parse-worker.ts')
+        }
       }
     }
   },

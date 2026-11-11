@@ -1,7 +1,7 @@
 // The parse worker (#159): one of the threads ParsePool runs. It parses whatever job the pool posts and
 // posts the result back, one job at a time. It touches only the file it is given — the cache and every
-// decision about it stay on the main thread (TokenEngine) — so the parse path imports nothing from
-// electron, which a worker thread cannot load.
+// decision about it stay with the token engine, on the thread that started this one — so the parse path
+// imports nothing from electron, which a worker thread cannot load.
 import { parentPort } from 'node:worker_threads'
 import { runParseJob, type ParseJob } from './providers/token-stats'
 

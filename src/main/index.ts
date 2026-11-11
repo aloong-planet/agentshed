@@ -21,17 +21,15 @@ import {
 import type { CappedText, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
-import { deriveStats } from '@shared/usage'
-import { scan, walkSessions } from './providers/scan'
-import { CodexHeads } from './providers/codex'
 import { questionTextOfRange } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
 import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
 import { readProjectDetail } from './providers/project-detail'
 import { savedInstructionPaths } from './providers/global'
-import { CACHE_VERSION, TokenEngine, projectStatsFromRows, sessionReadSource } from './providers/token-stats'
-import { ParsePool } from './parse-pool'
+import { CACHE_VERSION, sessionReadSource } from './providers/token-stats'
+import { settleScan } from './providers/scanner'
+import { startScans, type ScanClient } from './scan-client'
 import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
 import { installSkillToProject, skillHoldings, uninstallSkill } from './providers/install'
@@ -123,18 +121,16 @@ let mainWindow: BrowserWindow | null = null
 let prefsStore: PrefsStore | null = null
 let updates: UpdateController | null = null
 let settingsChecks: SettingsChecks | null = null
-let tokenEngine: TokenEngine | null = null
-// The Codex rollouts' first-line readings, one object for the run: every scan walks through it, so a rescan
-// opens only the rollouts that changed (token-stats::QR-002/AC-01)
-const codexHeads = new CodexHeads()
+// The scan worker's client (ADR-0043): the token engine, its cache and the rollouts' first-line readings live
+// on that thread, and a scan or a question-index read is a request to it
+let scans: ScanClient | null = null
 // Global search's question texts (ADR-0034): built on the page's first demand in a run, then kept up to date
 // after every scan; held in memory only
 let questionCorpus: QuestionCorpus | null = null
-let parsePool: ParsePool | null = null
 let archive: UsageArchive | null = null
 let perProjectStats = new Map<string, ProjectStats>()
-// The session read allow-list (ticket 04): an exact path Set the main process produces during its own
-// scan, and the only thing range reads honour.
+// The session read allow-list (ticket 04): an exact path Set the application's own scan produces, and the
+// only thing range reads honour.
 // It contains listed sessions plus subagent and nested transcripts (07 needs to expand the latter).
 let sessionWhitelist = new Set<string>()
 // file → tokens: the consumption figure in the session page header, sharing its source with the list
@@ -205,62 +201,30 @@ const PREFS_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_PREFS_DELAY_MS'],
 
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
+  const worker = scans
+  const usage = archive
+  if (!worker || !usage) throw appError(ERR.engineNotReady)
   if (!firstScanComplete) setStartupStatus('scanning')
+  // Nothing in here may throw before its first await: the finally below would then run before `inflight` is
+  // assigned, and every later trigger would join that rejected promise
   inflight = (async () => {
     try {
-      if (SCAN_DELAY_MS > 0 && !firstScanDelayed) {
-        firstScanDelayed = true
-        await new Promise((r) => setTimeout(r, SCAN_DELAY_MS))
-      }
-      let nextStats = perProjectStats
-      let nextSessionFiles = sessionWhitelist
-      let nextSessionTokens = sessionTokens
-      // One walk of the Codex and Grok session trees, read by both scan() and the token build (#160)
-      const sessions = walkSessions(realRoots(), codexHeads)
-      const snap = await scan(realRoots(), { now: () => Date.now(), sessions })
+      // The seam's hold goes with the first scan's request, so that scan is under way on the worker while held
+      const holdMs = firstScanDelayed ? 0 : SCAN_DELAY_MS
+      firstScanDelayed = true
+      // The scan worker reads the agents' data (ADR-0043). The archive merge, the figures derived from its
+      // effective rows and everything the window is told stay here
+      const out = await worker.scan(realRoots(), holdMs)
       if (scanFailures > 0) { scanFailures--; throw new Error('Injected scan failure') }
-      if (tokenEngine) {
-        const claudePaths = snap.projects
-          .filter((p) => p.sides.includes('claude'))
-          .map((p) => p.path)
-        const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
-        const t = await tokenEngine.build(realRoots(), claudePaths, registered, sessions)
-        snap.tokens = t.global
-        // Antigravity CLI conversations the scan could not read reach the side's card (token-stats::REQ-004/AC-02)
-        if (t.antigravityUnreadable > 0) snap.sides.antigravity.unreadable = t.antigravityUnreadable
-        nextStats = t.perProject
-        // The session count shares its source with the sessions section. scan() gives a **file count**
-        // (including warmups and subagents),
-        // while the section lists only real sessions per spec A3a/A3 — two numbers both called "session
-        // count" would contradict each other
-        // (measured on one project: 1511 vs 507). Backfilled here from data just computed above, at zero
-        // extra cost.
-        // Only backfilled when the token engine has run: with the engine absent the file count is kept,
-        // so the column does not go to zero.
-        for (const p of snap.projects) {
-          p.sessionCount = t.perProject.get(mergeKey(p.path))?.sessions.length ?? 0
-        }
-        nextSessionFiles = t.sessionFiles
-        const tok = new Map<string, number>()
-        for (const ps of t.perProject.values()) for (const s of ps.sessions) tok.set(s.file, s.tokens)
-        nextSessionTokens = tok
-        // Archive (ADR-0026): the archive owns the effective row set — live rows for the (day, side) pairs
-        // it accepted, archive rows for archived-only and retained pairs — and every figure derives from
-        // it (spec G6), the project pages included. Undated rows never enter the archive and are added
-        // back here so the whole-history figures keep them (spec G7).
-        if (archive) {
-          const eff = archive.merge(t.rows, snap.scannedAt, { forceAccept: ARCHIVE_FORCE_ACCEPT })
-          if (archiveNotice !== 'taken') archiveNotice = eff.fileFailed ? 'due' : 'none'
-          const rows = [...eff.rows, ...t.rows.filter((r) => !r.day)]
-          snap.tokens = deriveStats(rows)
-          snap.archivedDays = eff.archivedOnlyDays
-          nextStats = projectStatsFromRows(t.perProject, rows)
-        }
-      }
+      const snap = out.snapshot
+      const settled = settleScan(out, usage, { forceAccept: ARCHIVE_FORCE_ACCEPT })
+      if (archiveNotice !== 'taken') archiveNotice = settled.fileFailed ? 'due' : 'none'
       assertSnapshot(snap)
-      perProjectStats = nextStats
-      sessionWhitelist = nextSessionFiles
-      sessionTokens = nextSessionTokens
+      perProjectStats = settled.stats
+      sessionWhitelist = out.sessionFiles
+      const tokensByFile = new Map<string, number>()
+      for (const sessions of out.sessions.values()) for (const s of sessions) tokensByFile.set(s.file, s.tokens)
+      sessionTokens = tokensByFile
       lastScanAt = Date.now() // The baseline for focus throttling (token-stats E1)
       readRegistry.replace({ owner: 'scan',
         artifacts: snap.global.memory.flatMap(m => m.files.map(f => f.file)),
@@ -353,13 +317,13 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   if (!file) throw appError(ERR.sessionNotWhitelisted)
   if (!firstScanComplete) await firstLiveScan
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
-  if (!tokenEngine) throw appError(ERR.engineNotReady)
+  if (!scans) throw appError(ERR.engineNotReady)
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
   // The ranges are in the session file, or in an Antigravity conversation's transcript, derived from the admitted path
   const source = sessionReadSource(realRoots(), file)
   const identity = sourceIdentity(source)
-  const q = await tokenEngine.sessionQuestions(realRoots(), file)
+  const q = await scans.sessionQuestions(realRoots(), file)
   // The text is read live by range (spec D2a: the index holds no text), and never whole
   const { texts } = await readSessionRanges(source, q.questions.map((r) => ({ start: r[0], end: r[1] })))
   const questions = q.questions.map((rec, idx) => {
@@ -396,7 +360,7 @@ handle(CMD.sessionFresh, (_e, raw: unknown) => {
   // The same allow-list comes first (fail-closed); the predicate is read-only and triggers no rebuild
   const file = sessionReadTarget(sessionWhitelist, raw)
   if (!file) throw appError(ERR.sessionNotWhitelisted)
-  return regularTarget(file) && tokenEngine ? tokenEngine.isFresh(file) : false
+  return regularTarget(file) && scans ? scans.isFresh(file) : false
 })
 handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   const a = raw as SessionTurnArgs
@@ -407,8 +371,8 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
     throw appError(ERR.badArgs, { channel: 'getSessionTurn', field: 'i' })
   if (!firstScanComplete) await firstLiveScan
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
-  if (!tokenEngine) throw appError(ERR.engineNotReady)
-  // The range comes from the main process's own index (sessionQuestions rebuilds the single file when
+  if (!scans) throw appError(ERR.engineNotReady)
+  // The range comes from the application's own index (sessionQuestions rebuilds the single file when
   // the signature does not match),
   // and a byte range from the renderer is not accepted — all this channel can fetch is "the turn of a
   // given question"
@@ -416,7 +380,7 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   const readStarted = performance.now()
   const source = sessionReadSource(realRoots(), file)
   const identity = sourceIdentity(source)
-  const q = await tokenEngine.sessionQuestions(realRoots(), file)
+  const q = await scans.sessionQuestions(realRoots(), file)
   if (a.i >= q.questions.length) throw appError(ERR.turnOutOfRange, { i: a.i, total: q.questions.length })
   const rec = q.questions[a.i]
   // A whole turn = from after the question up to the next one ([turn start, turn end); the page already
@@ -437,11 +401,11 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
   if (typeof a?.needle !== 'string' || a.needle.length > SEARCH_NEEDLE_MAX)
     throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'needle' })
   if (typeof a?.fullText !== 'boolean') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'fullText' })
-  if (!tokenEngine) throw appError(ERR.engineNotReady)
+  if (!scans) throw appError(ERR.engineNotReady)
   // The session set comes from the main process's own statistics (the renderer cannot supply file
   // paths); an unregistered project is naturally empty
   const sessions = perProjectStats.get(mergeKey(a.path))?.sessions ?? []
-  const r = await searchProjectSessions(tokenEngine, realRoots(), sessions, a.needle, a.fullText)
+  const r = await searchProjectSessions(scans, realRoots(), sessions, a.needle, a.fullText)
   assertSearchResult(r)
   return r
 })
@@ -736,14 +700,19 @@ void app.whenReady().then(() => {
   // and setting it afterwards renders one frame in the system's light/dark and then jumps the whole page
   // once (the spec's implementation decision)
   applyAppearanceMode(nativeTheme, prefsStore.get().mode)
-  // Parses run on worker threads (#159): every core but one, the main thread's, up to four. Measured on
-  // a cold scan of 4954 files (pnpm bench:scan workers --pool-only): 4 workers 8.5 s at a 1.48 GB peak,
-  // 8 workers 7.4 s at 2.20 GB — the largest file alone bounds the time, so more workers mostly cost memory
-  parsePool = new ParsePool(join(__dirname, 'parse-worker.js'), Math.min(4, Math.max(1, availableParallelism() - 1)))
-  tokenEngine = new TokenEngine(app.getPath('userData'), parsePool)
+  // Scans run on the scan worker (ADR-0043), which starts the parse workers itself (#159): every core but
+  // one, up to four. Measured on a cold scan of 4954 files (pnpm bench:scan workers --pool-only): 4 workers
+  // 8.5 s at a 1.48 GB peak, 8 workers 7.4 s at 2.20 GB — the largest file alone bounds the time, so more
+  // workers mostly cost memory
+  scans = startScans({
+    script: join(__dirname, 'scan-worker.js'),
+    parseScript: join(__dirname, 'parse-worker.js'),
+    cacheDir: app.getPath('userData'),
+    poolSize: Math.min(4, Math.max(1, availableParallelism() - 1))
+  })
   // The listed set as it stands: the snapshot's projects, stale ones included, with each one's listed
   // sessions — the restored ones until the first scan completes (global-search S2)
-  questionCorpus = new QuestionCorpus(tokenEngine, () => ({ roots: realRoots(), projects: corpusProjects(current?.projects ?? [], perProjectStats) }), {
+  questionCorpus = new QuestionCorpus(scans, () => ({ roots: realRoots(), projects: corpusProjects(current?.projects ?? [], perProjectStats) }), {
     pause: FETCH_DELAY_MS > 0 ? () => new Promise((r) => setTimeout(r, FETCH_DELAY_MS)) : undefined
   })
   // The accounting stamp (ADR-0026): the application version covers combination-layer changes, the cache
@@ -855,13 +824,14 @@ if (process.env['ELECTRON_RENDERER_URL']) {
   }, 1000)
 }
 
-// Normal quit waits for pending atomic writes. Forced termination may lose only unfinished writes.
+// Normal quit waits for pending atomic writes, and for the scan worker to stop between two steps of what it is
+// doing, so that no cache write is cut short (ADR-0043). Forced termination may lose only unfinished writes.
 let quitFlushed = false
 app.on('before-quit', (event) => {
-  parsePool?.close()
   if (quitFlushed || !displayStore) return
   event.preventDefault()
-  void displayStore.flush().catch((error: unknown) => console.error('[display-cache] quit flush failed:', error)).finally(() => {
+  const flushed = displayStore.flush().catch((error: unknown) => console.error('[display-cache] quit flush failed:', error))
+  void Promise.all([flushed, scans?.close()]).finally(() => {
     quitFlushed = true
     app.quit()
   })

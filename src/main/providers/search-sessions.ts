@@ -87,7 +87,8 @@ function lineAround(buf: Buffer, off: number): string {
 }
 
 export async function searchProjectSessions(
-  engine: TokenEngine,
+  /** Where the question indexes are read: the scan worker's client in the app (ADR-0043) */
+  engine: Pick<TokenEngine, 'sessionQuestions'>,
   roots: ScanRoots,
   sessions: readonly SessionMeta[],
   needle: string,
