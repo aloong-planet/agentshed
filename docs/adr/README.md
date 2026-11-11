@@ -51,4 +51,4 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0040](0040-rendering-branch-tests.md) | Component tests hold only the rendering branches nothing else checks, chosen by the shape of the data; no e2e case moves | Accepted |
 | [0041](0041-e2e-case-placement.md) | An e2e case goes in its feature's file, placed by the spec that holds the rule, and a shared helper in `e2e/support/`; no limit on file size | Accepted (the directory a slug names amended 2026-11-10) |
 | [0042](0042-packaged-build-refuses-launch-inputs.md) | A packaged build refuses every launch input outside an allow-list, and the packaging proves it | Accepted (the argument rule amended 2026-11-06) |
-| [0043](0043-scan-on-a-worker-thread.md) | A scan runs on one worker thread that owns the token cache; the main process only starts it and takes its result | Proposed |
+| [0043](0043-scan-on-a-worker-thread.md) | A scan runs on one worker thread that owns the token cache; the main process only starts it and takes its result | Accepted |
