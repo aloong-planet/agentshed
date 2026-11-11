@@ -74,8 +74,7 @@ pnpm dev      # 运行应用，改动后自动刷新
 pnpm verify   # 完整检查：类型、lint、单元测试、脚本与网站测试、文案与语言检查、在新构建上跑端到端测试，以及开发模式下的冒烟运行
 ```
 
-- [`docs/features/`](docs/features/README.md)：应用现在能做什么，按功能分篇。
-- [`docs/specs/`](docs/specs/README.md)：每个功能背后的需求与边界情况。
+- [`docs/specs/`](docs/specs/README.md)：应用现在能做什么，按功能分篇，以及每个功能背后的需求与边界情况。
 - [`docs/adr/`](docs/adr/README.md)：架构决策。
 - [`docs/CONTEXT.md`](docs/CONTEXT.md)：代码与文档共用的术语表。
 - [`site/`](site/README.md)：网站，一个独立的项目。

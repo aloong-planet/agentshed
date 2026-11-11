@@ -1,6 +1,6 @@
 # Landing page
 
-> Related: [features](../features/landing-page.md) · [ADR-0031](../adr/0031-macos-release-line.md) ·
+> Related: [ADR-0031](../adr/0031-macos-release-line.md) ·
 > [mac-distribution](mac-distribution.md) (the releases and the pointer it reads) ·
 > [app-update](app-update.md) (the update button its install steps mention)
 
@@ -31,8 +31,7 @@ As a visitor, I want to see at a glance what Agentshed does and get it in one cl
 it without reading the repository.
 
 - landing-page::US-001/AC-01: The hero shows the app icon, the title, a one-paragraph description, the
-  download button with the platform line "macOS 12 or later · Apple Silicon", and a screenshot of the
-  whole app window.
+  download button with the platform line "macOS 12 or later · Apple Silicon", and a walkthrough with captions in the page language.
 - landing-page::US-001/AC-02: When a formal release exists, the hero button downloads that release's
   DMG directly.
 - landing-page::US-001/AC-03: When only pre-releases exist, the hero button leads to the newest
@@ -138,15 +137,14 @@ Releases and the copyright line.
 
 ### landing-page::REQ-005 The screenshots
 
-- landing-page::REQ-005/AC-01: The hero screenshot and the overview, project, token and Chinese session
-  screenshots come from the built app over the owner's own agent data, approved for publication by the
-  owner (on 2026-10-13; the hero's retake on 2026-10-21). The memory and search screenshots come from the
-  built app over a made-up home whose projects, memory files and questions have the shape of real
-  ones, the same projects in both (the owner's choice, 2026-10-21). There is one set per language, taken
-  in the light appearance. The English session screenshot is retaken from the built app over an English
-  example conversation (2026-11-09), including English questions, replies and tool details.
-- landing-page::REQ-005/AC-02: The hero screenshot is the whole window, its rail showing the Search
-  item. Each feature screenshot is cut to the part of the window its step is about. All six are the
+- landing-page::REQ-005/AC-01: The overview, project, token and
+  Chinese session screenshots come from the built app over the owner's own agent data, approved for
+  publication by the owner. The memory and search screenshots come from the built app over a made-up
+  home whose projects, memory files and questions have the shape of real ones, the same projects in
+  both. There is one set per language, taken in the light appearance. The English session screenshot
+  is retaken from the built app over an English example conversation, including English questions,
+  replies and tool details.
+- landing-page::REQ-005/AC-02: Each feature screenshot is cut to the part of the window its step is about. All six are the
   same size (16:9) at the same zoom, so the text stays one size as the steps turn. Each cut ends between
   list rows. The token cut leaves out the recent-sessions list. The memory cut shows a memory file open
   in the drawer as rendered Markdown, over the Agents page's Memory section with that file's project
@@ -171,7 +169,21 @@ The features section's project step lists what a project has using the app's own
 ([project-detail::REQ-004](project-detail.md)): "Skills, subagents, plugins, MCP servers and instructions" in English,
 and the same list with the section's Chinese label in Chinese.
 
-### landing-page::REQ-009 Author homepage (direct acceptance)
+### landing-page::REQ-009 Walkthrough video
+
+- landing-page::REQ-009/AC-01: Both pages show the approved local poster in the existing window frame. The playback entry reads
+  “Watch demo · 1:07” in English and uses its localized label with the same duration in Chinese. Each page opens its own video with
+  English narration and captions in the page language.
+- landing-page::REQ-009/AC-02: No YouTube player, thumbnail, preconnect or script loads before activation.
+  Clicking the entry or activating it with Enter replaces the poster with the privacy-enhanced YouTube
+  player and requests playback. The player supports inline playback and fullscreen; browser playback
+  restrictions may require another press of the player's Play control. The frame stays 16:9 throughout.
+- landing-page::REQ-009/AC-03: “Watch on YouTube” remains available below the frame. Without site scripts,
+  the poster is also a direct YouTube link. Modified clicks keep normal link behavior.
+- landing-page::REQ-009/AC-04: The video is hosted on YouTube. Only the poster and the published video's
+  link ship in the website repository; the approved narration and music are unchanged.
+
+### landing-page::REQ-010 Author homepage (direct acceptance)
 
 In both languages, the existing footer copyright line links the author name "aloongplanet" to
 `https://aloongplanet.com` in a new tab, with the existing footer layout and styling.
@@ -203,7 +215,8 @@ two languages (ADR-0035).
 ### landing-page::CON-003 What the page reads (direct acceptance)
 
 Applies to: the visitor's browser. The page reads the R2 latest pointer and GitHub's public releases
-API, and nothing else at run time, to decide what to offer. Pre-releases are never looked for on R2,
+API, and no other source, to decide what download to offer. The walkthrough additionally loads
+YouTube only after the visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
 since they never reach it (mac-distribution::CON-004).
 
 ## Failure modes and boundaries
@@ -237,7 +250,7 @@ since they never reach it (mac-distribution::CON-004).
   Old `/en` and `/en/` links redirect to `/`, including links with query parameters or a section fragment,
   without requiring scripts (landing-page::US-002/AC-03). The toggle links to the other language directly.
 - B2 The navigation's GitHub link opens the repository in a new tab. The section links scroll within
-  the page. The footer author name opens the owner's homepage in a new tab (landing-page::REQ-009).
+  the page. The footer author name opens the owner's homepage in a new tab (landing-page::REQ-010).
 
 **Sequence C: the features section**
 
@@ -267,22 +280,32 @@ since they never reach it (mac-distribution::CON-004).
 - E1 The pointer and GitHub's answer are external data. Only validated version strings and URLs on the
   expected hosts (the download host and github.com) reach the page, rendered as text and as link
   targets. Release notes and other release text are never inserted into the page.
-- E2 The hero and the overview, project, token and Chinese session screenshots show real project names, paths,
+- E2 The overview, project, token and Chinese session screenshots show real project names, paths,
   usage and session text by the owner's decision; the English session, memory and search screenshots show none of the
-  owner's data (landing-page::REQ-005/AC-01). Retaking them is the only way to change what they show, so the hero,
+  owner's data (landing-page::REQ-005/AC-01). Retaking them is the only way to change what they show, so the
   overview and project screenshots keep showing the Instructions section's former name and place until they are
   next retaken.
 
+**Sequence F: watching the walkthrough in either language**
+
+- F1 A visitor opens the page → only the local poster loads; no sound or YouTube request starts.
+- F2 A mouse click or Enter on the poster → one player replaces it without changing the frame size;
+  focus moves to the iframe. Playback starts when allowed by the browser.
+- F3 Scripts disabled → the poster and the separate link open YouTube. A modified click also opens
+  YouTube using normal browser link behavior.
+- F4 YouTube is blocked, unavailable or refuses embedded playback → its player owns the error;
+  “Watch on YouTube” stays reachable, as do the site's download links. Direct playback also requires
+  YouTube access. Reloading the page restores the poster.
+- F5 Resize or use a phone → poster and player fit the same responsive 16:9 area, without horizontal overflow.
+
 ## Implementation Decisions
 
-- **The Astro project follows Transfer's site**: an i18n configuration with English as the default at
-  `/` and Chinese under `/zh/`, a base layout, one component per section, and a two-language
-  dictionary. Pages is configured as in Transfer's Pages guide (root directory `site`). Legacy English URLs
-  have permanent host redirects; the static build also carries a redirect fallback for local previews.
-- **Deciding the download state is one pure function** from the two read results (pointer: a version,
-  absent or unreadable; GitHub: a latest formal release, a newest pre-release, nothing, or unreadable)
-  to one of the four states. A small browser script performs the reads and applies the result. The
-  served HTML renders the list state.
+- **The hero video** uses a local 1600×900 poster and a progressively enhanced YouTube link.
+  Activation creates an iframe on `youtube-nocookie.com` with playback requested, inline playback
+  and fullscreen allowed, and `strict-origin-when-cross-origin` referrer policy to identify the
+  embedding origin. No YouTube API library is loaded.
+
+- **The Pages project** has its root directory set to `site`. It permanently redirects the legacy English URLs; the static build includes a fallback for local previews.
 - **The pointer read** takes a pointer only when its version is a formal version and its files name the
   arm64 DMG, by its packaged name, at exactly the URL the mirror's layout gives that version. Anything
   else is unreadable; a 404 means there is no pointer yet.
@@ -300,28 +323,24 @@ since they never reach it (mac-distribution::CON-004).
   visitor's view (the view starts below the sticky header), the page scrolls by the block's change, so
   what the visitor sees does not move; while the block is in view it changes in view (Failure A7).
 - **The palette** is the app's purple palette, with light and dark both declared and switched by the
-  system appearance. The pre-release version's pill and note use the app's warning pair. The GitHub button
-  beside Download is a secondary button: the card ground with the strong line, and the accent border on
-  the soft accent ground on hover. Icons are inline SVG copied from Lucide (download). The text is set in
-  the system font stack; the page loads no web font.
-- **The app icon** is the production artwork with its transparent exterior. In the hero its shadow follows
-  the icon's outline: a shadow round the image's square box showed the transparent margin as a tile
-  (decided 2026-10-18). The browser tab shows the app icon and "Agentshed — " followed by the hero title;
-  the page's description is the hero paragraph.
+  system appearance. The pre-release version's pill and note use the app's warning pair. The GitHub
+  button beside Download is a secondary button: the card ground with the strong line, and the accent
+  border on the soft accent ground on hover. The text is set in the system font stack; the page
+  loads no web font.
+- **The app icon** is the production artwork with its transparent exterior. In the hero its shadow
+  follows the icon's outline. The browser tab shows the app icon and "Agentshed — " followed by the
+  hero title; the page's description is the hero paragraph.
 - **The language toggle** is a link to the other language's page, so it works without scripts. Before
   leaving, a script notes the element in view, its distance from the top of the window and the current
   step; the other page puts the same element back at the same distance and makes the same step current
   (landing-page::REQ-004/AC-07). An element rather than a scroll offset, because the two languages' texts
   wrap to different heights. The pinned showcase is never that element (Failure C5).
-- **The features section** is built as the prototype was: the showcase is pinned inside a block one
-  window tall plus 60% of a window for each further step; the turns are empty blocks after the pinned
-  part, so the number of steps sets the block's height. The current step is the distance scrolled past the
-  point where it pins, in turns, rounded and kept within the steps, both measured from the page; it is
-  computed on scroll and on resize, throttled to animation frames. Without scripts the stylesheet shows
-  the stacked steps in place of the showcase (Failure C7). The steps' texts share one place, and
-  so do their screenshots; the others are hidden with visibility as well as opacity, since a transparent
-  screenshot would still lie on top and take the pointer. The screenshot's width is capped by the
-  window's height so that it stays whole. Below 760px the stacked steps replace the showcase.
+- **The features section**: the showcase is pinned inside a block one window tall plus 60% of a
+  window for each further step, so the number of steps sets the block's height. The current step is
+  the distance scrolled past the point where it pins, in turns, rounded and kept within the steps,
+  both measured from the page; it is computed on scroll and on resize. The steps' texts share one
+  place, and so do their screenshots; the others are hidden with visibility as well as opacity,
+  since a transparent screenshot would still lie on top and take the pointer.
 - **The screenshots** ship as static assets with their width and height declared. They are taken at 2×
   pixels from a window 1280pt wide and 800pt tall. Each feature cut is 920×517pt (16:9), the narrowest that
   holds the token page's trend chart and per-model figures whole. The search and memory screenshots are
@@ -329,59 +348,21 @@ since they never reach it (mac-distribution::CON-004).
   expands a project with only a few memory files, so that other projects stay in view. The English session
   retake uses a 1240pt window so the session pane fits the 920pt cut without truncating its right edge.
 
-## Testing Decisions
-
-Seams confirmed by the owner on 2026-10-13:
-
-- **The download-state function**: unit tests cover every branch of landing-page::REQ-001, malformed
-  pointer and GitHub bodies, drafts, a release without the DMG, and URLs on unexpected hosts.
-- **A check of the built site**: both pages are generated, the served HTML is in the list state with
-  the release-list links, both languages' copy and screenshots are present, and every screenshot
-  declares its size. It also checks language routes, the legacy redirect fallback and host rules, and
-  the footer author link. It reads a fresh build made for the run, never a previous one.
-- **The palette**: a unit test holds every token the page shares with the app to the app's purple values,
-  in light and in dark, and every token to a declaration in both.
-
-Beside them, for the parts the state function does not reach:
-
-- **The two reads**, through an injected fetch, so no case reaches the network: real-shaped answers (the
-  pointer as the release script writes it, GitHub's answer as GitHub gives it) and each way they can be
-  unreadable.
-- **A state applied to the built page**: each state's view applied to a fresh copy of the served page,
-  read back from the page; the requests the page's script makes, at the injected fetch (landing-page::CON-003).
-- **Evidence**: the features section's scroll behaviour, the four states' rendering, and
-  landing-page::QR-001 are measured in a browser, as they were on the prototype (geometry and computed
-  styles, not pixels), and the measurement record is kept. Browser checks also exercise the language
-  switch and legacy redirects through the host runtime, including query strings and fragments.
-
-Prior art: Transfer's site tests for its download configuration, and the prototype's browser checks.
-
 ## Out of Scope
 
 - Retaking the screenshots only because the Instructions section changed its name and place (E2).
 - Download statistics (deferred, ADR-0031 option 10).
 - More than two languages (ADR-0031 option 6).
 - A copy of the page in mainland China (ADR-0031 option 8).
-- A version constant built into the site (rejected 2026-10-13 in favour of reading at run time).
+- A version constant built into the site (rejected in favour of reading at run time).
 - Clicking or keying between the feature steps: the showcase shows one step at a time and turns with the
   scroll (landing-page::REQ-004/AC-08).
-- Keeping the hero's heading and paragraph word for word the same as the README's opening (dropped
-  2026-10-24: the owner does not need the two to match).
+- Any download other than the disk image for Macs with Apple Silicon on macOS 12 or later: there is
+  no Intel, Windows or Linux download.
+- Keeping the hero's heading and paragraph word for word the same as the README's opening (the owner
+  does not need the two to match).
 
 ## Further Notes
-
-- Prototype gate: passed on 2026-10-13 for the page structure, the copy, the privacy-flavoured subtitle,
-  the install steps, the scroll-linked features section and the cropped screenshots. The owner also
-  chose to read the pointer at run time and approved the screenshots for publication. The same day the
-  owner confirmed the revised prototype's list state (landing-page::REQ-002/AC-04) and its
-  formal-from-GitHub state (landing-page::REQ-002/AC-02). On 2026-10-18 the owner chose the app icon for
-  the browser tab, and confirmed the revised prototype's hero icon: the real artwork, its shadow on its
-  outline. On 2026-10-19 the owner confirmed the revised prototype's dark warning colours, brought to the
-  app's own (the test state's pill and note). On 2026-10-21 the owner confirmed the revised prototype:
-  a step for memory and one for search across projects, the sessions step's wording, the retaken hero,
-  the pinned features section (after the layout of a reference page the owner supplied; a slide between
-  steps was tried and dropped, since it made the screenshot jump), the heading and the README's summary
-  in the hero, and made-up data in the memory and search screenshots.
 
 - The download host is `dl.agentshed.aloongplanet.com` (mac-distribution::REQ-004), and the pointer is
   `latest.json` at its root; the pointer's shape is in mac-distribution's Implementation Decisions.

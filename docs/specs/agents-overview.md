@@ -1,13 +1,11 @@
 # Agents overview
 
-> Related: [features](../features/agents-overview.md) · ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
-> Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
-> artifacts on 2026-08-01. Each section's component-level requirements and boundaries live in its own
-> spec (subagents-view / memory-view / plugins-view / token-stats / skill-install); this document
-> covers only **page-level** rules: which sections exist, the summary cards, and single-side
-> degradation.
+> Related: ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
+> Each section's component-level requirements and boundaries live in its own spec (subagents-view /
+> memory-view / plugins-view / token-stats / skill-install); this document covers only
+> **page-level** rules: which sections exist, the summary cards, and single-side degradation.
 
-> Startup restoration uses the original page prototypes confirmed on 2026-09-14.
+> Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
 
 ## Problem Statement
@@ -54,13 +52,11 @@ see [appearance](appearance.md) (the rail's settings dimension).
   different things, each a sentence in the current UI language naming the file, with no system error and
   no parser's text. A snapshot saved before the file was named shows the sentence alone until the first
   scan answers.
-- A4 First scan of this launch not finished and no usable saved snapshot → the page renders a **skeleton** (changed 2026-08-21;
-  it used to be a bare hint on an otherwise empty stage): the page's real structure with its static
-  labels rendered (title, time-window card labels, side-card names, tab labels, trend title) and a
-  placeholder block in every data slot — card values, side figures and their secondary rows, the
-  trend chart with its axis and legend, the per-model rows. A scanning hint (spinner + copy) sits
-  **inline in the title row**. The hint copy no longer promises that nothing is shown before the
-  scan finishes — that sentence became false with this change and is rewritten in every language.
+- A4 First scan of this launch not finished and no usable saved snapshot → the page renders a
+  **skeleton**: the page's real structure with its static labels rendered (title, time-window card
+  labels, side-card names, tab labels, trend title) and a placeholder block in every data slot — card
+  values, side figures and their secondary rows, the trend chart with its axis and legend, the
+  per-model rows. A scanning hint (spinner + copy) sits **inline in the title row**.
 - A4a The skeleton is non-interactive: time-window cards, tabs and every other control under the
   page header refuse pointer input, and nothing shows a hover or selected affordance beyond a muted
   default-tab marker. The rail stays live — settings and the projects dimension both work. Changing
@@ -85,40 +81,54 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - B1 The sections, in this order = Token / Instructions / Skills / Subagents / Plugins / MCP / Memory
   (agents-overview::REQ-006); a new component type extends this list.
 - B2 A summary card's secondary row shows that side's project count, global skill count and subagent
-  count — using the same accounting as the corresponding section, with one stated difference: the skill
-  count is the side's own global library (its on-disk names), never the plugin entries the Skills section
-  also lists (skills-view::REQ-001/AC-05; settled 2026-10-29 for every side, so Claude's figure no longer
-  counts the skills of its enabled plugins — one label on every card cannot count two ways). The project
-  count is every project the side's registry records, stale ones included: the list its link opens shows
-  exactly those (agents-overview::REQ-007).
+  count — using the same accounting as the corresponding section, with one stated difference: the
+  skill count is the side's own global library (its on-disk names), never the plugin entries the
+  Skills section also lists (skills-view::REQ-001/AC-05; the same for every side, Claude's included
+  — one label on every card cannot count two ways). The project count is every project the side's
+  registry records, stale ones included: the list its link opens shows exactly those
+  (agents-overview::REQ-007).
 - B3 The Token totals **include stale projects** (this differs from the project list's default
-  filtering; "hidden" left this rule with ADR-0022). The all-history card carried an explicit
-  "(includes stale projects)" note until 2026-08-22, when the note was retired by user decision —
-  the label reads `Total · all history` bare, and the inclusion is documented here rather than
-  restated on the card.
+  filtering; ADR-0022). The all-history card's label reads `Total · all history` bare, with no
+  "(includes stale projects)" note; the inclusion is documented here rather than restated on the
+  card.
 - B4 Sections where the sides' concepts are asymmetric (the Codex group under Plugins, the Codex
   global entry under Memory) follow their own spec's probe-style rules, and no false signal is
   manufactured for the sake of symmetry.
 - B5 Instructions section: an entry with no file shows "None" in its card rather than an error;
   oversized files are truncated; the card keeps about half the window's height and its files scroll
   inside it, as the prototypes draw it.
+- B6 Token section (the default tab): a daily trend chart over 30 / 60 / 90 days, switchable between
+  combined and a single side, and a cross-project model breakdown; the totals include stale
+  projects (B3).
+- B7 Skills section: every side's global library is merged into one column, with side badges showing
+  which sides have each entry and symlinks marked; there is no cross-side content diff. On-disk
+  skills expand to preview the package's files ([skills-view](skills-view.md)); global library
+  entries can start an "Install to…" action; plugin entries are read-only and expand to preview the
+  package ([plugins-view](plugins-view.md)).
+- B8 Subagents section: the Claude Code, Codex and Antigravity CLI subagent definitions in one view
+  ([subagents-view](subagents-view.md)). Plugins section: the plugin list grouped by side, with
+  bundled components expandable. Memory section: a summary of each project's automatic memories,
+  with viewing ([memory-view](memory-view.md)).
+- B9 MCP section: each side's global MCP servers grouped by origin (global config / bundled with a
+  plugin / `config.toml` / Antigravity CLI's global MCP file); a server its configuration disables
+  is marked Disabled, and a plugin's server names the plugin it comes from.
 
 **Cross-cutting**
-- R1 Component-level boundaries live in each section's own spec and are not repeated here; adding a
-  section means updating B1's list.
+- R1 Component-level boundaries live in each section's own spec and are not repeated here.
 - R2 The automatic scan is shared by both dimensions, and a trigger arriving while one is in flight is
   deduplicated (projects-list C4).
+- R3 Every restart opens Agents, and the global 30/60/90-day trend choice is remembered across
+  restarts ([token-stats](token-stats.md)); the other choices are not (agents-overview::CON-003).
 
 **Sequence G: the Grok side**
 - G1 Grok's own global skills (its skills directory) list alongside the other sides'; what it
   borrows from Claude Code's configuration at runtime never joins its lists — the exclusion is by
   construction (only its own root is read), and the Skills section carries one line of copy saying
-  the borrowing happens (ADR-0019; the line is allow-listed in the side-enumeration gate as a
-  statement about a real borrowing relation).
+  the borrowing happens (ADR-0019).
 - G2 Agent definitions, plugins, memory and user-level MCP ship as explicit empty states: on the
   reference machine those categories have no real data (no directories, no config sections), and
   per the AGENTS.md sampling invariant no parser is written from a documentation name alone. Each
-  category's parser lands when a real sample exists; the feature catalogue states the gap.
+  category's parser lands when a real sample exists.
 - G3 The third summary card follows A2/A3 like the others; installing a Grok skill into a project
   lands in the project's own .grok/skills (the same copy semantics as the other sides).
 
@@ -144,7 +154,7 @@ and the IDE (ADR-0037).
   ([token-stats::REQ-004](token-stats.md)), the card's third line reads "N conversations couldn't be
   read" in the warning colour instead, with a tooltip saying that agy may have changed its conversation
   format in an update and that their usage is not counted; the figure above it stays. A count of zero
-  shows the usual third line. (Placement: the owner's ruling of 2026-10-28.)
+  shows the usual third line.
 - agents-overview::REQ-003/AC-03: The Skills, Subagents and Plugins sections gain the side as
   [skills-view::REQ-001](skills-view.md), [subagents-view::REQ-001](subagents-view.md) and
   [plugins-view::REQ-001](plugins-view.md) define; the Memory section shows nothing for it
@@ -196,7 +206,7 @@ governs the project page's).
   says that neither the global file nor an enabled plugin brings one. A server's row is its name, its
   source, the Disabled pill when its configuration disables it, and for a plugin's server the note
   naming that plugin — one row form for every side's group, so Claude's plugin servers carry the note
-  too (settled 2026-10-29). A server's command or URL is shown on no row: it can carry a token.
+  too. A server's command or URL is shown on no row: it can carry a token.
 - Copy never enumerates the sides as a closed set: the unreadable notice names only this side's own
   conversations, and the Instructions entries are named by file, not by side.
 
@@ -335,11 +345,11 @@ them ([token-stats](token-stats.md), An archive a newer build wrote, says how a 
 - Save successful snapshot and page-read results during normal operation, with ordered atomic
   replacement and a normal-quit flush. A forced kill may lose writes not yet completed, never
   invalidate the previous complete save. No numeric latency or retention limit has been approved.
-- Main owns the saved data and produces validated page payloads; the renderer hydrates its query
-  layer before showing restored pages. Do not add an arbitrary renderer-to-disk cache-write API.
+- Main owns the saved data and produces validated page payloads; the renderer receives restored data
+  before showing restored pages. Do not add an arbitrary renderer-to-disk cache-write API.
 - Use the existing inline scanning form in the page heading, including the project-list heading
   once there are real rows to select. On failure, stop the spinner and retain a quiet waiting-for-
-  update status. Placement and failure wording follow the original prototypes confirmed on 2026-09-14.
+  update status. Placement and failure wording follow the original prototypes.
 - Saving only main-side statistics and allow-lists is insufficient for the session page when its
   question index is missing. The saved page payload is the startup display source in that case.
 - A side this build does not know (agents-overview::REQ-005) is removed from every record keyed by side
@@ -349,53 +359,23 @@ them ([token-stats](token-stats.md), An archive a newer build wrote, says how a 
   so that entry is not restored. For the side's other keyed facts — detected, symlinked, packaged — it
   removes facts this build shows nowhere.
 
-### Startup verification decisions
-
-Reuse the existing fixture-home / user-data-directory Electron seam and first-scan/fetch delay
-injections, plus a fixture-only count of failing scans. Visit pages in process A, quit, relaunch process B with the same user-data directory and
-hold its first scan. Assert that the restored pages render before release of that scan. Repeat with
-an incompatible accounting cache, a missing display cache and a corrupt display entry. Complete or
-fail the scan and inspect visible data, page anchors and current expansion state. At the existing
-filesystem and IPC contract seams, verify atomic persistence, independent versions, failed writes,
-registration admission and replacement. No prototype mock is implementation evidence.
-
-agents-overview::REQ-005 is tested at the display store's filesystem seam, the counterpart of the
-existing restore of a copy saved before a side existed: payloads of every saved kind, built as this
-build's own types require, have one known side renamed in every key and value to a name generated to be
-outside the set, and are written and read back. Nothing read back names that side
-(agents-overview::REQ-005/AC-03); an entry whose only mention was a keyed record restores with it
-removed (agents-overview::REQ-005/AC-01); one that named it in a value is dropped while the others
-restore (agents-overview::REQ-005/AC-02). The snapshot is also checked with the side in each value position
-alone — a project's, a skill's and a subagent's list of sides, a memory or MCP entry, a usage or model row —
-each beside a control that restores without the rename. The renamed side stands in for any later one. Because the payloads
-are typed and their records keyed by side are built over the agent-side set, a record a later change adds to a
-saved type either arrives through the empty payloads the production code builds or stops the fixture compiling
-until it carries it.
-
 ## Implementation Decisions
 
 - **Data source**: one scan produces the overview snapshot and every section consumes that same
   snapshot (no per-section rescans); the parts depending on the project registry (such as the Memory
   summary) are filled in once the project list is ready.
 - **Contract**: the snapshot structure follows ADR-0001's single type source plus boundary
-  validation; adding a section requires extending the validation at the same time (forgetting means
-  it passes silently).
+  validation.
 - **Degradation granularity**: degrade per side (a single-side failure does not affect the other),
   never fail the whole page.
-- **Skeleton**: a render-layer state of the same page, driven by "no snapshot yet" — the main
-  process is untouched. Static labels come from the dictionaries (the same keys the loaded page
-  uses); placeholder blocks take the separator-line grey with a subtle opacity pulse that honours
-  reduced-motion preferences (settled in the prototype, 2026-08-21). Placeholder geometry matches
-  the loaded content's line boxes so the fill is shift-free (A4b).
-- **One ordered tab list** (agents-overview::REQ-006): the loaded page and its skeleton read the same ordered list
-  of tabs, labels included, so they cannot disagree about the order.
-- **The section's code names follow the interface** (settled 2026-11-03): the section's component, its tab key, its
-  dictionary keys, the type of its files, the function reading them and its style classes all say "instructions",
-  on the agents page and on a project's. The dialog button's style, the file kind labelled "CFG" and the path of
-  Claude Code's own configuration file name other things and keep their names. The saved fields `configs`,
-  `claudeMd` and `agentsMd` keep theirs, so the display copy's format does not change.
-- **The project count is its own element** (agents-overview::REQ-007): the dictionaries give the count and the rest
-  of the line separately, so one can be a control while the sentence stays each language's own.
+- **Skeleton**: a state of the same page, driven by "no snapshot yet". Static labels are the loaded
+  page's own; placeholder blocks take the separator-line grey with a subtle opacity pulse that
+  honours reduced-motion preferences. Placeholder geometry matches the loaded content's line boxes
+  so the fill is shift-free (A4b).
+- **Saved field names**: the Instructions section's saved fields `configs`, `claudeMd` and
+  `agentsMd` keep their names, so the display copy's format does not change.
+- **The project count is its own element** (agents-overview::REQ-007): the count and the rest of the
+  line are separate, so one can be a control while the sentence stays each language's own.
 - **Instruction files carry their paths** (agents-overview::REQ-004): each file the section shows
   travels with its absolute path, which heads it, and with its contents — or none, for a file that
   exists but cannot be read; an absent file is not sent, so an entry with no file shows "None". The
@@ -404,36 +384,6 @@ until it carries it.
   with the two files that version read — CLAUDE.md and Codex's AGENTS.md — at the paths the main
   process knows them by, and without its settings summary (AGENTS.md: a saved page restores across an
   update).
-
-## Testing Decisions
-
-Following ADR-0038's seams: fixture unit tests at the providers layer cover single-side absence
-and corruption degradation and snapshot assembly; the contract validation round trip; e2e covers that
-switching through every section renders with no main-process errors (adding a section requires
-updating the tab count assertion).
-
-The Antigravity side (agents-overview::CON-004, agents-overview::REQ-003, agents-overview::REQ-004) is
-tested on the same seams: the providers layer over a fixture home holding agy's data root, an
-unreadable conversation, a global MCP file with a disabled server and an enabled plugin's servers, and
-any subset of the three global AGENTS.md files; e2e reads the side card's third line in both states
-and the AGENTS.md entry with two files, three and none. The badge pair's values in both appearances
-are asserted where the other side colours are. The restore of a snapshot saved before the
-instruction files carried their paths is asserted at the display store's filesystem seam and, for
-the main process's own paths, by an e2e case that holds the first scan.
-
-The skeleton (A4 family) is tested at the e2e seam: an environment-injected delay holds the first
-scan open (the same injection family as the rescan intervals), so the skeleton window is a stable
-state rather than a race. Assertions are render-level, not existence-level: the placeholder blocks
-are visible, controls under the header refuse pointer input (hit-testing, not attribute checks), and
-the in-place fill is asserted **geometrically** — key anchors' positions measured before and after
-the snapshot arrives (the same discipline as the project list's floating-layer assertions).
-
-agents-overview::REQ-006 and agents-overview::REQ-007 are tested at the e2e seam over a fixture home. The tab
-order is read on the loaded page and, under the held first scan, on the skeleton. For the link: one side with a stale
-project, one without and one with no projects; the counts are read from the cards and compared with the rows the list
-then shows (the arrival itself is [projects-list::REQ-002](projects-list.md)). The count of zero is asserted by
-hit-testing that no control is under it, the look by computed styles at rest and on hover, the height by measuring the
-card with a count of one or more and of zero, and the keyboard path by focusing the control and pressing Enter.
 
 ## Out of Scope
 
@@ -446,4 +396,5 @@ card with a count of one or more and of zero, and the keyboard path by focusing 
 - A dedicated first-scan error state (A4d keeps the skeleton and lets the rescan triggers retry).
 - Making a first installation or a cleared user-data directory show history before its first scan: no saved display data exists in that case.
 - Settings summaries of any side (the Codex `config.toml` summary and the Claude project settings
-  summary were removed on 2026-10-28, ADR-0037), and agy's GEMINI.md files and rules.
+  summary, ADR-0037), and agy's GEMINI.md files and rules.
+- Antigravity CLI's memories and built-in skills.

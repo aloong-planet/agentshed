@@ -291,9 +291,9 @@ const RULES = [
     why: 'the Chinese README — a localisation is written in the language it localises into'
   },
   {
-    match: (f) => /^README\.[a-z]{2}\.md$/.test(f) || f === 'docs/features/i18n.md',
+    match: (f) => /^README\.[a-z]{2}\.md$/.test(f),
     test: languageNameOnly,
-    why: 'the language switcher rows and the selector list — a language is named in its own script'
+    why: 'the language switcher rows — a language is named in its own script'
   }
 ]
 

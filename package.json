@@ -19,14 +19,17 @@
     "dist:mac:local": "node build/mac-packaging.cjs local",
     "dist:mac:release": "node build/mac-packaging.cjs release && node build/mac-packaging.cjs notarize-dmg",
     "e2e": "electron-vite build && playwright test",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:scripts && pnpm test:site && pnpm check:ui && pnpm check:lang && pnpm check:i18n && pnpm check:nul && pnpm e2e && pnpm smoke",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:scripts && pnpm test:ci && pnpm test:site && pnpm check:ui && pnpm check:lang && pnpm check:i18n && pnpm check:nul && pnpm e2e && pnpm smoke",
     "smoke": "bash scripts/smoke.sh",
     "check:ui": "node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs",
     "check:lang": "node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
     "check:nul": "node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs",
     "bench:scan": "node scripts/bench-scan.mjs",
-    "restore:archive": "node scripts/restore-archive.mjs"
+    "restore:archive": "node scripts/restore-archive.mjs",
+    "lint:app": "eslint . --ignore-pattern site/ --max-warnings 0",
+    "lint:site": "eslint site/ --max-warnings 0",
+    "test:ci": "node --test scripts/ci-scope.test.mjs scripts/ci-gate.test.mjs scripts/ci-workflow.test.mjs"
   },
   "devDependencies": {
     "@actions/expressions": "^0.3.61",

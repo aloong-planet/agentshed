@@ -1,14 +1,14 @@
 # App updates
 
-> Related: [features](../features/app-update.md) · [ADR-0032](../adr/0032-app-updates.md) (as amended
-> the same day) · [ADR-0031](../adr/0031-macos-release-line.md) (the releases this reads) ·
+> Related: [ADR-0032](../adr/0032-app-updates.md) ·
+> [ADR-0031](../adr/0031-macos-release-line.md) (the releases this reads) ·
 > [mac-distribution](mac-distribution.md) (what each release carries) · CONTEXT: **App update**,
 > **Update check**; AGENTS.md: the invariant on outbound requests
 
 ## Problem Statement
 
 Once Agentshed is released, an installed copy has no way to learn that a newer version exists: users
-stay on whatever they first downloaded. Agentshed is local-first, and until now its own code has made
+stay on whatever they first downloaded. Agentshed is local-first, and its own code makes
 no outbound request at all, so whatever reaches the network has to be the one deliberate exception, be
 possible to turn off, and must not stand between the user and their work.
 
@@ -71,11 +71,11 @@ it found, so that I know where I stand.
 - app-update::US-003/AC-01: "Check for Updates…" in the application menu reports its outcome in a
   toast. The possible outcomes are already up to date (naming the current version), the check failed,
   or an update was found and is downloading in the background.
-- app-update::US-003/AC-02: "Check now" in settings reports its outcome in the result line beside the
-  button: checking, already up to date, or the check failed. An update it finds shows in the line as
-  described in app-update::REQ-004. The button is unavailable while its own check runs, and while an
-  update is downloading — a click could change nothing then, and the line already says why (owner's
-  call, 2026-10-13). While an update is ready or installing, the button is "Install now" instead
+- app-update::US-003/AC-02: "Check now" in settings reports its outcome in the result line beside
+  the button: checking, already up to date, or the check failed. An update it finds shows in the
+  line as described in app-update::REQ-004. The button is unavailable while its own check runs, and
+  while an update is downloading — a click could change nothing then, and the line already says why.
+  While an update is ready or installing, the button is "Install now" instead
   (app-update::REQ-003/AC-04). "Check now" is back, and available, once the update is installed, or
   once the download or the install fails.
 - app-update::US-003/AC-03: A manual check that finds an update starts the background download, as
@@ -145,7 +145,7 @@ never replaces my working build. The updater cannot work in an unpackaged app an
 
 - app-update::REQ-003/AC-01: The settings page gains a third section, "Updates", after Language and
   Appearance, in the same card-and-rows form. One card holds two rows. The first, "Check for updates
-  automatically", has an On / Off segmented control (the existing segmented form). The second,
+  automatically", has an On / Off segmented control. The second,
   "Current version" followed by the running version, has the result line and one button: "Check now",
   or "Install now" while an update is ready or installing (app-update::REQ-003/AC-04).
 - app-update::REQ-003/AC-02: Below the card, a footnote says that new versions download in the
@@ -155,7 +155,7 @@ never replaces my working build. The updater cannot work in an unpackaged app an
 - app-update::REQ-003/AC-03: A change to the switch takes effect at once, with no save button.
 - app-update::REQ-003/AC-04: While an update is ready, the version row's button is "Install now" in
   place of "Check now", in the same form and position: the line beside it says the update is ready, so
-  the row offers the install (owner's call, 2026-10-13). Clicking it does what clicking the ready
+  the row offers the install. Clicking it does what clicking the ready
   button does (app-update::US-001/AC-04). The two are one action: once either is clicked the install
   runs once, "Install now" stays but is unavailable while it runs, and the rail shows installing. When
   the download finishes while settings is open, the unavailable "Check now" becomes "Install now"
@@ -174,12 +174,12 @@ never replaces my working build. The updater cannot work in an unpackaged app an
 - app-update::REQ-004/AC-03: The line is kept when the user leaves settings and comes back, and it
   follows a language switch. It is not kept across a restart: a new run starts empty, or with the
   post-update line of app-update::REQ-004/AC-04.
-- app-update::REQ-004/AC-04: On the first run after the app's version went up — whether the update was
-  installed from the ready button, installed on quit, or installed by hand — "Current version" shows
-  the new version, and the line shows "You're up to date" in the ok form, the same text a settings
-  check gives. The line describes the state the user is in, not the action ("updated"), by the owner's
-  call of 2026-10-13. It stays for that run until a check made from settings replaces it, and
-  app-update::REQ-004/AC-01 still wins over it.
+- app-update::REQ-004/AC-04: On the first run after the app's version went up — whether the update
+  was installed from the ready button, installed on quit, or installed by hand — "Current version"
+  shows the new version, and the line shows "You're up to date" in the ok form, the same text a
+  settings check gives. The line describes the state the user is in, not the action ("updated"). It
+  stays for that run until a check made from settings replaces it, and app-update::REQ-004/AC-01
+  still wins over it.
 
 ### app-update::REQ-005 The menu item (direct acceptance)
 
@@ -345,7 +345,7 @@ Install on quit happens only on a quit the user made, and never relaunches the a
 
 - F1 An unpackaged run: no check from any trigger. The controls are unavailable and the menu item is
   disabled (app-update::US-005).
-- F2 The test seam (see Testing Decisions) can declare an update source in an unpackaged run under
+- F2 The test seam can declare an update source in an unpackaged run under
   test. Production never sets it.
 
 **Sequence G: interaction with existing features**
@@ -379,16 +379,14 @@ Install on quit happens only on a quit the user made, and never relaunches the a
 
 ## Implementation Decisions
 
-- **One update controller in the main process** owns the lifecycle and is the only thing that calls the
-  updater. It talks to an injected **update source**. In production that is electron-updater reading
-  GitHub Releases, with automatic download on, install on quit on, no downgrade, and the pre-release
-  setting following the running version — set from it explicitly, which is also electron-updater's own
-  default for the GitHub feed (ADR-0032 Context).
+- **The update mechanism** (ADR-0032): GitHub Releases read through electron-updater, with automatic
+  download on, install on quit on, no downgrade, and the pre-release setting following the running
+  version — set from it explicitly, which is also electron-updater's own default for the GitHub feed.
 - **Ready means the update can install.** On macOS electron-updater reports a download done once the
-  system updater has fetched the package, before that updater has checked and staged it; the source
-  reports the download done only when it is staged, so a package the system updater rejects is a failed
-  download (Failure B2) rather than a ready button whose install could never run.
-- **The lifecycle** (decision from the prototype, trimmed): the states are idle, checking, downloading
+  system updater has fetched the package, before that updater has checked and staged it; the app
+  treats the download as done only when it is staged, so a package the system updater rejects is a
+  failed download (Failure B2) rather than a ready button whose install could never run.
+- **The lifecycle**: the states are idle, checking, downloading
   (with progress), ready and installing. There is no failure state: every failure returns to idle,
   and REQ-002 decides what the user sees.
 
@@ -405,73 +403,24 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   | downloading / ready / installing | a check is asked for | unchanged; the state is reported |
   | checking | a check is asked for | unchanged; the requester joins it |
 
-- **IPC**: the main process pushes the lifecycle (state, version, progress) to the renderer, and the
-  renderer asks for "install", the current state on mount, and settings' "check now" through a request
-  of settings' own. The main process also keeps **settings' check record** for the run and pushes it:
-  whether settings' own check is running, and the outcome the line shows with no update in flight — the
-  post-update line first, a settings check's outcome after it, none once any check finds an update. Kept
-  there, the line survives leaving the page and hears of an update found from any surface
-  (app-update::REQ-004/AC-02, AC-03). The outcome of a manual check is also the answer to the request
-  that asked for it. A check from the menu is the main process's own: its outcome reaches the renderer
-  as a one-off **update notice** — the channel a failed install also uses — and the renderer answers
-  every notice with a toast. All of this goes through the contract module with validation on both
-  sides (ADR-0001).
-- **The switch is a preference**, stored in the existing preferences table with one setter of its own,
-  the same shape as theme, mode and language, and with per-field fallback to on.
-- **Packaged or not** is the app's own packaged flag. The menu item's enabled state and the settings
-  controls' availability both derive from it.
-- **The menu** keeps its template as a pure function of the language and the injected actions. The new
-  item adds an action and an enabled flag.
-- **Renderer**: a rail slot in the bottom group, the settings section, and the toasts. New icons
-  (download, loader-circle) go into the icon module, copied from Lucide. The tooltip reuses the chart
-  tooltip's existing form and colour tokens. The circle uses the accent token and its glyph the card
-  token, so nothing is hard-coded per theme.
-- **Quit ordering**: install-and-restart goes through the app's normal quit path, so the display-cache
-  flush in that path runs before the app is replaced.
+- **IPC** (ADR-0001): the update states and outcomes cross with validation on both sides. The main
+  process pushes the lifecycle (state, version, progress) to the renderer, and the renderer asks for
+  the current state when it mounts, so the rail button and the settings section show the state as it
+  stands. The settings check record is kept in the main process for the run: whether settings' own
+  check is running, and the outcome the line shows with no update in flight (the post-update line
+  first, a settings check's outcome after it, none once any check finds an update), so the line
+  survives leaving the page and hears of an update found from any surface (app-update::REQ-004/AC-02,
+  AC-03). A manual check's outcome is also the answer to the request that asked for it. A check from
+  the menu is the main process's own: its outcome reaches the renderer as a one-off update notice, the
+  channel a failed install also uses, and the renderer answers every notice with a toast.
+- **The switch is a preference**, stored in the preferences table shared with theme, mode and
+  language, with per-field fallback to on.
 - **The first run after an update** is recognised by comparing the running version with the version the
   app recorded on its previous run. The record is kept in userData, apart from the preferences (it is
   not something the user chooses). It is read and written at each launch of a run that checks for
   updates; a development run does neither, since its userData and the installed copy's are one
   directory on macOS's default case-insensitive volume, and a working build's version must not decide
   the installed copy's line. A missing or unreadable record shows nothing (C8).
-
-## Testing Decisions
-
-Seams confirmed by the owner on 2026-10-13:
-
-- **The update source**: unit tests drive the controller with a fake source, covering every transition
-  in the table, gating by the switch, the packaged flag and the lifecycle, deduplication of concurrent
-  checks, the schedule (with injected time), and every failure path.
-- **The installed copy's source** (confirmed by the owner on 2026-10-27): unit tests inject fakes of
-  electron-updater's updater and Electron's native updater, and cover the wait for the system updater to
-  stage the package — not ready before it has, a rejection while staging a failed download (Failure H2),
-  ready at once when it staged first — and a failed download.
-- **An environment-injected scripted source for e2e**, in the same family as the existing
-  `AGENTSHED_*` test seams and never set in production. It lets Playwright drive found → downloading →
-  ready → install, from either button and including the install failure, and assert the rail button,
-  its tooltip text and geometry, the settings section and line, and the toasts. It also stands in for
-  "packaged" for the update feature only, so the settings controls can be exercised under test. It can
-  hold a check in flight, and a download at its first step, until the case lets it go; a case that must
-  see a check in flight or a download's step holds it. Unheld, both run on timers started at the check,
-  and at launch the check runs while the window is still loading: a step can pass before the window
-  shows, and a notice the launch check sends arrives before the window listens and never shows.
-- **The preferences store**: the switch's default, persistence and per-field fallback, following the
-  existing preference cases.
-- **The post-update line**: e2e seeds an older, equal, newer or missing recorded version in the
-  isolated userData and asserts what the line and "Current version" show (app-update::REQ-004/AC-04,
-  C7–C9). No update has to run for this.
-- **The IPC contract**: validation of the lifecycle payload and of the command arguments.
-- **The menu template**: unit tests on the pure function cover the item's position, copy in both
-  languages and its disabled state when unpackaged. e2e clicks the item through the application menu the
-  main process installed and reads its label after a language switch. What the native menu actually
-  draws is accepted by hand — a known gap, as for the rest of the menu (i18n).
-- **Not automatable, accepted by evidence**: the real electron-updater ↔ GitHub ↔ system-updater path,
-  channel selection on real releases, and install on quit, accepted on an installation of one release
-  updating to the next by each install route; channel selection for a formal-release installation, once
-  a pre-release is published after a formal release (Failure E3).
-
-Prior art: the rescan and scan-delay environment seams, the preference store's per-field cases, and the
-menu template's tests.
 
 ## Out of Scope
 
@@ -485,15 +434,5 @@ menu template's tests.
   spec.
 
 ## Further Notes
-
-- Prototype gate: the rail button, the settings section and the toasts passed on 2026-10-13. The
-  owner confirmed the accent fill, the instant dark tooltip, the reused segmented control, the
-  footnote, the loader-circle icon, and the menu item placed below "About". The same day the owner
-  confirmed the revised parts: the install-failure toast (app-update::REQ-002/AC-03), the
-  lifecycle-first result line (app-update::REQ-004/AC-01), the post-update line
-  (app-update::REQ-004/AC-04), "Check now" unavailable while an update downloads
-  (app-update::US-003/AC-02), and "Install now" in its place while an update is ready
-  (app-update::REQ-003/AC-04). The native menu cannot be expressed in an HTML prototype and is stated
-  here instead.
 
 - The first release is a pre-release (ADR-0031), so the first users are on the pre-release channel.

@@ -22,7 +22,7 @@ inside it. The fuses close Node's way in, and Chromium's switches and the app's 
 ## Solution
 
 A release line built in CI on release tags (ADR-0031). A tag runs the release packaging on a macOS
-runner through the electron-scaffold packaging asset. The run builds arm64 only, notarizes and staples
+runner. The run builds arm64 only, notarizes and staples
 both the `.app` and the DMG, gates every artifact, and publishes nothing unless every gate passes.
 Every release, pre-releases included, is published on GitHub Releases, and the package carries what
 the in-app updater reads. Formal releases are also copied to the R2 bucket `agentshed-releases` behind
@@ -140,10 +140,7 @@ version, which need not be the commit that changed it.
 
 Applies to: both packaging profiles. Each packaging is a single electron-builder call that builds and
 signs the `.app`, the DMG and the ZIP. Built-in notarization stays off. The `.app` is notarized by the
-packaging asset's `afterSign` hook, and the DMG by its gate afterwards (`macos-signing.md` §3). The
-asset files are copied unmodified from electron-scaffold, and their tests run in the project's
-verification gateway. A change the project needs goes into the asset in skillshed first; the copy is
-never edited on its own.
+packaging asset's `afterSign` hook, and the DMG by its gate afterwards (`macos-signing.md` §3).
 
 ### mac-distribution::CON-002 The ZIP's gate comes from the asset (direct acceptance)
 
@@ -211,7 +208,7 @@ not a packaged build.
 - A2 A pre-release suffix other than `-beta` (`-alpha`, `-rc`, `-dev`): a pre-release, handled like
   any other pre-release (mac-distribution::US-002/AC-02).
 - A3 A leftover output from an earlier run: cleared before the build, so nothing from it can pass for
-  this run's artifact (the asset's behaviour).
+  this run's artifact.
 - A4 The certificate secret is missing or empty: the run fails at once and names what to configure.
   An empty value is never passed on (`macos-signing.md` §4).
 - A5 A tag pushed on a commit that is not on main: the release line does not check this. The release
@@ -261,12 +258,11 @@ not a packaged build.
 
 **Sequence E: local packaging (regression)**
 
-- E1 `pnpm dist:mac:local` on the developer's Mac still produces a Developer ID–signed package that is
-  never notarized, now through the asset. It fails when the signing identity is missing, and on a
-  machine with Apple credentials loaded it still never submits to Apple.
+- E1 `pnpm dist:mac:local` on the developer's Mac still produces a Developer ID–signed package that
+  is never notarized. It fails when the signing identity is missing, and on a machine with Apple
+  credentials loaded it still never submits to Apple.
 - E2 The packaged app keeps the Electron fuses and the other security settings of the packaging
-  configuration (docs/ops/electron-security.md). Adopting the asset changes how the app is built, not
-  what it is.
+  configuration (docs/ops/electron-security.md).
 
 **Sequence F: launching a packaged build**
 
@@ -297,28 +293,24 @@ not a packaged build.
 
 ## Implementation Decisions
 
-- **The packaging asset** (`mac-packaging.cjs` and its tests) is copied into `build/`, next to the
-  existing release-cleanup hook, and the packaging configuration meets the requirements listed in the
-  asset's header: a dmg target with an arch list, `mac.notarize: false`, a signed DMG (`dmg.sign`), the
-  fixed DMG name and an output directory using at most the version; and for the ZIP, a zip target with
-  the same arch list, the fixed ZIP name (`mac.artifactName`) and no update information for the DMG
-  (`dmg.writeUpdateInfo: false`), since the DMG gate staples the DMG after electron-builder hashed it.
-  Its certificate check replaces the project's own identity check script, so the existing
-  `dist:mac:local` definition and that script's tests are retired in the same change. The two copies are
-  linted like the project's own scripts; a finding in them is fixed in the asset.
+- **The packaging configuration** has: a dmg target with an arch list, `mac.notarize: false`, a
+  signed DMG (`dmg.sign`), the fixed DMG name and an output directory using at most the version; and
+  for the ZIP, a zip target with the same arch list, the fixed ZIP name (`mac.artifactName`) and no
+  update information for the DMG (`dmg.writeUpdateInfo: false`), since the DMG gate staples the DMG
+  after electron-builder hashed it.
 - **The release feed is declared for packaging**: the configuration names GitHub Releases of this
-  repository as its publish provider, the feed the app reads (app-update::CON-002), and a unit test holds
-  the two equal. electron-builder writes the update metadata only for a provider it knows, and without a
-  declared one it detects none in a git worktree, so a packaging there would carry no metadata. Packaging
-  still uploads nothing itself.
+  repository as its publish provider, the feed the app reads (app-update::CON-002). electron-builder
+  writes the update metadata only for a provider it knows, and without a declared one it detects
+  none in a git worktree, so a packaging there would carry no metadata. Packaging still uploads
+  nothing itself.
 - **Two packaging commands**, `dist:mac:local` and `dist:mac:release`, named for the environment, not
   the mechanism (`macos-signing.md` §1). They are what the capability file's profiles point to.
-- **A release workflow** separate from the existing CI workflow, following Transfer's tag-triggered
-  workflow: a macOS gate job (packaging and every gate), a publish job that depends on it, and mirror and
-  pointer jobs for formal tags only. Secrets are turned into job-level booleans before any condition
-  uses them (`macos-signing.md` §5). The packaging profile follows the trigger and the verification switch; the
-  publish job's own condition reads the real event and ref, so no input of a manual run grants publishing. A tag
-  is a pre-release when a `-` follows the version, which the tag check makes exact (Failures A1, A6).
+- **A release workflow**, separate from the CI workflow: a macOS gate job (packaging and every
+  gate), a publish job that depends on it, and mirror and pointer jobs for formal tags only. Secrets
+  are turned into job-level booleans before any condition uses them (`macos-signing.md` §5). The
+  packaging profile follows the trigger and the verification switch; the publish job's own condition
+  reads the real event and ref, so no input of a manual run grants publishing. A tag is a
+  pre-release when a `-` follows the version, which the tag check makes exact (Failures A1, A6).
 - **What the release carries**: the DMGs, and the files the in-app updater reads — the ZIPs, their
   blockmaps (for a partial download) and the update metadata. The gate job keeps them with the run, and
   the publish step refuses an artifact that lacks any of them before anything reaches GitHub. R2 gets the
@@ -328,67 +320,28 @@ not a packaged build.
   made public, in one step. A failed or partial upload leaves a draft and nothing public; a re-run removes the
   drafts left for the tag, and a tag whose release is already public is refused (Failure C3). The release
   starts with a one-line note, replaced by the release note of mac-distribution::REQ-005.
-- **R2 layout and pointer** follow Transfer's: each version's files under `releases/v<version>/`, cached for
-  good, and the pointer `latest.json` at the bucket's root, cached for five minutes. The pointer is
-  `{ version, files: [{ name, arch, size, url }] }`; it departs from Transfer's in carrying each file's download
-  URL (mac-distribution::REQ-004/AC-02), and it is what the landing page reads. The mirror job needs the publish
-  job, so the GitHub release is public before any file reaches R2 (Failure C1). The pointer job reads every
-  mirrored file back through the download host and compares its size and sha256 with the gated file before it
-  writes the pointer (mac-distribution::REQ-003). The bucket, its own token, its CORS rule (GET from the landing
-  page's origin) and the custom domain are managed with Terraform in the infrastructure repository, kept
-  separate from Transfer's (ADR-0031 option 5).
+- **R2 layout and pointer**: each version's files under `releases/v<version>/`, cached for good, and
+  the pointer `latest.json` at the bucket's root, cached for five minutes. The pointer is
+  `{ version, files: [{ name, arch, size, url }] }`; it carries each file's download URL
+  (mac-distribution::REQ-004/AC-02), and it is what the landing page reads. The mirror job needs the
+  publish job, so the GitHub release is public before any file reaches R2 (Failure C1). The pointer
+  job reads every mirrored file back through the download host and compares its size and sha256 with
+  the gated file before it writes the pointer (mac-distribution::REQ-003). The bucket, its own
+  token, its CORS rule (GET from the landing page's origin) and the custom domain are managed with
+  Terraform in the infrastructure repository, kept separate from Transfer's (ADR-0031 option 5).
 - **Runbooks**: the project's macOS signing runbook (identity, secrets, naming, tiers, workflow
   pitfalls) and its R2 setup notes go under `docs/ops/`, updated in place. They hold this project's
   values and point to the policy rather than copying it.
-- **The launch guard** runs first in the main process, gated on the build being packaged, and exits while the module loads:
-  at that point the debugging server has not started and no other process has (measured on Electron 43.2.0), and `app.exit`
-  ends the process there and then, so nothing after it runs. Its decision is a pure function over the arguments and the
-  environment, which compares each argument with the accepted spellings as it was given, without trimming or parsing it. The
-  check of mac-distribution::CON-008/AC-05 lives in the packaging asset, and exit code 64 is the contract between
-  the two.
+- **The launch guard** runs first in the main process, gated on the build being packaged, and exits
+  while the module loads: at that point the debugging server has not started and no other process
+  has (measured on Electron 43.2.0), and `app.exit` ends the process there and then, so nothing
+  after it runs. Its decision compares each argument with the accepted spellings as it was given,
+  without trimming or parsing it. Exit code 64 is the contract between the guard and the packaging
+  check of mac-distribution::CON-008/AC-05.
 - **The README change** ships in the same change as the first release, in both languages. The
   instructions point to the landing page and to GitHub Releases, give the same requirements the landing
   page states (macOS 12 or later, Apple Silicon), say what the first launch shows, and tell users to
   drag the app to Applications. They name no version, so they need no edit at the next release.
-
-## Testing Decisions
-
-- **The asset's tests**, which use an injected command runner, run in the verification gateway and in the CI
-  workflow's checks job through the script tests. They are placed so that the test command's arguments still
-  reach the project's own test runner (`macos-signing.md` §3). They verify command order, failure propagation
-  and clean-up, and never touch Apple; the green result must not be read as "notarized" (`macos-signing.md` §9).
-- **The workflow conditions** get a static test showing that the manual verification tier cannot
-  publish or touch the mirror, and that the mirror and pointer jobs depend on the gate job. It evaluates each
-  condition with GitHub's published expression evaluator against the documented contexts of each trigger, and
-  runs with the script tests. This is a regression guard only, and does not replace a real run.
-- **The launch guard's decision** is tested as a pure function against its bypass vectors, at the unit level, including which
-  argument it starts from and the sentence it says. Its three lines of wiring cannot be: an unpackaged run never reaches them, so
-  the packaging check on the built app holds the exit code, and a pull request that breaks them goes red only at the next
-  packaging, before anything is published. The check does not read standard error, so the sentence on a real package is checked
-  by hand. The check's own decisions are tested in the asset's tests against an injected launcher, its adapter against a real
-  process, and its generated program by running it.
-- **The publish step** is tested against a model of the repository's releases standing in for GitHub, which
-  records every state in which a release is public, so "never public with part of the set" is asserted over all
-  of them, and an artifact without each of its update files is refused before the model is touched; its adapter to
-  the GitHub CLI is tested for the arguments it sends and the output it reads.
-- **The mirror and pointer steps** are tested the same way, against a model of the bucket whose objects the
-  download host's reads are answered from, so "the pointer is written only after every file is served" is
-  asserted on the model's state when the pointer was written; the aws-cli adapter is tested for its arguments,
-  and the HTTP read against a server on localhost.
-- **Evidence** (`macos-signing.md` §9: only a release tag or the manual verification tier exercises
-  Apple end to end):
-  - one manual verification run, with its logs and artifacts;
-  - the first pre-release tag's run;
-  - an independent check of the downloaded DMG and of the `.app` inside it, plus the ZIP's `.app`, per
-    `macos-signing.md` §7;
-  - a first launch from a browser download, with a screenshot showing the notice's wording;
-  - for the first formal release, the output of the reachability check on every R2 URL before the
-    pointer was rewritten;
-  - the packaging check going red on a build without the guard, and one manual packaging run in CI showing the check passes on
-    a macOS runner.
-
-- Prior art: Transfer's release workflow, which passed these gates with real notarizations, and the
-  existing CI workflow's job layout.
 
 ## Out of Scope
 
@@ -399,11 +352,9 @@ not a packaged build.
 - Download statistics (deferred, ADR-0031 option 10).
 - The in-app updater itself ([app-update](app-update.md)), and the landing page
   ([landing-page](landing-page.md)).
-- A feature entry: the feature catalogue leaves distribution out (how the app is packaged, signed and
-  published). How to get the app is told by the README and the landing page.
 
 ## Further Notes
 
-- No interface of the app changes in this spec: the DMG window is electron-builder's default (owner's
-  choice, 2026-10-12), and the README is text. The prototype gate does not apply. The landing page's
-  interface is gated in its own spec.
+- No interface of the app changes in this spec: the DMG window is electron-builder's default, and
+  the README is text. The prototype gate does not apply. The landing page's interface is gated in
+  its own spec.

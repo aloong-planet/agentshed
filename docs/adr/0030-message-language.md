@@ -79,6 +79,11 @@ We choose **option 1**.
 
 ## Consequences
 
+> CI routing update (2026-11-10): the message-language check remains independent and required. The
+> active default-branch ruleset now requires `CI gate` directly alongside it. The old composite
+> forwarding job is removed; in a pull request Electron E2E remains conditional on application changes,
+> and it is enforced through the gate. See [the CI runbook](../ops/ci.md#required-checks-and-migration).
+
 - Positive: what reaches `master` is checked twice — at commit time and again in the pull request —
   and the commit-time check fails before the commit exists, where fixing it costs nothing.
 - Positive: the two working-language gates share one definition of "Chinese" and of "cited", so a fix to
@@ -88,9 +93,8 @@ We choose **option 1**.
 - Negative: `core.hooksPath` is repository configuration, shared by every worktree. A worktree whose
   checkout predates `.husky/`, or that has not run `pnpm install`, has no hook and commits unchecked
   without a message; the CI layer is what catches those commits.
-- Negative: any local hook can be bypassed with `--no-verify`; the CI layer exists for that, but while
-  required checks are unavailable on this plan it only reports — a red message-language check does not
-  stop the merge, so the reviewer has to read it.
+- Negative: any local hook can be bypassed with `--no-verify`; the required message-language check
+  catches that bypass before merge, as established by the amendment above.
 - Negative: issues are not mechanically checked.
 - Negative: the hook recognises comment lines by `core.commentChar` only; with `commentChar = auto` or a
   multi-character `core.commentString` it falls back to `#`, and a localized git template commented
