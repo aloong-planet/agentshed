@@ -859,11 +859,6 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 
 ## The token store
 
-The token cache is a SQLite store that keeps each file's entry and each de-duplication group's combined
-result, and a scan combines again only the groups its changes reach (ADR-0044). The requirements below
-hold it to the figures one combination over everything gives, and to memory and writes that follow what
-changed.
-
 ### token-stats::CON-003 Combining by group gives the figures of one combination (direct acceptance)
 
 Applies to: every scan, on the scan worker or on the main process, and everything it derives from the
@@ -875,8 +870,8 @@ combination over every file of the scan set, in scan order, gives from the same 
 
 Applies to: a locally packaged build from its second launch on — not the first launch of a build, which
 imports the JSON cache (C26) or combines every group again (Implementation Decisions, Cache) — with its
-window shown and its store current to within ten files at launch, on real data of the size these were
-set against: about 7,000 session files. Memory is the main process's, its worker threads included, read
+window shown and its store current to within ten files at launch, on about 7,000 session files. Memory
+is the main process's, its worker threads included, read
 with macOS `footprint`.
 
 - token-stats::QR-003/AC-01: From launch through the first scan and five rescans, the main process's
@@ -889,24 +884,9 @@ with macOS `footprint`.
 
 ### Failure modes and boundaries: the token store
 
-- A changed file that now shares a key with files of other groups joins them: the groups become one and
-  are combined together. A change that drops the only key tying two parts of a group splits it, and each
-  part is combined again.
-- A file whose entry did not change but whose input to the combination did — its place in the scan
-  order, its admission to the session read allow-list, the project it is credited to, a title read
-  beside it — has its group combined again: the order decides which copy of a message is kept, and the
-  rest reaches the rows and the lists.
-- An entry the session page rebuilt (session-view C4) is a changed file for the next scan: its group was
-  combined from the entry it replaced.
-- Two groups' sessions with the same time keep the order one combination gives them, so the session
-  list reads the same.
-- A file that leaves the scan set takes its entry and its group's stored result with it, and the rest of
-  its group is combined again.
-- A group's stored result that does not read back, or that was combined under another combination
-  (Implementation Decisions, Cache), is combined again from its files' entries with nothing parsed.
-- Interface: no page, state, copy or control is added or changed — these rules decide where the cache
-  lives and how much of it a scan combines, and the figures are the same (the prototype exemption,
-  declared). No new point renders or loads external content (G14 holds).
+- An entry the session page rebuilt between two scans (session-view C4) is a changed file for the next
+  scan: its group was combined from the entry it replaced.
+- Interface: unchanged (the prototype exemption, declared); G14 holds.
 
 ## Implementation Decisions
 
@@ -991,8 +971,7 @@ with macOS `footprint`.
   through the runtime's built-in module by whichever engine runs the scan (Where a scan runs, below) and
   recording its own structure version (ADR-0044). It holds each file's entry under its path — its
   signature and its per-file aggregate — the de-duplication keys each entry carries, and each group's
-  combined result with the combination it came from. In memory the engine keeps each file's signature
-  and its group, never the aggregates; every read of an entry goes to the store. A group is the set of
+  combined result with the combination it came from. A group is the set of
   files linked, directly or through others, by a key they share: a Claude message's id with its request
   id, a Codex session id or the parent id a fork names, an Antigravity call's identity; a file with none
   is a group alone. A group's input is, file by file in scan order, its entry and what the scan adds to
@@ -1107,8 +1086,5 @@ with macOS `footprint`.
   (ADR-0043 option 6): every scan marks every saved page stale and changes the display copy, and a
   focus refresh that does not hold up the window already brings the figures up to date when they are
   about to be read.
-- A memory threshold for a build's first launch, which imports the JSON cache (C26) or combines every
-  group again, for a development run, or for the window's own process: token-stats::QR-003 holds the
-  main process of a packaged build from its second launch on.
 - Keeping the rollouts' first-line readings from one run to the next: it needs a file of its own or a
   new cache structure version, and a new version moves the accounting stamp (C10).
