@@ -170,8 +170,8 @@ export function installPermissionGuards(session: {
 /**
  * The session file read allow-list judgement (ticket 04, the range-read path's entry guard).
  *
- * The allow-list is an **exact path Set** the main process produces during its own scan (the same
- * pattern as artifactWhitelist),
+ * The allow-list is an **exact path Set** the application's own scan produces and the main process holds
+ * (the same pattern as artifactWhitelist),
  * not a prefix rule: under exact matching, path traversal is structurally impossible — one string can
  * only open one file,
  * and `..`, encoding and normalisation variants are all refused because the strings are not equal, so

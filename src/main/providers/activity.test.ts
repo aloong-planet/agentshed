@@ -2,9 +2,9 @@
 // attributes by the rollout first line's cwd,
 // and subagent threads do not count toward the session count.
 //
-// Gap: that doScan hands its one session walk to both scan() and the token build (#160) is wiring in the
-// main process, which no unit test reaches; `pnpm bench:scan` prints the walk on its own line in the
-// app's order. A main-process test seam would let a test count the walks.
+// Gap: that a scan hands its one session walk to both scan() and the token build (#160) is wiring in the
+// scanner (scanner.ts), and no case counts the walks; `pnpm bench:scan` prints the walk on its own line in
+// the app's order.
 import { chmodSync, closeSync, mkdtempSync, openSync, renameSync, rmSync, mkdirSync, statSync, writeFileSync, writeSync, utimesSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -331,8 +331,8 @@ describe('the shared session walk', () => {
 })
 
 // A rescan keeps the first-line reading of a rollout that did not change (token-stats::QR-002/AC-01). The
-// readings belong to a CodexHeads, which the main process keeps for the run; whether a rollout was opened
-// again is told by what the walk returns after its first line was rewritten.
+// readings belong to a CodexHeads, which the scanner keeps for the run (scanner.ts); whether a rollout was
+// opened again is told by what the walk returns after its first line was rewritten.
 //
 // The first lines are built after real ones: all 3048 rollouts of one machine were enumerated on
 // 2026-11-11 by key shape (59 shapes). Every first line carries an ordinal, a payload with cwd, id,
