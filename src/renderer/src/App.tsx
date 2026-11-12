@@ -24,6 +24,7 @@ import { sideArrival } from './side-arrival'
 import { AgentsPane } from './AgentsPane'
 import { AgentsSkeleton, ProjectsSkeleton } from './StartupSkeleton'
 import { DetailPane } from './DetailPane'
+import { NO_FIGURES, windowFigures, type WindowFigures } from './project-figures'
 import { SessionPane } from './SessionPane'
 import { GlobalSearchPane } from './GlobalSearchPane'
 import { fetchSessionPage, sessionPageQueryKey } from './session-page-query'
@@ -74,6 +75,9 @@ export function App(): JSX.Element {
   const [startup, setStartup] = useState<StartupStatus>('scanning')
   const [dim, setDim] = useState<Dim>('agents')
   const [snap, setSnap] = useState<Snapshot | null>(null)
+  // Every project's figures, held beside the snapshot and replaced with it: a scan's, or before the first scan of a run
+  // the ones saved with the restored snapshot (project-detail::REQ-005)
+  const [figures, setFigures] = useState<WindowFigures>(NO_FIGURES)
   const queryClient = useQueryClient()
   // `selected` drives the projects list highlight and updates immediately on a click. `shownProject`
   // drives what the detail slot actually renders and is updated inside a Transition (ADR-0028,
@@ -248,10 +252,11 @@ export function App(): JSX.Element {
     let liveSnapshot = 0
     let liveStatus = false
     const offStatus = window.agentshed.onStartupStatus((status) => { liveStatus = true; setStartup(status) })
-    const off = window.agentshed.onSnapshot((s) => {
+    const off = window.agentshed.onSnapshot((s, scanned) => {
       liveSnapshot++
       setStartup('ready')
       setSnap(s)
+      setFigures(windowFigures(scanned, true))
       invalidateOnSnapshot(queryClient)
       tellArchiveFailure()
     })
@@ -266,6 +271,9 @@ export function App(): JSX.Element {
         if (generation !== liveSnapshot) { await restore(); return }
         if (!liveStatus) setStartup(status)
         hydrateDisplayQueries(queryClient, display.reads)
+        // What the main process holds now: a scan's once one has completed in this run (a reloaded window), and until
+        // then the saved ones
+        if (!liveSnapshot) setFigures(windowFigures(display.stats, status === 'ready'))
         if (!liveSnapshot && display.snapshot) setSnap(display.snapshot)
         else if (!display.snapshot) {
           const s = await window.agentshed.getSnapshot()
@@ -485,6 +493,7 @@ export function App(): JSX.Element {
                     ) : shownProject ? (
                       <DetailPane
                         snap={snap}
+                        figures={figures}
                         path={shownProject}
                         initialTab={landOnSessions ? 'sessions' : undefined}
                         win={win}

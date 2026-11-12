@@ -18,8 +18,8 @@ import {
   type ListSkillFilesArgs,
   type ListSkillFilesResult
 } from '@shared/ipc'
-import type { CappedText, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
-import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
+import type { CappedText, ProjectFigures, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import { AGENT_SIDES, assertSnapshot, assertProjectFigures, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { questionTextOfRange } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
@@ -221,6 +221,10 @@ async function doScan(): Promise<Snapshot> {
       const settled = settleScan(out, usage, { forceAccept: ARCHIVE_FORCE_ACCEPT })
       if (archiveNotice !== 'taken') archiveNotice = settled.fileFailed ? 'due' : 'none'
       assertSnapshot(snap)
+      // Every project's figures go to the window beside the snapshot, so a page drawn from its copy shows this scan's
+      // (project-detail::REQ-005); checked here as the snapshot is
+      const figures: ProjectFigures = [...settled.stats]
+      assertProjectFigures(figures)
       perProjectStats = settled.stats
       sessionWhitelist = out.sessionFiles
       const tokensByFile = new Map<string, number>()
@@ -248,7 +252,7 @@ async function doScan(): Promise<Snapshot> {
       // Before the snapshot goes out, so the search the renderer sends on receiving it waits for these texts
       // (global-search REQ-004); a corpus never asked for is not built
       void questionCorpus?.refresh().catch((e: unknown) => console.error('[global-search] reading the question texts failed:', e))
-      mainWindow?.webContents.send(EVT.snapshot, snap)
+      mainWindow?.webContents.send(EVT.snapshot, snap, figures)
       return snap
     } catch (error) {
       if (!firstScanComplete) setStartupStatus('waiting')
