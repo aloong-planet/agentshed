@@ -278,8 +278,14 @@ export function rowsFromCacheFile(file: string): UsageRow[] {
   if (shape?.version !== CACHE_VERSION) {
     throw new Error(`cache snapshot is version ${String(shape?.version)}, this build reads version ${CACHE_VERSION}`)
   }
-  const aggs: FileAgg[] = []
-  for (const entry of CacheEntries.from(shape.files)?.entries() ?? []) aggs.push(entry.agg)
+  // A scan parses again the file of an entry that is not well formed; a restore has no file to parse, and rows
+  // from the other entries alone would write a day's figure short of that entry's usage as an accepted change
+  const entries = CacheEntries.from(shape.files)
+  if (!entries) throw new Error('cache snapshot holds no object of entries')
+  const aggs = [...entries.entries()].map((entry) => entry.agg)
+  if (aggs.length !== entries.size) {
+    throw new Error(`cache snapshot holds ${entries.size - aggs.length} of ${entries.size} entries that are not well formed`)
+  }
   return combine(aggs).rows
 }
 
@@ -362,9 +368,20 @@ interface CacheEntry {
  */
 class CacheEntries {
   readonly #held: Record<string, unknown>
+  /** The entries already found well formed. The check reads every row of an entry's lists, and nothing changes an
+   * entry once it is held, so each is checked once and not at every scan. */
+  readonly #checked = new WeakSet<object>()
 
   constructor(held: Record<string, unknown> = {}) {
     this.#held = held
+  }
+
+  #isEntry(held: unknown): held is CacheEntry {
+    if (typeof held !== 'object' || held === null) return false
+    if (this.#checked.has(held)) return true
+    if (!isWellFormedEntry(held)) return false
+    this.#checked.add(held)
+    return true
   }
 
   /** Over a cache file's `files`; null when that is not an object of entries — it is missing, `null`, an array or a
@@ -378,7 +395,7 @@ class CacheEntries {
   /** The file's entry when it is well formed; otherwise nothing, and the file is a miss */
   get(file: string): CacheEntry | undefined {
     const held = this.#held[file]
-    return isWellFormedEntry(held) ? held : undefined
+    return this.#isEntry(held) ? held : undefined
   }
 
   /** Whether anything is held for the file, well formed or not; a `null` is nothing held */
@@ -387,13 +404,15 @@ class CacheEntries {
     return held !== undefined && held !== null
   }
 
+  /** Holds an entry a parse made or `get` handed out: one this code built or has checked, so it is not checked again */
   set(file: string, entry: CacheEntry): void {
     this.#held[file] = entry
+    this.#checked.add(entry)
   }
 
   /** Every well-formed entry, in the order held */
   *entries(): IterableIterator<CacheEntry> {
-    for (const held of Object.values(this.#held)) if (isWellFormedEntry(held)) yield held
+    for (const held of Object.values(this.#held)) if (this.#isEntry(held)) yield held
   }
 
   /** How many files something is held for, well formed or not */
@@ -1483,7 +1502,26 @@ function listedOf(agg: FileAgg): boolean {
   return agg.listed
 }
 
-/** Whether an aggregate has every field its side's FileAgg requires, each of the type it requires */
+/**
+ * Whether a list field is a list of rows of one tuple type, every row checked: as many elements as `shape` has
+ * letters, each of the type its letter names — `n` a number, `N` a number or null, `S` a string or null. A row that
+ * is no row (a `null` among them) throws where the aggregation reads it, and text where a number belongs is joined
+ * on, not added: either way at every scan, the entry still a hit.
+ */
+function isRows(v: unknown, shape: string): boolean {
+  if (!Array.isArray(v)) return false
+  for (const row of v as unknown[]) {
+    if (!Array.isArray(row) || row.length !== shape.length) return false
+    for (let i = 0; i < shape.length; i++) {
+      const x: unknown = row[i]
+      if (x === null ? shape[i] === 'n' : typeof x !== (shape[i] === 'S' ? 'string' : 'number')) return false
+    }
+  }
+  return true
+}
+
+/** Whether an aggregate has every field its side's FileAgg requires, each of the type it requires, its lists row by
+ * row (isRows) */
 function isWellFormedAgg(agg: unknown): agg is FileAgg {
   if (typeof agg !== 'object' || agg === null) return false
   const a = agg as Record<string, unknown>
@@ -1493,13 +1531,11 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // only catches across versions,
   // and manual corruption or drift within one version is caught only by this guard.
   if (typeof a['file'] !== 'string' || a['file'] === '') return false
-  const qs = a['questions']
-  if (!Array.isArray(qs)) return false
   // The record's **arity** needs guarding too: the version number only catches across versions, and
   // manual corruption or future drift within one version is caught only by this gate.
   // One element short degrades the fingerprint comparison into undefined === undefined, which is always
   // true, and so strips blindly.
-  if (qs.length > 0 && (!Array.isArray(qs[0]) || (qs[0] as unknown[]).length !== 7)) return false
+  if (!isRows(a['questions'], 'nnnNnnn')) return false
   // What every side's aggregate carries. A missing `projectKey` would take the session's usage out of its project
   // and leave it in the total, at every launch, the entry still a hit; a missing `listed` would silently HIDE a real
   // session; `title` and `at` go to the session list as they are
@@ -1512,8 +1548,7 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   if (a['kind'] === 'antigravity') {
     return (
       typeof a['unreadable'] === 'boolean' &&
-      Array.isArray(a['calls']) &&
-      (a['calls'] as unknown[]).every((c) => Array.isArray(c) && c.length === 7) &&
+      isRows(a['calls'], 'SNnnnnS') &&
       typeof a['conversationId'] === 'string' &&
       typeof a['subagent'] === 'boolean' &&
       (a['forkOf'] === null || typeof a['forkOf'] === 'string')
@@ -1521,12 +1556,12 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   }
   // A missing forkPoints (undefined) gives the banner judgement a false value, and corruption within one
   // version is caught only by this gate
-  if (a['kind'] === 'claude') return Array.isArray(a['entries']) && typeof a['forkPoints'] === 'number'
+  if (a['kind'] === 'claude') return isRows(a['entries'], 'SSnnnnnSS') && typeof a['forkPoints'] === 'number'
   // A missing titleFromThread (undefined) is a false false: it lets a retitle displace a thread_name session;
   // a missing boundary (undefined) would make every slice(0, undefined) the whole list and strip records
   if (a['kind'] === 'codex') {
     return (
-      Array.isArray(a['events']) &&
+      isRows(a['events'], 'Nnnnn') &&
       typeof a['titleFromThread'] === 'boolean' &&
       typeof a['boundary'] === 'number' &&
       // A missing paginated (undefined) would run the replay check on a paginated child and flag it uncertain
@@ -1541,7 +1576,7 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
     )
   }
   // A missing subagent (undefined) would silently list a subagent session
-  if (a['kind'] === 'grok') return Array.isArray(a['events']) && typeof a['subagent'] === 'boolean'
+  if (a['kind'] === 'grok') return isRows(a['events'], 'NnnnnS') && typeof a['subagent'] === 'boolean'
   return false
 }
 
