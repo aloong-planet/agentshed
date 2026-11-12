@@ -344,7 +344,10 @@ export const RESUME_LIMIT = 50
 interface CacheEntry {
   sig: string
   agg: FileAgg
-  resume?: CodexResume
+  /** A Codex rollout's CodexResume. Typed as unknown because it is not part of what makes an entry: only the
+   * resume reads it, and checks it there (isCodexResume). A parse that left a state the check turns down would
+   * otherwise make its rollout a miss at every scan; this way it only costs that rollout its resume. */
+  resume?: unknown
 }
 
 /**
@@ -353,7 +356,7 @@ interface CacheEntry {
  * the shape check, failed the whole scan at every launch until the file was deleted (postmortems
  * `2026-10-29-a-guard-read-after-the-value-it-guards` and `2026-11-11-a-null-files-object-passed-the-cache-loader`).
  * So what is held is a `#private` field, which nothing outside this class can name, even by index: a read is `get` or
- * `entries`, and both hand out an entry only after checking the whole of it. What is handed out is what is held, its
+ * `entries`, and both hand out an entry only after checking it (isWellFormedEntry). What is handed out is what is held, its
  * aggregate the very object and not a copy of it — a build tells that it changed nothing by meeting the aggregates
  * the cache held (isHeldEntry), and a copy would have every build write the file.
  */
@@ -765,7 +768,7 @@ export class TokenEngine {
     const from =
       cached !== undefined &&
       cached.agg.kind === 'codex' &&
-      state !== undefined &&
+      isCodexResume(state) &&
       !isColdRollout(file) &&
       state.ino === st.ino &&
       st.size > state.size &&
@@ -806,7 +809,8 @@ export class TokenEngine {
    * The session page service (ticket 04): give a scanned session's question index and fork state.
    * - Validate the (path, mtime, size) signature before fetching; on a mismatch, **rebuild only that
    *   file's** index and write
-   *   the cache back (spec C4), without a full rescan.
+   *   the cache back (spec C4), without a full rescan. An entry that is not well formed is rebuilt the same
+   *   way; a Claude session's index is then served and not kept, as there is no project to keep it under.
    * - A Codex fork's stripping **shares its source** with the list (the same stripReplayPrefix and the
    *   same parent lookup),
    *   rather than reusing the token metering side's conclusions — metering is a deduplication rule,
@@ -859,13 +863,12 @@ export class TokenEngine {
         // rule as listJsonl.
         // projectKey keeps the value the entry held: the project a Claude session is credited to comes from the
         // registry, which only a build reads, and a build that finds the entry's signature current takes the key
-        // with it. So with no entry to take the key from, or one that holds none (the shape check does not ask
-        // this side for it), the index serves this page and is not kept: kept under no project it would be that
-        // hit, and the session would leave its project until its file next changed. The next build parses the file.
+        // with it. So with no well-formed entry to take the key from, the index serves this page and is not kept
+        // (session-view C4): kept under no project it would be that hit, and the session would leave its project
+        // until its file next changed. The next build parses the file.
         const listedBase = dirname(dirname(file)) === claudeRoot
-        const oldKey = cached && typeof cached.agg.projectKey === 'string' ? cached.agg.projectKey : null
-        fresh = await parseClaudeFile(file, oldKey ?? '', listedBase)
-        kept = oldKey !== null
+        fresh = await parseClaudeFile(file, cached?.agg.projectKey ?? '', listedBase)
+        kept = cached !== undefined
       } else if (file.startsWith(join(roots.grokHome, 'sessions') + sep)) {
         // A Grok stream rebuilds through the Grok parse, its meta read the way the walk reads it; it
         // used to fall through to the Codex branch below, whose meta reader cannot read a Grok stream
@@ -1480,7 +1483,7 @@ function listedOf(agg: FileAgg): boolean {
   return agg.listed
 }
 
-/** Whether a cache entry matches the current FileAgg shape (the array fields the aggregation layer depends on must be present) */
+/** Whether an aggregate has every field its side's FileAgg requires, each of the type it requires */
 function isWellFormedAgg(agg: unknown): agg is FileAgg {
   if (typeof agg !== 'object' || agg === null) return false
   const a = agg as Record<string, unknown>
@@ -1497,21 +1500,23 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // One element short degrades the fingerprint comparison into undefined === undefined, which is always
   // true, and so strips blindly.
   if (qs.length > 0 && (!Array.isArray(qs[0]) || (qs[0] as unknown[]).length !== 7)) return false
+  // What every side's aggregate carries. A missing `projectKey` would take the session's usage out of its project
+  // and leave it in the total, at every launch, the entry still a hit; a missing `listed` would silently HIDE a real
+  // session; `title` and `at` go to the session list as they are
+  if (typeof a['projectKey'] !== 'string' || typeof a['listed'] !== 'boolean') return false
+  if (a['title'] !== null && typeof a['title'] !== 'string') return false
+  if (a['at'] !== null && typeof a['at'] !== 'number') return false
   // A missing `unreadable` would drop the conversation from the count, a call of another arity would misread its
-  // fields; a missing `listed` or `subagent` would hide a session or list a subagent, a missing `forkOf` would unmark
-  // a fork, a missing `conversationId` would lose its title and its parent
+  // fields; a missing `subagent` would list a subagent, a missing `forkOf` would unmark a fork, a missing
+  // `conversationId` would lose its title and its parent
   if (a['kind'] === 'antigravity') {
     return (
-      typeof a['projectKey'] === 'string' &&
       typeof a['unreadable'] === 'boolean' &&
       Array.isArray(a['calls']) &&
       (a['calls'] as unknown[]).every((c) => Array.isArray(c) && c.length === 7) &&
       typeof a['conversationId'] === 'string' &&
       typeof a['subagent'] === 'boolean' &&
-      typeof a['listed'] === 'boolean' &&
-      (a['at'] === null || typeof a['at'] === 'number') &&
-      (a['forkOf'] === null || typeof a['forkOf'] === 'string') &&
-      (a['title'] === null || typeof a['title'] === 'string')
+      (a['forkOf'] === null || typeof a['forkOf'] === 'string')
     )
   }
   // A missing forkPoints (undefined) gives the banner judgement a false value, and corruption within one
@@ -1525,18 +1530,18 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
       typeof a['titleFromThread'] === 'boolean' &&
       typeof a['boundary'] === 'number' &&
       // A missing paginated (undefined) would run the replay check on a paginated child and flag it uncertain
-      typeof a['paginated'] === 'boolean'
+      typeof a['paginated'] === 'boolean' &&
+      // The model names the bucket the rollout's usage goes to; a missing `sessionId` would lose the ID its page
+      // resumes it by and the forks that name it their parent; `parentId` and `forkedAt` decide which of a fork's
+      // questions are its own
+      typeof a['model'] === 'string' &&
+      (a['sessionId'] === null || typeof a['sessionId'] === 'string') &&
+      (a['parentId'] === null || typeof a['parentId'] === 'string') &&
+      (a['forkedAt'] === null || typeof a['forkedAt'] === 'number')
     )
   }
-  // A missing subagent (undefined) would silently list a subagent session; a missing listed
-  // (undefined) would silently HIDE a real one — both fields are load-bearing booleans
-  if (a['kind'] === 'grok') {
-    return (
-      Array.isArray(a['events']) &&
-      typeof a['subagent'] === 'boolean' &&
-      typeof a['listed'] === 'boolean'
-    )
-  }
+  // A missing subagent (undefined) would silently list a subagent session
+  if (a['kind'] === 'grok') return Array.isArray(a['events']) && typeof a['subagent'] === 'boolean'
   return false
 }
 
@@ -1564,14 +1569,14 @@ function isHeldEntry(held: CacheEntry | undefined, entry: CacheEntry): boolean {
 }
 
 /**
- * Whether what the cache holds under a path is an entry: a signature, a well-formed aggregate and, when it carries
- * one, a well-formed resume state. CacheEntries asks this before it hands anything out, so the three are checked in
- * one place and before any of them is read.
+ * Whether what the cache holds under a path is an entry: a signature and a well-formed aggregate. CacheEntries asks
+ * this before it hands anything out, so both are checked in one place and before either is read. The resume state
+ * a Codex entry carries is not asked about here (CacheEntry).
  */
 function isWellFormedEntry(held: unknown): held is CacheEntry {
   if (typeof held !== 'object' || held === null) return false
   const e = held as Record<string, unknown>
-  return typeof e['sig'] === 'string' && isWellFormedAgg(e['agg']) && (e['resume'] === undefined || isCodexResume(e['resume']))
+  return typeof e['sig'] === 'string' && isWellFormedAgg(e['agg'])
 }
 
 /** The cache entry a parse produces: a Codex rollout's carries the state its next resume starts from */

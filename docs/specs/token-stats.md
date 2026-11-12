@@ -882,7 +882,9 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   list of archived-only days, computed per day; the retained set never leaves the archive.
 - **Restore**: a repository script, run by a developer, that reads a cache snapshot and applies C16
   through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
-  so the restored rows are exactly what a scan of that data would have produced.
+  so the restored rows are exactly what a scan of that data would have produced. An entry of the
+  snapshot that is not well formed (Cache, below) gives no rows, and neither does a snapshot whose
+  `files` is not an object of entries.
 - **An archive a newer build wrote** (token-stats::REQ-005, token-stats::REQ-006): the archive
   admits a row's side against this build's set of agent sides as it reads the file, so a side is
   admitted from the build that adds it on. Rows outside it are held apart from the rows the conflict
@@ -915,7 +917,12 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 - **Segmentation and axis**: see ADR-0008/0009.
 - **Cache**: incremental by file signature; **a structure change must bump the version number at the
   same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
-  recomputes. The signature is read before a file is parsed, so a file that grows while it is read
+  recomputes. An entry is well formed when its signature is a string and its per-file aggregate has
+  every field its side requires, each of the type it requires; every read of an entry — a scan's, a
+  session page's ([session-view](session-view.md) C4), a fork's parent lookup, the restore's (C16) —
+  gets a well-formed entry or none. A Codex entry's resume state is not part of that: it is checked
+  when a resume would use it, and one that fails costs that rollout its resume, never its entry. The
+  signature is read before a file is parsed, so a file that grows while it is read
   shows as changed on the next scan. **A Codex rollout that only grew is parsed from where the last
   parse stopped**: its entry also keeps the inode, the size and the end of the last parsed line,
   with everything the parser carries from line to line, and a rollout with the same inode and a
