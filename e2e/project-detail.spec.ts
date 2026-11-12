@@ -906,6 +906,39 @@ test('once a scan holds nothing for a project, a cached visit shows zeros and no
   await close(l)
 })
 
+test('a window reloaded after a scan that holds nothing for a project shows zeros on a cached visit, before any scan reaches it', async () => {
+  const { home, firstA } = mkFiguresHome(0)
+  const l = await launch(undefined, home, FIGURES_ENV)
+  const win = await l.app.firstWindow()
+  await visitAThenB(win)
+
+  rmSync(firstA)
+  await scansLanded(win, 2)
+
+  // The application menu's Reload: a new document in a run whose scan has completed. What it holds comes from the
+  // startup answer, and the count below shows that no scan reached it before the page was read
+  await win.reload()
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row', { hasText: 'proj-a' })).toBeVisible()
+  await win.evaluate(() => {
+    const w = window as unknown as { snapshotsSinceReload: number; agentshed: { onSnapshot: (cb: () => void) => void } }
+    w.snapshotsSinceReload = 0
+    w.agentshed.onSnapshot(() => { w.snapshotsSinceReload++ })
+  })
+
+  const totals = await recordPaneTotals(win)
+  await win.locator('.side .row', { hasText: 'proj-a' }).click()
+  await expect(paneHeader(win)).toHaveText('proj-a', AT_ONCE)
+  await expect(paneTotal(win)).toHaveText('0', AT_ONCE)
+  await expect(win.locator('.pane-body .none', { hasText: 'No sessions in this project yet' })).toBeVisible(AT_ONCE)
+  await expect(win.locator('.pane-body .card .se')).toHaveCount(0)
+  expect((await totals()).filter((pair) => pair.startsWith('proj-a|') && pair !== 'proj-a|0')).toEqual([])
+  expect(await win.evaluate(() => (window as unknown as { snapshotsSinceReload: number }).snapshotsSinceReload)).toBe(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 test('a page restored at launch shows the figures saved with the snapshot until the first scan, and its copy\'s when its saved figures are unusable', async () => {
   const { home, sessionsA } = mkFiguresHome()
   const userData = makeUserData()
