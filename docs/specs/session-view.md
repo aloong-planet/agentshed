@@ -70,8 +70,7 @@ hands the command over; it never runs it.
   push the project list's first-paint cost up to the level of a full scan.
   **The session *count* shares its source in both places**: once the token statistics are built, the
   project list's session count is the number of listed sessions (the data is already computed in
-  that same pass, at zero extra cost); when the engine is absent the file count is kept so the
-  column does not go to zero. Time still uses mtime.
+  that same pass, at zero extra cost). Time still uses mtime.
 - A2 **Unregistered projects' sessions are not listed** (keeping the existing `listed && projectKey`
   rule).
 - A3 Subagent sessions do not get their own rows (unchanged) but can be expanded inside the main
@@ -908,10 +907,10 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
 - **Offset index**: the scan records `{question offset, turn start and end offsets, time, that turn's
   tool and subagent counts}` — **with no question text** (see D2a). Stored in the existing cache keyed
   by a `path + mtime + size` signature. Fetching streams the byte range.
-  Scan timings must be taken in the Electron main process, not under Node: the same reader over the
-  same bytes ran about twelve times slower there at the stream's default chunk size, which is what
-  made startup take minutes once the data grew to gigabytes (see the AGENTS.md invariant on
-  main-process measurements).
+  Scan timings must be taken under Electron, in the main process or one of its worker threads, not
+  under Node: the same reader over the same bytes ran about twelve times slower under Electron at the
+  stream's default chunk size, which is what made startup take minutes once the data grew to gigabytes
+  (see the AGENTS.md invariant on main-process measurements).
   **A turn's end point is "the end of the last parseable line", not the file's byte size**: an active
   session may be mid-line, and that half line neither parses nor should be sliced into a range.
   **Per-side "turn volume" criteria (full enumeration, not sampling)**:

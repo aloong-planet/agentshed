@@ -373,7 +373,7 @@ test('quitting while the first scan is held: the app closes within the bound, an
 
 // The first-line readings are the run's, not one scan's (token-stats::QR-002/AC-01): what tells a rescan that
 // kept a reading from one that read the line again is a first line rewritten under the same signature, which
-// the unit tests drive at the walk. This case is the wiring: the main process hands every scan the same readings.
+// the unit tests drive at the walk. This case is the wiring: the scan worker's scanner hands every scan the same readings.
 test('a rescan keeps the first-line reading of an unchanged rollout: its project is the one read at the first scan until the file changes', async () => {
   const home = mkUsageHome()
   const demo = join(home, 'demo-proj')

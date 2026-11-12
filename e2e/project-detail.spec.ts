@@ -906,7 +906,7 @@ test('once a scan holds nothing for a project, a cached visit shows zeros and no
   await close(l)
 })
 
-test('a window reloaded after a scan that holds nothing for a project shows zeros on a cached visit, before any scan reaches it', async () => {
+test('a window reloaded after a scan shows that scan\'s figures on a cached visit, before any scan reaches it: zeros for a project the scan holds nothing for, and another project\'s own', async () => {
   const { home, firstA } = mkFiguresHome(0)
   const l = await launch(undefined, home, FIGURES_ENV)
   const win = await l.app.firstWindow()
@@ -933,6 +933,11 @@ test('a window reloaded after a scan that holds nothing for a project shows zero
   await expect(win.locator('.pane-body .none', { hasText: 'No sessions in this project yet' })).toBeVisible(AT_ONCE)
   await expect(win.locator('.pane-body .card .se')).toHaveCount(0)
   expect((await totals()).filter((pair) => pair.startsWith('proj-a|') && pair !== 'proj-a|0')).toEqual([])
+  // And a project that scan has figures for shows them: a window handed no figures, with the scan marked completed,
+  // would show zeros here as well, and proj-a's zeros alone would not tell
+  await win.locator('.side .row', { hasText: 'proj-b' }).click()
+  await expect(paneHeader(win)).toHaveText('proj-b', AT_ONCE)
+  await expect(paneTotal(win)).toHaveText('50', AT_ONCE)
   expect(await win.evaluate(() => (window as unknown as { snapshotsSinceReload: number }).snapshotsSinceReload)).toBe(0)
 
   expect(l.errors).toEqual([])

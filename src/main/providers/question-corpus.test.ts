@@ -165,7 +165,8 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-/** One scan and token build, as the main process runs them, and the corpus's listed set from both */
+/** One scan and token build in the scanner's order, each walking the sessions for itself where the scanner walks once
+ * for both, and the corpus's listed set from both */
 async function index(engine: TokenEngine): Promise<CorpusProject[]> {
   const snap = await scan(roots(), { now: () => Date.now() })
   const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
