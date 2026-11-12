@@ -38,3 +38,10 @@ the unfixed order, since such an entry carries a `kind` to read.
 The defence is per site: a new reader of `this.cache.files` that reads a field before the guard is caught only if its
 author writes a case. A single accessor that returns a well-formed entry or nothing would close the class; it is on
 #323's refactor list for the owner's decision.
+
+Later, on 2026-11-12, the accessor was built. The entries are held in `CacheEntries` (`src/main/providers/token-stats.ts`),
+in a field nothing outside the class can name, and its two reads hand out an entry only after checking that it is well
+formed, so no reader can read a field first; the type check refuses a read that goes around them, and `pnpm lint` refuses
+application code that names the cache file (the AGENTS.md invariant on the token cache). Building it found a third reader
+of the kind described above, left after this fix: the Claude session page read the old entry's project key from an entry
+the guard had turned down, or, under a changed signature, had not been asked about, and threw on an aggregate gone `null`.

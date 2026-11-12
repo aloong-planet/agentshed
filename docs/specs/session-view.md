@@ -250,8 +250,8 @@ hands the command over; it never runs it.
   one difference for a Claude Code session: its index is served and **not kept**, so each fetch
   rebuilds it until a scan parses the file. The project a Claude Code session is credited to is known
   only to a scan: the rebuild keeps the project its entry held, and with no well-formed entry there is
-  none to keep. A file whose entry is `null` has no entry: its fetch is refused like that of a session
-  the scan never indexed.
+  none to keep. The fetch of a file the cache holds `null` for is refused like that of a session the
+  scan never indexed.
   A session page left open while Codex compresses its file (2026-09-10): the plain path is gone, so
   the next fetch fails for that turn only (the in-turn error state, retry on click), and the session
   reappears under its compressed identity after the next scan — a new path, an index built once.
