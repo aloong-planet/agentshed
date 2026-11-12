@@ -1,13 +1,14 @@
 // Also not driven: the tab row over a failed detail fetch on a page drawn after a stale project's note (project-detail T10).
 // The row draws before that branch and reads no fetch result. Add a case when a seam can make the project detail read fail:
 // select a normal project from a note page on a tab other than Overview, and read that tab over an empty body.
-import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, type Page } from '@playwright/test'
 import { localDayOffset } from './support/dates'
 import { mkUsageHome } from './support/homes'
-import { launch, close } from './support/launch'
+import { closeApp } from './close-app'
+import { launch, launchWindow, close, makeUserData, type WindowLaunched } from './support/launch'
 import { scansLanded, errorToastsAdded } from './support/waits'
 
 // A project only Grok registered still opens a working detail page: every section reads
@@ -719,4 +720,283 @@ test('reopening an artifact (query layer): first open is slow, reopening it is i
 
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+// ── A page drawn from its copy shows the latest scan's figures (project-detail::REQ-005) ──
+//
+// Every case holds the detail fetch open, so that what the page shows inside the hold can only have come from the
+// figures a scan sent to the window or from the page's copy, never from the page's own refetch. The rescan interval
+// stays well above the hold: a rescan landing before the last one's refetch has resolved restarts that refetch.
+const FIGURES_HOLD_MS = 2500
+const FIGURES_ENV = { AGENTSHED_FETCH_DELAY_MS: String(FIGURES_HOLD_MS), AGENTSHED_RESCAN_MS: '5000' }
+/** Well inside the hold, and above what a repaint takes */
+const AT_ONCE = { timeout: 400 }
+
+/** One Claude session's lines: one question, and one call of `tokens` input tokens, `daysAgo` days back */
+const figuresSession = (question: string, tokens: number, daysAgo: number): string => {
+  const timestamp = localDayOffset(daysAgo).toISOString()
+  return [
+    { type: 'user', timestamp, message: { role: 'user', content: question } },
+    { type: 'assistant', timestamp, message: { id: `m-${question}`, model: 'claude-fable-5', usage: { input_tokens: tokens, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+  ].map((line) => JSON.stringify(line)).join('\n') + '\n'
+}
+
+/**
+ * Two registered projects with one session each, `daysAgo` days back: proj-a's of 120 tokens and proj-b's of 50. The
+ * all-time totals stay under a thousand, where the card shows the figure itself.
+ */
+function mkFiguresHome(daysAgo = 2): { home: string; projA: string; sessionsA: string; firstA: string } {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-figures-'))
+  const projects: Record<string, object> = {}
+  const dirs: Record<string, string> = {}
+  for (const name of ['proj-a', 'proj-b']) {
+    const proj = join(home, name)
+    mkdirSync(proj, { recursive: true })
+    projects[proj] = {}
+    dirs[name] = join(home, '.claude', 'projects', proj.replace(/[^a-zA-Z0-9]/g, '-'))
+    mkdirSync(dirs[name], { recursive: true })
+  }
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects }))
+  const firstA = join(dirs['proj-a'], 'first.jsonl')
+  writeFileSync(firstA, figuresSession('First question in A', 120, daysAgo))
+  writeFileSync(join(dirs['proj-b'], 'only.jsonl'), figuresSession('Only question in B', 50, daysAgo))
+  return { home, projA: join(home, 'proj-a'), sessionsA: dirs['proj-a'], firstA }
+}
+
+const paneTotal = (win: Page) => win.locator('.pane-body .tot-c.on .v')
+const paneHeader = (win: Page) => win.locator('.pane-head h1')
+
+/**
+ * Opens proj-a and then proj-b, each until its page is whole, so both have a copy and proj-b is on screen. Then, under a
+ * held fetch, waits one hold: a rescan landing while proj-a was still on screen began a refetch of it, which reads the
+ * project a hold later, and a case that changed the project before that would find the change in proj-a's copy.
+ */
+async function visitAThenB(win: Page, holdMs = FIGURES_HOLD_MS): Promise<void> {
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'proj-a' }).click()
+  await expect(paneHeader(win)).toHaveText('proj-a')
+  await expect(paneTotal(win)).toHaveText('120')
+  await win.locator('.side .row', { hasText: 'proj-b' }).click()
+  await expect(paneHeader(win)).toHaveText('proj-b')
+  await expect(paneTotal(win)).toHaveText('50')
+  if (holdMs > 0) await win.waitForTimeout(holdMs)
+}
+
+/**
+ * From now on, every pair of the pane's header and its selected total that is on screen together, in order; a pane with
+ * no total on it (another section, a session page) adds nothing. A MutationObserver's callback runs after each change
+ * to the page and before it is painted, so a pair that was drawn for one frame is in the list.
+ */
+async function recordPaneTotals(win: Page): Promise<() => Promise<string[]>> {
+  await win.evaluate(() => {
+    const w = window as unknown as { paneTotals: string[] }
+    w.paneTotals = []
+    const read = (): void => {
+      const total = document.querySelector('.pane-body .tot-c.on .v')
+      if (!total) return
+      const pair = `${document.querySelector('.pane-head h1')?.textContent ?? ''}|${total.textContent ?? ''}`
+      if (w.paneTotals[w.paneTotals.length - 1] !== pair) w.paneTotals.push(pair)
+    }
+    read()
+    new MutationObserver(read).observe(document.body, { childList: true, subtree: true, characterData: true })
+  })
+  return () => win.evaluate(() => (window as unknown as { paneTotals: string[] }).paneTotals)
+}
+
+test('a cached visit shows the latest scan\'s total and sessions from its first frame, the copy\'s other sections until its refetch, and a session listed that way opens', async () => {
+  const { home, projA, sessionsA } = mkFiguresHome()
+  mkdirSync(join(projA, 'docs', 'specs'), { recursive: true })
+  writeFileSync(join(projA, 'docs', 'specs', 'old.md'), '# Old spec\n')
+  const l = await launch(undefined, home, FIGURES_ENV)
+  const win = await l.app.firstWindow()
+  await visitAThenB(win)
+
+  // With proj-b on screen, proj-a gains a session with usage and an artifact. A scan feeds the first to the window;
+  // the second is only in the page's own detail
+  writeFileSync(join(sessionsA, 'second.jsonl'), figuresSession('Second question in A', 350, 1))
+  writeFileSync(join(projA, 'docs', 'specs', 'new.md'), '# New spec\n')
+  await scansLanded(win, 2)
+
+  const totals = await recordPaneTotals(win)
+  await win.locator('.side .row', { hasText: 'proj-a' }).click()
+  await expect(paneHeader(win)).toHaveText('proj-a', AT_ONCE)
+  await expect(paneTotal(win)).toHaveText('470', AT_ONCE)
+  const added = win.locator('.pane-body .card .se', { hasText: 'Second question in A' })
+  await expect(added).toBeVisible(AT_ONCE)
+  // The Artifacts section is still the copy's: the file the scan does not feed is not listed yet
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
+  await expect(win.locator('.it.ai', { hasText: 'Old spec' })).toBeVisible(AT_ONCE)
+  await expect(win.locator('.it.ai', { hasText: 'New spec' })).toHaveCount(0)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Overview' }).click()
+  // From the click on, proj-a's page never showed the total its copy was saved with
+  const seen = await totals()
+  expect(seen[0]).toBe('proj-b|50')
+  expect(seen).toContain('proj-a|470')
+  expect(seen.filter((pair) => pair.startsWith('proj-a|') && pair !== 'proj-a|470')).toEqual([])
+
+  // The session the scan listed opens: the main process admits sessions from the same scan
+  await added.click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Second question in A')
+  // And the refetch does bring the artifact, so its absence above was the copy's
+  await win.locator('.sback').click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
+  await expect(win.locator('.it.ai', { hasText: 'New spec' })).toBeVisible()
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('the page on screen takes a scan\'s figures with the snapshot, before its own refetch resolves', async () => {
+  const { home, sessionsA } = mkFiguresHome()
+  const l = await launch(undefined, home, FIGURES_ENV)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'proj-a' }).click()
+  await expect(paneTotal(win)).toHaveText('120')
+
+  // When each snapshot arrived, and when the new session's row was first on the page
+  await win.evaluate(() => {
+    const w = window as unknown as { snapshotsAt: number[]; rowAt: number | null; agentshed: { onSnapshot: (cb: () => void) => void } }
+    w.snapshotsAt = []
+    w.rowAt = null
+    w.agentshed.onSnapshot(() => { w.snapshotsAt.push(performance.now()) })
+    new MutationObserver(() => {
+      if (w.rowAt === null && [...document.querySelectorAll('.pane-body .card .se')].some((row) => row.textContent?.includes('Second question in A'))) w.rowAt = performance.now()
+    }).observe(document.body, { childList: true, subtree: true, characterData: true })
+  })
+  writeFileSync(join(sessionsA, 'second.jsonl'), figuresSession('Second question in A', 350, 1))
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Second question in A' })).toBeVisible({ timeout: 20_000 })
+  await expect(paneTotal(win)).toHaveText('470')
+
+  const { snapshotsAt, rowAt } = await win.evaluate(() => {
+    const w = window as unknown as { snapshotsAt: number[]; rowAt: number | null }
+    return { snapshotsAt: w.snapshotsAt, rowAt: w.rowAt }
+  })
+  // The row came with a snapshot: a refetch would have brought it a whole hold after one
+  const before = snapshotsAt.filter((at) => at <= (rowAt ?? 0))
+  expect(before.length).toBeGreaterThan(0)
+  expect((rowAt ?? 0) - before[before.length - 1]).toBeLessThan(FIGURES_HOLD_MS / 5)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('once a scan holds nothing for a project, a cached visit shows zeros and no sessions, not its copy\'s figures', async () => {
+  // Both projects' usage is the scan day's own, on one side. The archive rewrites that day's figure from the scan while
+  // the side still has usage on it (proj-b's), so no archived row keeps proj-a's figures (ADR-0026)
+  const { home, firstA } = mkFiguresHome(0)
+  const l = await launch(undefined, home, FIGURES_ENV)
+  const win = await l.app.firstWindow()
+  await visitAThenB(win)
+
+  rmSync(firstA)
+  await scansLanded(win, 2)
+
+  const totals = await recordPaneTotals(win)
+  await win.locator('.side .row', { hasText: 'proj-a' }).click()
+  await expect(paneHeader(win)).toHaveText('proj-a', AT_ONCE)
+  await expect(paneTotal(win)).toHaveText('0', AT_ONCE)
+  await expect(win.locator('.pane-body .none', { hasText: 'No sessions in this project yet' })).toBeVisible(AT_ONCE)
+  await expect(win.locator('.pane-body .card .se')).toHaveCount(0)
+  const seen = await totals()
+  expect(seen[0]).toBe('proj-b|50')
+  expect(seen.filter((pair) => pair.startsWith('proj-a|') && pair !== 'proj-a|0')).toEqual([])
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('a window reloaded after a scan that holds nothing for a project shows zeros on a cached visit, before any scan reaches it', async () => {
+  const { home, firstA } = mkFiguresHome(0)
+  const l = await launch(undefined, home, FIGURES_ENV)
+  const win = await l.app.firstWindow()
+  await visitAThenB(win)
+
+  rmSync(firstA)
+  await scansLanded(win, 2)
+
+  // The application menu's Reload: a new document in a run whose scan has completed. What it holds comes from the
+  // startup answer, and the count below shows that no scan reached it before the page was read
+  await win.reload()
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row', { hasText: 'proj-a' })).toBeVisible()
+  await win.evaluate(() => {
+    const w = window as unknown as { snapshotsSinceReload: number; agentshed: { onSnapshot: (cb: () => void) => void } }
+    w.snapshotsSinceReload = 0
+    w.agentshed.onSnapshot(() => { w.snapshotsSinceReload++ })
+  })
+
+  const totals = await recordPaneTotals(win)
+  await win.locator('.side .row', { hasText: 'proj-a' }).click()
+  await expect(paneHeader(win)).toHaveText('proj-a', AT_ONCE)
+  await expect(paneTotal(win)).toHaveText('0', AT_ONCE)
+  await expect(win.locator('.pane-body .none', { hasText: 'No sessions in this project yet' })).toBeVisible(AT_ONCE)
+  await expect(win.locator('.pane-body .card .se')).toHaveCount(0)
+  expect((await totals()).filter((pair) => pair.startsWith('proj-a|') && pair !== 'proj-a|0')).toEqual([])
+  expect(await win.evaluate(() => (window as unknown as { snapshotsSinceReload: number }).snapshotsSinceReload)).toBe(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('a page restored at launch shows the figures saved with the snapshot until the first scan, and its copy\'s when its saved figures are unusable', async () => {
+  const { home, sessionsA } = mkFiguresHome()
+  const userData = makeUserData()
+  const held = { AGENTSHED_SCAN_DELAY_MS: '60000' }
+  let open: WindowLaunched | null = null
+  const start = async (env: Record<string, string>): Promise<Page> => {
+    open = await launchWindow(home, env, userData)
+    return open.win
+  }
+  const stop = async (): Promise<void> => {
+    const l = open
+    open = null
+    if (!l) return
+    expect(l.errors).toEqual([])
+    await closeApp(l.app)
+  }
+  try {
+    // First run: proj-a's page is saved at 120 tokens; then a scan finds its second session while proj-b is on
+    // screen, so the figures saved with the snapshot are newer than proj-a's saved page
+    let win = await start({ AGENTSHED_RESCAN_MS: '800' })
+    await visitAThenB(win, 0)
+    writeFileSync(join(sessionsA, 'second.jsonl'), figuresSession('Second question in A', 350, 1))
+    await scansLanded(win, 2)
+    await stop()
+
+    // Second run, its first scan held: the restored page shows the saved figures
+    win = await start(held)
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'proj-a' }).click()
+    await expect(paneHeader(win)).toHaveText('proj-a')
+    await expect(paneTotal(win)).toHaveText('470')
+    await expect(win.locator('.pane-body .card .se', { hasText: 'Second question in A' })).toBeVisible()
+    await stop()
+
+    // proj-a's saved figures are damaged, so the saved data restores without them (entries degrade one by one)
+    const file = join(userData, 'display-cache.json')
+    const saved = JSON.parse(readFileSync(file, 'utf8')) as { data: { stats: [string, { sessions: unknown }][] } }
+    const ofA = saved.data.stats.filter(([key]) => key.endsWith('/proj-a'))
+    expect(ofA).toHaveLength(1)
+    ofA[0][1].sessions = 'damaged'
+    writeFileSync(file, JSON.stringify(saved))
+
+    // Third run, its first scan held: proj-a's page shows what its copy carries, and proj-b's its own saved figures
+    win = await start(held)
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'proj-a' }).click()
+    await expect(paneHeader(win)).toHaveText('proj-a')
+    await expect(paneTotal(win)).toHaveText('120')
+    await expect(win.locator('.pane-body .card .se')).toHaveCount(1)
+    await expect(win.locator('.pane-body .card .se', { hasText: 'First question in A' })).toBeVisible()
+    await win.locator('.side .row', { hasText: 'proj-b' }).click()
+    await expect(paneHeader(win)).toHaveText('proj-b')
+    await expect(paneTotal(win)).toHaveText('50')
+    await stop()
+  } finally {
+    const left = open as WindowLaunched | null
+    if (left) await closeApp(left.app)
+    rmSync(userData, { recursive: true, force: true })
+    rmSync(home, { recursive: true, force: true })
+  }
 })

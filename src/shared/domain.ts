@@ -582,6 +582,13 @@ export interface ProjectStats {
   sessions: SessionMeta[]
 }
 
+/**
+ * Every project's statistics as one scan leaves them, each with the project's merge key (path-key.ts). A scan sends
+ * them to the window beside its snapshot, and the display copy saves them beside it (project-detail::REQ-005). A
+ * project the scan has no session and no usage row for has no entry.
+ */
+export type ProjectFigures = [string, ProjectStats][]
+
 export function emptyTotals(): TokenTotals {
   return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
 }

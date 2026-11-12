@@ -2,7 +2,7 @@
 // renderer receives,
 // so contract drift surfaces at the boundary rather than rendering as undefined. Hand-written structural
 // validation, zero dependencies.
-import type { AgentSide, Snapshot } from './domain'
+import type { AgentSide, ProjectFigures, Snapshot } from './domain'
 import { ERR, appError } from './errors'
 import { ARTIFACT_ORDER } from './domain'
 
@@ -402,6 +402,26 @@ export function validateProjectStats(v: unknown): ValidateResult {
 export function assertProjectStats(v: unknown): void {
   const r = validateProjectStats(v)
   if (!r.ok) throw contractError('projectStats', r.failure)
+}
+
+/** ProjectFigures: pairs of a project's merge key and its statistics, each judged as a detail's are */
+export function validateProjectFigures(v: unknown): ValidateResult {
+  if (!Array.isArray(v)) return failType('figures', 'array')
+  for (let i = 0; i < v.length; i++) {
+    const entry: unknown = v[i]
+    const at = `figures[${i}]`
+    if (!Array.isArray(entry) || entry.length !== 2) return failType(at, '[string, ProjectStats]')
+    if (typeof entry[0] !== 'string' || entry[0] === '') return failType(`${at}[0]`, 'string(non-empty)')
+    const r = validateProjectStats(entry[1])
+    if (!r.ok) return { ok: false, failure: { ...r.failure, path: `${at}[1].${r.failure.path}` } }
+  }
+  return { ok: true }
+}
+
+/** Both sides of the boundary: the main process before it sends a scan's figures, the preload on receiving them */
+export function assertProjectFigures(v: unknown): asserts v is ProjectFigures {
+  const r = validateProjectFigures(v)
+  if (!r.ok) throw contractError('projectFigures', r.failure)
 }
 
 // ── Project detail (the getProjectDetail channel) ──

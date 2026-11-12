@@ -1,8 +1,9 @@
 // Seam 2 (the IPC contract): behavioural tests of snapshot schema validation — a good payload is admitted,
 // a bad one is refused with a path.
 import { describe, it, expect } from 'vitest'
-import { validateSnapshot, validateProjectStats, validateProjectDetail, validateSessionTurn, validateSearchResult, validateGlobalSearchResult } from './validate'
+import { validateSnapshot, validateProjectStats, validateProjectFigures, assertProjectFigures, validateProjectDetail, validateSessionTurn, validateSearchResult, validateGlobalSearchResult } from './validate'
 import { emptySnapshot, emptyTokenStats } from './domain'
+import { decodeAppError, ERR } from './errors'
 
 describe('validateSnapshot', () => {
   it('admits a valid snapshot (an empty snapshot is a valid base state)', () => {
@@ -192,6 +193,38 @@ describe('validateProjectStats (session metadata)', () => {
 
   it('refuses a sessions that is not an array', () => {
     expect(validateProjectStats({ tokens: emptyTokenStats(), sessions: null }).ok).toBe(false)
+  })
+})
+
+// The figures every scan sends beside the snapshot (project-detail::REQ-005, Implementation Decisions). The
+// main process and the preload both judge the payload by assertProjectFigures; that each calls it is wiring
+// no case here drives.
+describe('validateProjectFigures (each project\'s figures, by merge key)', () => {
+  const session = { side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/.claude/projects/e/a.jsonl', questionCount: 3, forkState: 'none' }
+  const stats = { tokens: emptyTokenStats(), sessions: [session] }
+  const ok = [['/users/x/a', stats], ['/users/x/b', { tokens: emptyTokenStats(), sessions: [] }]]
+
+  it('admits every project\'s figures as pairs of merge key and statistics, and an empty list', () => {
+    expect(validateProjectFigures(ok)).toEqual({ ok: true })
+    expect(validateProjectFigures([])).toEqual({ ok: true })
+    expect(() => assertProjectFigures(ok)).not.toThrow()
+  })
+
+  it.each([
+    ['a payload that is not a list', { '/users/x/a': stats }, 'figures'],
+    ['an entry that is not a pair', [['/users/x/a', stats], ['/users/x/b']], 'figures[1]'],
+    ['an entry with a third member', [['/users/x/a', stats, stats]], 'figures[0]'],
+    ['an empty key', [['', stats]], 'figures[0][0]'],
+    ['a key that is not a string', [[7, stats]], 'figures[0][0]'],
+    ['statistics that are not an object', [['/users/x/a', null]], 'figures[0][1].stats'],
+    ['a session with no file, in the second entry', [ok[0], ['/users/x/b', { ...stats, sessions: [{ ...session, file: '' }] }]], 'figures[1][1].stats.sessions[0].file']
+  ])('refuses %s, and names where', (_name, payload, path) => {
+    const r = validateProjectFigures(payload)
+    expect(r.ok === false && r.failure.path).toBe(path)
+    let thrown: unknown
+    try { assertProjectFigures(payload) } catch (error) { thrown = error }
+    expect(decodeAppError(thrown)?.code).toBe(ERR.contractType)
+    expect(decodeAppError(thrown)?.params).toMatchObject({ path: `projectFigures.${path}` })
   })
 })
 

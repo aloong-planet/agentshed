@@ -76,7 +76,8 @@ export const CMD = {
 } as const
 
 export const EVT = {
-  /** The main process pushes a new snapshot (a refresh completed) */
+  /** The main process pushes a new snapshot (a refresh completed), and with it every project's figures from that
+   * scan (ProjectFigures; project-detail::REQ-005) */
   snapshot: 'agentshed:snapshot',
   startupStatus: 'agentshed:startup-status',
   /** The application menu triggered "Settings" (ticket 13): the same operation as the rail's settings entry, with

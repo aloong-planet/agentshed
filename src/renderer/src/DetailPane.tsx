@@ -10,6 +10,7 @@ import type { AgentSide, ArtifactEntry, ArtifactType, CappedText, ProjectDetail,
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
 import { skillsDirLoaders } from '@shared/skill-landing'
 import { projectDetailQueryKey, useProjectDetailQuery } from './project-detail-query'
+import { figuresFor, type WindowFigures } from './project-figures'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_FULL_NAME, SIDE_ORDER } from './side-badge'
 import { StaleNote } from './StaleNote'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
@@ -36,6 +37,7 @@ type Tab = 'ov' | 'instructions' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 
 
 export function DetailPane({
   snap,
+  figures,
   path,
   initialTab,
   win,
@@ -43,6 +45,8 @@ export function DetailPane({
   onOpenSession
 }: {
   snap: Snapshot
+  /** Every project's figures as the window holds them beside the snapshot (project-detail::REQ-005) */
+  figures: WindowFigures
   path: string
   /** Read when this pane mounts. Leaving a session page for a project lands on the "Sessions" section (the prototype's
    * rule for the back control, the owner's for a selection in the list); normally not passed, starting on the overview */
@@ -83,7 +87,7 @@ export function DetailPane({
   }
 
   return (
-    <DetailPaneBody entry={entry} snap={snap} tab={tab} onTab={setTab} win={win} onWin={onWin} onOpenSession={onOpenSession} />
+    <DetailPaneBody entry={entry} snap={snap} figures={figures} tab={tab} onTab={setTab} win={win} onWin={onWin} onOpenSession={onOpenSession} />
   )
 }
 
@@ -95,6 +99,7 @@ export function DetailPane({
 function DetailPaneBody({
   entry,
   snap,
+  figures,
   tab,
   onTab,
   win,
@@ -103,6 +108,7 @@ function DetailPaneBody({
 }: {
   entry: ProjectEntry
   snap: Snapshot
+  figures: WindowFigures
   tab: Tab
   onTab: (tab: Tab) => void
   win: UsageWindow
@@ -114,6 +120,14 @@ function DetailPaneBody({
   const { span: trendSpan, onSpan: setTrendSpan } = useTrendSpan()
   const result = useProjectDetailQuery(entry.path)
   const queryClient = useQueryClient()
+  // The page's statistics are the window's, which every scan replaces, and not the ones its detail was fetched or
+  // saved with: a page drawn from its copy shows the latest scan's from its first frame, and the page on screen takes
+  // a scan's with the snapshot (project-detail::REQ-005). Everything else is the detail's own
+  const fetched = result.ok ? result.detail : null
+  const detail = useMemo(
+    () => (fetched ? { ...fetched, stats: figuresFor(figures, fetched.path, fetched.stats) } : null),
+    [fetched, figures]
+  )
 
   return (
     <div className="pane">
@@ -148,15 +162,15 @@ function DetailPaneBody({
         </nav>
       </header>
       <div className="pane-body">
-        {result.ok ? (
+        {detail ? (
           // Keyed by the resolved project (project-detail A3, Implementation Decisions "Section state
           // is keyed by project"): a project change unmounts and remounts every section, resetting its
           // local state (expansion, search, scroll) exactly as it did when a switch cleared `detail` to
           // null; a transfusion of the same project keeps the key, so that state survives the refresh.
-          <Fragment key={result.detail.path}>
+          <Fragment key={detail.path}>
             {tab === 'ov' && (
               <OverviewTab
-                detail={result.detail}
+                detail={detail}
                 span={trendSpan}
                 onSpan={setTrendSpan}
                 snap={snap}
@@ -167,28 +181,28 @@ function DetailPaneBody({
             )}
             {tab === 'skills' && (
               <SkillsTab
-                detail={result.detail}
+                detail={detail}
                 onChanged={() =>
                   void queryClient.invalidateQueries({ queryKey: projectDetailQueryKey(entry.path) })
                 }
               />
             )}
-            {tab === 'subagents' && <ProjectSubagentsTab detail={result.detail} />}
-            {tab === 'plugins' && <ProjectPluginsTab detail={result.detail} snap={snap} />}
-            {tab === 'mcp' && <McpTab detail={result.detail} snap={snap} />}
+            {tab === 'subagents' && <ProjectSubagentsTab detail={detail} />}
+            {tab === 'plugins' && <ProjectPluginsTab detail={detail} snap={snap} />}
+            {tab === 'mcp' && <McpTab detail={detail} snap={snap} />}
             {tab === 'memory' && (
               <ProjectMemoryTab
-                detail={result.detail}
+                detail={detail}
                 projectName={entry.name}
                 hasClaudeSide={entry.sides.includes('claude')}
                 anchor={now}
               />
             )}
             {tab === 'sessions' && (
-              <SessionsTab detail={result.detail} onOpenSession={onOpenSession} />
+              <SessionsTab detail={detail} onOpenSession={onOpenSession} />
             )}
-            {tab === 'instructions' && <InstructionsTab detail={result.detail} />}
-            {tab === 'arts' && <ArtifactsTab detail={result.detail} />}
+            {tab === 'instructions' && <InstructionsTab detail={detail} />}
+            {tab === 'arts' && <ArtifactsTab detail={detail} />}
           </Fragment>
         ) : null // T10: a fetch failure resolves in-band; the body stays empty under the new header, as
         // it always did while the detail was loading — no error card is invented.

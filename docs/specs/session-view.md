@@ -953,7 +953,9 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   are discoverable" trace and is never silently dropped (the AGENTS.md allow-list invariant).
 - **Cold rollouts**: the index signature and the cache key use the compressed path, as does the read
   allow-list (R1).
-- **IPC**: the session list rides on the project detail. The session page payload is self-contained
+- **IPC**: the session list rides on the project detail, and on the project figures every scan sends
+  beside the snapshot, which a project's page draws in preference
+  ([project-detail::REQ-005](project-detail.md)). The session page payload is self-contained
   (title / volume / fork state / question text), with the text read live by the main process by byte
   range.
   **On-demand answer fetching**: a turn's range can only come from the application's own index, held

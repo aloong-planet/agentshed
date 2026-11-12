@@ -18,9 +18,10 @@ import {
   type ListSkillFilesResult,
   type ReadSkillFileArgs
 } from '@shared/ipc'
-import type { CappedText, GlobalSearchResult, ProjectDetail, SearchResult, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import type { CappedText, GlobalSearchResult, ProjectDetail, ProjectFigures, SearchResult, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import {
   contractError,
+  assertProjectFigures,
   validateSnapshot,
   validateProjectDetail,
   validateSessionPage,
@@ -257,8 +258,13 @@ const api = {
     ipcRenderer.on(EVT.updateNotice, listener)
     return () => ipcRenderer.removeListener(EVT.updateNotice, listener)
   },
-  onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
-    const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
+  /** A completed scan: its snapshot, and every project's figures from it (project-detail::REQ-005), each checked on
+   * arrival as on leaving the main process */
+  onSnapshot: (cb: (snap: Snapshot, figures: ProjectFigures) => void): (() => void) => {
+    const listener = (_e: unknown, snap: unknown, figures: unknown): void => {
+      assertProjectFigures(figures)
+      cb(checked(snap), figures)
+    }
     ipcRenderer.on(EVT.snapshot, listener)
     return () => ipcRenderer.removeListener(EVT.snapshot, listener)
   }
