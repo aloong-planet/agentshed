@@ -343,8 +343,8 @@ hands the command over; it never runs it.
   reversible into text, and unusable for search — so neither of D2a's reasons (size, and not
   degenerating into a second search corpus) is affected.
   Question text is read from its range on demand (the live question list and search share that
-  path): stored in full it would be a megabyte-scale burden on `token-cache.json`, which is read on
-  every startup. The startup display copy is the explicit exception in session-view::REQ-001; it is
+  path): stored in full it would be a megabyte-scale addition to the token store
+  ([token-stats](token-stats.md), Implementation Decisions, Cache). The startup display copy is the explicit exception in session-view::REQ-001; it is
   not searched or used as an offset index.
   Corollary: the ellipsis on a list row is **display-layer truncation** (CSS), not data-layer — the
   full text can be laid out when it expands.

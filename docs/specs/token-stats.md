@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread)
+> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group)
 
 > Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
@@ -168,18 +168,22 @@ all of them.
 - F7 Sessions spanning midnight are apportioned by each turn's own timestamp, the same as B2.
 
 **Sequence C: cache and archive**
-- C1 An old-format cache (a historical file from before a structure change) does not crash and is
-  recomputed into the new structure — **the structure definition and the version number are two
-  halves of the same change** (see postmortems/cache-version-crash).
-- C2 Garbage cache content does not crash and triggers a full recompute. A file of the current version
-  whose `files` is not a JSON object — it is missing, `null`, an array or a value of another type — is
-  garbage, like one that does not parse. Within an object, an entry that is not well formed is a miss,
-  and only its file is parsed again (Implementation Decisions, Cache).
-- C3 A second build gives the same result (idempotent); the cache file is valid JSON and lands
-  atomically. A failed write of it (a blocked or full settings directory) does not fail the scan: what
-  was computed is in memory and goes out as usual, the failure is logged, no temporary file stays behind
-  whichever step failed, and the next launch parses again unless a later scan's write succeeds first
-  (token-stats::QR-002/AC-02).
+- C1 A token store of another structure version, older or newer, does not crash: it is replaced by an
+  empty store of this version and every file is parsed again, apart from the one upgrade C26 imports —
+  **the structure definition and the version number are two halves of the same change** (see
+  postmortems/cache-version-crash). The version is recorded in the store itself.
+- C2 A store that will not open, is not a database, or whose tables are not the shape its version
+  has, is garbage: it is replaced and every file is parsed again. Within a store of this version, an
+  entry that is not well formed is a miss, and only its file is parsed again (Implementation Decisions,
+  Cache); a group's stored result that does not read back is combined again from its files' entries,
+  with nothing parsed.
+- C3 A second build gives the same result (idempotent). What a scan changes in the store lands in one
+  transaction, so the store holds all of it or none of it, wherever the scan was stopped. A failed write
+  (a blocked or full settings directory) does not fail the scan: what was computed is in memory and goes
+  out as usual, and the failure is logged. The engine then takes the store as it is, so the next scan
+  parses again the files whose entries did not land and combines their groups again
+  (token-stats::QR-002/AC-02). The store's log and shared-memory files sit beside it in the settings
+  directory and are the store's own.
 - C4 The archive is written on the first merge; a new instance reads it back. **A failed write does not
   fail the scan** (a settings directory gone read-only or full, ADR-0039): the effective rows computed in
   memory go out as usual and the failure is logged. Each later scan writes again, so the file catches up
@@ -255,20 +259,16 @@ all of them.
   own day or any other side. The next scan then judges those rows by C10 like any others: the
   compacted live figures are lower under the same stamp, so the restored rows are retained. A
   restore made while the application is running is seen by its next scan, not overwritten by what
-  the application had in memory. The script refuses a snapshot whose cache structure version
-  differs from the current one — the aggregation only understands the shape it was written for,
-  and a restore from a shape it misreads would write plausible nonsense. The consequence: every
-  cache structure bump orphans the snapshots written before it, and a restore across a bump needs
-  the snapshot converted first, by hand, per version step — a conversion is exact only when the
-  step's change to the per-file aggregate has a known value for the old entries (the 14 → 15 step did:
-  every v14 Codex event was event-derived, so the boundary is the events' length; the 17 → 18 step
-  does too: it adds the Antigravity CLI variant and changes no existing entry, so a v17 snapshot
-  converts by its version number alone; so does the 18 → 19 step: it adds each Antigravity conversation's session
-  fields, none of which enters a row, so a v18 snapshot converts by giving each Antigravity entry those fields empty — no id, no
-  time, no fork, no question, not listed — which the rows a restore writes never read). Automating the conversion is not planned; a snapshot a step
-  cannot convert exactly is unrecoverable through the script. The script also refuses a snapshot of
-  the current version that holds an entry that is not well formed, a converted one included
-  (Implementation Decisions, Restore).
+  the application had in memory. A snapshot is a copy of the token store; the script reads it without
+  writing to it, and reads no other kind of file — a JSON cache file is not a snapshot. The script
+  refuses a snapshot whose cache structure version differs from the current one — the aggregation only
+  understands the shape it was written for, and a restore from a shape it misreads would write plausible
+  nonsense. The consequence: every cache structure bump orphans the snapshots written before it, and a
+  restore across a bump needs the snapshot converted first, by hand, per version step — a conversion is
+  exact only when the step's change to the per-file aggregate has a known value for the old entries.
+  Automating the conversion is not planned; a snapshot a step cannot convert exactly is unrecoverable
+  through the script. The script also refuses a snapshot of the current version that holds an entry that
+  is not well formed, a converted one included (Implementation Decisions, Restore).
 - C17 A user deleting their own session files does not lower a past day: the deletion is a
   same-stamp decrease, so the archive's rows are retained and the deleted figure shows as the
   observed value. This is ADR-0007's purpose (history survives the source files) applied to a
@@ -310,6 +310,23 @@ all of them.
   dialog; measured 2026-11-05). C4 and C8 govern what happens once the application is running: a
   directory that goes read-only or full later, or a volume with room for the lock and not for the
   archive.
+- C26 **Upgrading from the JSON cache** (ADR-0044). A launch that finds no usable token store and a JSON
+  cache file of structure version 19 — the last kept in that file, whose per-file aggregate the store
+  keeps unchanged — imports every well-formed entry of it into a new store before the first scan, each as
+  a scan would have stored it, and deletes the JSON file once the import has landed. An entry that is not
+  well formed is not imported, and the first scan parses its file. A JSON file of another version, or one
+  that is garbage by the rules that file had (it does not parse, or its `files` is not an object of
+  entries), is deleted without an import, and the first scan parses every file. A JSON file beside a
+  usable store — a build from before the store ran since — is deleted unread: the store's signatures
+  decide what is current, and a file that changed since is parsed again. An import that fails lands
+  nothing and the first scan parses every file; the JSON file is then deleted as one beside a usable
+  store. A deletion that fails is logged, and a later launch deletes the file it finds.
+- C27 **Two processes on one store**. A development run and the installed copy use one settings directory
+  on a case-insensitive volume (app-update spec, Implementation Decisions), so both can run on one store.
+  Before each scan and each read of an entry, a process that finds the store changed by the other since
+  it last read it takes the store as it is, so it never combines from, or writes over the other's
+  changes with, what it held in memory. A write that finds the store held by the other waits for it, and
+  one that still cannot write is a failed write (C3).
 
 **Sequence D: trend and axis rendering**
 - D1 The plotted calendar span follows token-stats::REQ-002/AC-02.
@@ -782,7 +799,7 @@ takes the same path. During a rescan the main process is never busy for longer t
 stretch, whether or not session files changed since the last scan. It is judged by the scan benchmark
 under Electron (the AGENTS.md invariant on main-process figures), as the main process's longest
 event-loop stall across one rescan, on real data of the size the threshold was set against: about
-7,000 session files and a 45 MB token cache.
+7,000 session files.
 
 ### token-stats::QR-002 A rescan repeats no reading or write whose input did not change
 
@@ -794,13 +811,12 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   previous scan saw is not opened to read its first line again: everything the scan takes from that
   line — the project it is credited to, whether it is a subagent's, its ids and its fork time among
   them — is what was read then. A rollout that differs in any of the three is read again.
-- token-stats::QR-002/AC-02: The token cache file is written at the end of a scan only when the file
-  is not what the scan leaves in memory: the scan changed the cache — a parse gave a file a new entry,
-  or a file the cache held an entry for ends the scan with none (it left the scan set, or no longer
-  gives an entry) — or the last write of the file failed (C3), or the file was no cache this build
-  reads when the run loaded it (C1, C2, or no file). A scan that changed nothing leaves the file as it
-  is; a parse that gave nothing to a file the cache held no entry for, or that kept the entry the
-  cache already held (token-stats::REQ-004/AC-03), changed nothing.
+- token-stats::QR-002/AC-02: A scan writes to the token store only what it changed: the entry of each
+  file a parse gave a new entry, the removal of each entry whose file ends the scan with none (it left
+  the scan set, or no longer gives an entry), and the stored result of each group it combined again
+  (token-stats::CON-003). A scan that changed nothing writes nothing; a parse that gave nothing to a
+  file the store held no entry for, or that kept the entry the store already held
+  (token-stats::REQ-004/AC-03), changed nothing.
 
 ### Failure modes and boundaries: scans and the window
 
@@ -823,24 +839,74 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   change of mode touches none of the three, and a kept failure would hide the session until the file
   next changed, which a cold rollout never does. A rollout with a kept reading that changes into one
   giving none leaves the scan; its earlier reading is not used.
-- A cache write that fails, a scan's or a session page's (session-view C4), is tried again at each
-  later scan until one succeeds, whether or not that scan changes the cache
-  (token-stats::QR-002/AC-02), so the file still catches up without a restart once the directory is
-  writable (C3).
-- The first scan of a run that loaded no cache — no file, a garbage one or one of another version
-  (C1, C2) — writes the file even when it parses nothing, a home with no session file included: a
-  fresh settings directory gets its cache file, and a file this build cannot read is replaced.
+- A store write that fails, a scan's or a session page's (session-view C4), lands nothing, and the
+  engine takes the store as it is (C3): the next scan parses again what did not land and writes it, so
+  the store catches up without a restart once the directory is writable.
+- A run that finds no usable store — none, a garbage one or one of another version (C1, C2) — creates
+  an empty store of this version when it opens it, before its first scan, a home with no session file
+  included.
 - A session page, a project search or global search asks for a question index while a scan runs: the
   worker answers between the scan's steps, not after the scan, and the asking page keeps its existing
   pending form until then.
-- Quitting while a scan runs: the quit waits for the worker to stop between two steps, so the cache
-  file on disk is the last one written whole (C3). A scan the worker has not finished by then is
+- Quitting while a scan runs: the quit waits for the worker to stop between two steps, so the store
+  holds the last scan whose writes landed (C3). A scan the worker has not finished by then is
   dropped with its results. One it finishes first is a finished scan: its result is taken, and the
   display copy it leaves is on disk before the app exits. Anything else asked of the worker and not
   answered when it stops stays unanswered, and no failure is shown for it.
 - Interface: no page, state, copy or control is added or changed — these rules decide where a scan
   runs and what it reads again, and the figures are the same (the prototype exemption, declared). No
   new point renders or loads external content (G14 holds).
+
+## The token store
+
+The token cache is a SQLite store that keeps each file's entry and each de-duplication group's combined
+result, and a scan combines again only the groups its changes reach (ADR-0044). The requirements below
+hold it to the figures one combination over everything gives, and to memory and writes that follow what
+changed.
+
+### token-stats::CON-003 Combining by group gives the figures of one combination (direct acceptance)
+
+Applies to: every scan, on the scan worker or on the main process, and everything it derives from the
+token cache — the usage rows, each project's sessions and their order, the session read allow-list,
+each side's count of unreadable conversations and every title it shows. These are exactly what one
+combination over every file of the scan set, in scan order, gives from the same entries.
+
+### token-stats::QR-003 A scan's memory and its writes follow what changed
+
+Applies to: a locally packaged build from its second launch on — not the first launch of a build, which
+imports the JSON cache (C26) or combines every group again (Implementation Decisions, Cache) — with its
+window shown and its store current to within ten files at launch, on real data of the size these were
+set against: about 7,000 session files. Memory is the main process's, its worker threads included, read
+with macOS `footprint`.
+
+- token-stats::QR-003/AC-01: From launch through the first scan and five rescans, the main process's
+  peak footprint is at most 400 MB.
+- token-stats::QR-003/AC-02: After those rescans, its footprint is at most 250 MB.
+- token-stats::QR-003/AC-03: A rescan that parses at most ten files writes at most 10 MB to the token
+  store, its log and the checkpoint into the store included, whether or not the window has focus. The
+  display copy ([agents-overview::REQ-008](agents-overview.md)) and the archive are written by their own
+  rules and are not counted.
+
+### Failure modes and boundaries: the token store
+
+- A changed file that now shares a key with files of other groups joins them: the groups become one and
+  are combined together. A change that drops the only key tying two parts of a group splits it, and each
+  part is combined again.
+- A file whose entry did not change but whose input to the combination did — its place in the scan
+  order, its admission to the session read allow-list, the project it is credited to, a title read
+  beside it — has its group combined again: the order decides which copy of a message is kept, and the
+  rest reaches the rows and the lists.
+- An entry the session page rebuilt (session-view C4) is a changed file for the next scan: its group was
+  combined from the entry it replaced.
+- Two groups' sessions with the same time keep the order one combination gives them, so the session
+  list reads the same.
+- A file that leaves the scan set takes its entry and its group's stored result with it, and the rest of
+  its group is combined again.
+- A group's stored result that does not read back, or that was combined under another combination
+  (Implementation Decisions, Cache), is combined again from its files' entries with nothing parsed.
+- Interface: no page, state, copy or control is added or changed — these rules decide where the cache
+  lives and how much of it a scan combines, and the figures are the same (the prototype exemption,
+  declared). No new point renders or loads external content (G14 holds).
 
 ## Implementation Decisions
 
@@ -869,10 +935,11 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 - **Usage rows are the one source every figure derives from** (ADR-0025). Windowing needs day × side
   × project × model at four-field grain, which the archive persists. Deriving every figure from one
   row set is also what makes G7 hold by construction.
-- **Cache version bumps**: the incremental cache stores per-file parse output, and the combination
-  step downstream of it re-runs on every build. A *structure* change to what is cached must bump the
-  version, and a change downstream of the cache must not, or every release would force a full rescan
-  for nothing.
+- **Cache version bumps**: the store keeps per-file parse output, and each group's combined result
+  with the combination it came from (Cache, below). A *structure* change to what is stored must bump the
+  version, and a change to the combination must not: the results it would make stale are combined again
+  from the stored entries with nothing parsed, while a bump makes every file parse again, so a bump for a
+  combination change would force a full rescan for nothing.
 - **Archive**: see ADR-0007 for its existence and grain, ADR-0026 for the conflict rule. The archive
   is the sole owner of the effective row set: each scan hands it the live rows and the scan anchor,
   and it returns the rows every figure derives from together with the archived-only days — no caller
@@ -882,11 +949,12 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   it — the observed value of each retained pair, and the superseded values each with the pair they
   belonged to; an older format upgrades on read as C14 describes. The snapshot contract keeps the
   list of archived-only days, computed per day; the retained set never leaves the archive.
-- **Restore**: a repository script, run by a developer, that reads a cache snapshot and applies C16
-  through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
-  so the restored rows are exactly what a scan of that data would have produced. It refuses a
-  snapshot that holds an entry that is not well formed (Cache, below), or whose `files` is not an
-  object of entries, and says how many entries are not: a scan parses such an entry's file again,
+- **Restore**: a repository script, run by a developer, that reads a copy of the token store and applies
+  C16 through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
+  combining the snapshot's entries as one scan set, so the restored rows are exactly what a scan of that
+  data would have produced. It opens the copy so that nothing is written to it or beside it. It refuses
+  a snapshot that is not a store of the current structure version, or that holds an entry that is not
+  well formed (Cache, below), and says how many entries are not: a scan parses such an entry's file again,
   and a restore has no file to parse, so the rows of the other entries alone would write a day short
   of that entry's usage as an accepted change.
 - **An archive a newer build wrote** (token-stats::REQ-005, token-stats::REQ-006): the archive
@@ -908,8 +976,8 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   because the failure can come before the window subscribes, and each merge that succeeds before the
   notice is taken withdraws it. The window asks at mount, with each snapshot and on focus, and asks
   nothing while it has no focus. The notice stays out of the snapshot, which is saved with the
-  display copy and would restore a failure from an earlier run. The archive, the token cache, the
-  preferences and the last run's version share one atomic write, which removes its temporary file
+  display copy and would restore a failure from an earlier run. The archive, the preferences and the last
+  run's version share one atomic write, which removes its temporary file
   when it fails; the display copy's asynchronous write does the same.
 - **Codex usage sources**: see ADR-0027. The parser reads both sources in one pass and applies the
   usage boundary as it goes; the per-file aggregate keeps its list of per-event increments and the
@@ -919,8 +987,21 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   line reader; the byte offsets the question index records for it are offsets in the decompressed
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
-- **Cache**: incremental by file signature; **a structure change must bump the version number at the
-  same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
+- **Cache**: incremental by file signature, kept in a SQLite store in the settings directory, opened
+  through the runtime's built-in module by whichever engine runs the scan (Where a scan runs, below) and
+  recording its own structure version (ADR-0044). It holds each file's entry under its path — its
+  signature and its per-file aggregate — the de-duplication keys each entry carries, and each group's
+  combined result with the combination it came from. In memory the engine keeps each file's signature
+  and its group, never the aggregates; every read of an entry goes to the store. A group is the set of
+  files linked, directly or through others, by a key they share: a Claude message's id with its request
+  id, a Codex session id or the parent id a fork names, an Antigravity call's identity; a file with none
+  is a group alone. A group's input is, file by file in scan order, its entry and what the scan adds to
+  it — the project it is credited to, its admission to the read allow-list, a title read beside it — and
+  a group whose input differs from the one its stored result came from is combined again; the scan's
+  figures are the stored results summed (token-stats::CON-003). The combination a result came from is
+  the application version in a packaged build; every run of an unpackaged build is a combination of its
+  own, so its first scan combines every group again. Combining every group again reads the entries of one
+  group at a time. **A structure change must bump the version number at the same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
   recomputes. An entry is well formed when its signature is a string and its per-file aggregate has
   every field its side requires, each of the type it requires, every row of each of its lists
   included: as many elements as the row's type has, each a number, a string or `null` where that
@@ -947,15 +1028,15 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   pooled cache is identical, file by file, to one parsed without the pool. The session page's
   single-file rebuild parses on the thread that runs the scan.
 - **Where a scan runs** (ADR-0043): on the scan worker, one worker thread kept for the run that owns
-  the token cache: the session walk, the registry and component reads, the planning, the pool of
-  parse workers it starts, the aggregation, the cache write and the single-file rebuild. The main
+  the token store: the session walk, the registry and component reads, the planning, the pool of
+  parse workers it starts, the aggregation, the store's writes and the single-file rebuild. The main
   process gives it the data roots and takes back the snapshot without its token figures, the usage
   rows, each project's sessions and the session read allow-list. The archive merge and every step
   after it stay on the main process, as does reading a project's detail. The worker starts each
   request as it arrives, and a scan gives way between its steps — the session walk, the registry and
   component reads, the token build — so a question-index read is answered while a scan waits for its
   parses and between two of its steps. After the worker has failed, the main process's own scanner
-  starts from the cache file the worker last wrote.
+  starts from the store as the worker last left it.
 - **Automatic refresh**: the triggers (focus + timer) run in the main process, and the scan they
   start on the scan worker; the cost of a rescan is absorbed by the incremental cache.
 - **Antigravity usage** (ADR-0037): the databases are opened through the runtime's built-in SQLite
@@ -1023,8 +1104,11 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 - Recovering usage that a rewind deleted before any scan saw it: the database no longer holds it, and
   the transcript's token fields carry no model and no call identity.
 - Refreshing more often than E1's triggers, or watching the agents' data directories for changes
-  (ADR-0043 option 6): every scan marks every saved page stale and rewrites the display copy, and a
+  (ADR-0043 option 6): every scan marks every saved page stale and changes the display copy, and a
   focus refresh that does not hold up the window already brings the figures up to date when they are
   about to be read.
+- A memory threshold for a build's first launch, which imports the JSON cache (C26) or combines every
+  group again, for a development run, or for the window's own process: token-stats::QR-003 holds the
+  main process of a packaged build from its second launch on.
 - Keeping the rollouts' first-line readings from one run to the next: it needs a file of its own or a
   new cache structure version, and a new version moves the accounting stamp (C10).
