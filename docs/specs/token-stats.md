@@ -782,11 +782,11 @@ under Electron (the AGENTS.md invariant on main-process figures), as the main pr
 event-loop stall across one rescan, on real data of the size the threshold was set against: about
 7,000 session files and a 45 MB token cache.
 
-> Pending: every scan runs on the scan worker.
-
 ### token-stats::QR-002 A rescan repeats no reading or write whose input did not change
 
 Applies to: every scan after the first of a run; token-stats::QR-002/AC-02 applies to the first as well.
+The first scan served on the main process after the scan worker fails is a first scan for
+token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 
 - token-stats::QR-002/AC-01: A Codex rollout whose modification time, size and inode are the ones the
   previous scan saw is not opened to read its first line again: everything the scan takes from that
@@ -803,15 +803,18 @@ Applies to: every scan after the first of a run; token-stats::QR-002/AC-02 appli
 ### Failure modes and boundaries: scans and the window
 
 - The scan worker cannot be started, fails or exits, during a scan or between two (ADR-0043): the scan
-  under way and every later scan and question-index read of that run are served on the main process,
-  and the failure is logged once. The figures are the same. token-stats::QR-001 does not hold for the
-  rest of that run.
+  and the question-index reads under way, and every later one of that run, are served on the main
+  process, and the failure is logged once. The figures are the same. token-stats::QR-001 does not hold
+  for the rest of that run. A scan or a read that fails on a worker still running is that scan (E3) or
+  that read (session-view C4) failed, not a failed worker.
 - A rollout replaced under its path, appended to or edited in place differs in its inode, its size or
   its modification time, and its first line is read again (token-stats::QR-002/AC-01). An edit that
   moves none of the three is not seen until the file next changes — the limit the token cache's own
   signature has (Implementation Decisions, Cache).
 - The first-line readings are kept in memory for the run and are not saved: the first scan of a run
-  reads every rollout's first line.
+  reads every rollout's first line. They are kept where the scan runs, so after the scan worker fails
+  the first scan served on the main process reads every rollout's first line as well, and
+  token-stats::QR-002/AC-01 holds again from the scan after it.
 - Only a reading that gave a session is kept. A rollout that gave none — it could not be opened, or its
   first line is corrupt or names no project (projects-list B4) — is opened again at every scan, the one
   exception to token-stats::QR-002/AC-01: such a failure can end without the signature moving, as a
@@ -828,8 +831,11 @@ Applies to: every scan after the first of a run; token-stats::QR-002/AC-02 appli
 - A session page, a project search or global search asks for a question index while a scan runs: the
   worker answers between the scan's steps, not after the scan, and the asking page keeps its existing
   pending form until then.
-- Quitting while a scan runs: the scan is dropped with its results, and the quit waits for the worker to
-  stop between two steps, so the cache file on disk is the last one written whole (C3).
+- Quitting while a scan runs: the quit waits for the worker to stop between two steps, so the cache
+  file on disk is the last one written whole (C3). A scan the worker has not finished by then is
+  dropped with its results. One it finishes first is a finished scan: its result is taken, and the
+  display copy it leaves is on disk before the app exits. Anything else asked of the worker and not
+  answered when it stops stays unanswered, and no failure is shown for it.
 - Interface: no page, state, copy or control is added or changed — these rules decide where a scan
   runs and what it reads again, and the figures are the same (the prototype exemption, declared). No
   new point renders or loads external content (G14 holds).
@@ -918,26 +924,27 @@ Applies to: every scan after the first of a run; token-stats::QR-002/AC-02 appli
   a row (bounding an in-place edit nothing cheap can see) mean a whole parse. A resumed parse equals
   a whole parse. Claude and Grok files are parsed whole when they change: Claude's question filter
   needs the whole parent graph, and Grok's streams are small.
-- **Where parsing runs**: the scan is planned on the main process — cache hits, resumes, whole
-  parses — and the files that need parsing are parsed on a pool of worker threads (cores minus one,
-  at most four), several at once; the results are then taken in scan order, because the cross-file
-  deduplication keeps the first copy of a message and so the order is part of the result. Workers
-  start when there is work and stop after ten idle seconds. A worker that fails or will not load
-  hands its file back to the main process, so a failure costs time, never a file. The largest file
-  alone bounds the time, so workers past four mostly cost memory. The pooled cache is identical to
-  the main-process one file by file. The session page's single-file rebuild parses on the main
-  process.
+- **Where parsing runs**: the scan is planned on the thread that runs it (the next paragraph) — cache
+  hits, resumes, whole parses — and the files that need parsing are parsed on a pool of worker
+  threads (cores minus one, at most four), several at once; the results are then taken in scan order,
+  because the cross-file deduplication keeps the first copy of a message and so the order is part of
+  the result. Parse workers start when there is work and stop after ten idle seconds. One that fails
+  or will not load hands its file back to the thread that runs the scan, so a failure costs time,
+  never a file. The largest file alone bounds the time, so workers past four mostly cost memory. The
+  pooled cache is identical, file by file, to one parsed without the pool. The session page's
+  single-file rebuild parses on the thread that runs the scan.
 - **Where a scan runs** (ADR-0043): on the scan worker, one worker thread kept for the run that owns
-  the token cache. Everything the paragraph above places on the main process moves there with the
-  cache — the planning, the pool of parse workers it starts, the single-file rebuild — together with
-  the session walk, the registry and component reads, the aggregation and the cache write. The main
+  the token cache: the session walk, the registry and component reads, the planning, the pool of
+  parse workers it starts, the aggregation, the cache write and the single-file rebuild. The main
   process gives it the data roots and takes back the snapshot without its token figures, the usage
   rows, each project's sessions and the session read allow-list. The archive merge and every step
-  after it stay on the main process, as does reading a project's detail.
-
-  > Pending: every scan runs on the scan worker.
-- **Automatic refresh**: the triggers (focus + timer) run entirely in the main process; the cost of
-  a rescan is absorbed by the incremental cache.
+  after it stay on the main process, as does reading a project's detail. The worker starts each
+  request as it arrives, and a scan gives way between its steps — the session walk, the registry and
+  component reads, the token build — so a question-index read is answered while a scan waits for its
+  parses and between two of its steps. After the worker has failed, the main process's own scanner
+  starts from the cache file the worker last wrote.
+- **Automatic refresh**: the triggers (focus + timer) run in the main process, and the scan they
+  start on the scan worker; the cost of a rescan is absorbed by the incremental cache.
 - **Antigravity usage** (ADR-0037): the databases are opened through the runtime's built-in SQLite
   module (available in Electron 43), under token-stats::CON-002. The records are decoded by field
   number against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and

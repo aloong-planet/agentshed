@@ -1,6 +1,6 @@
 # ADR-0043: A scan runs on one worker thread that owns the token cache; the main process only starts it and takes its result
 
-- Status: Proposed
+- Status: Accepted (2026-11-12)
 
 ## Context
 
@@ -59,12 +59,15 @@ We adopt **option 1**.
   the window.
 - **Reading the question index is a request to the worker**: the session page, the project search,
   global search and the freshness check ask it, and it answers between the steps of a running scan.
-- **A worker that will not start, fails or exits hands the work back**: the request in flight and every
+- **A worker that will not start, fails or exits hands the work back**: the requests in flight and every
   later one in that run are served on the main process, by an engine that reads the cache file, as a
   build without the worker would. It is logged once. The figures are the same and the window is held
-  again for as long as a scan's synchronous work takes.
+  again for as long as a scan's synchronous work takes. A request the worker's engine fails is a failed
+  request, as it was on the main process, and not a failed worker.
 - **Quitting asks the worker to stop and waits for it**, so it stops between steps and no cache write is
-  cut short.
+  cut short. The display copy is flushed after the worker has stopped: a scan it finishes before it
+  takes the stop still hands over its result, and that result's save has to be on disk before the exit.
+  What the worker has not answered when it stops stays unanswered; the quit runs no failure path.
 
 ## Consequences
 
@@ -78,9 +81,24 @@ We adopt **option 1**.
   have to stay the same code.
 - Negative: worker threads now start worker threads. Measured on 2026-11-11 under Electron 43.2.0: a
   worker starts its own worker and the runtime's SQLite module loads in the inner one.
+- Negative: between the worker finishing a scan and the main process taking its result, a question-index
+  read is answered from the new cache while the read allow-list is still the previous scan's. A session
+  file that left the scan set in that scan is refused as not indexed for those milliseconds, where the
+  main process's own cache still served it.
+- Negative: what ran after a scan only because the scan held the main process's thread now runs during
+  it. The quit's flush of the display copy was one (postmortem
+  `2026-11-12-the-quits-flush-relied-on-the-scan-holding-the-thread`).
 - Negative, not solved here: saving the display copy still clones and serialises it on the main process
   at every scan and every page read, about 70 ms in two stretches on the measured data.
 - Neutral: the triggers and their intervals do not change, and the archive stays where it was.
+
+**Evidence closed (accepted 2026-11-12)**: measured on the built change with the scan benchmark under
+Electron 43.2.0, on this machine's data (about 7,000 session files, a 46.8 MB token cache). In six rescans
+through the scan worker the main process's longest stall was 24 to 33 ms: two that left the cache file as
+it was, three that wrote it (the home was in use while it was measured), and one with a session file
+grown between the two scans. The same two scans on the main process held it for 283 ms with nothing to
+parse, and for 476 ms with one file parsed and the cache written. A locally packaged build ran its first
+scan over the same data to its cache write, 46.8 MB, with no worker or parse-pool failure logged.
 
 ## Sources
 

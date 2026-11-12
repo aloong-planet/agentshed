@@ -1,11 +1,12 @@
 // The parse pool (#159): session files parsed on worker threads, several at once, so a scan's JSON.parse
-// work leaves the main process free to answer IPC and uses more than one core. TokenEngine decides what
-// to parse and assembles the results in scan order; the pool only runs jobs.
+// work uses more than one core and leaves the thread that runs the scan — the scan worker (ADR-0043) —
+// free to answer what it is asked meanwhile. TokenEngine decides what to parse and assembles the results
+// in scan order; the pool only runs jobs.
 //
 // Workers start when there is work and stop after IDLE_MS without any, so a scan that hits the cache for
 // every file starts none, and nothing stays resident between scans (rescans are minutes apart).
 // A worker that fails — the script will not load, it crashes, it exits — never loses a file: that job is
-// parsed on the main thread instead, exactly as a pool-less engine would.
+// parsed on the pool's own thread instead, exactly as a pool-less engine would.
 import { Worker } from 'node:worker_threads'
 import { runParseJob, type ParseJob, type ParseResult, type ParseRunner } from './providers/token-stats'
 
@@ -76,11 +77,11 @@ export class ParsePool implements ParseRunner {
     }
   }
 
-  /** The job parsed on the main thread instead, with one warning per pool */
+  /** The job parsed on the pool's own thread instead, with one warning per pool */
   private fallBack(task: Task): void {
     if (!this.warned) {
       this.warned = true
-      console.warn('[parse-pool] a parse worker failed; its file is parsed on the main thread')
+      console.warn('[parse-pool] a parse worker failed; its file is parsed on the thread that runs the scan')
     }
     void runParseJob(task.job).then(task.resolve)
   }

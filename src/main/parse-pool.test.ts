@@ -88,7 +88,7 @@ describe('ParsePool', () => {
     pool.close()
   })
 
-  it('a worker that dies mid-job loses nothing: the job is parsed on the main thread, with one warning', async () => {
+  it('a worker that dies mid-job loses nothing: the job is parsed on the pool\'s own thread, with one warning', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const pool = new ParsePool(crashWorker(), 2)
     const job = realJob()

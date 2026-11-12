@@ -5,7 +5,7 @@ import type {} from '../src/renderer/src/env'
 // asserting the main process emits no errors.
 // The key scenario: **starting with an old-format cache** (the shape of the 2026-07-30 production crash;
 // the unit tests pin it and this guards the whole chain again).
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync, statSync, symlinkSync, unlinkSync, chmodSync, existsSync, realpathSync, openSync, writeSync, closeSync, utimesSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, readdirSync, renameSync, statSync, symlinkSync, unlinkSync, chmodSync, existsSync, realpathSync, openSync, writeSync, closeSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
@@ -343,6 +343,32 @@ test('a failed token cache write on the first scan: the app comes up with its da
   expect(stderr.join('')).not.toContain('scan failed')
   expect(errors).toEqual([])
   await close({ app, errors, userData, home })
+})
+
+// Quitting while a scan runs (token-stats, Failure modes and boundaries: scans and the window; ADR-0043): the quit
+// asks the scan worker to stop and waits for its thread, and the scan is dropped with its results. The seam holds
+// the first scan open on the worker for far longer than a close may take, so a quit that waited for the scan
+// instead would run into the close bound. A first scan into a fresh settings directory writes the cache file, so
+// a directory without one says the held scan never went on.
+//
+// A gap, known: a quit that did not tell the worker to stop at all passes this case too (measured by taking the
+// call out, 2026-11-12). From outside the two differ only when the quit lands inside a cache write, which no case
+// can time; that close sends the stop and waits for the thread is covered at the client (scan-client.test.ts).
+test('quitting while the first scan is held: the app closes within the bound, and the settings directory holds no token cache file, whole or temporary', async () => {
+  const userData = makeUserData()
+  const home = mkUsageHome()
+  const { app, errors } = await startApp({ userData, home, env: { AGENTSHED_SCAN_DELAY_MS: '60000' } })
+  const win = await app.firstWindow()
+  // The scan is under way: the page says so
+  await expect(win.locator('.scan-hint')).toBeVisible()
+
+  await closeApp(app)
+
+  expect(test.info().annotations.filter((a) => a.type === 'teardown')).toEqual([])
+  expect(readdirSync(userData).filter((name) => name.includes('token-cache'))).toEqual([])
+  expect(errors).toEqual([])
+  rmSync(userData, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true })
 })
 
 // The first-line readings are the run's, not one scan's (token-stats::QR-002/AC-01): what tells a rescan that

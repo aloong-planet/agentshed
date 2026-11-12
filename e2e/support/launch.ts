@@ -24,7 +24,7 @@ export interface Launched {
 }
 
 /** What counts as a failure signal in what the main process writes to stderr; `startApp` says why each part is here */
-const MAIN_ERRORS = /Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/
+const MAIN_ERRORS = /Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]|\[scan-worker\]/
 
 export interface StartOptions {
   userData: string
@@ -107,8 +107,9 @@ export async function startApp(options: StartOptions): Promise<Started> {
     // the Chinese wording "契约校验失败", which no longer exists after ticket 06,
     // so that pattern had become a dead pattern that could never match anything again (silently weakening the
 // detection net).
-    // `[parse-pool]`: a parse worker failed and its file was parsed on the main thread instead. The figures
-    // stay right, so without this the built app could lose its workers with every case still green.
+    // `[parse-pool]`: a parse worker failed and its file was parsed on the thread that asked instead.
+    // `[scan-worker]`: the scan worker failed and scans run on the main process instead (ADR-0043). The figures
+    // stay right either way, so without these the built app could lose its workers with every case still green.
     if (MAIN_ERRORS.test(t)) errors.push(t.trim())
   })
   return { app, errors, stderr }

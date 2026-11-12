@@ -84,8 +84,8 @@ a retried "does not appear" check cannot prove absence.
   vectors; the per-item state is in `docs/ops/electron-security.md`.
 - Non-printing characters are written as escapes in source, never as raw bytes; `pnpm check:nul`
   enforces the NUL case.
-- A figure about reading files from the main process counts only when measured under Electron with
-  `pnpm bench:scan` (the chunk-size reasoning is in `src/main/providers/jsonl.ts`).
+- A figure about reading files from the main process, its worker threads included, counts only when measured
+  under Electron with `pnpm bench:scan` (the chunk-size reasoning is in `src/main/providers/jsonl.ts`).
 - Every e2e case closes its app through `closeApp` (`e2e/close-app.ts`), and a teardown warning on an
   unloaded run is a defect.
 - An e2e case starts its app through `startApp` (`e2e/support/launch.ts`); `pnpm lint` fails on any other static import of

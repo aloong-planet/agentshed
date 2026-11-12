@@ -1,6 +1,6 @@
 # Session view
 
-> Related: ADR-0038 (test layers) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0040 (rendering branch tests)
+> Related: ADR-0038 (test layers) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0040 (rendering branch tests) · ADR-0043 (a scan runs on a worker thread)
 
 > Successful display payloads persist independently of the accounting index (ADR-0029).
 
@@ -439,8 +439,9 @@ below are archived as a decision record and are no longer requirements)**
 
 **Cross-cutting regression points**
 - R1 Session file paths must enter the on-demand read allow-list (the same invariant as artifacts
-  and memory). The main process produces **an exact path set** during the scan, and the allow-list
-  check is the first thing done on a read, before any file-system call. **The rule = listed
+  and memory). The application's own scan produces **an exact path set**, which the main process
+  takes from the scan's result and holds (ADR-0043), and the allow-list check is the first thing done
+  on a read, before any file-system call. **The rule = listed
   sessions + subagent and nested transcripts** — the latter are not in the list (A3/A3a) but
   expanding them inside a turn needs them, so writing it as "only what is already listed" would
   block ourselves. The Antigravity CLI side admits its listed conversations' databases only, and no
@@ -955,8 +956,9 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
 - **IPC**: the session list rides on the project detail. The session page payload is self-contained
   (title / volume / fork state / question text), with the text read live by the main process by byte
   range.
-  **On-demand answer fetching**: a turn's range can only come from the main process's own index (the
-  renderer cannot supply byte ranges), with the same allow-list check first; the payload carries the
+  **On-demand answer fetching**: a turn's range can only come from the application's own index, held
+  where the scan runs (ADR-0043; the renderer cannot supply byte ranges), with the same allow-list
+  check first; the payload carries the
   bytes read as evidence of "nothing was read whole". A read-only freshness predicate lets the
   renderer decide whether to show the interim "rebuilding the index for this file only" state, while
   the rebuild itself is still triggered by the fetch call (idempotent, and the file changing between
