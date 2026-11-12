@@ -57,8 +57,9 @@ is read-only; the one write operation is uninstalling a project-level skill.
   is atomic** (an invariant in AGENTS.md): the page on screen stays whole until the next project's
   page can be drawn whole, then the pane switches in one frame — no empty pane, no loading label, no
   new header over an old body. Only the list highlight moves at once. A project with a saved
-  successful page is a **cached visit**: its page is drawn immediately from what was last shown and
-  refreshed in the background. A refetch that reaches a page already on screen — a snapshot update
+  successful page is a **cached visit**: its page is drawn immediately from what was last shown, its
+  token figures and session list excepted (project-detail::REQ-005), and refreshed in the background.
+  A refetch that reaches a page already on screen — a snapshot update
   (an automatic rescan, see token-stats sequence E), a background revalidation, a page-local change
   — is a **transfusion**: the rendered content stays and the new data replaces it on arrival, so a
   section's local state (expansion, search, scroll position) survives the refresh. Sequence T below
@@ -293,7 +294,8 @@ background revalidation replaces the list (project-detail::REQ-001/AC-03).
 
 - project-detail::REQ-001/AC-01: After a full quit and relaunch, opening a previously viewed project
   with a valid saved detail displays the last successful detail before the first scan finishes,
-  including its sections, statistics and session list. An accounting-cache invalidation alone
+  including its sections, statistics and session list, the last two as project-detail::REQ-005/AC-02
+  sets out. An accounting-cache invalidation alone
   must not turn this into a first visit.
 - project-detail::REQ-001/AC-02: A project without saved detail follows the existing first-visit
   behavior; never substitute another project's data.
@@ -355,7 +357,9 @@ and no scan completed yet.
   every project's token figures and session list, keyed the way the project list merges paths, and
   checked on both sides of the boundary like every payload (ADR-0001). They are not part of the
   snapshot (A3), and the display copy saves them beside it (ADR-0029). The detail a page fetches still
-  carries that project's figures as of the fetch.
+  carries that project's figures as of the fetch, and the page draws the window's for that project
+  over them whenever the window holds them: a scan replaces the figures the main process reads a
+  detail from and sends them to the window in the same turn, so the window's are never the older.
 - **Copying goes through the main process** (an IPC channel writing the OS clipboard): the renderer
   clipboard API rejects under automation — measured, not assumed — and the OS clipboard is
   main-process territory anyway. The channel validates its sender and input like every other.
