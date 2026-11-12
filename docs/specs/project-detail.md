@@ -334,9 +334,6 @@ project's token figures and session list, so the page never has to show older on
   figures for shows zeros and an empty session list ([token-stats](token-stats.md) G17), as its
   revalidation would, and not the copy's figures.
 
-> Pending: every scan sends each project's token figures and session list to the window with the
-> snapshot.
-
 Failure modes and boundaries: until the revalidation arrives, the copy's other sections can be older
 than the figures and the session list beside them. A session in that list opens, because the main
 process admits sessions from the same scan the list came from. The saved figures degrade entry by
@@ -359,9 +356,6 @@ and no scan completed yet.
   checked on both sides of the boundary like every payload (ADR-0001). They are not part of the
   snapshot (A3), and the display copy saves them beside it (ADR-0029). The detail a page fetches still
   carries that project's figures as of the fetch.
-
-  > Pending: every scan sends each project's token figures and session list to the window with the
-  > snapshot.
 - **Copying goes through the main process** (an IPC channel writing the OS clipboard): the renderer
   clipboard API rejects under automation — measured, not assumed — and the OS clipboard is
   main-process territory anyway. The channel validates its sender and input like every other.
