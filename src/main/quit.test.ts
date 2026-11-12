@@ -1,7 +1,8 @@
 // The order a quit settles things in (quit.ts), over the real display store on a temporary directory and a
 // stand-in for stopping the scan worker. That the app's quit handler calls it with the display store's flush and the
-// scan client's close is wiring no case drives: e2e cannot make a scan's result arrive while the worker stops,
-// which takes a scan with a long synchronous stretch, that is, a home of real size.
+// scan client's close is wiring no case guards: the e2e case for quitting during a scan runs through the handler,
+// but e2e cannot make a scan's result arrive while the worker stops, which takes a scan with a long synchronous
+// stretch, that is, a home of real size.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

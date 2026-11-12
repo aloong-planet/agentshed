@@ -785,6 +785,8 @@ event-loop stall across one rescan, on real data of the size the threshold was s
 ### token-stats::QR-002 A rescan repeats no reading or write whose input did not change
 
 Applies to: every scan after the first of a run; token-stats::QR-002/AC-02 applies to the first as well.
+The first scan served on the main process after the scan worker fails is a first scan for
+token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 
 - token-stats::QR-002/AC-01: A Codex rollout whose modification time, size and inode are the ones the
   previous scan saw is not opened to read its first line again: everything the scan takes from that
@@ -810,7 +812,9 @@ Applies to: every scan after the first of a run; token-stats::QR-002/AC-02 appli
   moves none of the three is not seen until the file next changes — the limit the token cache's own
   signature has (Implementation Decisions, Cache).
 - The first-line readings are kept in memory for the run and are not saved: the first scan of a run
-  reads every rollout's first line.
+  reads every rollout's first line. They are kept where the scan runs, so after the scan worker fails
+  the first scan served on the main process reads every rollout's first line as well, and
+  token-stats::QR-002/AC-01 holds again from the scan after it.
 - Only a reading that gave a session is kept. A rollout that gave none — it could not be opened, or its
   first line is corrupt or names no project (projects-list B4) — is opened again at every scan, the one
   exception to token-stats::QR-002/AC-01: such a failure can end without the signature moving, as a

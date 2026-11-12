@@ -36,7 +36,9 @@ copy on disk and no temporary file.
 
 ## What remains
 
-- The handler's call of that function is wiring no case drives, for the reason above.
+- The handler's call of that function is guarded by no case. The e2e case for quitting during a scan runs through it,
+  but its held scan hands nothing over, the reason above: it passed on the commit that had the defect, and it passes
+  when the quit never stops the worker (measured by taking the call out).
 - A forced termination can still cut a display write, as before this change, and the temporary file it leaves is
   never removed: its name carries the process id of a run that is gone.
 - A page's read still under way when the quit begins is not waited for, as before this change: it reads the session
