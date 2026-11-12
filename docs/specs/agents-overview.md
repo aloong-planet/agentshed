@@ -6,7 +6,8 @@
 > **page-level** rules: which sections exist, the summary cards, and single-side degradation.
 
 > Startup restoration uses the original page prototypes.
-> Successful display payloads persist independently of the accounting index (ADR-0029).
+> Successful display payloads persist independently of the accounting index (ADR-0029), and are
+> written while the window has no focus (ADR-0044).
 
 ## Problem Statement
 
@@ -309,6 +310,24 @@ them ([token-stats](token-stats.md), An archive a newer build wrote, says how a 
   sides, a usage row — is not restored, and every other entry restores (restart sequence, item 1).
 - agents-overview::REQ-005/AC-03: No restored entry names such a side, as a key or as a value.
 
+### agents-overview::REQ-008 Write the display copy while the window has no focus
+
+Applies to: every change to the display copy — a scan's snapshot and project statistics, a saved page,
+a registration the main process produced.
+
+- agents-overview::REQ-008/AC-01: A change made while the window has focus is not written while it keeps
+  focus. It is written when the window loses focus — to another application or window, or by being
+  hidden, minimised or closed.
+- agents-overview::REQ-008/AC-02: A change made while the window has no focus, or while there is no
+  window — a timed scan in the background — is written right away.
+- agents-overview::REQ-008/AC-03: A normal quit, the restart that installs an update included
+  ([app-update](app-update.md) C1), writes every change not yet written before the app exits.
+- agents-overview::REQ-008/AC-04: A crash or a forced quit loses at most the changes made since the window
+  last gained focus; the next launch restores the copy last written (agents-overview::REQ-001), and its
+  first scan replaces it.
+- agents-overview::REQ-008/AC-05: A write that fails leaves its changes unwritten, and the next moment
+  AC-01 to AC-03 name writes them (restart sequence, item 7).
+
 ### Failure modes and boundaries: restart sequence
 
 1. Read saved data before exposing it. Envelope corruption falls back under
@@ -339,12 +358,19 @@ them ([token-stats](token-stats.md), An archive a newer build wrote, says how a 
 11. Interface: no page, state, copy or control is added or changed — the rule decides which saved
     entries the existing pages show (the prototype exemption, declared). It restores data, never
     rendered content, so item 8's boundaries are unchanged.
+12. The window gains focus while a write is under way: the write completes, and changes made from then
+    on wait for the next moment agents-overview::REQ-008 names. A change made while a write is under
+    way is written by the next write, not lost to the one in progress.
+13. Interface: agents-overview::REQ-008 decides when the copy is written, not what any page shows — no
+    page, state, copy or control is added or changed (the prototype exemption, declared), and no new
+    point renders or loads external content.
 
 ### Startup implementation decisions
 
-- Save successful snapshot and page-read results during normal operation, with ordered atomic
-  replacement and a normal-quit flush. A forced kill may lose writes not yet completed, never
-  invalidate the previous complete save. No numeric latency or retention limit has been approved.
+- Record successful snapshot and page-read results as they arrive, and write them when
+  agents-overview::REQ-008 says, with ordered atomic replacement. A change is recorded without copying
+  the data; the copy is serialised only when it is written. A forced kill may lose writes not yet
+  completed, never invalidate the previous complete save. No numeric retention limit has been approved.
 - Main owns the saved data and produces validated page payloads; the renderer receives restored data
   before showing restored pages. Do not add an arbitrary renderer-to-disk cache-write API.
 - Use the existing inline scanning form in the page heading, including the project-list heading
