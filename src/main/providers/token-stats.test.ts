@@ -1518,6 +1518,118 @@ describe('cache version migration (a real bug regression)', () => {
   })
 })
 
+// C2: within an object of entries, one that is not well formed is a miss. The cases above and the Antigravity ones
+// drive a corrupt aggregate through a build and through the Codex and Antigravity session pages; these drive what
+// they leave: the Claude session page, the two parts of an entry beside its aggregate, and the snapshot reader.
+describe('a cache entry that is not well formed is no entry (C2)', () => {
+  const cacheFile = (): string => join(dir, 'cache', 'token-cache.json')
+  type Saved = { files: Record<string, { sig: unknown; agg: Record<string, unknown> | null; resume?: Record<string, unknown> } | null> }
+  const saved = (): Saved => JSON.parse(readFileSync(cacheFile(), 'utf8')) as Saved
+  /** A runner that parses as usual and keeps every job it was handed */
+  function recording(): { runner: ParseRunner; jobs: Array<Parameters<ParseRunner['run']>[0]> } {
+    const jobs: Array<Parameters<ParseRunner['run']>[0]> = []
+    return {
+      jobs,
+      runner: {
+        concurrency: 1,
+        run: (job) => {
+          jobs.push(job)
+          return runParseJob(job)
+        }
+      }
+    }
+  }
+
+  it.each([
+    ['gone null', (): null => null],
+    // Still carrying its project: the page must not need it either
+    ['missing forkPoints', (agg: Record<string, unknown>): Record<string, unknown> => {
+      const rest = { ...agg }
+      delete rest['forkPoints']
+      return rest
+    }]
+  ])('a Claude session whose aggregate is %s: its page is served before the first build, and that build still credits it to its project', async (_what, corrupt) => {
+    const cl = mkClaudeFile('page.jsonl', [userLine('the one question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    await engine().build(roots(), [proj])
+    const cache = saved()
+    const entry = cache.files[cl]
+    if (!entry || !entry.agg) throw new Error('the build saved no entry for the session')
+    cache.files[cl] = { sig: entry.sig, agg: corrupt(entry.agg) }
+    writeFileSync(cacheFile(), JSON.stringify(cache))
+    // A new engine reads the cache from disk, as at startup, and serves the page before any build has run
+    const e = engine()
+    expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(1)
+    // The project a Claude session is credited to comes from the registry, which the page does not read: an index
+    // kept from that page under no project would be a hit for this build, and the session would leave its project
+    const r = await e.build(roots(), [proj])
+    expect(r.perProject.get(proj.toLowerCase())?.sessions.map((s) => s.file)).toEqual([cl])
+    expect(r.sessionFiles.has(cl)).toBe(true)
+  })
+
+  describe('a Codex rollout\'s entry', () => {
+    /** A rollout a build has cached with its resume state, then grown by one response */
+    async function grown(): Promise<string> {
+      const f = mkCodexRollout('rollout-entry-019fd10.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_e1' }])
+      await engine().build(roots(), [proj])
+      const u = { input_tokens: 200, cached_input_tokens: 0, output_tokens: 20, total_tokens: 220 }
+      appendFileSync(f, JSON.stringify({ timestamp: '2026-07-30T01:10:00Z', type: 'token_usage_record', payload: { response_id: 'resp_e2', usage: u, turn_token_usage: u, thread_token_usage: u } }) + '\n')
+      return f
+    }
+
+    it.each([
+      // The control: the grown rollout does resume from an entry left as the build wrote it
+      { name: 'left as written is resumed from', sig: undefined, resumed: true },
+      { name: 'whose signature is a number is not resumed from', sig: 7, resumed: false },
+      { name: 'whose signature is missing is not resumed from', sig: null, resumed: false }
+    ])('an entry $name, and the figures are the grown rollout\'s', async ({ sig, resumed }) => {
+      const f = await grown()
+      const cache = saved()
+      const entry = cache.files[f]
+      if (!entry) throw new Error('the build saved no entry for the rollout')
+      if (sig === null) delete (entry as { sig?: unknown }).sig
+      else if (sig !== undefined) entry.sig = sig
+      writeFileSync(cacheFile(), JSON.stringify(cache))
+      const { runner, jobs } = recording()
+      const r = await new TokenEngine(join(dir, 'cache'), runner).build(roots(), [proj])
+      expect(jobs.map((j) => (j.kind === 'codex' ? j.from !== undefined : null))).toEqual([resumed])
+      expect(r.global.bySide.codex.total).toBe(330)
+    })
+
+    it('an entry whose resume state is not well formed, under the rollout\'s unchanged signature, is parsed again and saved repaired', async () => {
+      const f = mkCodexRollout('rollout-entry-019fd11.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_e1' }])
+      await engine().build(roots(), [proj])
+      const relaunch = async (): Promise<number> => {
+        const { runner, jobs } = recording()
+        const r = await new TokenEngine(join(dir, 'cache'), runner).build(roots(), [proj])
+        expect(r.global.bySide.codex.total).toBe(110)
+        return jobs.length
+      }
+      // The control: the entry as the build wrote it is a hit, so the signature is the one the engine matches
+      expect(await relaunch()).toBe(0)
+      const cache = saved()
+      const resume = cache.files[f]?.resume
+      if (!resume) throw new Error('the build saved no resume state for the rollout')
+      resume['cursor'] = 'not a number'
+      writeFileSync(cacheFile(), JSON.stringify(cache))
+      expect(await relaunch(), 'the entry is a miss').toBe(1)
+      expect(await relaunch(), 'and the launch after it finds it repaired').toBe(0)
+    })
+  })
+
+  it('rowsFromCacheFile: a snapshot holding an entry gone null and an aggregate gone null gives the rows of its other entries (C16)', async () => {
+    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const codex = mkCodexRollout('rollout-snap-019fd12.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 0 }])
+    const grok = mkGrokSession(proj, 'snap-1', [grokTurn(1786088656, { input: 100, output: 10 })])
+    await engine().build(roots(), [proj])
+    expect(rowsFromCacheFile(cacheFile()).map((r) => [r.side, r.total]).sort()).toEqual([['claude', 15], ['codex', 40], ['grok', 110]])
+    const cache = saved()
+    cache.files[codex] = null
+    cache.files[grok] = { sig: '1:1', agg: null }
+    writeFileSync(cacheFile(), JSON.stringify(cache))
+    expect(rowsFromCacheFile(cacheFile()).map((r) => [r.side, r.total])).toEqual([['claude', 15]])
+  })
+})
+
 describe('the incremental cache', () => {
   it('a second build gives the same result (idempotent); the cache file is valid JSON and lands atomically', async () => {
     mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
