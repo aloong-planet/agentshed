@@ -5,7 +5,7 @@
 // refuses it
 // (mutation-checked: removing the guard from the handler turns it red). What is still missing is only
 // unit-level behaviour tests for the exit assertSessionPage
-// and the !tokenEngine line (there is no IPC harness, the same kind of gap getProjectDetail already
+// and the !scans line (there is no IPC harness, the same kind of gap getProjectDetail already
 // has); the former is backed by the preload's second validation, and the latter is a self-harming path in
 // the startup race window.
 // Why these tests exist: research (2026-08-02) confirmed that the official runtime Security Warnings

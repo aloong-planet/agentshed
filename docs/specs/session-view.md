@@ -70,8 +70,7 @@ hands the command over; it never runs it.
   push the project list's first-paint cost up to the level of a full scan.
   **The session *count* shares its source in both places**: once the token statistics are built, the
   project list's session count is the number of listed sessions (the data is already computed in
-  that same pass, at zero extra cost); when the engine is absent the file count is kept so the
-  column does not go to zero. Time still uses mtime.
+  that same pass, at zero extra cost). Time still uses mtime.
 - A2 **Unregistered projects' sessions are not listed** (keeping the existing `listed && projectKey`
   rule).
 - A3 Subagent sessions do not get their own rows (unchanged) but can be expanded inside the main

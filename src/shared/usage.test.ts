@@ -5,9 +5,9 @@
 //
 // **Known gaps, stated rather than papered over:**
 //   - G6, archived days joining a window, is not covered here: the archive is folded into the row set
-//     in the main process's snapshot assembly, which has no unit seam of its own. Covering it needs an
-//     end-to-end run against a populated archive directory; the condition for adding it is a fixture
-//     that can age a day out of the live scan.
+//     by settleScan (src/main/providers/scanner.ts), whose one case seeds no archive. The cases of
+//     e2e/token-stats.spec.ts that seed an archive file run through it: the first expects the
+//     archived-day note, which comes from that fold's result.
 //   - The composition colours (G10) are asserted by the theme-variable measurement rather than here —
 //     a value in a stylesheet is not reachable from a unit test, and asserting the hex strings back
 //     would only restate the source.

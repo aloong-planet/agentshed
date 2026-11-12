@@ -701,7 +701,8 @@ export interface ProjectDetail {
     claudeMd: InstructionFile | null
     agentsMd: InstructionFile | null
   }
-  /** The overview tab's data (attached by the main process from the token engine; null when the engine is not ready) */
+  /** The overview tab's data: the project's figures from the last completed scan, attached by the main process; null
+   * when that scan holds none for it. The page draws the window's own over them (project-detail::REQ-005) */
   stats: ProjectStats | null
   /** Artifacts (six types, most recent first) */
   artifacts: ArtifactEntry[]
