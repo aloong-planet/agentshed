@@ -81,6 +81,19 @@ export default defineConfig(
     rules: { 'no-restricted-imports': 'off' }
   },
   {
+    // One way to a token cache entry (CacheEntries in src/main/providers/token-stats.ts): the type check keeps a
+    // reader off the entries the engine holds, and this keeps application code from opening the file for itself,
+    // where an entry read as the file holds it fails on a corrupt one. A test seeds and corrupts the file on purpose.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', 'src/main/providers/token-stats.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', {
+        selector: 'Literal[value=/token-cache\\.json/], TemplateElement[value.raw=/token-cache\\.json/]',
+        message: 'Read the token cache through TokenEngine or rowsFromCacheFile (src/main/providers/token-stats.ts), never the file itself.'
+      }]
+    }
+  },
+  {
     files: ['src/renderer/**/*.{ts,tsx}'],
     extends: [reactHooks.configs.flat['recommended-latest']]
   }

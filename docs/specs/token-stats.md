@@ -266,7 +266,9 @@ all of them.
   converts by its version number alone; so does the 18 → 19 step: it adds each Antigravity conversation's session
   fields, none of which enters a row, so a v18 snapshot converts by giving each Antigravity entry those fields empty — no id, no
   time, no fork, no question, not listed — which the rows a restore writes never read). Automating the conversion is not planned; a snapshot a step
-  cannot convert exactly is unrecoverable through the script.
+  cannot convert exactly is unrecoverable through the script. The script also refuses a snapshot of
+  the current version that holds an entry that is not well formed, a converted one included
+  (Implementation Decisions, Restore).
 - C17 A user deleting their own session files does not lower a past day: the deletion is a
   same-stamp decrease, so the archive's rows are retained and the deleted figure shows as the
   observed value. This is ADR-0007's purpose (history survives the source files) applied to a
@@ -882,7 +884,11 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   list of archived-only days, computed per day; the retained set never leaves the archive.
 - **Restore**: a repository script, run by a developer, that reads a cache snapshot and applies C16
   through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
-  so the restored rows are exactly what a scan of that data would have produced.
+  so the restored rows are exactly what a scan of that data would have produced. It refuses a
+  snapshot that holds an entry that is not well formed (Cache, below), or whose `files` is not an
+  object of entries, and says how many entries are not: a scan parses such an entry's file again,
+  and a restore has no file to parse, so the rows of the other entries alone would write a day short
+  of that entry's usage as an accepted change.
 - **An archive a newer build wrote** (token-stats::REQ-005, token-stats::REQ-006): the archive
   admits a row's side against this build's set of agent sides as it reads the file, so a side is
   admitted from the build that adds it on. Rows outside it are held apart from the rows the conflict
@@ -915,7 +921,14 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 - **Segmentation and axis**: see ADR-0008/0009.
 - **Cache**: incremental by file signature; **a structure change must bump the version number at the
   same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
-  recomputes. The signature is read before a file is parsed, so a file that grows while it is read
+  recomputes. An entry is well formed when its signature is a string and its per-file aggregate has
+  every field its side requires, each of the type it requires, every row of each of its lists
+  included: as many elements as the row's type has, each a number, a string or `null` where that
+  type has one; every read of an entry — a scan's, a
+  session page's ([session-view](session-view.md) C4), a fork's parent lookup, the restore's (C16) —
+  gets a well-formed entry or none. A Codex entry's resume state is not part of that: it is checked
+  when a resume would use it, and one that fails costs that rollout its resume, never its entry. The
+  signature is read before a file is parsed, so a file that grows while it is read
   shows as changed on the next scan. **A Codex rollout that only grew is parsed from where the last
   parse stopped**: its entry also keeps the inode, the size and the end of the last parsed line,
   with everything the parser carries from line to line, and a rollout with the same inode and a

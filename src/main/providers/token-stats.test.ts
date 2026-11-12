@@ -1286,28 +1286,6 @@ describe('cache version migration (a real bug regression)', () => {
     }
   })
 
-  it('a same-version grok entry missing subagent → recompute that file only (isWellFormedAgg)', async () => {
-    const f = mkGrokSession(proj, '019f-guard', [grokTurn(1786088656, { input: 100, output: 10 })])
-    const st = statSync(f)
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    writeFileSync(
-      join(dir, 'cache', 'token-cache.json'),
-      JSON.stringify({
-        version: CACHE_VERSION, // same version: only the shape guard can catch it
-        files: {
-          [f]: {
-            sig: `${st.mtimeMs}:${st.size}`,
-            // Everything else valid; only subagent missing — an undefined subagent would silently
-            // list a subagent session once the session-view ticket starts reading it
-            agg: { kind: 'grok', file: f, projectKey: proj.toLowerCase(), questions: [], events: [[1786088656000, 999, 0, 0, 0, 'grok-4.5-build']] }
-          }
-        }
-      })
-    )
-    const r = await engine().build(roots(), [proj])
-    expect(r.global.bySide.grok.total, 'the malformed entry must be recomputed, not reused').toBe(110)
-  })
-
   // A defence against a false green: when what changed is "how a field is computed" rather than the
   // structure, the signature still hits and the shape is still valid,
   // and the old value flows all the way to the UI. Fixtures with a fresh cache always pass, and existing
@@ -1518,6 +1496,245 @@ describe('cache version migration (a real bug regression)', () => {
   })
 })
 
+// C2: within an object of entries, one that is not well formed is a miss. The cases above and the Antigravity ones
+// drive a corrupt aggregate through a build and through the Codex and Antigravity session pages; these drive what
+// they leave: the Claude session page, the fields those cases do not take away, an entry's signature and resume
+// state, and the snapshot reader.
+describe('a cache entry that is not well formed is no entry (C2)', () => {
+  const cacheFile = (): string => join(dir, 'cache', 'token-cache.json')
+  type SavedEntry = { sig?: unknown; agg: Record<string, unknown> | null; resume?: Record<string, unknown> }
+  type Saved = { files: Record<string, SavedEntry | null> }
+  const saved = (): Saved => JSON.parse(readFileSync(cacheFile(), 'utf8')) as Saved
+  /** A runner that parses as usual and keeps every job it was handed */
+  function recording(): { runner: ParseRunner; jobs: Array<Parameters<ParseRunner['run']>[0]> } {
+    const jobs: Array<Parameters<ParseRunner['run']>[0]> = []
+    return {
+      jobs,
+      runner: {
+        concurrency: 1,
+        run: (job) => {
+          jobs.push(job)
+          return runParseJob(job)
+        }
+      }
+    }
+  }
+  /** The files a new launch parses against the saved cache: none when it holds a current entry for each */
+  async function parsedOnRelaunch(): Promise<string[]> {
+    const { runner, jobs } = recording()
+    await new TokenEngine(join(dir, 'cache'), runner).build(roots(), [proj])
+    return jobs.map((j) => j.file)
+  }
+
+  type Side = 'claude' | 'codex' | 'grok' | 'antigravity'
+  /** A session on every side, cached by a build that the launch after it finds complete; each file by its side */
+  async function cachedSides(): Promise<Record<Side, string>> {
+    const files = {
+      claude: mkClaudeFile('field.jsonl', [userLine('a question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)]),
+      codex: mkCodexRollout('rollout-field-019fd13.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_f1' }]),
+      grok: mkGrokSession(proj, 'field-1', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })]),
+      antigravity: mkAgyConversation('agy-field', proj, [{ usage: { messageId: 'm-field', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    }
+    await engine().build(roots(), [proj])
+    // The control: every entry as the build wrote it is a hit
+    expect(await parsedOnRelaunch()).toEqual([])
+    return files
+  }
+  /** Rewrites one file's saved aggregate; the entry keeps its signature */
+  function changeSaved(file: string, change: (agg: Record<string, unknown>) => void): void {
+    const cache = saved()
+    const agg = cache.files[file]?.agg
+    if (!agg) throw new Error('the build saved no aggregate for the file')
+    change(agg)
+    writeFileSync(cacheFile(), JSON.stringify(cache))
+  }
+
+  // One row for each field of the Claude, Codex and Grok aggregates beside `file`, `questions` and `forkPoints`, which
+  // the cases above take away, each starting from the entry a build wrote, so that every other field is there. The
+  // Antigravity side has such a row for each of its fields in antigravity.test.ts.
+  it.each([
+    ['claude', 'projectKey'],
+    ['claude', 'listed'],
+    ['claude', 'title'],
+    ['claude', 'at'],
+    ['claude', 'entries'],
+    ['codex', 'projectKey'],
+    ['codex', 'listed'],
+    ['codex', 'title'],
+    ['codex', 'at'],
+    ['codex', 'model'],
+    ['codex', 'sessionId'],
+    ['codex', 'parentId'],
+    ['codex', 'forkedAt'],
+    ['codex', 'events'],
+    ['codex', 'titleFromThread'],
+    ['codex', 'boundary'],
+    ['codex', 'paginated'],
+    ['grok', 'projectKey'],
+    ['grok', 'title'],
+    ['grok', 'at'],
+    ['grok', 'events'],
+    ['grok', 'subagent']
+  ] as const)('a %s aggregate that lost %s is parsed again, that file alone, and saved repaired', async (side, field) => {
+    const files = await cachedSides()
+    changeSaved(files[side], (agg) => {
+      if (!(field in agg)) throw new Error(`the build saved no ${field} for the ${side} file`)
+      delete agg[field]
+    })
+    expect(await parsedOnRelaunch(), 'the entry is a miss').toEqual([files[side]])
+    expect(await parsedOnRelaunch(), 'and the launch after it finds it repaired').toEqual([])
+  })
+
+  // The fields that may be null are asked for their type too, as are the others: a value of another type is no
+  // more the field than none (the Antigravity case for a title that is not a string drives `title`)
+  it.each([
+    ['claude', 'projectKey', 7],
+    ['claude', 'listed', 'yes'],
+    ['claude', 'at', 'yesterday'],
+    ['codex', 'model', 7],
+    ['codex', 'sessionId', 7],
+    ['codex', 'parentId', 7],
+    ['codex', 'forkedAt', 'yesterday']
+  ] as const)('a %s aggregate whose %s is %j is parsed again, that file alone', async (side, field, value) => {
+    const files = await cachedSides()
+    changeSaved(files[side], (agg) => {
+      agg[field] = value
+    })
+    expect(await parsedOnRelaunch()).toEqual([files[side]])
+  })
+
+  // Every list an aggregate holds, row by row: a row as its type has it, written by hand, is added first and the
+  // entry is still a hit, so what turns the entry away after it is the one thing wrong with the row
+  const QUESTION = [0, 10, 20, null, 0, 0, 1]
+  describe.each([
+    ['claude', 'questions', QUESTION, 0],
+    ['claude', 'entries', [null, null, 0, 10, 5, 0, 0, 'claude-fable-5', '2026-07-30'], 3],
+    ['codex', 'questions', QUESTION, 0],
+    ['codex', 'events', [null, 10, 0, 5, 0], 1],
+    ['grok', 'questions', QUESTION, 0],
+    ['grok', 'events', [null, 10, 0, 5, 0, null], 1],
+    ['antigravity', 'questions', QUESTION, 0],
+    ['antigravity', 'calls', [null, null, 10, 5, 0, 0, null], 2]
+  ] as const)('a %s aggregate\'s %s', (side, field, row, numberAt) => {
+    it.each([
+      ['a null among its rows', null],
+      ['a row one element short', row.slice(0, -1)],
+      ['a row one element long', [...row, 0]],
+      ['a row with text where a number belongs', row.map((x, i) => (i === numberAt ? '1000' : x))],
+      ['a row with null where a number belongs', row.map((x, i) => (i === numberAt ? null : x))]
+    ])('with %s is parsed again, that file alone', async (_what, bad) => {
+      const files = await cachedSides()
+      const add = (extra: unknown): void =>
+        changeSaved(files[side], (agg) => {
+          const rows = agg[field]
+          if (!Array.isArray(rows)) throw new Error(`the build saved no ${field} for the ${side} file`)
+          rows.push(extra)
+        })
+      add([...row])
+      expect(await parsedOnRelaunch(), 'a row of the right shape leaves the entry a hit').toEqual([])
+      add(bad)
+      expect(await parsedOnRelaunch()).toEqual([files[side]])
+    })
+  })
+
+  it('a Claude session whose aggregate is gone null: its page is served before the first build, and that build still credits it to its project', async () => {
+    const cl = mkClaudeFile('page.jsonl', [userLine('the one question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    await engine().build(roots(), [proj])
+    const cache = saved()
+    const entry = cache.files[cl]
+    if (!entry || !entry.agg) throw new Error('the build saved no entry for the session')
+    cache.files[cl] = { sig: entry.sig, agg: null }
+    writeFileSync(cacheFile(), JSON.stringify(cache))
+    // A new engine reads the cache from disk, as at startup, and serves the page before any build has run
+    const e = engine()
+    expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(1)
+    // The project a Claude session is credited to comes from the registry, which the page does not read: an index
+    // kept from that page under no project would be a hit for this build, and the session would leave its project
+    const r = await e.build(roots(), [proj])
+    expect(r.perProject.get(proj.toLowerCase())?.sessions.map((s) => s.file)).toEqual([cl])
+    expect(r.sessionFiles.has(cl)).toBe(true)
+  })
+
+  describe('a Codex rollout\'s entry', () => {
+    /** A rollout a build has cached with its resume state, then grown by one response */
+    async function grown(): Promise<string> {
+      const f = mkCodexRollout('rollout-entry-019fd10.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_e1' }])
+      await engine().build(roots(), [proj])
+      const u = { input_tokens: 200, cached_input_tokens: 0, output_tokens: 20, total_tokens: 220 }
+      appendFileSync(f, JSON.stringify({ timestamp: '2026-07-30T01:10:00Z', type: 'token_usage_record', payload: { response_id: 'resp_e2', usage: u, turn_token_usage: u, thread_token_usage: u } }) + '\n')
+      return f
+    }
+
+    it.each([
+      // The control: the grown rollout does resume from an entry left as the build wrote it
+      { name: 'left as written is resumed from', change: (): void => {}, resumed: true },
+      { name: 'whose signature is a number is not resumed from', change: (e: SavedEntry): void => { e.sig = 7 }, resumed: false },
+      { name: 'whose signature is missing is not resumed from', change: (e: SavedEntry): void => { delete e.sig }, resumed: false },
+      {
+        name: 'whose resume state is not well formed is not resumed from',
+        change: (e: SavedEntry): void => {
+          if (!e.resume) throw new Error('the build saved no resume state for the rollout')
+          e.resume['cursor'] = 'not a number'
+        },
+        resumed: false
+      }
+    ])('an entry $name, and the figures are the grown rollout\'s', async ({ change, resumed }) => {
+      const f = await grown()
+      const cache = saved()
+      const entry = cache.files[f]
+      if (!entry) throw new Error('the build saved no entry for the rollout')
+      change(entry)
+      writeFileSync(cacheFile(), JSON.stringify(cache))
+      const { runner, jobs } = recording()
+      const r = await new TokenEngine(join(dir, 'cache'), runner).build(roots(), [proj])
+      expect(jobs.map((j) => (j.kind === 'codex' ? j.from !== undefined : null))).toEqual([resumed])
+      expect(r.global.bySide.codex.total).toBe(330)
+    })
+
+    // What makes an entry does not include its resume state: a state the resume check turns down costs the
+    // rollout its resume and nothing else. Were it part of the entry, a parse leaving such a state would make
+    // its rollout a miss at every scan, and every scan would write the file.
+    it('an entry whose resume state is not well formed is still a hit under the rollout\'s unchanged signature', async () => {
+      const f = mkCodexRollout('rollout-entry-019fd11.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_e1' }])
+      await engine().build(roots(), [proj])
+      const cache = saved()
+      const resume = cache.files[f]?.resume
+      if (!resume) throw new Error('the build saved no resume state for the rollout')
+      resume['prevTotal'] = 110
+      writeFileSync(cacheFile(), JSON.stringify(cache))
+      expect(await parsedOnRelaunch()).toEqual([])
+      expect(rowsFromCacheFile(cacheFile()).map((r) => [r.side, r.total])).toEqual([['codex', 110]])
+    })
+  })
+
+  // A scan parses again the file of an entry that is not well formed. A restore has no file to parse: the rows of
+  // the other entries alone would write the day's figure short of that entry's usage, as an accepted change (C16)
+  it.each([
+    ['an entry gone null', (e: SavedEntry | null): SavedEntry | null => (e ? null : e), /1 of 2 entries that are not well formed/],
+    ['an aggregate gone null', (e: SavedEntry | null): SavedEntry | null => (e ? { ...e, agg: null } : e), /1 of 2 entries that are not well formed/],
+    // Short of a field no row reads: its rows would be right, and the entry is still not one this build wrote
+    ['an aggregate that lost listed', (e: SavedEntry | null): SavedEntry | null => {
+      delete e?.agg?.['listed']
+      return e
+    }, /1 of 2 entries that are not well formed/]
+  ])('rowsFromCacheFile refuses a snapshot holding %s rather than give the rows of its other entries (C16)', async (_what, corrupt, refusal) => {
+    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const codex = mkCodexRollout('rollout-snap-019fd12.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 0 }])
+    await engine().build(roots(), [proj])
+    expect(rowsFromCacheFile(cacheFile()).map((r) => [r.side, r.total]).sort()).toEqual([['claude', 15], ['codex', 40]])
+    const cache = saved()
+    cache.files[codex] = corrupt(cache.files[codex])
+    writeFileSync(cacheFile(), JSON.stringify(cache))
+    expect(() => rowsFromCacheFile(cacheFile())).toThrow(refusal)
+  })
+
+  it.each(['null', '[]', '"none"'])('rowsFromCacheFile refuses a snapshot of this version whose files are %s (C16)', (files) => {
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    writeFileSync(cacheFile(), `{"version":${CACHE_VERSION},"files":${files}}`)
+    expect(() => rowsFromCacheFile(cacheFile())).toThrow(/no object of entries/)
+  })
+})
+
 describe('the incremental cache', () => {
   it('a second build gives the same result (idempotent); the cache file is valid JSON and lands atomically', async () => {
     mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
@@ -1693,16 +1910,6 @@ describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () =>
     // launch's first build would write it again
     await engine().build(roots(), [proj])
     expect(fileId(), 'and so does the next launch').toBe(first)
-  })
-
-  it('an entry the shape check turned down is parsed again under its unchanged signature, and the repaired entry is saved', async () => {
-    const s = everySide()
-    await engine().build(roots(), [proj])
-    const saved = JSON.parse(readFileSync(cacheFile(), 'utf8')) as { files: Record<string, { sig: string; agg: unknown }> }
-    saved.files[s.claude].agg = { kind: 'claude' }
-    writeFileSync(cacheFile(), JSON.stringify(saved))
-    expect(await parsesOnRelaunch(), 'the drifted entry is a miss').toBe(1)
-    expect(await parsesOnRelaunch(), 'and the launch after it finds it repaired').toBe(0)
   })
 
   // A write that failed is tried again at each later build, whether or not that build changes the cache, so
@@ -2088,6 +2295,30 @@ describe('sessionQuestions (the session page service)', () => {
     expect(cache.files[cl].agg.questions).toHaveLength(2)
     const st = statSync(cl)
     expect(cache.files[cl].sig).toBe(`${st.mtimeMs}:${st.size}`)
+  })
+
+  // The project a Claude session is credited to comes from the registry, which the page does not read: the
+  // rebuild keeps the project its entry held (C4). Kept under no project the index would be the next build's hit,
+  // and the session would leave its project's list and figures while its usage stayed in the total.
+  it('a changed signature on a Claude session: the rebuilt index keeps its project, and the next build takes it as it is', async () => {
+    const cl = mkClaudeFile('sq-project.jsonl', [userLine('question one', '2026-07-30T02:00:00Z'), usageLine('claude-fable-5', '2026-07-30T02:00:10Z', 10, 5)])
+    const parsed: string[] = []
+    const e = new TokenEngine(join(dir, 'cache'), {
+      concurrency: 1,
+      run: (job) => {
+        parsed.push(job.file)
+        return runParseJob(job)
+      }
+    })
+    await e.build(roots(), [proj])
+    appendFileSync(cl, userLine('question two', '2026-07-30T04:00:00Z') + '\n')
+    expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(2)
+    parsed.length = 0
+    const r = await e.build(roots(), [proj])
+    expect(parsed, 'the page\'s index is that build\'s hit').toEqual([])
+    const project = r.perProject.get(proj.toLowerCase())
+    expect(project?.sessions.map((s) => s.file)).toEqual([cl])
+    expect(project?.tokens.bySide.claude.total).toBe(15)
   })
 
   it('a codex fork: the stripping shares its source with the list (stripped, leaving only the new questions)', async () => {

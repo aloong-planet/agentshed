@@ -274,12 +274,18 @@ export const CACHE_VERSION = 19
  */
 export function rowsFromCacheFile(file: string): UsageRow[] {
   const raw: unknown = JSON.parse(readFileSync(file, 'utf8'))
-  const shape = raw as { version?: unknown; files?: Record<string, { agg?: unknown }> }
+  const shape = raw as { version?: unknown; files?: unknown } | null
   if (shape?.version !== CACHE_VERSION) {
     throw new Error(`cache snapshot is version ${String(shape?.version)}, this build reads version ${CACHE_VERSION}`)
   }
-  const aggs: FileAgg[] = []
-  for (const entry of Object.values(shape.files ?? {})) if (isWellFormedAgg(entry?.agg)) aggs.push(entry.agg)
+  // A scan parses again the file of an entry that is not well formed; a restore has no file to parse, and rows
+  // from the other entries alone would write a day's figure short of that entry's usage as an accepted change
+  const entries = CacheEntries.from(shape.files)
+  if (!entries) throw new Error('cache snapshot holds no object of entries')
+  const aggs = [...entries.entries()].map((entry) => entry.agg)
+  if (aggs.length !== entries.size) {
+    throw new Error(`cache snapshot holds ${entries.size - aggs.length} of ${entries.size} entries that are not well formed`)
+  }
   return combine(aggs).rows
 }
 
@@ -344,12 +350,80 @@ export const RESUME_LIMIT = 50
 interface CacheEntry {
   sig: string
   agg: FileAgg
-  resume?: CodexResume
+  /** A Codex rollout's CodexResume. Typed as unknown because it is not part of what makes an entry: only the
+   * resume reads it, and checks it there (isCodexResume). A parse that left a state the check turns down would
+   * otherwise make its rollout a miss at every scan; this way it only costs that rollout its resume. */
+  resume?: unknown
 }
 
-interface CacheShape {
-  version: typeof CACHE_VERSION
-  files: Record<string, CacheEntry>
+/**
+ * The cache's entries by session file, and the one way to them. What it holds came from the cache file or from a
+ * build, and under any path the file may hold any JSON value: a reader that looked at one itself, before or without
+ * the shape check, failed the whole scan at every launch until the file was deleted (postmortems
+ * `2026-10-29-a-guard-read-after-the-value-it-guards` and `2026-11-11-a-null-files-object-passed-the-cache-loader`).
+ * So what is held is a `#private` field, which nothing outside this class can name, even by index: a read is `get` or
+ * `entries`, and both hand out an entry only after checking it (isWellFormedEntry). What is handed out is what is held, its
+ * aggregate the very object and not a copy of it — a build tells that it changed nothing by meeting the aggregates
+ * the cache held (isHeldEntry), and a copy would have every build write the file.
+ */
+class CacheEntries {
+  readonly #held: Record<string, unknown>
+  /** The entries already found well formed. The check reads every row of an entry's lists, and nothing changes an
+   * entry once it is held, so each is checked once and not at every scan. */
+  readonly #checked = new WeakSet<object>()
+
+  constructor(held: Record<string, unknown> = {}) {
+    this.#held = held
+  }
+
+  #isEntry(held: unknown): held is CacheEntry {
+    if (typeof held !== 'object' || held === null) return false
+    if (this.#checked.has(held)) return true
+    if (!isWellFormedEntry(held)) return false
+    this.#checked.add(held)
+    return true
+  }
+
+  /** Over a cache file's `files`; null when that is not an object of entries — it is missing, `null`, an array or a
+   * value of another type — and the file is then garbage (token-stats C2) */
+  static from(files: unknown): CacheEntries | null {
+    // null is an object to typeof, and so is an array, which would pass for a cache that holds nothing
+    if (typeof files !== 'object' || files === null || Array.isArray(files)) return null
+    return new CacheEntries(files as Record<string, unknown>)
+  }
+
+  /** The file's entry when it is well formed; otherwise nothing, and the file is a miss */
+  get(file: string): CacheEntry | undefined {
+    const held = this.#held[file]
+    return this.#isEntry(held) ? held : undefined
+  }
+
+  /** Whether anything is held for the file, well formed or not; a `null` is nothing held */
+  has(file: string): boolean {
+    const held = this.#held[file]
+    return held !== undefined && held !== null
+  }
+
+  /** Holds an entry a parse made or `get` handed out: one this code built or has checked, so it is not checked again */
+  set(file: string, entry: CacheEntry): void {
+    this.#held[file] = entry
+    this.#checked.add(entry)
+  }
+
+  /** Every well-formed entry, in the order held */
+  *entries(): IterableIterator<CacheEntry> {
+    for (const held of Object.values(this.#held)) if (this.#isEntry(held)) yield held
+  }
+
+  /** How many files something is held for, well formed or not */
+  get size(): number {
+    return Object.keys(this.#held).length
+  }
+
+  /** The cache file's text: everything held, as it is, under this build's version */
+  fileText(): string {
+    return JSON.stringify({ version: CACHE_VERSION, files: this.#held })
+  }
 }
 
 export interface TokenBuildResult {
@@ -500,7 +574,7 @@ interface Slot {
 export class TokenEngine {
   private readonly cacheDir: string
   private readonly cacheFile: string
-  private cache: CacheShape
+  private cache: CacheEntries
   private readonly runner: ParseRunner
   /** agy's own conversation titles as last read (session-view::REQ-003/AC-03): at every build, since agy titles a
    * conversation after the fact without the conversation itself changing, and on a page's first need before any */
@@ -521,27 +595,19 @@ export class TokenEngine {
     this.agyTmpParent = agyTmpParent
   }
 
-  private loadCache(): CacheShape {
+  private loadCache(): CacheEntries {
     try {
       const raw: unknown = JSON.parse(readFileSync(this.cacheFile, 'utf8'))
-      if (
-        typeof raw === 'object' &&
-        raw !== null &&
-        (raw as Record<string, unknown>)['version'] === CACHE_VERSION &&
-        typeof (raw as Record<string, unknown>)['files'] === 'object' &&
-        // null is an object to typeof, and every lookup in it throws
-        (raw as Record<string, unknown>)['files'] !== null &&
-        // so is an array, which would pass for a cache that holds nothing and so be left in place
-        !Array.isArray((raw as Record<string, unknown>)['files'])
-      ) {
-        return raw as unknown as CacheShape
+      if (typeof raw === 'object' && raw !== null && (raw as Record<string, unknown>)['version'] === CACHE_VERSION) {
+        const entries = CacheEntries.from((raw as Record<string, unknown>)['files'])
+        if (entries) return entries
       }
     } catch {
       // Cache missing / corrupt / an old version: recompute everything
     }
     // The file is then not this cache: the first build replaces it, even one that parses nothing
     this.unsaved = true
-    return { version: CACHE_VERSION, files: {} }
+    return new CacheEntries()
   }
 
   /**
@@ -550,7 +616,7 @@ export class TokenEngine {
    */
   private persist(): void {
     try {
-      writeFileAtomicSync(this.cacheFile, join(this.cacheDir, `.token-cache.j-${process.pid}`), JSON.stringify(this.cache))
+      writeFileAtomicSync(this.cacheFile, join(this.cacheDir, `.token-cache.j-${process.pid}`), this.cache.fileText())
       this.unsaved = false
     } catch (error) {
       this.unsaved = true
@@ -583,7 +649,7 @@ export class TokenEngine {
     const isRegistered = (key: string): boolean =>
       registeredKeys ? registeredKeys.has(key) : key !== ''
     const aggs: FileAgg[] = []
-    const seen: Record<string, CacheEntry> = {}
+    const seen = new CacheEntries()
     const sessionFiles = new Set<string>()
     // Every file in scan order. The cache is consulted here, on the engine's thread; the misses are parsed
     // together below, as many at once as the runner allows; then every file is taken in this order, so
@@ -654,19 +720,19 @@ export class TokenEngine {
     // or, below, a file the cache held an entry for that ends the build with none: it left the scan set, or
     // gives no entry any more (token-stats::QR-002/AC-02). A parse that gave nothing to a file the cache held
     // no entry for, or that fell back on the entry already held, changed nothing.
-    const held = this.cache.files
+    const held = this.cache
     let changed = false
     for (const slot of slots) {
       if (!slot.entry) continue
       aggs.push(slot.entry.agg)
-      seen[slot.file] = slot.entry
-      if (!changed && !isHeldEntry(held[slot.file], slot.entry)) changed = true
+      seen.set(slot.file, slot.entry)
+      if (!changed && !isHeldEntry(held.get(slot.file), slot.entry)) changed = true
       if (slot.admit(slot.entry.agg)) sessionFiles.add(slot.file)
     }
     // With every entry the one already held, the two sets can differ only by a held file that has no entry now
-    if (!changed && Object.keys(held).length !== Object.keys(seen).length) changed = true
+    if (!changed && held.size !== seen.size) changed = true
 
-    this.cache = { version: CACHE_VERSION, files: seen }
+    this.cache = seen
     if (changed || this.unsaved) this.persist()
     // agy's titles: a failed read while agy writes its summaries keeps the last ones read
     this.agyTitles = readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? this.agyTitles ?? new Map()
@@ -685,11 +751,11 @@ export class TokenEngine {
   private plan(file: string, admit: Slot['admit'], job: ParseJob): Slot {
     const st = statOf(file)
     if (st === null) return { file, entry: null, admit }
-    const cached = this.cache.files[file]
-    // Beyond the version, validate each entry's shape: manual corruption or future drift within one
-    // version is always recomputed, so a missing field never flows into the aggregation layer.
+    // Beyond the version, the cache hands out an entry only when its shape holds: manual corruption or future
+    // drift within one version is always recomputed, so a missing field never flows into the aggregation layer.
     // The cache is keyed by file path and a path's side never changes, so a hit is the same side's agg.
-    if (cached && cached.sig === st.sig && isWellFormedAgg(cached.agg)) return { file, entry: { sig: st.sig, agg: cached.agg }, admit }
+    const cached = this.cache.get(file)
+    if (cached && cached.sig === st.sig) return { file, entry: { sig: st.sig, agg: cached.agg }, admit }
     return { file, entry: null, admit, plan: { job, st } }
   }
 
@@ -701,9 +767,8 @@ export class TokenEngine {
   private antigravityPlan(file: string, admit: Slot['admit']): Slot {
     const sig = agySessionSignature(file)
     if (sig === null) return { file, entry: null, admit }
-    const cached = this.cache.files[file]
-    // The shape guard first: within one cache version a corrupt entry is read again, never dereferenced
-    const usable = cached !== undefined && isWellFormedAgg(cached?.agg) && cached.agg.kind === 'antigravity'
+    const cached = this.cache.get(file)
+    const usable = cached !== undefined && cached.agg.kind === 'antigravity'
     if (usable && cached.sig === sig) return { file, entry: cached, admit }
     const fallback = usable && cached.agg.kind === 'antigravity' && !cached.agg.unreadable ? cached : undefined
     return { file, entry: null, admit, fallback, plan: { job: { kind: 'antigravity', file }, st: { sig, ino: 0, size: 0 } } }
@@ -716,13 +781,11 @@ export class TokenEngine {
   private codexPlan(file: string, cwd: string, meta: CodexParseMeta, titles: Map<string, string>, admit: Slot['admit']): Slot {
     const st = statOf(file)
     if (st === null) return { file, entry: null, admit }
-    const cached = this.cache.files[file]
-    if (cached && cached.sig === st.sig && isWellFormedAgg(cached.agg)) return { file, entry: cached, admit }
+    const cached = this.cache.get(file)
+    if (cached && cached.sig === st.sig) return { file, entry: cached, admit }
     const state = cached?.resume
     const from =
       cached !== undefined &&
-      // The shape guard before the kind: a corrupt entry within one version may hold no agg, or be no entry at all
-      isWellFormedAgg(cached?.agg) &&
       cached.agg.kind === 'codex' &&
       isCodexResume(state) &&
       !isColdRollout(file) &&
@@ -755,8 +818,8 @@ export class TokenEngine {
    * two steps is harmless: the rebuild is idempotent.
    */
   isFresh(file: string): boolean {
-    const cached = this.cache.files[file]
-    if (!cached || !isWellFormedAgg(cached.agg)) return false
+    const cached = this.cache.get(file)
+    if (!cached) return false
     const sig = cached.agg.kind === 'antigravity' ? agySessionSignature(file) : sigOf(file)
     return sig !== null && cached.sig === sig
   }
@@ -765,7 +828,8 @@ export class TokenEngine {
    * The session page service (ticket 04): give a scanned session's question index and fork state.
    * - Validate the (path, mtime, size) signature before fetching; on a mismatch, **rebuild only that
    *   file's** index and write
-   *   the cache back (spec C4), without a full rescan.
+   *   the cache back (spec C4), without a full rescan. An entry that is not well formed is rebuilt the same
+   *   way; a Claude session's index is then served and not kept, as there is no project to keep it under.
    * - A Codex fork's stripping **shares its source** with the list (the same stripReplayPrefix and the
    *   same parent lookup),
    *   rather than reusing the token metering side's conclusions — metering is a deduplication rule,
@@ -795,16 +859,20 @@ export class TokenEngine {
      * conversation its transcript (session-view::REQ-004/AC-02) — derived here, never taken from the renderer */
     source: string
   }> {
-    const cached = this.cache.files[file]
-    if (!cached) throw appError(ERR.sessionNotIndexed)
+    const cached = this.cache.get(file)
+    // An entry that is not well formed is read again for the page; a file nothing is held for is a session the
+    // scan never indexed
+    if (!cached && !this.cache.has(file)) throw appError(ERR.sessionNotIndexed)
     // The side is judged from the data root, not trusted to a possibly corrupt cache entry
     const agyConversation = isAgyConversation(roots, file)
     const sig = agyConversation ? agySessionSignature(file) : sigOf(file)
     if (sig === null) throw appError(ERR.sessionFileUnreadable)
-    let agg: FileAgg = cached.agg
-    if (cached.sig !== sig || !isWellFormedAgg(agg)) {
+    let agg: FileAgg | null = cached && cached.sig === sig ? cached.agg : null
+    if (agg === null) {
       const claudeRoot = join(roots.claudeHome, 'projects')
       let fresh: FileAgg | null
+      // Whether the rebuilt index is kept in the cache: always, but for a Claude session with no project to keep
+      let kept = true
       if (agyConversation) {
         // The database and the transcript read again, for this conversation alone (C4); a read that fails while agy
         // writes is this page's failure, and the next fetch tries again
@@ -812,13 +880,14 @@ export class TokenEngine {
       } else if (file.startsWith(claudeRoot)) {
         // Top level = a session (listable), deeper = a subagent or other nested transcript — the same
         // rule as listJsonl.
-        // projectKey keeps its old value: it only affects attribution statistics and the next full scan
-        // recomputes it; here it exists only for the question index.
+        // projectKey keeps the value the entry held: the project a Claude session is credited to comes from the
+        // registry, which only a build reads, and a build that finds the entry's signature current takes the key
+        // with it. So with no well-formed entry to take the key from, the index serves this page and is not kept
+        // (session-view C4): kept under no project it would be that hit, and the session would leave its project
+        // until its file next changed. The next build parses the file.
         const listedBase = dirname(dirname(file)) === claudeRoot
-        // Both branches have projectKey in the types; the runtime cache may be corrupt (we only reach
-        // here when isWellFormedAgg is false), so add one more layer of defence
-        const oldKey = typeof agg.projectKey === 'string' ? agg.projectKey : ''
-        fresh = await parseClaudeFile(file, oldKey, listedBase)
+        fresh = await parseClaudeFile(file, cached?.agg.projectKey ?? '', listedBase)
+        kept = cached !== undefined
       } else if (file.startsWith(join(roots.grokHome, 'sessions') + sep)) {
         // A Grok stream rebuilds through the Grok parse, its meta read the way the walk reads it; it
         // used to fall through to the Codex branch below, whose meta reader cannot read a Grok stream
@@ -831,16 +900,18 @@ export class TokenEngine {
         if (!meta) throw appError(isReadable(file) ? ERR.sessionMetaUnreadable : ERR.sessionFileUnreadable)
         const entry = await this.codexEntry(file, meta.cwd, meta, readCodexIndex(roots.codexHome))
         if (!entry) throw appError(ERR.sessionFileUnreadable)
-        this.cache.files[file] = entry
+        this.cache.set(file, entry)
         fresh = entry.agg
       }
       // A parse gives null only when the file cannot be read: a bad line is skipped, and a format it does not know is
       // an agg marked unreadable, below
       if (!fresh) throw appError(ERR.sessionFileUnreadable)
       agg = fresh
-      // A Codex entry was stored above, with the state its next resume starts from
-      if (fresh.kind !== 'codex') this.cache.files[file] = { sig, agg }
-      this.persist()
+      if (kept) {
+        // A Codex entry was stored above, with the state its next resume starts from
+        if (fresh.kind !== 'codex') this.cache.set(file, { sig, agg: fresh })
+        this.persist()
+      }
     }
     if (agg.kind === 'antigravity') {
       // A conversation that cannot be read in the supported format is listed nowhere and has no page
@@ -919,9 +990,8 @@ export class TokenEngine {
    */
   private agyParent(agg: AntigravityFileAgg): AntigravityFileAgg | undefined {
     if (agg.forkOf === null) return undefined
-    for (const v of Object.values(this.cache.files)) {
-      // Before the first build the cache is as read from disk, a corrupt entry included: the shape guard comes first
-      if (isWellFormedAgg(v?.agg) && v.agg.kind === 'antigravity' && !v.agg.unreadable && v.agg.conversationId === agg.forkOf && v.agg !== agg) {
+    for (const v of this.cache.entries()) {
+      if (v.agg.kind === 'antigravity' && !v.agg.unreadable && v.agg.conversationId === agg.forkOf && v.agg !== agg) {
         return v.agg
       }
     }
@@ -940,9 +1010,8 @@ export class TokenEngine {
   ): Promise<{ questions: QuestionRec[]; state: ForkState; title: string | null; parent: CodexFileAgg | undefined }> {
     let parent: CodexFileAgg | undefined
     if (agg.parentId) {
-      for (const v of Object.values(this.cache.files)) {
-        // Before the first build the cache is as read from disk, a corrupt entry included: the shape guard comes first
-        if (isWellFormedAgg(v?.agg) && v.agg.kind === 'codex' && v.agg.sessionId === agg.parentId && v.agg !== agg) {
+      for (const v of this.cache.entries()) {
+        if (v.agg.kind === 'codex' && v.agg.sessionId === agg.parentId && v.agg !== agg) {
           parent = v.agg
           break
         }
@@ -1433,7 +1502,26 @@ function listedOf(agg: FileAgg): boolean {
   return agg.listed
 }
 
-/** Whether a cache entry matches the current FileAgg shape (the array fields the aggregation layer depends on must be present) */
+/**
+ * Whether a list field is a list of rows of one tuple type, every row checked: as many elements as `shape` has
+ * letters, each of the type its letter names — `n` a number, `N` a number or null, `S` a string or null. A row that
+ * is no row (a `null` among them) throws where the aggregation reads it, and text where a number belongs is joined
+ * on, not added: either way at every scan, the entry still a hit.
+ */
+function isRows(v: unknown, shape: string): boolean {
+  if (!Array.isArray(v)) return false
+  for (const row of v as unknown[]) {
+    if (!Array.isArray(row) || row.length !== shape.length) return false
+    for (let i = 0; i < shape.length; i++) {
+      const x: unknown = row[i]
+      if (x === null ? shape[i] === 'n' : typeof x !== (shape[i] === 'S' ? 'string' : 'number')) return false
+    }
+  }
+  return true
+}
+
+/** Whether an aggregate has every field its side's FileAgg requires, each of the type it requires, its lists row by
+ * row (isRows) */
 function isWellFormedAgg(agg: unknown): agg is FileAgg {
   if (typeof agg !== 'object' || agg === null) return false
   const a = agg as Record<string, unknown>
@@ -1443,53 +1531,52 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // only catches across versions,
   // and manual corruption or drift within one version is caught only by this guard.
   if (typeof a['file'] !== 'string' || a['file'] === '') return false
-  const qs = a['questions']
-  if (!Array.isArray(qs)) return false
   // The record's **arity** needs guarding too: the version number only catches across versions, and
   // manual corruption or future drift within one version is caught only by this gate.
   // One element short degrades the fingerprint comparison into undefined === undefined, which is always
   // true, and so strips blindly.
-  if (qs.length > 0 && (!Array.isArray(qs[0]) || (qs[0] as unknown[]).length !== 7)) return false
+  if (!isRows(a['questions'], 'nnnNnnn')) return false
+  // What every side's aggregate carries. A missing `projectKey` would take the session's usage out of its project
+  // and leave it in the total, at every launch, the entry still a hit; a missing `listed` would silently HIDE a real
+  // session; `title` and `at` go to the session list as they are
+  if (typeof a['projectKey'] !== 'string' || typeof a['listed'] !== 'boolean') return false
+  if (a['title'] !== null && typeof a['title'] !== 'string') return false
+  if (a['at'] !== null && typeof a['at'] !== 'number') return false
   // A missing `unreadable` would drop the conversation from the count, a call of another arity would misread its
-  // fields; a missing `listed` or `subagent` would hide a session or list a subagent, a missing `forkOf` would unmark
-  // a fork, a missing `conversationId` would lose its title and its parent
+  // fields; a missing `subagent` would list a subagent, a missing `forkOf` would unmark a fork, a missing
+  // `conversationId` would lose its title and its parent
   if (a['kind'] === 'antigravity') {
     return (
-      typeof a['projectKey'] === 'string' &&
       typeof a['unreadable'] === 'boolean' &&
-      Array.isArray(a['calls']) &&
-      (a['calls'] as unknown[]).every((c) => Array.isArray(c) && c.length === 7) &&
+      isRows(a['calls'], 'SNnnnnS') &&
       typeof a['conversationId'] === 'string' &&
       typeof a['subagent'] === 'boolean' &&
-      typeof a['listed'] === 'boolean' &&
-      (a['at'] === null || typeof a['at'] === 'number') &&
-      (a['forkOf'] === null || typeof a['forkOf'] === 'string') &&
-      (a['title'] === null || typeof a['title'] === 'string')
+      (a['forkOf'] === null || typeof a['forkOf'] === 'string')
     )
   }
   // A missing forkPoints (undefined) gives the banner judgement a false value, and corruption within one
   // version is caught only by this gate
-  if (a['kind'] === 'claude') return Array.isArray(a['entries']) && typeof a['forkPoints'] === 'number'
+  if (a['kind'] === 'claude') return isRows(a['entries'], 'SSnnnnnSS') && typeof a['forkPoints'] === 'number'
   // A missing titleFromThread (undefined) is a false false: it lets a retitle displace a thread_name session;
   // a missing boundary (undefined) would make every slice(0, undefined) the whole list and strip records
   if (a['kind'] === 'codex') {
     return (
-      Array.isArray(a['events']) &&
+      isRows(a['events'], 'Nnnnn') &&
       typeof a['titleFromThread'] === 'boolean' &&
       typeof a['boundary'] === 'number' &&
       // A missing paginated (undefined) would run the replay check on a paginated child and flag it uncertain
-      typeof a['paginated'] === 'boolean'
+      typeof a['paginated'] === 'boolean' &&
+      // The model names the bucket the rollout's usage goes to; a missing `sessionId` would lose the ID its page
+      // resumes it by and the forks that name it their parent; `parentId` and `forkedAt` decide which of a fork's
+      // questions are its own
+      typeof a['model'] === 'string' &&
+      (a['sessionId'] === null || typeof a['sessionId'] === 'string') &&
+      (a['parentId'] === null || typeof a['parentId'] === 'string') &&
+      (a['forkedAt'] === null || typeof a['forkedAt'] === 'number')
     )
   }
-  // A missing subagent (undefined) would silently list a subagent session; a missing listed
-  // (undefined) would silently HIDE a real one — both fields are load-bearing booleans
-  if (a['kind'] === 'grok') {
-    return (
-      Array.isArray(a['events']) &&
-      typeof a['subagent'] === 'boolean' &&
-      typeof a['listed'] === 'boolean'
-    )
-  }
+  // A missing subagent (undefined) would silently list a subagent session
+  if (a['kind'] === 'grok') return isRows(a['events'], 'NnnnnS') && typeof a['subagent'] === 'boolean'
   return false
 }
 
@@ -1510,11 +1597,21 @@ function statOf(file: string): { sig: string; ino: number; size: number } | null
 /**
  * Whether a build's entry for a file is the one the cache already held. A cache hit hands the held aggregate
  * on, with its signature and resume state, and every parse makes a new aggregate, a resumed one included, so
- * the aggregate being the very object held is the whole test. What the cache held came from a file and may be
- * no entry at all.
+ * the aggregate being the very object held is the whole test.
  */
 function isHeldEntry(held: CacheEntry | undefined, entry: CacheEntry): boolean {
-  return (held as Partial<CacheEntry> | null | undefined)?.agg === entry.agg
+  return held?.agg === entry.agg
+}
+
+/**
+ * Whether what the cache holds under a path is an entry: a signature and a well-formed aggregate. CacheEntries asks
+ * this before it hands anything out, so both are checked in one place and before either is read. The resume state
+ * a Codex entry carries is not asked about here (CacheEntry).
+ */
+function isWellFormedEntry(held: unknown): held is CacheEntry {
+  if (typeof held !== 'object' || held === null) return false
+  const e = held as Record<string, unknown>
+  return typeof e['sig'] === 'string' && isWellFormedAgg(e['agg'])
 }
 
 /** The cache entry a parse produces: a Codex rollout's carries the state its next resume starts from */

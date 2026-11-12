@@ -37,3 +37,9 @@ change found it, and a row of the case for what the first build of a run writes 
 
 The same as on 2026-10-29: each level of the file is guarded where it is read, by whoever thought of it. A single
 accessor that hands back a well-formed entry or nothing, over a `files` it has checked, would close the class.
+
+Later, on 2026-11-12, that accessor was built (postmortem `2026-10-29-a-guard-read-after-the-value-it-guards`): the loader
+and the restore's snapshot reader both take `CacheEntries` over the file's `files`, which turns down one that is not an
+object of entries, and every entry is checked before it is handed out. The snapshot reader was a second reader of the
+container that the fix above had not reached: it read an array's elements as entries. It now refuses such a snapshot
+(token-stats C16).
