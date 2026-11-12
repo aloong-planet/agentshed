@@ -92,6 +92,14 @@ We adopt **option 1**.
   at every scan and every page read, about 70 ms in two stretches on the measured data.
 - Neutral: the triggers and their intervals do not change, and the archive stays where it was.
 
+**Evidence closed (accepted 2026-11-12)**: measured on the built change with the scan benchmark under
+Electron 43.2.0, on this machine's data (about 7,000 session files, a 46.8 MB token cache). In six rescans
+through the scan worker the main process's longest stall was 24 to 33 ms: two that left the cache file as
+it was, three that wrote it (the home was in use while it was measured), and one with a session file
+grown between the two scans. The same two scans on the main process held it for 283 ms with nothing to
+parse, and for 476 ms with one file parsed and the cache written. A locally packaged build ran its first
+scan over the same data to its cache write, 46.8 MB, with no worker or parse-pool failure logged.
+
 ## Sources
 
 The measurements of 2026-11-11 quoted above, taken with the scan benchmark and a phase-by-phase probe
