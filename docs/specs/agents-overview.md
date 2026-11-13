@@ -7,7 +7,7 @@
 
 > Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0029), and are
-> written while the window has no focus (ADR-0044).
+> written while the window has no focus (ADR-0044), by the engine module (ADR-0045).
 
 ## Problem Statement
 
@@ -364,12 +364,16 @@ a registration the main process produced.
 13. Interface: agents-overview::REQ-008 decides when the copy is written, not what any page shows — no
     page, state, copy or control is added or changed (the prototype exemption, declared), and no new
     point renders or loads external content.
+14. The engine module ([token-stats](token-stats.md), Scans and the window) will not load: every write
+    of the copy fails as item 7 says and every scan fails as item 5 says. The copy is read at launch
+    without the module, so each launch restores the copy last written (agents-overview::REQ-001).
 
 ### Startup implementation decisions
 
 - Record successful snapshot and page-read results as they arrive, and write them when
   agents-overview::REQ-008 says, with ordered atomic replacement. A change is recorded without copying
-  the data; the copy is serialised only when it is written. A forced kill may lose writes not yet
+  the data; the copy is serialised and written by the engine module (ADR-0045) only when it is written,
+  and read at launch without it. A forced kill may lose writes not yet
   completed, never invalidate the previous complete save. No numeric retention limit has been approved.
 - Main owns the saved data and produces validated page payloads; the renderer receives restored data
   before showing restored pages. Do not add an arbitrary renderer-to-disk cache-write API.

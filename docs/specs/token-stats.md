@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group)
+> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module)
 
 > Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
@@ -129,19 +129,16 @@ all of them.
   them. A day whose sessions were compacted therefore reads lower than before the compaction; on a
   past day the archive's rule (C10) retains the earlier figure, on the own day the lower figure
   shows. Nothing marks a compacted window anywhere in the interface (G15's ruling extends to it).
-- B12 **A cold rollout is read like a plain one**: the same line reader runs over a decompression
+- B12 **A cold rollout is read like a plain one**: the same line reader runs over its decompressed
   stream, so every rule above applies unchanged. Its identity is its `.jsonl.zst` path, so the day
   Codex compresses a rollout the plain path leaves the scan set and the compressed one enters it as
-  a new file — parsed once, then cached like any other. The decoder's output chunk is the line
-  reader's read chunk (1 MB): at the decoder's 16 KB default the same per-chunk cost the plain
-  reader pays under Electron returns. A cold rollout that cannot be decompressed (truncated, not
-  zstd) is skipped like an unreadable plain file, hurting only itself. "Truncated" is judged by the
-  recorder's mechanism, not by the decoder: Node's zstd decoder reports nothing for a cut frame
-  (measured 2026-09-11, synchronously and as a stream alike — it yields the first half and ends
-  cleanly), while every rollout line ends with a newline and a cold rollout is never mid-write, so a
-  decompressed stream that does not end with a newline is cut short (every rollout measured ends
-  with one, the cold ones included). A cut landing exactly on a line end escapes this and reads as a
-  shorter session — that file only.
+  a new file — parsed once, then cached like any other. A cold rollout that cannot be decompressed
+  (not zstd, or corrupt) is skipped like an unreadable plain file, hurting only itself. "Truncated" is
+  judged by the recorder's mechanism, not by whether the decoder reports a cut frame: every rollout
+  line ends with a newline and a cold rollout is never mid-write, so a decompressed stream that does
+  not end with a newline is cut short and skipped (every rollout measured ends with one, the cold ones
+  included). A cut landing exactly on a line end escapes this and reads as a shorter session — that
+  file only.
 
 **Sequence F: Grok-side aggregation**
 - F1 Per-turn usage is read from the session's authoritative update stream, which is also the only
@@ -689,9 +686,9 @@ Applies to: every conversation database of the side, forks and subagent conversa
 - Usage agy never writes to a database — the `/btw` side question (deleted once answered) and the
   Auto mode's command reviewer — is not counted; this under-count is not signalled in the interface.
 - The generator metadata holds each call's full prompt and can reach hundreds of megabytes in one
-  database: decoding skips those fields by their length prefix and never decodes them. The runtime's
-  SQLite module returns a record whole, so one record's bytes are in memory while it is read; the
-  records are read one at a time.
+  database: decoding skips those fields by their length prefix and never decodes them. A record is
+  read whole, so one record's bytes are in memory while it is read; the records are read one at a
+  time.
 - A zero-byte or non-SQLite `.db` file fails to open in the supported format and is counted as
   unreadable (token-stats::REQ-004/AC-01).
 - The settings file or the data root is missing or corrupt: projects-list A1–A3 and A9 apply to this
@@ -825,6 +822,16 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   process, and the failure is logged once. The figures are the same. token-stats::QR-001 does not hold
   for the rest of that run. A scan or a read that fails on a worker still running is that scan (E3) or
   that read (session-view C4) failed, not a failed worker.
+- The engine module (ADR-0045) will not load — missing, damaged or built for another architecture: no
+  other engine exists, so every scan fails (E3, [agents-overview::REQ-002/AC-03](agents-overview.md)) on
+  the scan worker and on the main process alike, every read of a question index or of a question's text
+  fails as that read (session-view C4), and the display copy is not written
+  ([agents-overview::REQ-008/AC-05](agents-overview.md)). The failure is logged.
+- A panic in the engine module is caught where it crosses into the application. One raised while a file
+  is parsed is that file's failed read, under the rule its side has for a read that fails (B12, F6,
+  token-stats::REQ-004), and the scan goes on (the AGENTS.md invariant on reading agent data); one
+  raised elsewhere in a scan fails that scan (E3), and one raised in a read fails that read
+  (session-view C4).
 - A rollout replaced under its path, appended to or edited in place differs in its inode, its size or
   its modification time, and its first line is read again (token-stats::QR-002/AC-01). An edit that
   moves none of the three is not seen until the file next changes — the limit the token cache's own
@@ -881,6 +888,17 @@ with macOS `footprint`.
   store, its log and the checkpoint into the store included, whether or not the window has focus. The
   display copy ([agents-overview::REQ-008](agents-overview.md)) and the archive are written by their own
   rules and are not counted.
+
+### token-stats::QR-004 A full parse of every session file
+
+Applies to: a locally packaged build with its window shown, launched on an empty token store with no JSON
+cache to import (C26), so that every session file is parsed, on about 7,300 session files holding 19.5 GB
+of lines once cold rollouts are decompressed. Memory is the main process's, its worker threads included,
+read with macOS `footprint`.
+
+- token-stats::QR-004/AC-01: From launch until the first scan's figures reach the window takes at most
+  15 s.
+- token-stats::QR-004/AC-02: Over the same span, the main process's peak footprint is at most 600 MB.
 
 ### Failure modes and boundaries: the token store
 
@@ -967,9 +985,17 @@ with macOS `footprint`.
   line reader; the byte offsets the question index records for it are offsets in the decompressed
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
+- **The engine module** (ADR-0045) holds the session walk, the reading and parsing of every session
+  file, the question index and the titles, the entries, the store, the grouping and the combination,
+  and the line rules that a question's text and a turn's contents are read by on the session page and
+  in both searches. A value in a line is built only where a rule reads it; every other value is scanned
+  past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of
+  ECMAScript's `JSON.parse`, with its results: a repeated key keeps its last value, a number beyond the
+  double range is infinite and so no finite count, a lone surrogate escape stays that code unit, and a
+  line `JSON.parse` refuses is a bad line (A8).
 - **Cache**: incremental by file signature, kept in a SQLite store in the settings directory, opened
-  through the runtime's built-in module by whichever engine runs the scan (Where a scan runs, below) and
-  recording its own structure version (ADR-0044). It holds each file's entry under its path — its
+  by the engine module in whichever thread runs the scan (Where a scan runs, below) and recording its
+  own structure version (ADR-0044). It holds each file's entry under its path — its
   signature and its per-file aggregate — the de-duplication keys each entry carries, and each group's
   combined result with the combination it came from. A group is the set of
   files linked, directly or through others, by a key they share: a Claude message's id with its request
@@ -1018,8 +1044,8 @@ with macOS `footprint`.
   starts from the store as the worker last left it.
 - **Automatic refresh**: the triggers (focus + timer) run in the main process, and the scan they
   start on the scan worker; the cost of a rescan is absorbed by the incremental cache.
-- **Antigravity usage** (ADR-0037): the databases are opened through the runtime's built-in SQLite
-  module (available in Electron 43), under token-stats::CON-002. The records are decoded by field
+- **Antigravity usage** (ADR-0037): the databases are opened by the engine module, under
+  token-stats::CON-002. The records are decoded by field
   number against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and
   skipping the prompt fields by their length prefix; a field the reader reads arriving in another
   wire type than its descriptor declares is a record that will not decode. The extraction script and

@@ -53,3 +53,4 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0042](0042-packaged-build-refuses-launch-inputs.md) | A packaged build refuses every launch input outside an allow-list, and the packaging proves it | Accepted (the argument rule amended 2026-11-06) |
 | [0043](0043-scan-on-a-worker-thread.md) | A scan runs on one worker thread that owns the token cache; the main process only starts it and takes its result | Accepted |
 | [0044](0044-token-cache-in-sqlite-by-deduplication-group.md) | The token cache lives in a SQLite store and is aggregated by de-duplication group; the display copy is written while the window has no focus | Proposed |
+| [0045](0045-token-engine-as-a-rust-module.md) | The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module loaded in the app's process | Proposed |

@@ -50,8 +50,8 @@ user is in the window as much as when they are not.
 
 We adopt **option 1**.
 
-- **The store** is a SQLite database in the settings directory, opened through the runtime's built-in
-  module, owned by the scan worker as the JSON file was (ADR-0043). A file's entry is a row keyed by its
+- **The store** is a SQLite database in the settings directory, opened by the engine's own module
+  (ADR-0045), owned by the scan worker as the JSON file was (ADR-0043). A file's entry is a row keyed by its
   path, with its signature and its per-file aggregate. In memory the engine keeps each file's signature
   and its group; the aggregates and the index of keys stay in the store.
 - **A group** is a set of files connected by a shared de-duplication key. Each group is combined by the
