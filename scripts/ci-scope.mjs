@@ -27,7 +27,7 @@ export function classifyPaths(paths) {
     } else if (path.startsWith('site/')) {
       site = true
       reason = 'Website'
-    } else if (APP_CONFIG.has(path) || ['src/', 'e2e/', 'build/', 'scripts/'].some((prefix) => path.startsWith(prefix))) {
+    } else if (APP_CONFIG.has(path) || ['src/', 'engine/', 'e2e/', 'build/', 'scripts/'].some((prefix) => path.startsWith(prefix))) {
       app = true
       reason = 'Application'
     } else {

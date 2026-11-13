@@ -13,6 +13,10 @@ directories:
 # require would fail.
 afterAllArtifactBuild: build/clean-old-releases.cjs
 
+# The engine module (ADR-0045), built from source for the packaged architecture before each pack, without the test seams
+# (the hook's header says how); mac.extraResources below places it in the app
+beforePack: build/engine-before-pack.cjs
+
 files:
   - out
   - package.json
@@ -71,6 +75,11 @@ mac:
   notarize: false
   # The minimum the app declares, as the README and the landing page state (mac-distribution::REQ-001/AC-04)
   minimumSystemVersion: '12.0'
+  # The engine module the beforePack hook built, outside the asar archive at Contents/Resources/engine, where the app
+  # loads it (src/main/engine-module.ts) and the signing signs it with the app
+  extraResources:
+    - from: engine/target/packaged/release/libagentshed_engine.dylib
+      to: engine/agentshed_engine.node
 
 dmg:
   # Required by the packaging asset: electron-builder's default name drops the arch of the default

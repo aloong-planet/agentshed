@@ -11,7 +11,7 @@ import { answerScans, type ScanWorkerData } from './scan-protocol'
 const port = parentPort
 if (!port) throw new Error('scan-worker runs only as a worker thread')
 const data = workerData as ScanWorkerData
-const scanner = new Scanner(data.cacheDir, new ParsePool(data.parseScript, data.poolSize))
+const scanner = new Scanner(data.cacheDir, data.engine, new ParsePool(data.parseScript, data.poolSize, data.engine))
 // Ends this thread and the parse workers it started, at once (measured under Electron 43.2.0, 2026-11-12: a
 // timer either had pending never fires): whatever the scan would have done next is not done
 answerScans(port, scanner, () => process.exit(0))

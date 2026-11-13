@@ -85,7 +85,9 @@ Agentshed needs macOS 12 or later on an Apple Silicon (M-series) Mac.
 
 ## Development
 
-Agentshed is an Electron app, built with pnpm 9 and Node.js 22.
+Agentshed is an Electron app, built with pnpm 9 and Node.js 22. Its token engine is a Rust module built from source,
+so Rust is needed too: with [rustup](https://rustup.rs) installed, the toolchain `engine/rust-toolchain.toml` pins is
+fetched on the first build.
 
 ```sh
 pnpm install

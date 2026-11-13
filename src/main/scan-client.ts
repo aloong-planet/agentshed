@@ -147,9 +147,9 @@ export class ScanClient {
  * and behind it a scanner on the calling thread with a parse pool of its own.
  */
 export function startScans(o: ScanWorkerData & { script: string }): ScanClient {
-  const data: ScanWorkerData = { cacheDir: o.cacheDir, parseScript: o.parseScript, poolSize: o.poolSize }
+  const data: ScanWorkerData = { cacheDir: o.cacheDir, parseScript: o.parseScript, poolSize: o.poolSize, engine: o.engine }
   return new ScanClient({
     spawn: () => new Worker(o.script, { workerData: data }),
-    fallback: () => new Scanner(o.cacheDir, new ParsePool(o.parseScript, o.poolSize))
+    fallback: () => new Scanner(o.cacheDir, o.engine, new ParsePool(o.parseScript, o.poolSize, o.engine))
   })
 }

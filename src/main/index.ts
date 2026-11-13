@@ -30,6 +30,7 @@ import { savedInstructionPaths } from './providers/global'
 import { CACHE_VERSION, sessionReadSource } from './providers/token-stats'
 import { settleScan } from './providers/scanner'
 import { startScans, type ScanClient } from './scan-client'
+import { ENGINE_BUILD, engineModulePath } from './engine-module'
 import { settleForQuit } from './quit'
 import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
@@ -713,7 +714,12 @@ void app.whenReady().then(() => {
     script: join(__dirname, 'scan-worker.js'),
     parseScript: join(__dirname, 'parse-worker.js'),
     cacheDir: app.getPath('userData'),
-    poolSize: Math.min(4, Math.max(1, availableParallelism() - 1))
+    poolSize: Math.min(4, Math.max(1, availableParallelism() - 1)),
+    // The engine module (ADR-0045): the scan worker, its parse workers and, after a worker failure, this process load it
+    engine: {
+      path: engineModulePath({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, mainDir: __dirname, env: process.env }),
+      build: ENGINE_BUILD
+    }
   })
   // The listed set as it stands: the snapshot's projects, stale ones included, with each one's listed
   // sessions — the restored ones until the first scan completes (global-search S2)

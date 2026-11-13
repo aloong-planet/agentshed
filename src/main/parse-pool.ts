@@ -8,7 +8,13 @@
 // A worker that fails — the script will not load, it crashes, it exits — never loses a file: that job is
 // parsed on the pool's own thread instead, exactly as a pool-less engine would.
 import { Worker } from 'node:worker_threads'
+import type { EngineSource } from './engine-module'
 import { runParseJob, type ParseJob, type ParseResult, type ParseRunner } from './providers/token-stats'
+
+/** What a parse worker is started with: the engine module it loads as it starts (ADR-0045) */
+export interface ParseWorkerData {
+  engine: EngineSource
+}
 
 /** How long an idle worker lives: long enough to serve one scan's parses back to back */
 const IDLE_MS = 10_000
@@ -21,16 +27,21 @@ interface Task {
 export class ParsePool implements ParseRunner {
   readonly concurrency: number
   private readonly script: string
+  private readonly workerData: ParseWorkerData
   private readonly idleMs: number
   private readonly idle: Array<{ worker: Worker; timer: NodeJS.Timeout }> = []
   private readonly queue: Task[] = []
   private live = 0
   private warned = false
 
-  /** `script`: the built parse-worker entry; `size`: the most workers at once; `idleMs` for tests */
-  constructor(script: string, size: number, idleMs = IDLE_MS) {
+  /**
+   * `script`: the built parse-worker entry; `size`: the most workers at once; `engine`: the engine module each worker
+   * loads; `idleMs` for tests
+   */
+  constructor(script: string, size: number, engine: EngineSource, idleMs = IDLE_MS) {
     this.script = script
     this.concurrency = Math.max(1, size)
+    this.workerData = { engine }
     this.idleMs = idleMs
   }
 
@@ -65,7 +76,7 @@ export class ParsePool implements ParseRunner {
       this.queue.shift()
       let worker: Worker
       try {
-        worker = new Worker(this.script)
+        worker = new Worker(this.script, { workerData: this.workerData })
       } catch {
         // The constructor throws synchronously for a bad path or a thread it cannot start; thrown from
         // here it would reject the whole scan

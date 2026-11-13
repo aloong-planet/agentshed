@@ -50,7 +50,7 @@ test('product jobs follow classification independently and do not require anothe
 
 test('the split retains the original product and repository checks with independent installs', () => {
   const expected = {
-    'app-checks': ['pnpm install --frozen-lockfile', 'pnpm typecheck', 'pnpm lint:app', 'pnpm test', 'pnpm test:scripts', 'pnpm check:i18n'],
+    'app-checks': ['pnpm install --frozen-lockfile', 'rustup toolchain install --no-self-update', 'pnpm typecheck', 'pnpm lint:app', 'pnpm test', 'pnpm test:scripts', 'pnpm check:i18n'],
     'site-checks': ['pnpm install --frozen-lockfile', 'pnpm install --frozen-lockfile', 'pnpm lint:site', 'pnpm test:site'],
     'repo-policy': ['pnpm install --frozen-lockfile', 'pnpm test:ci', 'pnpm check:ui', 'pnpm check:lang', 'pnpm check:nul']
   }
@@ -68,7 +68,15 @@ test('the split retains the original product and repository checks with independ
   }
   assert.equal(job('site-checks').steps.filter((step) => step.run === 'pnpm install --frozen-lockfile' && step['working-directory'] === 'site').length, 1)
   assert.ok(commands('e2e').includes('xvfb-run -a pnpm e2e'))
-  assert.equal(pkg.scripts.e2e, 'electron-vite build && playwright test')
+  assert.equal(pkg.scripts.e2e, 'node scripts/build-engine.mjs --quiet && electron-vite build && playwright test')
+  // The engine module (ADR-0045) builds from source wherever the app is tested: the toolchain engine/ pins is installed
+  // there, before the tests and the e2e run that build it
+  for (const [id, builds] of [['app-checks', 'pnpm test'], ['e2e', 'xvfb-run -a pnpm e2e']]) {
+    const runs = commands(id)
+    const install = job(id).steps.find((step) => step.run === 'rustup toolchain install --no-self-update') ?? assert.fail(`${id}: no toolchain install`)
+    assert.equal(install['working-directory'], 'engine', id)
+    assert.ok(runs.indexOf(install.run) < runs.indexOf(builds), id)
+  }
   assert.ok(pkg.scripts.verify.includes('pnpm test:ci'))
   assert.ok(pkg.scripts.verify.includes('pnpm test:site'))
   assert.ok(pkg.scripts.verify.includes('pnpm e2e'))

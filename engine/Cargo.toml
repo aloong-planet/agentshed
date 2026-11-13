@@ -1,0 +1,29 @@
+# The engine module (ADR-0045): one Node-API module, loaded by the scan worker, the parse workers and the main
+# process. Built only through scripts/build-engine.mjs, which passes the build it belongs to; a module built any
+# other way reports none, so no build of the app takes it for its own.
+[package]
+name = "agentshed-engine"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+# The panic seam, in builds made for tests only: packaging builds without it and refuses a module that has it
+test-seams = []
+
+[dependencies]
+napi = "3.16.2"
+napi-derive = "3.7.1"
+
+[build-dependencies]
+napi-build = "2.6.0"
+# build.rs refuses an exported function that would not catch a panic, reading the sources with a Rust parser
+syn = { version = "3.0.10", default-features = false, features = ["full", "parsing"] }
+proc-macro2 = { version = "1.0.107", default-features = false }
+
+[profile.release]
+# A panic unwinds so that the module's boundary can catch it (ADR-0045); abort would end the app
+panic = "unwind"

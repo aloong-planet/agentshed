@@ -4,6 +4,8 @@ dist/
 docs/.workings/
 .DS_Store
 out/
+# The engine module's cargo output; its development build lands in engine/dist/, which dist/ above covers
+engine/target/
 release/
 *.tsbuildinfo
 test-results/

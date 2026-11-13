@@ -10,6 +10,7 @@ import { mergeKey } from '@shared/path-key'
 import { UsageArchive } from './archive'
 import { Scanner, settleScan } from './scanner'
 import { runParseJob } from './token-stats'
+import { TEST_ENGINE } from '../testing/engine'
 import { FORK_TITLE, mkScanHome, type ScanHome } from '../testing/scan-home'
 
 let dir: string
@@ -24,7 +25,7 @@ afterEach(() => {
 
 describe('what a scan hands the main process (token-stats, "Where a scan runs")', () => {
   it('a snapshot whose session count is the listed sessions\', the unreadable Antigravity count, no token figures; the rows, each project\'s sessions and the read allow-list', async () => {
-    const out = await new Scanner(join(dir, 'cache')).scan(home.roots)
+    const out = await new Scanner(join(dir, 'cache'), TEST_ENGINE).scan(home.roots)
     const listed = [home.claude.asked, home.codex.parent, home.codex.fork, home.grok, home.antigravity.listed]
 
     expect(out.snapshot.projects.map((p) => p.path)).toEqual([home.project])
@@ -48,14 +49,14 @@ describe('what a scan hands the main process (token-stats, "Where a scan runs")'
 describe('the scanner\'s parse workers', () => {
   it('close stops what its runner holds', () => {
     let closed = 0
-    new Scanner(join(dir, 'cache'), { concurrency: 1, run: runParseJob, close: () => closed++ }).close()
+    new Scanner(join(dir, 'cache'), TEST_ENGINE, { concurrency: 1, run: runParseJob, close: () => closed++ }).close()
     expect(closed).toBe(1)
   })
 })
 
 describe('what the main process makes of a scan (settleScan)', () => {
   it('a row with no day is in the whole-history figures and the project\'s, and in no day of the trend (G7)', async () => {
-    const out = await new Scanner(join(dir, 'cache')).scan(home.roots)
+    const out = await new Scanner(join(dir, 'cache'), TEST_ENGINE).scan(home.roots)
     expect(out.rows.filter((r) => !r.day).map((r) => r.total), 'the fixture\'s call without a timestamp').toEqual([9])
 
     const settled = settleScan(out, new UsageArchive(join(dir, 'cache'), { stamp: 'test' }))

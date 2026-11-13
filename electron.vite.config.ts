@@ -1,12 +1,15 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+import { engineBuildDefine } from './scripts/lib/engine-build.mjs'
 
 const shared = resolve('src/shared')
 
 export default defineConfig({
   main: {
     resolve: { alias: { '@shared': shared } },
+    // The build the engine module must report (ADR-0045): the main process and both workers refuse another
+    define: engineBuildDefine(),
     build: {
       rollupOptions: {
         // The two workers are entries of their own, started as worker threads from out/main: the main process

@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { ParsePool } from './parse-pool'
 import { runParseJob, type ParseJob, type ParseResult } from './providers/token-stats'
+import { TEST_ENGINE } from './testing/engine'
 
 let dir: string
 beforeEach(() => {
@@ -61,7 +62,7 @@ function realJob(): ParseJob {
 
 describe('ParsePool', () => {
   it('answers every job with its own result when jobs finish out of order', async () => {
-    const pool = new ParsePool(echoWorker(), 4)
+    const pool = new ParsePool(echoWorker(), 4, TEST_ENGINE)
     const files = Array.from({ length: 8 }, (_, i) => `f${i}`)
     const results = await Promise.all(files.map((f, i) => pool.run(echoJob(f, (8 - i) * 10))))
     expect(results.map((r) => echoOf(r).file)).toEqual(files)
@@ -69,7 +70,7 @@ describe('ParsePool', () => {
   })
 
   it('never runs more workers than its size, and does use more than one', async () => {
-    const pool = new ParsePool(echoWorker(), 3)
+    const pool = new ParsePool(echoWorker(), 3, TEST_ENGINE)
     const results = await Promise.all(Array.from({ length: 12 }, (_, i) => pool.run(echoJob(`f${i}`, 20))))
     const threads = new Set(results.map((r) => echoOf(r).threadId))
     expect(threads.size).toBeLessThanOrEqual(3)
@@ -78,7 +79,7 @@ describe('ParsePool', () => {
   })
 
   it('reuses an idle worker within its idle time and stops it after', async () => {
-    const pool = new ParsePool(echoWorker(), 1, 50)
+    const pool = new ParsePool(echoWorker(), 1, TEST_ENGINE, 50)
     const a = echoOf(await pool.run(echoJob('a', 0))).threadId
     const b = echoOf(await pool.run(echoJob('b', 0))).threadId
     expect(b).toBe(a)
@@ -90,7 +91,7 @@ describe('ParsePool', () => {
 
   it('a worker that dies mid-job loses nothing: the job is parsed on the pool\'s own thread, with one warning', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const pool = new ParsePool(crashWorker(), 2)
+    const pool = new ParsePool(crashWorker(), 2, TEST_ENGINE)
     const job = realJob()
     const [r1, r2] = await Promise.all([pool.run(job), pool.run(job)])
     const inline = await runParseJob(job)
@@ -104,7 +105,7 @@ describe('ParsePool', () => {
   it('a worker that cannot even be constructed loses nothing: the scan does not fail with it', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     // A path that is neither absolute nor ./-relative makes the Worker constructor throw synchronously
-    const pool = new ParsePool('not-a-valid-worker-path.mjs', 2)
+    const pool = new ParsePool('not-a-valid-worker-path.mjs', 2, TEST_ENGINE)
     const job = realJob()
     expect(await pool.run(job)).toEqual(await runParseJob(job))
     pool.close()
@@ -112,7 +113,7 @@ describe('ParsePool', () => {
 
   it('a worker script that does not load loses nothing either', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const pool = new ParsePool(join(dir, 'missing.mjs'), 2)
+    const pool = new ParsePool(join(dir, 'missing.mjs'), 2, TEST_ENGINE)
     const job = realJob()
     expect(await pool.run(job)).toEqual(await runParseJob(job))
     pool.close()

@@ -1,0 +1,5 @@
+# The toolchain every build of the engine module uses, locally and in CI; rustup reads it in this directory, where
+# scripts/build-engine.mjs runs cargo
+[toolchain]
+channel = "1.97.1"
+profile = "minimal"

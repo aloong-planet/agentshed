@@ -789,6 +789,46 @@ test('a failed startup scan keeps the saved display and retries automatically wi
   }
 })
 
+// The engine module (ADR-0045) will not load (token-stats, Scans and the window): the module seam points the run at a file
+// that is no library, through the main process's path, the scan worker's data and its scanner. engine-module.test.ts and
+// scan-client.test.ts hold the rule under Node, on a scanner standing for the scan worker's and on the main process's
+// fallback; this holds the wiring on the built app's scan worker. Gap: the built app's main-thread fallback, which no
+// e2e case reaches, as no seam fails the scan worker.
+//
+// Every scan of the run fails and its caller logs it: the startup scan once, and a scan that a focus starts before any
+// scan has succeeded (E1) once more. CI's window is shown and gets that focus; the window hidden here does not.
+test('an engine module that will not load fails the scan: the saved display stays, nothing claims fresh data, and each failed scan logs the failure', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-engine-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-engine-data-'))
+  const project = join(home, 'a-project')
+  mkdirSync(project)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [project]: {} } }))
+  const broken = join(home, 'agentshed_engine.node')
+  writeFileSync(broken, 'not a library')
+  let app: ElectronApplication | undefined
+  try {
+    app = (await startApp({ userData, home, errors: mainErrors.errors })).app
+    let win = await app.firstWindow()
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
+    await closeApp(app)
+    const started = await startApp({ userData, home, errors: mainErrors.errors, env: { AGENTSHED_ENGINE_MODULE: broken } })
+    app = started.app
+    win = await app.firstWindow()
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'waiting', { timeout: 10000 })
+    const logged = (): string[] => started.stderr.join('').split('\n').filter((line) => line.includes(`the engine module will not load from ${broken}`))
+    await expect.poll(() => logged().filter((line) => line.startsWith('[startup] scan failed:')).length).toBe(1)
+    await expect(win.locator('.startup-display-hint')).toContainText('Showing previous data')
+    await win.locator('.rail .ri').nth(1).click()
+    await expect(win.locator('.side .row')).toHaveCount(1)
+    // Read again once the page has been used: only failed scans logged the module's failure
+    expect(logged().filter((line) => !/^\[(startup|auto-rescan)\] scan failed/.test(line))).toEqual([])
+  } finally {
+    if (app) await closeApp(app).catch(() => {})
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+
 // A launch refused the single-instance lock because it cannot write its settings directory (docs/specs/i18n.md, The main
 // process emits no natural language), through the real index.ts, which has no unit tests. refused-launch.test.ts covers
 // the decision and the sentence.

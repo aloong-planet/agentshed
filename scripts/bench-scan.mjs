@@ -23,12 +23,18 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { buildEngine } from './build-engine.mjs'
+import { engineBuildDefine } from './lib/engine-build.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repo = resolve(here, '..')
 const args = process.argv.slice(2)
 const useNode = args.includes('--node')
 const passThrough = args.filter((a) => a !== '--node')
+
+// The engine module (ADR-0045) the scans load, built from the sources the bundles below are defined against
+const engineModule = buildEngine({ quiet: true })
+const define = engineBuildDefine()
 
 const outDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-build-'))
 const outfile = join(outDir, 'bench-scan.cjs')
@@ -42,6 +48,7 @@ for (const [entry, out] of [['parse-worker.ts', workerFile], ['scan-worker.ts', 
     platform: 'node',
     format: 'cjs',
     tsconfig: join(repo, 'tsconfig.node.json'),
+    define,
     outfile: out,
     logLevel: 'warning'
   })
@@ -54,6 +61,7 @@ await build({
   // The Electron binary provides `electron`; under --node the entry never imports it
   external: ['electron'],
   tsconfig: join(repo, 'tsconfig.node.json'),
+  define,
   outfile,
   logLevel: 'warning'
 })
@@ -69,5 +77,6 @@ if (!useNode) delete env['ELECTRON_RUN_AS_NODE']
 env['AGENTSHED_BENCH_APP_NAME'] = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).name
 env['AGENTSHED_BENCH_PARSE_WORKER'] = workerFile
 env['AGENTSHED_BENCH_SCAN_WORKER'] = scanWorkerFile
+env['AGENTSHED_BENCH_ENGINE_MODULE'] = engineModule
 const result = spawnSync(bin, [outfile, ...passThrough], { stdio: 'inherit', env, cwd: repo })
 process.exit(result.status ?? 1)
