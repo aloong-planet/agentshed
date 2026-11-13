@@ -58,6 +58,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The engine module (ADR-0045) is built from source for linux-x64 by the tests' global setup, with the toolchain
+      # engine/rust-toolchain.toml pins; a module that does not build or load fails the tests
+      - run: rustup toolchain install --no-self-update
+        working-directory: engine
       - run: pnpm typecheck
       - run: pnpm lint:app
       - run: pnpm test
@@ -108,6 +112,9 @@ jobs:
       # hand-writing apt package names
       # (which drift with the ubuntu version, e.g. libasound2 → libasound2t64)
       - run: pnpm exec playwright install-deps chromium
+      # pnpm e2e builds the engine module (ADR-0045) from source before the app, with the pinned toolchain
+      - run: rustup toolchain install --no-self-update
+        working-directory: engine
       # Electron needs a display server; -a picks a free display number automatically
       - run: xvfb-run -a pnpm e2e
       - if: failure()

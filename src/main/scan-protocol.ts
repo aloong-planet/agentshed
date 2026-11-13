@@ -1,5 +1,6 @@
 // What the main process and the scan worker say to each other (ADR-0043), and the worker's side of it. The
 // main process's side is scan-client.ts; the thread itself is scan-worker.ts.
+import type { EngineSource } from './engine-module'
 import type { Scanner } from './providers/scanner'
 import type { ScanRoots } from './providers/types'
 
@@ -27,6 +28,8 @@ export interface ScanWorkerData {
   /** The built parse-worker entry, which the scanner's parse pool starts */
   parseScript: string
   poolSize: number
+  /** The engine module the worker and its parse workers load (ADR-0045) */
+  engine: EngineSource
 }
 
 /** The part of its port the worker's side uses */

@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread)
+> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module)
 
 > Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
@@ -809,6 +809,16 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   process, and the failure is logged once. The figures are the same. token-stats::QR-001 does not hold
   for the rest of that run. A scan or a read that fails on a worker still running is that scan (E3) or
   that read (session-view C4) failed, not a failed worker.
+- The engine module (ADR-0045) will not load — missing, damaged or built for another architecture — or
+  reports another build than the application's code: no other engine exists, so every scan fails (E3,
+  [agents-overview::REQ-002/AC-03](agents-overview.md)) on the scan worker and on the main process alike,
+  and every read of a question index or of a question's text fails as that read (session-view C4). The
+  failure is logged.
+- A panic in the engine module is caught where it crosses into the application. One raised while a file
+  is parsed is that file's failed read, under the rule its side has for a read that fails (B12, F6,
+  token-stats::REQ-004), and the scan goes on (the AGENTS.md invariant on reading agent data); one
+  raised elsewhere in a scan fails that scan (E3), and one raised in a read fails that read
+  (session-view C4).
 - A rollout replaced under its path, appended to or edited in place differs in its inode, its size or
   its modification time, and its first line is read again (token-stats::QR-002/AC-01). An edit that
   moves none of the three is not seen until the file next changes — the limit the token cache's own
@@ -919,6 +929,7 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   line reader; the byte offsets the question index records for it are offsets in the decompressed
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
+- **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process.
 - **Cache**: incremental by file signature; **a structure change must bump the version number at the
   same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
   recomputes. An entry is well formed when its signature is a string and its per-file aggregate has

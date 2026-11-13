@@ -41,6 +41,7 @@ import { availableParallelism } from 'node:os'
 import { scan, walkSessions } from '../src/main/providers/scan'
 import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
 import { ParsePool } from '../src/main/parse-pool'
+import { ENGINE_BUILD, type EngineSource } from '../src/main/engine-module'
 import { Scanner, settleScan, type ScanOutput } from '../src/main/providers/scanner'
 import { startScans } from '../src/main/scan-client'
 import { UsageArchive } from '../src/main/providers/archive'
@@ -195,6 +196,13 @@ async function longestStall(work: () => Promise<void>): Promise<{ max: string; p
   return { max: (lag.max / 1e6).toFixed(0), p99: (lag.percentile(99) / 1e6).toFixed(0) }
 }
 
+/** The engine module (ADR-0045) every scanner and parse worker here loads: the development build the runner made */
+function engineSource(): EngineSource {
+  const path = process.env['AGENTSHED_BENCH_ENGINE_MODULE']
+  if (!path) throw new Error('AGENTSHED_BENCH_ENGINE_MODULE is not set: run through scripts/bench-scan.mjs')
+  return { path, build: ENGINE_BUILD }
+}
+
 /** The app's pool size, or AGENTSHED_BENCH_POOL_SIZE to measure another */
 function poolSize(): number {
   const forced = Number(process.env['AGENTSHED_BENCH_POOL_SIZE'])
@@ -221,13 +229,13 @@ async function workersScan(): Promise<void> {
     return cacheDir
   }
   if (process.argv.includes('--pool-only')) {
-    const pool = new ParsePool(script, poolSize())
+    const pool = new ParsePool(script, poolSize(), engineSource())
     await run(`parse pool of ${pool.concurrency}`, pool)
     pool.close()
     return
   }
   const inlineDir = await run('main thread')
-  const pool = new ParsePool(script, poolSize())
+  const pool = new ParsePool(script, poolSize(), engineSource())
   const poolDir = await run(`parse pool of ${pool.concurrency}`, pool)
   pool.close()
   const files = (d: string): Record<string, unknown> =>
@@ -266,16 +274,16 @@ async function timedScan(label: string, scan: () => Promise<ScanOutput>, archive
 
 /** The app's way: the scan on the scan worker */
 function rescanThroughWorker(cacheDir: string, roots: ScanRoots, archive: UsageArchive, scanScript: string, parseScript: string): RescanRun {
-  const scans = startScans({ script: scanScript, parseScript, cacheDir, poolSize: poolSize() })
+  const scans = startScans({ script: scanScript, parseScript, cacheDir, poolSize: poolSize(), engine: engineSource() })
   const where = (): string => (scans.servedOn === 'worker' ? 'on the scan worker' : 'on the main process, the scan worker having failed')
   return { once: (label) => timedScan(label, () => scans.scan(roots), archive, where), counted: () => '', close: () => scans.close() }
 }
 
 /** The scan on the main process, by the scanner the app falls back to once its scan worker has failed, its parses counted */
 function rescanOnMain(cacheDir: string, roots: ScanRoots, archive: UsageArchive, parseScript: string): RescanRun {
-  const pool = new ParsePool(parseScript, poolSize())
+  const pool = new ParsePool(parseScript, poolSize(), engineSource())
   let parsed = 0
-  const scanner = new Scanner(cacheDir, {
+  const scanner = new Scanner(cacheDir, engineSource(), {
     concurrency: pool.concurrency,
     run: (job) => {
       parsed++

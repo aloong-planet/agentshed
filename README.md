@@ -66,7 +66,7 @@
 
 ## 开发
 
-Agentshed 是一个 Electron 应用，使用 pnpm 9 与 Node.js 22。
+Agentshed 是一个 Electron 应用，使用 pnpm 9 与 Node.js 22。它的 token 引擎是一个从源码构建的 Rust 模块，所以还需要 Rust：装好 [rustup](https://rustup.rs) 后，第一次构建会自动取来 `engine/rust-toolchain.toml` 钉住的工具链。
 
 ```sh
 pnpm install

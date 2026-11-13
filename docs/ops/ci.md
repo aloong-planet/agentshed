@@ -18,7 +18,7 @@ is also where a dependency the table below does not list shows up.
 |---|---|
 | Root README files, `AGENTS.md`, `CLAUDE.md`, `LICENSE`, `site/README.md`, `build/README.md`, `docs/**/*.md`, `docs/prototypes/**` | No product jobs |
 | Other `site/**` files | `site-checks` |
-| `src/**`, `e2e/**`, `build/**`, other `scripts/**`, application build/test/TypeScript configuration | `app-checks`, `e2e` |
+| `src/**`, `engine/**`, `e2e/**`, `build/**`, other `scripts/**`, application build/test/TypeScript configuration | `app-checks`, `e2e` |
 | `src/renderer/src/theme.css` | Both products: the website's palette test reads it |
 | Root package/lockfile, ESLint config, capability declarations, `.gitignore`, workflows, `scripts/ci-*`, the shared workflow test helper | Both products |
 | Mixed inputs or a path outside these categories | Union of scopes; unknown paths select both |
@@ -28,8 +28,10 @@ application or website source is content in that product, not an extension-based
 
 - `repo-policy` always runs CI routing/wiring tests, shared-piece/document/prototype checks, working
   language checks and the raw-NUL check.
-- `app-checks` installs only the root package and runs typecheck, `lint:app`, unit and script tests,
-  and the application copy check. `e2e` builds and drives Electron.
+- `app-checks` installs only the root package and the Rust toolchain `engine/rust-toolchain.toml` pins, and
+  runs typecheck, `lint:app`, unit and script tests, and the application copy check. The unit tests build the
+  engine module (ADR-0045) from source for linux-x64 before any test runs. `e2e` installs the same toolchain,
+  builds the engine module and the app, and drives Electron.
 - `site-checks` installs the root lint tools and the website's own dependencies, then runs `lint:site`
   and `test:site`. The site's test setup builds it once into a fresh directory.
 - `ci-gate`, displayed as **CI gate**, always evaluates all those results. Classification and policy

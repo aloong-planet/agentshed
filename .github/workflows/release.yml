@@ -59,6 +59,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The engine module (ADR-0045) is built from source for darwin-arm64 by electron-builder's beforePack hook
+      # (build/engine-before-pack.cjs): without the test-seams feature, and refused when it exports a seam or reports
+      # another build than the app's code; this installs the toolchain engine/rust-toolchain.toml pins
+      - run: rustup toolchain install --no-self-update
+        working-directory: engine
       # Before anything is submitted to Apple; it also refuses a version the PRERELEASE test below would misjudge
       - name: Check the tag against the package version
         if: github.event_name == 'push'

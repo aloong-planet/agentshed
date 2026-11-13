@@ -4,6 +4,7 @@
 // packaged build, which no unit test or e2e case starts. The packaging check holds the exit code on the built app at every
 // packaging. It does not read standard error, so the sentence on a real package is checked by hand (docs/ops/mac-signing.md).
 import { describe, expect, it } from 'vitest'
+import { ENGINE_MODULE_SEAM } from './engine-module'
 import { launchRefusal, refusedLaunchInputs } from './launch-inputs'
 
 /** An everyday environment, none of which is an input to refuse */
@@ -77,7 +78,8 @@ describe('the launch inputs a packaged build refuses (mac-distribution::CON-008)
     expect(refusedLaunchInputs([], { ELECTRON_RENDERER_URL: value })).toEqual(['ELECTRON_RENDERER_URL'])
   })
 
-  it.each(['AGENTSHED_HOME_OVERRIDE', 'AGENTSHED_UPDATE_SCRIPT', 'AGENTSHED_A_SEAM_NOT_WRITTEN_YET'])('refuses a test seam by its prefix: %s', (name) => {
+  // The engine module's seam by the name the app reads, so a seam renamed off the prefix fails here (ADR-0045)
+  it.each(['AGENTSHED_HOME_OVERRIDE', 'AGENTSHED_UPDATE_SCRIPT', ENGINE_MODULE_SEAM, 'AGENTSHED_A_SEAM_NOT_WRITTEN_YET'])('refuses a test seam by its prefix: %s', (name) => {
     expect(refusedLaunchInputs([], { [name]: '1' })).toEqual([name])
   })
 

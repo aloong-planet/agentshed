@@ -16,6 +16,7 @@ import { Scanner, type ScanOutput } from './providers/scanner'
 import { runParseJob, type ParseRunner } from './providers/token-stats'
 import { ScanClient, type ScanWorker } from './scan-client'
 import { answerScans, type ScanReply, type ScanRequest, type Scans } from './scan-protocol'
+import { TEST_ENGINE } from './testing/engine'
 import { FORK_TITLE, mkScanHome, type ScanHome } from './testing/scan-home'
 
 /** The scan worker's side in this thread: `scans` answers what the client posts, across a message channel */
@@ -128,7 +129,7 @@ const timeless = (out: ScanOutput): ScanOutput => ({ ...out, snapshot: { ...out.
 
 /** The same home scanned on this thread, into a cache of its own */
 function reference(): Scanner {
-  return new Scanner(join(dir, 'reference-cache'))
+  return new Scanner(join(dir, 'reference-cache'), TEST_ENGINE)
 }
 
 /** One more call in a Claude session file: the next scan has to parse it */
@@ -141,7 +142,7 @@ function grow(file: string): void {
 
 describe('a scan through the scan worker (token-stats, "Where a scan runs")', () => {
   it('returns what the same scan returns on the calling thread: the snapshot, the rows, each project\'s sessions and the read allow-list, and after it the same question index', async () => {
-    const { client } = clientOver(new Scanner(cacheDir))
+    const { client } = clientOver(new Scanner(cacheDir, TEST_ENGINE))
     const direct = reference()
 
     const through = await client.scan(home.roots)
@@ -165,7 +166,7 @@ describe('a scan through the scan worker (token-stats, "Where a scan runs")', ()
 
   it('a question index asked for while a scan is held open on a parse is answered before the scan is', async () => {
     const gated = gatedRunner()
-    const { client } = clientOver(new Scanner(cacheDir, gated.runner))
+    const { client } = clientOver(new Scanner(cacheDir, TEST_ENGINE, gated.runner))
     await client.scan(home.roots)
     grow(home.claude.asked)
     const held = gated.hold()
@@ -187,7 +188,7 @@ describe('a scan through the scan worker (token-stats, "Where a scan runs")', ()
   it('a scan with nothing to parse gives way between its steps: a question index asked for right behind it is answered first', async () => {
     // Without the fork, nothing in a rescan waits for a file: it would run from its first step to its last in one stretch
     rmSync(home.codex.fork)
-    const { client } = clientOver(new Scanner(cacheDir))
+    const { client } = clientOver(new Scanner(cacheDir, TEST_ENGINE))
     await client.scan(home.roots)
     const order: string[] = []
 
@@ -200,7 +201,7 @@ describe('a scan through the scan worker (token-stats, "Where a scan runs")', ()
   })
 
   it('an error the worker\'s scanner throws arrives as that error, and the worker is not taken for failed', async () => {
-    const { client } = clientOver(new Scanner(cacheDir))
+    const { client } = clientOver(new Scanner(cacheDir, TEST_ENGINE))
     await client.scan(home.roots)
 
     const refused = await client.sessionQuestions(home.roots, join(dir, 'never-scanned.jsonl')).catch((e: unknown) => e)
@@ -211,7 +212,7 @@ describe('a scan through the scan worker (token-stats, "Where a scan runs")', ()
   })
 
   it('a scan that fails on the worker is a failed scan, with its message, and the next one is asked of the worker again', async () => {
-    const real = new Scanner(cacheDir)
+    const real = new Scanner(cacheDir, TEST_ENGINE)
     let failing = true
     const { client } = clientOver({
       scan: (roots, holdMs) => (failing ? Promise.reject(new Error('the registry went away')) : real.scan(roots, holdMs)),
@@ -248,7 +249,7 @@ describe('a scan worker that fails (token-stats, Failure modes and boundaries: s
     { name: 'exits during the first scan', spawn: () => new Worker(exitingScript()), parsedOnMain: 8 },
     {
       name: 'exits between two scans',
-      spawn: () => standIn(new Scanner(cacheDir)),
+      spawn: () => standIn(new Scanner(cacheDir, TEST_ENGINE)),
       afterFirstScan: () => standIns[0].end(1),
       // The main process's scanner read the cache file the worker had written, and found every file in it
       parsedOnMain: 0
@@ -264,7 +265,7 @@ describe('a scan worker that fails (token-stats, Failure modes and boundaries: s
       },
       fallback: () => {
         fallbacks++
-        return new Scanner(cacheDir, onMain.runner)
+        return new Scanner(cacheDir, TEST_ENGINE, onMain.runner)
       }
     })
     const direct = reference()
@@ -290,7 +291,7 @@ describe('a scan worker that fails (token-stats, Failure modes and boundaries: s
   })
 
   it('a worker that exits with a scan and a question-index read both unanswered: each is answered on the main process', async () => {
-    const onWorker = new Scanner(cacheDir)
+    const onWorker = new Scanner(cacheDir, TEST_ENGINE)
     let answering = true
     const unanswered = <T>(): Promise<T> => new Promise<T>(() => {})
     const client = new ScanClient({
@@ -300,7 +301,7 @@ describe('a scan worker that fails (token-stats, Failure modes and boundaries: s
           sessionQuestions: (roots, file) => (answering ? onWorker.sessionQuestions(roots, file) : unanswered()),
           isFresh: (file) => onWorker.isFresh(file)
         }),
-      fallback: () => new Scanner(cacheDir)
+      fallback: () => new Scanner(cacheDir, TEST_ENGINE)
     })
     const direct = reference()
     const here = timeless(await direct.scan(home.roots))
@@ -318,10 +319,44 @@ describe('a scan worker that fails (token-stats, Failure modes and boundaries: s
   })
 })
 
+describe('an engine module that will not load, or is another build\'s (token-stats, Failure modes and boundaries: scans and the window)', () => {
+  /** A file where the module should be that is no library, as a damaged one is */
+  function damaged(): string {
+    const file = join(dir, 'agentshed_engine.node')
+    writeFileSync(file, 'not a library')
+    return file
+  }
+
+  it.each<{ name: string; module: () => typeof TEST_ENGINE; says: string }>([
+    { name: 'will not load', module: () => ({ ...TEST_ENGINE, path: damaged() }), says: 'the engine module will not load' },
+    { name: 'is another build\'s', module: () => ({ ...TEST_ENGINE, build: 'another-build' }), says: 'is another build\'s' }
+  ])('a module that $name: every scan fails on the scan worker and on the main process\'s scanner alike, and a question-index read fails as that read', async (c) => {
+    const module = c.module()
+    const onWorker = clientOver(new Scanner(cacheDir, module))
+    const onMain = new ScanClient({
+      spawn: () => {
+        throw new Error('no thread to be had')
+      },
+      fallback: () => new Scanner(cacheDir, module)
+    })
+
+    for (const client of [onWorker.client, onMain]) {
+      await expect(client.scan(home.roots)).rejects.toThrow(c.says)
+      // The next scan of the run asks again, and fails again: no other engine stands in
+      await expect(client.scan(home.roots)).rejects.toThrow(c.says)
+      await expect(client.sessionQuestions(home.roots, home.grok)).rejects.toThrow(c.says)
+    }
+    // A failed scan, not a failed worker: the worker goes on serving, and only the client without one fell back
+    expect(onWorker.client.servedOn).toBe('worker')
+    expect(onMain.servedOn).toBe('main')
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('quitting (token-stats, Failure modes and boundaries: scans and the window)', () => {
   it('close asks the worker to stop once and resolves when its thread has ended; the scan under way gets no result, and that exit is no failure', async () => {
     const gated = gatedRunner()
-    const { client, worker } = clientOver(new Scanner(cacheDir, gated.runner))
+    const { client, worker } = clientOver(new Scanner(cacheDir, TEST_ENGINE, gated.runner))
     await client.scan(home.roots)
     grow(home.claude.asked)
     const held = gated.hold()
@@ -367,14 +402,14 @@ describe('quitting (token-stats, Failure modes and boundaries: scans and the win
   })
 
   it('close resolves at once when no worker was ever started', async () => {
-    const { client } = clientOver(new Scanner(cacheDir))
+    const { client } = clientOver(new Scanner(cacheDir, TEST_ENGINE))
     await client.close()
     expect(standIns).toHaveLength(0)
   })
 
   it('close after the worker failed stops what the main process\'s scanner holds, and waits for no thread', async () => {
     let closed = 0
-    const onMain = new Scanner(cacheDir)
+    const onMain = new Scanner(cacheDir, TEST_ENGINE)
     const client = new ScanClient({
       spawn: () => {
         throw new Error('no thread to be had')

@@ -4,6 +4,7 @@
 import type { ProjectStats, SessionMeta, Snapshot } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
 import { deriveStats } from '@shared/usage'
+import { loadEngineModule, type EngineSource } from '../engine-module'
 import type { UsageArchive, UsageRow } from './archive'
 import { CodexHeads } from './codex'
 import { scan, walkSessions } from './scan'
@@ -34,9 +35,20 @@ export class Scanner {
    * changed (token-stats::QR-002/AC-01) */
   private readonly heads = new CodexHeads()
 
-  /** `runner`: where the builds' parses run, a parse pool in the app; on the calling thread when absent */
-  constructor(cacheDir: string, private readonly runner?: ParseRunner & { close?: () => void }) {
+  /**
+   * `module`: the engine module this thread loads (ADR-0045); `runner`: where the builds' parses run, a parse pool in
+   * the app, on the calling thread when absent
+   */
+  constructor(cacheDir: string, private readonly module: EngineSource, private readonly runner?: ParseRunner & { close?: () => void }) {
     this.engine = new TokenEngine(cacheDir, runner)
+  }
+
+  /**
+   * The engine module, confirmed as this build's own before anything is read: no other engine exists, so one that will
+   * not load, or is another build's, fails the scan or the read that asked (token-stats, Scans and the window)
+   */
+  private confirmModule(): void {
+    loadEngineModule(this.module)
   }
 
   /** Stops the parse workers the runner holds idle, when it is a pool */
@@ -50,6 +62,7 @@ export class Scanner {
    */
   async scan(roots: ScanRoots, holdMs = 0): Promise<ScanOutput> {
     if (holdMs > 0) await new Promise((resolve) => setTimeout(resolve, holdMs))
+    this.confirmModule()
     // One walk of the Codex, Grok and Antigravity session lists, read by both scan() and the token build (#160)
     const walked = walkSessions(roots, this.heads)
     await betweenSteps()
@@ -70,7 +83,8 @@ export class Scanner {
   }
 
   /** A session's question index (TokenEngine.sessionQuestions) */
-  sessionQuestions(roots: ScanRoots, file: string): ReturnType<TokenEngine['sessionQuestions']> {
+  async sessionQuestions(roots: ScanRoots, file: string): ReturnType<TokenEngine['sessionQuestions']> {
+    this.confirmModule()
     return this.engine.sessionQuestions(roots, file)
   }
 
