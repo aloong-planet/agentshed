@@ -4,7 +4,15 @@
 // what cargo wrote, packaging's included (build/engine-before-pack.cjs).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { cargoArgs, checkBuiltModule } from './build-engine.mjs'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { join } from 'node:path'
+import { cargoArgs, checkBuiltModule, libraryPath } from './build-engine.mjs'
+import { REPO } from './lib/engine-build.mjs'
+
+const require = createRequire(import.meta.url)
+// The js-yaml electron-builder ships, through the packaging asset's own loader: no second YAML parser here
+const yaml = require('../build/mac-packaging.cjs').yamlParser()
 
 const build = 'b1'
 const exportsOf = (reported, ...seams) => Object.fromEntries([['build', () => reported], ...seams.map((name) => [name, () => {}])])
@@ -25,6 +33,13 @@ test('a module just built is refused when it reports another build, or none, pac
 test('a module of this build passes: the packaged one without seams, the development one with them', () => {
   assert.doesNotThrow(() => checkBuiltModule(exportsOf(build), { build, packaged: true }))
   assert.doesNotThrow(() => checkBuiltModule(exportsOf(build, 'seamPanicWhileParsing', 'seamParse'), { build, packaged: false }))
+})
+
+test('packaging copies into the app the library the packaged build writes and checks', () => {
+  const config = yaml.load(readFileSync(join(REPO, 'electron-builder.yml'), 'utf8'))
+  const entries = (config.mac?.extraResources ?? []).filter((entry) => entry?.to === 'engine/agentshed_engine.node')
+  assert.equal(entries.length, 1)
+  assert.equal(join(REPO, entries[0].from), libraryPath({ packaged: true, platform: 'darwin' }))
 })
 
 test('only the development build is asked for the seams; the packaged build is not', () => {

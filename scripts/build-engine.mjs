@@ -19,25 +19,27 @@ import { ENGINE_DIR, engineBuild } from './lib/engine-build.mjs'
 /** Where the development and test build is placed, the path an unpackaged run loads (src/main/engine-module.ts) */
 export const DEV_MODULE = join(ENGINE_DIR, 'dist', 'agentshed_engine.node')
 
-/** The prefix every test seam the module exports is named with (engine/src/seams.rs), so a new one is refused too */
+/**
+ * The prefix of every test seam the module exports: engine/build.rs fails a build in which an export behind the
+ * test-seams feature is named otherwise, or one named so is not behind it, so refusing the prefix refuses every seam
+ */
 const SEAM_EXPORT_PREFIX = 'seam'
 
-/** The library cargo writes for the crate on this platform */
-function libraryName(platform = process.platform) {
-  if (platform === 'darwin') return 'libagentshed_engine.dylib'
-  if (platform === 'win32') return 'agentshed_engine.dll'
-  return 'libagentshed_engine.so'
-}
+/** Each kind's cargo target directory, inside engine/: one kind's build does not rebuild the other */
+const targetDir = (packaged) => join('target', packaged ? 'packaged' : 'tests')
 
-/** The library a packaged build ships: electron-builder.yml copies it into the app (mac.extraResources) */
-export function packagedLibrary(platform = process.platform) {
-  return join(ENGINE_DIR, 'target', 'packaged', 'release', libraryName(platform))
+/**
+ * The library cargo writes for one kind of build. For the packaged kind on macOS it is the file electron-builder.yml
+ * copies into the app (mac.extraResources), which scripts/build-engine.test.mjs holds to this path.
+ */
+export function libraryPath({ packaged, platform = process.platform }) {
+  const name = platform === 'darwin' ? 'libagentshed_engine.dylib' : platform === 'win32' ? 'agentshed_engine.dll' : 'libagentshed_engine.so'
+  return join(ENGINE_DIR, targetDir(packaged), 'release', name)
 }
 
 /** cargo's arguments for one kind of build: only the development and test build has the seams */
 export function cargoArgs({ packaged }) {
-  const kind = packaged ? 'packaged' : 'tests'
-  return ['build', '--release', '--locked', '--target-dir', join('target', kind), ...(packaged ? [] : ['--features', 'test-seams'])]
+  return ['build', '--release', '--locked', '--target-dir', targetDir(packaged), ...(packaged ? [] : ['--features', 'test-seams'])]
 }
 
 /**
@@ -61,7 +63,7 @@ export function buildEngine({ packaged = false, quiet = false } = {}) {
     throw new Error(`cargo could not start${missing}: ${result.error.message}`)
   }
   if (result.status !== 0) throw new Error(`building the engine module failed: cargo ${args.join(' ')} exited with ${result.status ?? result.signal}`)
-  let path = join(ENGINE_DIR, 'target', packaged ? 'packaged' : 'tests', 'release', libraryName())
+  let path = libraryPath({ packaged })
   if (!packaged) {
     // A new file renamed into place rather than written over: a running app keeps the module it mapped, and on macOS
     // a mapped library written in place stops the process that holds it

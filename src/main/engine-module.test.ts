@@ -1,9 +1,19 @@
 // The engine module as a thread loads it (ADR-0045), against the development build the global setup made: where it
 // is, what a thread does with a module that will not load or is another build's, and a panic caught at the module's
-// boundary. That the module loads in the built app's scan worker, parse workers and main process is covered by e2e —
-// every launcher fails on a `[parse-pool]` or `[scan-worker]` line — and, for the packaged app, by packaging, which
-// loads the module it ships (scripts/build-engine.mjs).
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+// boundary. These run under Node, in vitest.
+//
+// Elsewhere, and the gaps:
+// - The built app's scan worker loads the module before every scan, so every e2e case that waits for a scan's data
+//   fails when it will not load there; a parse worker that cannot load it is reported on a `[parse-pool]` line, which
+//   every e2e launcher fails on.
+// - Gap: the built app's main thread loads it only on the scanner that serves once the scan worker has failed, and no
+//   e2e case makes the scan worker fail. `pnpm bench:scan rescan --main` loads it there under Electron, by hand. Closed
+//   by an e2e seam that fails the scan worker.
+// - Gap: the signed package. Packaging loads the module it built before electron-builder copies and signs it, and its
+//   launch check does not scan; a launch of the signed package that scans shows it, by hand. Closed by a packaging check
+//   that scans in the built app.
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
@@ -27,6 +37,17 @@ describe('where the engine module is', () => {
     { name: 'a packaged build loads its own and ignores the seam', packaged: true, env: { [ENGINE_MODULE_SEAM]: '/elsewhere/broken.node' }, path: '/App/Resources/engine/agentshed_engine.node' }
   ])('$name', ({ packaged, env, path }) => {
     expect(engineModulePath({ packaged, resourcesPath: '/App/Resources', mainDir: '/repo/out/main', env })).toBe(path)
+  })
+
+  it('packaging places the module where a packaged build looks for it', () => {
+    // The js-yaml electron-builder ships, through the packaging asset's own loader
+    const packaging = createRequire(import.meta.url)('../../build/mac-packaging.cjs') as { yamlParser(): { load(text: string): unknown } }
+    const config = packaging.yamlParser().load(readFileSync(new URL('../../electron-builder.yml', import.meta.url), 'utf8')) as {
+      mac?: { extraResources?: Array<{ from?: string; to?: string }> }
+    }
+    const placed = (config.mac?.extraResources ?? []).filter((entry) => entry.to?.endsWith('.node'))
+    expect(placed).toHaveLength(1)
+    expect(join('/App/Resources', placed[0].to ?? '')).toBe(engineModulePath({ packaged: true, resourcesPath: '/App/Resources', mainDir: '/repo/out/main', env: {} }))
   })
 })
 

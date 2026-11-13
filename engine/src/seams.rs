@@ -1,6 +1,7 @@
 //! The panic seam, compiled into builds made for tests only (the `test-seams` feature): a test names a file, and the
 //! module panics while it parses that file, so that a test can show what a panic in the module does to a read. A
-//! packaged build has none of it, and packaging refuses a module that exports it (scripts/build-engine.mjs).
+//! packaged build has none of it. Every export here is named `seam_…`, and no export elsewhere is (build.rs fails a
+//! build otherwise), so packaging's refusal of a module exporting a `seam…` name covers each (scripts/build-engine.mjs).
 
 /// Called by every function that parses a session file, before it reads the file: in a build made for tests, it
 /// panics when the file is the one the seam names, and otherwise does nothing.

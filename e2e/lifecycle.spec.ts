@@ -791,7 +791,9 @@ test('a failed startup scan keeps the saved display and retries automatically wi
 
 // The engine module (ADR-0045) will not load (token-stats, Scans and the window): the module seam points the run at a file
 // that is no library, through the main process's path, the scan worker's data and its scanner. engine-module.test.ts and
-// scan-client.test.ts hold the rule on every thread; this holds the wiring.
+// scan-client.test.ts hold the rule under Node, on a scanner standing for the scan worker's and on the main process's
+// fallback; this holds the wiring on the built app's scan worker. Gap: the built app's main-thread fallback, which no
+// e2e case reaches, as no seam fails the scan worker.
 test('an engine module that will not load fails the scan: the saved display stays, nothing claims fresh data, and the failure is logged once', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-engine-home-'))
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-engine-data-'))
