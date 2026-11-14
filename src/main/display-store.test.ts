@@ -1,31 +1,227 @@
 // The filesystem store seam: no Electron or private-state access. Full-process restoration is e2e.
-import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { emptySnapshot, emptyTokenStats, zeroBySide } from '@shared/domain'
 import type { AgentSide, ProjectDetail, ProjectStats, SessionPage, SessionTurn, Snapshot, UsageRow } from '@shared/domain'
 import { emptyDisplayData, type DisplayData, type SavedRead } from '@shared/display-data'
 import { AGENT_SIDES } from '@shared/validate'
 import { errorText } from '@shared/error-text'
 import { ERR, appError } from '@shared/errors'
-import { DisplayStore } from './display-store'
+import { loadEngineModule } from './engine-module'
+import { TEST_ENGINE } from './testing/engine'
+import { DisplayStore, engineWrite, type DisplayWrite } from './display-store'
 const dirs: string[] = []
 afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }) })
 function dir(): string { const d = mkdtempSync(join(tmpdir(), 'agentshed-display-')); dirs.push(d); return d }
-it('restores the successful snapshot after a normal flush and a new store instance', async () => {
-  const root = dir(), store = new DisplayStore(root), data = emptyDisplayData()
-  data.snapshot = emptySnapshot(123456)
-  store.save(data)
+
+// ── The display copy's writer, the engine module (ADR-0045): what it leaves on disk ──
+
+const engine = loadEngineModule(TEST_ENGINE)
+
+/** Every number form ECMAScript's Number::toString has, the edges of each, and doubles drawn from every exponent */
+function numbers(): number[] {
+  const fixed = [0, -0, 1, -1, 42, 2 ** 31, 2 ** 53 - 1, 2 ** 53, 2 ** 53 + 2, 2 ** 60, 1e20, 1e21, 123e19, 1.5e21, 0.1, 0.1 + 0.2,
+    123.456, -123.456, 1e-6, 1.5e-6, 1e-7, 1.5e-7, 9.99e-7, 5e-324, 2.2250738585072014e-308, 1.7976931348623157e308, -1e300,
+    1 / 3, 100.5, 1772870400000, 0.000001234, NaN, Infinity, -Infinity,
+    // Halfway between two shortest decimals, …853.2 and …853.3: the even one is ECMAScript's
+    667082108456853.25]
+  const drawn = new Float64Array(2000)
+  const bits = new BigUint64Array(drawn.buffer)
+  // A fixed generator, so that a failure names the same doubles every run
+  let state = 0x9e3779b97f4a7c15n
+  for (let i = 0; i < bits.length; i++) {
+    state = (state * 6364136223846793005n + 1442695040888963407n) & 0xffffffffffffffffn
+    bits[i] = state
+  }
+  return [...fixed, ...drawn]
+}
+
+it('the module writes a value as the text JSON.stringify gives it, byte for byte, into a directory it creates, readable by its user alone', async () => {
+  const strings = ['plain', 'quote " backslash \\ slash /', '\b\f\n\r\t', '\u0000\u0001\u001f\u007f', 'line para ', 'café 漢字',
+    '😀 emoji', 'lone high \ud83d', 'lone low \ude00', 'reversed \ude00\ud83d', '\ud83d😀', '']
+  // A hole at index 3
+  const elements: unknown[] = [undefined, () => 1, Symbol('s')]
+  elements[4] = 'after a hole'
+  const value = {
+    strings,
+    numbers: numbers(),
+    flags: [true, false, null],
+    members: { kept: 1, gone: undefined, fn: () => 1, sym: Symbol('s'), [Symbol('key')]: 2, last: 'x' },
+    order: { b: 1, 2: 'two', 1: 'one', a: 2, '-1': 'minus', '01': 'zero-one' },
+    elements,
+    empty: [{}, [], [[]], { inner: {} }],
+    keys: { [strings[7]]: 'lone surrogate key', 'tab\tkey': 1, '': 'empty key' }
+  }
+  const file = join(dir(), 'missing', 'copy.json')
+  await engine.writeDisplayCopy(file, value)
+  // As text first, so that a difference shows where it is; the bytes then rule out an invalid sequence read as U+FFFD
+  expect(readFileSync(file, 'utf8')).toBe(JSON.stringify(value))
+  expect(readFileSync(file).equals(Buffer.from(JSON.stringify(value), 'utf8'))).toBe(true)
+  expect(statSync(file).mode & 0o777).toBe(0o600)
+  expect(readdirSync(join(file, '..'))).toEqual(['copy.json'])
+})
+
+it.each([
+  ['a BigInt', (): unknown => ({ n: 1n })],
+  ['a cycle', (): unknown => { const a: Record<string, unknown> = {}; a['self'] = { a }; return a }]
+])('a value holding %s, which JSON.stringify refuses, fails the write and leaves the copy before it whole', async (_what, make) => {
+  const value = make()
+  expect(() => JSON.stringify(value)).toThrow(TypeError)
+  const root = dir(), file = join(root, 'copy.json')
+  writeFileSync(file, 'the copy before')
+  await expect(Promise.resolve().then(() => engine.writeDisplayCopy(file, value))).rejects.toThrow()
+  expect(readFileSync(file, 'utf8')).toBe('the copy before')
+  expect(readdirSync(root)).toEqual(['copy.json'])
+})
+// ── When the store writes the copy (agents-overview::REQ-008, restart sequence items 12 and 14) ──
+
+/** A store writing through the engine module, as the app's does */
+function writing(root: string): DisplayStore {
+  return new DisplayStore(root, { write: engineWrite(TEST_ENGINE) })
+}
+
+/**
+ * The engine module's writer as the store's, watched at the filesystem boundary: how many writes the store asked for,
+ * and, with `hold`, each write's completion kept from the store until `release` — the file itself is written at once,
+ * so while held the store has a write under way whose result is already on disk.
+ */
+function moduleWriter(hold = false): { write: DisplayWrite; asked: () => number; release: () => void } {
+  const real = engineWrite(TEST_ENGINE)
+  let asked = 0
+  let release = (): void => {}
+  const gate = hold ? new Promise<void>((resolve) => { release = resolve }) : Promise.resolve()
+  return {
+    write: (file, envelope) => {
+      asked++
+      return real(file, envelope).then(() => gate)
+    },
+    asked: () => asked,
+    release: () => release()
+  }
+}
+
+const copyAt = (scannedAt: number): DisplayData => ({ ...emptyDisplayData(), snapshot: emptySnapshot(scannedAt) })
+/** The scan time of the copy on disk, read as the next launch reads it */
+const onDisk = (root: string): number | undefined => new DisplayStore(root).get().snapshot?.scannedAt
+/** Long enough for a write the store had scheduled to have been asked for */
+const turn = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 20))
+
+it('a change recorded while the window has focus is not written while it keeps focus, and is written as the data stands when the window loses it (agents-overview::REQ-008/AC-01, Startup implementation decisions)', async () => {
+  const root = dir(), w = moduleWriter(), store = new DisplayStore(root, { write: w.write })
+  store.record(copyAt(1))
+  await expect.poll(() => onDisk(root)).toBe(1)
+  store.focusChanged(true)
+  const data = copyAt(2)
+  store.record(data)
+  await turn()
+  expect(w.asked(), 'no write was asked for while the window had focus').toBe(1)
+  expect(onDisk(root)).toBe(1)
+  // Changed again after it was recorded: the change was not a copy, so the write takes the data as it stands
+  data.snapshot = emptySnapshot(3)
+  store.focusChanged(false)
+  await expect.poll(() => onDisk(root)).toBe(3)
+  expect(w.asked()).toBe(2)
+})
+
+it('a change recorded while the window has no focus is written right away: before the window first has focus, and after it loses focus (agents-overview::REQ-008/AC-02)', async () => {
+  const root = dir(), store = writing(root)
+  store.record(copyAt(1))
+  await expect.poll(() => onDisk(root)).toBe(1)
+  store.focusChanged(true)
+  store.focusChanged(false)
+  await turn()
+  store.record(copyAt(2))
+  await expect.poll(() => onDisk(root)).toBe(2)
+})
+
+it('the quit\'s flush writes a change recorded while the window has focus, and a new store reads it back (agents-overview::REQ-008/AC-03)', async () => {
+  const root = dir(), store = writing(root)
+  store.focusChanged(true)
+  store.record(copyAt(123456))
   await store.flush()
-  expect(new DisplayStore(root).get().snapshot?.scannedAt).toBe(123456)
+  expect(onDisk(root)).toBe(123456)
+})
+
+it.skipIf(process.getuid?.() === 0)('a write that fails leaves its change unwritten and the copy on disk as it was, and the next time the window loses focus writes it (agents-overview::REQ-008/AC-05)', async () => {
+  const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const root = dir(), store = writing(root)
+  try {
+    store.record(copyAt(1))
+    await expect.poll(() => onDisk(root)).toBe(1)
+    // The directory unwritable for one write
+    chmodSync(root, 0o555)
+    try {
+      store.record(copyAt(2))
+      await expect.poll(() => logged.mock.calls.length).toBe(1)
+    } finally {
+      chmodSync(root, 0o755)
+    }
+    expect(String(logged.mock.calls[0])).toMatch(/\[display-cache\] save failed:.*display-cache\.json failed/)
+    expect(onDisk(root)).toBe(1)
+    expect(readdirSync(root)).toEqual(['display-cache.json'])
+    expect(store.get().snapshot?.scannedAt, 'the app goes on with the data it has').toBe(2)
+    store.focusChanged(true)
+    store.focusChanged(false)
+    await expect.poll(() => onDisk(root)).toBe(2)
+  } finally {
+    logged.mockRestore()
+  }
+})
+
+it('a change made while a write is under way goes in the next write, not in the one under way (restart sequence item 12)', async () => {
+  const root = dir(), w = moduleWriter(true), store = new DisplayStore(root, { write: w.write })
+  store.record(copyAt(1))
+  await expect.poll(() => onDisk(root)).toBe(1)
+  store.record(copyAt(2))
+  await turn()
+  expect(w.asked(), 'the store waits for the write under way').toBe(1)
+  w.release()
+  await expect.poll(() => onDisk(root)).toBe(2)
+  expect(w.asked()).toBe(2)
+})
+
+it('the window gaining focus while a write is under way: the write completes, and a change made from then on waits for the window to lose focus (restart sequence item 12)', async () => {
+  const root = dir(), w = moduleWriter(true), store = new DisplayStore(root, { write: w.write })
+  store.record(copyAt(1))
+  await expect.poll(() => onDisk(root)).toBe(1)
+  store.focusChanged(true)
+  store.record(copyAt(2))
+  w.release()
+  await turn()
+  expect(w.asked()).toBe(1)
+  expect(onDisk(root)).toBe(1)
+  store.focusChanged(false)
+  await expect.poll(() => onDisk(root)).toBe(2)
+})
+
+it('with an engine module that will not load, the copy restores without it, and every write fails with the copy on disk left as it was (restart sequence item 14)', async () => {
+  const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const root = dir(), file = join(root, 'display-cache.json')
+  writeFileSync(file, JSON.stringify({ version: 1, data: copyAt(1) }))
+  const before = readFileSync(file)
+  const damaged = join(root, 'agentshed_engine.node')
+  writeFileSync(damaged, 'not a library')
+  try {
+    const store = new DisplayStore(root, { write: engineWrite({ ...TEST_ENGINE, path: damaged }) })
+    expect(store.get().snapshot?.scannedAt).toBe(1)
+    store.record(copyAt(2))
+    await expect.poll(() => logged.mock.calls.length).toBe(1)
+    expect(String(logged.mock.calls[0])).toContain(`the engine module will not load from ${damaged}`)
+    await expect(store.flush()).rejects.toThrow('will not load')
+    expect(readFileSync(file).equals(before)).toBe(true)
+    expect(store.get().snapshot?.scannedAt).toBe(2)
+  } finally {
+    logged.mockRestore()
+  }
 })
 
 it('drops a corrupt snapshot leaf without losing an independently valid preview', async () => {
-  const root = dir(), store = new DisplayStore(root), data = emptyDisplayData()
+  const root = dir(), store = writing(root), data = emptyDisplayData()
   data.snapshot = emptySnapshot(100)
   data.reads = [{ kind: 'artifactContent', file: '/viewed.md', data: { text: 'kept preview', truncated: false } }]
-  store.save(data)
+  store.record(data)
   await store.flush()
   // Corruption enters at the filesystem boundary, not through a fabricated private state.
   const file = join(root, 'display-cache.json')
@@ -39,10 +235,10 @@ it('drops a corrupt snapshot leaf without losing an independently valid preview'
 
 // agents-overview A3. Corruption's route in, the file: this is what a build from before the error named its file left there
 it('a snapshot whose side error still holds the old detail parameter comes back whole, and reads as the sentence alone', async () => {
-  const root = dir(), store = new DisplayStore(root), data = emptyDisplayData()
+  const root = dir(), store = writing(root), data = emptyDisplayData()
   data.snapshot = emptySnapshot(100)
   data.snapshot.sides.claude.error = { code: ERR.registryParseFailed, params: { path: '/h/.claude.json' } }
-  store.save(data)
+  store.record(data)
   await store.flush()
   const file = join(root, 'display-cache.json')
   const raw = JSON.parse(readFileSync(file, 'utf8')) as { data: { snapshot: { sides: { claude: { error: { params: unknown } } } } } }
@@ -55,31 +251,12 @@ it('a snapshot whose side error still holds the old detail parameter comes back 
 })
 
 it('coalesces pending writes and flushes the newest successful payload', async () => {
-  const root = dir(), store = new DisplayStore(root), data = emptyDisplayData()
+  const root = dir(), store = writing(root), data = emptyDisplayData()
   data.snapshot = emptySnapshot(10)
-  store.save(data)
+  store.record(data)
   const flushing = store.flush()
-  data.snapshot = emptySnapshot(20)
-  store.save(data)
+  store.record(copyAt(20))
   await flushing
-  expect(new DisplayStore(root).get().snapshot?.scannedAt).toBe(20)
-})
-
-it('a failed atomic write retains the previous disk copy and can later retry', async () => {
-  const root = dir(), store = new DisplayStore(root), data = emptyDisplayData()
-  data.snapshot = emptySnapshot(10)
-  store.save(data)
-  await store.flush()
-  // A directory at the temporary file's location makes writeFile fail on every platform.
-  const obstruction = join(root, `.display-cache.json.tmp-${process.pid}`)
-  mkdirSync(obstruction)
-  data.snapshot = emptySnapshot(20)
-  store.save(data)
-  await expect(store.flush()).rejects.toThrow()
-  expect(store.get().snapshot?.scannedAt).toBe(20)
-  expect(new DisplayStore(root).get().snapshot?.scannedAt).toBe(10)
-  rmSync(obstruction, { recursive: true })
-  await store.flush()
   expect(new DisplayStore(root).get().snapshot?.scannedAt).toBe(20)
 })
 
@@ -199,7 +376,7 @@ it('restores a snapshot saved before instruction entries carried their paths, at
     JSON.stringify({ version: 1, data: { ...emptyDisplayData(), snapshot } }))
 
   writeCache(savedSnapshot({ text: '# Global rules', truncated: false }, { text: '# Codex global', truncated: true }))
-  const restored = new DisplayStore(root, paths).get().snapshot
+  const restored = new DisplayStore(root, { savedInstructionPaths: paths }).get().snapshot
   expect(restored?.scannedAt).toBe(77)
   expect(restored?.global.claudeMd).toEqual({ file: '/h/.claude/CLAUDE.md', content: { text: '# Global rules', truncated: false } })
   expect(restored?.global.agentsMd).toEqual([{ file: '/h/.codex/AGENTS.md', content: { text: '# Codex global', truncated: true } }])
@@ -209,7 +386,7 @@ it('restores a snapshot saved before instruction entries carried their paths, at
   expect(new DisplayStore(root).get().snapshot).toBeNull()
 
   writeCache(savedSnapshot(null, null))
-  const none = new DisplayStore(root, paths).get().snapshot
+  const none = new DisplayStore(root, { savedInstructionPaths: paths }).get().snapshot
   expect(none?.global.claudeMd).toBeNull()
   expect(none?.global.agentsMd).toEqual([])
 })

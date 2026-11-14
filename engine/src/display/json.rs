@@ -1,0 +1,224 @@
+//! JSON text exactly as ECMAScript's `JSON.stringify` writes it, byte for byte, for a value handed over a piece at a
+//! time: strings as their UTF-16 code units, numbers as doubles. The display copy written through it is the file a
+//! build that serialised in JavaScript would have written, so any build reads it back as its own.
+
+/// JSON text being written. A container's members are written between its `begin_` and `end_` calls, an object's
+/// each after its key; separators are the writer's.
+pub struct JsonText {
+    out: Vec<u8>,
+    /// One entry per container open, innermost last: whether a member has been written into it yet
+    open: Vec<bool>,
+    /// A key was just written, so the next value is its member's and takes no separator
+    after_key: bool,
+}
+
+impl JsonText {
+    pub fn new() -> Self {
+        JsonText { out: Vec::new(), open: Vec::new(), after_key: false }
+    }
+
+    /// The text written so far
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.out
+    }
+
+    pub fn null(&mut self) {
+        self.member();
+        self.out.extend_from_slice(b"null");
+    }
+
+    pub fn bool(&mut self, value: bool) {
+        self.member();
+        self.out.extend_from_slice(if value { b"true" } else { b"false" });
+    }
+
+    /// A number as ECMAScript's Number::toString writes it; one that is not finite is `null`, as `JSON.stringify` has it
+    pub fn number(&mut self, value: f64) {
+        self.member();
+        write_number(&mut self.out, value);
+    }
+
+    pub fn string(&mut self, units: &[u16]) {
+        self.member();
+        write_string(&mut self.out, units);
+    }
+
+    pub fn begin_object(&mut self) {
+        self.member();
+        self.out.push(b'{');
+        self.open.push(false);
+    }
+
+    /// An object member's key; its value comes next
+    pub fn key(&mut self, units: &[u16]) {
+        self.member();
+        write_string(&mut self.out, units);
+        self.out.push(b':');
+        self.after_key = true;
+    }
+
+    pub fn end_object(&mut self) {
+        self.open.pop();
+        self.out.push(b'}');
+    }
+
+    pub fn begin_array(&mut self) {
+        self.member();
+        self.out.push(b'[');
+        self.open.push(false);
+    }
+
+    pub fn end_array(&mut self) {
+        self.open.pop();
+        self.out.push(b']');
+    }
+
+    /// Before a member of the innermost container: the comma that separates it from the one before
+    fn member(&mut self) {
+        if self.after_key {
+            self.after_key = false;
+            return;
+        }
+        if let Some(written) = self.open.last_mut() {
+            if *written {
+                self.out.push(b',');
+            }
+            *written = true;
+        }
+    }
+}
+
+/// QuoteJSONString (ECMA-262, JSON.stringify): `"` and `\` escaped, the control characters as the short escapes or
+/// `\u00xx`, a surrogate with no partner as `\udxxx`, everything else as UTF-8
+fn write_string(out: &mut Vec<u8>, units: &[u16]) {
+    out.push(b'"');
+    let mut i = 0;
+    while i < units.len() {
+        let unit = units[i];
+        i += 1;
+        match unit {
+            0x22 => out.extend_from_slice(b"\\\""),
+            0x5C => out.extend_from_slice(b"\\\\"),
+            0x08 => out.extend_from_slice(b"\\b"),
+            0x0C => out.extend_from_slice(b"\\f"),
+            0x0A => out.extend_from_slice(b"\\n"),
+            0x0D => out.extend_from_slice(b"\\r"),
+            0x09 => out.extend_from_slice(b"\\t"),
+            0x00..=0x1F => unicode_escape(out, unit),
+            0xD800..=0xDBFF if i < units.len() && (0xDC00..=0xDFFF).contains(&units[i]) => {
+                let point = 0x10000 + ((u32::from(unit) - 0xD800) << 10) + (u32::from(units[i]) - 0xDC00);
+                i += 1;
+                utf8(out, point);
+            }
+            0xD800..=0xDFFF => unicode_escape(out, unit),
+            _ => utf8(out, u32::from(unit)),
+        }
+    }
+    out.push(b'"');
+}
+
+fn unicode_escape(out: &mut Vec<u8>, unit: u16) {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    out.extend_from_slice(b"\\u");
+    for shift in [12, 8, 4, 0] {
+        out.push(HEX[usize::from((unit >> shift) & 0xF)]);
+    }
+}
+
+fn utf8(out: &mut Vec<u8>, point: u32) {
+    let c = char::from_u32(point).expect("a code point outside the surrogates");
+    let mut buf = [0; 4];
+    out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
+}
+
+/// Number::toString(10) (ECMA-262): the shortest digits that read back as the same double, placed by its rules —
+/// plain up to 21 integer digits, `0.000…` down to six leading zeros, exponential beyond either
+fn write_number(out: &mut Vec<u8>, value: f64) {
+    if !value.is_finite() {
+        out.extend_from_slice(b"null");
+        return;
+    }
+    // Minus zero is written as zero
+    if value == 0.0 {
+        out.push(b'0');
+        return;
+    }
+    // Every integer below 2^53 is its own shortest digits
+    if value.fract() == 0.0 && value.abs() < 9_007_199_254_740_992.0 {
+        out.extend_from_slice((value as i64).to_string().as_bytes());
+        return;
+    }
+    if value < 0.0 {
+        out.push(b'-');
+    }
+    let (digits, n) = shortest(value.abs());
+    let k = digits.len() as i32;
+    if k <= n && n <= 21 {
+        out.extend_from_slice(&digits);
+        out.extend(std::iter::repeat_n(b'0', (n - k) as usize));
+    } else if 0 < n && n <= 21 {
+        out.extend_from_slice(&digits[..n as usize]);
+        out.push(b'.');
+        out.extend_from_slice(&digits[n as usize..]);
+    } else if -6 < n && n <= 0 {
+        out.extend_from_slice(b"0.");
+        out.extend(std::iter::repeat_n(b'0', (-n) as usize));
+        out.extend_from_slice(&digits);
+    } else {
+        out.push(digits[0]);
+        if k > 1 {
+            out.push(b'.');
+            out.extend_from_slice(&digits[1..]);
+        }
+        out.push(b'e');
+        out.push(if n - 1 >= 0 { b'+' } else { b'-' });
+        out.extend_from_slice((n - 1).abs().to_string().as_bytes());
+    }
+}
+
+/// The digits ECMAScript's Number::toString chooses for a positive finite double, and the position of the decimal point
+/// after the first n of them (ECMA-262's s and n): the fewest that read back as the double, and among as few, the
+/// decimal nearest it, an exact tie going to the even one. Rust's shortest form reads back but is not always the nearest:
+/// 667082108456853.25 lies halfway between …853.2 and …853.3, and Rust gives the odd one.
+fn shortest(value: f64) -> (Vec<u8>, i32) {
+    let (digits, n) = exponential(&format!("{value:e}"));
+    // Every double's decimal expansion ends within 767 significant digits, so this one is exact
+    let (exact, exact_n) = exponential(&format!("{value:.800e}"));
+    let (nearest, nearest_n) = round_half_even(&exact, exact_n, digits.len());
+    if reads_back(&nearest, nearest_n, value) { (nearest, nearest_n) } else { (digits, n) }
+}
+
+/// The digits of a number written as `d.ddde±x`, and where its decimal point falls after them
+fn exponential(text: &str) -> (Vec<u8>, i32) {
+    let (mantissa, exponent) = text.split_once('e').expect("exponential form");
+    let digits = mantissa.bytes().filter(|b| *b != b'.').collect();
+    (digits, exponent.parse::<i32>().expect("an exponent") + 1)
+}
+
+/// `exact` rounded to `k` digits, half to even
+fn round_half_even(exact: &[u8], n: i32, k: usize) -> (Vec<u8>, i32) {
+    let mut kept = exact[..k].to_vec();
+    let next = exact.get(k).copied().unwrap_or(b'0');
+    let beyond = exact.get(k + 1..).is_some_and(|rest| rest.iter().any(|d| *d != b'0'));
+    let odd = (kept[k - 1] - b'0') % 2 == 1;
+    if next > b'5' || (next == b'5' && (beyond || odd)) {
+        for i in (0..k).rev() {
+            if kept[i] == b'9' {
+                kept[i] = b'0';
+            } else {
+                kept[i] += 1;
+                return (kept, n);
+            }
+        }
+        // 99…9 carried into a new leading digit
+        kept.insert(0, b'1');
+        kept.truncate(k);
+        return (kept, n + 1);
+    }
+    (kept, n)
+}
+
+fn reads_back(digits: &[u8], n: i32, value: f64) -> bool {
+    let text = format!("0.{}e{n}", String::from_utf8_lossy(digits));
+    text.parse::<f64>() == Ok(value)
+}

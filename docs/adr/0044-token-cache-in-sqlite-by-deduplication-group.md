@@ -14,8 +14,9 @@ peaked at about 605 MB, the peak coming from reading and combining everything at
 the history on disk, not with what changed.
 
 The combination has to see more than one file only where files share a de-duplication key: a Claude
-message's id and request id, a Codex session id and the parent id a fork names, an Antigravity call's
-identity. On the measured data those groups are almost all one file each (4,171 Claude files fell into
+message's id (a sidechain replay carries the same id under a new request id, ADR-0005), a Codex session
+id and the parent id a fork names, an Antigravity call's identity. On the measured data those groups are
+almost all one file each (4,171 Claude files fell into
 4,149 groups).
 
 Separately, the main process saves its display copy (ADR-0029) after every scan and every page read: it
