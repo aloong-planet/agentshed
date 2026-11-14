@@ -1,7 +1,7 @@
 // The main process's side of the scan worker (ADR-0043). Scans and question-index reads are requests to the
-// worker, which owns the token engine and its cache. A worker that cannot be started, fails or exits hands
+// worker, which owns the token engine and its store. A worker that cannot be started, fails or exits hands
 // the work back: the requests in flight and every later one of the run are answered by a scanner on the main
-// process, which reads the cache file as a build without the worker would. It is logged once, and no worker is
+// process, which opens the token store as the worker left it. It is logged once, and no worker is
 // started again in that run.
 import { Worker } from 'node:worker_threads'
 import { ParsePool } from './parse-pool'
@@ -64,8 +64,8 @@ export class ScanClient {
 
   /**
    * For quitting: asks the worker to stop and resolves once its thread has ended. The worker stops between two
-   * steps of whatever it is doing, so a scan under way is dropped with its results and the cache file on disk is
-   * the last one written whole. What the worker has not answered when its thread ends is never answered, and
+   * steps of whatever it is doing, so a scan under way is dropped with its results and the token store holds the
+   * last scan whose writes landed. What the worker has not answered when its thread ends is never answered, and
    * nothing asked from here on is; an answer it gives before that arrives as any other, the result of a scan it
    * finished before taking the stop among them (quit.ts flushes the display copy after it).
    */

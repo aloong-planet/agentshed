@@ -11,7 +11,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [features]
-# The panic seam, in builds made for tests only: packaging builds without it and refuses a module that has it
+# The test seams, in builds made for tests only: packaging builds without them and refuses a module that has one
 test-seams = []
 
 [dependencies]
@@ -20,6 +20,9 @@ napi = { version = "3.16.2", features = ["napi6"] }
 napi-derive = "3.7.1"
 # Line splitting over each read chunk
 memchr = "2.8.3"
+# The token store (ADR-0044): SQLite compiled into the module, so every build reads one SQLite whatever the system has;
+# `cache` keeps the store's prepared statements
+rusqlite = { version = "0.42.0", default-features = false, features = ["bundled", "cache"] }
 # JavaScript's String(number), for the running-total key a Codex usage event is compared by
 ryu-js = "1.0.3"
 # Cold rollouts (.jsonl.zst), decompressed as they are read; without the legacy formats Codex never writes

@@ -8,6 +8,7 @@ import type { GlobalSearchResult } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
 import { scan } from './scan'
 import { TokenEngine } from './token-stats'
+import { TEST_ENGINE } from '../testing/engine'
 import { QuestionCorpus, corpusProjects, type CorpusProject, type CorpusOptions } from './question-corpus'
 import { readRanges } from './range-read'
 import type { ScanRoots } from './types'
@@ -175,7 +176,7 @@ async function index(engine: TokenEngine): Promise<CorpusProject[]> {
 }
 
 async function corpusOver(opts: CorpusOptions = {}): Promise<{ corpus: QuestionCorpus; engine: TokenEngine; listed: { projects: CorpusProject[] } }> {
-  const engine = new TokenEngine(join(dir, 'cache'))
+  const engine = new TokenEngine(join(dir, 'cache'), TEST_ENGINE)
   const listed = { projects: await index(engine) }
   const corpus = new QuestionCorpus(engine, () => ({ roots: roots(), projects: listed.projects }), opts)
   return { corpus, engine, listed }

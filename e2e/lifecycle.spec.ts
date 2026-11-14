@@ -14,13 +14,14 @@ import { test, expect, type ElectronApplication, type Page } from '@playwright/t
 import { closeApp } from './close-app'
 import { mkUsageHome, questionLine } from './support/homes'
 import { makeUserData, launch, close, startApp, failOnMainErrors } from './support/launch'
+import { STORE_FILE, holdStoreWrites } from './support/token-store'
 import { emptySnapshot } from '../src/shared/domain'
 
 const mainErrors = failOnMainErrors()
 
-test('an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors', async () => {
-  // The previous version's structure: the Codex agg has only totals/byDay and no events, and the version
-  // number is old too
+test('an old-format JSON cache does not crash at startup (a production crash regression): the snapshot still renders, the main process reports no errors, and the file is gone', async () => {
+  // An early version's structure: the Codex agg has only totals/byDay and no events, and the version number is old
+  // too. A JSON cache of any version but the last one it kept is deleted without an import (token-stats C26).
   const legacy = JSON.stringify({
     version: 2,
     files: {
@@ -43,6 +44,7 @@ test('an old-format cache does not crash at startup (a production crash regressi
   const win = await l.app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
   await expect(win.locator('.pane-head .stats .stat')).toHaveCount(4)
+  expect(existsSync(join(l.userData, 'token-cache.json'))).toBe(false)
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -305,7 +307,8 @@ test('startup skeleton: projects dimension shows placeholder rows and fills in p
   }
 })
 
-test('a failed token cache write during a scan: the scan still delivers its snapshot, and the failure is logged', async () => {
+// The store held by another process for longer than a write waits: the write fails (token-stats C3, C27)
+test('a failed token store write during a scan: the scan still delivers its snapshot, and the failure is logged', async () => {
   const home = mkUsageHome()
   const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
   const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '300' })
@@ -317,21 +320,25 @@ test('a failed token cache write during a scan: the scan still delivers its snap
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
 
-  mkdirSync(join(l.userData, `.token-cache.j-${l.app.process().pid}`))
-  writeFileSync(join(home, '.claude', 'projects', enc, 'after.jsonl'), questionLine('Question after the block') + '\n')
-  // Only a delivered snapshot can list a session that came after the block
-  await expect(win.locator('.pane-body .card .se', { hasText: 'Question after the block' })).toBeVisible({ timeout: 10000 })
-  expect(stderr.join('')).toContain('[token-cache] save failed:')
+  const held = holdStoreWrites(l.userData)
+  try {
+    writeFileSync(join(home, '.claude', 'projects', enc, 'after.jsonl'), questionLine('Question after the block') + '\n')
+    // Only a delivered snapshot can list a session that came after the block; its write waits for the store first
+    await expect(win.locator('.pane-body .card .se', { hasText: 'Question after the block' })).toBeVisible({ timeout: 20000 })
+    await expect.poll(() => stderr.join(''), { timeout: 10000 }).toContain('[token-store] write failed:')
+  } finally {
+    held.release()
+  }
   expect(stderr.join('')).not.toContain('scan failed')
   expect(l.errors).toEqual([])
   await close(l)
 })
 
-test('a failed token cache write on the first scan: the app comes up with its data rather than staying on the placeholder, and the failure is logged', async () => {
+test('a token store the first scan cannot make: the app comes up with its data rather than staying on the placeholder, and the failure is logged', async () => {
   const home = mkUsageHome()
   const userData = makeUserData()
-  // A non-empty directory where the cache file goes: the temporary file writes and the rename fails
-  mkdirSync(join(userData, 'token-cache.json', 'x'), { recursive: true })
+  // A non-empty directory where the store goes: it is no store, and it cannot be replaced by one (token-stats C2)
+  mkdirSync(join(userData, STORE_FILE, 'x'), { recursive: true })
   const { app, errors, stderr } = await startApp({ userData, home })
   const win = await app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -339,7 +346,7 @@ test('a failed token cache write on the first scan: the app comes up with its da
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   // Only the first scan's snapshot can list the session
   await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible({ timeout: 15000 })
-  expect(stderr.join('')).toContain('[token-cache] save failed:')
+  expect(stderr.join('')).toContain('[token-store] open failed:')
   expect(stderr.join('')).not.toContain('scan failed')
   expect(errors).toEqual([])
   await close({ app, errors, userData, home })
@@ -348,13 +355,13 @@ test('a failed token cache write on the first scan: the app comes up with its da
 // Quitting while a scan runs (token-stats, Failure modes and boundaries: scans and the window; ADR-0043): the quit
 // asks the scan worker to stop and waits for its thread, and the scan is dropped with its results. The seam holds
 // the first scan open on the worker for far longer than a close may take, so a quit that waited for the scan
-// instead would run into the close bound. A first scan into a fresh settings directory writes the cache file, so
-// a directory without one says the held scan never went on.
+// instead would run into the close bound. A first scan into a fresh settings directory makes the token store when it
+// opens it, so a directory without one says the held scan never went on.
 //
 // A gap, known: a quit that did not tell the worker to stop at all passes this case too (measured by taking the
 // call out, 2026-11-12). From outside the two differ only when the quit lands inside a cache write, which no case
 // can time; that close sends the stop and waits for the thread is covered at the client (scan-client.test.ts).
-test('quitting while the first scan is held: the app closes within the bound, and the settings directory holds no token cache file, whole or temporary', async () => {
+test('quitting while the first scan is held: the app closes within the bound, and the settings directory holds no token store and no JSON cache', async () => {
   const userData = makeUserData()
   const home = mkUsageHome()
   const { app, errors } = await startApp({ userData, home, env: { AGENTSHED_SCAN_DELAY_MS: '60000' } })
@@ -365,7 +372,7 @@ test('quitting while the first scan is held: the app closes within the bound, an
   await closeApp(app)
 
   expect(test.info().annotations.filter((a) => a.type === 'teardown')).toEqual([])
-  expect(readdirSync(userData).filter((name) => name.includes('token-cache'))).toEqual([])
+  expect(readdirSync(userData).filter((name) => name.includes('token-cache') || name.includes('token-store'))).toEqual([])
   expect(errors).toEqual([])
   rmSync(userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
@@ -520,7 +527,8 @@ test('restart restores viewed project, questions and read answer before a new sc
     expect(await win.evaluate(() => window.agentshed.getSnapshot().then(s => s.scannedAt))).toBe(observedAt)
     await cdp.detach()
     await closeApp(app)
-    writeFileSync(join(userData, 'token-cache.json'), JSON.stringify({ version: -1 }))
+    // A store this launch cannot use: the next one replaces it and parses every file again (token-stats C2)
+    writeFileSync(join(userData, STORE_FILE), 'not a database')
     const skillBody = readFileSync(join(skill, 'SKILL.md'), 'utf8')
     unlinkSync(join(skill, 'SKILL.md'))
     app = await launch()

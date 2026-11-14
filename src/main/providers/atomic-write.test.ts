@@ -1,25 +1,23 @@
-// What a failed write leaves behind, for each writer that replaces its file with a temporary one (token-stats C3, C8;
-// i18n Preference persistence). The seam is each writer's own interface.
+// What a failed write leaves behind, for each writer that replaces its file with a temporary one (token-stats C4, C8;
+// i18n Preference persistence). The seam is each writer's own interface. The token store has no such file: a write of it is
+// one transaction (token-stats C3), driven in token-stats.test.ts.
 //
 // The two steps are failed at the node:fs boundary, because no real failure reaches them here: nothing but a full disk
 // fails a write after it has created its file, and nothing fails only the rename while the target stays a good file. Each
 // case asserts that the failure fired, so a writer that stopped reaching it goes red rather than passing on nothing. The
 // real failures — a directory at the temporary path, a read-only directory, the rename blocked by a directory at the
-// target — are driven in archive.test.ts, token-stats.test.ts, prefs-store.test.ts and e2e/token-stats.spec.ts.
+// target — are driven in archive.test.ts, prefs-store.test.ts and e2e/token-stats.spec.ts.
 //
 // Gap: a real full disk is not in the suite, since it needs a volume of its own. Measured once on a disk image, the archive
 // answered ENOSPC with its last good file and no temporary file left.
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { decodeAppError } from '@shared/errors'
 import { PrefsStore } from '../prefs-store'
 import { recordRunVersion } from '../run-version'
 import { UsageArchive } from './archive'
-import { encodeClaudeProjectDir } from './claude'
-import { TokenEngine } from './token-stats'
-import type { ScanRoots } from './types'
 
 const failing = vi.hoisted(() => ({ step: null as 'write' | 'rename' | null, prefix: '', fired: false }))
 
@@ -93,43 +91,6 @@ const archive: Writer = {
   }
 }
 
-const tokenCache: Writer = {
-  name: 'the token cache',
-  prefix: '.token-cache.j-',
-  file: 'token-cache.json',
-  open: () => {
-    const proj = join(dir, 'proj')
-    const roots: ScanRoots = {
-      claudeHome: join(dir, '.claude'),
-      claudeConfigFile: join(dir, '.claude.json'),
-      codexHome: join(dir, '.codex'),
-      geminiHome: join(dir, '.gemini'),
-      grokHome: join(dir, '.grok'),
-      antigravityHome: join(dir, '.gemini', 'antigravity-cli'),
-      agentsSkillsDir: join(dir, '.agents', 'skills')
-    }
-    const e = new TokenEngine(store)
-    const build = (n: number): ReturnType<TokenEngine['build']> => {
-      const sessions = join(dir, '.claude', 'projects', encodeClaudeProjectDir(proj))
-      mkdirSync(sessions, { recursive: true })
-      // The Claude line shapes measured in token-stats.test.ts
-      writeFileSync(join(sessions, `s${n}.jsonl`), [
-        JSON.stringify({ type: 'user', message: { role: 'user', content: `question ${n}` } }),
-        JSON.stringify({ type: 'assistant', timestamp: '2026-08-14T02:00:00Z', message: { model: 'claude-fable-5', usage: { input_tokens: 1, output_tokens: n } } })
-      ].join('\n') + '\n')
-      return e.build(roots, [proj])
-    }
-    return {
-      save: (n) => build(n),
-      failedSave: async (n) => {
-        const r = await build(n)
-        expect([...r.sessionFiles].map((f) => basename(f))).toContain(`s${n}.jsonl`)
-        expect(logged).toHaveBeenCalledWith('[token-cache] save failed:', expect.anything())
-      }
-    }
-  }
-}
-
 const prefs: Writer = {
   name: 'the preference store',
   prefix: '.prefs.json.tmp-',
@@ -171,7 +132,7 @@ const runVersion: Writer = {
   }
 }
 
-describe.each([archive, tokenCache, prefs, runVersion])('$name', (w) => {
+describe.each([archive, prefs, runVersion])('$name', (w) => {
   it.each(['write', 'rename'] as const)('a failed %s leaves the last good file and no temporary file', async (step) => {
     const { save, failedSave } = w.open()
     await save(1)
