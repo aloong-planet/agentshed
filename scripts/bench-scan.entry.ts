@@ -137,6 +137,11 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   console.log(`[scan()] registries, activity, global layer, memory: ${since(t0)} (projects=${snap.projects.length})`)
 
   const engine = new TokenEngine(cacheDir, engineSource())
+  // A page's freshness check opens the store before it reads it, so this times the open alone: with a JSON cache in
+  // the directory, the one import of the first launch after the upgrade (token-stats C26)
+  t0 = performance.now()
+  engine.isFresh(join(cacheDir, 'no-session'))
+  console.log(`[TokenEngine] store open, and import of any JSON cache: ${since(t0)}`)
 
   // The stamp only matters for the archive's conflict rule, which a benchmark never exercises twice
   const archive = new UsageArchive(cacheDir, { stamp: 'bench' })
@@ -145,7 +150,7 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   t0 = performance.now()
   const built = await engine.build(roots, claudePaths, registered, sessions)
   console.log(
-    `[TokenEngine.build] store open (and any import), store reads, parses, combine, store writes: ${since(t0)} (rows=${built.rows.length}, sessionFiles=${built.sessionFiles.size})`
+    `[TokenEngine.build] store reads, parses, combine, store writes: ${since(t0)} (rows=${built.rows.length}, sessionFiles=${built.sessionFiles.size})`
   )
 
   t0 = performance.now()

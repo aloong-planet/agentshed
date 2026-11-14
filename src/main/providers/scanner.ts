@@ -1,4 +1,4 @@
-// One run's scanner (ADR-0043): the token engine with its cache, and the Codex rollouts' first-line readings.
+// One run's scanner (ADR-0043): the token engine with its store, and the Codex rollouts' first-line readings.
 // It lives on the scan worker; after a worker failure the main process holds one of its own, so a scan is
 // this same code wherever it runs. Nothing here imports electron, which a worker thread cannot load.
 import type { ProjectStats, SessionMeta, Snapshot } from '@shared/domain'

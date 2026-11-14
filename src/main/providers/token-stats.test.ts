@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { TEST_ENGINE, type StoreWriteSeam } from '../testing/engine'
-import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storePages, storedEntries, storePath, storeRows, storeVersion } from '../testing/token-store'
+import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule } from '../engine-module'
 import { spawn } from 'node:child_process'
 import { zstdCompressSync } from 'node:zlib'
@@ -1505,6 +1505,10 @@ describe('upgrading from the JSON cache (token-stats C26)', () => {
     const { files, entries } = await v19Files()
     delete (entries[files.claude]['agg'] as Record<string, unknown>)['listed']
     writeJson(JSON.stringify({ version: 19, files: entries }))
+    // The store as the import left it, before any scan: the freshness check opens it, and the first scan would parse
+    // the file whose entry is not well formed and store it repaired, whether or not it was imported
+    expect(new TokenEngine(cacheDir(), TEST_ENGINE).isFresh(files.claude)).toBe(false)
+    expect(storeRows(cacheDir()).map((r) => r.path).sort()).toEqual([files.codex, files.grok, files.antigravity].sort())
     const first = await relaunch()
     expect(first.parsed).toEqual([files.claude])
     expect(existsSync(jsonFile())).toBe(false)
@@ -1714,23 +1718,34 @@ describe('what a build writes to the store (token-stats::QR-002/AC-02, C3)', () 
     }
   })
 
-  // What one changed file costs the store's log: the pages of its own entry. Every page a write touches goes to the log
-  // whole, so a write that held every entry again — the JSON file's way, rewritten whenever one entry changed — would put
-  // each page of the table there; the fixture's entries fill many pages.
-  it('a build after one file changed writes that file\'s entry alone', async () => {
-    const files = Array.from({ length: 60 }, (_, i) =>
-      mkClaudeFile(`many-${i}.jsonl`, [userLine(`question ${i} ${'x'.repeat(400)}`), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
-    )
-    const e = engine()
-    await e.build(roots(), [proj])
-    expect(storePages(cacheDir()), 'the table spans enough pages for a rewrite of it to show').toBeGreaterThanOrEqual(15)
-    // The log emptied, so what the next write adds is all it holds: a 32-byte header, then 24 bytes and a page per frame
-    onStore(cacheDir(), 'PRAGMA wal_checkpoint(TRUNCATE)')
-    appendFileSync(files[30], usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
-    await e.build(roots(), [proj])
-    const frames = (statSync(storePath(cacheDir()) + '-wal').size - 32) / (4096 + 24)
-    expect(frames).toBeGreaterThan(0)
-    expect(frames).toBeLessThanOrEqual(3)
+  // What a build writes is the entries it parsed, never the ones it found current. SQLite leaves a row rewritten with
+  // the content it holds as it was, so a build that held every entry again shows only where the store moved under it:
+  // another process landed a newer entry for a file this build had found current (token-stats C27), and this build
+  // would write its older one back over it.
+  it('a build after one file changed writes that file\'s entry alone: an entry another engine landed meanwhile stays (C27)', async () => {
+    const x = mkClaudeFile('x.jsonl', [userLine('x'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const y = mkClaudeFile('y.jsonl', [userLine('y'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 20, 5)])
+    await engine().build(roots(), [proj])
+    appendFileSync(y, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
+    const other = engine()
+    let landed = false
+    const b = new TokenEngine(cacheDir(), TEST_ENGINE, {
+      concurrency: 1,
+      run: async (job) => {
+        // This build has read the store and found x current; while it parses y, x grows and the other engine lands it
+        if (!landed) {
+          landed = true
+          appendFileSync(x, usageLine('claude-fable-5', '2026-07-30T04:00:00Z', 1000, 500) + '\n')
+          await other.build(roots(), [proj])
+        }
+        return runParseJob(job)
+      }
+    })
+    await b.build(roots(), [proj])
+    expect(landed, 'the build parsed y').toBe(true)
+    const after = await relaunch()
+    expect(after.parsed, 'the store holds the other engine\'s entry for x and this build\'s for y').toEqual([])
+    expect(after.result.global.bySide.claude.total).toBe(15 + 25 + 150 + 1500)
   })
 
   // A write that cannot get the store within its wait fails, and so does one a full disk stops: either way it lands

@@ -67,11 +67,6 @@ export function storeFileBytes(cacheDir: string): string[] {
   })
 }
 
-/** How many pages the store's file holds */
-export function storePages(cacheDir: string): number {
-  return Number(onStore(cacheDir, 'PRAGMA page_count')[0]?.[0])
-}
-
 /**
  * Another process with the store open, until it is let go: holding the store's write lock, as one in the middle of a
  * write is — a write the engine makes meanwhile waits for it, and fails once its wait is over (token-stats C27) — or
