@@ -24,6 +24,7 @@ import { ERR } from '@shared/errors'
 import type { RegistryResult } from './claude'
 import { isAbsent } from './read-utils'
 import { DatabaseSync } from './sqlite'
+import { byName } from './scan-order'
 import { decodeTrajectoryMetadata, firstFolder, isSubagent, type TrajectoryMetadata } from './agy-proto'
 
 /**
@@ -212,7 +213,8 @@ export function readAntigravitySessions(home: string, tmpParent: string = tmpdir
   const seen = new Map<string, { sig: string; value: Attribution }>()
   let entries
   try {
-    entries = readdirSync(join(home, 'conversations'), { withFileTypes: true })
+    // In scan order (scan-order.ts)
+    entries = readdirSync(join(home, 'conversations'), { withFileTypes: true }).sort(byName)
   } catch {
     attributions = seen
     return out

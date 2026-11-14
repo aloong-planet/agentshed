@@ -67,7 +67,7 @@ test('the archive retains a past day whose live figure fell under the same stamp
   // is a literal here on purpose: a bump turns this case red (the seeded pair reads as another stamp and
   // the decrease is accepted) instead of silently passing — update it together with CACHE_VERSION.
   const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }
-  const stamp = `${pkg.version}+c19`
+  const stamp = `${pkg.version}+c20`
   const retainedRow = {
     day,
     side: 'claude',
@@ -1119,7 +1119,7 @@ test('global span save failure keeps live views consistent and reopens the last 
 test('global span includes archived and retained older rows in both charts and fourth cards', async () => {
   const f = spanFixture()
   const beta = join(f.home, 'beta')
-  const stamp = `${(JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version}+c19`
+  const stamp = `${(JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version}+c20`
   writeFileSync(join(f.userData, 'usage-archive.json'), JSON.stringify({
     version: 2, rows: [
       { day: day(75), side: 'claude', projectKey: f.project.toLowerCase(), model: 'claude-oldest', input: 90, output: 5, cacheRead: 2, cacheWrite: 3, total: 100 },
@@ -1255,8 +1255,8 @@ async function scansPass(win: Page, n = 5): Promise<void> {
   const from = await snapshotsSeen(win)
   await expect.poll(() => snapshotsSeen(win), { timeout: 15_000 }).toBeGreaterThanOrEqual(from + n)
 }
-/** What a failed write could leave in the directory */
-const temporaries = (f: Fixture): string[] => readdirSync(f.userData).filter((n) => /^\.(usage-archive\.w|token-cache\.j)-/.test(n))
+/** What a failed write of the archive could leave in the directory */
+const temporaries = (f: Fixture): string[] => readdirSync(f.userData).filter((n) => /^\.usage-archive\.w-/.test(n))
 /** The all-history figure, the first totals card's */
 const allHistory = (win: Page): ReturnType<Page['locator']> => win.locator('.pane-head .tot-row .tot-c').first().locator('.v')
 const sessionRows = (win: Page): ReturnType<Page['locator']> => win.locator('.pane-body .card .se')

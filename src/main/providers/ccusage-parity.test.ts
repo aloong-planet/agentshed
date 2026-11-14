@@ -21,6 +21,8 @@ import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { TokenEngine } from './token-stats'
+import { TEST_ENGINE } from '../testing/engine'
+import { storedEntries } from '../testing/token-store'
 import type { AgentSide } from '@shared/domain'
 import { localDay } from '@shared/format'
 
@@ -53,15 +55,13 @@ function baseline(): CcDaily {
 
 /** The local days any Codex rollout's usage records fall on, read from the cache the build just wrote:
  * the meter reads only the legacy usage event, so on these days it is expected to read lower (ADR-0027) */
-function codexRecordDays(cacheFile: string): Set<string> {
-  const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as {
-    files?: Record<string, { agg?: { kind?: string; events?: Array<[number | null, ...number[]]>; boundary?: number } }>
-  }
+function codexRecordDays(cacheDir: string): Set<string> {
   const days = new Set<string>()
-  for (const entry of Object.values(cache.files ?? {})) {
-    const agg = entry.agg
-    if (agg?.kind !== 'codex' || !Array.isArray(agg.events) || typeof agg.boundary !== 'number') continue
-    for (const ev of agg.events.slice(agg.boundary)) if (ev[0] !== null) days.add(localDay(ev[0]))
+  for (const { agg } of storedEntries(cacheDir).values()) {
+    const events = agg['events'] as Array<[number | null, ...number[]]> | undefined
+    const boundary = agg['boundary']
+    if (agg['kind'] !== 'codex' || !Array.isArray(events) || typeof boundary !== 'number') continue
+    for (const ev of events.slice(boundary)) if (ev[0] !== null) days.add(localDay(ev[0]))
   }
   return days
 }
@@ -88,8 +88,8 @@ describe.skipIf(!run)('ccusage reconciliation', () => {
     const config = JSON.parse(readFileSync(roots.claudeConfigFile, 'utf8')) as { projects?: Record<string, unknown> }
     const projects = Object.keys(config.projects ?? {})
     const cacheDir = mkdtempSync(join(tmpdir(), 'parity-'))
-    const r = await new TokenEngine(cacheDir).build(roots, projects)
-    const recordDays = codexRecordDays(join(cacheDir, 'token-cache.json'))
+    const r = await new TokenEngine(cacheDir, TEST_ENGINE).build(roots, projects)
+    const recordDays = codexRecordDays(cacheDir)
     rmSync(cacheDir, { recursive: true, force: true })
 
     // The current day is still being written — by the very agents whose data this reads. Comparing it

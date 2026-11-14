@@ -4,7 +4,7 @@
 // empty cache, so every file gets the job, inputs included, that a cold scan gives it, and the comparison runs in the
 // place of the parse. The application never imports this.
 import { mergeKey } from '@shared/path-key'
-import type { EngineModule } from './engine-module'
+import type { EngineModule, EngineSource } from './engine-module'
 import { scan, walkSessions } from './providers/scan'
 import { TokenEngine, type ParseJob, type ParseResult } from './providers/token-stats'
 import type { ScanRoots } from './providers/types'
@@ -68,7 +68,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
 
 /**
  * Compares the two parsers over the scan of `roots`: every file of `sides`, and every file in `files`, whichever side.
- * `cacheDir` is an empty directory the planning may write its cache to; nothing else is written.
+ * `cacheDir` is an empty directory the planning may open its token store in; nothing else is written.
  */
 export async function runParity(o: {
   roots: ScanRoots
@@ -77,13 +77,15 @@ export async function runParity(o: {
   typescript: Parse
   module: Parse
   cacheDir: string
+  /** The engine module whose token store the planning opens in `cacheDir` */
+  engine: EngineSource
   concurrency?: number
 }): Promise<ParityReport> {
   const report: ParityReport = { compared: [], differing: [], failed: [], missing: [] }
   const asked = new Set(o.files)
   const met = new Set<string>()
   const select = (job: ParseJob): boolean => o.sides.includes(job.kind) || asked.has(job.file)
-  const engine = new TokenEngine(o.cacheDir, {
+  const engine = new TokenEngine(o.cacheDir, o.engine, {
     concurrency: o.concurrency ?? 1,
     run: async (job) => {
       if (!select(job)) return null

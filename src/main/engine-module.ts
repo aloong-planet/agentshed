@@ -6,6 +6,29 @@
 import { join } from 'node:path'
 import type { ParseJob, ParseResult } from './providers/token-stats'
 
+/** A row of the token store as the module hands it out (engine/src/exports/cache_entries.rs): a column holding anything
+ * but text is absent */
+export interface TokenStoreRow {
+  path: string
+  sig?: string | null
+  agg?: string | null
+  resume?: string | null
+}
+
+/** One thread's token store (ADR-0044). A failure of the store is a returned message; only a panic throws. */
+export interface TokenStore {
+  /** Whether opening made the store: none was there, or what was there was replaced (token-stats C1, C2) */
+  readonly created: boolean
+  /** Why the store could not be opened, or null; a store that has one holds nothing and takes no write */
+  readonly failure: string | null
+  get(path: string): { rows: TokenStoreRow[]; failure?: string | null }
+  all(): { rows: TokenStoreRow[]; failure?: string | null }
+  /** Holds `puts` and removes `removes` in one transaction: null when it landed, otherwise why it did not */
+  write(puts: Array<{ path: string; sig: string; agg: string; resume?: string }>, removes: string[]): string | null
+  /** Whether another process wrote to the store since this thread last asked (token-stats C27) */
+  changedByOther(): boolean
+}
+
 /** What the application calls in the engine module */
 export interface EngineModule {
   /** The build the module belongs to (scripts/lib/engine-build.mjs) */
@@ -29,6 +52,12 @@ export interface EngineModule {
    * cycle); the promise settles once the file is replaced, and rejects with why it was not.
    */
   writeDisplayCopy(file: string, copy: unknown): Promise<void>
+  /** Opens the token store in a settings directory for a cache structure version, making an empty one when there is
+   * none to use */
+  TokenStore: new (dir: string, version: number) => TokenStore
+  /** A copy of a token store, read without writing to it or beside it (token-stats C16): the version it records,
+   * absent when it is no store, and its rows when that is the version asked */
+  readTokenStoreSnapshot(file: string, version: number): { version?: number | null; rows?: TokenStoreRow[] | null }
 }
 
 /** Where a thread loads the engine module from, and the build it must report; plain data, so it crosses to a worker */
