@@ -122,17 +122,7 @@ fn record(js: &Js, row: napi_value) -> Result<Record> {
 }
 
 fn write_result(js: &Js, given: &Given, p: &Parsed) -> Result<napi_value> {
-    let questions = js.array(p.questions.iter().map(|q| {
-        js.array([
-            js.num(q.start),
-            js.num(q.end),
-            js.num(q.turn_end),
-            js.num_or_null(q.at),
-            js.num(q.tools),
-            js.num(q.subagents),
-            js.num(q.fingerprint),
-        ])
-    }))?;
+    let questions = js.records(&p.questions)?;
     let events = js.array(p.events.iter().map(|e| {
         js.array([js.num_or_null(e.at), js.num(e.input), js.num(e.cached), js.num(e.output), js.num(e.cache_write)])
     }))?;

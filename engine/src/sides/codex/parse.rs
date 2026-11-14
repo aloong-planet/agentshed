@@ -92,11 +92,7 @@ pub(super) fn parse(job: &Job, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Opt
             Ok(line::Parsed::Other) | Err(_) => return,
         };
         let l = &parsed;
-        let at = l.timestamp.and_then(|t| {
-            let units = t.units();
-            let ms = text::date_parse(&units).unwrap_or_else(|| date_parse(&units));
-            (!ms.is_nan()).then_some(ms)
-        });
+        let at = l.timestamp.and_then(|t| text::time_value(&t.units(), date_parse));
         index.line(question::question(l), at, || question::calls(l), start, end);
         file_end = end as f64;
         if let Some(t) = at {

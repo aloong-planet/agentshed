@@ -3,6 +3,7 @@
 //!
 //! The trait gains a method only when side-free code calls one.
 
+mod claude;
 mod codex;
 
 use napi::Result;
@@ -20,6 +21,7 @@ pub(crate) trait Side: Sync {
 /// The side whose files a job of `kind` names, when the module reads them
 pub(crate) fn named(kind: &str) -> Option<&'static dyn Side> {
     match kind {
+        "claude" => Some(&claude::Claude),
         "codex" => Some(&codex::Codex),
         _ => None,
     }
