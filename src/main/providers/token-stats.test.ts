@@ -23,7 +23,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { loadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
-import { firstDifference } from '../engine-parity'
 import { constants as zstdConstants, zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
@@ -3184,6 +3183,35 @@ describe('a panic in the engine module while a Codex rollout is parsed', () => {
   })
 })
 
+describe('a panic in the engine module while a Grok session is parsed', () => {
+  const seam = (): PanicSeam => loadEngineModule(TEST_ENGINE) as PanicSeam
+  afterEach(() => {
+    seam().seamPanicWhileParsing(null)
+  })
+
+  it('is that session\'s failed read: it contributes nothing, as a session missing its update stream does (F6), every other session is parsed, and the scan delivers its figures', async () => {
+    mkdirSync(join(dir, '.grok'), { recursive: true })
+    writeFileSync(join(dir, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+    const named = mkGrokSession(proj, '019f-panic', [grokUser(1786088600, 'the named question', 0), grokTurn(1786088610, { input: 40, output: 4 })])
+    mkGrokSession(proj, '019f-other', [grokUser(1786088600, 'the other question', 0), grokTurn(1786088610, { input: 70, output: 7 })])
+    const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
+    seam().seamPanicWhileParsing(named)
+    const panicked = await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])
+    seam().seamPanicWhileParsing(null)
+    expect(panicked.global.bySide.grok.total).toBe(77)
+    expect(panicked.perProject.get(proj.toLowerCase())?.sessions.map((x) => x.title)).toEqual(['the other question'])
+    const aside = join(dir, 'aside.jsonl')
+    renameSync(named, aside)
+    try {
+      expect(shape(panicked)).toEqual(shape(await new TokenEngine(join(dir, 'cache-missing')).build(roots(), [proj])))
+    } finally {
+      renameSync(aside, named)
+    }
+    // Nothing is kept for it: the next build parses it
+    expect((await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])).global.bySide.grok.total).toBe(77 + 44)
+  })
+})
+
 // token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
 // U+FFFD, and read by the grammar of ECMAScript's JSON.parse, with its results". One rollout per clause, parsed through
 // the module. Until the TypeScript Codex parser was removed (#427), the cases for the clauses and for timestamps were
@@ -3433,8 +3461,8 @@ describe('how a rollout line is read', () => {
 
 // token-stats Sequence F and session-view G1–G2 through the engine module, and the clauses of token-stats,
 // Implementation Decisions, The engine module ("read by the grammar of ECMAScript's JSON.parse, with its results"), one
-// Grok stream per clause. Until the TypeScript Grok parser is removed (#429), each entry is also held, field for field,
-// to the one it gives for the same file.
+// Grok stream per clause. Until the TypeScript Grok parser was removed (#429), each entry was also held, field for field,
+// to the one it gave for the same file (`firstDifference`), and the values every case expects are the ones both gave.
 describe('how a Grok stream line is read', () => {
   /** A session directory holding `lines`, each a line's text or its raw bytes, joined by line feeds and ended by `end` */
   function stream(id: string, lines: Array<string | Buffer>, o: { end?: string; summary?: string | Buffer } = {}): string {
@@ -3447,11 +3475,9 @@ describe('how a Grok stream line is read', () => {
     return f
   }
 
-  /** The entry the module gives the stream, held to the TypeScript parser's */
+  /** The entry a parse gives the stream */
   async function entryOf(file: string): Promise<Extract<NonNullable<ParseResult>['agg'], { kind: 'grok' }>> {
-    const job: ParseJob = { kind: 'grok', file, projectKey: 'p', subagent: false }
-    const parsed = loadEngineModule(TEST_ENGINE).parse(job)
-    expect(firstDifference(await runParseJob(job), parsed)).toBeNull()
+    const parsed = await runParseJob({ kind: 'grok', file, projectKey: 'p', subagent: false })
     if (parsed?.agg.kind !== 'grok') throw new Error('no Grok entry')
     return parsed.agg
   }

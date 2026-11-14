@@ -6,13 +6,11 @@ import { eachJsonlLine } from './jsonl'
 import { makeAntigravityQuestionIndexer, makeQuestionIndexer, questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { runParseJob } from './token-stats'
-import { loadEngineModule } from '../engine-module'
-import { TEST_ENGINE } from '../testing/engine'
-import { firstDifference } from '../engine-parity'
 
 /**
  * Claude's indexer is driven the same way as the wiring in its parser: eachJsonlLine feeds the indexer line by line,
- * then done(file length) at the end. Codex's is the engine module's, and its cases parse the file through it.
+ * then done(file length) at the end. Codex's and Grok's are the engine module's, and their cases parse the file through
+ * it.
  *
  * **Known gaps (established by mutation, not simply unwritten)**:
  * 1. those three lines of wiring in the Claude parser have no behavioural test of their own and are backstopped
@@ -308,8 +306,8 @@ describe('question extraction (the Codex side)', () => {
 
 // session-view G1 and the per-side turn volume for Grok, through the engine module: the question is the run of user
 // chunks sharing one prompt index, joined as written; a prompt opening with an injected notice starts no question; a
-// spawn_subagent call is a subagent, every other tool call a tool. Until the TypeScript Grok parser is removed (#429),
-// the module's entry is also held, field for field, to the one it gives.
+// spawn_subagent call is a subagent, every other tool call a tool. Until the TypeScript Grok parser was removed (#429),
+// the module's entry was also held, field for field, to the one it gave, and the values expected are the ones both gave.
 describe('question extraction (the Grok side)', () => {
   const gLine = (update: Record<string, unknown>): string =>
     JSON.stringify({ timestamp: 1786088600, method: '_x.ai/session/update', params: { sessionId: 's', update } })
@@ -349,9 +347,7 @@ describe('question extraction (the Grok side)', () => {
     try {
       const file = join(dir, 'updates.jsonl')
       writeFileSync(file, lines.join('\n') + '\n')
-      const job = { kind: 'grok', file, projectKey: '', subagent: false } as const
-      const parsed = loadEngineModule(TEST_ENGINE).parse(job)
-      expect(firstDifference(await runParseJob(job), parsed)).toBeNull()
+      const parsed = await runParseJob({ kind: 'grok', file, projectKey: '', subagent: false })
       if (parsed?.agg.kind !== 'grok') throw new Error('no Grok entry')
       const at = 1786088600000
       expect(parsed.agg.questions).toEqual([

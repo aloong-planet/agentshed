@@ -927,11 +927,11 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
-  and holds the reading and parsing of Codex rollouts. A value in a line is built only where a rule reads
-  it; every other value is scanned past. A line is decoded as UTF-8, an invalid sequence becoming
-  U+FFFD, and read by the grammar of ECMAScript's `JSON.parse`, with its results: a repeated key keeps
-  its last value, a number beyond the double range is infinite and so no finite count, a lone surrogate
-  escape stays that code unit, and a line `JSON.parse` refuses is a bad line (A8).
+  and holds the reading and parsing of Codex rollouts and Grok sessions. A value in a line is built only
+  where a rule reads it; every other value is scanned past. A line is decoded as UTF-8, an invalid
+  sequence becoming U+FFFD, and read by the grammar of ECMAScript's `JSON.parse`, with its results: a
+  repeated key keeps its last value, a number beyond the double range is infinite and so no finite count,
+  a lone surrogate escape stays that code unit, and a line `JSON.parse` refuses is a bad line (A8).
 - **Cache**: incremental by file signature; **a structure change must bump the version number at the
   same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
   recomputes. An entry is well formed when its signature is a string and its per-file aggregate has
