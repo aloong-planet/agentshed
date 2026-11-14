@@ -103,6 +103,12 @@ We adopt **option 1**.
   rewrite to the old figures.
 - Negative: there is a boundary to cross between JavaScript and the module. The walk's result goes into the
   project scan, and the display copy goes into the module once per write.
+- Negative: a parse holds the thread that asked for it until the file is parsed, as the module's parse is one
+  synchronous call. A parse worker runs nothing else anyway. A thread that parses a file itself answers nothing
+  else meanwhile: the scan worker rebuilding one file for the session page, or parsing a job a failed parse worker
+  handed back, and the main process once the scan worker has failed. The TypeScript parse gave way between reads.
+  How long it holds the thread grows with what the parse reads: the whole file for a whole parse, the appended part
+  for a resume.
 - Negative (inferred): the 600 MB threshold is below the prototype's 516–561 MB plus the app's own floor of
   about 100 MB, so the module has to read more leanly than the prototype did.
 - Neutral: on the Codex data the prototype matched `JSON.parse` on every line, and no line failed to parse.
