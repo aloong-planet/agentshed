@@ -918,7 +918,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   stream's default chunk size, which is what made startup take minutes once the data grew to gigabytes
   (see the AGENTS.md invariant on main-process measurements).
   **A turn's end point is "the end of the last parseable line", not the file's byte size** — for Codex,
-  of the last such line a line feed ends ([token-stats](token-stats.md), Implementation Decisions,
+  of the last such line a newline ends ([token-stats](token-stats.md), Implementation Decisions,
   Cache): an active session may be mid-line, and that half line neither parses nor should be sliced into
   a range.
   **Per-side "turn volume" criteria (full enumeration, not sampling)**:

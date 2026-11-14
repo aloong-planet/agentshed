@@ -948,10 +948,10 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   larger size resumes there. Codex's writer only appends to a rollout or replaces it by renaming a
   copy over the path, so a new inode, a size that did not grow, a cold rollout, or fifty resumes in
   a row (bounding an in-place edit nothing cheap can see) mean a whole parse. A resumed parse equals
-  a whole parse. A rollout line counts once its line feed is written: Codex ends every line with one
+  a whole parse. A rollout line counts once its newline is written: Codex ends every line with one
   (B12), so a last line without one is still being written, and a parse stops before it and reads it
-  whole at the next scan. A rollout that ends for good without its last line feed — its writer
-  stopped between the line and the line feed — never counts that line. Claude and Grok files are
+  whole at the next scan. A rollout that ends for good without its last newline — its writer
+  stopped between the line and the newline — never counts that line. Claude and Grok files are
   parsed whole when they change: Claude's question filter needs the whole parent graph, and Grok's
   streams are small.
 - **Where parsing runs**: the scan is planned on the thread that runs it (the next paragraph) — cache
