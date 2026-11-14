@@ -951,9 +951,11 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   a whole parse. A rollout line counts once its newline is written: Codex ends every line with one
   (B12), so a last line without one is still being written, and a parse stops before it and reads it
   whole at the next scan. A rollout that ends for good without its last newline — its writer
-  stopped between the line and the newline — never counts that line. Claude and Grok files are
-  parsed whole when they change: Claude's question filter needs the whole parent graph, and Grok's
-  streams are small.
+  stopped between the line and the newline — never counts that line, unless an earlier version of
+  the app cached an entry that already counted it: that entry stands while the file stays unchanged
+  (the `CACHE_VERSION` comment in `src/main/providers/token-stats.ts` says why). Claude and Grok
+  files are parsed whole when they change: Claude's question filter needs the whole parent graph,
+  and Grok's streams are small.
 - **Where parsing runs**: the scan is planned on the thread that runs it (the next paragraph) — cache
   hits, resumes, whole parses — and the files that need parsing are parsed on a pool of worker
   threads (cores minus one, at most four), several at once; the results are then taken in scan order,
