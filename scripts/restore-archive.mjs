@@ -12,6 +12,7 @@ import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { engineBuildDefine } from './lib/engine-build.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repo = resolve(here, '..')
@@ -23,6 +24,8 @@ await build({
   platform: 'node',
   format: 'cjs',
   tsconfig: join(repo, 'tsconfig.node.json'),
+  // The build the application's code is made with, which the token engine's code names (src/main/engine-module.ts)
+  define: engineBuildDefine(),
   outfile,
   logLevel: 'warning'
 })

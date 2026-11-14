@@ -917,8 +917,10 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   under Node: the same reader over the same bytes ran about twelve times slower under Electron at the
   stream's default chunk size, which is what made startup take minutes once the data grew to gigabytes
   (see the AGENTS.md invariant on main-process measurements).
-  **A turn's end point is "the end of the last parseable line", not the file's byte size**: an active
-  session may be mid-line, and that half line neither parses nor should be sliced into a range.
+  **A turn's end point is "the end of the last parseable line", not the file's byte size** — for Codex,
+  of the last such line a newline ends ([token-stats](token-stats.md), Implementation Decisions,
+  Cache): an active session may be mid-line, and that half line neither parses nor should be sliced into
+  a range.
   **Per-side "turn volume" criteria (full enumeration, not sampling)**:
   - Claude tools = `tool_use` segments (the only call segment type in the whole repository); a
     subagent dispatch = the tool name `Agent` (152 occurrences) or `Task` (4), two generations of

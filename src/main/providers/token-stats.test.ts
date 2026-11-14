@@ -20,8 +20,10 @@ import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync,
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseRunner } from './token-stats'
-import { zstdCompressSync } from 'node:zlib'
+import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
+import { loadEngineModule } from '../engine-module'
+import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
+import { constants as zstdConstants, zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
 import { ERR, decodeAppError } from '@shared/errors'
@@ -768,7 +770,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
     expect(sessionReadTarget(r2.sessionFiles, plain)).toBeNull()
   })
 
-  it('a cold rollout that cannot be decompressed — not zstd, or truncated — is skipped like an unreadable plain file, without aborting its siblings (B12)', async () => {
+  it('a cold rollout that is not zstd, is corrupt, or whose stream is cut inside a line, is skipped like an unreadable plain file without aborting its siblings, and one cut exactly at a line end reads as the shorter session (B12)', async () => {
     const plain = mkCodexRollout('rollout-warm-019f042.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [
       { input: 100, cached: 0, output: 10, record: 'resp_t1' }
     ])
@@ -780,10 +782,38 @@ describe('Codex aggregation (the ccusage rules)', () => {
     const full = zstdCompressSync(readFileSync(big))
     rmSync(big)
     writeFileSync(join(d, 'rollout-trunc-019f045.jsonl.zst'), full.subarray(0, Math.floor(full.length / 2)))
+    // A cut exactly at a line end: a whole frame of the first lines, then a frame cut inside its header, so the stream
+    // decompressed ends with the first frame's last line feed. Whether the decoder reports the cut frame does not
+    // decide: Node's reports it from version 26 and not in 24, Electron 43's.
+    const shorter = mkCodexRollout('rollout-lineend-019f046.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [
+      { input: 200, cached: 0, output: 20, record: 'resp_l1' }
+    ])
+    const lost = `${JSON.stringify({ timestamp: '2026-07-30T09:30:00Z', type: 'token_usage_record', payload: { response_id: 'resp_l2', usage: { input_tokens: 900, cached_input_tokens: 0, output_tokens: 90 } } })}\n`
+    const cutAtLineEnd = Buffer.concat([zstdCompressSync(readFileSync(shorter)), zstdCompressSync(Buffer.from(lost)).subarray(0, 5)])
+    rmSync(shorter)
+    writeFileSync(`${shorter}.zst`, cutAtLineEnd)
+    // The not-zstd file above is left out by the session walk, which cannot read its first line. These two are corrupt
+    // past their first line, so the walk takes them and only the parse can skip them: a frame whose content checksum
+    // fails, and a whole frame followed by bytes that are no frame. Each is long enough that the walk's first read of
+    // it ends inside the frame.
+    const bulky = (name: string, base: number): string =>
+      mkCodexRollout(name, proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol',
+        Array.from({ length: 3000 }, (_, i) => ({ input: base + i, cached: 0, output: 10, record: `resp-${name}-${(i * 2654435761) % 4294967296}` })))
+    const badSum = bulky('rollout-badsum-019f047.jsonl', 5000)
+    const checked = zstdCompressSync(readFileSync(badSum), { params: { [zstdConstants.ZSTD_c_checksumFlag]: 1 } })
+    checked[checked.length - 1] ^= 0xff
+    const trailed = bulky('rollout-trailing-019f048.jsonl', 9000)
+    const withTrail = Buffer.concat([zstdCompressSync(readFileSync(trailed)), Buffer.from('not a zstd frame')])
+    rmSync(badSum)
+    rmSync(trailed)
+    writeFileSync(`${badSum}.zst`, checked)
+    writeFileSync(`${trailed}.zst`, withTrail)
+    expect(walkSessions(roots()).codex.map((s) => s.file)).toEqual(expect.arrayContaining([`${badSum}.zst`, `${trailed}.zst`]))
     const r = await engine().build(roots(), [proj])
     const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'codex') ?? []
-    expect(sessions.map((s) => s.file)).toEqual([plain])
-    expect(r.global.bySide.codex.total).toBe(110)
+    expect(sessions.map((s) => s.file).sort()).toEqual([plain, `${shorter}.zst`].sort())
+    expect(sessions.find((s) => s.file === `${shorter}.zst`)?.tokens).toBe(220)
+    expect(r.global.bySide.codex.total).toBe(110 + 220)
   })
 
   it('a rollout that is paginated and cold at once — usage records, completed-item questions, compressed — yields the same usage, questions and title as its plain twin (the closeout of #163–#165)', async () => {
@@ -2864,13 +2894,21 @@ describe('resuming a grown Codex rollout', () => {
     }
   }
 
-  it('wherever the file is cut, scanning the first part and then the grown file gives the cold result', async () => {
+  /** The rollout's entry in a cache directory's file, its resume state included */
+  function entryIn(cacheDir: string, file: string): { resume: Record<string, unknown> } & Record<string, unknown> {
+    return (JSON.parse(readFileSync(join(cacheDir, 'token-cache.json'), 'utf8')) as { files: Record<string, { resume: Record<string, unknown> }> }).files[file]
+  }
+
+  it('wherever the file is cut, scanning the first part and then the grown file gives the cold result, and the rollout the entry a whole parse gives', async () => {
     const text = rolloutText()
     const cuts = new Set<number>()
     for (let i = 0; i < text.length; i++) {
       if (text[i] === 0x0a) {
         cuts.add(i + 1)
-        cuts.add(i - 7) // mid-line: a line still being written when the first scan ran
+        // A line still being written when the first scan ran: its JSON whole but its line feed not yet written, and
+        // cut in the middle
+        cuts.add(i)
+        cuts.add(i - 7)
       }
     }
     cuts.delete(text.length)
@@ -2879,10 +2917,35 @@ describe('resuming a grown Codex rollout', () => {
       const cacheDir = join(dir, `cache-resume-${cut}`)
       writeFileSync(f, text.subarray(0, cut))
       await new TokenEngine(cacheDir).build(roots(), [proj])
+      // A cut inside the first line leaves no session to keep an entry for, and the grown file is parsed whole
+      const resumes = entryIn(cacheDir, f) === undefined ? 0 : 1
       appendFileSync(f, text.subarray(cut))
       const resumed = shape(await new TokenEngine(cacheDir).build(roots(), [proj]))
-      expect(resumed, `cut at byte ${cut}`).toEqual(await cold())
+      const coldDir = join(dir, `cache-cold-${cut}`)
+      expect(resumed, `cut at byte ${cut}`).toEqual(shape(await new TokenEngine(coldDir).build(roots(), [proj])))
+      // The entry, the state the next resume starts from included, but for the count of resumes since a whole parse
+      const whole = entryIn(coldDir, f)
+      expect(entryIn(cacheDir, f), `cut at byte ${cut}`).toEqual({ ...whole, resume: { ...whole.resume, resumes } })
     }
+    expect(cuts.size).toBeGreaterThan(10)
+  })
+
+  it('a cold rollout that grew in place, under the same inode, is parsed whole: its stream reads from its start only', async () => {
+    const text = rolloutText()
+    const f = `${rolloutPath()}.zst`
+    // A cold rollout ends with a line feed (B12): the first part ends at a line's end
+    const cut = text.lastIndexOf(0x0a, text.indexOf('second question')) + 1
+    writeFileSync(f, zstdCompressSync(text.subarray(0, cut)))
+    const cacheDir = join(dir, 'cache-resume')
+    await new TokenEngine(cacheDir).build(roots(), [proj])
+    const before = statSync(f)
+    writeFileSync(f, zstdCompressSync(text))
+    const after = statSync(f)
+    // What would make a plain rollout resume: the same inode, a larger size
+    expect(after.ino).toBe(before.ino)
+    expect(after.size).toBeGreaterThan(before.size)
+    expect(shape(await new TokenEngine(cacheDir).build(roots(), [proj]))).toEqual(await cold())
+    expect(entryIn(cacheDir, f).resume['resumes']).toBe(0)
   })
 
   it('reads only the appended part: a change before the old end stays unseen until a full parse', async () => {
@@ -3089,5 +3152,280 @@ describe('the session ID on the session page', () => {
     const e = engine()
     await e.build(roots(), [proj])
     expect((await e.sessionQuestions(roots(), f)).sessionId).toBe(id)
+  })
+})
+
+// token-stats, Scans and the window, failure modes: "A panic in the engine module is caught where it crosses into the
+// application. One raised while a file is parsed is that file's failed read, under the rule its side has for a read
+// that fails ... and the scan goes on." Driven through the panic seam, which the tests' module is built with.
+describe('a panic in the engine module while a Codex rollout is parsed', () => {
+  const seam = (): PanicSeam => loadEngineModule(TEST_ENGINE) as PanicSeam
+  afterEach(() => {
+    seam().seamPanicWhileParsing(null)
+  })
+
+  it('is that rollout\'s failed read: it is skipped as an unreadable one is, every other rollout is parsed, and the scan delivers its figures', async () => {
+    const named = mkCodexRollout('rollout-panic-019f500.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 4 }])
+    mkCodexRollout('rollout-other-019f501.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 70, cached: 0, output: 7 }])
+    const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
+    seam().seamPanicWhileParsing(named)
+    const panicked = await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])
+    seam().seamPanicWhileParsing(null)
+    expect(panicked.global.bySide.codex.total).toBe(77)
+    chmodSync(named, 0)
+    try {
+      expect(shape(panicked)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable')).build(roots(), [proj])))
+    } finally {
+      chmodSync(named, 0o644)
+    }
+    // As for an unreadable file, nothing is kept for it: the next build parses it
+    expect((await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])).global.bySide.codex.total).toBe(77 + 44)
+  })
+})
+
+// token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
+// U+FFFD, and read by the grammar of ECMAScript's JSON.parse, with its results". One rollout per clause, parsed through
+// the module. Until the TypeScript Codex parser was removed (#427), the cases for the clauses and for timestamps were
+// also held, field for field, to the entry it gave for the same file, and the values they expect are the ones both
+// gave. The case across the module's reads came after; its last line follows the module's own rule, that a rollout line
+// counts once its line feed is written (Implementation Decisions, Cache), where the TypeScript parser counted it.
+describe('how a rollout line is read', () => {
+  const AT = '2026-07-30T10:00:00.000Z'
+  const REPLACEMENT = String.fromCharCode(0xfffd)
+  /** A usage record as Codex writes one, its usage the response's own */
+  const record = (id: string, input: number | string, output: number, extra: Record<string, unknown> = {}): string =>
+    `{"timestamp":"${AT}","type":"token_usage_record","payload":{"response_id":"${id}","usage":{"input_tokens":${input},"cached_input_tokens":0,"output_tokens":${output}}${Object.entries(extra).map(([k, v]) => `,"${k}":${JSON.stringify(v)}`).join('')}}}`
+  const question = (message: string): string => JSON.stringify({ timestamp: AT, type: 'event_msg', payload: { type: 'user_message', message } })
+
+  /** A rollout of `lines`, each a line's text or its raw bytes, every one ending with a line feed */
+  function rollout(lines: Array<string | Buffer>): string {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const f = join(d, 'rollout-2026-07-30T10-00-00-019f0000-eeee-7000-8000-000000000001.jsonl')
+    writeFileSync(f, Buffer.concat(lines.flatMap((l) => [typeof l === 'string' ? Buffer.from(l) : l, Buffer.from('\n')])))
+    return f
+  }
+
+  /** The entry a parse gives the rollout */
+  async function entryOf(file: string): Promise<NonNullable<ParseResult>> {
+    const job: ParseJob = {
+      kind: 'codex',
+      file,
+      projectKey: 'p',
+      meta: { subagent: false, sessionId: 'sid', parentId: null, forkedAt: null, paginated: true },
+      threadName: undefined
+    }
+    const parsed = await runParseJob(job)
+    if (parsed?.agg.kind !== 'codex') throw new Error('no Codex entry')
+    return parsed
+  }
+  const eventsOf = (r: NonNullable<ParseResult>): unknown => (r.agg.kind === 'codex' ? r.agg.events : null)
+
+  it('as UTF-8 with U+FFFD for each maximal invalid subpart, a line with an invalid byte outside a string being a bad line', async () => {
+    const bytes = (...b: number[]): Buffer => Buffer.from(b)
+    const [head, tail] = record('r1', 100, 10).split('"usage"')
+    const f = rollout([
+      // c FF a E2 82 b C0 80 c ED A0 80 d F4 90 80 80 e: one, one, two, three and four replacements
+      Buffer.concat([
+        Buffer.from(`{"timestamp":"${AT}","type":"event_msg","payload":{"type":"user_message","message":"c`),
+        bytes(0xff), Buffer.from('a'), bytes(0xe2, 0x82), Buffer.from('b'), bytes(0xc0, 0x80), Buffer.from('c'),
+        bytes(0xed, 0xa0, 0x80), Buffer.from('d'), bytes(0xf4, 0x90, 0x80, 0x80), Buffer.from('e"}}')
+      ]),
+      // Invalid bytes in a value no rule reads leave the line readable
+      Buffer.concat([Buffer.from(`${head}"note":"`), bytes(0xff, 0xfe), Buffer.from(`","usage"${tail}`)]),
+      // Outside a string a replacement character is no token, and the line is refused
+      Buffer.concat([Buffer.from(`{"timestamp":"${AT}",`), bytes(0xff), Buffer.from(record('r2', 999, 9).slice(1))])
+    ])
+    const entry = await entryOf(f)
+    const R = REPLACEMENT
+    expect(entry.agg.title).toBe(`c${R}a${R}b${R}${R}c${R}${R}${R}d${R}${R}${R}${R}e`)
+    expect(entry.agg.questions).toHaveLength(1)
+    expect(eventsOf(entry)).toEqual([[Date.UTC(2026, 6, 30, 10), 100, 0, 10, 0]])
+  })
+
+  it('by JSON.parse\'s grammar: a line it refuses is a bad line (A8), and a line it takes counts however unusual, nested deeper than any fixed limit included', async () => {
+    const BS = String.fromCharCode(0x5c)
+    const at = Date.UTC(2026, 6, 30, 10)
+    const good = [
+      // 5,000 levels deep in a value no rule reads
+      record('v1', 7, 1).replace('"usage"', `"deep":${'['.repeat(5000)}${']'.repeat(5000)},"usage"`),
+      // Tabs, spaces and a carriage return between tokens; numbers in exponent form
+      `{ "timestamp" :\t"${AT}" , "type" : "token_usage_record" , "payload" : { "response_id" : "v2" , "usage" : { "input_tokens" : 1E2 , "cached_input_tokens" : 0.5e1 , "output_tokens" : 3 } } }\r`,
+      // A key and a value spelled with escapes
+      record('v3', 2, 2).replace('"type":"token_usage_record"', `"t${BS}u0079pe":"token_usage_r${BS}u0065cord"`),
+      // A raw U+2028 in a string, and an id spelled with an escaped solidus, which is the same id as the next line's
+      record(`a${BS}/b`, 4, 4, { note: `x${String.fromCharCode(0x2028)}y` }),
+      record('a/b', 50, 50)
+    ]
+    // Each carries usage that must not count
+    const refused = [
+      record('b1', 1001, 1).replace('"output_tokens":1}', '"output_tokens":1,}'),
+      record(`b2${String.fromCharCode(9)}tab`, 1002, 1),
+      record('b3', 1003, 1, { note: 'x' }).replace('"x"', `"${BS}x41"`),
+      `${String.fromCharCode(0xfeff)}${record('b4', 1004, 1)}`,
+      `${record('b5', 1005, 1)} x`,
+      record('b6', '01', 1),
+      record('b7', '+1', 1),
+      record('b8', '1.', 1),
+      record('b9', '.5', 1),
+      record('b10', 'NaN', 1),
+      record('b11', 1011, 1).replace('"b11"', `"${BS}ud8"`),
+      record('b12', 1012, 1).replace('"response_id"', '\'response_id\''),
+      record('b13', 1013, 1).slice(0, -1)
+    ]
+    const lines = [...good, ...refused]
+    const f = rollout(lines)
+    const entry = await entryOf(f)
+    expect(eventsOf(entry)).toEqual([
+      [at, 7, 0, 1, 0],
+      [at, 100, 5, 3, 0],
+      [at, 2, 0, 2, 0],
+      [at, 4, 0, 4, 0]
+    ])
+    // The parse stopped at the end of the last line that parsed: what the refused lines hold is read again next time
+    expect(entry.state?.cursor).toBe(Buffer.byteLength(good.map((l) => `${l}\n`).join('')))
+  })
+
+  it('with a repeated key keeping its last value, at the place the key first held', async () => {
+    const usage = '{"input_tokens":10,"cached_input_tokens":0,"output_tokens":1}'
+    const f = rollout([
+      `{"timestamp":"${AT}","type":"event_msg","type":"turn_context","payload":{"model":"first","model":"second"}}`,
+      `{"timestamp":"${AT}","type":"event_msg","payload":{"type":"user_message","message":"lost"},"payload":{"type":"user_message","message":"kept question"}}`,
+      `{"timestamp":"${AT}","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":${usage},"total_token_usage":{"output_tokens":9,"input_tokens":1,"input_tokens":10,"cached_input_tokens":0,"total_tokens":11,"output_tokens":1}}}}`,
+      // The second payload replaces the first whole: no usage is left to count
+      `{"timestamp":"${AT}","type":"token_usage_record","payload":{"response_id":"d1","usage":${usage}},"payload":{"response_id":"d2"}}`,
+      `{"timestamp":"${AT}","type":"token_usage_record","payload":{"response_id":"d3","usage":{"input_tokens":1,"input_tokens":30,"cached_input_tokens":0,"output_tokens":3}}}`
+    ])
+    const entry = await entryOf(f)
+    const at = Date.UTC(2026, 6, 30, 10)
+    if (entry.agg.kind !== 'codex') throw new Error('no Codex entry')
+    expect(entry.agg.model).toBe('second')
+    expect(entry.agg.title).toBe('kept question')
+    expect(entry.agg.events).toEqual([[at, 10, 0, 1, 0], [at, 30, 0, 3, 0]])
+    expect(entry.state?.seenResponses).toEqual(['d2', 'd3'])
+    const total = entry.state?.prevTotal
+    expect(total).toEqual({ output_tokens: 1, input_tokens: 10, cached_input_tokens: 0, total_tokens: 11 })
+    expect(Object.keys(total ?? {})).toEqual(['output_tokens', 'input_tokens', 'cached_input_tokens', 'total_tokens'])
+    expect(entry.state?.prevTotalKey).toBe('10|0|1|11')
+  })
+
+  it('with a number beyond the double range infinite and so no finite count, and a negative zero kept', async () => {
+    const event = (info: string): string => `{"timestamp":"${AT}","type":"event_msg","payload":{"type":"token_count","info":${info}}}`
+    const f = rollout([
+      event('{"last_token_usage":{"input_tokens":1e400,"cached_input_tokens":0,"output_tokens":5},"total_token_usage":{"input_tokens":1e400,"cached_input_tokens":-0,"output_tokens":5,"total_tokens":5}}'),
+      // No per-turn figure: the increment is the difference of the running totals, an infinite one counting as 0
+      event('{"total_token_usage":{"input_tokens":100,"cached_input_tokens":1e-7,"output_tokens":1e-400,"total_tokens":1e21}}'),
+      record('n1', '-0', 7),
+      record('n2', '1e400', 0)
+    ])
+    const entry = await entryOf(f)
+    const at = Date.UTC(2026, 6, 30, 10)
+    expect(eventsOf(entry)).toEqual([[at, 0, 0, 5, 0], [at, 100, 1e-7, 0, 0], [at, -0, 0, 7, 0]])
+    expect(entry.state?.prevTotal).toEqual({ input_tokens: 100, cached_input_tokens: 1e-7, output_tokens: 0, total_tokens: 1e21 })
+    // String() of each running field, as JavaScript writes the number
+    expect(entry.state?.prevTotalKey).toBe('100|1e-7|0|1e+21')
+  })
+
+  it('with a lone surrogate escape staying that code unit, in text, in a model and in a response id', async () => {
+    const [high, low] = [String.fromCharCode(0xd800), String.fromCharCode(0xdc00)]
+    const f = rollout([
+      JSON.stringify({ timestamp: AT, type: 'turn_context', payload: { model: `gpt${low}` } }),
+      // 59 letters, the lone surrogate, then two more: the title is clipped after the surrogate, a code point of its own
+      question(`${'a'.repeat(59)}${high}bc`),
+      JSON.stringify({ timestamp: AT, type: 'token_usage_record', payload: { response_id: high, usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 } } }),
+      JSON.stringify({ timestamp: AT, type: 'token_usage_record', payload: { response_id: high, usage: { input_tokens: 9, cached_input_tokens: 0, output_tokens: 9 } } }),
+      JSON.stringify({ timestamp: AT, type: 'token_usage_record', payload: { response_id: `${high}${low}`, usage: { input_tokens: 2, cached_input_tokens: 0, output_tokens: 2 } } })
+    ])
+    const entry = await entryOf(f)
+    if (entry.agg.kind !== 'codex') throw new Error('no Codex entry')
+    expect(entry.agg.model).toBe(`gpt${low}`)
+    expect(entry.agg.title).toBe(`${'a'.repeat(59)}${high}${String.fromCharCode(0x2026)}`)
+    expect(entry.state?.seenResponses).toEqual([high, `${high}${low}`])
+    expect(entry.agg.events.map((e) => e[1])).toEqual([1, 2])
+  })
+
+  it('across the module\'s 1 MB reads: a line several reads long, lines and multibyte text across a read\'s end, a bad line, lines that are no object, and a last line not read until its line feed is written', async () => {
+    const MB = 1024 * 1024
+    const lines: string[] = []
+    /** Where the next line starts */
+    let size = 0
+    const add = (line: string): number => {
+      const start = size
+      lines.push(line)
+      size += Buffer.byteLength(line) + 1
+      return start
+    }
+    let responses = 0
+    /** A usage record whose input is its place among the records, with `pad` in a value no rule reads */
+    const padded = (pad: string): string => record(`r${responses + 1}`, ++responses, 1, { pad })
+    // Three-byte characters, written by code point as the working language asks (ADR-0017): U+4E2D, and the question's
+    // first, second and pair-opening characters
+    const [han, first, second, pairOpening] = [0x4e2d, 0x554f, 0x984c, 0x8cea].map((c) => String.fromCharCode(c))
+    const pair = `${pairOpening}${first}`
+    // Lines of many lengths before the first read's end, three- and four-byte characters among them
+    for (let k = 0; size < MB - 8000; k++) add(padded(`${han}${String.fromCodePoint(0x1f600)}a`.repeat(40 + ((k * 37) % 600))))
+    // One line placed to end just before the question, so that the first read ends one byte into the question's first
+    // character, a three-byte one
+    const text = `${first}${second} ${String.fromCodePoint(0x1f600)} ${pair.repeat(30)}`
+    const questionLine = question(text)
+    const into = Buffer.byteLength(questionLine.slice(0, questionLine.indexOf(first))) + 1
+    const fillerStart = size
+    const bare = Buffer.byteLength(record(`r${responses + 1}`, responses + 1, 1, { pad: '' }))
+    add(padded('x'.repeat(MB - into - fillerStart - 1 - bare)))
+    const qStart = add(questionLine)
+    const qEnd = size
+    // A line several reads long
+    const longStart = add(padded('y'.repeat(2 * MB + MB / 2)))
+    const longEnd = size
+    add(`{"timestamp":"${AT}","type":"token_usage_record","payload":{"response_id":"bad","usage":{"input_tokens":999999`)
+    add('[1,2,3]')
+    add('42')
+    for (let k = 0; k < 400; k++) add(padded('é'.repeat(100 + ((k * 53) % 900))))
+    const last = padded('end')
+    lines.push(last)
+    const total = size + Buffer.byteLength(last)
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const f = join(d, 'rollout-2026-07-30T10-00-00-019f0000-eeee-7000-8000-000000000002.jsonl')
+    writeFileSync(f, lines.join('\n'))
+    // The premises: the first read ends inside the question's first character, a byte that continues it, and one line
+    // is longer than two reads
+    const bytes = readFileSync(f)
+    expect(qStart + into).toBe(MB)
+    expect([bytes[MB - 1] >= 0xe0, bytes[MB] >= 0x80 && bytes[MB] < 0xc0]).toEqual([true, true])
+    expect(longEnd - longStart).toBeGreaterThan(2 * MB)
+    expect(bytes.length).toBe(total)
+
+    const entry = await entryOf(f)
+    if (entry.agg.kind !== 'codex') throw new Error('no Codex entry')
+    const at = Date.UTC(2026, 6, 30, 10)
+    // Every record but the last, whose line feed is not written yet: Codex ends every line with one (B12), so that line
+    // is still being written, and the parse stops before it to read it whole next time
+    expect(entry.agg.events).toEqual(Array.from({ length: responses - 1 }, (_, i) => [at, i + 1, 0, 1, 0]))
+    expect(entry.agg.questions.map((q) => [q[0], q[1], q[2]])).toEqual([[qStart, qEnd, size]])
+    // 60 code points: the question's first five (two characters, a space, the emoji and a space), then 27 pairs and one
+    // more, the emoji's surrogate pair counting once
+    expect(entry.agg.title).toBe(`${first}${second} ${String.fromCodePoint(0x1f600)} ${pair.repeat(27)}${pairOpening}${String.fromCharCode(0x2026)}`)
+    expect(entry.state?.cursor).toBe(size)
+    // With its line feed written the line counts, and the parse ends at the end of the file
+    appendFileSync(f, '\n')
+    const whole = await entryOf(f)
+    expect(whole.agg.kind === 'codex' && whole.agg.events.length).toBe(responses)
+    expect(whole.state?.cursor).toBe(total + 1)
+  })
+
+  it('with a timestamp outside the form Codex writes read as Date.parse reads it', async () => {
+    const at = (timestamp: string, id: string): string => JSON.stringify({ timestamp, type: 'token_usage_record', payload: { response_id: id, usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 } } })
+    const f = rollout([
+      at('2026-07-30T10:00:00+08:00', 't1'),
+      at('2026-07-30', 't2'),
+      at('2026-07-30T10:00:00.123456Z', 't3'),
+      // Read by V8 as the second of March
+      at('2026-02-30T00:00:00.000Z', 't4'),
+      at('not a time', 't5')
+    ])
+    const entry = await entryOf(f)
+    expect((eventsOf(entry) as unknown[][]).map((e) => e[0])).toEqual([1785376800000, 1785369600000, 1785405600123, 1772409600000, null])
+    expect(entry.agg.at).toBe(1785405600123)
   })
 })

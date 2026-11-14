@@ -19,6 +19,8 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     globals: false,
     // Builds the engine module the tests load, once per run, from the sources the define above was computed from
-    globalSetup: ['scripts/testing/engine-setup.mjs']
+    globalSetup: ['scripts/testing/engine-setup.mjs'],
+    // Loads it on each test file's thread, as each thread of the app loads it before it parses
+    setupFiles: ['src/main/testing/load-engine.ts']
   }
 })

@@ -18,6 +18,12 @@ test-seams = []
 # napi6: an object's own keys, as JSON.stringify reads them (src/exports/main_process.rs)
 napi = { version = "3.16.2", features = ["napi6"] }
 napi-derive = "3.7.1"
+# Line splitting over each read chunk
+memchr = "2.8.3"
+# JavaScript's String(number), for the running-total key a Codex usage event is compared by
+ryu-js = "1.0.3"
+# Cold rollouts (.jsonl.zst), decompressed as they are read; without the legacy formats Codex never writes
+zstd = { version = "0.13.5", default-features = false }
 
 [build-dependencies]
 napi-build = "2.6.0"

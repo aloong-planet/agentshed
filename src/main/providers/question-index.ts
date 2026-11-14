@@ -32,7 +32,8 @@ export type QuestionRec = [number, number, number, number | null, number, number
 
 
 /**
- * The content fingerprint (FNV-1a, 32-bit). It only needs "same text, same value; different text, very
+ * The content fingerprint (FNV-1a, 32-bit), also the engine module's for Codex (engine/src/text/mod.rs: a change here
+ * is made there too). It only needs "same text, same value; different text, very
  * likely a different value", not cryptographic strength —
  * its only use is comparing, entry by entry, whether the start of a child session and the parent hold
  * the same questions.
@@ -132,8 +133,7 @@ export interface QuestionIndexer {
   /** Feed lines in one by one, in the file's order */
   line(obj: Record<string, unknown>, start: number, end: number): void
   /**
-   * The first real question's text **after noise stripping** (untruncated); null if there is none, and
-   * null when the first question was seeded — a resumed parse keeps the title it already derived.
+   * The first real question's text **after noise stripping** (untruncated); null if there is none.
    * The caller turns it into a title with `clipTitle` directly and **must not run `realUserText`
    * again** — stripping is not idempotent.
    * This way only the indexer decides which line is the first question, so there is no "the title has a
@@ -157,7 +157,7 @@ export interface QuestionIndexer {
    * "this session has N branch points; abandoned branches are not shown"). It counts branch points, not
    * branches;
    * sidechain lines do not enter the graph and the compaction boundary bridge is a single chain, so
-   * neither creates a branch. Always 0 on the Codex side.
+   * neither creates a branch.
    */
   forkPoints(): number
 }
@@ -172,24 +172,6 @@ export interface QuestionIndexer {
  * never miscount — what is displayed is a volume figure, and an undercount does not pollute other
  * turns. */
 export const CLAUDE_DISPATCH = new Set(['Agent', 'Task'])
-
-/** The function_call name that dispatches a subagent on the Codex side (real sample: namespace=collaboration) */
-const CODEX_DISPATCH = 'spawn_agent'
-
-/** Codex records tool calls on response_item; the event_msg path is a UI event mirror of the same calls,
- * and taking only one path avoids double counting (the same reason as the spec's "choose one of the two
- * written streams", except that response_item is chosen here
- * — it is the record of the calls the model actually made, while the event_msg side has only *_end
- * events and lacks the counterpart of function_call).
- *
- * The three come from **a full enumeration** (278 files / 62,912 lines with a payload) of the whole
- * response_item spectrum:
- * message 10311 · reasoning 6075 · custom_tool_call 3400 · function_call 1883 ·
- * agent_message 54 · **tool_search_call 25**, plus each of their *_output counterparts.
- * `tool_search_call` never appeared once in a 120-file sample — a positive enumeration based on sampling
- * misses things,
- * and it only became visible when review switched to the full set. */
-const CODEX_CALL_TYPES = new Set(['custom_tool_call', 'function_call', 'tool_search_call'])
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
@@ -260,17 +242,10 @@ function claudeCounts(obj: Record<string, unknown>): { tools: number; subagents:
   return { tools, subagents }
 }
 
-function codexCounts(obj: Record<string, unknown>): { tools: number; subagents: number } {
-  if (obj['type'] !== 'response_item') return { tools: 0, subagents: 0 }
-  const p = asRecord(obj['payload'])
-  const t = p?.['type']
-  if (typeof t !== 'string' || !CODEX_CALL_TYPES.has(t)) return { tools: 0, subagents: 0 }
-  return p?.['name'] === CODEX_DISPATCH ? { tools: 0, subagents: 1 } : { tools: 1, subagents: 0 }
-}
-
 /**
  * One line → the question in full for display (noise already stripped); null if it is not a question.
- * The same judgement as the indexer (claudeQuestion/codexQuestion + realUserText) — the session page
+ * The same judgement as the indexer (claudeQuestion/codexQuestion + realUserText; Codex's indexer is the
+ * engine module's, engine/src/sides/codex/question.rs, which reads the same two shapes) — the session page
  * reads the raw line back by
  * range and produces its text here, guaranteeing that what the list counts and what the page displays
  * are always the same set.
@@ -428,27 +403,20 @@ export function makeGrokQuestionIndexer(): {
 }
 
 /**
- * `seed`: the questions of an earlier parse of the same file, for a parse resumed from where that one
- * stopped (Codex only, #158). The last seeded question keeps collecting its turn's tools and its end
- * until the next question arrives, exactly as if the file had been read through. Claude cannot resume:
- * its last-leaf walk-back needs the whole parentUuid graph.
+ * The Claude Code question indexer; Codex's is the engine module's (engine/src/sides/codex/). It is never
+ * resumed: its last-leaf walk-back needs the whole parentUuid graph.
  */
-export function makeQuestionIndexer(side: 'claude' | 'codex', seed: readonly QuestionRec[] = []): QuestionIndexer {
-  if (side === 'claude' && seed.length > 0) throw new Error('a Claude index cannot be resumed')
-  const questionOf = side === 'claude' ? claudeQuestion : codexQuestion
-  const countsOf = side === 'claude' ? claudeCounts : codexCounts
-  // Copied, so a resumed parse never changes the cached index it started from
-  const out: QuestionRec[] = seed.map((q) => [...q])
+export function makeQuestionIndexer(): QuestionIndexer {
+  const out: QuestionRec[] = []
   /** Parallel to `out`: the uuid of each question's line (null if absent), for the last-leaf walk-back filter */
-  const qUuid: Array<string | null> = seed.map(() => null)
+  const qUuid: Array<string | null> = []
   /** Parallel to `out`: the question text **after noise stripping**, used only to re-derive the first
    * question's title after filtering.
    * The raw text is not stored truncated: measured, the real content inside a wrapper such as
    * `<command-args>` can be as far in as character 4054,
    * so truncating before stripping would leave the stripping rules unable to find the tag and turn the
-   * title into a chunk of wrapper garbage. **In memory only, never in the cache** — so a seeded question
-   * has none (null). */
-  const qHead: Array<string | null> = seed.map(() => null)
+   * title into a chunk of wrapper garbage. **In memory only, never in the cache**. */
+  const qHead: Array<string | null> = []
   /** Claude main chain's uuid → parent. **The parent is `parentUuid ?? logicalParentUuid`** */
   const parentOf = new Map<string, string | null>()
   /** The uuid of the last **non-sidechain** line — where the walk-back starts */
@@ -463,7 +431,7 @@ export function makeQuestionIndexer(side: 'claude' | 'codex', seed: readonly Que
       // so letting it in would take
       // the walk-back's starting point into the subagent's chain (measured: 69% of files end on a
       // sidechain line).
-      if (side === 'claude' && obj['isSidechain'] !== true) {
+      if (obj['isSidechain'] !== true) {
         const u = obj['uuid']
         if (typeof u === 'string') {
           const p = obj['parentUuid']
@@ -476,7 +444,7 @@ export function makeQuestionIndexer(side: 'claude' | 'codex', seed: readonly Que
           lastMainUuid = u
         }
       }
-      const raw = questionOf(obj)
+      const raw = claudeQuestion(obj)
       // Noise is not a question (the same rules as title stripping): otherwise a session containing only
       // a Warmup would report
       // "1 question" while not being listed per spec A3a — one concept with two numbers
@@ -493,7 +461,7 @@ export function makeQuestionIndexer(side: 'claude' | 'codex', seed: readonly Que
       const cur = out[out.length - 1]
       // Lines before the first question (session_meta, warmup noise and so on) belong to no turn
       if (!cur) return
-      const { tools, subagents } = countsOf(obj)
+      const { tools, subagents } = claudeCounts(obj)
       cur[4] += tools
       cur[5] += subagents
     },
@@ -519,7 +487,7 @@ export function makeQuestionIndexer(side: 'claude' | 'codex', seed: readonly Que
 
       let kept = out
       let keptHeads = qHead
-      if (side === 'claude' && lastMainUuid !== null) {
+      if (lastMainUuid !== null) {
         const chain = new Set<string>()
         let cur: string | null = lastMainUuid
         while (cur !== null && !chain.has(cur)) {

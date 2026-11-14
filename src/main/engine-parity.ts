@@ -13,8 +13,9 @@ export type ParseSide = ParseJob['kind']
 export type Parse = (job: ParseJob) => Promise<ParseResult>
 
 /**
- * How the module parses each side it parses. A side's entry comes with the change that moves its parsing into the
- * module; a side without one is parsed by TypeScript alone, and the command refuses to compare it.
+ * How the module parses each side both parsers parse, the sides the command compares. A side's entry comes with the
+ * change that moves its parsing into the module and goes with the change that removes its TypeScript parser, after
+ * which the module is the only parser of that side; the command refuses to compare a side without one.
  */
 export const MODULE_PARSES: Partial<Record<ParseSide, (module: EngineModule, job: ParseJob) => Promise<ParseResult>>> = {}
 

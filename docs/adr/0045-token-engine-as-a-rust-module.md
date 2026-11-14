@@ -108,6 +108,12 @@ We adopt **option 1**.
   serialisation it replaces took 32–42 ms in two. ADR-0043's about 70 ms for those two was measured in the app's
   main process, so in the app both may run longer. The stretch grows with the copy, and it is paid only while the
   window has no focus (ADR-0044).
+- Negative: a parse holds the thread that asked for it until the file is parsed, as the module's parse is one
+  synchronous call. A parse worker runs nothing else anyway. A thread that parses a file itself answers nothing
+  else meanwhile: the scan worker rebuilding one file for the session page, or parsing a job a failed parse worker
+  handed back, and the main process once the scan worker has failed. The TypeScript parse gave way between reads.
+  How long it holds the thread grows with what the parse reads: the whole file for a whole parse, the appended part
+  for a resume.
 - Negative (inferred): the 600 MB threshold is below the prototype's 516–561 MB plus the app's own floor of
   about 100 MB, so the module has to read more leanly than the prototype did.
 - Neutral: on the Codex data the prototype matched `JSON.parse` on every line, and no line failed to parse.
