@@ -39,7 +39,7 @@ function numbers(): number[] {
 }
 
 it('the module writes a value as the text JSON.stringify gives it, byte for byte, into a directory it creates, readable by its user alone', async () => {
-  const strings = ['plain', 'quote " backslash \\ slash /', '\b\f\n\r\t', '\u0000\u0001\u001f\u007f', 'line\u2028para\u2029', 'café 漢字',
+  const strings = ['plain', 'quote " backslash \\ slash /', '\b\f\n\r\t', '\u0000\u0001\u001f\u007f', 'line\u2028para\u2029', 'café \u6f22\u5b57',
     '😀 emoji', 'lone high \ud83d', 'lone low \ude00', 'reversed \ude00\ud83d', '\ud83d😀', '']
   // A hole at index 3
   const elements: unknown[] = [undefined, () => 1, Symbol('s')]
