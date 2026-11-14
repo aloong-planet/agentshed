@@ -3358,13 +3358,17 @@ describe('how a rollout line is read', () => {
     let responses = 0
     /** A usage record whose input is its place among the records, with `pad` in a value no rule reads */
     const padded = (pad: string): string => record(`r${responses + 1}`, ++responses, 1, { pad })
+    // Three-byte characters, written by code point as the working language asks (ADR-0017): U+4E2D, and the question's
+    // first, second and pair-opening characters
+    const [han, first, second, pairOpening] = [0x4e2d, 0x554f, 0x984c, 0x8cea].map((c) => String.fromCharCode(c))
+    const pair = `${pairOpening}${first}`
     // Lines of many lengths before the first read's end, three- and four-byte characters among them
-    for (let k = 0; size < MB - 8000; k++) add(padded(`中${String.fromCodePoint(0x1f600)}a`.repeat(40 + ((k * 37) % 600))))
+    for (let k = 0; size < MB - 8000; k++) add(padded(`${han}${String.fromCodePoint(0x1f600)}a`.repeat(40 + ((k * 37) % 600))))
     // One line placed to end just before the question, so that the first read ends one byte into the question's first
     // character, a three-byte one
-    const text = `問題 ${String.fromCodePoint(0x1f600)} ${'質問'.repeat(30)}`
+    const text = `${first}${second} ${String.fromCodePoint(0x1f600)} ${pair.repeat(30)}`
     const questionLine = question(text)
-    const into = Buffer.byteLength(questionLine.slice(0, questionLine.indexOf('問'))) + 1
+    const into = Buffer.byteLength(questionLine.slice(0, questionLine.indexOf(first))) + 1
     const fillerStart = size
     const bare = Buffer.byteLength(record(`r${responses + 1}`, responses + 1, 1, { pad: '' }))
     add(padded('x'.repeat(MB - into - fillerStart - 1 - bare)))
@@ -3399,8 +3403,9 @@ describe('how a rollout line is read', () => {
     // is still being written, and the parse stops before it to read it whole next time
     expect(entry.agg.events).toEqual(Array.from({ length: responses - 1 }, (_, i) => [at, i + 1, 0, 1, 0]))
     expect(entry.agg.questions.map((q) => [q[0], q[1], q[2]])).toEqual([[qStart, qEnd, size]])
-    // 60 code points: the five of `問題 😀 `, then 27 pairs and one more, the emoji's surrogate pair counting once
-    expect(entry.agg.title).toBe(`問題 ${String.fromCodePoint(0x1f600)} ${'質問'.repeat(27)}質${String.fromCharCode(0x2026)}`)
+    // 60 code points: the question's first five (two characters, a space, the emoji and a space), then 27 pairs and one
+    // more, the emoji's surrogate pair counting once
+    expect(entry.agg.title).toBe(`${first}${second} ${String.fromCodePoint(0x1f600)} ${pair.repeat(27)}${pairOpening}${String.fromCharCode(0x2026)}`)
     expect(entry.state?.cursor).toBe(size)
     // With its line feed written the line counts, and the parse ends at the end of the file
     appendFileSync(f, '\n')
