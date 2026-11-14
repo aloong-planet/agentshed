@@ -3680,7 +3680,7 @@ describe('how a Grok stream line is read', () => {
     ])
   })
 
-  it('with a last line counted though no line feed ends it', async () => {
+  it('with a last line counted though no line feed ends it, and the last turn ending at the end of the last line that parsed', async () => {
     const lines = [grokUser(AT, 'q', 0), turn(figures(5, 1), AT + 9)]
     const f = stream('019f-last', lines, { end: '' })
     const size = Buffer.byteLength(lines.join('\n'))
@@ -3688,6 +3688,13 @@ describe('how a Grok stream line is read', () => {
     expect(entry.events).toEqual([[MS + 9000, 5, 0, 1, 0, null]])
     expect(entry.at).toBe(MS + 9000)
     expect(entry.questions).toEqual([[0, Buffer.byteLength(lines[0]) + 1, size, MS, 0, 0, 4094444124]])
+    // A half-written last line does not parse: the turn stops before it, and its time is not the session's
+    // (session-view, Implementation Decisions, the offset index)
+    const half = stream('019f-half', [...lines, `{"timestamp":${AT + 20},"params":{"upd`], { end: '' })
+    const cut = await entryOf(half)
+    expect(cut.questions).toEqual([[0, Buffer.byteLength(lines[0]) + 1, size + 1, MS, 0, 0, 4094444124]])
+    expect(cut.at).toBe(MS + 9000)
+    expect(cut.events).toEqual(entry.events)
   })
 
   it('titled by the summary\'s own name, session_summary ?? generated_title, then the first question clipped, then the session directory\'s name (session-view G2)', async () => {
