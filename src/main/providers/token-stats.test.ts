@@ -23,6 +23,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { loadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
+import { firstDifference } from '../engine-parity'
 import { constants as zstdConstants, zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
@@ -3427,5 +3428,256 @@ describe('how a rollout line is read', () => {
     const entry = await entryOf(f)
     expect((eventsOf(entry) as unknown[][]).map((e) => e[0])).toEqual([1785376800000, 1785369600000, 1785405600123, 1772409600000, null])
     expect(entry.agg.at).toBe(1785405600123)
+  })
+})
+
+// token-stats Sequence F and session-view G1–G2 through the engine module, and the clauses of token-stats,
+// Implementation Decisions, The engine module ("read by the grammar of ECMAScript's JSON.parse, with its results"), one
+// Grok stream per clause. Until the TypeScript Grok parser is removed (#429), each entry is also held, field for field,
+// to the one it gives for the same file.
+describe('how a Grok stream line is read', () => {
+  /** A session directory holding `lines`, each a line's text or its raw bytes, joined by line feeds and ended by `end` */
+  function stream(id: string, lines: Array<string | Buffer>, o: { end?: string; summary?: string | Buffer } = {}): string {
+    const d = join(dir, '.grok', 'sessions', encodeURIComponent(proj), id)
+    mkdirSync(d, { recursive: true })
+    if (o.summary !== undefined) writeFileSync(join(d, 'summary.json'), o.summary)
+    const f = join(d, 'updates.jsonl')
+    const parts = lines.flatMap((l, i) => [i > 0 ? Buffer.from('\n') : Buffer.alloc(0), typeof l === 'string' ? Buffer.from(l) : l])
+    writeFileSync(f, Buffer.concat([...parts, Buffer.from(o.end ?? '\n')]))
+    return f
+  }
+
+  /** The entry the module gives the stream, held to the TypeScript parser's */
+  async function entryOf(file: string): Promise<Extract<NonNullable<ParseResult>['agg'], { kind: 'grok' }>> {
+    const job: ParseJob = { kind: 'grok', file, projectKey: 'p', subagent: false }
+    const parsed = loadEngineModule(TEST_ENGINE).parse(job)
+    expect(firstDifference(await runParseJob(job), parsed)).toBeNull()
+    if (parsed?.agg.kind !== 'grok') throw new Error('no Grok entry')
+    return parsed.agg
+  }
+
+  it('gives a turn one event per billed model, and a turn without the per-model map its top-level figures, with epoch seconds as milliseconds (F1, F3)', async () => {
+    const question = grokUser(1786088600, 'what does this do', 0)
+    const lines = [
+      question,
+      grokLine(1786088610, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'it does' } }),
+      grokTurn(1786088620, {
+        input: 0,
+        output: 0,
+        modelUsage: { 'grok-4.5-build': { input: 50, cached: 20, output: 5 }, 'grok-code-fast': { input: 30, output: 3 } }
+      }),
+      grokTurn(1786088630, { input: 100, cached: 40, output: 10, modelUsage: null }),
+      grokLine(1786088640, { sessionUpdate: 'turn_completed', usage: {} }),
+      // An earlier time on a later line: the session's time is the largest (session-view A1)
+      grokLine(1786088500, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'late' } })
+    ]
+    const f = stream('019f-read1', lines)
+    const size = Buffer.byteLength(lines.join('\n') + '\n')
+    expect(await entryOf(f)).toEqual({
+      kind: 'grok',
+      file: f,
+      projectKey: 'p',
+      subagent: false,
+      title: 'what does this do',
+      at: 1786088640000,
+      listed: true,
+      questions: [[0, Buffer.byteLength(question) + 1, size, 1786088600000, 0, 0, 2768285197]],
+      events: [
+        [1786088620000, 50, 20, 5, 0, 'grok-4.5-build'],
+        [1786088620000, 30, 0, 3, 0, 'grok-code-fast'],
+        [1786088630000, 100, 40, 10, 0, null],
+        [1786088640000, 0, 0, 0, 0, null]
+      ]
+    })
+  })
+
+  const AT = 1786088600
+  const MS = AT * 1000
+  /** A completed turn as Grok writes one, its usage given as JSON text; no per-model map unless the usage holds one */
+  const turn = (usage: string, at: number | string = AT): string =>
+    `{"timestamp":${at},"method":"_x.ai/session/update","params":{"sessionId":"s","update":{"sessionUpdate":"turn_completed","usage":${usage}}}}`
+  const figures = (input: number | string, output: number | string, extra = ''): string =>
+    `{"inputTokens":${input},"cachedReadTokens":0,"outputTokens":${output}${extra}}`
+  const eventsOf = async (f: string): Promise<unknown> => (await entryOf(f)).events
+
+  it('as UTF-8 with U+FFFD for each maximal invalid subpart, a line with an invalid byte outside a string being a bad line', async () => {
+    const bytes = (...b: number[]): Buffer => Buffer.from(b)
+    const f = stream('019f-utf8', [
+      // c FF a E2 82 b C0 80 c ED A0 80 d F4 90 80 80 e: one, one, two, three and four replacements
+      Buffer.concat([
+        Buffer.from(`{"timestamp":${AT},"params":{"update":{"sessionUpdate":"user_message_chunk","content":{"type":"text","text":"c`),
+        bytes(0xff), Buffer.from('a'), bytes(0xe2, 0x82), Buffer.from('b'), bytes(0xc0, 0x80), Buffer.from('c'),
+        bytes(0xed, 0xa0, 0x80), Buffer.from('d'), bytes(0xf4, 0x90, 0x80, 0x80), Buffer.from('e"},"_meta":{"promptIndex":0}}}}')
+      ]),
+      // Invalid bytes in a value no rule reads leave the line readable
+      Buffer.concat([Buffer.from(turn(figures(100, 10, ',"note":"')).replace(/}}}}$/, '')), bytes(0xff, 0xfe), Buffer.from('"}}}}')]),
+      // Outside a string a replacement character is no token, and the line is refused
+      Buffer.concat([Buffer.from(`{"timestamp":${AT},`), bytes(0xff), Buffer.from(turn(figures(999, 9)).slice(1))])
+    ])
+    const entry = await entryOf(f)
+    const R = String.fromCharCode(0xfffd)
+    expect(entry.title).toBe(`c${R}a${R}b${R}${R}c${R}${R}${R}d${R}${R}${R}${R}e`)
+    expect(entry.questions).toHaveLength(1)
+    expect(entry.events).toEqual([[MS, 100, 0, 10, 0, null]])
+  })
+
+  it('by JSON.parse\'s grammar: a line it refuses is a bad line (A8), and a line it takes counts however unusual, nested deeper than any fixed limit included', async () => {
+    const BS = String.fromCharCode(0x5c)
+    const good = [
+      // 5,000 levels deep in a value no rule reads
+      turn(figures(7, 1)).replace('"sessionId":"s"', `"sessionId":"s","deep":${'['.repeat(5000)}${']'.repeat(5000)}`),
+      // Tabs, spaces and a carriage return between tokens; numbers in exponent form
+      `{ "timestamp" :\t${AT} , "params" : { "update" : { "sessionUpdate" : "turn_completed" , "usage" : { "inputTokens" : 1E2 , "cachedReadTokens" : 0.5e1 , "outputTokens" : 3 } } } }\r`,
+      // A key and a value spelled with escapes
+      turn(figures(2, 2)).replace('"sessionUpdate":"turn_completed"', `"sessionUpd${BS}u0061te":"turn_c${BS}u006fmpleted"`),
+      // A raw U+2028 in a string
+      turn(figures(4, 4, `,"note":"x${String.fromCharCode(0x2028)}y"`))
+    ]
+    // Each carries usage that must not count
+    const refused = [
+      turn(figures(1001, 1)).replace('"outputTokens":1}', '"outputTokens":1,}'),
+      turn(figures(1002, 1, `,"note":"a${String.fromCharCode(9)}b"`)),
+      turn(figures(1003, 1, `,"note":"${BS}x41"`)),
+      `${String.fromCharCode(0xfeff)}${turn(figures(1004, 1))}`,
+      `${turn(figures(1005, 1))} x`,
+      turn(figures('01', 1)),
+      turn(figures('+1', 1)),
+      turn(figures('1.', 1)),
+      turn(figures('.5', 1)),
+      turn(figures('NaN', 1)),
+      turn(figures(1011, 1, `,"note":"${BS}ud8"`)),
+      turn(figures(1012, 1)).replace('"sessionId"', '\'sessionId\''),
+      turn(figures(1013, 1)).slice(0, -1)
+    ]
+    expect(await eventsOf(stream('019f-grammar', [...good, ...refused]))).toEqual([
+      [MS, 7, 0, 1, 0, null],
+      [MS, 100, 5, 3, 0, null],
+      [MS, 2, 0, 2, 0, null],
+      [MS, 4, 0, 4, 0, null]
+    ])
+  })
+
+  it('with a repeated key keeping its last value, at the place the key first held, and a per-model map\'s entries in the order Object.entries gives them', async () => {
+    const m = (input: number): string => figures(input, 0)
+    const f = stream('019f-repeated', [
+      // The index keys first, ascending, then the others where they were first written, b keeping its first place;
+      // the second timestamp counts
+      turn(`{"inputTokens":0,"outputTokens":0,"modelUsage":{"b":${m(2)},"a":${m(3)},"b":${m(4)},"7":${m(5)},"02":${m(6)},"4294967295":${m(7)},"4294967294":${m(8)}}}`, `1,"timestamp":${AT + 1}`),
+      // The second params replaces the first whole: no turn is left
+      `{"timestamp":${AT},"params":{"update":{"sessionUpdate":"turn_completed","usage":${figures(900, 9)}}},"params":{"update":{"sessionUpdate":"agent_message_chunk"}}}`,
+      // A second usage replaces the first: an empty one, a turn of zeros
+      turn(`${figures(901, 9)},"usage":{}`),
+      // A second map replaces the first: an empty one, so the turn's own figures count, its repeated input the last
+      turn(`{"inputTokens":1,"cachedReadTokens":5,"outputTokens":2,"modelUsage":{"x":${m(902)}},"inputTokens":20,"modelUsage":{}}`),
+      // A second type replaces the first: no turn
+      turn(figures(903, 9)).replace('"sessionUpdate":"turn_completed"', '"sessionUpdate":"turn_completed","sessionUpdate":"agent_message_chunk"')
+    ])
+    expect(await eventsOf(f)).toEqual([
+      [MS + 1000, 5, 0, 0, 0, '7'],
+      [MS + 1000, 8, 0, 0, 0, '4294967294'],
+      [MS + 1000, 4, 0, 0, 0, 'b'],
+      [MS + 1000, 3, 0, 0, 0, 'a'],
+      [MS + 1000, 6, 0, 0, 0, '02'],
+      [MS + 1000, 7, 0, 0, 0, '4294967295'],
+      [MS, 0, 0, 0, 0, null],
+      [MS, 20, 5, 2, 0, null]
+    ])
+  })
+
+  it('with a number beyond the double range infinite and so no finite count or time, and a negative zero kept', async () => {
+    const f = stream('019f-numbers', [
+      // An infinite count is 0; a number too small for a double is 0; a negative zero stays one
+      turn('{"inputTokens":1e400,"cachedReadTokens":-0,"outputTokens":1e-400}'),
+      // An infinite time is no time; a finite one whose milliseconds overflow is an infinite time, the latest
+      turn(figures(1, 0), '1e400'),
+      turn(figures(2, 0), '1e306')
+    ])
+    const entry = await entryOf(f)
+    expect(entry.events).toEqual([[MS, 0, -0, 0, 0, null], [null, 1, 0, 0, 0, null], [Infinity, 2, 0, 0, 0, null]])
+    expect(Object.is(entry.events[0][2], -0)).toBe(true)
+    expect(entry.at).toBe(Infinity)
+    // Of a negative and a positive zero the session's time is the positive one, whichever comes first
+    for (const [id, times] of [['019f-zero1', ['-0', '0']], ['019f-zero2', ['0', '-0']]] as const) {
+      const at = (await entryOf(stream(id, times.map((t) => turn(figures(1, 0), t))))).at
+      expect(Object.is(at, 0)).toBe(true)
+    }
+  })
+
+  it('with a lone surrogate escape staying that code unit, in a billed model\'s name and in a question', async () => {
+    const [high, low] = [String.fromCharCode(0xd800), String.fromCharCode(0xdc00)]
+    const f = stream('019f-surrogate', [
+      // 59 letters, the lone surrogate, then two more: the title is clipped after the surrogate, a code point of its own
+      grokUser(AT, `${'a'.repeat(59)}${high}bc`, 0),
+      turn(`{"modelUsage":{"grok${low}":${figures(3, 1)},"grok${high}${low}":${figures(4, 1)}}}`.replace(low, '\\udc00'))
+    ])
+    const entry = await entryOf(f)
+    expect(entry.title).toBe(`${'a'.repeat(59)}${high}${String.fromCharCode(0x2026)}`)
+    expect(entry.events.map((e) => e[5])).toEqual([`grok${low}`, `grok${high}${low}`])
+  })
+
+  it('the way the TypeScript parser read a usage that is no object, or a per-model entry that is null', async () => {
+    const f = stream('019f-values', [
+      // A null entry ended the line: reading its figures threw, and the line was skipped from there
+      turn(`{"modelUsage":{"m1":${figures(1, 0)},"m2":null,"m3":${figures(3, 0)}}}`),
+      // A truthy usage that is no object is a turn of zeros under no model; a falsy one is no turn
+      ...['5', '"x"', 'true', '[]', '0', '""', 'false', 'null'].map((u) => turn(u)),
+      // An array map's entries are named by index, and an entry that is no object counts zeros
+      turn(`{"modelUsage":[${figures(7, 0)},3]}`),
+      // An empty map, an empty array or a map of another kind falls back to the turn's own figures
+      ...['{}', '[]', '"m"', 'null'].map((mu, i) => turn(`{"inputTokens":${10 + i},"outputTokens":0,"modelUsage":${mu}}`)),
+      // A params or an update of another kind holds no turn
+      `{"timestamp":${AT},"params":"turn_completed"}`,
+      `{"timestamp":${AT},"params":{"update":[{"sessionUpdate":"turn_completed","usage":${figures(99, 0)}}]}}`
+    ])
+    expect(await eventsOf(f)).toEqual([
+      [MS, 1, 0, 0, 0, 'm1'],
+      ...Array.from({ length: 4 }, () => [MS, 0, 0, 0, 0, null]),
+      [MS, 7, 0, 0, 0, '0'],
+      [MS, 0, 0, 0, 0, '1'],
+      [MS, 10, 0, 0, 0, null],
+      [MS, 11, 0, 0, 0, null],
+      [MS, 12, 0, 0, 0, null],
+      [MS, 13, 0, 0, 0, null]
+    ])
+  })
+
+  it('with a last line counted though no line feed ends it', async () => {
+    const lines = [grokUser(AT, 'q', 0), turn(figures(5, 1), AT + 9)]
+    const f = stream('019f-last', lines, { end: '' })
+    const size = Buffer.byteLength(lines.join('\n'))
+    const entry = await entryOf(f)
+    expect(entry.events).toEqual([[MS + 9000, 5, 0, 1, 0, null]])
+    expect(entry.at).toBe(MS + 9000)
+    expect(entry.questions).toEqual([[0, Buffer.byteLength(lines[0]) + 1, size, MS, 0, 0, 4094444124]])
+  })
+
+  it('titled by the summary\'s own name, session_summary ?? generated_title, then the first question clipped, then the session directory\'s name (session-view G2)', async () => {
+    const question = grokUser(AT, 'the first question', 0)
+    const titleOf = async (id: string, summary: string | Buffer | undefined, lines = [question]): Promise<string | null> =>
+      (await entryOf(stream(id, lines, { summary }))).title
+    expect(await titleOf('019f-t1', '{"session_summary":"named","generated_title":"generated"}')).toBe('named')
+    expect(await titleOf('019f-t2', '{"generated_title":"generated"}')).toBe('generated')
+    expect(await titleOf('019f-t3', '{"session_summary":null,"generated_title":"generated"}')).toBe('generated')
+    // The last of a repeated key
+    expect(await titleOf('019f-t4', '{"session_summary":"named","session_summary":"renamed"}')).toBe('renamed')
+    // An empty or a non-string name does not fall through to generated_title: no name, so the first question
+    for (const [id, summary] of [
+      ['019f-t5', '{"session_summary":"","generated_title":"generated"}'],
+      ['019f-t6', '{"session_summary":5,"generated_title":"generated"}'],
+      ['019f-t7', '[{"session_summary":"named"}]'],
+      ['019f-t8', '{"session_summary":"named"'],
+      ['019f-t9', Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('{"session_summary":"named"}')])],
+      ['019f-t10', undefined]
+    ] as const) {
+      expect(await titleOf(id, summary)).toBe('the first question')
+    }
+    // A summary that cannot be read as a file
+    const d = join(dir, '.grok', 'sessions', encodeURIComponent(proj), '019f-t11')
+    mkdirSync(join(d, 'summary.json'), { recursive: true })
+    expect(await titleOf('019f-t11', undefined)).toBe('the first question')
+    // Clipped at 60 code points
+    expect(await titleOf('019f-t12', undefined, [grokUser(AT, 'x'.repeat(70), 0)])).toBe(`${'x'.repeat(60)}${String.fromCharCode(0x2026)}`)
+    // No question: the session directory's name
+    expect(await titleOf('019f-t13', '{}', [turn(figures(1, 1))])).toBe('019f-t13')
   })
 })

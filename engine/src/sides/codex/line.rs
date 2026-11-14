@@ -2,7 +2,7 @@
 //! reads as JavaScript's property access on the parsed line reads it — a value of another kind than a rule takes is
 //! undefined to it, and of a repeated key the last value counts, as `JSON.parse` keeps it.
 
-use crate::json::{self, Kind, Read, Reader, Str};
+use crate::json::{self, Kind, Read, Reader, Str, record};
 
 /// One line, read
 #[derive(Default)]
@@ -101,11 +101,6 @@ pub(super) fn read(text: &str) -> Read<Parsed<'_>> {
     };
     r.end()?;
     Ok(parsed)
-}
-
-/// The members of the object here, through `member`; a value of another kind is skipped and gives none
-fn record<'a>(r: &mut Reader<'a>, member: impl FnMut(Str<'a>, &mut Reader<'a>) -> Read<()>) -> Read<()> {
-    if r.kind()? == Kind::Object { r.members(member) } else { r.skip() }
 }
 
 fn payload<'a>(r: &mut Reader<'a>) -> Read<Payload<'a>> {

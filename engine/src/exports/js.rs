@@ -8,6 +8,7 @@ use std::ptr;
 use napi::sys::{self, napi_value};
 use napi::{Env, Error, Result, Status};
 
+use crate::question::Record;
 use crate::text::Units;
 
 fn check(status: sys::napi_status) -> Result<()> {
@@ -160,6 +161,22 @@ impl Js {
             check(unsafe { sys::napi_set_element(self.env, a, i as u32, item?) })?;
         }
         Ok(a)
+    }
+
+    /// A question index as the token cache stores it, `[start, end, turnEnd, at, tools, subagents, fingerprint]` for
+    /// each question: the one part of an entry whose shape every side shares (`QuestionRec`)
+    pub(crate) fn records(&self, records: &[Record]) -> Result<napi_value> {
+        self.array(records.iter().map(|q| {
+            self.array([
+                self.num(q.start),
+                self.num(q.end),
+                self.num(q.turn_end),
+                self.num_or_null(q.at),
+                self.num(q.tools),
+                self.num(q.subagents),
+                self.num(q.fingerprint),
+            ])
+        }))
     }
 
     /// `globalThis[holder][function]`, called with one argument

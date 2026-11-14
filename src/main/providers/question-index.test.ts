@@ -6,6 +6,9 @@ import { eachJsonlLine } from './jsonl'
 import { makeAntigravityQuestionIndexer, makeQuestionIndexer, questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { runParseJob } from './token-stats'
+import { loadEngineModule } from '../engine-module'
+import { TEST_ENGINE } from '../testing/engine'
+import { firstDifference } from '../engine-parity'
 
 /**
  * Claude's indexer is driven the same way as the wiring in its parser: eachJsonlLine feeds the indexer line by line,
@@ -300,6 +303,68 @@ describe('question extraction (the Codex side)', () => {
     await withLines([cUser('a claude question')], async (file) => {
       expect(await indexOf(file, 'codex')).toEqual([])
     })
+  })
+})
+
+// session-view G1 and the per-side turn volume for Grok, through the engine module: the question is the run of user
+// chunks sharing one prompt index, joined as written; a prompt opening with an injected notice starts no question; a
+// spawn_subagent call is a subagent, every other tool call a tool. Until the TypeScript Grok parser is removed (#429),
+// the module's entry is also held, field for field, to the one it gives.
+describe('question extraction (the Grok side)', () => {
+  const gLine = (update: Record<string, unknown>): string =>
+    JSON.stringify({ timestamp: 1786088600, method: '_x.ai/session/update', params: { sessionId: 's', update } })
+  const chunk = (text: string | undefined, promptIndex?: number): string =>
+    gLine({
+      sessionUpdate: 'user_message_chunk',
+      content: text === undefined ? { type: 'image' } : { type: 'text', text },
+      ...(promptIndex === undefined ? {} : { _meta: { promptIndex } })
+    })
+  const tool = (title: string | undefined): string => gLine({ sessionUpdate: 'tool_call', toolCallId: 'c', ...(title === undefined ? {} : { title }) })
+
+  test('a prompt\'s chunks are one question, its turn runs to the last line that parsed before the next, and its calls count as tools or subagents', async () => {
+    const lines = [
+      tool('read_file'), // before any question: no turn's
+      chunk('part one, ', 0),
+      chunk('part two', 0),
+      tool('read_file'),
+      tool('spawn_subagent'),
+      tool(undefined),
+      gLine({ sessionUpdate: 'subagent_spawned', subagent_id: 'child' }), // the dispatch's mirror, not counted again
+      // An injected notice starts no question; its later chunks lie inside the turn before it
+      chunk('  <system-reminder>\nBackground task finished.', 1),
+      chunk('\n</system-reminder>', 1),
+      // The same index as the first question, after another prompt: a question of its own
+      chunk('again', 0),
+      gLine({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'answer' } }),
+      '{"timestamp":1786088600,"params":', // a bad line: no turn's end
+      chunk('no index'),
+      chunk('no index again'),
+      chunk(undefined, 5), // a chunk with no text is a question of empty text
+      tool('read_file')
+    ]
+    const ends: number[] = []
+    lines.reduce((at, l) => (ends.push(at + Buffer.byteLength(l) + 1), at + Buffer.byteLength(l) + 1), 0)
+    const start = (i: number): number => (i === 0 ? 0 : ends[i - 1])
+    const dir = mkdtempSync(join(tmpdir(), 'qidx-grok-'))
+    try {
+      const file = join(dir, 'updates.jsonl')
+      writeFileSync(file, lines.join('\n') + '\n')
+      const job = { kind: 'grok', file, projectKey: '', subagent: false } as const
+      const parsed = loadEngineModule(TEST_ENGINE).parse(job)
+      expect(firstDifference(await runParseJob(job), parsed)).toBeNull()
+      if (parsed?.agg.kind !== 'grok') throw new Error('no Grok entry')
+      const at = 1786088600000
+      expect(parsed.agg.questions).toEqual([
+        [start(1), ends[2], ends[8], at, 2, 1, 334422515],
+        [start(9), ends[9], ends[10], at, 0, 0, 3007309135],
+        [start(12), ends[12], ends[12], at, 0, 0, 741192210],
+        [start(13), ends[13], ends[13], at, 0, 0, 1602106158],
+        [start(14), ends[14], ends[15], at, 1, 0, 2166136261]
+      ])
+      expect(parsed.agg.title).toBe('part one, part two')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
 

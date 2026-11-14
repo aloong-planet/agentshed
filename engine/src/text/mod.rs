@@ -44,7 +44,13 @@ fn trim(s: &[u16]) -> &[u16] {
     &s[start..end]
 }
 
-fn starts_with(s: &[u16], prefix: &str) -> bool {
+/// `s.trimStart()`: the text after its leading white space
+pub(crate) fn trim_start(s: &[u16]) -> &[u16] {
+    &s[s.iter().position(|&u| !is_space(u)).unwrap_or(s.len())..]
+}
+
+/// `s.startsWith(prefix)`
+pub(crate) fn starts_with(s: &[u16], prefix: &str) -> bool {
     let p = units(prefix);
     s.len() >= p.len() && s[..p.len()] == p[..]
 }
