@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
 import { makeQuestionIndexer, questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
-import { MEASURED_TRANSCRIPT, transcriptText, withIndexedTranscript } from '../testing/agy-transcript-fixture'
+import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
+import { withIndexedTranscript } from '../testing/agy-transcript-index'
 import { runParseJob } from './token-stats'
 
 /**

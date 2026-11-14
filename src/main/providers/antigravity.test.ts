@@ -15,8 +15,13 @@
 //   pair — not counted, the last result kept, read again — is driven below through a copy that cannot be made.
 // - A conversation deleted between the walk's look at its signature and its read: no seam between the two. The rule it
 //   shares with the usage read (a database gone is no format change) is driven below through the usage read's window.
-// - A read killed half-way leaving its copy behind: killing the process is outside this seam. What the copy is left
-//   in — a directory only the user can read — is asserted while a read runs.
+// - A read killed half-way leaving its copy behind: killing the process is outside this seam. What the walk's copy is
+//   left in — a directory only the user can read — is asserted while a read runs. The engine module's copy, for the
+//   usage and the titles, is made the same way (`engine/src/sides/antigravity/db.rs`), but no case can look at it while
+//   it exists: the module's read is one call that takes no pause; a seam that kept the copy would close this.
+// - A panic inside the module's read of a conversation whose log went away during that read: the module judges a
+//   panic by the log as it stands when the panic is caught. The panic seam panics before the read begins, so the cases
+//   below drive the judgement on the log's state then, which is the state before the read.
 // - Usage agy never writes to a database (the /btw side question, the Auto mode's command reviewer): there is nothing
 //   to read, so nothing to drive; the under-count is stated in the token-stats spec.
 // - A conversation whose format and trajectory record read but one of whose usage records will not decode: the usage
@@ -871,6 +876,20 @@ describe('the usage records as agy wrote them, read by the engine module (token-
     expect((await entryOf(file))?.calls).toEqual([['m-idx', at, 10, 1, 0, 0, 'gemini-3.6-flash']])
   })
 
+  it('a record\'s text is read as TextDecoder reads it, a leading byte order mark dropped', async () => {
+    // Derived: no measured string carries one
+    const file = usageConversation('conv-bom', [mkProject('p')], [{ usage: { messageId: `${String.fromCharCode(0xfeff)}m-bom`, input: 10 }, at: oct(26), model: `${String.fromCharCode(0xfeff)}gemini-3.6-flash` }])
+    expect((await entryOf(file))?.calls).toEqual([['m-bom', oct(26), 10, 0, 0, 0, 'gemini-3.6-flash']])
+  })
+
+  it('a step index beyond 2^53 − 1 makes the conversation unreadable: no number reads it exactly', async () => {
+    const file = usageConversation('conv-big', [mkProject('p')], [{ usage: { messageId: 'm-big', input: 10 }, at: oct(26) }])
+    const db = new DatabaseSync(file)
+    db.exec('UPDATE steps SET idx = 9007199254740992')
+    db.close()
+    expect(await entryOf(file)).toMatchObject({ unreadable: true })
+  })
+
   it('a generator record\'s prompt is passed over by its length prefix and never decoded, however large (the failure mode on prompts)', async () => {
     // A million bytes that will not decode as a message: each 0x0f is field 1 in wire type 7, which protobuf has not
     const undecodable = new Uint8Array(1_000_000).fill(0x0f)
@@ -974,16 +993,17 @@ describe('how a transcript line is read by the engine module', () => {
       ` \t ${asking(2, 'between spaces')} \r`,
       // A unicode escape where the line writes a letter
       asking(3, 'escaped').replace('escaped', '\\u0065scaped'),
-      `{"deep": ${'['.repeat(5000)}${']'.repeat(5000)}, ${asking(4, 'after a deep value').slice(1)}`,
-      '[1, 2, 3]',
-      '"a string"',
-      '42'
+      `{"deep": ${'['.repeat(5000)}${']'.repeat(5000)}, ${asking(4, 'after a deep value').slice(1)}`
     ]
-    const text = lines(asking(0, 'first'), ...refused, ...taken, asking(5, 'last'))
+    // After the last question: an array, which is an object to `typeof`, is a line that parsed, so the last turn runs
+    // past it; a string or a number is no line the index is given, so it runs no further
+    const after = ['[1, 2, 3]', '"a string"', '42']
+    const text = lines(asking(0, 'first'), ...refused, ...taken, asking(5, 'last'), ...after)
     const e = await transcriptEntry(text)
     expect(e?.questions.map((q) => q[0])).toEqual(
       [asking(0, 'first'), taken[0], taken[1], taken[2], asking(5, 'last')].map((l) => text.indexOf(Buffer.from(l)))
     )
+    expect(e?.questions.at(-1)?.[2]).toBe(text.indexOf(Buffer.from(after[1])))
     expect(e?.title).toBe('first')
   })
 

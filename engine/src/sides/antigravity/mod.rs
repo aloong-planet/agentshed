@@ -74,12 +74,11 @@ impl Runtime for JsRuntime<'_> {
         self.0.date_parse(text)
     }
 
+    /// `fileURLToPath` throws for a URL of a scheme other than `file:`, as it does for one naming a host or an encoded
+    /// slash, so a URI of another scheme names no folder without a check of its own
     fn folder_path(&self, uri: &str) -> Result<Option<Units>> {
         let js = self.0;
         let Some(url) = js.new_url(&text::units(uri))? else { return Ok(None) };
-        if js.string(js.get(url, "protocol")?)? != Some(text::units("file:")) {
-            return Ok(None);
-        }
         js.file_url_to_path(url)
     }
 

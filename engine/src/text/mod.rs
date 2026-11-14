@@ -1,5 +1,5 @@
 //! Text as JavaScript holds it, and the rules over it that more than one side shares: the normalisation, the noise
-//! stripping, the title clipping, the fingerprints, `String(number)` and `Date.parse`.
+//! stripping, the title clipping, the fingerprints, a folder's merge key, `String(number)` and `Date.parse`.
 //!
 //! Text is a sequence of UTF-16 code units, as a JavaScript string is: a line's string can hold a lone surrogate (an
 //! escape `JSON.parse` keeps as that code unit), and every rule here counts and compares what JavaScript counts and
