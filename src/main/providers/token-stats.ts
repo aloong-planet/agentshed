@@ -256,6 +256,16 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg | AntigravityFileAgg
  *      the total no longer includes it, so the four fields stop summing to the total. Zero on this
  *      machine's data, hence invisible to every fixture with a fresh cache.
  *
+ * Not bumped, for one computation change and its reasons alone (#427): a Codex rollout's last line is read only once its
+ *      line feed is written, where the TypeScript parser read it at once. The change reaches only an entry cached while a
+ *      rollout's last line had no line feed yet. While that file stays unchanged, which happens only if Codex stopped
+ *      between the line and its line feed, the entry keeps the figure the TypeScript parser gave. Once the file grows,
+ *      the resume reads on under the new rule, and only that question's end stays one byte short until the file is
+ *      next parsed whole: no figure and no question's text differ. No rollout on this machine was in that state (none
+ *      of the 311 non-empty plain rollouts, 2026-11-15). A bump would make every install parse every rollout again, and
+ *      would take version 20, which the token store's change lands on, past the version-19 import its upgrade reads.
+ *      This exempts that one change; the rule above stands for every other.
+ *
  * **A bump also moves the accounting stamp** (`<app version>+c<this>`), and the e2e archive cases seed
  * archive rows under that stamp as a literal on purpose, so a bump turns them red until they are
  * updated with it: search for `+c<old version>` when bumping.

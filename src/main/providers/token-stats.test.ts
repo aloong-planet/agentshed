@@ -3185,8 +3185,10 @@ describe('a panic in the engine module while a Codex rollout is parsed', () => {
 
 // token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
 // U+FFFD, and read by the grammar of ECMAScript's JSON.parse, with its results". One rollout per clause, parsed through
-// the module. Until the TypeScript Codex parser was removed (#427), each was also held, field for field, to the entry it
-// gave for the same file; the values expected here are the ones both gave.
+// the module. Until the TypeScript Codex parser was removed (#427), the cases for the clauses and for timestamps were
+// also held, field for field, to the entry it gave for the same file, and the values they expect are the ones both
+// gave. The case across the module's reads came after; its last line follows the module's own rule, that a rollout line
+// counts once its line feed is written (Implementation Decisions, Cache), where the TypeScript parser counted it.
 describe('how a rollout line is read', () => {
   const AT = '2026-07-30T10:00:00.000Z'
   const REPLACEMENT = String.fromCharCode(0xfffd)
@@ -3356,14 +3358,17 @@ describe('how a rollout line is read', () => {
     let responses = 0
     /** A usage record whose input is its place among the records, with `pad` in a value no rule reads */
     const padded = (pad: string): string => record(`r${responses + 1}`, ++responses, 1, { pad })
-    // Lines of many lengths, three- and four-byte characters among them, so that read ends fall at many points
+    // Lines of many lengths before the first read's end, three- and four-byte characters among them
     for (let k = 0; size < MB - 8000; k++) add(padded(`中${String.fromCodePoint(0x1f600)}a`.repeat(40 + ((k * 37) % 600))))
-    // One line placed to end just before the question, which then starts 40 bytes before the first read's end
+    // One line placed to end just before the question, so that the first read ends one byte into the question's first
+    // character, a three-byte one
+    const text = `問題 ${String.fromCodePoint(0x1f600)} ${'質問'.repeat(30)}`
+    const questionLine = question(text)
+    const into = Buffer.byteLength(questionLine.slice(0, questionLine.indexOf('問'))) + 1
     const fillerStart = size
     const bare = Buffer.byteLength(record(`r${responses + 1}`, responses + 1, 1, { pad: '' }))
-    add(padded('x'.repeat(MB - 40 - fillerStart - 1 - bare)))
-    const text = `問題 ${String.fromCodePoint(0x1f600)} ${'質問'.repeat(30)}`
-    const qStart = add(question(text))
+    add(padded('x'.repeat(MB - into - fillerStart - 1 - bare)))
+    const qStart = add(questionLine)
     const qEnd = size
     // A line several reads long
     const longStart = add(padded('y'.repeat(2 * MB + MB / 2)))
@@ -3379,10 +3384,13 @@ describe('how a rollout line is read', () => {
     mkdirSync(d, { recursive: true })
     const f = join(d, 'rollout-2026-07-30T10-00-00-019f0000-eeee-7000-8000-000000000002.jsonl')
     writeFileSync(f, lines.join('\n'))
-    // The premises: the question's line spans the first read's end, and one line is longer than a read
-    expect(qStart < MB && qEnd > MB).toBe(true)
+    // The premises: the first read ends inside the question's first character, a byte that continues it, and one line
+    // is longer than two reads
+    const bytes = readFileSync(f)
+    expect(qStart + into).toBe(MB)
+    expect([bytes[MB - 1] >= 0xe0, bytes[MB] >= 0x80 && bytes[MB] < 0xc0]).toEqual([true, true])
     expect(longEnd - longStart).toBeGreaterThan(2 * MB)
-    expect(statSync(f).size).toBe(total)
+    expect(bytes.length).toBe(total)
 
     const entry = await entryOf(f)
     if (entry.agg.kind !== 'codex') throw new Error('no Codex entry')
