@@ -1,7 +1,8 @@
 // The engine module (ADR-0045) as the application's threads load it: the scan worker, every parse worker and the
 // main process each load it once, through Node-API, from the path the main process works out. No other engine exists:
 // a module that will not load, or that is another build's, fails every scan and every question-index read that asks
-// for it (token-stats, Scans and the window). Nothing here imports electron, which a worker thread cannot load.
+// for it, and every write of the display copy (token-stats, Scans and the window). Nothing here imports electron, which
+// a worker thread cannot load.
 import { join } from 'node:path'
 import type { ParseJob, ParseResult } from './providers/token-stats'
 
@@ -15,6 +16,12 @@ export interface EngineModule {
    * module does not parse throws.
    */
   parse(job: ParseJob): ParseResult
+  /**
+   * Writes `copy` to `file` as the text `JSON.stringify(copy)` gives, by an atomic replacement (engine/src/display/).
+   * The value is read during the call, as it stands then, and the call throws when it holds what JSON cannot (a BigInt, a
+   * cycle); the promise settles once the file is replaced, and rejects with why it was not.
+   */
+  writeDisplayCopy(file: string, copy: unknown): Promise<void>
 }
 
 /** Where a thread loads the engine module from, and the build it must report; plain data, so it crosses to a worker */

@@ -15,6 +15,8 @@
 //!   a plain or a zstd stream), `json/` (a line read by `JSON.parse`'s grammar and with its results), `text/` (text as
 //!   JavaScript holds it, and the normalisation, noise, title, fingerprint and `Date.parse` rules over it) and
 //!   `question/` (the question indexer the sides share).
+//! - `display/`: the display copy's writer, which serialises what the main process hands it and knows nothing of
+//!   what the copy holds.
 //! - `exports/`: every `#[napi]` function, one file per caller, with the conversions between JavaScript's values and
 //!   the module's. An export converts and dispatches, and holds no rule.
 //! - `seams.rs`: the test seams, in builds made for tests only.
@@ -26,6 +28,7 @@
 //! between the other sides'. Here a side is added as a directory and a line in `sides/mod.rs`, and what it shares with
 //! the others it takes from the side-free modules rather than writing again.
 
+mod display;
 mod exports;
 mod json;
 mod question;
