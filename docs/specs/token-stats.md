@@ -980,9 +980,9 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   the data roots in a fixed order — Claude Code's projects, Codex's sessions, Codex's archived sessions,
   Grok's sessions, Antigravity CLI's conversations — and each depth-first, a directory's entries ordered
   by the UTF-8 bytes of their names and a directory's files coming at that directory's own place among
-  its siblings. Scan order is so a function of the paths, and what takes the store's entries outside a
-  scan — the restore (C16), a fork's parent lookup on the session page — puts them in it: the store holds
-  its rows in the order it first held them.
+  its siblings. Scan order is thus a function of the paths. What takes the store's entries outside a
+  scan — the restore (C16), a fork's parent lookup on the session page — puts them in it, because the store
+  holds its rows in the order it first held them.
 - **Where a scan runs** (ADR-0043): on the scan worker, one worker thread kept for the run that owns
   the token store: the session walk, the registry and component reads, the planning, the pool of
   parse workers it starts, the aggregation, the store's writes and the single-file rebuild. The main
