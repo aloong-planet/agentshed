@@ -1,6 +1,6 @@
 import './launch-guard'
 import { ReadRegistry } from './read-registrations'
-import { DisplayStore } from './display-store'
+import { DisplayStore, engineWrite } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, recordFileBytes, regularTarget } from './source-identity'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
@@ -148,9 +148,11 @@ let liveScanReady: () => void = () => {}
 const firstLiveScan = new Promise<void>((resolve) => { liveScanReady = resolve })
 let current: Snapshot | null = null
 let readRegistry = new ReadRegistry()
+/** A change to the display copy, recorded without copying the data; the store writes it when the window has no focus
+ * (agents-overview::REQ-008) */
 function persistDisplay(): void {
   if (!displayStore) return
-  displayStore.save({ snapshot: current, stats: [...perProjectStats], sessionFiles: [...sessionWhitelist],
+  displayStore.record({ snapshot: current, stats: [...perProjectStats], sessionFiles: [...sessionWhitelist],
     registrations: readRegistry.snapshot(), reads: [...savedReads.values()] })
 }
 function remember(read: SavedRead): void {
@@ -662,8 +664,14 @@ function createWindow(): void {
       ]
     }
   })
+  // The display copy waits while the window has focus, and is written once it has none (agents-overview::REQ-008)
+  mainWindow.on('focus', () => displayStore?.focusChanged(true))
+  mainWindow.on('blur', () => displayStore?.focusChanged(false))
+  mainWindow.on('hide', () => displayStore?.focusChanged(false))
+  mainWindow.on('minimize', () => displayStore?.focusChanged(false))
   mainWindow.on('closed', () => {
     mainWindow = null
+    displayStore?.focusChanged(false)
   })
   if (process.env['ELECTRON_RENDERER_URL']) {
     void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -710,16 +718,18 @@ void app.whenReady().then(() => {
   // one, up to four. Measured on a cold scan of 4954 files (pnpm bench:scan workers --pool-only): 4 workers
   // 8.5 s at a 1.48 GB peak, 8 workers 7.4 s at 2.20 GB — the largest file alone bounds the time, so more
   // workers mostly cost memory
+  // The engine module (ADR-0045): the scan worker, its parse workers and, after a worker failure, this process load it;
+  // this process also writes the display copy through it
+  const engine = {
+    path: engineModulePath({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, mainDir: __dirname, env: process.env }),
+    build: ENGINE_BUILD
+  }
   scans = startScans({
     script: join(__dirname, 'scan-worker.js'),
     parseScript: join(__dirname, 'parse-worker.js'),
     cacheDir: app.getPath('userData'),
     poolSize: Math.min(4, Math.max(1, availableParallelism() - 1)),
-    // The engine module (ADR-0045): the scan worker, its parse workers and, after a worker failure, this process load it
-    engine: {
-      path: engineModulePath({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, mainDir: __dirname, env: process.env }),
-      build: ENGINE_BUILD
-    }
+    engine
   })
   // The listed set as it stands: the snapshot's projects, stale ones included, with each one's listed
   // sessions — the restored ones until the first scan completes (global-search S2)
@@ -730,7 +740,7 @@ void app.whenReady().then(() => {
   // structure version covers parser changes — together they identify the accounting code, so a lower
   // figure under the same stamp can only mean the data shrank
   archive = new UsageArchive(app.getPath('userData'), { stamp: `${app.getVersion()}+c${CACHE_VERSION}` })
-  displayStore = new DisplayStore(app.getPath('userData'), savedInstructionPaths(realRoots()))
+  displayStore = new DisplayStore(app.getPath('userData'), { write: engineWrite(engine), savedInstructionPaths: savedInstructionPaths(realRoots()) })
   const restored = displayStore.get()
   current = restored.snapshot
   perProjectStats = new Map(restored.stats)

@@ -9,8 +9,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { emptySnapshot } from '@shared/domain'
 import { emptyDisplayData } from '@shared/display-data'
-import { DisplayStore } from './display-store'
+import { DisplayStore, engineWrite } from './display-store'
 import { settleForQuit } from './quit'
+import { TEST_ENGINE } from './testing/engine'
 
 let dir: string
 beforeEach(() => {
@@ -24,12 +25,15 @@ afterEach(() => {
 const onDisk = (): number | undefined => new DisplayStore(dir).get().snapshot?.scannedAt
 
 it('a quit waits for the scan worker to stop, and a display save that landed while it stopped is on disk when the quit goes on', async () => {
-  const store = new DisplayStore(dir)
-  const save = (scannedAt: number): void => store.save({ ...emptyDisplayData(), snapshot: emptySnapshot(scannedAt) })
+  const store = new DisplayStore(dir, { write: engineWrite(TEST_ENGINE) })
+  const save = (scannedAt: number): void => store.record({ ...emptyDisplayData(), snapshot: emptySnapshot(scannedAt) })
   let stops = 0
   let stopped = (): void => {}
   let settled = false
   save(1)
+  await expect.poll(onDisk).toBe(1)
+  // Quit from the window, which has focus: a change then waits for the quit's flush (agents-overview::REQ-008)
+  store.focusChanged(true)
 
   const quitting = settleForQuit(
     () => store.flush(),
@@ -40,10 +44,11 @@ it('a quit waits for the scan worker to stop, and a display save that landed whi
   ).then(() => {
     settled = true
   })
-  await expect.poll(onDisk).toBe(1)
-  expect(settled, 'the worker has not stopped yet').toBe(false)
   // The scan's result arriving while the worker finishes its step
   save(2)
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  expect(settled, 'the worker has not stopped yet').toBe(false)
+  expect(onDisk(), 'nothing writes it before the worker has stopped').toBe(1)
   stopped()
   await quitting
 

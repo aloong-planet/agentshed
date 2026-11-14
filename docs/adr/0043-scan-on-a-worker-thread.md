@@ -90,6 +90,13 @@ We adopt **option 1**.
   `2026-11-12-the-quits-flush-relied-on-the-scan-holding-the-thread`).
 - Negative, not solved here: saving the display copy still clones and serialises it on the main process
   at every scan and every page read, about 70 ms in two stretches on the measured data.
+
+  > **Amended (2026-11-15)**: #421 took this cost off the scans and page reads made while the window has
+  > focus. The main process no longer clones and serialises the display copy at every scan and every page
+  > read. It keeps each change as it arrives, and the engine module serialises and writes the copy only
+  > while the window has no focus, and at quit (ADR-0044, ADR-0045). The cost is not gone: handing the copy
+  > to the module holds the main thread for one stretch per write, measured in ADR-0045's Consequences.
+
 - Neutral: the triggers and their intervals do not change, and the archive stays where it was.
 
 **Evidence closed (accepted 2026-11-12)**: measured on the built change with the scan benchmark under

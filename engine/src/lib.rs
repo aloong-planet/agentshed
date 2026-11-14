@@ -7,6 +7,8 @@
 
 use napi_derive::napi;
 
+mod display;
+mod exports;
 mod seams;
 
 /// The build this module belongs to: the digest of the module's sources that scripts/build-engine.mjs passes in, the

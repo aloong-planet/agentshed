@@ -812,8 +812,8 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 - The engine module (ADR-0045) will not load — missing, damaged or built for another architecture — or
   reports another build than the application's code: no other engine exists, so every scan fails (E3,
   [agents-overview::REQ-002/AC-03](agents-overview.md)) on the scan worker and on the main process alike,
-  and every read of a question index or of a question's text fails as that read (session-view C4). The
-  failure is logged.
+  every read of a question index or of a question's text fails as that read (session-view C4), and the
+  display copy is not written ([agents-overview::REQ-008/AC-05](agents-overview.md)). The failure is logged.
 - A panic in the engine module is caught where it crosses into the application. One raised while a file
   is parsed is that file's failed read, under the rule its side has for a read that fails (B12, F6,
   token-stats::REQ-004), and the scan goes on (the AGENTS.md invariant on reading agent data); one
@@ -1034,7 +1034,7 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 - Recovering usage that a rewind deleted before any scan saw it: the database no longer holds it, and
   the transcript's token fields carry no model and no call identity.
 - Refreshing more often than E1's triggers, or watching the agents' data directories for changes
-  (ADR-0043 option 6): every scan marks every saved page stale and rewrites the display copy, and a
+  (ADR-0043 option 6): every scan marks every saved page stale and changes the display copy, and a
   focus refresh that does not hold up the window already brings the figures up to date when they are
   about to be read.
 - Keeping the rollouts' first-line readings from one run to the next: it needs a file of its own or a

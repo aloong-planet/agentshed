@@ -102,7 +102,12 @@ We adopt **option 1**.
   the parity with the TypeScript engine, on the test fixtures and on this machine's data, is what holds the
   rewrite to the old figures.
 - Negative: there is a boundary to cross between JavaScript and the module. The walk's result goes into the
-  project scan, and the display copy goes into the module once per write.
+  project scan, and the display copy goes into the module once per write. Measured on 2026-11-15 under the
+  Electron 43.2.0 binary as Node, in a process holding only this machine's display copy (10.4 MB as written), over
+  ten rounds: reading the copy into the module holds the thread 64–67 ms in one stretch, where the clone and the
+  serialisation it replaces took 32–42 ms in two. ADR-0043's about 70 ms for those two was measured in the app's
+  main process, so in the app both may run longer. The stretch grows with the copy, and it is paid only while the
+  window has no focus (ADR-0044).
 - Negative (inferred): the 600 MB threshold is below the prototype's 516–561 MB plus the app's own floor of
   about 100 MB, so the module has to read more leanly than the prototype did.
 - Neutral: on the Codex data the prototype matched `JSON.parse` on every line, and no line failed to parse.
