@@ -3158,16 +3158,33 @@ describe('the session ID on the session page', () => {
 // token-stats, Scans and the window, failure modes: "A panic in the engine module is caught where it crosses into the
 // application. One raised while a file is parsed is that file's failed read, under the rule its side has for a read
 // that fails ... and the scan goes on." Driven through the panic seam, which the tests' module is built with.
-describe('a panic in the engine module while a Codex rollout is parsed', () => {
+describe('a panic in the engine module while a session file is parsed', () => {
   const seam = (): PanicSeam => loadEngineModule(TEST_ENGINE) as PanicSeam
+  const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
   afterEach(() => {
     seam().seamPanicWhileParsing(null)
+  })
+
+  it('is that Claude Code session\'s failed read: it is skipped as an unreadable one is, every other file is parsed, and the scan delivers its figures', async () => {
+    const named = mkClaudeFile('panic.jsonl', [userLine('a question in the file that panics'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 40, 4, { id: 'mp', requestId: 'rp' })])
+    mkClaudeFile('other.jsonl', [userLine('a question in the other file'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 70, 7, { id: 'mo', requestId: 'ro' })])
+    seam().seamPanicWhileParsing(named)
+    const panicked = await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])
+    seam().seamPanicWhileParsing(null)
+    expect(panicked.global.bySide.claude.total).toBe(77)
+    chmodSync(named, 0)
+    try {
+      expect(shape(panicked)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable')).build(roots(), [proj])))
+    } finally {
+      chmodSync(named, 0o644)
+    }
+    // As for an unreadable file, nothing is kept for it: the next build parses it
+    expect((await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])).global.bySide.claude.total).toBe(77 + 44)
   })
 
   it('is that rollout\'s failed read: it is skipped as an unreadable one is, every other rollout is parsed, and the scan delivers its figures', async () => {
     const named = mkCodexRollout('rollout-panic-019f500.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 4 }])
     mkCodexRollout('rollout-other-019f501.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 70, cached: 0, output: 7 }])
-    const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
     seam().seamPanicWhileParsing(named)
     const panicked = await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])
     seam().seamPanicWhileParsing(null)
@@ -3432,9 +3449,10 @@ describe('how a rollout line is read', () => {
 
 // The same clauses for a Claude Code session file (#428), one file per clause, parsed through the module, and the
 // rules a Claude line adds: a value of another kind than a rule takes, a last line without its line feed, the time
-// taken from the file when no line has one, and the local day a usage line is filed under. Each case also holds the
-// module's entry to the one the TypeScript Claude parser gives for the same file, field for field.
-import { firstDifference } from '../engine-parity'
+// taken from the file when no line has one, and the local day a usage line is filed under. Until the TypeScript Claude
+// parser was removed (#428), each case also held the module's entry to the one that parser gave for the same file,
+// field for field, and the values they expect are the ones both gave; the local days were held in every time zone the
+// case sets.
 describe('how a Claude Code session line is read', () => {
   const AT = '2026-07-30T10:00:00.000Z'
   const REPLACEMENT = String.fromCharCode(0xfffd)
@@ -3454,11 +3472,9 @@ describe('how a Claude Code session line is read', () => {
   }
 
   type ClaudeAgg = Extract<NonNullable<ParseResult>['agg'], { kind: 'claude' }>
-  /** The entry the module gives the file, held to the one the TypeScript parser gives */
+  /** The entry a parse gives the file */
   async function entryOf(file: string): Promise<ClaudeAgg> {
-    const job: ParseJob = { kind: 'claude', file, projectKey: 'p', listed: true }
-    const parsed = loadEngineModule(TEST_ENGINE).parse(job)
-    expect(firstDifference(await runParseJob(job), parsed)).toBeNull()
+    const parsed = await runParseJob({ kind: 'claude', file, projectKey: 'p', listed: true })
     if (parsed?.agg.kind !== 'claude') throw new Error('no Claude entry')
     return parsed.agg
   }

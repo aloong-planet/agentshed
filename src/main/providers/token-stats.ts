@@ -1,6 +1,7 @@
 // The token aggregation engine (aligned with ccusage, 2026-07-30; the source-level basis is in ADR-0005):
 // - Claude: recursively scan **the whole tree** under claudeHome/projects (independent of the project
-//   registry; unregistered directories count toward the global total);
+//   registry; unregistered directories count toward the global total); each session file read and parsed by
+//   the engine module, engine/src/sides/claude/, into the entries combined here:
 //   each usage line becomes an entry, and the aggregation layer deduplicates across files — the exact
 //   key is message.id+requestId, falling back to message.id-only when either side is isSidechain
 //   (a subagent replays its parent's messages under a new requestId); keep the non-sidechain one,
@@ -45,7 +46,6 @@ import { isReadable } from './read-utils'
 import {
   makeAntigravityQuestionIndexer,
   makeGrokQuestionIndexer,
-  makeQuestionIndexer,
   stripReplayPrefix,
   type QuestionRec
 } from './question-index'
@@ -497,10 +497,7 @@ export type ParseResult = { agg: FileAgg; state?: CodexParseState } | null
 /** Parses one job on the calling thread. A parse worker runs this same function (parse-worker.ts). */
 export async function runParseJob(job: ParseJob): Promise<ParseResult> {
   switch (job.kind) {
-    case 'claude': {
-      const agg = await parseClaudeFile(job.file, job.projectKey, job.listed)
-      return agg ? { agg } : null
-    }
+    case 'claude':
     case 'codex':
       // Read and parsed by the engine module (ADR-0045), which this thread loaded before it parses
       return threadEngineModule().parse(job)
@@ -899,7 +896,7 @@ export class TokenEngine {
         // (session-view C4): kept under no project it would be that hit, and the session would leave its project
         // until its file next changed. The next build parses the file.
         const listedBase = dirname(dirname(file)) === claudeRoot
-        fresh = await parseClaudeFile(file, cached?.agg.projectKey ?? '', listedBase)
+        fresh = (await runParseJob({ kind: 'claude', file, projectKey: cached?.agg.projectKey ?? '', listed: listedBase }))?.agg ?? null
         kept = cached !== undefined
       } else if (file.startsWith(join(roots.grokHome, 'sessions') + sep)) {
         // A Grok stream rebuilds through the Grok parse, its meta read the way the walk reads it; it
@@ -1668,82 +1665,6 @@ function isCodexResume(v: unknown): v is CodexResume {
   )
 }
 
-const SYNTHETIC = '<synthetic>'
-
-async function parseClaudeFile(
-  file: string,
-  projectKey: string,
-  listed: boolean
-): Promise<ClaudeFileAgg | null> {
-  const entries: PackedEntry[] = []
-  let lastAt: number | null = null
-  // The question index and the title share a source: only the indexer decides which line is "the first
-  // real question"
-  const idx = makeQuestionIndexer()
-  let fileEnd = 0
-  try {
-    await eachJsonlLine(file, (obj, start, end) => {
-      idx.line(obj, start, end)
-      fileEnd = end
-      const msg = obj['message'] as Record<string, unknown> | undefined
-      // The timestamp is taken **before** the usage check: at = the largest timestamp in the file (the
-      // same meaning as on the Codex side).
-      // Looking only at usage lines misses user messages — they have no usage field, and "the last thing
-      // the user asked"
-      // is exactly the last activity. Measured over 118 real sessions, 45% have a last-line timestamp
-      // later than the last usage line.
-      const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp']) : NaN
-      if (!Number.isNaN(ts)) lastAt = lastAt === null ? ts : Math.max(lastAt, ts)
-      const usage = msg?.['usage'] as Record<string, unknown> | undefined
-      if (!usage) return
-      const rawModel = typeof msg?.['model'] === 'string' ? msg['model'] : null
-      entries.push([
-        typeof msg?.['id'] === 'string' ? msg['id'] : null,
-        typeof obj['requestId'] === 'string' ? obj['requestId'] : null,
-        obj['isSidechain'] === true ? 1 : 0,
-        num(usage['input_tokens']),
-        num(usage['output_tokens']),
-        num(usage['cache_read_input_tokens']),
-        cacheCreationOf(usage),
-        rawModel === null || rawModel === SYNTHETIC ? null : rawModel,
-        Number.isNaN(ts) ? null : localDay(ts)
-      ])
-    })
-  } catch {
-    return null
-  }
-  const fallbackAt = ((): number | null => {
-    try {
-      return statSync(file).mtimeMs
-    } catch {
-      return null
-    }
-  })()
-  const questions = idx.done(fileEnd)
-  // The indexer has already stripped the noise and filtered by the last-leaf walk-back; this is only
-  // responsible for truncating into shape.
-  // **Do not run realUserText again** — stripping is not idempotent, see session-title.ts.
-  const first = idx.firstQuestionText()
-  const title = first === null ? null : clipTitle(first)
-  return {
-    kind: 'claude',
-    file,
-    forkPoints: idx.forkPoints(),
-    projectKey,
-    // A session with no real question at all is not listed (spec A3a). Measured: of one project's 1511
-    // sessions,
-    // 1004 have a single Warmup — listing them would make 66% of the rows uuid filenames, while what this
-    // feature
-    // answers is exactly "where is that question I asked". The tokens still count, the same rule as
-    // subagents.
-    listed: listed && questions.length > 0,
-    title: title ?? file.split('/').pop()?.replace(/\.jsonl$/, '') ?? null,
-    at: lastAt ?? fallbackAt,
-    questions,
-    entries
-  }
-}
-
 interface CodexParseMeta {
   subagent: boolean
   sessionId: string | null
@@ -1865,20 +1786,4 @@ function readCodexIndex(codexHome: string): Map<string, string> {
 
 function num(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : 0
-}
-
-/**
- * Cache write volume: where a cache_creation breakdown object exists, take the sum of ephemeral_5m and
- * ephemeral_1h,
- * otherwise take the flat cache_creation_input_tokens (the same rule as ccusage's
- * TokenUsageRaw::cache_creation_token_count).
- * Measured against real data, the two can differ (2 lines on 2026-07-13 differ by 894).
- */
-function cacheCreationOf(usage: Record<string, unknown>): number {
-  const detail = usage['cache_creation']
-  if (typeof detail === 'object' && detail !== null) {
-    const d = detail as Record<string, unknown>
-    return num(d['ephemeral_5m_input_tokens']) + num(d['ephemeral_1h_input_tokens'])
-  }
-  return num(usage['cache_creation_input_tokens'])
 }

@@ -17,9 +17,7 @@ export type Parse = (job: ParseJob) => Promise<ParseResult>
  * change that moves its parsing into the module and goes with the change that removes its TypeScript parser, after
  * which the module is the only parser of that side; the command refuses to compare a side without one.
  */
-export const MODULE_PARSES: Partial<Record<ParseSide, (module: EngineModule, job: ParseJob) => Promise<ParseResult>>> = {
-  claude: (module, job) => Promise.resolve(module.parse(job))
-}
+export const MODULE_PARSES: Partial<Record<ParseSide, (module: EngineModule, job: ParseJob) => Promise<ParseResult>>> = {}
 
 export interface ParityReport {
   /** The files both parsers parsed, in the order the scan met them */

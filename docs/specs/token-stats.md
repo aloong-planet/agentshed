@@ -927,7 +927,7 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
-  and holds the reading and parsing of Codex rollouts. A value in a line is built only where a rule reads
+  and holds the reading and parsing of Codex rollouts and Claude Code sessions. A value in a line is built only where a rule reads
   it; every other value is scanned past. A line is decoded as UTF-8, an invalid sequence becoming
   U+FFFD, and read by the grammar of ECMAScript's `JSON.parse`, with its results: a repeated key keeps
   its last value, a number beyond the double range is infinite and so no finite count, a lone surrogate

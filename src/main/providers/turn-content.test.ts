@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeAntigravityQuestionIndexer, makeGrokQuestionIndexer, makeQuestionIndexer, type QuestionRec } from './question-index'
+import { makeAntigravityQuestionIndexer, makeGrokQuestionIndexer, type QuestionRec } from './question-index'
+import { runParseJob } from './token-stats'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { readRanges } from './range-read'
 import { turnBlocksFromText } from './turn-content'
@@ -322,14 +323,9 @@ function withFile<T>(text: string, fn: (file: string) => Promise<T>): Promise<T>
   return fn(file).finally(() => rmSync(dir, { recursive: true, force: true }))
 }
 
+/** The question index the scan gives a Claude Code session file, through the engine module */
 async function indexFile(file: string): Promise<QuestionRec[]> {
-  const idx = makeQuestionIndexer()
-  let fileEnd = 0
-  await eachJsonlLine(file, (obj, start, end) => {
-    idx.line(obj, start, end)
-    fileEnd = end
-  })
-  return idx.done(fileEnd)
+  return (await runParseJob({ kind: 'claude', file, projectKey: '', listed: true }))?.agg.questions ?? []
 }
 
 const uLine = (t: string): string => JSON.stringify({ type: 'user', timestamp: TS, message: { role: 'user', content: t } })

@@ -3,42 +3,36 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeAntigravityQuestionIndexer, makeQuestionIndexer, questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
+import { makeAntigravityQuestionIndexer, questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
-import { runParseJob } from './token-stats'
+import { clipTitle } from './session-title'
+import { runParseJob, type ParseResult } from './token-stats'
 
 /**
- * Claude's indexer is driven the same way as the wiring in its parser: eachJsonlLine feeds the indexer line by line,
- * then done(file length) at the end. Codex's is the engine module's, and its cases parse the file through it.
+ * The Claude Code and Codex indexers are the engine module's, and their cases parse the file through it.
  *
- * **Known gaps (established by mutation, not simply unwritten)**:
- * 1. those three lines of wiring in the Claude parser have no behavioural test of their own and are backstopped
- *    only by typecheck; covering them requires the parser to accept an injectable line stream.
- * 2. the "an empty text segment → return null" branch inside `claudeQuestion` is **behaviourally
- *    indistinguishable**: changing it to return
- *    an empty string leaves every test green, because the caller's `realUserText('')` judges it null too.
- *    It is kept for the function's
- *    own contract to be self-consistent (not a question → return null), not for a behavioural difference —
- *    do not invent a test to pad it out.
+ * **Known gap (established by mutation, not simply unwritten)**: the "an empty text segment → return null" branch
+ * inside `claudeQuestion`, the session page's copy of the question rule, is **behaviourally indistinguishable**:
+ * changing it to return an empty string leaves every test green, because the caller's `realUserText('')` judges it
+ * null too. It is kept for the function's own contract to be self-consistent (not a question → return null), not for
+ * a behavioural difference — do not invent a test to pad it out.
  */
+async function parsed(file: string, side: 'claude' | 'codex'): Promise<NonNullable<ParseResult>['agg'] | undefined> {
+  const result =
+    side === 'claude'
+      ? await runParseJob({ kind: 'claude', file, projectKey: '', listed: true })
+      : await runParseJob({
+          kind: 'codex',
+          file,
+          projectKey: '',
+          meta: { subagent: false, sessionId: null, parentId: null, forkedAt: null, paginated: false },
+          threadName: undefined
+        })
+  return result?.agg
+}
+
 async function indexOf(file: string, side: 'claude' | 'codex'): Promise<QuestionRec[]> {
-  if (side === 'codex') {
-    const parsed = await runParseJob({
-      kind: 'codex',
-      file,
-      projectKey: '',
-      meta: { subagent: false, sessionId: null, parentId: null, forkedAt: null, paginated: false },
-      threadName: undefined
-    })
-    return parsed?.agg.questions ?? []
-  }
-  const idx = makeQuestionIndexer()
-  let fileEnd = 0
-  await eachJsonlLine(file, (obj, start, end) => {
-    idx.line(obj, start, end)
-    fileEnd = end
-  })
-  return idx.done(fileEnd)
+  return (await parsed(file, side))?.questions ?? []
 }
 
 function withLines<T>(objs: unknown[], fn: (file: string) => Promise<T>): Promise<T> {
@@ -445,14 +439,9 @@ describe('Claude branches: the last-leaf walk-back', () => {
 describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () => {
   async function fpOf(objs: unknown[]): Promise<number> {
     return withLines(objs, async (file) => {
-      const idx = makeQuestionIndexer()
-      let fileEnd = 0
-      await eachJsonlLine(file, (obj, start, end) => {
-        idx.line(obj, start, end)
-        fileEnd = end
-      })
-      idx.done(fileEnd)
-      return idx.forkPoints()
+      const agg = await parsed(file, 'claude')
+      if (agg?.kind !== 'claude') throw new Error('no Claude entry')
+      return agg.forkPoints
     })
   }
 
@@ -503,16 +492,11 @@ describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () =
 })
 
 describe('the title and the question set share a source (after the last-leaf walk-back)', () => {
-  async function firstTextOf(objs: unknown[]): Promise<string | null> {
+  /** The session's title and whether it is listed */
+  async function titleOf(objs: unknown[]): Promise<{ title: string | null | undefined; listed: boolean | undefined }> {
     return withLines(objs, async (file) => {
-      const idx = makeQuestionIndexer()
-      let fileEnd = 0
-      await eachJsonlLine(file, (obj, start, end) => {
-        idx.line(obj, start, end)
-        fileEnd = end
-      })
-      idx.done(fileEnd)
-      return idx.firstQuestionText()
+      const agg = await parsed(file, 'claude')
+      return { title: agg?.title, listed: agg?.listed }
     })
   }
 
@@ -526,22 +510,22 @@ describe('the title and the question set share a source (after the last-leaf wal
       ca('a1', 'u1'),
       cq('u2', 'a1', 'second question')
     ]
-    expect(await firstTextOf(objs)).toBe('the real first question')
+    expect((await titleOf(objs)).title).toBe('the real first question')
     await withLines(objs, async (file) => {
       expect(await indexOf(file, 'claude')).toHaveLength(2)
     })
   })
 
-  test('every question filtered out → the title is null (and the session is not listed as a result)', async () => {
+  test('every question filtered out → no question titles it, the file name does (and the session is not listed as a result)', async () => {
     // The only question is on the abandoned branch, and the surviving chain has only assistant lines
     const objs = [ca('root', null), cq('u1b', 'root', 'question on the abandoned branch'), ca('a1', 'root'), ca('a2', 'a1')]
-    expect(await firstTextOf(objs)).toBeNull()
+    expect(await titleOf(objs)).toEqual({ title: 's', listed: false })
   })
 
   test('the title is not stripped twice: content a cron strip produced is kept even when it happens to be Warmup', async () => {
     // A regression guard for why clipTitle and realUserText are separate: a second strip would turn it into
     // null
-    expect(await firstTextOf([cq('u1', null, '[cron:abc scheduled] Warmup')])).toBe('Warmup')
+    expect((await titleOf([cq('u1', null, '[cron:abc scheduled] Warmup')])).title).toBe('Warmup')
   })
 })
 
@@ -695,6 +679,45 @@ describe('questionTextAt (the session page\'s display text, judged the same way 
   test('codex: the user_message source with noise stripped', () => {
     const obj = xUser('  question padded with spaces  ') as Record<string, unknown>
     expect(questionTextAt('codex', obj)).toBe('question padded with spaces')
+  })
+
+  // The Claude Code question index takes its questions by the engine module's copy of claudeQuestion
+  // (engine/src/sides/claude/question.rs): each line shape below, alone in a session file the module parses, gives a
+  // question exactly when questionTextAt shows one, under that text's title and fingerprint. Each copy is the other's
+  // expected value, so an edit to one alone goes red here.
+  test('claude: the engine module takes a question from each line questionTextAt shows one for, and from no other', async () => {
+    const SHAPES: Array<Record<string, unknown>> = [
+      { type: 'user', message: { role: 'user', content: 'a string content' } },
+      { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'one text segment' }] } },
+      { type: 'user', message: { role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBOR' } }, { type: 'text', text: 'an image, then text' }] } },
+      { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'tool return' }] } },
+      { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'first' }, { type: 'text', text: 'second' }] } },
+      { type: 'user', message: { role: 'user', content: [{ text: '' }, { type: 'text', text: 'after an empty one' }] } },
+      { type: 'user', message: { role: 'user', content: [] } },
+      { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 5 }, 'a bare string'] } },
+      { type: 'user', message: { role: 'user', content: { text: 'an object content' } } },
+      { type: 'user', message: [{ content: 'an array message' }] },
+      { type: 'user', message: 'a string message' },
+      { type: 'user', isSidechain: true, message: { role: 'user', content: 'the subagent dispatch prompt' } },
+      { type: 'user', isSidechain: 'true', message: { role: 'user', content: 'a sidechain flag that is no boolean' } },
+      { type: 'assistant', message: { role: 'assistant', content: 'an assistant line' } }
+    ]
+    const mismatches: string[] = []
+    for (const [i, shape] of SHAPES.entries()) {
+      const obj = { ...shape, timestamp: TS }
+      await withLines([obj], async (file) => {
+        const agg = await parsed(file, 'claude')
+        const text = questionTextAt('claude', obj)
+        const want = { questions: text === null ? 0 : 1, title: text === null ? 's' : clipTitle(text), fingerprint: text === null ? null : fingerprint(text) }
+        const got = { questions: agg?.questions.length, title: agg?.title, fingerprint: agg?.questions[0]?.[6] ?? null }
+        if (JSON.stringify(got) !== JSON.stringify(want)) mismatches.push(`shape ${i}: ${JSON.stringify({ got, want })}`)
+      })
+    }
+    expect(mismatches).toEqual([])
+    // Not every shape is one of a kind: some are questions and some are not
+    expect(SHAPES.map((s) => questionTextAt('claude', { ...s, timestamp: TS }) !== null)).toEqual([
+      true, true, true, false, true, true, false, false, false, false, false, false, true, false
+    ])
   })
 
   test('a non-question line is always null: a tool result fed back, an assistant line, a sidechain, pure noise', () => {

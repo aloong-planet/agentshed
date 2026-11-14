@@ -21,8 +21,8 @@
  * The title cap (counted in code points, so a wide character is never cut in half).
  *
  * This file's rules — `normalize`, `realUserText`, `clipTitle` and this cap — are also the engine module's, which applies
- * them to Codex's question index and titles (engine/src/text/mod.rs): a change here is made there too, and
- * session-title.test.ts runs the same texts through both.
+ * them to Claude Code's and Codex's question indexes and titles (engine/src/text/mod.rs): a change here is made there
+ * too, and session-title.test.ts runs the same texts through both.
  */
 export const TITLE_MAX = 60
 

@@ -32,8 +32,8 @@ export type QuestionRec = [number, number, number, number | null, number, number
 
 
 /**
- * The content fingerprint (FNV-1a, 32-bit), also the engine module's for Codex (engine/src/text/mod.rs: a change here
- * is made there too). It only needs "same text, same value; different text, very
+ * The content fingerprint (FNV-1a, 32-bit), also the engine module's for Claude Code and Codex
+ * (engine/src/text/mod.rs: a change here is made there too). It only needs "same text, same value; different text, very
  * likely a different value", not cryptographic strength —
  * its only use is comparing, entry by entry, whether the start of a child session and the parent hold
  * the same questions.
@@ -129,39 +129,6 @@ export function stripReplayPrefix(
   return { questions: child.slice(n), state }
 }
 
-export interface QuestionIndexer {
-  /** Feed lines in one by one, in the file's order */
-  line(obj: Record<string, unknown>, start: number, end: number): void
-  /**
-   * The first real question's text **after noise stripping** (untruncated); null if there is none.
-   * The caller turns it into a title with `clipTitle` directly and **must not run `realUserText`
-   * again** — stripping is not idempotent.
-   * This way only the indexer decides which line is the first question, so there is no "the title has a
-   * value but the question count is 0"
-   * — the same concept with two numbers (the same lesson as spec A1); when the last-leaf walk-back
-   * filters out the first one, the title changes with it.
-   */
-  firstQuestionText(): string | null
-  /**
-   * Finishing: the last turn's end point = the end of the last **parseable** line (passed in by the
-   * caller).
-   * Deliberately not the file's byte size: an active session may be mid-line, and that half line neither
-   * parses nor should be sliced into
-   * a turn's range — taking the end of the last complete line means an on-demand fetch always reads
-   * well-formed content.
-   */
-  done(fileEnd: number): QuestionRec[]
-  /**
-   * The number of branch points on the main chain = the number of nodes treated as a parent by ≥2
-   * main-chain nodes (ticket 06's banner signal:
-   * "this session has N branch points; abandoned branches are not shown"). It counts branch points, not
-   * branches;
-   * sidechain lines do not enter the graph and the compaction boundary bridge is a single chain, so
-   * neither creates a branch.
-   */
-  forkPoints(): number
-}
-
 /** The tool names that dispatch a subagent on the Claude side. Measured across the repository: Agent 152
  * times, Task 4 — two generations of
  * the same tool's name, both taking description/prompt/subagent_type as arguments.
@@ -170,7 +137,10 @@ export interface QuestionIndexer {
  * `TaskCreate` and misses 5 `Agent` calls that omitted the optional parameter. A future rename can only
  * undercount,
  * never miscount — what is displayed is a volume figure, and an undercount does not pollute other
- * turns. */
+ * turns.
+ * The session page's turns read it (turn-content.ts); the question index counts by the engine module's copy
+ * (`DISPATCH` in engine/src/sides/claude/question.rs), and a change here is made there too until the turns read
+ * through the module (#432). */
 export const CLAUDE_DISPATCH = new Set(['Agent', 'Task'])
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
@@ -189,6 +159,10 @@ function asRecord(v: unknown): Record<string, unknown> | undefined {
  * `(tool_result)` 12541,
  * `(text)` 142, `(image,text)` 51 — **tool_result never co-occurs with text**, and a tool_result
  * segment has no text field of its own. An additional `some(type===tool_result)` is an unreachable branch.
+ *
+ * The question text the session page and both searches show (`questionTextAt`); the question index takes its
+ * questions by the engine module's copy of this rule (`question` in engine/src/sides/claude/question.rs). A change
+ * here is made there too, and this copy goes once those readers read through the module (#432).
  */
 function claudeQuestion(obj: Record<string, unknown>): string | null {
   if (obj['type'] !== 'user' || obj['isSidechain'] === true) return null
@@ -225,27 +199,11 @@ function codexQuestion(obj: Record<string, unknown>): string | null {
   return texts.length > 0 ? texts.join(' ') : null
 }
 
-function claudeCounts(obj: Record<string, unknown>): { tools: number; subagents: number } {
-  // A sidechain line is a subagent's own transcript: what it did counts under the subagent number,
-  // not again in the parent turn's tool count (expanding a subagent is spec C3's business)
-  if (obj['isSidechain'] === true) return { tools: 0, subagents: 0 }
-  const c = asRecord(obj['message'])?.['content']
-  if (!Array.isArray(c)) return { tools: 0, subagents: 0 }
-  let tools = 0
-  let subagents = 0
-  for (const seg of c) {
-    const s = asRecord(seg)
-    if (s?.['type'] !== 'tool_use') continue
-    if (typeof s['name'] === 'string' && CLAUDE_DISPATCH.has(s['name'])) subagents++
-    else tools++
-  }
-  return { tools, subagents }
-}
-
 /**
  * One line → the question in full for display (noise already stripped); null if it is not a question.
- * The same judgement as the indexer (claudeQuestion/codexQuestion + realUserText; Codex's indexer is the
- * engine module's, engine/src/sides/codex/question.rs, which reads the same two shapes) — the session page
+ * The same judgement as the indexer (claudeQuestion/codexQuestion + realUserText; the Claude and Codex indexers are
+ * the engine module's, engine/src/sides/claude/question.rs and engine/src/sides/codex/question.rs, which read the
+ * same shapes) — the session page
  * reads the raw line back by
  * range and produces its text here, guaranteeing that what the list counts and what the page displays
  * are always the same set.
@@ -398,120 +356,6 @@ export function makeGrokQuestionIndexer(): {
     done(fileEnd) {
       if (out.length > 0) out[out.length - 1][2] = fileEnd
       return out
-    }
-  }
-}
-
-/**
- * The Claude Code question indexer; Codex's is the engine module's (engine/src/sides/codex/). It is never
- * resumed: its last-leaf walk-back needs the whole parentUuid graph.
- */
-export function makeQuestionIndexer(): QuestionIndexer {
-  const out: QuestionRec[] = []
-  /** Parallel to `out`: the uuid of each question's line (null if absent), for the last-leaf walk-back filter */
-  const qUuid: Array<string | null> = []
-  /** Parallel to `out`: the question text **after noise stripping**, used only to re-derive the first
-   * question's title after filtering.
-   * The raw text is not stored truncated: measured, the real content inside a wrapper such as
-   * `<command-args>` can be as far in as character 4054,
-   * so truncating before stripping would leave the stripping rules unable to find the tag and turn the
-   * title into a chunk of wrapper garbage. **In memory only, never in the cache**. */
-  const qHead: Array<string | null> = []
-  /** Claude main chain's uuid → parent. **The parent is `parentUuid ?? logicalParentUuid`** */
-  const parentOf = new Map<string, string | null>()
-  /** The uuid of the last **non-sidechain** line — where the walk-back starts */
-  let lastMainUuid: string | null = null
-  let firstRaw: string | null = null
-
-  return {
-    line(obj, start, end) {
-      // The walk-back graph is built on the Claude side only and admits main-chain lines only: a
-      // sidechain is a subagent's own
-      // transcript, whose parentUuid is always null and whose children point only within the sidechain,
-      // so letting it in would take
-      // the walk-back's starting point into the subagent's chain (measured: 69% of files end on a
-      // sidechain line).
-      if (obj['isSidechain'] !== true) {
-        const u = obj['uuid']
-        if (typeof u === 'string') {
-          const p = obj['parentUuid']
-          const lp = obj['logicalParentUuid']
-          // A compaction boundary's (type=system, subtype=compact_boundary) parentUuid is broken, and
-          // logicalParentUuid is its bridge to the pre-compaction history. Without the bridge, the worst
-          // measured case had
-          // 346 questions collapse to 44 — all pre-compaction history judged as "abandoned branches".
-          parentOf.set(u, typeof p === 'string' ? p : typeof lp === 'string' ? lp : null)
-          lastMainUuid = u
-        }
-      }
-      const raw = claudeQuestion(obj)
-      // Noise is not a question (the same rules as title stripping): otherwise a session containing only
-      // a Warmup would report
-      // "1 question" while not being listed per spec A3a — one concept with two numbers
-      const clean = raw === null ? null : realUserText(raw)
-      if (clean !== null) {
-        const prev = out[out.length - 1]
-        if (prev) prev[2] = start
-        const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp']) : NaN
-        out.push([start, end, end, Number.isNaN(ts) ? null : ts, 0, 0, fingerprint(clean)])
-        qUuid.push(typeof obj['uuid'] === 'string' ? obj['uuid'] : null)
-        qHead.push(clean)
-        return
-      }
-      const cur = out[out.length - 1]
-      // Lines before the first question (session_meta, warmup noise and so on) belong to no turn
-      if (!cur) return
-      const { tools, subagents } = claudeCounts(obj)
-      cur[4] += tools
-      cur[5] += subagents
-    },
-    firstQuestionText() {
-      return firstRaw
-    },
-    forkPoints() {
-      const refs = new Map<string, number>()
-      for (const p of parentOf.values()) {
-        if (p !== null) refs.set(p, (refs.get(p) ?? 0) + 1)
-      }
-      let n = 0
-      for (const c of refs.values()) if (c >= 2) n++
-      return n
-    },
-    done(fileEnd) {
-      // Extend the **original** last entry to the file's end point first, then filter: if the last entry
-      // is on an abandoned branch,
-      // that extension should disappear with it rather than letting the surviving previous entry swallow
-      // the abandoned content into its own turn.
-      const last = out[out.length - 1]
-      if (last && fileEnd > last[2]) last[2] = fileEnd
-
-      let kept = out
-      let keptHeads = qHead
-      if (lastMainUuid !== null) {
-        const chain = new Set<string>()
-        let cur: string | null = lastMainUuid
-        while (cur !== null && !chain.has(cur)) {
-          chain.add(cur)
-          cur = parentOf.get(cur) ?? null
-        }
-        kept = []
-        keptHeads = []
-        for (let i = 0; i < out.length; i++) {
-          const u = qUuid[i]
-          // A question with no uuid cannot be judged as on or off the chain — kept on the do-not-lose
-          // principle (losing a real question
-          // violates "find that question I asked" — this feature's reason for existing — more than
-          // keeping one extra abandoned entry does)
-          if (u === null || chain.has(u)) {
-            kept.push(out[i])
-            keptHeads.push(qHead[i])
-          }
-        }
-      }
-      // The title and the count share a source: re-take the first entry after filtering, so the title
-      // does not come from a discarded question
-      firstRaw = keptHeads.length > 0 ? keptHeads[0] : null
-      return kept
     }
   }
 }
