@@ -322,8 +322,8 @@ function withFile<T>(text: string, fn: (file: string) => Promise<T>): Promise<T>
   return fn(file).finally(() => rmSync(dir, { recursive: true, force: true }))
 }
 
-async function indexFile(file: string, side: 'claude' | 'codex'): Promise<QuestionRec[]> {
-  const idx = makeQuestionIndexer(side)
+async function indexFile(file: string): Promise<QuestionRec[]> {
+  const idx = makeQuestionIndexer()
   let fileEnd = 0
   await eachJsonlLine(file, (obj, start, end) => {
     idx.line(obj, start, end)
@@ -346,7 +346,7 @@ describe('a range fetch agrees with a full parse (the anchor)', () => {
       aLine('answer two')
     ].join('\n') + '\n'
     await withFile(raw, async (file) => {
-      const recs = await indexFile(file, 'claude')
+      const recs = await indexFile(file)
       expect(recs).toHaveLength(2)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
       for (let i = 0; i < recs.length; i++) {
@@ -365,7 +365,7 @@ describe('a range fetch agrees with a full parse (the anchor)', () => {
     const big = turn1 + [uLine('question two'), aLine('x'.repeat((5 * 1024 * 1024) / 3))].join('\n') + '\n'
     const bytesOfTurn1 = async (text: string): Promise<number> =>
       withFile(text, async (file) => {
-        const recs = await indexFile(file, 'claude')
+        const recs = await indexFile(file)
         const { bytesRead } = await readRanges(file, [{ start: recs[0][1], end: recs[0][2] }])
         return bytesRead
       })

@@ -34,11 +34,17 @@ pub(super) fn question(line: &Line<'_>) -> Option<Units> {
     Some(joined)
 }
 
-/// The call records a turn's tools are counted from, from a full enumeration of the `response_item` types (the
-/// reasoning is in `src/main/providers/question-index.ts`); the `event_msg` side mirrors the same calls and is not read
+/// The call records a turn's tools are counted from. Codex records a call on `response_item`; the `event_msg` side is
+/// the interface's mirror of the same calls, with only their `*_end` events and no counterpart of `function_call`, so
+/// reading one side alone counts each call once.
+///
+/// The three come from a full enumeration of the `response_item` types (278 files, 62,912 lines with a payload):
+/// message 10,311, reasoning 6,075, custom_tool_call 3,400, function_call 1,883, agent_message 54 and tool_search_call
+/// 25, each with its `*_output` counterpart. `tool_search_call` never appeared in a 120-file sample: it showed only
+/// when the whole set was read.
 const CALL_TYPES: [&str; 3] = ["custom_tool_call", "function_call", "tool_search_call"];
 
-/// The call that dispatches a subagent
+/// The `function_call` name that dispatches a subagent (the real sample's namespace is `collaboration`)
 const DISPATCH: &str = "spawn_agent";
 
 /// What the line called: a call record is a tool, or a subagent when it dispatches one

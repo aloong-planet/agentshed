@@ -20,10 +20,9 @@ import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync,
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseJob, type ParseResult, type ParseRunner } from './token-stats'
+import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { loadEngineModule } from '../engine-module'
-import { firstDifference } from '../engine-parity'
-import { TEST_ENGINE } from '../testing/engine'
+import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
 import { zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
@@ -771,7 +770,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
     expect(sessionReadTarget(r2.sessionFiles, plain)).toBeNull()
   })
 
-  it('a cold rollout that cannot be decompressed — not zstd, or truncated — is skipped like an unreadable plain file, without aborting its siblings (B12)', async () => {
+  it('a cold rollout that is not zstd, or whose stream is cut inside a line, is skipped like an unreadable plain file without aborting its siblings, and one cut exactly at a line end reads as the shorter session (B12)', async () => {
     const plain = mkCodexRollout('rollout-warm-019f042.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [
       { input: 100, cached: 0, output: 10, record: 'resp_t1' }
     ])
@@ -783,10 +782,21 @@ describe('Codex aggregation (the ccusage rules)', () => {
     const full = zstdCompressSync(readFileSync(big))
     rmSync(big)
     writeFileSync(join(d, 'rollout-trunc-019f045.jsonl.zst'), full.subarray(0, Math.floor(full.length / 2)))
+    // A cut exactly at a line end: a whole frame of the first lines, then a frame cut inside its header, so the stream
+    // decompressed ends with the first frame's last line feed. Whether the decoder reports the cut frame does not
+    // decide: Node's reports it from version 26 and not in 24, Electron 43's.
+    const shorter = mkCodexRollout('rollout-lineend-019f046.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [
+      { input: 200, cached: 0, output: 20, record: 'resp_l1' }
+    ])
+    const lost = `${JSON.stringify({ timestamp: '2026-07-30T09:30:00Z', type: 'token_usage_record', payload: { response_id: 'resp_l2', usage: { input_tokens: 900, cached_input_tokens: 0, output_tokens: 90 } } })}\n`
+    const cutAtLineEnd = Buffer.concat([zstdCompressSync(readFileSync(shorter)), zstdCompressSync(Buffer.from(lost)).subarray(0, 5)])
+    rmSync(shorter)
+    writeFileSync(`${shorter}.zst`, cutAtLineEnd)
     const r = await engine().build(roots(), [proj])
     const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'codex') ?? []
-    expect(sessions.map((s) => s.file)).toEqual([plain])
-    expect(r.global.bySide.codex.total).toBe(110)
+    expect(sessions.map((s) => s.file).sort()).toEqual([plain, `${shorter}.zst`].sort())
+    expect(sessions.find((s) => s.file === `${shorter}.zst`)?.tokens).toBe(220)
+    expect(r.global.bySide.codex.total).toBe(110 + 220)
   })
 
   it('a rollout that is paginated and cold at once — usage records, completed-item questions, compressed — yields the same usage, questions and title as its plain twin (the closeout of #163–#165)', async () => {
@@ -2867,7 +2877,12 @@ describe('resuming a grown Codex rollout', () => {
     }
   }
 
-  it('wherever the file is cut, scanning the first part and then the grown file gives the cold result', async () => {
+  /** The rollout's entry in a cache directory's file, its resume state included */
+  function entryIn(cacheDir: string, file: string): { resume: Record<string, unknown> } & Record<string, unknown> {
+    return (JSON.parse(readFileSync(join(cacheDir, 'token-cache.json'), 'utf8')) as { files: Record<string, { resume: Record<string, unknown> }> }).files[file]
+  }
+
+  it('wherever the file is cut, scanning the first part and then the grown file gives the cold result, and the rollout the entry a whole parse gives', async () => {
     const text = rolloutText()
     const cuts = new Set<number>()
     for (let i = 0; i < text.length; i++) {
@@ -2882,10 +2897,35 @@ describe('resuming a grown Codex rollout', () => {
       const cacheDir = join(dir, `cache-resume-${cut}`)
       writeFileSync(f, text.subarray(0, cut))
       await new TokenEngine(cacheDir).build(roots(), [proj])
+      // A cut inside the first line leaves no session to keep an entry for, and the grown file is parsed whole
+      const resumes = entryIn(cacheDir, f) === undefined ? 0 : 1
       appendFileSync(f, text.subarray(cut))
       const resumed = shape(await new TokenEngine(cacheDir).build(roots(), [proj]))
-      expect(resumed, `cut at byte ${cut}`).toEqual(await cold())
+      const coldDir = join(dir, `cache-cold-${cut}`)
+      expect(resumed, `cut at byte ${cut}`).toEqual(shape(await new TokenEngine(coldDir).build(roots(), [proj])))
+      // The entry, the state the next resume starts from included, but for the count of resumes since a whole parse
+      const whole = entryIn(coldDir, f)
+      expect(entryIn(cacheDir, f), `cut at byte ${cut}`).toEqual({ ...whole, resume: { ...whole.resume, resumes } })
     }
+    expect(cuts.size).toBeGreaterThan(10)
+  })
+
+  it('a cold rollout that grew in place, under the same inode, is parsed whole: its stream reads from its start only', async () => {
+    const text = rolloutText()
+    const f = `${rolloutPath()}.zst`
+    // A cold rollout ends with a line feed (B12): the first part ends at a line's end
+    const cut = text.lastIndexOf(0x0a, text.indexOf('second question')) + 1
+    writeFileSync(f, zstdCompressSync(text.subarray(0, cut)))
+    const cacheDir = join(dir, 'cache-resume')
+    await new TokenEngine(cacheDir).build(roots(), [proj])
+    const before = statSync(f)
+    writeFileSync(f, zstdCompressSync(text))
+    const after = statSync(f)
+    // What would make a plain rollout resume: the same inode, a larger size
+    expect(after.ino).toBe(before.ino)
+    expect(after.size).toBeGreaterThan(before.size)
+    expect(shape(await new TokenEngine(cacheDir).build(roots(), [proj]))).toEqual(await cold())
+    expect(entryIn(cacheDir, f).resume['resumes']).toBe(0)
   })
 
   it('reads only the appended part: a change before the old end stays unseen until a full parse', async () => {
@@ -3095,9 +3135,38 @@ describe('the session ID on the session page', () => {
   })
 })
 
+// token-stats, Scans and the window, failure modes: "A panic in the engine module is caught where it crosses into the
+// application. One raised while a file is parsed is that file's failed read, under the rule its side has for a read
+// that fails ... and the scan goes on." Driven through the panic seam, which the tests' module is built with.
+describe('a panic in the engine module while a Codex rollout is parsed', () => {
+  const seam = (): PanicSeam => loadEngineModule(TEST_ENGINE) as PanicSeam
+  afterEach(() => {
+    seam().seamPanicWhileParsing(null)
+  })
+
+  it('is that rollout\'s failed read: it is skipped as an unreadable one is, every other rollout is parsed, and the scan delivers its figures', async () => {
+    const named = mkCodexRollout('rollout-panic-019f500.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 4 }])
+    mkCodexRollout('rollout-other-019f501.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 70, cached: 0, output: 7 }])
+    const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
+    seam().seamPanicWhileParsing(named)
+    const panicked = await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])
+    seam().seamPanicWhileParsing(null)
+    expect(panicked.global.bySide.codex.total).toBe(77)
+    chmodSync(named, 0)
+    try {
+      expect(shape(panicked)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable')).build(roots(), [proj])))
+    } finally {
+      chmodSync(named, 0o644)
+    }
+    // As for an unreadable file, nothing is kept for it: the next build parses it
+    expect((await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])).global.bySide.codex.total).toBe(77 + 44)
+  })
+})
+
 // token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
 // U+FFFD, and read by the grammar of ECMAScript's JSON.parse, with its results". One rollout per clause, parsed through
-// the module; each also gives, field for field, the entry the TypeScript parser gives for the same file.
+// the module. Until the TypeScript Codex parser was removed (#427), each was also held, field for field, to the entry it
+// gave for the same file; the values expected here are the ones both gave.
 describe('how a rollout line is read', () => {
   const AT = '2026-07-30T10:00:00.000Z'
   const REPLACEMENT = String.fromCharCode(0xfffd)
@@ -3115,7 +3184,7 @@ describe('how a rollout line is read', () => {
     return f
   }
 
-  /** The entry the module gives the rollout, held to the TypeScript parser's for the same job */
+  /** The entry a parse gives the rollout */
   async function entryOf(file: string): Promise<NonNullable<ParseResult>> {
     const job: ParseJob = {
       kind: 'codex',
@@ -3124,8 +3193,7 @@ describe('how a rollout line is read', () => {
       meta: { subagent: false, sessionId: 'sid', parentId: null, forkedAt: null, paginated: true },
       threadName: undefined
     }
-    const parsed = loadEngineModule(TEST_ENGINE).parse(job)
-    expect(firstDifference(parsed, await runParseJob(job)), 'where the module and the TypeScript parser part').toBeNull()
+    const parsed = await runParseJob(job)
     if (parsed?.agg.kind !== 'codex') throw new Error('no Codex entry')
     return parsed
   }
