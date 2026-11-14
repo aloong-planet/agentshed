@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeAntigravityQuestionIndexer, makeGrokQuestionIndexer, type QuestionRec } from './question-index'
+import { CLAUDE_DISPATCH, makeAntigravityQuestionIndexer, makeGrokQuestionIndexer, type QuestionRec } from './question-index'
 import { runParseJob } from './token-stats'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { readRanges } from './range-read'
@@ -333,11 +333,13 @@ const aLine = (t: string): string => JSON.stringify(cA([{ type: 'text', text: t 
 
 // The question index counts a turn's subagents by the engine module's dispatch names (engine/src/sides/claude/
 // question.rs), and the turn draws a sub block by CLAUDE_DISPATCH: for each tool name below, alone in a turn, the two
-// agree on whether the call dispatched a subagent. Each copy is the other's expected value, so a name added to one
-// alone goes red here.
+// agree on whether the call dispatched a subagent. The names are CLAUDE_DISPATCH's own and a fixed set of others, so a
+// name added to CLAUDE_DISPATCH alone goes red here; one added to the module's list alone goes red only when it is
+// among the others, as the module's list is not read from here. The two lists become one when the turns read through
+// the module (#432).
 describe('the question index and the turn take the same tool calls as subagent dispatches', () => {
   test('claude: a call is counted as a subagent exactly when its turn shows it as one', async () => {
-    const NAMES = ['Agent', 'Task', 'Bash', 'TaskCreate', 'agent', 'Agent ', '']
+    const NAMES = [...new Set([...CLAUDE_DISPATCH, 'Agent', 'Task', 'Bash', 'TaskCreate', 'agent', 'Agent ', ''])]
     const judged: Array<{ name: string; counted: unknown; shown: unknown }> = []
     for (const name of NAMES) {
       const raw = [uLine('a question'), JSON.stringify(cA([{ type: 'tool_use', id: 'tu1', name, input: { prompt: 'p' } }]))].join('\n') + '\n'
