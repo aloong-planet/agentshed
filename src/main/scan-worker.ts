@@ -1,6 +1,6 @@
-// The scan worker (ADR-0043): the one thread, kept for the run, that owns the token engine and its cache and
+// The scan worker (ADR-0043): the one thread, kept for the run, that owns the token engine and its store and
 // runs every scan — the session walk, the registries and components, the plan, the parses on the parse workers
-// it starts itself, the aggregation and the cache write. The main process sends it requests (scan-client.ts)
+// it starts itself, the aggregation and the store's writes. The main process sends it requests (scan-client.ts)
 // and keeps what belongs to the window and to the archive. Like the parse worker, it imports nothing from
 // electron, which a worker thread cannot load.
 import { parentPort, workerData } from 'node:worker_threads'

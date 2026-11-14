@@ -39,10 +39,10 @@ LOG=/tmp/agentshed-smoke.log
 # Electron binary is enough within the group.
 ELECTRON_BIN='Electron.app/Contents/MacOS/Electron'
 SMOKE_UD=$(mktemp -d /tmp/agentshed-smoke-ud.XXXXXX)
-CACHE="$SMOKE_UD/token-cache.json"
-# The real userData's cache: used only as a diagnostic control for "the redirect broke"; this script
-# never writes it
-REAL_CACHE="$HOME/Library/Application Support/agentshed/token-cache.json"
+STORE="$SMOKE_UD/token-store.sqlite"
+# The real userData's token cache — its store and log, or the JSON cache an older build kept: used only as
+# a diagnostic control for "the redirect broke"; this script never writes it
+REAL_UD="$HOME/Library/Application Support/agentshed"
 
 START_TIMEOUT=60   # First launch on a fresh userData; measured ~1.1s to a process, with ample headroom
 READY_TIMEOUT=300  # A cold scan of real data GROWS with the machine's real usage: measured ~6s at
@@ -57,6 +57,21 @@ EXIT_TIMEOUT=15    # Measured ~1.4s: the main process polls its parent every 1s 
                    # src/main/index.ts), plus the cost of exiting
 
 now_ms() { echo $(( $(date +%s%N) / 1000000 )); }
+# The latest change to the real userData's token cache, as an mtime (0 when none of its files is there)
+real_cache_mtime() {
+  local latest=0 m f
+  for f in "$REAL_UD/token-store.sqlite" "$REAL_UD/token-store.sqlite-wal" "$REAL_UD/token-cache.json"; do
+    m=$(stat -f %m "$f" 2>/dev/null || echo 0)
+    (( m > latest )) && latest=$m
+  done
+  echo "$latest"
+}
+# How many entries the isolated store holds, read by the system's sqlite3: another process, so it reads the
+# store as the app does (engine/src/store/mod.rs says why a second SQLite must not open it in the app's own
+# process). A store not made yet, or one held mid-write, reads as 0.
+stored_entries() {
+  /usr/bin/sqlite3 -readonly "$STORE" 'SELECT count(*) FROM entries' 2>/dev/null || echo 0
+}
 DEVPID=""
 alive() { [ -n "$DEVPID" ] && pgrep -g "$DEVPID" -f "$ELECTRON_BIN" >/dev/null 2>&1; }
 cleanup() {
@@ -87,7 +102,7 @@ OTHERS=$(pgrep -f "Agentshed.app/Contents/MacOS/Agentshed|agentshed.*$ELECTRON_B
 done | tr '\n' ' ')
 [ -n "$OTHERS" ] && echo "(existing instance detected, pid=$OTHERS — userData is isolated, so they do not affect each other and none will be killed by mistake)"
 
-REAL_BEFORE=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
+REAL_BEFORE=$(real_cache_mtime)
 
 # The two pieces of test silencing (see src/main/index.ts and scripts/quiet-electron.sh):
 #   AGENTSHED_NO_FOREGROUND — the window is not shown and does not steal foreground focus;
@@ -108,26 +123,26 @@ until alive; do
 done
 UP_MS=$(( $(now_ms) - T0 ))
 
-# The readiness criterion is "the scan finished": the app atomically writes token-cache.json at the end
-# of the first scan into a directory that holds no cache — a later scan writes it only when its cache
-# changed — and the isolated directory is fresh every time, so an mtime appearing means the scan really
-# ran; a silent failure goes red on the timeout.
+# The readiness criterion is "the scan finished": the app makes its token store empty when the first scan
+# opens it, and lands every entry that scan parsed in one transaction at the end of its token build. The
+# isolated directory is fresh every time and the scan reads the real ~/.claude, so entries appearing means
+# the scan really ran; a silent failure goes red on the timeout.
 T1=$(now_ms)
-until [ "$(stat -f %m "$CACHE" 2>/dev/null || echo 0)" -gt 0 ]; do
+until [ "$(stored_entries)" -gt 0 ]; do
   if ! alive; then
     die "electron started and then exited (main process crash? see the log below)"
   fi
   if (( $(now_ms) - T1 > READY_TIMEOUT * 1000 )); then
-    # A discriminating diagnosis: the isolated cache untouched while the real one moved =
+    # A discriminating diagnosis: the isolated store empty while the real cache moved =
     # --user-data-dir pass-through broke
     # (an electron-vite upgrade dropping it, say), and the app went off to write the real userData.
-    # The real one not moving does not rule that out: a scan that changed nothing in a cache it could
-    # load writes nothing, so the last message names both causes.
-    REAL_NOW=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
+    # The real one not moving does not rule that out: a scan that changed nothing in a store it could
+    # use writes nothing, so the last message names both causes.
+    REAL_NOW=$(real_cache_mtime)
     if [ "$REAL_NOW" -gt "$REAL_BEFORE" ]; then
-      die "userData redirection failed: the isolated cache was not updated but the real one was — check that pnpm dev forwards --user-data-dir"
+      die "userData redirection failed: the isolated store was not filled but the real cache was written — check that pnpm dev forwards --user-data-dir"
     fi
-    die "first scan did not finish within ${READY_TIMEOUT}s (isolated cache not updated) — or it ran against the real userData and found nothing to write there: check that pnpm dev forwards --user-data-dir"
+    die "first scan did not finish within ${READY_TIMEOUT}s (isolated store holds no entry) — or it ran against the real userData and found nothing to write there: check that pnpm dev forwards --user-data-dir"
   fi
   sleep 0.3
 done
@@ -140,7 +155,7 @@ EPID=$(pgrep -g "$DEVPID" -f "$ELECTRON_BIN" | head -1)
 # kill-parent and orphan checks
 # would both spin on nothing, and if the log also has no error line that is a false green. After
 # readiness the process must still be alive; if not, fail.
-[ -z "$EPID" ] && die "the ready artifact was written but the electron process is gone (crashed right after writing?)"
+[ -z "$EPID" ] && die "the store was filled but the electron process is gone (crashed right after writing?)"
 PARENT=$(ps -o ppid= -p "$EPID" | tr -d ' ')
 T2=$(now_ms)
 kill -9 "$PARENT" 2>/dev/null

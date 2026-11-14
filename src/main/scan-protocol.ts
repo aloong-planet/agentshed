@@ -23,7 +23,7 @@ export type ScanReply = { id: number; ok: true; value: unknown } | { id: number;
 
 /** What the scan worker is started with */
 export interface ScanWorkerData {
-  /** Where the token cache file lives */
+  /** The settings directory, where the token store lives */
   cacheDir: string
   /** The built parse-worker entry, which the scanner's parse pool starts */
   parseScript: string

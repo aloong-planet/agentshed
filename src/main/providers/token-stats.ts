@@ -18,8 +18,9 @@
 //   the model comes from the last turn_context (an approximation of the session's primary model).
 // - The incremental cache stores entry-level data (deduplication has to happen across files, in the
 //   aggregation layer, so a deduplicated result cannot be what is cached);
-//   keyed by (path, mtime, size), written atomically. The statistics include stale projects.
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+//   keyed by (path, mtime, size), one row per file in the token store the engine module keeps (ADR-0044). The
+//   statistics include stale projects.
+import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'node:fs'
 import { dirname, join, sep } from 'node:path'
 import type {
   AgentSide,
@@ -51,10 +52,10 @@ import {
 import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
 import { walkSessions, type SessionWalk } from './scan'
+import { byName, compareNames, compareScanOrder } from './scan-order'
 import { agySessionSignature, agyTranscriptPath, readAgySummaryTitles, readAntigravityUsage, type AgyCall } from './antigravity'
 import type { UsageRow } from './archive'
-import { writeFileAtomicSync } from './atomic-write'
-import { threadEngineModule } from '../engine-module'
+import { loadEngineModule, threadEngineModule, type EngineSource, type TokenStore, type TokenStoreRow } from '../engine-module'
 
 /** One Claude usage entry (encoded into the cache as a compact array): [mid, rid, sc, in, out, cr, cw, model, day] */
 type PackedEntry = [
@@ -254,6 +255,10 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg | AntigravityFileAgg
  *      above exists for: without the bump, an entry cached under v12 keeps its parsed value while
  *      the total no longer includes it, so the four fields stop summing to the total. Zero on this
  *      machine's data, hence invisible to every fixture with a fresh cache.
+ * v20: the cache moved from the JSON file into the token store the engine module keeps (ADR-0044) — **a structure
+ *      change of the cache as a whole**, which the store records as its own version. The per-file aggregate is v19's,
+ *      unchanged, which is why the first launch imports a v19 JSON file and no other (JSON_CACHE_VERSION, token-stats
+ *      C26). The store's tables are this version's too (engine/src/store/): changing them bumps this number.
  *
  * Not bumped, for one computation change and its reasons alone (#427): a Codex rollout's last line is read only once its
  *      line feed is written, where the TypeScript parser read it at once. The change reaches only an entry cached while a
@@ -270,32 +275,41 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg | AntigravityFileAgg
  * updated with it: search for `+c<old version>` when bumping.
  *
  * **Exported for tests and for the accounting stamp** — a guard test builds an "immediately previous
- * version" cache with `CACHE_VERSION - 1` rather than hard-coding a literal that goes stale as the
+ * version" store with `CACHE_VERSION - 1` rather than hard-coding a literal that goes stale as the
  * version grows, and the archive's stamp (ADR-0026) carries this number as the identity of the parser
- * rules. Production code must not **branch** on it: the only version comparison is in loadCache, and a
- * second one would be a second rule that can drift.
+ * rules. Production code must not **branch** on it: the only version comparison is the store's own, when it
+ * opens (engine/src/store/), and a second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 19
+export const CACHE_VERSION = 20
 
 /**
- * The archive rows a cache snapshot implies, through the same aggregation the scan uses (spec C16: a
- * restore writes exactly what a scan of that data would have produced). The snapshot must be of the
- * current cache structure version — the aggregation only understands the shape it was written for, and
- * reading an older shape would produce plausible nonsense rather than an error.
+ * The last structure version kept in the JSON cache file, and the only one a first launch imports (token-stats C26): its
+ * per-file aggregate is the store's (CACHE_VERSION, v20). A literal, not `CACHE_VERSION - 1`: a later bump changes what
+ * the store holds, never what that file held.
  */
-export function rowsFromCacheFile(file: string): UsageRow[] {
-  const raw: unknown = JSON.parse(readFileSync(file, 'utf8'))
-  const shape = raw as { version?: unknown; files?: unknown } | null
-  if (shape?.version !== CACHE_VERSION) {
-    throw new Error(`cache snapshot is version ${String(shape?.version)}, this build reads version ${CACHE_VERSION}`)
+const JSON_CACHE_VERSION = 19
+
+/**
+ * The archive rows a snapshot implies — a copy of the token store — through the same aggregation the scan uses,
+ * combining its entries as one scan set, in scan order (scan-order.ts; spec C16: a restore writes exactly what a scan of
+ * that data would have produced). `roots` are the data roots of the machine the store was made on, which the order
+ * is taken by. The copy is read through the engine module without anything written to it or beside it. It must be a
+ * store of the current cache structure version — the aggregation only understands the shape it was written for,
+ * and reading an older shape would produce plausible nonsense rather than an error; a JSON cache file is no store.
+ */
+export function rowsFromStoreSnapshot(file: string, engine: EngineSource, roots: ScanRoots): UsageRow[] {
+  const snapshot = loadEngineModule(engine).readTokenStoreSnapshot(file, CACHE_VERSION)
+  if (snapshot.version !== CACHE_VERSION || !snapshot.rows) {
+    throw new Error(`cache snapshot is version ${snapshot.version ?? 'none'}, this build reads version ${CACHE_VERSION}`)
   }
   // A scan parses again the file of an entry that is not well formed; a restore has no file to parse, and rows
   // from the other entries alone would write a day's figure short of that entry's usage as an accepted change
-  const entries = CacheEntries.from(shape.files)
-  if (!entries) throw new Error('cache snapshot holds no object of entries')
-  const aggs = [...entries.entries()].map((entry) => entry.agg)
-  if (aggs.length !== entries.size) {
-    throw new Error(`cache snapshot holds ${entries.size - aggs.length} of ${entries.size} entries that are not well formed`)
+  // The store holds its rows in the order it first held them, which a later scan's order need not be
+  const order = compareScanOrder(roots)
+  const entries = [...snapshot.rows].sort((a, b) => order(a.path, b.path)).map(CacheEntries.entryOf)
+  const aggs = entries.flatMap((entry) => (entry ? [entry.agg] : []))
+  if (aggs.length !== entries.length) {
+    throw new Error(`cache snapshot holds ${entries.length - aggs.length} of ${entries.length} entries that are not well formed`)
   }
   return combine(aggs).rows
 }
@@ -368,73 +382,143 @@ interface CacheEntry {
 }
 
 /**
- * The cache's entries by session file, and the one way to them. What it holds came from the cache file or from a
- * build, and under any path the file may hold any JSON value: a reader that looked at one itself, before or without
- * the shape check, failed the whole scan at every launch until the file was deleted (postmortems
- * `2026-10-29-a-guard-read-after-the-value-it-guards` and `2026-11-11-a-null-files-object-passed-the-cache-loader`).
- * So what is held is a `#private` field, which nothing outside this class can name, even by index: a read is `get` or
- * `entries`, and both hand out an entry only after checking it (isWellFormedEntry). What is handed out is what is held, its
- * aggregate the very object and not a copy of it — a build tells that it changed nothing by meeting the aggregates
- * the cache held (isHeldEntry), and a copy would have every build write the file.
+ * The token store's entries by session file (ADR-0044), and the one way to them. Under any path the store may hold
+ * anything — what a crash, a disk or a hand left there, or text that is no entry — and a reader that looked at one
+ * itself, before or without the shape check, failed the whole scan at every launch until the cache was deleted
+ * (postmortems `2026-10-29-a-guard-read-after-the-value-it-guards` and
+ * `2026-11-11-a-null-files-object-passed-the-cache-loader`). So a row becomes an entry only here (`entryOf`), and only
+ * after the check (isWellFormedEntry): what does not pass is no entry, and its file is a miss. The store is a
+ * `#private` field, which nothing outside this class can name.
+ *
+ * Nothing is kept between two reads: each goes to the store, so a read sees what another process wrote before it
+ * (token-stats C27), and no scan holds the entries of the one before. A failure of the store fails no scan and no page
+ * (token-stats C3, session-view C4): a read that fails is nothing held, a write that fails lands nothing, and each is
+ * logged.
  */
 class CacheEntries {
-  readonly #held: Record<string, unknown>
-  /** The entries already found well formed. The check reads every row of an entry's lists, and nothing changes an
-   * entry once it is held, so each is checked once and not at every scan. */
-  readonly #checked = new WeakSet<object>()
+  readonly #store: TokenStore
 
-  constructor(held: Record<string, unknown> = {}) {
-    this.#held = held
+  constructor(store: TokenStore) {
+    this.#store = store
   }
 
-  #isEntry(held: unknown): held is CacheEntry {
-    if (typeof held !== 'object' || held === null) return false
-    if (this.#checked.has(held)) return true
-    if (!isWellFormedEntry(held)) return false
-    this.#checked.add(held)
-    return true
+  /**
+   * A row's entry when it is well formed; otherwise nothing. The resume state is not part of what makes an entry
+   * (CacheEntry): one that is no JSON is no resume state, and costs the rollout its resume, never its entry.
+   */
+  static entryOf(this: void, row: TokenStoreRow): CacheEntry | undefined {
+    if (typeof row.agg !== 'string') return undefined
+    let agg: unknown
+    try {
+      agg = JSON.parse(row.agg)
+    } catch {
+      return undefined
+    }
+    const entry = { sig: row.sig, agg } as Record<string, unknown>
+    if (typeof row.resume === 'string') {
+      try {
+        entry['resume'] = JSON.parse(row.resume)
+      } catch {
+        // No resume state
+      }
+    }
+    return isWellFormedEntry(entry) ? entry : undefined
   }
 
-  /** Over a cache file's `files`; null when that is not an object of entries — it is missing, `null`, an array or a
-   * value of another type — and the file is then garbage (token-stats C2) */
-  static from(files: unknown): CacheEntries | null {
-    // null is an object to typeof, and so is an array, which would pass for a cache that holds nothing
-    if (typeof files !== 'object' || files === null || Array.isArray(files)) return null
-    return new CacheEntries(files as Record<string, unknown>)
+  static #read(read: { rows: TokenStoreRow[]; failure?: string | null }): TokenStoreRow[] {
+    if (read.failure) console.error('[token-store] read failed:', read.failure)
+    return read.rows
+  }
+
+  /**
+   * What is held under the file: whether anything is, well formed or not, and its entry when it is well formed. A read
+   * that fails tells nothing held, so the file counts as held with no entry: a page rebuilds its index (session-view C4).
+   */
+  lookup(file: string): { held: boolean; entry: CacheEntry | undefined } {
+    const read = this.#store.get(file)
+    const row = CacheEntries.#read(read)[0]
+    if (read.failure) return { held: true, entry: undefined }
+    return { held: row !== undefined, entry: row === undefined ? undefined : CacheEntries.entryOf(row) }
   }
 
   /** The file's entry when it is well formed; otherwise nothing, and the file is a miss */
   get(file: string): CacheEntry | undefined {
-    const held = this.#held[file]
-    return this.#isEntry(held) ? held : undefined
+    return this.lookup(file).entry
   }
 
-  /** Whether anything is held for the file, well formed or not; a `null` is nothing held */
-  has(file: string): boolean {
-    const held = this.#held[file]
-    return held !== undefined && held !== null
+  /** Every file something is held for, with its entry, or null for one that is not well formed */
+  all(): Map<string, CacheEntry | null> {
+    const out = new Map<string, CacheEntry | null>()
+    for (const row of CacheEntries.#read(this.#store.all())) out.set(row.path, CacheEntries.entryOf(row) ?? null)
+    return out
   }
 
-  /** Holds an entry a parse made or `get` handed out: one this code built or has checked, so it is not checked again */
-  set(file: string, entry: CacheEntry): void {
-    this.#held[file] = entry
-    this.#checked.add(entry)
+  /** Holds `puts` and removes `removes`, all of it or none (token-stats C3); whether it landed */
+  write(puts: ReadonlyMap<string, CacheEntry>, removes: readonly string[] = []): boolean {
+    if (puts.size === 0 && removes.length === 0) return true
+    const rows = [...puts].map(([path, e]) => ({
+      path,
+      sig: e.sig,
+      agg: JSON.stringify(e.agg),
+      ...(e.resume === undefined ? {} : { resume: JSON.stringify(e.resume) })
+    }))
+    const failure = this.#store.write(rows, [...removes])
+    if (failure === null) return true
+    console.error('[token-store] write failed:', failure)
+    return false
   }
 
-  /** Every well-formed entry, in the order held */
-  *entries(): IterableIterator<CacheEntry> {
-    for (const held of Object.values(this.#held)) if (this.#isEntry(held)) yield held
+  /** Whether another process wrote to the store since this one last asked (token-stats C27) */
+  changedByOther(): boolean {
+    return this.#store.changedByOther()
   }
+}
 
-  /** How many files something is held for, well formed or not */
-  get size(): number {
-    return Object.keys(this.#held).length
-  }
+/** The JSON file the cache was kept in up to structure version 19, read once by the upgrade (token-stats C26) */
+const JSON_CACHE_FILE = 'token-cache.json'
 
-  /** The cache file's text: everything held, as it is, under this build's version */
-  fileText(): string {
-    return JSON.stringify({ version: CACHE_VERSION, files: this.#held })
+/**
+ * Upgrading from the JSON cache (token-stats C26), when a thread opens the store. A store the open made has the JSON
+ * file's well-formed entries imported, each as a scan would store it, when the file is of the last version it kept;
+ * the file is then deleted. A file of another version, or one that is garbage by that file's rules, is deleted without
+ * an import, and so is one beside a store that was already there: the store's signatures decide what is current.
+ * An import that fails lands nothing and leaves the file, which a later launch deletes as one beside a store. A deletion
+ * that fails is logged.
+ */
+function settleJsonCache(cacheDir: string, store: CacheEntries, created: boolean): void {
+  const file = join(cacheDir, JSON_CACHE_FILE)
+  const remove = (): void => {
+    try {
+      unlinkSync(file)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.error(`[token-store] ${JSON_CACHE_FILE} could not be deleted:`, error)
+    }
   }
+  if (!created) {
+    remove()
+    return
+  }
+  let raw: unknown
+  try {
+    raw = JSON.parse(readFileSync(file, 'utf8'))
+  } catch (error) {
+    // No file is nothing to settle; one that will not read or parse is garbage
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') remove()
+    return
+  }
+  const shape = raw as { version?: unknown; files?: unknown } | null
+  const files = shape?.files
+  // null is an object to typeof, and so is an array, which would pass for a cache that holds nothing
+  if (shape?.version !== JSON_CACHE_VERSION || typeof files !== 'object' || files === null || Array.isArray(files)) {
+    remove()
+    return
+  }
+  const puts = new Map<string, CacheEntry>()
+  for (const [path, held] of Object.entries(files as Record<string, unknown>)) {
+    if (isWellFormedEntry(held)) puts.set(path, held)
+  }
+  if (store.write(puts)) remove()
+  else console.error(`[token-store] the import of ${JSON_CACHE_FILE} failed; the first scan parses every file`)
 }
 
 export interface TokenBuildResult {
@@ -580,10 +664,40 @@ interface Slot {
   fallback?: CacheEntry
 }
 
+/**
+ * Which files hold the sessions a fork names as its parent, by the id the fork names: a Codex session's id, an
+ * Antigravity conversation's own id, each with its files in scan order. The parent's entry is then read from the store
+ * (a fork's parent lookup, token-stats Implementation Decisions, Cache); this only spares that lookup a read of every
+ * entry, on each page of a fork. Taken from the entries a build read, and again from the store once another process
+ * wrote to it (token-stats C27).
+ */
+interface ParentFiles {
+  codex: Map<string, string[]>
+  antigravity: Map<string, string[]>
+  /** Scan order (scan-order.ts), which each list is kept in: the lookup takes the first file, as the combination does */
+  order: (a: string, b: string) => number
+}
+
+function addParentFile(index: ParentFiles, file: string, agg: FileAgg): void {
+  const add = (by: Map<string, string[]>, id: string): void => {
+    const files = by.get(id)
+    if (!files) by.set(id, [file])
+    else if (!files.includes(file)) {
+      files.push(file)
+      files.sort(index.order)
+    }
+  }
+  if (agg.kind === 'codex' && agg.sessionId !== null) add(index.codex, agg.sessionId)
+  if (agg.kind === 'antigravity' && !agg.unreadable && agg.conversationId !== '') add(index.antigravity, agg.conversationId)
+}
+
 export class TokenEngine {
   private readonly cacheDir: string
-  private readonly cacheFile: string
-  private cache: CacheEntries
+  /** The engine module that keeps the store (ADR-0044, ADR-0045) */
+  private readonly engine: EngineSource
+  /** The store, once this thread has opened it; null until then, and after an open that failed, which the next use
+   * tries again */
+  private store: CacheEntries | null = null
   private readonly runner: ParseRunner
   /** agy's own conversation titles as last read (session-view::REQ-003/AC-03): at every build, since agy titles a
    * conversation after the fact without the conversation itself changing, and on a page's first need before any */
@@ -591,46 +705,45 @@ export class TokenEngine {
   /** Where the summaries are copied when a log is beside them; the system's temporary directory unless given, as a
    * parse job's `tmpParent` is */
   private readonly agyTmpParent: string | undefined
-  /** Whether the file is not what memory holds for a reason other than a build's own changes: it was no readable
-   * cache of this version when it was loaded, or its last write failed, a build's or a session page's. The next
-   * build then writes whether or not it changes the cache (token-stats::QR-002/AC-02). */
-  private unsaved = false
+  /** The files a fork's parent may be in (ParentFiles); null until a build or a page needs it */
+  private parentFiles: ParentFiles | null = null
 
-  constructor(cacheDir: string, runner: ParseRunner = INLINE, agyTmpParent?: string) {
+  constructor(cacheDir: string, engine: EngineSource, runner: ParseRunner = INLINE, agyTmpParent?: string) {
     this.cacheDir = cacheDir
-    this.cacheFile = join(cacheDir, 'token-cache.json')
-    this.cache = this.loadCache()
+    this.engine = engine
     this.runner = runner
     this.agyTmpParent = agyTmpParent
   }
 
-  private loadCache(): CacheEntries {
-    try {
-      const raw: unknown = JSON.parse(readFileSync(this.cacheFile, 'utf8'))
-      if (typeof raw === 'object' && raw !== null && (raw as Record<string, unknown>)['version'] === CACHE_VERSION) {
-        const entries = CacheEntries.from((raw as Record<string, unknown>)['files'])
-        if (entries) return entries
-      }
-    } catch {
-      // Cache missing / corrupt / an old version: recompute everything
+  /**
+   * The store, opened at this thread's first build or page, before anything is read from it: the one there when it is
+   * usable, otherwise a new empty one, into which the JSON cache is imported (token-stats C1, C2, C26). A module that
+   * will not load throws, as no other engine exists (token-stats, Scans and the window). A store that cannot be opened
+   * or made is none: the build parses every file and writes nothing, the failure is logged, and the next use tries
+   * again.
+   */
+  private openStore(): CacheEntries | null {
+    if (this.store) return this.store
+    const module = loadEngineModule(this.engine)
+    const opened = new module.TokenStore(this.cacheDir, CACHE_VERSION)
+    if (opened.failure !== null) {
+      console.error('[token-store] open failed:', opened.failure)
+      return null
     }
-    // The file is then not this cache: the first build replaces it, even one that parses nothing
-    this.unsaved = true
-    return new CacheEntries()
+    const store = new CacheEntries(opened)
+    settleJsonCache(this.cacheDir, store, opened.created)
+    this.store = store
+    return store
   }
 
-  /**
-   * The cache only spares the next launch a parse: what was just computed is in memory and answers from there. So a failed
-   * write fails neither a scan nor a session page (token-stats C3, session-view C4), and is logged.
-   */
-  private persist(): void {
-    try {
-      writeFileAtomicSync(this.cacheFile, join(this.cacheDir, `.token-cache.j-${process.pid}`), this.cache.fileText())
-      this.unsaved = false
-    } catch (error) {
-      this.unsaved = true
-      console.error('[token-cache] save failed:', error)
-    }
+  /** The files a fork's parent may be in, taken again from the store when another process wrote to it since — the
+   * store's rows put in scan order, which the store does not hold them in */
+  private parentFilesOf(store: CacheEntries | null, roots: ScanRoots): ParentFiles {
+    if (this.parentFiles && !store?.changedByOther()) return this.parentFiles
+    const index: ParentFiles = { codex: new Map(), antigravity: new Map(), order: compareScanOrder(roots) }
+    for (const [file, entry] of store?.all() ?? []) if (entry) addParentFile(index, file, entry.agg)
+    this.parentFiles = index
+    return index
   }
 
   /**
@@ -658,8 +771,12 @@ export class TokenEngine {
     const isRegistered = (key: string): boolean =>
       registeredKeys ? registeredKeys.has(key) : key !== ''
     const aggs: FileAgg[] = []
-    const seen = new CacheEntries()
     const sessionFiles = new Set<string>()
+    // Every entry the store holds, read as it is now: whatever another process wrote before this point is in it
+    // (token-stats C27). Held for this build only.
+    const store = this.openStore()
+    store?.changedByOther()
+    const held = store?.all() ?? new Map<string, CacheEntry | null>()
     // Every file in scan order. The cache is consulted here, on the engine's thread; the misses are parsed
     // together below, as many at once as the runner allows; then every file is taken in this order, so
     // the aggregation sees exactly the sequence a one-at-a-time build saw.
@@ -674,9 +791,11 @@ export class TokenEngine {
     if (existsSync(projectsRoot)) {
       let dirs: string[]
       try {
+        // In scan order (scan-order.ts)
         dirs = readdirSync(projectsRoot, { withFileTypes: true })
           .filter((e) => e.isDirectory())
           .map((e) => e.name)
+          .sort(compareNames)
       } catch {
         dirs = []
       }
@@ -688,7 +807,7 @@ export class TokenEngine {
           // so the read side does not admit them either — the same goes for nested transcripts, whose
           // parent sessions are all invisible
           const admit = (agg: FileAgg): boolean => isRegistered(projectKey) && (nested || listedOf(agg))
-          slots.push(this.plan(file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
+          slots.push(this.plan(held.get(file) ?? undefined, file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
         }
       }
     }
@@ -698,7 +817,7 @@ export class TokenEngine {
     const titles = readCodexIndex(roots.codexHome)
     for (const s of walked.codex) {
       const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && (s.subagent || listedOf(agg))
-      slots.push(this.codexPlan(s.file, s.cwd, s, titles, admit))
+      slots.push(this.codexPlan(held.get(s.file) ?? undefined, s.file, s.cwd, s, titles, admit))
     }
 
     // ── Grok: the session store, attributed by the percent-encoded directory name ──
@@ -709,7 +828,7 @@ export class TokenEngine {
       // (the dispatch's result comes from the parent's own finished record), so unlike Claude's
       // nested transcripts it stays outside the read allow-list
       const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && listedOf(agg)
-      slots.push(this.plan(s.file, admit, { kind: 'grok', file: s.file, projectKey: mergeKey(s.cwd), subagent: s.subagent }))
+      slots.push(this.plan(held.get(s.file) ?? undefined, s.file, admit, { kind: 'grok', file: s.file, projectKey: mergeKey(s.cwd), subagent: s.subagent }))
     }
 
     // ── Antigravity CLI: every conversation database, attributed by its own trajectory record ──
@@ -718,31 +837,33 @@ export class TokenEngine {
     // transcript is never expanded in a parent turn on this side (its return is the parent's own system message).
     for (const s of walked.antigravity) {
       const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && listedOf(agg)
-      slots.push(this.antigravityPlan(s.file, admit))
+      slots.push(this.antigravityPlan(held.get(s.file) ?? undefined, s.file, admit))
     }
 
     const misses = slots.filter((slot) => slot.plan !== undefined)
     await mapLimit(misses, this.runner.concurrency, async (slot) => {
       if (slot.plan) slot.entry = entryOf(slot.plan, await this.runner.run(slot.plan.job)) ?? slot.fallback ?? null
     })
-    // Whether this build changed the cache: an entry that is not the one the cache held — a parse produced it —
-    // or, below, a file the cache held an entry for that ends the build with none: it left the scan set, or
-    // gives no entry any more (token-stats::QR-002/AC-02). A parse that gave nothing to a file the cache held
-    // no entry for, or that fell back on the entry already held, changed nothing.
-    const held = this.cache
-    let changed = false
+    // What this build changed in the store, and all it writes (token-stats::QR-002/AC-02): each entry that is not
+    // the one the store held — a parse produced it — and the removal of each file the store held something for that
+    // ends the build with no entry: it left the scan set, or gives no entry any more. A parse that gave nothing to a
+    // file the store held no entry for, or that fell back on the entry already held, changed nothing.
+    const puts = new Map<string, CacheEntry>()
+    const ending = new Set<string>()
+    const parentFiles: ParentFiles = { codex: new Map(), antigravity: new Map(), order: compareScanOrder(roots) }
     for (const slot of slots) {
       if (!slot.entry) continue
       aggs.push(slot.entry.agg)
-      seen.set(slot.file, slot.entry)
-      if (!changed && !isHeldEntry(held.get(slot.file), slot.entry)) changed = true
+      ending.add(slot.file)
+      addParentFile(parentFiles, slot.file, slot.entry.agg)
+      if (!isHeldEntry(held.get(slot.file) ?? undefined, slot.entry)) puts.set(slot.file, slot.entry)
       if (slot.admit(slot.entry.agg)) sessionFiles.add(slot.file)
     }
-    // With every entry the one already held, the two sets can differ only by a held file that has no entry now
-    if (!changed && held.size !== seen.size) changed = true
-
-    this.cache = seen
-    if (changed || this.unsaved) this.persist()
+    const removes = [...held.keys()].filter((file) => !ending.has(file))
+    // One transaction: the store holds all of it or none of it. One that does not land is logged and costs the next
+    // scan the parses of what it held, which the store then still lacks (token-stats C3).
+    store?.write(puts, removes)
+    this.parentFiles = parentFiles
     // agy's titles: a failed read while agy writes its summaries keeps the last ones read
     this.agyTitles = readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? this.agyTitles ?? new Map()
     const result = combine(aggs, this.agyTitles)
@@ -755,15 +876,14 @@ export class TokenEngine {
    * A file's slot: its cached entry when the signature still matches, otherwise the job that parses it.
    * The signature is the one taken **before** parsing, so a file that grows while it is read shows as
    * changed on the next scan rather than matching a signature that already counts bytes the parse
-   * never saw. An unreadable file gets neither.
+   * never saw. An unreadable file gets neither. `cached` is the file's entry in the store, if it has one.
    */
-  private plan(file: string, admit: Slot['admit'], job: ParseJob): Slot {
+  private plan(cached: CacheEntry | undefined, file: string, admit: Slot['admit'], job: ParseJob): Slot {
     const st = statOf(file)
     if (st === null) return { file, entry: null, admit }
-    // Beyond the version, the cache hands out an entry only when its shape holds: manual corruption or future
+    // Beyond the version, the store hands out an entry only when its shape holds: manual corruption or future
     // drift within one version is always recomputed, so a missing field never flows into the aggregation layer.
-    // The cache is keyed by file path and a path's side never changes, so a hit is the same side's agg.
-    const cached = this.cache.get(file)
+    // The store is keyed by file path and a path's side never changes, so a hit is the same side's agg.
     if (cached && cached.sig === st.sig) return { file, entry: { sig: st.sig, agg: cached.agg }, admit }
     return { file, entry: null, admit, plan: { job, st } }
   }
@@ -773,10 +893,9 @@ export class TokenEngine {
    * and size, never the database's size — still matches; read whole otherwise, as agy rewrites and truncates rows in
    * place. Its last readable entry stands by in case the read fails while agy writes (token-stats::REQ-004/AC-03).
    */
-  private antigravityPlan(file: string, admit: Slot['admit']): Slot {
+  private antigravityPlan(cached: CacheEntry | undefined, file: string, admit: Slot['admit']): Slot {
     const sig = agySessionSignature(file)
     if (sig === null) return { file, entry: null, admit }
-    const cached = this.cache.get(file)
     const usable = cached !== undefined && cached.agg.kind === 'antigravity'
     if (usable && cached.sig === sig) return { file, entry: cached, admit }
     const fallback = usable && cached.agg.kind === 'antigravity' && !cached.agg.unreadable ? cached : undefined
@@ -787,10 +906,16 @@ export class TokenEngine {
    * A Codex rollout's slot: cached when its signature still matches; a job resuming from the cached
    * parse state when the rollout only grew (CodexResume); a whole parse otherwise.
    */
-  private codexPlan(file: string, cwd: string, meta: CodexParseMeta, titles: Map<string, string>, admit: Slot['admit']): Slot {
+  private codexPlan(
+    cached: CacheEntry | undefined,
+    file: string,
+    cwd: string,
+    meta: CodexParseMeta,
+    titles: Map<string, string>,
+    admit: Slot['admit']
+  ): Slot {
     const st = statOf(file)
     if (st === null) return { file, entry: null, admit }
-    const cached = this.cache.get(file)
     if (cached && cached.sig === st.sig) return { file, entry: cached, admit }
     const state = cached?.resume
     const from =
@@ -812,8 +937,14 @@ export class TokenEngine {
    * calling thread, not the runner: the page is waiting, and during a scan the runner's queue holds that
    * scan's whole backlog.
    */
-  private async codexEntry(file: string, cwd: string, meta: CodexParseMeta, titles: Map<string, string>): Promise<CacheEntry | null> {
-    const slot = this.codexPlan(file, cwd, meta, titles, () => false)
+  private async codexEntry(
+    cached: CacheEntry | undefined,
+    file: string,
+    cwd: string,
+    meta: CodexParseMeta,
+    titles: Map<string, string>
+  ): Promise<CacheEntry | null> {
+    const slot = this.codexPlan(cached, file, cwd, meta, titles, () => false)
     if (!slot.plan) return slot.entry
     return entryOf(slot.plan, await runParseJob(slot.plan.job))
   }
@@ -824,10 +955,16 @@ export class TokenEngine {
    * the renderer uses it to decide whether to show the interim "rebuilding the index for this file only"
    * state (ticket 05),
    * and the sessionQuestions call that follows does the actual rebuild. The file changing between the
-   * two steps is harmless: the rebuild is idempotent.
+   * two steps is harmless: the rebuild is idempotent. With no store to read — the module will not load, or the
+   * store will not open — no index matches, and the read that follows says why.
    */
   isFresh(file: string): boolean {
-    const cached = this.cache.get(file)
+    let cached: CacheEntry | undefined
+    try {
+      cached = this.openStore()?.get(file)
+    } catch {
+      return false
+    }
     if (!cached) return false
     const sig = cached.agg.kind === 'antigravity' ? agySessionSignature(file) : sigOf(file)
     return sig !== null && cached.sig === sig
@@ -868,10 +1005,13 @@ export class TokenEngine {
      * conversation its transcript (session-view::REQ-004/AC-02) — derived here, never taken from the renderer */
     source: string
   }> {
-    const cached = this.cache.get(file)
+    const store = this.openStore()
+    // With no store to read, nothing tells a session the scan never indexed — the read allow-list admitted the file —
+    // so the page rebuilds the index as for an entry that is not well formed, and keeps it nowhere (session-view C4)
+    const { held, entry: cached } = store?.lookup(file) ?? { held: true, entry: undefined }
     // An entry that is not well formed is read again for the page; a file nothing is held for is a session the
     // scan never indexed
-    if (!cached && !this.cache.has(file)) throw appError(ERR.sessionNotIndexed)
+    if (!held) throw appError(ERR.sessionNotIndexed)
     // The side is judged from the data root, not trusted to a possibly corrupt cache entry
     const agyConversation = isAgyConversation(roots, file)
     const sig = agyConversation ? agySessionSignature(file) : sigOf(file)
@@ -880,7 +1020,9 @@ export class TokenEngine {
     if (agg === null) {
       const claudeRoot = join(roots.claudeHome, 'projects')
       let fresh: FileAgg | null
-      // Whether the rebuilt index is kept in the cache: always, but for a Claude session with no project to keep
+      // A Codex rollout's rebuilt entry, which carries its resume state beside the aggregate
+      let codexEntry: CacheEntry | null = null
+      // Whether the rebuilt index is kept in the store: always, but for a Claude session with no project to keep
       let kept = true
       if (agyConversation) {
         // The database and the transcript read again, for this conversation alone (C4); a read that fails while agy
@@ -907,25 +1049,27 @@ export class TokenEngine {
         const meta = readCodexSessionMeta(file)
         // No metadata out of a file that cannot be read is the file's failure, not its first line's (session-view P6)
         if (!meta) throw appError(isReadable(file) ? ERR.sessionMetaUnreadable : ERR.sessionFileUnreadable)
-        const entry = await this.codexEntry(file, meta.cwd, meta, readCodexIndex(roots.codexHome))
+        const entry = await this.codexEntry(cached, file, meta.cwd, meta, readCodexIndex(roots.codexHome))
         if (!entry) throw appError(ERR.sessionFileUnreadable)
-        this.cache.set(file, entry)
+        // Stored with the state its next resume starts from
+        codexEntry = entry
         fresh = entry.agg
       }
       // A parse gives null only when the file cannot be read: a bad line is skipped, and a format it does not know is
       // an agg marked unreadable, below
       if (!fresh) throw appError(ERR.sessionFileUnreadable)
       agg = fresh
-      if (kept) {
-        // A Codex entry was stored above, with the state its next resume starts from
-        if (fresh.kind !== 'codex') this.cache.set(file, { sig, agg: fresh })
-        this.persist()
+      if (kept && store) {
+        // A write that fails is logged and fails no page: the index answers from here, and the store still lacks it,
+        // so the next read and the next scan parse the file again (session-view C4, token-stats C3)
+        store.write(new Map([[file, codexEntry ?? { sig, agg: fresh }]]))
+        if (this.parentFiles) addParentFile(this.parentFiles, file, fresh)
       }
     }
     if (agg.kind === 'antigravity') {
       // A conversation that cannot be read in the supported format is listed nowhere and has no page
       if (agg.unreadable) throw appError(ERR.sessionParseFailed)
-      const parent = this.agyParent(agg)
+      const parent = this.agyParent(agg, roots)
       // Read once when no build has yet: the titles the list shows, so the page and the banner agree with it
       this.agyTitles ??= readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? new Map()
       return {
@@ -974,7 +1118,7 @@ export class TokenEngine {
         source: file
       }
     }
-    const shown = await this.codexShown(agg)
+    const shown = await this.codexShown(agg, roots)
     return {
       side: 'codex',
       questions: shown.questions,
@@ -984,7 +1128,7 @@ export class TokenEngine {
       forkPoints: 0,
       // The parent is named as its own page and the list title it: a parent that is itself a stripped fork by
       // its first question left, not by the question it replayed (#278)
-      forkParentTitle: shown.parent ? (await this.codexShown(shown.parent)).title : null,
+      forkParentTitle: shown.parent ? (await this.codexShown(shown.parent, roots)).title : null,
       forkParentFile: shown.parent?.file ?? null,
       // Codex keeps the ID in its record's session metadata, read by the scan
       sessionId: agg.sessionId,
@@ -994,34 +1138,37 @@ export class TokenEngine {
 
   /**
    * The conversation an Antigravity fork came from, when it is still on this machine: the readable conversation in the
-   * cache whose own id is the one the fork's last copied step names (session-view::REQ-005/AC-02, AC-04). The cache is
+   * store whose own id is the one the fork's last copied step names (session-view::REQ-005/AC-02, AC-04). The store is
    * the scan set, so a parent deleted since the last scan is gone from it at the next one.
    */
-  private agyParent(agg: AntigravityFileAgg): AntigravityFileAgg | undefined {
+  private agyParent(agg: AntigravityFileAgg, roots: ScanRoots): AntigravityFileAgg | undefined {
     if (agg.forkOf === null) return undefined
-    for (const v of this.cache.entries()) {
-      if (v.agg.kind === 'antigravity' && !v.agg.unreadable && v.agg.conversationId === agg.forkOf && v.agg !== agg) {
-        return v.agg
-      }
+    for (const file of this.parentFilesOf(this.store, roots).antigravity.get(agg.forkOf) ?? []) {
+      if (file === agg.file) continue
+      const v = this.store?.get(file)?.agg
+      if (v?.kind === 'antigravity' && !v.unreadable && v.conversationId === agg.forkOf) return v
     }
     return undefined
   }
 
   /**
    * A Codex session as its page shows it: its questions after the replay strip against its parent in the
-   * cache, and its title. A fork whose leading questions were stripped and whose title came from its first
+   * store, and its title. A fork whose leading questions were stripped and whose title came from its first
    * question takes the title of the first question left — the scan's re-title of the listed session, so the
    * session page, the project search and the fork banner show the list's titles (spec B2); thread_name
    * keeps priority (A4).
    */
   private async codexShown(
-    agg: CodexFileAgg
+    agg: CodexFileAgg,
+    roots: ScanRoots
   ): Promise<{ questions: QuestionRec[]; state: ForkState; title: string | null; parent: CodexFileAgg | undefined }> {
     let parent: CodexFileAgg | undefined
     if (agg.parentId) {
-      for (const v of this.cache.entries()) {
-        if (v.agg.kind === 'codex' && v.agg.sessionId === agg.parentId && v.agg !== agg) {
-          parent = v.agg
+      for (const file of this.parentFilesOf(this.store, roots).codex.get(agg.parentId) ?? []) {
+        if (file === agg.file) continue
+        const v = this.store?.get(file)?.agg
+        if (v?.kind === 'codex' && v.sessionId === agg.parentId) {
+          parent = v
           break
         }
       }
@@ -1483,13 +1630,14 @@ function addTotals(into: TokenTotals, from: TokenTotals): void {
 
 // ── File enumeration and parsing ──
 
-/** Every jsonl under a directory: top level = a session, nested = a subagent or other transcript */
+/** Every jsonl under a directory, in scan order (scan-order.ts): top level = a session, nested = a subagent or other
+ * transcript */
 function listJsonl(root: string): Array<{ file: string; nested: boolean }> {
   const out: Array<{ file: string; nested: boolean }> = []
   const walk = (dir: string, nested: boolean): void => {
     let entries
     try {
-      entries = readdirSync(dir, { withFileTypes: true })
+      entries = readdirSync(dir, { withFileTypes: true }).sort(byName)
     } catch {
       return
     }

@@ -239,19 +239,22 @@ hands the command over; it never runs it.
   sidechain lines not rendered (a known type whose full transcript is in the source or nested file).
 - C4 An invalid index (the file was appended to or rewritten, so the signature does not match) →
   **rebuild the index for that file only**, without a full rescan; verify once before fetching. The
-  signature is compared on every fetch and, on a mismatch, that one file is re-parsed and **the
-  cache is written back to disk** (so it is not rebuilt again next time; a failed write is not the
-  fetch's failure, since the new index is in memory and the page is served from it, and only the
-  next launch rebuilds again, unless a later scan's write of the file succeeds first —
-  [token-stats::QR-002/AC-02](token-stats.md)); the display-side stripping for a Codex fork shares
+  signature is compared on every fetch and, on a mismatch, that one file is re-parsed and **its
+  entry is written back to the token store** (so it is not rebuilt again next time; a failed write is
+  not the fetch's failure: the page is served from the rebuilt index, the store still lacks it, and
+  the next fetch and the next scan parse the file again until a write of it lands —
+  [token-stats](token-stats.md) C3); the display-side stripping for a Codex fork shares
   its source with the list (the same replay-prefix stripping and parent lookup), rather than reusing
   the token metering side's conclusions.
   An entry that is not well formed ([token-stats](token-stats.md) C2) is rebuilt the same way, with
   one difference for a Claude Code session: its index is served and **not kept**, so each fetch
   rebuilds it until a scan parses the file. The project a Claude Code session is credited to is known
   only to a scan: the rebuild keeps the project its entry held, and with no well-formed entry there is
-  none to keep. The fetch of a file the cache holds `null` for is refused like that of a session the
-  scan never indexed.
+  none to keep. The fetch of a file the store holds nothing for is refused like that of a session the
+  scan never indexed. With no store to read — one that cannot be opened or made, or a read of it that
+  fails ([token-stats](token-stats.md) C2, C3) — nothing tells such a session, the read allow-list
+  having admitted the file: the page rebuilds its index and serves it, as for an entry that is not
+  well formed, and with no store keeps it nowhere.
   A session page left open while Codex compresses its file (2026-09-10): the plain path is gone, so
   the next fetch fails for that turn only (the in-turn error state, retry on click), and the session
   reappears under its compressed identity after the next scan — a new path, an index built once.
@@ -343,8 +346,8 @@ hands the command over; it never runs it.
   reversible into text, and unusable for search — so neither of D2a's reasons (size, and not
   degenerating into a second search corpus) is affected.
   Question text is read from its range on demand (the live question list and search share that
-  path): stored in full it would be a megabyte-scale burden on `token-cache.json`, which is read on
-  every startup. The startup display copy is the explicit exception in session-view::REQ-001; it is
+  path): stored in full it would be a megabyte-scale addition to the token store
+  ([token-stats](token-stats.md), Implementation Decisions, Cache). The startup display copy is the explicit exception in session-view::REQ-001; it is
   not searched or used as an offset index.
   Corollary: the ellipsis on a list row is **display-layer truncation** (CSS), not data-layer — the
   full text can be laid out when it expands.
