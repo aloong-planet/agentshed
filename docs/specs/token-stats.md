@@ -129,19 +129,16 @@ all of them.
   them. A day whose sessions were compacted therefore reads lower than before the compaction; on a
   past day the archive's rule (C10) retains the earlier figure, on the own day the lower figure
   shows. Nothing marks a compacted window anywhere in the interface (G15's ruling extends to it).
-- B12 **A cold rollout is read like a plain one**: the same line reader runs over a decompression
+- B12 **A cold rollout is read like a plain one**: the same line reader runs over its decompressed
   stream, so every rule above applies unchanged. Its identity is its `.jsonl.zst` path, so the day
   Codex compresses a rollout the plain path leaves the scan set and the compressed one enters it as
-  a new file — parsed once, then cached like any other. The decoder's output chunk is the line
-  reader's read chunk (1 MB): at the decoder's 16 KB default the same per-chunk cost the plain
-  reader pays under Electron returns. A cold rollout that cannot be decompressed (truncated, not
-  zstd) is skipped like an unreadable plain file, hurting only itself. "Truncated" is judged by the
-  recorder's mechanism, not by the decoder: Node's zstd decoder reports nothing for a cut frame
-  (measured 2026-09-11, synchronously and as a stream alike — it yields the first half and ends
-  cleanly), while every rollout line ends with a newline and a cold rollout is never mid-write, so a
-  decompressed stream that does not end with a newline is cut short (every rollout measured ends
-  with one, the cold ones included). A cut landing exactly on a line end escapes this and reads as a
-  shorter session — that file only.
+  a new file — parsed once, then cached like any other. A cold rollout that cannot be decompressed
+  (not zstd, or corrupt) is skipped like an unreadable plain file, hurting only itself. "Truncated" is
+  judged by the recorder's mechanism, not by whether the decoder reports a cut frame: every rollout
+  line ends with a newline and a cold rollout is never mid-write, so a decompressed stream that does
+  not end with a newline is cut short and skipped (every rollout measured ends with one, the cold ones
+  included). A cut landing exactly on a line end escapes this and reads as a shorter session — that
+  file only.
 
 **Sequence F: Grok-side aggregation**
 - F1 Per-turn usage is read from the session's authoritative update stream, which is also the only
@@ -929,7 +926,12 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   line reader; the byte offsets the question index records for it are offsets in the decompressed
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
-- **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process.
+- **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
+  and holds the reading and parsing of Codex rollouts. A value in a line is built only where a rule reads
+  it; every other value is scanned past. A line is decoded as UTF-8, an invalid sequence becoming
+  U+FFFD, and read by the grammar of ECMAScript's `JSON.parse`, with its results: a repeated key keeps
+  its last value, a number beyond the double range is infinite and so no finite count, a lone surrogate
+  escape stays that code unit, and a line `JSON.parse` refuses is a bad line (A8).
 - **Cache**: incremental by file signature; **a structure change must bump the version number at the
   same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
   recomputes. An entry is well formed when its signature is a string and its per-file aggregate has

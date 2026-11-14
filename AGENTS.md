@@ -103,6 +103,9 @@ a retried "does not appear" check cannot prove absence.
 - Every function the engine module exports catches a panic (`#[napi(catch_unwind)]`), and an export is named `seam_…`
   exactly when it sits behind the `test-seams` feature; `engine/build.rs` fails a build that breaks either, and
   packaging refuses a module exporting a seam (ADR-0045).
+- In `engine/src`, a rule that differs by agent side lives in that side's directory under `sides/`, code outside
+  `sides/` never branches on a side, and the sides' trait gains a method only when side-free code calls it
+  (`engine/src/lib.rs`).
 - A pull request that changes `AGENTS.md`, `CLAUDE.md` or anything under `docs/prototypes/` waits for the
   owner's approval even when it changes no executable content: the owner asks to see it before it merges
   (`docs/ops/ci.md`, Merging without the owner's approval).
