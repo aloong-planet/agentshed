@@ -56,8 +56,7 @@ import { ERR, decodeAppError } from '@shared/errors'
 import { mergeKey } from '@shared/path-key'
 import { scan, walkSessions } from './scan'
 import { agyTranscriptPath, readAntigravitySessions, readConversationDb } from './antigravity'
-import { TokenEngine, parseAntigravityFile, runParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
-import { firstDifference } from '../engine-parity'
+import { TokenEngine, runParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { loadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
 import { UsageArchive } from './archive'
@@ -775,8 +774,6 @@ type AgyAgg = Extract<NonNullable<ParseResult>['agg'], { kind: 'antigravity' }>
 /** A conversation's entry, as a scan's parse gives it; null for a read that failed while agy was writing it */
 async function entryOf(file: string): Promise<AgyAgg | null> {
   const parsed = await runParseJob({ kind: 'antigravity', file, transcript: agyTranscriptPath(file) })
-  // TEMPORARY, until the TypeScript reader is removed: the same entry from both readers
-  expect(firstDifference(await parseAntigravityFile(file), parsed)).toBeNull()
   if (parsed === null) return null
   const { agg } = parsed
   if (agg.kind !== 'antigravity') throw new Error('not an Antigravity entry')

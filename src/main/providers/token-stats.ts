@@ -43,7 +43,6 @@ import { mapLimit, readRanges } from './range-read'
 import { eachJsonlLine } from './jsonl'
 import { isReadable } from './read-utils'
 import {
-  makeAntigravityQuestionIndexer,
   makeGrokQuestionIndexer,
   makeQuestionIndexer,
   stripReplayPrefix,
@@ -52,7 +51,7 @@ import {
 import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
 import { walkSessions, type SessionWalk } from './scan'
-import { agySessionSignature, agyTranscriptPath, readAntigravityUsage, type AgyCall } from './antigravity'
+import { agySessionSignature, agyTranscriptPath } from './antigravity'
 import type { UsageRow } from './archive'
 import { writeFileAtomicSync } from './atomic-write'
 import { threadEngineModule } from '../engine-module'
@@ -190,6 +189,15 @@ interface AntigravityFileAgg {
 }
 
 type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg | AntigravityFileAgg
+
+/**
+ * One model call of an Antigravity conversation, as the token cache keeps it: [identity, time (epoch ms), input, output,
+ * cache read, cache write, model]. The identity is the call's response id, else its provider-assigned id, else its
+ * message id; null when it carries none, and then it is never matched across databases. The time is the call's step's
+ * completion, else its creation (token-stats::REQ-003/AC-05); null for a call recorded by a generator record alone. The
+ * model is the generator record's response model as agy recorded it; null without one (token-stats::REQ-003/AC-04).
+ */
+type AgyCall = [string | null, number | null, number, number, number, number, string | null]
 
 /**
  * The cache structure version. **Changing FileAgg's shape requires bumping this at the same time** —
@@ -515,54 +523,6 @@ export async function runParseJob(job: ParseJob): Promise<ParseResult> {
       // Read by the engine module (ADR-0045), databases and transcript alike
       return threadEngineModule().parse(job)
   }
-}
-
-/**
- * TEMPORARY, for the parity command until the TypeScript reader is removed: one Antigravity conversation read by the
- * TypeScript reader.
- */
-export async function parseAntigravityFile(file: string, tmpParent?: string): Promise<ParseResult> {
-  const read = readAntigravityUsage(file, tmpParent)
-  if (read.kind === 'failed') return null
-  if (read.kind === 'unreadable') {
-    const agg: AntigravityFileAgg = {
-      kind: 'antigravity', file, projectKey: '', unreadable: true, calls: [],
-      conversationId: '', subagent: false, listed: false, at: null, forkOf: null, title: null, questions: []
-    }
-    return { agg }
-  }
-  const { conversation: c } = read
-  let questions: QuestionRec[] = []
-  let first: string | null = null
-  if (!c.subagent) {
-    const idx = makeAntigravityQuestionIndexer()
-    let fileEnd = 0
-    try {
-      await eachJsonlLine(agyTranscriptPath(file), (obj, start, end) => {
-        idx.line(obj, start, end)
-        fileEnd = end
-      })
-      questions = idx.done(fileEnd)
-      first = idx.firstQuestionText()
-    } catch {
-      // No transcript, or one that will not open: no question
-    }
-  }
-  const agg: AntigravityFileAgg = {
-    kind: 'antigravity',
-    file,
-    projectKey: read.folder === null ? '' : mergeKey(read.folder),
-    unreadable: false,
-    calls: read.calls,
-    conversationId: c.id,
-    subagent: c.subagent,
-    listed: !c.subagent && questions.length > 0,
-    at: c.at,
-    forkOf: c.forkOf,
-    title: first === null ? null : clipTitle(first),
-    questions
-  }
-  return { agg }
 }
 
 /** Where a build's parses run, and how many at once */
