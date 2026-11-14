@@ -23,7 +23,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { loadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
-import { zstdCompressSync } from 'node:zlib'
+import { constants as zstdConstants, zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
 import { ERR, decodeAppError } from '@shared/errors'
@@ -770,7 +770,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
     expect(sessionReadTarget(r2.sessionFiles, plain)).toBeNull()
   })
 
-  it('a cold rollout that is not zstd, or whose stream is cut inside a line, is skipped like an unreadable plain file without aborting its siblings, and one cut exactly at a line end reads as the shorter session (B12)', async () => {
+  it('a cold rollout that is not zstd, is corrupt, or whose stream is cut inside a line, is skipped like an unreadable plain file without aborting its siblings, and one cut exactly at a line end reads as the shorter session (B12)', async () => {
     const plain = mkCodexRollout('rollout-warm-019f042.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [
       { input: 100, cached: 0, output: 10, record: 'resp_t1' }
     ])
@@ -792,6 +792,23 @@ describe('Codex aggregation (the ccusage rules)', () => {
     const cutAtLineEnd = Buffer.concat([zstdCompressSync(readFileSync(shorter)), zstdCompressSync(Buffer.from(lost)).subarray(0, 5)])
     rmSync(shorter)
     writeFileSync(`${shorter}.zst`, cutAtLineEnd)
+    // The not-zstd file above is left out by the session walk, which cannot read its first line. These two are corrupt
+    // past their first line, so the walk takes them and only the parse can skip them: a frame whose content checksum
+    // fails, and a whole frame followed by bytes that are no frame. Each is long enough that the walk's first read of
+    // it ends inside the frame.
+    const bulky = (name: string, base: number): string =>
+      mkCodexRollout(name, proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol',
+        Array.from({ length: 3000 }, (_, i) => ({ input: base + i, cached: 0, output: 10, record: `resp-${name}-${(i * 2654435761) % 4294967296}` })))
+    const badSum = bulky('rollout-badsum-019f047.jsonl', 5000)
+    const checked = zstdCompressSync(readFileSync(badSum), { params: { [zstdConstants.ZSTD_c_checksumFlag]: 1 } })
+    checked[checked.length - 1] ^= 0xff
+    const trailed = bulky('rollout-trailing-019f048.jsonl', 9000)
+    const withTrail = Buffer.concat([zstdCompressSync(readFileSync(trailed)), Buffer.from('not a zstd frame')])
+    rmSync(badSum)
+    rmSync(trailed)
+    writeFileSync(`${badSum}.zst`, checked)
+    writeFileSync(`${trailed}.zst`, withTrail)
+    expect(walkSessions(roots()).codex.map((s) => s.file)).toEqual(expect.arrayContaining([`${badSum}.zst`, `${trailed}.zst`]))
     const r = await engine().build(roots(), [proj])
     const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'codex') ?? []
     expect(sessions.map((s) => s.file).sort()).toEqual([plain, `${shorter}.zst`].sort())
@@ -2888,7 +2905,10 @@ describe('resuming a grown Codex rollout', () => {
     for (let i = 0; i < text.length; i++) {
       if (text[i] === 0x0a) {
         cuts.add(i + 1)
-        cuts.add(i - 7) // mid-line: a line still being written when the first scan ran
+        // A line still being written when the first scan ran: its JSON whole but its line feed not yet written, and
+        // cut in the middle
+        cuts.add(i)
+        cuts.add(i - 7)
       }
     }
     cuts.delete(text.length)
@@ -3320,6 +3340,65 @@ describe('how a rollout line is read', () => {
     expect(entry.agg.title).toBe(`${'a'.repeat(59)}${high}${String.fromCharCode(0x2026)}`)
     expect(entry.state?.seenResponses).toEqual([high, `${high}${low}`])
     expect(entry.agg.events.map((e) => e[1])).toEqual([1, 2])
+  })
+
+  it('across the module\'s 1 MB reads: a line several reads long, lines and multibyte text across a read\'s end, a bad line, lines that are no object, and a last line not read until its line feed is written', async () => {
+    const MB = 1024 * 1024
+    const lines: string[] = []
+    /** Where the next line starts */
+    let size = 0
+    const add = (line: string): number => {
+      const start = size
+      lines.push(line)
+      size += Buffer.byteLength(line) + 1
+      return start
+    }
+    let responses = 0
+    /** A usage record whose input is its place among the records, with `pad` in a value no rule reads */
+    const padded = (pad: string): string => record(`r${responses + 1}`, ++responses, 1, { pad })
+    // Lines of many lengths, three- and four-byte characters among them, so that read ends fall at many points
+    for (let k = 0; size < MB - 8000; k++) add(padded(`中${String.fromCodePoint(0x1f600)}a`.repeat(40 + ((k * 37) % 600))))
+    // One line placed to end just before the question, which then starts 40 bytes before the first read's end
+    const fillerStart = size
+    const bare = Buffer.byteLength(record(`r${responses + 1}`, responses + 1, 1, { pad: '' }))
+    add(padded('x'.repeat(MB - 40 - fillerStart - 1 - bare)))
+    const text = `問題 ${String.fromCodePoint(0x1f600)} ${'質問'.repeat(30)}`
+    const qStart = add(question(text))
+    const qEnd = size
+    // A line several reads long
+    const longStart = add(padded('y'.repeat(2 * MB + MB / 2)))
+    const longEnd = size
+    add(`{"timestamp":"${AT}","type":"token_usage_record","payload":{"response_id":"bad","usage":{"input_tokens":999999`)
+    add('[1,2,3]')
+    add('42')
+    for (let k = 0; k < 400; k++) add(padded('é'.repeat(100 + ((k * 53) % 900))))
+    const last = padded('end')
+    lines.push(last)
+    const total = size + Buffer.byteLength(last)
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const f = join(d, 'rollout-2026-07-30T10-00-00-019f0000-eeee-7000-8000-000000000002.jsonl')
+    writeFileSync(f, lines.join('\n'))
+    // The premises: the question's line spans the first read's end, and one line is longer than a read
+    expect(qStart < MB && qEnd > MB).toBe(true)
+    expect(longEnd - longStart).toBeGreaterThan(2 * MB)
+    expect(statSync(f).size).toBe(total)
+
+    const entry = await entryOf(f)
+    if (entry.agg.kind !== 'codex') throw new Error('no Codex entry')
+    const at = Date.UTC(2026, 6, 30, 10)
+    // Every record but the last, whose line feed is not written yet: Codex ends every line with one (B12), so that line
+    // is still being written, and the parse stops before it to read it whole next time
+    expect(entry.agg.events).toEqual(Array.from({ length: responses - 1 }, (_, i) => [at, i + 1, 0, 1, 0]))
+    expect(entry.agg.questions.map((q) => [q[0], q[1], q[2]])).toEqual([[qStart, qEnd, size]])
+    // 60 code points: the five of `問題 😀 `, then 27 pairs and one more, the emoji's surrogate pair counting once
+    expect(entry.agg.title).toBe(`問題 ${String.fromCodePoint(0x1f600)} ${'質問'.repeat(27)}質${String.fromCharCode(0x2026)}`)
+    expect(entry.state?.cursor).toBe(size)
+    // With its line feed written the line counts, and the parse ends at the end of the file
+    appendFileSync(f, '\n')
+    const whole = await entryOf(f)
+    expect(whole.agg.kind === 'codex' && whole.agg.events.length).toBe(responses)
+    expect(whole.state?.cursor).toBe(total + 1)
   })
 
   it('with a timestamp outside the form Codex writes read as Date.parse reads it', async () => {

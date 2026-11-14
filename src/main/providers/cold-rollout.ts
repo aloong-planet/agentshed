@@ -43,6 +43,9 @@ export function rolloutBytes(file: string, highWaterMark: number, start = 0): As
 }
 
 /**
+ * The same rule the engine module applies when it parses a cold rollout (engine/src/sides/codex/parse.rs): a change
+ * here is made there too.
+ *
  * Node's zstd decoder reports nothing for a truncated frame (measured 2026-09-11 on Node 24: a stream
  * cut in half decodes its first half and ends cleanly, synchronously and as a stream alike), so
  * truncation is judged by the recorder's own mechanism instead: every rollout line ends with a newline

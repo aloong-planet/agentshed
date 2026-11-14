@@ -20,14 +20,16 @@ pub(crate) enum Stored {
     Zstd,
 }
 
-/// The file could not be read to its end: it could not be opened or read, its stream could not be decompressed, or a
-/// decompressed stream did not end with a line feed. What its lines gave is then not used.
+/// The file could not be read to its end: it could not be opened or read, or its stream could not be decompressed.
+/// What its lines gave is then not used.
 #[derive(Debug)]
 pub(crate) struct Failed;
 
-/// Reads `path` from byte `from` on, calling `line` with each line's bytes (its line feed left off) and its range.
-/// Offsets count from the start of the stream, `from` included.
-pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl FnMut(&[u8], u64, u64)) -> Result<(), Failed> {
+/// Reads `path` from byte `from` on, calling `line` with each line's bytes (its line feed left off), its range, and
+/// whether a line feed ends it, which only the stream's last line can lack. Offsets count from the start of the
+/// stream, `from` included. Answers the stream's last byte, None when it held none after `from`. Whether a line or a
+/// stream that stops short of a line feed is whole is for the side to judge, by how its agent writes the file.
+pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl FnMut(&[u8], u64, u64, bool)) -> Result<Option<u8>, Failed> {
     let mut file = File::open(path).map_err(|_| Failed)?;
     let mut source: Box<dyn Read> = match stored {
         Stored::Plain => {
@@ -53,8 +55,9 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
                 buf.truncate(held);
                 continue;
             }
-            // A zstd stream that stops inside a frame: the decoder has handed over every byte it could decode. Whether
-            // the stream was cut is judged by the recorder's mechanism, below, not by the decoder (B12).
+            // A zstd stream that stops inside a frame: the decoder has handed over every byte it could decode, and the
+            // stream ends there. Whether it was cut is judged by the side from the bytes it ends with, not from the
+            // decoder's report (token-stats B12).
             Err(e) if stored == Stored::Zstd && e.kind() == ErrorKind::UnexpectedEof => 0,
             Err(_) => return Err(Failed),
         };
@@ -68,7 +71,7 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
         let mut search = held;
         while let Some(i) = memchr::memchr(b'\n', &buf[search..]) {
             let nl = search + i;
-            line(&buf[start..nl], base + start as u64, base + nl as u64 + 1);
+            line(&buf[start..nl], base + start as u64, base + nl as u64 + 1, true);
             start = nl + 1;
             search = start;
         }
@@ -79,13 +82,7 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
     }
     if !buf.is_empty() {
         let len = buf.len() as u64;
-        line(&buf, base, base + len);
+        line(&buf, base, base + len, false);
     }
-    // Every rollout line ends with a line feed and a cold rollout is never mid-write, so a decompressed stream that does
-    // not end with one was cut short (B12). A cut that lands exactly on a line end escapes this and reads as a shorter
-    // session.
-    if stored == Stored::Zstd && last.is_some_and(|b| b != b'\n') {
-        return Err(Failed);
-    }
-    Ok(())
+    Ok(last)
 }

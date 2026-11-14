@@ -73,8 +73,10 @@ pub(super) fn parse(job: &Job, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Opt
     };
     let stored = if job.file.ends_with(".jsonl.zst") { Stored::Zstd } else { Stored::Plain };
 
-    read::each_line(&job.file, stored, start, |bytes, start, end| {
-        if bytes.is_empty() {
+    let last = read::each_line(&job.file, stored, start, |bytes, start, end, line_feed| {
+        // Codex ends every line with a line feed (B12): a last line without one is still being written, and is read
+        // whole, from the cursor, at the next scan. So a resumed parse equals a whole parse.
+        if bytes.is_empty() || !line_feed {
             return;
         }
         let decoded = String::from_utf8_lossy(bytes);
@@ -161,6 +163,12 @@ pub(super) fn parse(job: &Job, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Opt
         events.push(Event { at, input, cached, output, cache_write: 0.0 });
     })
     .ok()?;
+    // Every rollout line ends with a line feed and a cold rollout is never mid-write, so a decompressed stream that does
+    // not end with one was cut short, and is skipped (B12). A cut that lands exactly on a line end escapes this and
+    // reads as a shorter session.
+    if stored == Stored::Zstd && last.is_some_and(|b| b != b'\n') {
+        return None;
+    }
 
     let seeded = from.map_or(0, |f| f.questions.len());
     let (questions, first) = index.done(file_end);

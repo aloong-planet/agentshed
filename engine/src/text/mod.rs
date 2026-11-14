@@ -103,8 +103,9 @@ pub(crate) fn real_user_text(raw: &[u16]) -> Option<Units> {
 /// The title cap, in code points as a string's iterator counts them: a surrogate pair is one, a lone surrogate is one
 pub(crate) const TITLE_MAX: usize = 60;
 
-/// A stripped question → a title, clipped at `TITLE_MAX` code points with `…` after the cut. Stripping is not
-/// idempotent (`[cron:x] Warmup` strips to `Warmup`, then to nothing), so what reaches here is never stripped again.
+/// A stripped question → a title, clipped at `TITLE_MAX` code points with `…` after the cut, as `clipTitle` in
+/// `src/main/providers/session-title.ts` clips the titles the sides that still read their lines in TypeScript give
+/// (session-title.test.ts holds the two together). Stripping is not idempotent (`[cron:x] Warmup` strips to `Warmup`, then to nothing), so what reaches here is never stripped again.
 pub(crate) fn clip_title(t: &[u16]) -> Units {
     let mut points = 0;
     let mut i = 0;
@@ -122,7 +123,8 @@ pub(crate) fn clip_title(t: &[u16]) -> Units {
 }
 
 /// The content fingerprint, FNV-1a over the UTF-16 code units (32-bit): the same text gives the same value, and it is
-/// compared, entry by entry, to recognise a fork's replayed questions (session-view B2)
+/// compared, entry by entry, to recognise a fork's replayed questions (session-view B2). `fingerprint` in
+/// `src/main/providers/question-index.ts` is the same function, for the sides whose index is still TypeScript's.
 pub(crate) fn fingerprint(t: &[u16]) -> u32 {
     let mut h: u32 = 0x811c_9dc5;
     for &u in t {

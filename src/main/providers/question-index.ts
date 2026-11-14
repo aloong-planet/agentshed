@@ -32,7 +32,8 @@ export type QuestionRec = [number, number, number, number | null, number, number
 
 
 /**
- * The content fingerprint (FNV-1a, 32-bit). It only needs "same text, same value; different text, very
+ * The content fingerprint (FNV-1a, 32-bit), also the engine module's for Codex (engine/src/text/mod.rs: a change here
+ * is made there too). It only needs "same text, same value; different text, very
  * likely a different value", not cryptographic strength —
  * its only use is comparing, entry by entry, whether the start of a child session and the parent hold
  * the same questions.
