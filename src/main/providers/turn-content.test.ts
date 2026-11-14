@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeAntigravityQuestionIndexer, makeGrokQuestionIndexer, makeQuestionIndexer, type QuestionRec } from './question-index'
-import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
+import { makeGrokQuestionIndexer, makeQuestionIndexer, type QuestionRec } from './question-index'
+import { MEASURED_TRANSCRIPT, transcriptText, withIndexedTranscript } from '../testing/agy-transcript-fixture'
 import { readRanges } from './range-read'
 import { turnBlocksFromText } from './turn-content'
 import type { TurnBlock } from '@shared/domain'
@@ -618,14 +618,7 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
 
   test('the offset path == the whole-file path, and one turn reads far below the file (AC-02)', async () => {
     const pad = JSON.stringify({ step_index: 22, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:20:20Z', content: 'y'.repeat(2 * 1024 * 1024) })
-    await withFile(transcriptText([...T.main, pad]), async (file) => {
-      const idx = makeAntigravityQuestionIndexer()
-      let fileEnd = 0
-      await eachJsonlLine(file, (obj, start, end) => {
-        idx.line(obj, start, end)
-        fileEnd = end
-      })
-      const recs = idx.done(fileEnd)
+    await withIndexedTranscript(transcriptText([...T.main, pad]), async ({ questions: recs, transcript: file }) => {
       expect(recs).toHaveLength(4)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
       for (let i = 0; i < recs.length; i++) {

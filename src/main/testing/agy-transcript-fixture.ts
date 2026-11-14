@@ -17,8 +17,12 @@
 //   the redo reuses step indices 19 to 21;
 // - failedFirstCall: a conversation whose first model call failed (503), its error line;
 // - cancelledDispatch: a dispatch cancelled by the user, a background timer and its message, and later questions.
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import type { QuestionRec } from '../providers/question-index'
+import { runParseJob } from '../providers/token-stats'
+import { encodeTrajectoryMetadata, writeConversation } from './agy-fixture'
 
 export const MEASURED_TRANSCRIPT = {
   /** 06d3cae9-60a7-485b-96d5-21857c993fdd */
@@ -132,4 +136,31 @@ export function writeTranscript(home: string, id: string, lines: readonly string
   mkdirSync(join(file, '..'), { recursive: true })
   writeFileSync(file, transcriptText(lines))
   return file
+}
+
+/**
+ * A transcript's question index as a scan gives it: written under a fresh agy data root beside the conversation it
+ * belongs to, and that conversation parsed through `runParseJob`, which hands it to the engine module. `use` is given
+ * the index, the title the conversation falls back to (its first question, clipped) and the transcript's path, before
+ * the data root is removed.
+ */
+export async function withIndexedTranscript<T>(
+  text: string | Buffer,
+  use: (indexed: { questions: QuestionRec[]; title: string | null; transcript: string }) => Promise<T> | T
+): Promise<T> {
+  const home = mkdtempSync(join(tmpdir(), 'agy-indexed-'))
+  try {
+    const id = 'conv-indexed'
+    const conversations = join(home, 'conversations')
+    mkdirSync(conversations)
+    const { file } = writeConversation(conversations, id, encodeTrajectoryMetadata({ folders: ['/work/p'], conversationId: id }))
+    const transcript = transcriptFile(home, id)
+    mkdirSync(join(transcript, '..'), { recursive: true })
+    writeFileSync(transcript, text)
+    const parsed = await runParseJob({ kind: 'antigravity', file, transcript })
+    if (parsed?.agg.kind !== 'antigravity' || parsed.agg.unreadable) throw new Error('the conversation did not read')
+    return await use({ questions: parsed.agg.questions, title: parsed.agg.title, transcript })
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
 }

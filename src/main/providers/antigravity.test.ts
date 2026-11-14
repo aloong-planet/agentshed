@@ -55,8 +55,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ERR, decodeAppError } from '@shared/errors'
 import { mergeKey } from '@shared/path-key'
 import { scan, walkSessions } from './scan'
-import { readAntigravitySessions, readConversationDb } from './antigravity'
-import { TokenEngine, runParseJob, type ParseRunner, type TokenBuildResult } from './token-stats'
+import { agyTranscriptPath, readAntigravitySessions, readConversationDb } from './antigravity'
+import { TokenEngine, parseAntigravityFile, runParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
+import { firstDifference } from '../engine-parity'
+import { loadEngineModule } from '../engine-module'
+import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
 import { UsageArchive } from './archive'
 import type { ScanRoots } from './types'
 import { DatabaseSync } from './sqlite'
@@ -758,6 +761,303 @@ describe('usage: each model call once (token-stats::REQ-003)', () => {
     expect(agyTotal(await build())).toBe(110)
   })
 
+})
+
+// ── The engine module's reading of one conversation (ADR-0045) ──
+//
+// Each conversation below is parsed as a scan parses it, through runParseJob, which hands an Antigravity job to the
+// engine module. Until the TypeScript reader was removed (#430), every entry these cases read was also held, field for
+// field, to the one the TypeScript reader gave for the same files (`entryOf`), and the values they expect are the ones
+// both gave.
+
+type AgyAgg = Extract<NonNullable<ParseResult>['agg'], { kind: 'antigravity' }>
+
+/** A conversation's entry, as a scan's parse gives it; null for a read that failed while agy was writing it */
+async function entryOf(file: string): Promise<AgyAgg | null> {
+  const parsed = await runParseJob({ kind: 'antigravity', file, transcript: agyTranscriptPath(file) })
+  // TEMPORARY, until the TypeScript reader is removed: the same entry from both readers
+  expect(firstDifference(await parseAntigravityFile(file), parsed)).toBeNull()
+  if (parsed === null) return null
+  const { agg } = parsed
+  if (agg.kind !== 'antigravity') throw new Error('not an Antigravity entry')
+  return agg
+}
+
+describe('the usage records as agy wrote them, read by the engine module (token-stats::REQ-003, REQ-004/AC-01)', () => {
+  // The measured API-key call Aa3haqKe… of 06d3cae9 and signed-in call bLzhasLy… of fc99511b: their figures as the research
+  // record's descriptor-based decoder read them, reconciled against agy's own per-call output
+  const MEASURED = {
+    apiKey: {
+      record: 'mainApiKey',
+      step: 'stepApiKey',
+      gen: 'genApiKey',
+      call: ['Aa3haqKeCoDNrfcPq8SHyAg', 1_793_174_787_218, 6813, 109, 0, 0, 'gemini-3.6-flash'],
+      created: 1_793_174_782_173,
+      completed: 1_793_174_787_218,
+      usage: { input: 6813, output: 109, thinking: 76, response: 33, messageId: 'Aa3haqKeCoDNrfcPq8SHyAg' },
+      model: 'gemini-3.6-flash'
+    },
+    signedIn: {
+      record: 'mainSignedIn',
+      step: 'stepSignedIn',
+      gen: 'genSignedIn',
+      // Identified by its response id, not its bot- message id; its model keeps its suffix
+      call: ['bLzhasLyEa_Z1e8P8sCAuAY', 1_793_178_732_621, 6745, 96, 0, 0, 'gemini-3.8-flash-n'],
+      created: 1_793_178_728_665,
+      completed: 1_793_178_732_621,
+      usage: { model: 1318, input: 6745, output: 96, thinking: 63, response: 33, messageId: 'bot-4054365f-3ec6-484e-aeea-d480532d9801', responseId: 'bLzhasLyEa_Z1e8P8sCAuAY' },
+      model: 'gemini-3.8-flash-n'
+    }
+  } as const
+
+  /** A conversation holding the measured call's step and generator record, as agy wrote them */
+  function measuredConversation(which: keyof typeof MEASURED, name: string, rows?: { step: Uint8Array; gen: Uint8Array }): string {
+    const m = MEASURED[which]
+    mkdirSync(conversations(), { recursive: true })
+    return writeConversation(conversations(), name, measured(m.record), {
+      steps: [{ idx: 1, metadata: rows?.step ?? measuredUsage(m.step) }],
+      gens: [{ idx: 0, data: rows?.gen ?? measuredUsage(m.gen) }]
+    }).file
+  }
+
+  it.each(['apiKey', 'signedIn'] as const)('the measured %s call is its identity, its step\'s completion, its figures and its model, once (AC-01, AC-03 to AC-05)', async (which) => {
+    const m = MEASURED[which]
+    const e = await entryOf(measuredConversation(which, MEASURED_USAGE_CONVERSATION[which]))
+    expect(e).toMatchObject({ unreadable: false, calls: [m.call], at: m.completed, projectKey: mergeKey(MEASURED_FOLDER), subagent: false, forkOf: null })
+    expect(e?.conversationId).toBe(MEASURED_USAGE_CONVERSATION[which])
+  })
+
+  it.each(['apiKey', 'signedIn'] as const)('the fixture encoders write what the module reads off the measured %s records', async (which) => {
+    const m = MEASURED[which]
+    const id = MEASURED_USAGE_CONVERSATION[which]
+    const real = await entryOf(measuredConversation(which, id))
+    rmSync(conversations(), { recursive: true })
+    const encoded = await entryOf(
+      measuredConversation(which, id, {
+        step: encodeStepMetadata({ conversationId: id, stepIndex: 1, createdAt: m.created, completedAt: m.completed, usage: m.usage }),
+        gen: encodeGeneratorMetadata({ stepIndices: [1, 2], usage: m.usage, responseModel: m.model, conversationId: id })
+      })
+    )
+    expect(encoded).toEqual(real)
+  })
+
+  it.each([
+    // Inside the usage (field 9 starts at offset 54 of the API-key step, its 37-byte body at 56)
+    ['a step cut inside its usage', (): StepRow => ({ idx: 1, metadata: measuredUsage('stepApiKey').subarray(0, 80) }), null],
+    // Inside the generator record's chat-model branch (its 544-byte body starts at 47)
+    ['a generator record cut inside its chat-model branch', null, (): GenRow => ({ idx: 0, data: measuredUsage('genApiKey').subarray(0, 300) })],
+    // model_usage (9) written as a varint where the descriptor declares a message
+    ['a usage arriving as a varint', (): StepRow => ({ idx: 1, metadata: Uint8Array.from([0x48, 0x05]) }), null],
+    // input_tokens (2) inside model_usage arriving length-delimited, and fixed-width (fixed32), where the descriptor
+    // declares a varint — read as absent, the call would quietly lose its tokens
+    ['an input count arriving length-delimited', (): StepRow => ({ idx: 1, metadata: Uint8Array.from([0x4a, 0x03, 0x12, 0x01, 0x05]) }), null],
+    ['an input count arriving fixed-width', (): StepRow => ({ idx: 1, metadata: Uint8Array.from([0x4a, 0x05, 0x15, 0x01, 0x00, 0x00, 0x00]) }), null]
+  ])('%s does not decode, and the conversation is unreadable', async (_shape, step, gen) => {
+    const id = MEASURED_USAGE_CONVERSATION.apiKey
+    mkdirSync(conversations(), { recursive: true })
+    const { file } = writeConversation(conversations(), id, measured('mainApiKey'), {
+      steps: [step?.() ?? { idx: 1, metadata: measuredUsage('stepApiKey') }],
+      gens: [gen?.() ?? { idx: 0, data: measuredUsage('genApiKey') }]
+    })
+    expect(await entryOf(file)).toMatchObject({ unreadable: true, calls: [] })
+  })
+
+  it.each([false, true])('step indices read %s join a generator record to its step, whose time its call takes (unpacked: %s)', async (unpacked) => {
+    // A step that records no call of its own, and the generator record naming it: the call is the record's, dated by the
+    // step it names — a record naming no step it can find would be undated
+    const at = oct(26, 9)
+    const file = usageConversation('conv-idx', [mkProject('p')], [], {
+      steps: [{ idx: 7, metadata: encodeStepMetadata({ conversationId: 'conv-idx', stepIndex: 7, createdAt: at - 5_000, completedAt: at }) }],
+      gens: [{ idx: 0, data: encodeGeneratorMetadata({ stepIndices: [7], unpacked, usage: { messageId: 'm-idx', input: 10, output: 1 }, responseModel: 'gemini-3.6-flash', conversationId: 'conv-idx' }) }]
+    })
+    expect((await entryOf(file))?.calls).toEqual([['m-idx', at, 10, 1, 0, 0, 'gemini-3.6-flash']])
+  })
+
+  it('a generator record\'s prompt is passed over by its length prefix and never decoded, however large (the failure mode on prompts)', async () => {
+    // A million bytes that will not decode as a message: each 0x0f is field 1 in wire type 7, which protobuf has not
+    const undecodable = new Uint8Array(1_000_000).fill(0x0f)
+    const p = mkProject('p')
+    const prompted = usageConversation('conv-prompt', [p], [], {
+      gens: [{ idx: 0, data: encodeGeneratorMetadata({ prompt: undecodable, usage: { messageId: 'm-large', input: 10, output: 2 }, responseModel: 'gemini-3.6-flash', conversationId: 'conv-prompt' }) }]
+    })
+    expect(await entryOf(prompted)).toMatchObject({ unreadable: false, calls: [['m-large', null, 10, 2, 0, 0, 'gemini-3.6-flash']] })
+    // The control: the same bytes where a record is decoded make the conversation unreadable
+    const decoded = usageConversation('conv-decoded', [p], [], { steps: [{ idx: 1, metadata: undecodable }] })
+    expect(await entryOf(decoded)).toMatchObject({ unreadable: true })
+  })
+})
+
+describe('the trajectory record, read by the engine module (token-stats::REQ-003/AC-07, AC-08)', () => {
+  /** A conversation with one call and one question, its trajectory record as given */
+  function asked(id: string, record: Uint8Array): string {
+    const file = usageConversation(id, [], [{ usage: { messageId: `m-${id}`, input: 10, output: 1 }, at: oct(26) }], { record })
+    writeTranscript(agyRoot(), id, [MEASURED_TRANSCRIPT.main[0]])
+    return file
+  }
+
+  it.each([
+    ['a parent conversation', { parentConversationId: 'p-1' }, true],
+    ['a nesting depth', { nestingDepth: 1 }, true],
+    ['a subagent spec', { subagentSpec: true }, true],
+    ['a nesting depth of zero', { nestingDepth: 0 }, false],
+    ['no marker', {}, false]
+  ])('a record carrying %s: a subagent %s, with no row, its usage still counted', async (_marker, extra, subagent) => {
+    const e = await entryOf(asked('conv-m', encodeTrajectoryMetadata({ folders: ['/work/p'], conversationId: 'conv-m', ...extra })))
+    expect([e?.subagent, e?.listed, e?.calls.length]).toEqual([subagent, !subagent, 1])
+  })
+
+  it('the measured subagent record is a subagent', async () => {
+    expect((await entryOf(asked('conv-sub', measured('subagent'))))?.subagent).toBe(true)
+  })
+
+  it.each([
+    ['two folders: the first', { folders: ['/work/First', '/work/second'] }, '/work/first'],
+    ['folders in the workspaces alone: the first', { folders: ['/work/only-ws', '/work/later'], omitWorkspaceUris: true }, '/work/only-ws'],
+    ['a percent-encoded URI: its path', { folders: [], rawUris: ['file:///Users/x/My%20Project'] }, '/users/x/my project'],
+    ['a trailing slash: left off', { folders: [], rawUris: ['file:///work/p/'] }, '/work/p'],
+    // JavaScript's own lowercasing, its final sigma included
+    ['letters beyond ASCII: lowercased as JavaScript lowercases them', { folders: [], rawUris: ['file:///work/%CE%A3%CE%91%CE%A3'] }, `/work/${String.fromCharCode(0x3c3, 0x3b1, 0x3c2)}`],
+    ['a remote URI: no project', { folders: [], rawUris: ['vscode-remote://ssh-remote+host/home/x', 'file:///work/p'] }, ''],
+    ['a file URI naming a host: no project', { folders: [], rawUris: ['file://host/work/p'] }, ''],
+    ['text that is no URI: no project', { folders: [], rawUris: ['not a uri'] }, ''],
+    ['no folder: no project', { folders: [] }, '']
+  ])('the project key of a record listing %s', async (_shape, fixture, key) => {
+    const file = usageConversation('conv-f', [], [{ usage: { messageId: 'm-f', input: 10 }, at: oct(26) }], {
+      record: encodeTrajectoryMetadata({ conversationId: 'conv-f', ...fixture })
+    })
+    expect((await entryOf(file))?.projectKey).toBe(key)
+  })
+})
+
+// token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
+// U+FFFD, and read by the grammar of ECMAScript's JSON.parse, with its results". One transcript per clause, plus the two
+// rules agy's lines add: a time outside the form agy writes goes to JavaScript's own Date.parse, and a last line without
+// its line feed is read, as agy's writer is not known to end every line with one.
+describe('how a transcript line is read by the engine module', () => {
+  const REPLACEMENT = String.fromCharCode(0xfffd)
+  const ID = 'conv-lines'
+  /** A user-input line in agy's shape, its request as given */
+  const asking = (step: number, request: string, extra: Record<string, unknown> = {}): string =>
+    JSON.stringify({ step_index: step, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:06:22Z', content: `<USER_REQUEST>\n${request}\n</USER_REQUEST>`, ...extra })
+  const answering = (step: number): string =>
+    JSON.stringify({ step_index: step, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:06:25Z', content: 'answer' })
+
+  /** The entry of a conversation whose transcript is these bytes */
+  async function transcriptEntry(bytes: Buffer): Promise<AgyAgg | null> {
+    const file = usageConversation(ID, [mkProject('p')], [])
+    const transcript = transcriptFile(agyRoot(), ID)
+    mkdirSync(dirname(transcript), { recursive: true })
+    writeFileSync(transcript, bytes)
+    return entryOf(file)
+  }
+  const lines = (...ls: Array<string | Buffer>): Buffer => Buffer.concat(ls.flatMap((l) => [Buffer.isBuffer(l) ? l : Buffer.from(l), Buffer.from('\n')]))
+
+  it('a line is decoded as UTF-8, an invalid sequence becoming U+FFFD', async () => {
+    const [before, after] = asking(0, 'ab@cd').split('@')
+    const e = await transcriptEntry(lines(Buffer.concat([Buffer.from(before), Buffer.from([0xff]), Buffer.from(after)])))
+    expect(e?.title).toBe(`ab${REPLACEMENT}cd`)
+    expect(e?.questions).toHaveLength(1)
+  })
+
+  it('a line JSON.parse refuses is skipped, its bytes still counted; lines it takes are read however they are written', async () => {
+    const refused = [
+      '{"step_index": 1, "type": "USER_INPUT", "content": "<USER_REQUEST>trailing comma</USER_REQUEST>",}',
+      "{'step_index': 1, 'type': 'USER_INPUT'}",
+      '{step_index: 1}',
+      '{"step_index": NaN}',
+      '{"step_index": 01}',
+      '{"content": "a\u0001b"}',
+      '{"content": "\\x41"}',
+      `${String.fromCharCode(0xfeff)}${asking(1, 'behind a byte order mark')}`,
+      `${asking(1, 'with something after')} x`,
+      '{"step_index": 1'
+    ]
+    const taken = [
+      ` \t ${asking(2, 'between spaces')} \r`,
+      // A unicode escape where the line writes a letter
+      asking(3, 'escaped').replace('escaped', '\\u0065scaped'),
+      `{"deep": ${'['.repeat(5000)}${']'.repeat(5000)}, ${asking(4, 'after a deep value').slice(1)}`,
+      '[1, 2, 3]',
+      '"a string"',
+      '42'
+    ]
+    const text = lines(asking(0, 'first'), ...refused, ...taken, asking(5, 'last'))
+    const e = await transcriptEntry(text)
+    expect(e?.questions.map((q) => q[0])).toEqual(
+      [asking(0, 'first'), taken[0], taken[1], taken[2], asking(5, 'last')].map((l) => text.indexOf(Buffer.from(l)))
+    )
+    expect(e?.title).toBe('first')
+  })
+
+  it('of a repeated key, the last value counts', async () => {
+    // The type and the content each written twice, the question in the last of both
+    const twice = `{"type": "PLANNER_RESPONSE", "content": "<USER_REQUEST>not this</USER_REQUEST>", ${asking(0, 'this one').slice(1)}`
+    const e = await transcriptEntry(lines(twice))
+    expect([e?.title, e?.questions.length]).toEqual(['this one', 1])
+  })
+
+  it('a step index beyond the double range is infinite, and so no step: neither a redo nor undone', async () => {
+    // Read as a step, or the line refused, the second question would be undone or lost with the first
+    const huge = asking(0, 'huge').replace('"step_index":0', '"step_index":1e400')
+    const e = await transcriptEntry(lines(asking(5, 'undone'), huge, answering(4)))
+    expect(e?.title).toBe('huge')
+    expect(e?.questions).toHaveLength(1)
+  })
+
+  it('a lone surrogate escape stays that code unit', async () => {
+    const e = await transcriptEntry(lines(asking(0, 'a@b').replace('@', '\\ud800')))
+    expect(e?.title).toBe(`a${String.fromCharCode(0xd800)}b`)
+  })
+
+  it('a time outside the form agy writes is read by JavaScript\'s own Date.parse', async () => {
+    const e = await transcriptEntry(lines(asking(0, 'offset', { created_at: '2026-10-28T16:06:22+08:00' }), asking(1, 'none', { created_at: 'not a time' })))
+    expect(e?.questions.map((q) => q[3])).toEqual([Date.parse('2026-10-28T08:06:22Z'), null])
+  })
+
+  it('a last line without its line feed is read, and its turn runs to the end of the file', async () => {
+    const text = Buffer.concat([lines(asking(0, 'first')), Buffer.from(asking(1, 'unterminated'))])
+    const e = await transcriptEntry(text)
+    expect(e?.questions.map((q) => [q[0], q[2]])).toEqual([
+      [0, Buffer.byteLength(`${asking(0, 'first')}\n`)],
+      [Buffer.byteLength(`${asking(0, 'first')}\n`), text.length]
+    ])
+  })
+})
+
+// token-stats, Scans and the window, failure modes: "One raised while a file is parsed is that file's failed read,
+// under the rule its side has for a read that fails".
+describe('a panic in the engine module while an Antigravity conversation is parsed', () => {
+  const seam = (): PanicSeam => loadEngineModule(TEST_ENGINE) as PanicSeam
+  afterEach(() => {
+    seam().seamPanicWhileParsing(null)
+  })
+
+  it('with no log beside it: counted unreadable (token-stats::REQ-004/AC-01), and the scan delivers the other conversations', async () => {
+    const p = mkProject('p')
+    trust([p])
+    const named = usageConversation('conv-panic', [p], [{ usage: { messageId: 'm-panic', input: 100, output: 10 }, at: oct(26) }])
+    usageConversation('conv-other', [p], [{ usage: { messageId: 'm-other', input: 200, output: 20 }, at: oct(26) }])
+    seam().seamPanicWhileParsing(named)
+    const r = await build()
+    expect([agyTotal(r), r.antigravityUnreadable]).toEqual([220, 1])
+  })
+
+  it('with a log beside it: not counted, its last result kept (token-stats::REQ-004/AC-03), and read again once the panic is gone', async () => {
+    const p = mkProject('p')
+    trust([p])
+    const named = usageConversation('conv-panic', [p], [{ usage: { messageId: 'm-p1', input: 100, output: 10 }, at: oct(26) }], { keepOpen: true })
+    usageConversation('conv-other', [p], [{ usage: { messageId: 'm-other', input: 200, output: 20 }, at: oct(26) }])
+    expect(agyTotal(await build())).toBe(330)
+    // agy writes on, so the next scan reads the conversation again
+    const more = callRows('conv-panic', [{ usage: { messageId: 'm-p2', input: 300, output: 30 }, at: oct(26) }], 3, 1)
+    insertSteps(writers[0], more.steps)
+    insertGens(writers[0], more.gens)
+    seam().seamPanicWhileParsing(named)
+    const panicked = await build()
+    expect([agyTotal(panicked), panicked.antigravityUnreadable]).toEqual([330, 0])
+    seam().seamPanicWhileParsing(null)
+    expect(agyTotal(await build())).toBe(330 + 330)
+  })
 })
 
 describe('conversations that cannot be read (token-stats::REQ-004)', () => {
