@@ -18,11 +18,11 @@ const roots: ScanRoots = {
 
 describe('compareNames', () => {
   it('orders names by their UTF-8 bytes', () => {
-    const names = ['zeta', 'Mike', '9', '10', '_x', 'alpha', 'a', 'a-b', 'a.d', 'bravo', 'é', '\u{1F600}', '～']
+    const names = ['zeta', 'Mike', '9', '10', '_x', 'alpha', 'a', 'a-b', 'a.d', 'bravo', 'é', '\u{1F600}', '\u{FF5E}']
     // Digits, then capitals, then `_`, then lower case; a prefix before what extends it; then two-, three- and four-byte
     // characters: U+FF5E (three bytes, EF …) before U+1F600 (four, F0 …), which UTF-16's order has the other way round
-    expect([...names].sort(compareNames)).toEqual(['10', '9', 'Mike', '_x', 'a', 'a-b', 'a.d', 'alpha', 'bravo', 'zeta', 'é', '～', '\u{1F600}'])
-    expect(['～', '\u{1F600}'].sort(), 'the order JavaScript gives, which is not the walk\'s').toEqual(['\u{1F600}', '～'])
+    expect([...names].sort(compareNames)).toEqual(['10', '9', 'Mike', '_x', 'a', 'a-b', 'a.d', 'alpha', 'bravo', 'zeta', 'é', '\u{FF5E}', '\u{1F600}'])
+    expect(['\u{FF5E}', '\u{1F600}'].sort(), 'the order JavaScript gives, which is not the walk\'s').toEqual(['\u{1F600}', '\u{FF5E}'])
   })
 })
 
