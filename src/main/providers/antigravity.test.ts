@@ -47,6 +47,7 @@ import {
   utimesSync,
   writeFileSync
 } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -134,6 +135,17 @@ function listing(d: string): string[] {
     .map((n) => {
       const s = statSync(join(d, n))
       return `${n} ${s.size} ${s.mtimeMs}`
+    })
+}
+/** Every entry in a directory with its modification time and, for a file, the digest of its bytes: the CON-002
+ * comparison of the engine module's reads */
+function contents(d: string): string[] {
+  return readdirSync(d)
+    .sort()
+    .map((n) => {
+      const s = statSync(join(d, n), { bigint: true })
+      const bytes = s.isFile() ? createHash('sha256').update(readFileSync(join(d, n))).digest('hex') : 'dir'
+      return `${n} ${bytes} ${s.mtimeNs}`
     })
 }
 
@@ -882,15 +894,19 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
 })
 
 describe('reading usage writes nothing, and reads a conversation again only when it changed', () => {
-  it('a closed conversation and one agy is writing: the directory is unchanged, and the calls only the log holds count (token-stats::CON-002)', async () => {
+  it('a closed conversation read in place and one agy is writing read through a copy: every file there keeps its bytes and time, the calls only the log holds count, and no copy is left (token-stats::CON-002)', async () => {
     const p = mkProject('p')
     trust([p])
     usageConversation('quiet', [p], [{ usage: { messageId: 'm-q', input: 100, output: 10 }, at: oct(26) }])
     usageConversation('busy', [p], [{ usage: { messageId: 'm-b', input: 200, output: 20 }, at: oct(26) }], { keepOpen: true })
-    const before = listing(conversations())
+    const before = contents(conversations())
     expect(before.map((l) => l.split(' ')[0])).toEqual(['busy.db', 'busy.db-shm', 'busy.db-wal', 'quiet.db'])
-    expect(agyTotal(await build())).toBe(330)
-    expect(listing(conversations())).toEqual(before)
+    const tmp = join(dir, 'tmp')
+    mkdirSync(tmp)
+    const copiesUnderTmp: ParseRunner = { run: (job) => runParseJob(job.kind === 'antigravity' ? { ...job, tmpParent: tmp } : job), concurrency: 1 }
+    expect(agyTotal(await build(copiesUnderTmp))).toBe(330)
+    expect(contents(conversations())).toEqual(before)
+    expect(readdirSync(tmp)).toEqual([])
   })
 
   it('a conversation whose log changed while its database\'s size and time did not is read again', async () => {
@@ -1200,22 +1216,26 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     expect((await engine().sessionQuestions(roots(), main)).title).toBe(want)
   })
 
-  it('reading the summaries writes nothing there, and reads the titles only a log holds (token-stats::CON-002)', async () => {
+  it('reading the summaries writes nothing there, in place or through a copy, reads the titles only a log holds, and leaves no copy (token-stats::CON-002)', async () => {
     const { p } = dispatchHome()
-    const before = listing(agyRoot())
-    await build()
-    expect(listing(agyRoot())).toEqual(before)
+    const tmp = join(dir, 'tmp')
+    mkdirSync(tmp)
+    const rebuild = (): Promise<TokenBuildResult> => new TokenEngine(cacheDir(), undefined, tmp).build(roots(), [], undefined, walkSessions(roots()))
+    const before = contents(agyRoot())
+    await rebuild()
+    expect(contents(agyRoot())).toEqual(before)
     // agy holds the summaries open and retitles the conversation: the new title is only in the log
     rmSync(join(agyRoot(), 'conversation_summaries.db'))
     const { writer } = writeSummaries(agyRoot(), [], { keepOpen: true })
     if (!writer) throw new Error('no writer')
     writers.push(writer)
     insertSummaries(writer, [{ id: ID.dispatch, title: 'Retitled While Running' }])
-    const during = listing(agyRoot())
+    const during = contents(agyRoot())
     expect(during.map((l) => l.split(' ')[0])).toContain('conversation_summaries.db-wal')
-    const r = await build()
+    const r = await rebuild()
     expect(sessionsOf(r, p).map((s) => s.title)).toEqual(['Retitled While Running'])
-    expect(listing(agyRoot())).toEqual(during)
+    expect(contents(agyRoot())).toEqual(during)
+    expect(readdirSync(tmp)).toEqual([])
   })
 
   it('a summaries read that fails while agy writes them keeps the titles last read (REQ-003/AC-03)', async () => {

@@ -52,7 +52,7 @@ import {
 import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
 import { walkSessions, type SessionWalk } from './scan'
-import { agySessionSignature, agyTranscriptPath, readAgySummaryTitles, readAntigravityUsage, type AgyCall } from './antigravity'
+import { agySessionSignature, agyTranscriptPath, readAntigravityUsage, type AgyCall } from './antigravity'
 import type { UsageRow } from './archive'
 import { writeFileAtomicSync } from './atomic-write'
 import { threadEngineModule } from '../engine-module'
@@ -484,6 +484,9 @@ export type ParseJob =
   | {
       kind: 'antigravity'
       file: string
+      /** The conversation's full transcript (`agyTranscriptPath`), where its questions are: the path the session page's
+       * range reads take, worked out on the engine's thread */
+      transcript: string
       /** Where the copy of a conversation agy has open is made: the system temporary directory when absent (tests
        * inject one, as the walk takes one) */
       tmpParent?: string
@@ -509,17 +512,16 @@ export async function runParseJob(job: ParseJob): Promise<ParseResult> {
       return agg ? { agg } : null
     }
     case 'antigravity':
-      return parseAntigravityFile(job.file, job.tmpParent)
+      // Read by the engine module (ADR-0045), databases and transcript alike
+      return threadEngineModule().parse(job)
   }
 }
 
 /**
- * One Antigravity conversation: its usage read (token-stats::REQ-003, token-stats::REQ-004) and, for a readable one
- * that is not a subagent, its transcript's question index (session-view::REQ-004). A transcript not there — the empty
- * conversation agy creates has none (measured) — or one that will not open gives no question, so the conversation is
- * not listed while its tokens count (session-view::REQ-004/AC-08).
+ * TEMPORARY, for the parity command until the TypeScript reader is removed: one Antigravity conversation read by the
+ * TypeScript reader.
  */
-async function parseAntigravityFile(file: string, tmpParent?: string): Promise<ParseResult> {
+export async function parseAntigravityFile(file: string, tmpParent?: string): Promise<ParseResult> {
   const read = readAntigravityUsage(file, tmpParent)
   if (read.kind === 'failed') return null
   if (read.kind === 'unreadable') {
@@ -748,7 +750,7 @@ export class TokenEngine {
     this.cache = seen
     if (changed || this.unsaved) this.persist()
     // agy's titles: a failed read while agy writes its summaries keeps the last ones read
-    this.agyTitles = readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? this.agyTitles ?? new Map()
+    this.agyTitles = readAgyTitles(roots.antigravityHome, this.agyTmpParent) ?? this.agyTitles ?? new Map()
     const result = combine(aggs, this.agyTitles)
     result.sessionFiles = sessionFiles
     await retitleStripped(result.retitle)
@@ -784,7 +786,7 @@ export class TokenEngine {
     const usable = cached !== undefined && cached.agg.kind === 'antigravity'
     if (usable && cached.sig === sig) return { file, entry: cached, admit }
     const fallback = usable && cached.agg.kind === 'antigravity' && !cached.agg.unreadable ? cached : undefined
-    return { file, entry: null, admit, fallback, plan: { job: { kind: 'antigravity', file }, st: { sig, ino: 0, size: 0 } } }
+    return { file, entry: null, admit, fallback, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st: { sig, ino: 0, size: 0 } } }
   }
 
   /**
@@ -889,7 +891,7 @@ export class TokenEngine {
       if (agyConversation) {
         // The database and the transcript read again, for this conversation alone (C4); a read that fails while agy
         // writes is this page's failure, and the next fetch tries again
-        fresh = (await runParseJob({ kind: 'antigravity', file }))?.agg ?? null
+        fresh = (await runParseJob({ kind: 'antigravity', file, transcript: agyTranscriptPath(file) }))?.agg ?? null
       } else if (file.startsWith(claudeRoot)) {
         // Top level = a session (listable), deeper = a subagent or other nested transcript — the same
         // rule as listJsonl.
@@ -931,7 +933,7 @@ export class TokenEngine {
       if (agg.unreadable) throw appError(ERR.sessionParseFailed)
       const parent = this.agyParent(agg)
       // Read once when no build has yet: the titles the list shows, so the page and the banner agree with it
-      this.agyTitles ??= readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? new Map()
+      this.agyTitles ??= readAgyTitles(roots.antigravityHome, this.agyTmpParent) ?? new Map()
       return {
         side: 'antigravity',
         questions: agg.questions,
@@ -1046,6 +1048,17 @@ export class TokenEngine {
   }
 }
 
+
+/**
+ * agy's own conversation titles by conversation id (session-view::REQ-003/AC-03), read by the engine module from its
+ * summaries database without writing there (token-stats::CON-002); null when the read failed while agy was writing them,
+ * so the caller keeps the titles it last read. `tmpParent` is where a copy is made: the system temporary directory when
+ * absent.
+ */
+function readAgyTitles(home: string, tmpParent: string | undefined): Map<string, string> | null {
+  const pairs = threadEngineModule().sessionTitles('antigravity', home, tmpParent)
+  return pairs === null ? null : new Map(pairs)
+}
 
 /** Whether a session file is an Antigravity CLI conversation: a database in agy's conversations directory */
 function isAgyConversation(roots: ScanRoots, file: string): boolean {

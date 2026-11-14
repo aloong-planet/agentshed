@@ -13,7 +13,7 @@ use crate::{seams, sides};
 
 /// Parses one session file. `job` is a TypeScript `ParseJob`; the answer is its `ParseResult`: the file's entry, or null
 /// when the file cannot be read. A panic while the file is parsed is that file's failed read, under its side's rule
-/// for a read that fails (token-stats, Scans and the window), and the call goes on to answer null.
+/// for a read that fails (token-stats, Scans and the window), and the call goes on to answer what that rule gives.
 #[napi(catch_unwind)]
 pub fn parse<'env>(env: &'env Env, job: Unknown<'env>) -> Result<Unknown<'env>> {
     let js = Js::new(env);
@@ -27,7 +27,7 @@ pub fn parse<'env>(env: &'env Env, job: Unknown<'env>) -> Result<Unknown<'env>> 
     }));
     let answer = match parsed {
         Ok(answer) => answer?,
-        Err(_) => js.null()?,
+        Err(_) => side.failed(&js, job)?,
     };
     unsafe { Unknown::from_napi_value(env.raw(), answer) }
 }

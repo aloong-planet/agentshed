@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { ENGINE_BUILD, loadEngineModule } from '../src/main/engine-module'
 import { MODULE_PARSES, parityExitCode, runParity, type ParseSide } from '../src/main/engine-parity'
-import { runParseJob, type ParseJob } from '../src/main/providers/token-stats'
+import { parseAntigravityFile, runParseJob, type ParseJob } from '../src/main/providers/token-stats'
 import { realRoots } from '../src/main/roots'
 
 const SIDES: readonly ParseSide[] = ['claude', 'codex', 'grok', 'antigravity']
@@ -56,7 +56,10 @@ async function main(): Promise<number> {
   }
   const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-parity-'))
   try {
-    const report = await runParity({ roots: realRoots(), sides, files, typescript: runParseJob, module: moduleParse, cacheDir, concurrency: 4 })
+    // TEMPORARY: the TypeScript Antigravity reader, until it is removed
+    const typescript = (job: ParseJob): ReturnType<typeof runParseJob> =>
+      job.kind === 'antigravity' ? parseAntigravityFile(job.file, job.tmpParent) : runParseJob(job)
+    const report = await runParity({ roots: realRoots(), sides, files, typescript, module: moduleParse, cacheDir, concurrency: 4 })
     for (const { file, at } of report.differing) console.log(`[parity] differs at ${at}: ${file}`)
     for (const { file, message } of report.failed) console.log(`[parity] failed, ${message}: ${file}`)
     for (const file of report.missing) console.log(`[parity] not in the scan: ${file}`)
