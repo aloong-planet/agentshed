@@ -106,7 +106,9 @@ fn modified_ms(file: &str) -> Option<f64> {
 }
 
 /// The day a usage line is filed under: its local date in the time zone the process runs in, `YYYY-MM-DD` as
-/// `localDay` in `src/shared/format.ts` writes it, from `[getFullYear(), getMonth(), getDate()]`
+/// `localDay` in `src/shared/format.ts` writes it, from `[getFullYear(), getMonth(), getDate()]`. The date is asked of
+/// JavaScript's `Date` (`Js::local_dates`) rather than worked out here, so the time zone, its rules and their data are
+/// the ones every other day in the app is cut by, and no time-zone rule exists twice.
 pub(super) fn day([year, month, date]: [f64; 3]) -> Units {
     let two = |n: f64| {
         let s = text::number_string(n);
