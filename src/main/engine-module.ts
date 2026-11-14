@@ -11,8 +11,8 @@ export interface EngineModule {
   build(): string
   /**
    * Writes `copy` to `file` as the text `JSON.stringify(copy)` gives, by an atomic replacement (engine/src/display/).
-   * The value is read during the call, as it stands then; the promise settles once the file is replaced, and rejects
-   * with why it was not.
+   * The value is read during the call, as it stands then, and the call throws when it holds what JSON cannot (a BigInt, a
+   * cycle); the promise settles once the file is replaced, and rejects with why it was not.
    */
   writeDisplayCopy(file: string, copy: unknown): Promise<void>
 }

@@ -12,9 +12,10 @@ import { loadEngineModule, type EngineSource } from './engine-module'
 /** Writes the envelope to the file as JSON, atomically, reading it as it stands when called (EngineModule.writeDisplayCopy) */
 export type DisplayWrite = (file: string, envelope: { version: 1; data: DisplayData }) => Promise<void>
 
-/** The engine module's writer, loaded on the first write; a module that will not load fails every write */
+/** The engine module's writer, loaded on the first write; a module that will not load fails every write. Whatever fails,
+ * the write rejects; the module reads the envelope during the call, before the first await */
 export function engineWrite(source: EngineSource): DisplayWrite {
-  return (file, envelope) => loadEngineModule(source).writeDisplayCopy(file, envelope)
+  return async (file, envelope) => loadEngineModule(source).writeDisplayCopy(file, envelope)
 }
 
 export interface DisplayStoreOptions {
@@ -29,6 +30,9 @@ export class DisplayStore {
   private data: DisplayData = emptyDisplayData()
   /** A change was recorded that no write has taken yet */
   private pending = false
+  /** A moment that writes the copy came — the window losing focus, a change without it — since the last write began: a
+   * write is owed, whatever the focus is by the time it runs */
+  private owed = false
   /** Whether the window has focus; none before the window first gains it, nor once it is gone */
   private focused = false
   /** Quits flushing: while one runs, focus holds nothing back */
@@ -56,13 +60,13 @@ export class DisplayStore {
   record(data: DisplayData): void {
     this.data = data
     this.pending = true
-    if (!this.focused) this.schedule()
+    if (!this.focused) this.owe()
   }
 
   /** The window gained focus, or lost it — to another application or window, or by being hidden, minimised or closed */
   focusChanged(focused: boolean): void {
     this.focused = focused
-    if (!focused && this.pending) this.schedule()
+    if (!focused && this.pending) this.owe()
   }
 
   /** Writes every change not yet written, whatever the focus: the quit's write. A write under way finishes first. */
@@ -78,8 +82,10 @@ export class DisplayStore {
     }
   }
 
-  /** A write on the next turn, so that the changes of one turn go in one write; a write under way takes them next */
-  private schedule(): void {
+  /** A write is owed: it runs on the next turn, so that the changes of one turn go in one write, or after the write
+   * under way */
+  private owe(): void {
+    this.owed = true
     if (this.timer !== null || this.writing) return
     this.timer = setTimeout(() => {
       this.timer = null
@@ -88,9 +94,10 @@ export class DisplayStore {
   }
 
   /**
-   * Writes while changes are pending and the window has no focus, or a quit is flushing. Each write reads the copy as it
-   * stands then, so a change made while one is under way goes in the next. One that fails leaves its changes pending
-   * for the next moment the copy is written (agents-overview::REQ-008/AC-05), and the copy on disk as it was.
+   * Writes while changes are pending and a write is owed, or a quit is flushing. Each write reads the copy as it stands
+   * then, so a change made while one is under way goes in the next. One that fails leaves its changes pending and the
+   * copy on disk as it was; the run goes on only for a moment that came while it was under way, and otherwise the next
+   * moment writes them (agents-overview::REQ-008/AC-05).
    */
   private run(): Promise<void> {
     const write = this.write
@@ -100,13 +107,15 @@ export class DisplayStore {
       // the writer throws at once
       await Promise.resolve()
       try {
-        while (this.pending && (!this.focused || this.flushing > 0)) {
+        while (this.pending && (this.owed || this.flushing > 0)) {
           this.pending = false
+          this.owed = false
           try {
             await write(this.file, { version: 1, data: this.data })
           } catch (error) {
             this.pending = true
-            throw error
+            if (!this.owed) throw error
+            console.error('[display-cache] save failed:', error)
           }
         }
       } finally {

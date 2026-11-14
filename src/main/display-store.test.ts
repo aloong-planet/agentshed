@@ -39,7 +39,7 @@ function numbers(): number[] {
 }
 
 it('the module writes a value as the text JSON.stringify gives it, byte for byte, into a directory it creates, readable by its user alone', async () => {
-  const strings = ['plain', 'quote " backslash \\ slash /', '\b\f\n\r\t', '\u0000\u0001\u001f\u007f', 'line para ', 'café 漢字',
+  const strings = ['plain', 'quote " backslash \\ slash /', '\b\f\n\r\t', '\u0000\u0001\u001f\u007f', 'line\u2028para\u2029', 'café 漢字',
     '😀 emoji', 'lone high \ud83d', 'lone low \ude00', 'reversed \ude00\ud83d', '\ud83d😀', '']
   // A hole at index 3
   const elements: unknown[] = [undefined, () => 1, Symbol('s')]
@@ -52,7 +52,10 @@ it('the module writes a value as the text JSON.stringify gives it, byte for byte
     order: { b: 1, 2: 'two', 1: 'one', a: 2, '-1': 'minus', '01': 'zero-one' },
     elements,
     empty: [{}, [], [[]], { inner: {} }],
-    keys: { [strings[7]]: 'lone surrogate key', 'tab\tkey': 1, '': 'empty key' }
+    keys: { [strings[7]]: 'lone surrogate key', 'tab\tkey': 1, '': 'empty key', ['k'.repeat(5000)]: 'a long key' },
+    // Around the length the module reads in one call, and far past it, each ending in a character JSON escapes, so a
+    // string cut short shows
+    long: [4094, 4095, 4096, 4097, 100_000].map((units) => 'x'.repeat(units - 1) + '"')
   }
   const file = join(dir(), 'missing', 'copy.json')
   await engine.writeDisplayCopy(file, value)
@@ -83,21 +86,25 @@ function writing(root: string): DisplayStore {
 }
 
 /**
- * The engine module's writer as the store's, watched at the filesystem boundary: how many writes the store asked for,
- * and, with `hold`, each write's completion kept from the store until `release` — the file itself is written at once,
- * so while held the store has a write under way whose result is already on disk.
+ * The engine module's writer as the store's, watched at the filesystem boundary: how many writes the store asked for
+ * and how many of them the module has finished, and, with `hold`, each write's outcome kept from the store until
+ * `release` — the file itself is written at once, so while held the store has a write under way whose result is
+ * already on disk, or whose failure is already decided.
  */
-function moduleWriter(hold = false): { write: DisplayWrite; asked: () => number; release: () => void } {
+function moduleWriter(hold = false): { write: DisplayWrite; asked: () => number; finished: () => number; release: () => void } {
   const real = engineWrite(TEST_ENGINE)
-  let asked = 0
+  let asked = 0, finished = 0
   let release = (): void => {}
   const gate = hold ? new Promise<void>((resolve) => { release = resolve }) : Promise.resolve()
   return {
     write: (file, envelope) => {
       asked++
-      return real(file, envelope).then(() => gate)
+      const written = real(file, envelope)
+      written.then(() => finished++, () => finished++)
+      return written.then(() => gate, (error: unknown) => gate.then(() => { throw error }))
     },
     asked: () => asked,
+    finished: () => finished,
     release: () => release()
   }
 }
@@ -136,12 +143,14 @@ it('a change recorded while the window has no focus is written right away: befor
   await expect.poll(() => onDisk(root)).toBe(2)
 })
 
-it('the quit\'s flush writes a change recorded while the window has focus, and a new store reads it back (agents-overview::REQ-008/AC-03)', async () => {
+it.each([
+  ['the window losing focus', (store: DisplayStore): void => { store.focusChanged(true); store.record(copyAt(1)); store.focusChanged(false) }],
+  ['a change made without focus', (store: DisplayStore): void => { store.record(copyAt(1)) }]
+])('%s is written even when the window regains focus before the write begins (agents-overview::REQ-008/AC-01, AC-02)', async (_moment, moment) => {
   const root = dir(), store = writing(root)
+  moment(store)
   store.focusChanged(true)
-  store.record(copyAt(123456))
-  await store.flush()
-  expect(onDisk(root)).toBe(123456)
+  await expect.poll(() => onDisk(root)).toBe(1)
 })
 
 it.skipIf(process.getuid?.() === 0)('a write that fails leaves its change unwritten and the copy on disk as it was, and the next time the window loses focus writes it (agents-overview::REQ-008/AC-05)', async () => {
@@ -180,6 +189,27 @@ it('a change made while a write is under way goes in the next write, not in the 
   w.release()
   await expect.poll(() => onDisk(root)).toBe(2)
   expect(w.asked()).toBe(2)
+})
+
+it.skipIf(process.getuid?.() === 0)('a change made without focus while a write is under way is written by the next write when the one under way fails (restart sequence item 12, agents-overview::REQ-008/AC-02)', async () => {
+  const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const root = dir(), w = moduleWriter(true), store = new DisplayStore(root, { write: w.write })
+  try {
+    // The write under way fails: the directory is unwritable until the module has tried it
+    chmodSync(root, 0o555)
+    try {
+      store.record(copyAt(1))
+      await expect.poll(() => w.finished()).toBe(1)
+    } finally {
+      chmodSync(root, 0o755)
+    }
+    store.record(copyAt(2))
+    w.release()
+    await expect.poll(() => onDisk(root)).toBe(2)
+    expect(String(logged.mock.calls[0]), 'the failed write is still told').toMatch(/\[display-cache\] save failed:.*display-cache\.json failed/)
+  } finally {
+    logged.mockRestore()
+  }
 })
 
 it('the window gaining focus while a write is under way: the write completes, and a change made from then on waits for the window to lose focus (restart sequence item 12)', async () => {
