@@ -1,13 +1,16 @@
 //! The engine module (ADR-0045), loaded through Node-API by the scan worker, the parse workers and the main process.
-//! It holds nothing of the accounting yet: each component moves in from TypeScript in a change of its own, proven
-//! against the TypeScript implementation by the parity command (`pnpm engine:parity`).
+//! Each component moves in from TypeScript in a change of its own, proven against the TypeScript implementation by
+//! the parity command (`pnpm engine:parity`). It holds the token store (`store/`, ADR-0044) so far, whose entries the
+//! TypeScript engine still reads and combines.
 //!
 //! Every function it exports catches a panic where it crosses into the application (`#[napi(catch_unwind)]`): the
 //! call throws an error naming the panic, and the thread and the process go on (token-stats, Scans and the window).
 
 use napi_derive::napi;
 
+mod exports;
 mod seams;
+mod store;
 
 /// The build this module belongs to: the digest of the module's sources that scripts/build-engine.mjs passes in, the
 /// same digest the application's code is built with. A module built any other way reports none.

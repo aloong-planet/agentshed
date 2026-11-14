@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { firstDifference, parityExitCode, runParity } from './engine-parity'
 import { runParseJob, type ParseJob, type ParseResult } from './providers/token-stats'
 import { mkScanHome, type ScanHome } from './testing/scan-home'
+import { TEST_ENGINE } from './testing/engine'
 
 let dir: string
 let home: ScanHome
@@ -46,7 +47,7 @@ function planted(result: ParseResult): { result: ParseResult; at: string } {
 describe('the parity command (ADR-0045)', () => {
   it('over two session files both parsers give the same results for: the command reports both equal and exits 0', async () => {
     const files = [home.claude.asked, home.codex.fork]
-    const report = await runParity({ roots: home.roots, sides: [], files, typescript: runParseJob, module: runParseJob, cacheDir: join(dir, 'cache') })
+    const report = await runParity({ roots: home.roots, sides: [], files, typescript: runParseJob, module: runParseJob, cacheDir: join(dir, 'cache'), engine: TEST_ENGINE })
 
     expect(report).toEqual({ compared: files, differing: [], failed: [], missing: [] })
     expect(parityExitCode(report)).toBe(0)
@@ -63,7 +64,7 @@ describe('the parity command (ADR-0045)', () => {
       return plant.result
     }
 
-    const report = await runParity({ roots: home.roots, sides: [], files, typescript: runParseJob, module, cacheDir: join(dir, 'cache') })
+    const report = await runParity({ roots: home.roots, sides: [], files, typescript: runParseJob, module, cacheDir: join(dir, 'cache'), engine: TEST_ENGINE })
 
     expect(at).not.toBe('')
     expect(report.differing).toEqual([{ file: home.codex.fork, at }])
@@ -79,7 +80,8 @@ describe('the parity command (ADR-0045)', () => {
       files: [never],
       typescript: runParseJob,
       module: () => Promise.reject(new Error('the engine module does not parse grok files yet')),
-      cacheDir: join(dir, 'cache')
+      cacheDir: join(dir, 'cache'),
+      engine: TEST_ENGINE
     })
 
     expect(report).toEqual({

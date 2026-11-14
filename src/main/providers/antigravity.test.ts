@@ -38,7 +38,6 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   readdirSync,
   realpathSync,
   renameSync,
@@ -56,6 +55,8 @@ import { mergeKey } from '@shared/path-key'
 import { scan, walkSessions } from './scan'
 import { readAntigravitySessions, readConversationDb } from './antigravity'
 import { TokenEngine, runParseJob, type ParseRunner, type TokenBuildResult } from './token-stats'
+import { TEST_ENGINE } from '../testing/engine'
+import { onStore, storeFileBytes } from '../testing/token-store'
 import { UsageArchive } from './archive'
 import type { ScanRoots } from './types'
 import { DatabaseSync } from './sqlite'
@@ -501,7 +502,7 @@ function usageConversation(
 
 const cacheDir = (): string => join(dir, 'cache')
 function build(runner?: ParseRunner): Promise<TokenBuildResult> {
-  return new TokenEngine(cacheDir(), runner).build(roots(), [], undefined, walkSessions(roots()))
+  return new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [], undefined, walkSessions(roots()))
 }
 const agyRows = (r: TokenBuildResult): TokenBuildResult['rows'] => r.rows.filter((x) => x.side === 'antigravity')
 const agyTotal = (r: TokenBuildResult): number => r.global.bySide.antigravity.total
@@ -790,8 +791,12 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     insertSteps(writers[0], more.steps)
     insertGens(writers[0], more.gens)
     usageConversation('fresh', [p], [{ usage: { messageId: 'm-f', input: 1000, output: 100 }, at: oct(26) }], { keepOpen: true })
+    const stored = storeFileBytes(cacheDir())
     const failed = await build(copyFails)
     expect([agyTotal(failed), failed.antigravityUnreadable]).toEqual([110, 0])
+    // The result kept is the one the store holds, and a read that gave nothing changed nothing: the build writes
+    // nothing (token-stats::QR-002/AC-02)
+    expect(storeFileBytes(cacheDir())).toEqual(stored)
     expect(agyTotal(await build())).toBe(330 + 1100)
   })
 
@@ -808,7 +813,7 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
       expect(agyTotal(await build())).toBe(1210)
       const walked = walkSessions(roots())
       rmSync(goes)
-      const r = await new TokenEngine(cacheDir()).build(roots(), [], undefined, walked)
+      const r = await new TokenEngine(cacheDir(), TEST_ENGINE).build(roots(), [], undefined, walked)
       expect([agyTotal(r), r.antigravityUnreadable]).toEqual([110, 0])
     })
 
@@ -927,28 +932,37 @@ describe('reading usage writes nothing, and reads a conversation again only when
   })
 })
 
+/** Stores an aggregate under a conversation's row, as a hand editing the store would; the row keeps its signature */
+function storeAgg(file: string, agg: unknown): void {
+  onStore(cacheDir(), 'UPDATE entries SET agg = ? WHERE path = ?', JSON.stringify(agg), file)
+}
+/** The files the store holds rows for, in the store's order */
+const storedPaths = (): string[] => onStore(cacheDir(), 'SELECT path FROM entries ORDER BY rowid').map(([path]) => String(path))
+
 describe('a corrupt cache entry for a conversation', () => {
   // Within one cache version only the shape guard stands between a corrupt entry and the aggregation (the cache's own
-  // rule): a conversation's entry gone bad on disk must be read again, not crash the scan or the session page
-  it('is read again rather than failing the build or the session page', async () => {
+  // rule): a conversation's entry gone bad in the store must be read again, not crash the scan or the session page
+  it.each([
+    ['an aggregate gone null', (file: string): void => storeAgg(file, null)],
+    [
+      'no row at all',
+      (file: string): void => {
+        onStore(cacheDir(), 'DELETE FROM entries WHERE path = ?', file)
+      }
+    ]
+  ])('with %s is read again rather than failing the build or the session page', async (what, corrupt) => {
     const p = mkProject('p')
     trust([p])
     const file = usageConversation('conv-c', [p], [{ usage: { messageId: 'm-c', input: 100, output: 10 }, at: oct(26) }])
     writeTranscript(agyRoot(), 'conv-c', MEASURED_TRANSCRIPT.dispatch)
     expect(agyTotal(await build())).toBe(110)
-    const cacheFile = join(cacheDir(), 'token-cache.json')
-    const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }
-    for (const entry of [{ sig: '1:1', agg: null }, null]) {
-      cache.files[file] = entry
-      writeFileSync(cacheFile, JSON.stringify(cache))
-      expect(agyTotal(await build())).toBe(110)
-      cache.files[file] = entry
-      writeFileSync(cacheFile, JSON.stringify(cache))
-      const page = new TokenEngine(cacheDir()).sessionQuestions(roots(), file)
-      // A corrupt entry is read again for the page; an absent one is a session the scan never indexed (every side's rule)
-      if (entry === null) await expect(page).rejects.toSatisfy((err: unknown) => decodeAppError(err)?.code === ERR.sessionNotIndexed)
-      else expect((await page).questions).toHaveLength(1)
-    }
+    corrupt(file)
+    expect(agyTotal(await build())).toBe(110)
+    corrupt(file)
+    const page = new TokenEngine(cacheDir(), TEST_ENGINE).sessionQuestions(roots(), file)
+    // A corrupt entry is read again for the page; an absent one is a session the scan never indexed (every side's rule)
+    if (what === 'no row at all') await expect(page).rejects.toSatisfy((err: unknown) => decodeAppError(err)?.code === ERR.sessionNotIndexed)
+    else expect((await page).questions).toHaveLength(1)
   })
 
   // A sentinel call the real conversation does not hold: a build that shows it reused the entry
@@ -981,17 +995,12 @@ describe('a corrupt cache entry for a conversation', () => {
     trust([p])
     const file = usageConversation('conv-g', [p], [{ usage: { messageId: 'm-g', input: 100, output: 10 }, at: oct(26) }])
     expect(agyTotal(await build())).toBe(110)
-    const cacheFile = join(cacheDir(), 'token-cache.json')
-    const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, { sig: string; agg: unknown }> }
-    const sig = cache.files[file].sig
-    // The control: a well-formed entry under that signature is reused, so the signature is the one the engine matches
-    cache.files[file] = { sig, agg: { kind: 'antigravity', file, ...wellFormed } }
-    writeFileSync(cacheFile, JSON.stringify(cache))
+    // The control: a well-formed entry under the row's signature is reused, so the signature is the one the engine matches
+    storeAgg(file, { kind: 'antigravity', file, ...wellFormed })
     expect(agyTotal(await build())).toBe(999_000)
     const partial: Record<string, unknown> = { ...wellFormed }
     delete partial[missing]
-    cache.files[file] = { sig, agg: { kind: 'antigravity', file, ...partial } }
-    writeFileSync(cacheFile, JSON.stringify(cache))
+    storeAgg(file, { kind: 'antigravity', file, ...partial })
     expect(agyTotal(await build())).toBe(110)
   })
 
@@ -1004,10 +1013,7 @@ describe('a corrupt cache entry for a conversation', () => {
     trust([p])
     const file = usageConversation('conv-g', [p], [{ usage: { messageId: 'm-g', input: 100, output: 10 }, at: oct(26) }])
     expect(agyTotal(await build())).toBe(110)
-    const cacheFile = join(cacheDir(), 'token-cache.json')
-    const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, { sig: string; agg: unknown }> }
-    cache.files[file] = { sig: cache.files[file].sig, agg: { kind: 'antigravity', file, ...wellFormed, ...change } }
-    writeFileSync(cacheFile, JSON.stringify(cache))
+    storeAgg(file, { kind: 'antigravity', file, ...wellFormed, ...change })
     expect(agyTotal(await build())).toBe(110)
   })
 })
@@ -1075,7 +1081,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
   const T = MEASURED_TRANSCRIPT
   const ID = MEASURED_TRANSCRIPT_ID
   const sessionsOf = (r: TokenBuildResult, folder: string): SessionMeta[] => r.perProject.get(mergeKey(folder))?.sessions ?? []
-  const engine = (): TokenEngine => new TokenEngine(cacheDir())
+  const engine = (): TokenEngine => new TokenEngine(cacheDir(), TEST_ENGINE)
   /** The page's question texts, read from the session's read source by range as the session page reads them */
   async function questionTexts(e: TokenEngine, file: string): Promise<Array<string | null>> {
     const q = await e.sessionQuestions(roots(), file)
@@ -1221,7 +1227,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
   it('a summaries read that fails while agy writes them keeps the titles last read (REQ-003/AC-03)', async () => {
     const { p, main } = dispatchHome()
     // The copy a read makes while a log is beside the summaries cannot be made: a read while agy writes that fails
-    const e = new TokenEngine(cacheDir(), undefined, join(dir, 'no-such-dir'))
+    const e = new TokenEngine(cacheDir(), TEST_ENGINE, undefined, join(dir, 'no-such-dir'))
     const rebuild = (): Promise<TokenBuildResult> => e.build(roots(), [], undefined, walkSessions(roots()))
     expect(sessionsOf(await rebuild(), p).map((s) => s.title)).toEqual(['List Calc.py Function Names'])
     rmSync(join(agyRoot(), 'conversation_summaries.db'))
@@ -1234,7 +1240,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     // With no titles read before, the same failure falls back to the first question: at a build, and on a page asked
     // for before any build
     const fallback = 'Use the invoke_subagent tool to start one subagent of type s…'
-    const fresh = (): TokenEngine => new TokenEngine(cacheDir(), undefined, join(dir, 'no-such-dir'))
+    const fresh = (): TokenEngine => new TokenEngine(cacheDir(), TEST_ENGINE, undefined, join(dir, 'no-such-dir'))
     expect((await fresh().sessionQuestions(roots(), main)).title).toBe(fallback)
     expect(sessionsOf(await fresh().build(roots(), [], undefined, walkSessions(roots())), p).map((s) => s.title)).toEqual([fallback])
   })
@@ -1379,18 +1385,12 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     it('a fork\'s page names its parent with a corrupt cache entry ahead of it, before any build (the cache rule)', async () => {
       const { parent, fork, silentFork } = parentAndFork(true)
       await build()
-      const cacheFile = join(cacheDir(), 'token-cache.json')
-      const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }
-      for (const entry of [{ sig: '1:1', agg: null }, null]) {
-        // The corrupt entry first, so the parent lookup meets it before the parent
-        const rest = { ...cache.files }
-        delete rest[silentFork]
-        writeFileSync(cacheFile, JSON.stringify({ ...cache, files: { [silentFork]: entry, ...rest } }))
-        const keys = Object.keys((JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }).files)
-        expect(keys.indexOf(silentFork)).toBeLessThan(keys.indexOf(parent))
-        const q = await engine().sessionQuestions(roots(), fork)
-        expect([q.forkParentFile, q.forkParentTitle]).toEqual([parent, 'Explaining Calc.py Functionality'])
-      }
+      // The corrupt row first in the store, so the parent lookup meets it before the parent
+      onStore(cacheDir(), "UPDATE entries SET rowid = -1, agg = 'null' WHERE path = ?", silentFork)
+      const order = [...storedPaths()]
+      expect(order.indexOf(silentFork)).toBeLessThan(order.indexOf(parent))
+      const q = await engine().sessionQuestions(roots(), fork)
+      expect([q.forkParentFile, q.forkParentTitle]).toEqual([parent, 'Explaining Calc.py Functionality'])
     })
 
     it('a fork of a fork names the conversation its last copied step came from (the "fork of a fork" failure mode)', async () => {

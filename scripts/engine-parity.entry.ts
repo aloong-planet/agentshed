@@ -55,7 +55,7 @@ async function main(): Promise<number> {
   }
   const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-parity-'))
   try {
-    const report = await runParity({ roots: realRoots(), sides, files, typescript: runParseJob, module: moduleParse, cacheDir, concurrency: 4 })
+    const report = await runParity({ roots: realRoots(), sides, files, typescript: runParseJob, module: moduleParse, cacheDir, engine: { path, build: ENGINE_BUILD }, concurrency: 4 })
     for (const { file, at } of report.differing) console.log(`[parity] differs at ${at}: ${file}`)
     for (const { file, message } of report.failed) console.log(`[parity] failed, ${message}: ${file}`)
     for (const file of report.missing) console.log(`[parity] not in the scan: ${file}`)

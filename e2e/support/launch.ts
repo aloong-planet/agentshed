@@ -5,7 +5,8 @@ import { test, expect, _electron as electron, type ElectronApplication, type Pag
 import { closeApp } from '../close-app'
 import { mkEmptyProjectHome } from './homes'
 
-/** Each case gets its own userData with no cross-contamination; a cache file can be seeded */
+/** Each case gets its own userData with no cross-contamination; a JSON cache an earlier build kept can be seeded, which
+ * the first launch imports or deletes (token-stats C26) */
 export function makeUserData(cacheContent?: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
   if (cacheContent !== undefined) {

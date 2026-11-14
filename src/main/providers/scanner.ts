@@ -40,7 +40,7 @@ export class Scanner {
    * the app, on the calling thread when absent
    */
   constructor(cacheDir: string, private readonly module: EngineSource, private readonly runner?: ParseRunner & { close?: () => void }) {
-    this.engine = new TokenEngine(cacheDir, runner)
+    this.engine = new TokenEngine(cacheDir, module, runner)
   }
 
   /**

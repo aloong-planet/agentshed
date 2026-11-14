@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { SessionMeta } from '@shared/domain'
 import { TokenEngine } from './token-stats'
+import { TEST_ENGINE } from '../testing/engine'
 import { searchProjectSessions } from './search-sessions'
 import type { ScanRoots } from './types'
 import { callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation } from '../testing/agy-fixture'
@@ -69,7 +70,7 @@ async function run(
   needle: string,
   fullText: boolean
 ): Promise<Awaited<ReturnType<typeof searchProjectSessions>>> {
-  const e = new TokenEngine(join(dir, 'cache'))
+  const e = new TokenEngine(join(dir, 'cache'), TEST_ENGINE)
   const t = await e.build(roots(), [proj])
   const sessions: SessionMeta[] = t.perProject.get(proj.toLowerCase())?.sessions ?? []
   return searchProjectSessions(e, roots(), sessions, needle, fullText)
@@ -120,7 +121,7 @@ describe('question mode (the default): searches questions only, with hits groupe
     const newest = mkClaude('newest.jsonl', [asked('2026-07-30T03:00:00.000Z', 'needle in the newest session')])
     const locked = mkClaude('locked.jsonl', [asked('2026-07-30T02:00:00.000Z', 'needle in the locked session')])
     const oldest = mkClaude('oldest.jsonl', [asked('2026-07-30T01:00:00.000Z', 'needle in the oldest session')])
-    const e = new TokenEngine(join(dir, 'cache'))
+    const e = new TokenEngine(join(dir, 'cache'), TEST_ENGINE)
     const sessions = (await e.build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
     // Read newest first, so a session comes after the failing one: a failure that ended the search there would lose it
     expect(sessions.map((s) => s.file)).toEqual([newest, locked, oldest])
