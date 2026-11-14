@@ -20,7 +20,10 @@ import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync,
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseRunner } from './token-stats'
+import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseJob, type ParseResult, type ParseRunner } from './token-stats'
+import { loadEngineModule } from '../engine-module'
+import { firstDifference } from '../engine-parity'
+import { TEST_ENGINE } from '../testing/engine'
 import { zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
@@ -3089,5 +3092,180 @@ describe('the session ID on the session page', () => {
     const e = engine()
     await e.build(roots(), [proj])
     expect((await e.sessionQuestions(roots(), f)).sessionId).toBe(id)
+  })
+})
+
+// token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
+// U+FFFD, and read by the grammar of ECMAScript's JSON.parse, with its results". One rollout per clause, parsed through
+// the module; each also gives, field for field, the entry the TypeScript parser gives for the same file.
+describe('how a rollout line is read', () => {
+  const AT = '2026-07-30T10:00:00.000Z'
+  const REPLACEMENT = String.fromCharCode(0xfffd)
+  /** A usage record as Codex writes one, its usage the response's own */
+  const record = (id: string, input: number | string, output: number, extra: Record<string, unknown> = {}): string =>
+    `{"timestamp":"${AT}","type":"token_usage_record","payload":{"response_id":"${id}","usage":{"input_tokens":${input},"cached_input_tokens":0,"output_tokens":${output}}${Object.entries(extra).map(([k, v]) => `,"${k}":${JSON.stringify(v)}`).join('')}}}`
+  const question = (message: string): string => JSON.stringify({ timestamp: AT, type: 'event_msg', payload: { type: 'user_message', message } })
+
+  /** A rollout of `lines`, each a line's text or its raw bytes, every one ending with a line feed */
+  function rollout(lines: Array<string | Buffer>): string {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const f = join(d, 'rollout-2026-07-30T10-00-00-019f0000-eeee-7000-8000-000000000001.jsonl')
+    writeFileSync(f, Buffer.concat(lines.flatMap((l) => [typeof l === 'string' ? Buffer.from(l) : l, Buffer.from('\n')])))
+    return f
+  }
+
+  /** The entry the module gives the rollout, held to the TypeScript parser's for the same job */
+  async function entryOf(file: string): Promise<NonNullable<ParseResult>> {
+    const job: ParseJob = {
+      kind: 'codex',
+      file,
+      projectKey: 'p',
+      meta: { subagent: false, sessionId: 'sid', parentId: null, forkedAt: null, paginated: true },
+      threadName: undefined
+    }
+    const parsed = loadEngineModule(TEST_ENGINE).parse(job)
+    expect(firstDifference(parsed, await runParseJob(job)), 'where the module and the TypeScript parser part').toBeNull()
+    if (parsed?.agg.kind !== 'codex') throw new Error('no Codex entry')
+    return parsed
+  }
+  const eventsOf = (r: NonNullable<ParseResult>): unknown => (r.agg.kind === 'codex' ? r.agg.events : null)
+
+  it('as UTF-8 with U+FFFD for each maximal invalid subpart, a line with an invalid byte outside a string being a bad line', async () => {
+    const bytes = (...b: number[]): Buffer => Buffer.from(b)
+    const [head, tail] = record('r1', 100, 10).split('"usage"')
+    const f = rollout([
+      // c FF a E2 82 b C0 80 c ED A0 80 d F4 90 80 80 e: one, one, two, three and four replacements
+      Buffer.concat([
+        Buffer.from(`{"timestamp":"${AT}","type":"event_msg","payload":{"type":"user_message","message":"c`),
+        bytes(0xff), Buffer.from('a'), bytes(0xe2, 0x82), Buffer.from('b'), bytes(0xc0, 0x80), Buffer.from('c'),
+        bytes(0xed, 0xa0, 0x80), Buffer.from('d'), bytes(0xf4, 0x90, 0x80, 0x80), Buffer.from('e"}}')
+      ]),
+      // Invalid bytes in a value no rule reads leave the line readable
+      Buffer.concat([Buffer.from(`${head}"note":"`), bytes(0xff, 0xfe), Buffer.from(`","usage"${tail}`)]),
+      // Outside a string a replacement character is no token, and the line is refused
+      Buffer.concat([Buffer.from(`{"timestamp":"${AT}",`), bytes(0xff), Buffer.from(record('r2', 999, 9).slice(1))])
+    ])
+    const entry = await entryOf(f)
+    const R = REPLACEMENT
+    expect(entry.agg.title).toBe(`c${R}a${R}b${R}${R}c${R}${R}${R}d${R}${R}${R}${R}e`)
+    expect(entry.agg.questions).toHaveLength(1)
+    expect(eventsOf(entry)).toEqual([[Date.UTC(2026, 6, 30, 10), 100, 0, 10, 0]])
+  })
+
+  it('by JSON.parse\'s grammar: a line it refuses is a bad line (A8), and a line it takes counts however unusual, nested deeper than any fixed limit included', async () => {
+    const BS = String.fromCharCode(0x5c)
+    const at = Date.UTC(2026, 6, 30, 10)
+    const good = [
+      // 5,000 levels deep in a value no rule reads
+      record('v1', 7, 1).replace('"usage"', `"deep":${'['.repeat(5000)}${']'.repeat(5000)},"usage"`),
+      // Tabs, spaces and a carriage return between tokens; numbers in exponent form
+      `{ "timestamp" :\t"${AT}" , "type" : "token_usage_record" , "payload" : { "response_id" : "v2" , "usage" : { "input_tokens" : 1E2 , "cached_input_tokens" : 0.5e1 , "output_tokens" : 3 } } }\r`,
+      // A key and a value spelled with escapes
+      record('v3', 2, 2).replace('"type":"token_usage_record"', `"t${BS}u0079pe":"token_usage_r${BS}u0065cord"`),
+      // A raw U+2028 in a string, and an id spelled with an escaped solidus, which is the same id as the next line's
+      record(`a${BS}/b`, 4, 4, { note: `x${String.fromCharCode(0x2028)}y` }),
+      record('a/b', 50, 50)
+    ]
+    // Each carries usage that must not count
+    const refused = [
+      record('b1', 1001, 1).replace('"output_tokens":1}', '"output_tokens":1,}'),
+      record(`b2${String.fromCharCode(9)}tab`, 1002, 1),
+      record('b3', 1003, 1, { note: 'x' }).replace('"x"', `"${BS}x41"`),
+      `${String.fromCharCode(0xfeff)}${record('b4', 1004, 1)}`,
+      `${record('b5', 1005, 1)} x`,
+      record('b6', '01', 1),
+      record('b7', '+1', 1),
+      record('b8', '1.', 1),
+      record('b9', '.5', 1),
+      record('b10', 'NaN', 1),
+      record('b11', 1011, 1).replace('"b11"', `"${BS}ud8"`),
+      record('b12', 1012, 1).replace('"response_id"', '\'response_id\''),
+      record('b13', 1013, 1).slice(0, -1)
+    ]
+    const lines = [...good, ...refused]
+    const f = rollout(lines)
+    const entry = await entryOf(f)
+    expect(eventsOf(entry)).toEqual([
+      [at, 7, 0, 1, 0],
+      [at, 100, 5, 3, 0],
+      [at, 2, 0, 2, 0],
+      [at, 4, 0, 4, 0]
+    ])
+    // The parse stopped at the end of the last line that parsed: what the refused lines hold is read again next time
+    expect(entry.state?.cursor).toBe(Buffer.byteLength(good.map((l) => `${l}\n`).join('')))
+  })
+
+  it('with a repeated key keeping its last value, at the place the key first held', async () => {
+    const usage = '{"input_tokens":10,"cached_input_tokens":0,"output_tokens":1}'
+    const f = rollout([
+      `{"timestamp":"${AT}","type":"event_msg","type":"turn_context","payload":{"model":"first","model":"second"}}`,
+      `{"timestamp":"${AT}","type":"event_msg","payload":{"type":"user_message","message":"lost"},"payload":{"type":"user_message","message":"kept question"}}`,
+      `{"timestamp":"${AT}","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":${usage},"total_token_usage":{"output_tokens":9,"input_tokens":1,"input_tokens":10,"cached_input_tokens":0,"total_tokens":11,"output_tokens":1}}}}`,
+      // The second payload replaces the first whole: no usage is left to count
+      `{"timestamp":"${AT}","type":"token_usage_record","payload":{"response_id":"d1","usage":${usage}},"payload":{"response_id":"d2"}}`,
+      `{"timestamp":"${AT}","type":"token_usage_record","payload":{"response_id":"d3","usage":{"input_tokens":1,"input_tokens":30,"cached_input_tokens":0,"output_tokens":3}}}`
+    ])
+    const entry = await entryOf(f)
+    const at = Date.UTC(2026, 6, 30, 10)
+    if (entry.agg.kind !== 'codex') throw new Error('no Codex entry')
+    expect(entry.agg.model).toBe('second')
+    expect(entry.agg.title).toBe('kept question')
+    expect(entry.agg.events).toEqual([[at, 10, 0, 1, 0], [at, 30, 0, 3, 0]])
+    expect(entry.state?.seenResponses).toEqual(['d2', 'd3'])
+    const total = entry.state?.prevTotal
+    expect(total).toEqual({ output_tokens: 1, input_tokens: 10, cached_input_tokens: 0, total_tokens: 11 })
+    expect(Object.keys(total ?? {})).toEqual(['output_tokens', 'input_tokens', 'cached_input_tokens', 'total_tokens'])
+    expect(entry.state?.prevTotalKey).toBe('10|0|1|11')
+  })
+
+  it('with a number beyond the double range infinite and so no finite count, and a negative zero kept', async () => {
+    const event = (info: string): string => `{"timestamp":"${AT}","type":"event_msg","payload":{"type":"token_count","info":${info}}}`
+    const f = rollout([
+      event('{"last_token_usage":{"input_tokens":1e400,"cached_input_tokens":0,"output_tokens":5},"total_token_usage":{"input_tokens":1e400,"cached_input_tokens":-0,"output_tokens":5,"total_tokens":5}}'),
+      // No per-turn figure: the increment is the difference of the running totals, an infinite one counting as 0
+      event('{"total_token_usage":{"input_tokens":100,"cached_input_tokens":1e-7,"output_tokens":1e-400,"total_tokens":1e21}}'),
+      record('n1', '-0', 7),
+      record('n2', '1e400', 0)
+    ])
+    const entry = await entryOf(f)
+    const at = Date.UTC(2026, 6, 30, 10)
+    expect(eventsOf(entry)).toEqual([[at, 0, 0, 5, 0], [at, 100, 1e-7, 0, 0], [at, -0, 0, 7, 0]])
+    expect(entry.state?.prevTotal).toEqual({ input_tokens: 100, cached_input_tokens: 1e-7, output_tokens: 0, total_tokens: 1e21 })
+    // String() of each running field, as JavaScript writes the number
+    expect(entry.state?.prevTotalKey).toBe('100|1e-7|0|1e+21')
+  })
+
+  it('with a lone surrogate escape staying that code unit, in text, in a model and in a response id', async () => {
+    const [high, low] = [String.fromCharCode(0xd800), String.fromCharCode(0xdc00)]
+    const f = rollout([
+      JSON.stringify({ timestamp: AT, type: 'turn_context', payload: { model: `gpt${low}` } }),
+      // 59 letters, the lone surrogate, then two more: the title is clipped after the surrogate, a code point of its own
+      question(`${'a'.repeat(59)}${high}bc`),
+      JSON.stringify({ timestamp: AT, type: 'token_usage_record', payload: { response_id: high, usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 } } }),
+      JSON.stringify({ timestamp: AT, type: 'token_usage_record', payload: { response_id: high, usage: { input_tokens: 9, cached_input_tokens: 0, output_tokens: 9 } } }),
+      JSON.stringify({ timestamp: AT, type: 'token_usage_record', payload: { response_id: `${high}${low}`, usage: { input_tokens: 2, cached_input_tokens: 0, output_tokens: 2 } } })
+    ])
+    const entry = await entryOf(f)
+    if (entry.agg.kind !== 'codex') throw new Error('no Codex entry')
+    expect(entry.agg.model).toBe(`gpt${low}`)
+    expect(entry.agg.title).toBe(`${'a'.repeat(59)}${high}${String.fromCharCode(0x2026)}`)
+    expect(entry.state?.seenResponses).toEqual([high, `${high}${low}`])
+    expect(entry.agg.events.map((e) => e[1])).toEqual([1, 2])
+  })
+
+  it('with a timestamp outside the form Codex writes read as Date.parse reads it', async () => {
+    const at = (timestamp: string, id: string): string => JSON.stringify({ timestamp, type: 'token_usage_record', payload: { response_id: id, usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 } } })
+    const f = rollout([
+      at('2026-07-30T10:00:00+08:00', 't1'),
+      at('2026-07-30', 't2'),
+      at('2026-07-30T10:00:00.123456Z', 't3'),
+      // Read by V8 as the second of March
+      at('2026-02-30T00:00:00.000Z', 't4'),
+      at('not a time', 't5')
+    ])
+    const entry = await entryOf(f)
+    expect((eventsOf(entry) as unknown[][]).map((e) => e[0])).toEqual([1785376800000, 1785369600000, 1785405600123, 1772409600000, null])
+    expect(entry.agg.at).toBe(1785405600123)
   })
 })

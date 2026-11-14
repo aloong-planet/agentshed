@@ -16,7 +16,9 @@ export type Parse = (job: ParseJob) => Promise<ParseResult>
  * How the module parses each side it parses. A side's entry comes with the change that moves its parsing into the
  * module; a side without one is parsed by TypeScript alone, and the command refuses to compare it.
  */
-export const MODULE_PARSES: Partial<Record<ParseSide, (module: EngineModule, job: ParseJob) => Promise<ParseResult>>> = {}
+export const MODULE_PARSES: Partial<Record<ParseSide, (module: EngineModule, job: ParseJob) => Promise<ParseResult>>> = {
+  codex: (module, job) => Promise.resolve(module.parse(job))
+}
 
 export interface ParityReport {
   /** The files both parsers parsed, in the order the scan met them */

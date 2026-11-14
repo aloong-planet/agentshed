@@ -3,11 +3,18 @@
 // a module that will not load, or that is another build's, fails every scan and every question-index read that asks
 // for it (token-stats, Scans and the window). Nothing here imports electron, which a worker thread cannot load.
 import { join } from 'node:path'
+import type { ParseJob, ParseResult } from './providers/token-stats'
 
 /** What the application calls in the engine module */
 export interface EngineModule {
   /** The build the module belongs to (scripts/lib/engine-build.mjs) */
   build(): string
+  /**
+   * Parses one session file of a side the module parses, on the calling thread: the file's entry, or null when it
+   * cannot be read. A panic while the file is parsed answers null, as a read that fails does; a job of a side the
+   * module does not parse throws.
+   */
+  parse(job: ParseJob): ParseResult
 }
 
 /** Where a thread loads the engine module from, and the build it must report; plain data, so it crosses to a worker */
@@ -48,6 +55,9 @@ export function engineModulePath(run: {
 /** What each path gave this thread, once: the module, or why it would not load */
 const loaded = new Map<string, { module: Record<string, unknown> } | { error: Error }>()
 
+/** The module this thread last confirmed as this build's own */
+let confirmed: EngineModule | null = null
+
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
 /**
@@ -72,5 +82,15 @@ export function loadEngineModule(source: EngineSource): EngineModule {
   if (reported !== source.build) {
     throw new Error(`the engine module at ${source.path} is another build's (${JSON.stringify(reported)}), not this build's (${JSON.stringify(source.build)})`)
   }
-  return got.module as unknown as EngineModule
+  confirmed = got.module as unknown as EngineModule
+  return confirmed
+}
+
+/**
+ * The engine module this thread loaded, for a parse on this thread. Every thread that parses loads it first: a parse
+ * worker as it starts, the thread that runs a scan before each scan and each question-index read (scanner.ts).
+ */
+export function threadEngineModule(): EngineModule {
+  if (!confirmed) throw new Error('the engine module has not been loaded on this thread')
+  return confirmed
 }
