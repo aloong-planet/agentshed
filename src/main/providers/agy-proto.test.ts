@@ -67,6 +67,11 @@ describe('the markers and folders a record can carry', () => {
       encodeTrajectoryMetadata({ ...base, folders: ['/work/only-ws', '/work/later'], omitWorkspaceUris: true })
     )
     expect(firstFolder(noUris)).toBe('/work/only-ws')
+    // Derived: every measured record names the same folders in both fields; the workspace URIs come first
+    const apart = decodeTrajectoryMetadata(
+      encodeTrajectoryMetadata({ ...base, folders: [], rawUris: ['file:///work/from-uris'], workspaceFolderUris: ['file:///work/from-ws'] })
+    )
+    expect(firstFolder(apart)).toBe('/work/from-uris')
   })
 
   it('a percent-encoded folder URI is its path; a URI that is not a file names no local folder', () => {

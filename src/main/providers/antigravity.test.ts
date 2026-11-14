@@ -388,12 +388,17 @@ describe("reading agy's files writes nothing there (token-stats::CON-002)", () =
   it('a database with no log is read in place: the directory keeps the same files, sizes and times', async () => {
     const p = mkProject('p')
     trust([p])
-    conversation('quiet', [p], 1_793_000_000)
+    const file = conversation('quiet', [p], 1_793_000_000)
     const before = listing(conversations())
     expect(before).toHaveLength(1) // the database alone: its writer closed, so the log was merged and removed
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.projects[0].sessionCount).toBe(1)
     expect(listing(conversations())).toEqual(before)
+    // Its time moved, so the walk reads it again; with no directory to copy into, only a read in place reads it
+    utimesSync(file, 1_793_000_100, 1_793_000_100)
+    const moved = listing(conversations())
+    expect(readAntigravitySessions(agyRoot(), join(dir, 'no-such-dir')).map((s) => s.cwd)).toEqual([p])
+    expect(listing(conversations())).toEqual(moved)
   })
 
   it('a database agy is writing is read through a copy: nothing changes there, and the rows only its log holds are seen', async () => {
