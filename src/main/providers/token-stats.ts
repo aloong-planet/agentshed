@@ -6,7 +6,8 @@
 //   (a subagent replays its parent's messages under a new requestId); keep the non-sidechain one,
 //   otherwise the one with the larger four-field token sum. The total rule = input+output+cacheRead+cacheWrite;
 //   entries whose model is '<synthetic>' or missing count toward the total but do not enter a model bucket.
-// - Codex: per-turn last_token_usage increment events (payload.type=token_count inside event_msg);
+// - Codex (each rollout read and parsed by the engine module, engine/src/sides/codex/, into the entry
+//   combined here): per-turn last_token_usage increment events (payload.type=token_count inside event_msg);
 //   a fork or subagent session replays its parent's history, stripped by the same rules as ccusage's
 //   replay.rs — take the parent's event sequence before the fork moment and skip entries at the start
 //   of the child that match it by value (if the very first does not match, strip nothing);
@@ -38,7 +39,7 @@ import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta } from './codex'
 import { readGrokSessionMeta } from './grok'
-import { isColdRollout, rolloutStem } from './cold-rollout'
+import { isColdRollout } from './cold-rollout'
 import { mapLimit, readRanges } from './range-read'
 import { eachJsonlLine } from './jsonl'
 import { isReadable } from './read-utils'
@@ -55,7 +56,7 @@ import { walkSessions, type SessionWalk } from './scan'
 import { byName, compareNames, compareScanOrder } from './scan-order'
 import { agySessionSignature, agyTranscriptPath, readAgySummaryTitles, readAntigravityUsage, type AgyCall } from './antigravity'
 import type { UsageRow } from './archive'
-import { loadEngineModule, type EngineSource, type TokenStore, type TokenStoreRow } from '../engine-module'
+import { loadEngineModule, threadEngineModule, type EngineSource, type TokenStore, type TokenStoreRow } from '../engine-module'
 
 /** One Claude usage entry (encoded into the cache as a compact array): [mid, rid, sc, in, out, cr, cw, model, day] */
 type PackedEntry = [
@@ -259,6 +260,16 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg | AntigravityFileAgg
  *      change of the cache as a whole**, which the store records as its own version. The per-file aggregate is v19's,
  *      unchanged, which is why the first launch imports a v19 JSON file and no other (JSON_CACHE_VERSION, token-stats
  *      C26). The store's tables are this version's too (engine/src/store/): changing them bumps this number.
+ *
+ * Not bumped, for one computation change and its reasons alone (#427): a Codex rollout's last line is read only once its
+ *      line feed is written, where the TypeScript parser read it at once. The change reaches only an entry cached while a
+ *      rollout's last line had no line feed yet. While that file stays unchanged, which happens only if Codex stopped
+ *      between the line and its line feed, the entry keeps the figure the TypeScript parser gave. Once the file grows,
+ *      the resume reads on under the new rule, and only that question's end stays one byte short until the file is
+ *      next parsed whole: no figure and no question's text differ. No rollout on this machine was in that state (none
+ *      of the 311 non-empty plain rollouts, 2026-11-15). A bump would make every install parse every rollout again, and
+ *      would take version 20, which the token store's change lands on, past the version-19 import its upgrade reads.
+ *      This exempts that one change; the rule above stands for every other.
  *
  * **A bump also moves the accounting stamp** (`<app version>+c<this>`), and the e2e archive cases seed
  * archive rows under that stamp as a literal on purpose, so a bump turns them red until they are
@@ -575,7 +586,8 @@ export async function runParseJob(job: ParseJob): Promise<ParseResult> {
       return agg ? { agg } : null
     }
     case 'codex':
-      return parseCodexFile(job.file, job.projectKey, job.meta, job.threadName, job.from)
+      // Read and parsed by the engine module (ADR-0045), which this thread loaded before it parses
+      return threadEngineModule().parse(job)
     case 'grok': {
       const agg = await parseGrokFile(job.file, job.projectKey, job.subagent)
       return agg ? { agg } : null
@@ -1815,7 +1827,7 @@ async function parseClaudeFile(
   let lastAt: number | null = null
   // The question index and the title share a source: only the indexer decides which line is "the first
   // real question"
-  const idx = makeQuestionIndexer('claude')
+  const idx = makeQuestionIndexer()
   let fileEnd = 0
   try {
     await eachJsonlLine(file, (obj, start, end) => {
@@ -1880,33 +1892,6 @@ async function parseClaudeFile(
   }
 }
 
-/** The four cumulative fields, as one comparable value — "has this record's running total moved" */
-function cumulativeKey(u: Record<string, unknown>): string {
-  return `${num(u['input_tokens'])}|${num(u['cached_input_tokens'])}|${num(u['output_tokens'])}|${num(u['total_tokens'])}`
-}
-
-/**
- * The increment implied by two consecutive cumulatives. Used where a record carries no per-turn
- * figure, and — because a cumulative that has not advanced yields zeros — it is also what makes a
- * re-reported turn drop out.
- *
- * Clamped at zero **defensively, not to handle a known shape**: no record measured on this machine
- * has a decreasing cumulative (0 of 59328 events across 444 files, checked field by field), so the
- * clamp has never fired. It is here because a subtraction that can go negative would silently take
- * tokens *out* of a day's total, which is a worse failure than dropping an increment.
- */
-function diffUsage(
-  total: Record<string, unknown>,
-  prev: Record<string, unknown> | undefined
-): Record<string, unknown> {
-  const d = (k: string): number => Math.max(0, num(total[k]) - (prev ? num(prev[k]) : 0))
-  return {
-    input_tokens: d('input_tokens'),
-    cached_input_tokens: d('cached_input_tokens'),
-    output_tokens: d('output_tokens')
-  }
-}
-
 interface CodexParseMeta {
   subagent: boolean
   sessionId: string | null
@@ -1915,166 +1900,9 @@ interface CodexParseMeta {
   paginated: boolean
 }
 
-/** The parser's carried state at the end of a parse; codexEntry adds the inode, size and count */
+/** The state a parse carries out of a rollout (the engine module's, engine/src/sides/codex/); entryOf adds the inode,
+ * the size and the count */
 type CodexParseState = Omit<CodexResume, 'ino' | 'size' | 'resumes'>
-
-/**
- * `from`: a cached parse of this rollout to resume (#158) — its agg and the state it stopped in. The
- * parse then reads from the cursor on and continues every piece of state from there, so its result is
- * the one a whole parse of the grown file gives.
- */
-async function parseCodexFile(
-  file: string,
-  projectKey: string,
-  meta: CodexParseMeta,
-  /** The session_index name for this rollout, if it has one */
-  threadName: string | undefined,
-  from?: { agg: CodexFileAgg; state: CodexResume }
-): Promise<{ agg: CodexFileAgg; state: CodexParseState } | null> {
-  const events: CodexEvent[] = from ? from.agg.events.slice() : []
-  // The running cumulative of the previous usage record, carried across lines so that a re-reported
-  // turn can be recognised by its cumulative standing still (spec B7). Per file: the cumulative
-  // restarts with each session.
-  let prevTotal: Record<string, unknown> | undefined = from?.state.prevTotal ?? undefined
-  let prevTotalKey: string | null = from ? from.state.prevTotalKey : null
-  /** The usage boundary (spec B9): the index in `events` from which entries come from usage records;
-   * -1 until the first record line. From that line on usage events are ignored (ADR-0027). */
-  let boundary = from ? from.state.boundary : -1
-  /** Response ids already counted — two records with one id are one response (spec B1) */
-  const seenResponses = new Set<string>(from?.state.seenResponses)
-  let model = from ? from.state.model : 'unknown'
-  // at = the largest timestamp in the file (the same meaning as on the Claude side = last activity). It
-  // previously took the first timestamp,
-  // which is especially wrong for a fork session — the first line's timestamp is the replay moment,
-  // neither the start nor the end.
-  let lastTs: number | null = from ? from.agg.at : null
-  // The question index and the title share a source (the same stripping rules as the Claude side), and
-  // decide whether this session is listed
-  const idx = makeQuestionIndexer('codex', from?.agg.questions)
-  let fileEnd = from ? from.state.cursor : 0
-  try {
-    await eachJsonlLine(file, (obj, start, end) => {
-      idx.line(obj, start, end)
-      fileEnd = end
-      const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp']) : NaN
-      if (!Number.isNaN(ts)) lastTs = lastTs === null ? ts : Math.max(lastTs, ts)
-      const payload = obj['payload'] as Record<string, unknown> | undefined
-      if (obj['type'] === 'turn_context') {
-        const m = payload?.['model']
-        if (typeof m === 'string') model = m
-      }
-      // A usage record (ADR-0027): Codex's own per-response accounting, written a few milliseconds
-      // before the matching usage event in the paginated rollouts measured here (2026-09-10). The first
-      // one is the usage boundary (spec B9): from its line on, records are the source and usage events
-      // are ignored.
-      // One record per response id (spec B1); a record without an id cannot be matched and counts.
-      if (obj['type'] === 'token_usage_record') {
-        if (boundary === -1) boundary = events.length
-        const rid = payload?.['response_id']
-        if (typeof rid === 'string') {
-          if (seenResponses.has(rid)) return
-          seenResponses.add(rid)
-        }
-        const usage = payload?.['usage'] as Record<string, unknown> | undefined
-        if (!usage) return
-        // All-zero records carry nothing to attribute (spec B6, the same rule as for the event)
-        if (num(usage['input_tokens']) === 0 && num(usage['output_tokens']) === 0 && num(usage['cached_input_tokens']) === 0) return
-        // The last slot is cache creation, not collected on this side (ADR-0023), as for the event below
-        events.push([Number.isNaN(ts) ? null : ts, num(usage['input_tokens']), num(usage['cached_input_tokens']), num(usage['output_tokens']), 0])
-        return
-      }
-      // The legacy source, read only before the boundary. The real shape: top-level type=event_msg
-      // with the data in payload.info (payload.type=token_count). last_token_usage is the per-turn
-      // increment — but the same turn can be re-reported, and summing every event counts it twice
-      // (spec B7). The discriminator is the **cumulative**: total_token_usage not advancing means this
-      // event accounts for nothing new. Where the per-turn figure is missing the increment is the
-      // difference between the two cumulatives, which is also what makes a non-advancing event
-      // contribute zero and drop out. Deliberately not "the per-turn figure repeats": that would drop
-      // two genuinely identical consecutive turns and keep a re-report that varied its per-turn
-      // figure. The cumulative rule also drops a real response whose cumulative stood still (17 of
-      // 345 dual-source rollouts on this machine, 2026-09-10) — what the records fix from the boundary on.
-      if (payload?.['type'] !== 'token_count') return
-      if (boundary !== -1) return
-      const info = payload['info'] as Record<string, unknown> | undefined
-      const last = info?.['last_token_usage'] as Record<string, unknown> | undefined
-      const total = info?.['total_token_usage'] as Record<string, unknown> | undefined
-      const totalKey = total ? cumulativeKey(total) : null
-      const advanced = totalKey === null || totalKey !== prevTotalKey
-      // A cumulative that has not advanced makes the difference zero, so both branches agree there
-      const usage = last && advanced ? last : total ? diffUsage(total, prevTotal) : undefined
-      // Both carried forward unconditionally, including when a record has no cumulative at all: the
-      // upstream rule compares against whatever the previous record carried, so keeping a stale value
-      // here while clearing the key would make the two disagree about what "previous" means
-      prevTotalKey = totalKey
-      prevTotal = total
-      if (!usage) return
-      // All-zero records carry nothing to attribute (spec B6 for the reported kind, and this is where
-      // a non-advancing cumulative lands)
-      if (num(usage['input_tokens']) === 0 && num(usage['output_tokens']) === 0 && num(usage['cached_input_tokens']) === 0) return
-      events.push([
-        Number.isNaN(ts) ? null : ts,
-        num(usage['input_tokens']),
-        num(usage['cached_input_tokens']),
-        num(usage['output_tokens']),
-        // Cache creation is deliberately NOT read on this side (ADR-0023). The field exists in
-        // records written from 2026-07-21 onward but has never carried a value, and the side's own
-        // reported total is input + output with no write term — so reading it would make our total
-        // exceed the total the side publishes for itself. Where those tokens actually sit is **not
-        // observable** from this data (no non-zero record exists to test against); zero asserts no
-        // quantity, only that this side reports none.
-        0
-      ])
-    }, undefined, fileEnd)
-  } catch {
-    return null
-  }
-  // The stem comes from the name without either suffix: a cold rollout keeps its name under `.jsonl.zst`
-  // (spec token-stats B12); the id-based thread name was looked up by the caller (threadNameOf)
-  const stem = rolloutStem(file)
-  const questions = idx.done(fileEnd)
-  const first = idx.firstQuestionText()
-  // A resumed index carries no text for the questions it was seeded with, so their title comes from the
-  // earlier parse
-  const realTitle = first !== null ? clipTitle(first) : from && from.agg.questions.length > 0 ? from.state.firstTitle : null
-  const agg: CodexFileAgg = {
-    kind: 'codex',
-    file,
-    projectKey,
-    // The same rule as the Claude side (spec A3a): a session with no real question is not listed, and its
-    // tokens still count
-    listed: !meta.subagent && questions.length > 0,
-    // The title prefers thread_name (the name Codex gave itself summarises better than the first
-    // question), falling back to the first question
-    title: threadName ?? realTitle ?? stem,
-    titleFromThread: threadName !== undefined,
-    // There is no mtime fallback (the Claude side has one) — not an omission: Codex's session_meta always
-    // carries a top-level
-    // timestamp (verified against real samples), and when the first line will not parse readCodexSessions
-    // skips the file outright and
-    // never reaches here. So lastTs being null is an unreachable branch, and no fallback is written for it.
-    at: lastTs,
-    model,
-    sessionId: meta.sessionId,
-    parentId: meta.parentId,
-    forkedAt: meta.forkedAt,
-    paginated: meta.paginated,
-    questions,
-    events,
-    boundary: boundary === -1 ? events.length : boundary
-  }
-  return {
-    agg,
-    state: {
-      cursor: fileEnd,
-      prevTotal: prevTotal ?? null,
-      prevTotalKey,
-      boundary,
-      seenResponses: [...seenResponses],
-      model,
-      firstTitle: realTitle
-    }
-  }
-}
 
 /**
  * Grok: walk the update stream for turn_completed records (sequence F). The top-level timestamp is

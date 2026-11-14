@@ -49,7 +49,8 @@ async function currentCacheVersion(dir) {
   const outfile = join(dir, 'cache-version.cjs')
   await build({
     stdin: { contents: "export { CACHE_VERSION } from './src/main/providers/token-stats'", resolveDir: REPO, loader: 'ts' },
-    bundle: true, platform: 'node', format: 'cjs', tsconfig: join(REPO, 'tsconfig.node.json'), define: engineBuildDefine(), outfile, logLevel: 'warning'
+    bundle: true, platform: 'node', format: 'cjs', tsconfig: join(REPO, 'tsconfig.node.json'), define: engineBuildDefine(), outfile,
+    logLevel: 'warning'
   })
   return createRequire(import.meta.url)(outfile).CACHE_VERSION
 }

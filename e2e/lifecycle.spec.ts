@@ -797,6 +797,149 @@ test('a failed startup scan keeps the saved display and retries automatically wi
   }
 })
 
+// agents-overview::REQ-008 through the built app: the window's focus decides when the display copy is written.
+// display-store.test.ts holds the rules; these cases hold the wiring — the window's events reaching the store, and a
+// page read and a timed scan reaching it as changes. The window is driven by its own focus and blur events, the ones
+// the window manager sends: on macOS the test window is never shown (AGENTSHED_NO_FOREGROUND), so it never gains a
+// real focus, while CI's window is shown and has one from launch.
+//
+// Gap: hiding, minimising and closing the window, which reach the store through their own events (src/main/index.ts),
+// are not driven; each is one line beside the blur, and closing ends the run (window-all-closed quits).
+
+/** The window gaining or losing focus, through the window's own event */
+const windowFocus = (app: ElectronApplication, event: 'focus' | 'blur'): Promise<void> =>
+  app.evaluate(({ BrowserWindow }, name) => { BrowserWindow.getAllWindows()[0]?.emit(name) }, event)
+
+interface CopyOnDisk { text: string; scannedAt: number | null; claude: number | null; details: string[] }
+
+/** The display copy on disk, read as the file holds it, or null when there is none yet */
+function copyOnDisk(userData: string): CopyOnDisk | null {
+  let text: string
+  try {
+    text = readFileSync(join(userData, 'display-cache.json'), 'utf8')
+  } catch {
+    return null
+  }
+  const { data } = JSON.parse(text) as { data: { snapshot: { scannedAt: number; tokens: { bySide: { claude: { total: number } } } } | null; reads: Array<{ kind: string; path?: string }> } }
+  return {
+    text,
+    scannedAt: data.snapshot?.scannedAt ?? null,
+    claude: data.snapshot?.tokens.bySide.claude.total ?? null,
+    details: data.reads.flatMap((r) => (r.kind === 'projectDetail' && r.path ? [r.path] : []))
+  }
+}
+
+/** A home with two registered projects, and the settings directory beside it */
+function twoProjects(prefix: string): { home: string; userData: string; first: string; second: string } {
+  const home = mkdtempSync(join(tmpdir(), `agentshed-${prefix}-home-`))
+  const first = join(home, 'first-project'), second = join(home, 'second-project')
+  mkdirSync(first)
+  mkdirSync(second)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [first]: {}, [second]: {} } }))
+  return { home, userData: mkdtempSync(join(tmpdir(), `agentshed-${prefix}-data-`)), first, second }
+}
+
+test('agents-overview::REQ-008/AC-01, AC-03: a page read while the window has focus is written once it loses focus, and one read before a normal quit restores at the next launch', async () => {
+  const { home, userData, first, second } = twoProjects('focus-write')
+  let app: ElectronApplication | undefined
+  try {
+    app = (await startApp({ userData, home, errors: mainErrors.errors })).app
+    let win = await app.firstWindow()
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
+    await windowFocus(app, 'blur')
+    await expect.poll(() => copyOnDisk(userData)?.scannedAt ?? null, { message: 'the first scan, written without focus' }).not.toBeNull()
+    await windowFocus(app, 'focus')
+    const before = copyOnDisk(userData)?.text
+    // The project page's read, as the page asks for it: it is a change to the copy once it has answered
+    await win.evaluate((p) => window.agentshed.getProjectDetail(p), first)
+    // Far longer than a write the read would have started takes; display-store.test.ts holds the rule without a wait
+    await win.waitForTimeout(1000)
+    expect(copyOnDisk(userData)?.text, 'the copy on disk while the window keeps focus').toBe(before)
+    await windowFocus(app, 'blur')
+    await expect.poll(() => copyOnDisk(userData)?.details).toContain(first)
+
+    // AC-03: a page read with focus, then a normal quit
+    await windowFocus(app, 'focus')
+    await win.evaluate((p) => window.agentshed.getProjectDetail(p), second)
+    expect(copyOnDisk(userData)?.details).not.toContain(second)
+    await closeApp(app)
+    app = undefined
+    expect(copyOnDisk(userData)?.details).toContain(second)
+    app = (await startApp({ userData, home, errors: mainErrors.errors, env: { AGENTSHED_SCAN_DELAY_MS: '20000' } })).app
+    win = await app.firstWindow()
+    const startup = await win.evaluate(() => window.agentshed.getStartup())
+    expect(startup.status).not.toBe('ready')
+    expect(startup.display.reads.flatMap((r) => (r.kind === 'projectDetail' ? [r.path] : []))).toEqual(expect.arrayContaining([first, second]))
+  } finally {
+    if (app) await closeApp(app).catch(() => {})
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+
+test('agents-overview::REQ-008/AC-02: a timed scan while the window has no focus writes its figures right away', async () => {
+  const { home, userData, first } = twoProjects('background-write')
+  const sessions = join(home, '.claude', 'projects', first.replace(/[^a-zA-Z0-9]/g, '-'))
+  mkdirSync(sessions, { recursive: true })
+  const usage = (output: number): string => JSON.stringify({
+    type: 'assistant',
+    timestamp: new Date().toISOString(),
+    message: { model: 'claude-fable-5', usage: { input_tokens: 10, output_tokens: output, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+  }) + '\n'
+  const session = join(sessions, 'a.jsonl')
+  writeFileSync(session, usage(100))
+  let app: ElectronApplication | undefined
+  try {
+    app = (await startApp({ userData, home, errors: mainErrors.errors, env: { AGENTSHED_RESCAN_MS: '1500' } })).app
+    const win = await app.firstWindow()
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
+    await windowFocus(app, 'blur')
+    await expect.poll(() => copyOnDisk(userData)?.claude ?? null).toBe(110)
+    // The session grows; only the timed backstop scans it, and the window never regains focus
+    writeFileSync(session, usage(100) + usage(1000))
+    await expect.poll(() => copyOnDisk(userData)?.claude ?? null, { timeout: 15_000 }).toBe(1120)
+  } finally {
+    if (app) await closeApp(app).catch(() => {})
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+
+test('agents-overview::REQ-008/AC-04: killed while the window has focus, the app loses what changed since; the next launch restores the copy last written, and its first scan replaces it', async () => {
+  const { home, userData, first } = twoProjects('killed')
+  let app: ElectronApplication | undefined
+  try {
+    app = (await startApp({ userData, home, errors: mainErrors.errors })).app
+    let win = await app.firstWindow()
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
+    await windowFocus(app, 'blur')
+    await expect.poll(() => copyOnDisk(userData)?.scannedAt ?? null).not.toBeNull()
+    const written = copyOnDisk(userData)?.scannedAt
+    await windowFocus(app, 'focus')
+    await win.evaluate((p) => window.agentshed.getProjectDetail(p), first)
+    const pid = app.process().pid
+    if (pid === undefined) throw new Error('the app has no process to kill')
+    process.kill(pid, 'SIGKILL')
+    await closeApp(app)
+    app = undefined
+    expect(copyOnDisk(userData)?.scannedAt).toBe(written)
+    expect(copyOnDisk(userData)?.details).toEqual([])
+
+    app = (await startApp({ userData, home, errors: mainErrors.errors, env: { AGENTSHED_SCAN_DELAY_MS: '4000' } })).app
+    win = await app.firstWindow()
+    const startup = await win.evaluate(() => window.agentshed.getStartup())
+    expect(startup.status).not.toBe('ready')
+    expect(startup.display.snapshot?.scannedAt).toBe(written)
+    expect(startup.display.reads.filter((r) => r.kind === 'projectDetail')).toEqual([])
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready', { timeout: 15_000 })
+    expect(await win.evaluate(() => window.agentshed.getSnapshot().then((s) => s.scannedAt))).toBeGreaterThan(written ?? Infinity)
+  } finally {
+    if (app) await closeApp(app).catch(() => {})
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+
 // The engine module (ADR-0045) will not load (token-stats, Scans and the window): the module seam points the run at a file
 // that is no library, through the main process's path, the scan worker's data and its scanner. engine-module.test.ts and
 // scan-client.test.ts hold the rule under Node, on a scanner standing for the scan worker's and on the main process's
@@ -805,12 +948,18 @@ test('a failed startup scan keeps the saved display and retries automatically wi
 //
 // Every scan of the run fails and its caller logs it: the startup scan once, and a scan that a focus starts before any
 // scan has succeeded (E1) once more. CI's window is shown and gets that focus; the window hidden here does not.
-test('an engine module that will not load fails the scan: the saved display stays, nothing claims fresh data, and each failed scan logs the failure', async () => {
+//
+// The display copy (restart sequence item 14): it is read at launch without the module, so the copy the working run
+// wrote restores; every write of it fails, so a change the run makes — a global skill's files listed, which needs no
+// scan — leaves the copy on disk as it was, at the blur and at the quit alike.
+test('an engine module that will not load fails the scan and every write of the display copy: the saved display stays, nothing claims fresh data, and each failure is logged', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-engine-home-'))
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-engine-data-'))
   const project = join(home, 'a-project')
   mkdirSync(project)
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [project]: {} } }))
+  mkdirSync(join(home, '.claude', 'skills', 'kept'), { recursive: true })
+  writeFileSync(join(home, '.claude', 'skills', 'kept', 'SKILL.md'), '---\ndescription: A global skill\n---\nBody\n')
   const broken = join(home, 'agentshed_engine.node')
   writeFileSync(broken, 'not a library')
   let app: ElectronApplication | undefined
@@ -819,6 +968,7 @@ test('an engine module that will not load fails the scan: the saved display stay
     let win = await app.firstWindow()
     await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
     await closeApp(app)
+    const written = readFileSync(join(userData, 'display-cache.json'))
     const started = await startApp({ userData, home, errors: mainErrors.errors, env: { AGENTSHED_ENGINE_MODULE: broken } })
     app = started.app
     win = await app.firstWindow()
@@ -830,6 +980,20 @@ test('an engine module that will not load fails the scan: the saved display stay
     await expect(win.locator('.side .row')).toHaveCount(1)
     // Read again once the page has been used: only failed scans logged the module's failure
     expect(logged().filter((line) => !/^\[(startup|auto-rescan)\] scan failed/.test(line))).toEqual([])
+
+    // A change to the copy made with focus, written at the blur and at the quit: both writes fail, and the copy on disk
+    // stays the one the working run wrote
+    const failedWrites = (prefix: string): number => logged().filter((line) => line.startsWith(prefix)).length
+    await windowFocus(app, 'focus')
+    await win.evaluate(() => window.agentshed.listSkillFiles({ side: 'claude', name: 'kept', scope: 'global' }))
+    await windowFocus(app, 'blur')
+    await expect.poll(() => failedWrites('[display-cache] save failed:')).toBe(1)
+    await closeApp(app)
+    app = undefined
+    // The window closing once the quit goes on may try the change once more before the process ends, so the blur's
+    // failures are not counted again here
+    expect(failedWrites('[display-cache] quit flush failed:')).toBe(1)
+    expect(readFileSync(join(userData, 'display-cache.json')).equals(written), 'the copy the working run wrote').toBe(true)
   } finally {
     if (app) await closeApp(app).catch(() => {})
     rmSync(home, { recursive: true, force: true })

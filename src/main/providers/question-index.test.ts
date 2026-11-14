@@ -5,14 +5,15 @@ import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
 import { makeAntigravityQuestionIndexer, makeQuestionIndexer, questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
+import { runParseJob } from './token-stats'
 
 /**
- * Driven the same way as the wiring in the two parsers: eachJsonlLine feeds the indexer line by line, then
- * done(file length) at the end.
+ * Claude's indexer is driven the same way as the wiring in its parser: eachJsonlLine feeds the indexer line by line,
+ * then done(file length) at the end. Codex's is the engine module's, and its cases parse the file through it.
  *
  * **Known gaps (established by mutation, not simply unwritten)**:
- * 1. those three lines of wiring in the parsers have no behavioural test of their own and are backstopped
- *    only by typecheck; covering them requires the parsers to accept an injectable line stream.
+ * 1. those three lines of wiring in the Claude parser have no behavioural test of their own and are backstopped
+ *    only by typecheck; covering them requires the parser to accept an injectable line stream.
  * 2. the "an empty text segment → return null" branch inside `claudeQuestion` is **behaviourally
  *    indistinguishable**: changing it to return
  *    an empty string leaves every test green, because the caller's `realUserText('')` judges it null too.
@@ -21,7 +22,17 @@ import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-f
  *    do not invent a test to pad it out.
  */
 async function indexOf(file: string, side: 'claude' | 'codex'): Promise<QuestionRec[]> {
-  const idx = makeQuestionIndexer(side)
+  if (side === 'codex') {
+    const parsed = await runParseJob({
+      kind: 'codex',
+      file,
+      projectKey: '',
+      meta: { subagent: false, sessionId: null, parentId: null, forkedAt: null, paginated: false },
+      threadName: undefined
+    })
+    return parsed?.agg.questions ?? []
+  }
+  const idx = makeQuestionIndexer()
   let fileEnd = 0
   await eachJsonlLine(file, (obj, start, end) => {
     idx.line(obj, start, end)
@@ -434,7 +445,7 @@ describe('Claude branches: the last-leaf walk-back', () => {
 describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () => {
   async function fpOf(objs: unknown[]): Promise<number> {
     return withLines(objs, async (file) => {
-      const idx = makeQuestionIndexer('claude')
+      const idx = makeQuestionIndexer()
       let fileEnd = 0
       await eachJsonlLine(file, (obj, start, end) => {
         idx.line(obj, start, end)
@@ -489,25 +500,12 @@ describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () =
   test('an old-format file with no uuid: 0', async () => {
     expect(await fpOf([cUser('question one'), cUser('question two')])).toBe(0)
   })
-
-  test('always 0 on the Codex side (no last-leaf walk-back)', async () => {
-    await withLines([xUser('q')], async (file) => {
-      const idx = makeQuestionIndexer('codex')
-      let fileEnd = 0
-      await eachJsonlLine(file, (obj, start, end) => {
-        idx.line(obj, start, end)
-        fileEnd = end
-      })
-      idx.done(fileEnd)
-      expect(idx.forkPoints()).toBe(0)
-    })
-  })
 })
 
 describe('the title and the question set share a source (after the last-leaf walk-back)', () => {
   async function firstTextOf(objs: unknown[]): Promise<string | null> {
     return withLines(objs, async (file) => {
-      const idx = makeQuestionIndexer('claude')
+      const idx = makeQuestionIndexer()
       let fileEnd = 0
       await eachJsonlLine(file, (obj, start, end) => {
         idx.line(obj, start, end)

@@ -27,6 +27,7 @@ await build({
   platform: 'node',
   format: 'cjs',
   tsconfig: join(repo, 'tsconfig.node.json'),
+  // The build the application's code is made with, which the token engine's code names (src/main/engine-module.ts)
   define: engineBuildDefine(),
   outfile,
   logLevel: 'warning'

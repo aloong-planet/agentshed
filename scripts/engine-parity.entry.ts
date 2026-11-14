@@ -2,12 +2,13 @@
 // module, bundles this file with esbuild and runs it under Node: a comparison of results, not a measurement, so it
 // needs no Electron.
 //
-//   pnpm engine:parity --side codex          every Codex rollout of the scan, parsed by both and compared
+//   pnpm engine:parity --side <side>         every file of the scan of a side both parsers parse, parsed by both and
+//                                            compared
 //   pnpm engine:parity <file>…               the given session files, whichever side
 //
 // --side repeats, and files and sides combine. AGENTSHED_HOME_OVERRIDE points it at another home, as it does the app
 // (src/main/roots.ts). It exits 0 when every file was compared equal, 1 when one differs, failed or was not met, and 2
-// when it cannot start: no file asked for, or a side the module does not parse yet. pnpm reports every failure as 1;
+// when it cannot start: no file asked for, or a side the two parsers do not both parse. pnpm reports every failure as 1;
 // `node scripts/engine-parity.mjs` passes the code on as it is. A relative file path is taken from the repository root.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -42,7 +43,7 @@ async function main(): Promise<number> {
   const parsed = Object.keys(MODULE_PARSES)
   const notParsed = sides.filter((side) => !MODULE_PARSES[side])
   if (notParsed.length > 0) {
-    console.error(`the engine module does not parse ${notParsed.join(', ')} files yet; it parses ${parsed.length > 0 ? parsed.join(', ') : 'no side yet'}`)
+    console.error(`the parity command compares a side both the TypeScript parser and the engine module parse, and ${notParsed.join(', ')} is not one; it compares ${parsed.length > 0 ? parsed.join(', ') : 'no side now'}`)
     return 2
   }
   const path = process.env['AGENTSHED_PARITY_ENGINE_MODULE']
@@ -50,7 +51,7 @@ async function main(): Promise<number> {
   const module = loadEngineModule({ path, build: ENGINE_BUILD })
   const moduleParse = (job: ParseJob): ReturnType<typeof runParseJob> => {
     const parse = MODULE_PARSES[job.kind]
-    if (!parse) return Promise.reject(new Error(`the engine module does not parse ${job.kind} files yet`))
+    if (!parse) return Promise.reject(new Error(`the parity command does not compare ${job.kind} files`))
     return parse(module, job)
   }
   const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-parity-'))

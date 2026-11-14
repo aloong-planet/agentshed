@@ -1,6 +1,6 @@
 //! The test seams, compiled into builds made for tests only (the `test-seams` feature). A packaged build has none of
-//! them. Every export here is named `seam_…`, and no export elsewhere is (build.rs fails a build otherwise), so
-//! packaging's refusal of a module exporting a `seam…` name covers each (scripts/build-engine.mjs).
+//! them. Their exports are in `exports/tests.rs`, each named `seam_…`, and no export elsewhere is (build.rs fails a
+//! build otherwise), so packaging's refusal of a module exporting a `seam…` name covers each (scripts/build-engine.mjs).
 //!
 //! - The panic seam: a test names a file, and the module panics while it parses that file, so that a test can show
 //!   what a panic in the module does to a read.
@@ -13,17 +13,26 @@
 
 /// Called by every function that parses a session file, before it reads the file: in a build made for tests, it
 /// panics when the file is the one the seam names, and otherwise does nothing.
-#[cfg_attr(not(feature = "test-seams"), allow(dead_code))]
 pub(crate) fn before_parse(file: &str) {
     #[cfg(feature = "test-seams")]
     {
-        let named = panic_seam::NAMED.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
+        let named = NAMED.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
         if named.as_deref() == Some(file) {
             panic!("the panic seam, while parsing {file}");
         }
     }
     #[cfg(not(feature = "test-seams"))]
     let _ = file;
+}
+
+/// The file the module panics on; one for the whole process, as the module's code is shared by every thread
+#[cfg(feature = "test-seams")]
+static NAMED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// Names the file the module panics while parsing, or none
+#[cfg(feature = "test-seams")]
+pub(crate) fn name_panic_file(file: Option<String>) {
+    *NAMED.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = file;
 }
 
 /// Called before each statement of a write to a token store: in a build made for tests, it fails the write once the
@@ -45,42 +54,38 @@ pub(crate) fn before_store_statement() -> Result<(), String> {
 }
 
 #[cfg(feature = "test-seams")]
-mod store_write_seam {
-    use napi_derive::napi;
+pub(crate) mod store_write_seam {
     use std::sync::Mutex;
 
     /// The statements the next write to a token store runs before it fails; one for the whole process
     pub(super) static LEFT: Mutex<Option<u32>> = Mutex::new(None);
 
     /// Makes the next write to a token store fail after this many of its statements, or no write fail
-    #[napi(catch_unwind)]
-    pub fn seam_cut_store_write_after(statements: Option<u32>) {
+    pub(crate) fn cut_after(statements: Option<u32>) {
         *LEFT.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = statements;
     }
 }
 
 #[cfg(feature = "test-seams")]
-mod store_statement_seam {
-    use napi_derive::napi;
+pub(crate) mod store_statement_seam {
     use rusqlite::types::ValueRef;
     use rusqlite::{Connection, OpenFlags};
     use std::path::Path;
 
-    fn failed(error: impl std::fmt::Display) -> napi::Error {
-        napi::Error::from_reason(error.to_string())
+    fn failed(error: impl std::fmt::Display) -> String {
+        error.to_string()
     }
 
     /// Runs one statement against the token store in `dir`, bound to `params` (text or null), on a connection of its
     /// own, and answers with the rows it gives: each value as text, a blob as `x'…'` in hexadecimal, or null. A store
     /// that is not there is not made.
-    #[napi(catch_unwind)]
-    pub fn seam_store_statement(dir: String, sql: String, params: Vec<Option<String>>) -> napi::Result<Vec<Vec<Option<String>>>> {
+    pub(crate) fn run(dir: &str, sql: &str, params: &[Option<String>]) -> Result<Vec<Vec<Option<String>>>, String> {
         let conn = Connection::open_with_flags(
-            Path::new(&dir).join(crate::store::FILE),
+            Path::new(dir).join(crate::store::FILE),
             OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
         .map_err(failed)?;
-        let mut statement = conn.prepare(&sql).map_err(failed)?;
+        let mut statement = conn.prepare(sql).map_err(failed)?;
         let columns = statement.column_count();
         let mut rows = statement.query(rusqlite::params_from_iter(params.iter())).map_err(failed)?;
         let mut out = Vec::new();
@@ -98,28 +103,5 @@ mod store_statement_seam {
             out.push(values);
         }
         Ok(out)
-    }
-}
-
-#[cfg(feature = "test-seams")]
-mod panic_seam {
-    use napi_derive::napi;
-    use std::sync::Mutex;
-
-    /// The file the module panics on; one for the whole process, as the module's code is shared by every thread
-    pub(super) static NAMED: Mutex<Option<String>> = Mutex::new(None);
-
-    /// Names the file the module panics while parsing, or none
-    #[napi(catch_unwind)]
-    pub fn seam_panic_while_parsing(file: Option<String>) {
-        *NAMED.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = file;
-    }
-
-    /// A stand-in for a function that parses a session file, for the seam's own tests: it parses nothing, and answers
-    /// with the file once the seam has let it through
-    #[napi(catch_unwind)]
-    pub fn seam_parse(file: String) -> String {
-        super::before_parse(&file);
-        file
     }
 }

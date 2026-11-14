@@ -44,7 +44,7 @@ import { availableParallelism } from 'node:os'
 import { scan, walkSessions } from '../src/main/providers/scan'
 import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
 import { ParsePool } from '../src/main/parse-pool'
-import { ENGINE_BUILD, type EngineSource } from '../src/main/engine-module'
+import { ENGINE_BUILD, loadEngineModule, type EngineSource } from '../src/main/engine-module'
 import { Scanner, settleScan, type ScanOutput } from '../src/main/providers/scanner'
 import { startScans } from '../src/main/scan-client'
 import { UsageArchive } from '../src/main/providers/archive'
@@ -418,6 +418,9 @@ async function rescan(flags: string[]): Promise<void> {
 
 async function main(): Promise<void> {
   console.log(`[runtime] ${isElectron ? `electron ${process.versions['electron']}` : `node ${process.version}`}`)
+  // The engine module on this thread, as the app's threads load it before they parse: the scans this thread runs
+  // itself parse through it
+  loadEngineModule(engineSource())
   const [mode = 'cold', ...rest] = process.argv.slice(2)
   if (mode === 'file') {
     if (rest.length === 0) throw new Error('file mode needs at least one path')
