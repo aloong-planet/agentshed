@@ -1274,20 +1274,42 @@ describe('the store a launch finds (token-stats C1, C2)', () => {
 
   // A store that cannot be opened nor replaced is no store: nothing is read from it or written to it, and it fails no
   // build. The next build tries again, and once the store can be made it is the store from then on.
-  it('a store that cannot be made — a directory at its path — fails no build: every file is parsed, the figures go out, and the failure is logged', async () => {
-    const f = mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+  it('a store that cannot be made — a directory at its path — fails no build and no page: every file is parsed, the figures go out, a page is served, and the failure is logged', async () => {
+    const f = mkClaudeFile('a.jsonl', [userLine('the one question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
     mkdirSync(join(storePath(cacheDir()), 'x'), { recursive: true })
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const { runner, jobs } = recording()
       const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner)
-      expect((await e.build(roots(), [proj])).global.bySide.claude.total).toBe(15)
+      const r = await e.build(roots(), [proj])
+      expect(r.global.bySide.claude.total).toBe(15)
+      expect(r.sessionFiles.has(f)).toBe(true)
       expect(logged).toHaveBeenCalledWith('[token-store] open failed:', expect.stringContaining('cannot be removed'))
+      // The session the list shows opens: its index rebuilt for the page, with nothing to keep it in (session-view C4)
+      expect((await e.sessionQuestions(roots(), f)).questions).toHaveLength(1)
       expect((await e.build(roots(), [proj])).global.bySide.claude.total).toBe(15)
       expect(jobs.map((j) => j.file), 'with no store each build parses again').toEqual([f, f])
       rmSync(storePath(cacheDir()), { recursive: true })
       await e.build(roots(), [proj])
       expect(await parsedOnRelaunch(), 'the build after the path is free makes the store and fills it').toEqual([])
+    } finally {
+      logged.mockRestore()
+    }
+  })
+})
+
+// A store that stops reading under an engine that has it open — its table taken away by another connection, as a hand
+// would — fails no page: the read that fails is logged, and the page rebuilds its file's index (session-view C4)
+describe('a store whose read fails', () => {
+  it('fails no page: the session opens, and the failure is logged', async () => {
+    const f = mkClaudeFile('a.jsonl', [userLine('the one question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const e = engine()
+    await e.build(roots(), [proj])
+    onStore(cacheDir(), 'DROP TABLE entries')
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect((await e.sessionQuestions(roots(), f)).questions).toHaveLength(1)
+      expect(logged).toHaveBeenCalledWith('[token-store] read failed:', expect.anything())
     } finally {
       logged.mockRestore()
     }
@@ -1584,6 +1606,39 @@ describe('upgrading from the JSON cache (token-stats C26)', () => {
     }
     expect(await parsedOnRelaunch()).toEqual([])
     expect(existsSync(jsonFile())).toBe(false)
+  })
+})
+
+// The only automated defence against a missed bump on a shape change: this goes red when the field set changes,
+// forcing the author to think about the version number. The assertion targets the stored aggregates — the very thing
+// the version number protects, not a side channel. Coverage stated explicitly: it covers adding and removing fields
+// only, not a change to how a field is computed (that leaves the field set, and the fingerprint, unchanged).
+describe('the cache structure version (token-stats C10)', () => {
+  it('a change to FileAgg\'s field set must be noticed (a shape change is the only half of a missed bump that is testable)', async () => {
+    mkClaudeFile('shape.jsonl', [
+      userLine('question'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    mkCodexRollout('rollout-shape-019fd01.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 5 }
+    ])
+    mkAgyConversation('agy-shape', proj, [{ usage: { messageId: 'm-shape', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    await engine().build(roots(), [proj])
+    const stored = [...storedEntries(cacheDir()).values()]
+    const keysOf = (kind: string): string[] => {
+      const hit = stored.find((e) => e.agg['kind'] === kind)
+      expect(hit, `the store should hold a ${kind} entry`).toBeDefined()
+      return Object.keys((hit as { agg: Record<string, unknown> }).agg).sort()
+    }
+    expect(keysOf('claude')).toEqual([
+      'at', 'entries', 'file', 'forkPoints', 'kind', 'listed', 'projectKey', 'questions', 'title'
+    ])
+    expect(keysOf('codex')).toEqual([
+      'at', 'boundary', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'paginated', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
+    ])
+    expect(keysOf('antigravity')).toEqual([
+      'at', 'calls', 'conversationId', 'file', 'forkOf', 'kind', 'listed', 'projectKey', 'questions', 'subagent', 'title', 'unreadable'
+    ])
   })
 })
 
@@ -2654,6 +2709,22 @@ describe('the archive restore path (spec C16) and project figures from the effec
 
   // The snapshot is read without anything written to it or beside it, and it is a store or it is refused: its version
   // is all a store of another structure is known by, and a JSON cache file is no store (C16)
+  // A message held with equal figures in files of two projects: a scan credits the file its walk meets first, which
+  // depends on how the directory lists them, and the restore the file the store holds first (Implementation Decisions,
+  // Restore). Here the store holds the second project's file first, as it was stored by an earlier scan.
+  it('rowsFromStoreSnapshot credits a message held with equal figures in the files of two projects to the file the store holds first', async () => {
+    const proj2 = join(dir, 'work', 'p2')
+    mkdirSync(proj2, { recursive: true })
+    writeFileSync(join(dir, '.claude.json'), JSON.stringify({ projects: { [proj]: {}, [proj2]: {} } }))
+    const tied = usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'm1', requestId: 'r1' })
+    mkClaudeFile('first-held.jsonl', [tied], 1000, encodeClaudeProjectDir(proj2))
+    await engine().build(roots(), [proj, proj2])
+    mkClaudeFile('held-second.jsonl', [tied])
+    const built = await engine().build(roots(), [proj, proj2])
+    expect(built.rows.map((r) => r.total), 'one message, counted once').toEqual([15])
+    expect(rowsFromStoreSnapshot(snapshot(), TEST_ENGINE).map((r) => [r.projectKey, r.total])).toEqual([[proj2.toLowerCase(), 15]])
+  })
+
   it.each([
     ['of another cache version', (file: string): void => {
         onStore(dirOf(file), `PRAGMA user_version = ${CACHE_VERSION - 1}`)

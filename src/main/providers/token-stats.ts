@@ -280,8 +280,10 @@ const JSON_CACHE_VERSION = 19
 
 /**
  * The archive rows a snapshot implies — a copy of the token store — through the same aggregation the scan uses,
- * combining its entries as one scan set (spec C16: a restore writes exactly what a scan of that data would have
- * produced). The copy is read through the engine module without anything written to it or beside it. It must be a
+ * combining its entries as one scan set in the order the store first held them (spec C16: a restore writes what a scan
+ * of that data would have produced, but that a message held with equal figures in files of two projects is credited
+ * to the file the store holds first, where a scan credits the one its walk meets first; Implementation Decisions,
+ * Restore). The copy is read through the engine module without anything written to it or beside it. It must be a
  * store of the current cache structure version — the aggregation only understands the shape it was written for,
  * and reading an older shape would produce plausible nonsense rather than an error; a JSON cache file is no store.
  */
@@ -416,9 +418,14 @@ class CacheEntries {
     return read.rows
   }
 
-  /** What is held under the file: whether anything is, well formed or not, and its entry when it is well formed */
+  /**
+   * What is held under the file: whether anything is, well formed or not, and its entry when it is well formed. A read
+   * that fails tells nothing held, so the file counts as held with no entry: a page rebuilds its index (session-view C4).
+   */
   lookup(file: string): { held: boolean; entry: CacheEntry | undefined } {
-    const row = CacheEntries.#read(this.#store.get(file))[0]
+    const read = this.#store.get(file)
+    const row = CacheEntries.#read(read)[0]
+    if (read.failure) return { held: true, entry: undefined }
     return { held: row !== undefined, entry: row === undefined ? undefined : CacheEntries.entryOf(row) }
   }
 
@@ -981,7 +988,9 @@ export class TokenEngine {
     source: string
   }> {
     const store = this.openStore()
-    const { held, entry: cached } = store?.lookup(file) ?? { held: false, entry: undefined }
+    // With no store to read, nothing tells a session the scan never indexed — the read allow-list admitted the file —
+    // so the page rebuilds the index as for an entry that is not well formed, and keeps it nowhere (session-view C4)
+    const { held, entry: cached } = store?.lookup(file) ?? { held: true, entry: undefined }
     // An entry that is not well formed is read again for the page; a file nothing is held for is a session the
     // scan never indexed
     if (!held) throw appError(ERR.sessionNotIndexed)

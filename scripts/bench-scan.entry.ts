@@ -38,7 +38,7 @@
 import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { DatabaseSync } from '../src/main/providers/sqlite'
 import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
 import { availableParallelism } from 'node:os'
 import { scan, walkSessions } from '../src/main/providers/scan'
@@ -272,30 +272,44 @@ async function workersScan(): Promise<void> {
   if (differ > 0) process.exitCode = 1
 }
 
-/** Every row of a token store, as text by path */
+/**
+ * Every row of a token store, as text by path. Read from a copy of the store's file: the engine that wrote it is in this
+ * process and has it open, and a second SQLite here would take its locks away (engine/src/store/mod.rs). Each write
+ * the engine makes ends with a checkpoint into that file, so with no other process reading the store the copy holds
+ * every write that landed.
+ */
 function storeRows(cacheDir: string): Map<string, string> {
-  const db = new DatabaseSync(join(cacheDir, STORE_FILE), { readOnly: true })
+  const copy = join(mkdtempSync(join(tmpdir(), 'agentshed-bench-store-')), STORE_FILE)
+  copyFileSync(join(cacheDir, STORE_FILE), copy)
+  const db = new DatabaseSync(copy, { readOnly: true })
   try {
     const rows = db.prepare('SELECT path, sig, agg, resume FROM entries').all() as Array<Record<string, unknown>>
     return new Map(rows.map((r) => [String(r['path']), JSON.stringify([r['sig'], r['agg'], r['resume']])]))
   } finally {
     db.close()
+    rmSync(dirname(copy), { recursive: true, force: true })
   }
 }
 
 /**
- * Watches a token store for a write by another connection: what this one reads of the store's data version moves with
- * each write that lands. Opened read-only, beside the engine's own connection, and closed by the answer.
+ * Watches a token store for a write: one that lands adds to the store's log and is checkpointed into its file, and a
+ * scan that writes nothing touches neither. Told by the two files' modification times and sizes, not by a connection
+ * to the store, which a second SQLite in this process must not open (engine/src/store/mod.rs).
  */
 function watchStore(cacheDir: string): () => boolean {
-  const db = new DatabaseSync(join(cacheDir, STORE_FILE), { readOnly: true })
-  const version = (): unknown => (db.prepare('PRAGMA data_version').get() as Record<string, unknown>)['data_version']
-  const before = version()
-  return () => {
-    const written = version() !== before
-    db.close()
-    return written
-  }
+  const state = (): string =>
+    ['', '-wal']
+      .map((suffix) => {
+        try {
+          const st = statSync(join(cacheDir, STORE_FILE + suffix))
+          return `${st.mtimeMs}:${st.size}`
+        } catch {
+          return '-'
+        }
+      })
+      .join(' ')
+  const before = state()
+  return () => state() !== before
 }
 
 /** One way of running the rescan mode's scans: `once` runs a scan and reports it, `counted` adds to the last line */
