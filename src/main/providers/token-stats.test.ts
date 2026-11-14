@@ -3599,7 +3599,7 @@ describe('how a Claude Code session line is read', () => {
   /** Each entry without its day, which is the time zone's: the case on local days holds it */
   const figures = (a: ClaudeAgg): unknown[] => a.entries.map((e) => e.slice(0, 8))
 
-  it('takes a usage line in the shape Claude Code writes now by its own figures, never by the iterations it lists, which repeat their names (A1, A7)', async () => {
+  it('takes a usage line in the shape Claude Code writes now by its own figures, never by the iterations it lists, which repeat their names (A9)', async () => {
     // The shape of a real line (2026-11-15), its values changed: of 322,852 usage lines on this machine 269,590 carry an
     // iterations array, its elements repeating the line's figure names (773 a model too), and on 61 the last iteration's
     // figures are not the line's own. The first line is one of those 61: zeros at the top, its cache write in the

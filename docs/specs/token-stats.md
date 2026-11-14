@@ -61,9 +61,7 @@ all of them.
 
 **Sequence A: Claude-side aggregation**
 - A1 The total sums all four fields (input/output/cacheRead/cacheWrite), with cache displayed
-  separately; model buckets use the same rule. The four are the line's own usage fields. A usage also
-  lists `iterations` whose elements repeat those names (269,590 of 322,852 usage lines on 2026-11-15,
-  the last iteration's figures differing from the line's own on 61), and no iteration's figure counts.
+  separately; model buckets use the same rule.
 - A2 Whole-tree scan: an unregistered project's encoded directory also counts toward the global total
   (independent of the registry) but is not listed as its own project.
 - A3 Duplicate lines with the same `message.id + requestId` count once, keeping the one with the more
@@ -75,6 +73,13 @@ all of them.
 - A7 `cache_creation` detail takes priority: where an ephemeral breakdown exists, take the sum of
   5m+1h rather than the flat field.
 - A8 Bad lines are skipped; one corrupt line does not discard the whole file.
+- A9 A line counts its own usage's four figures, its `cache_creation` breakdown included (A7), and never
+  reads the `iterations` that usage also lists, whose elements repeat those figures' names: ccusage reads
+  a line the same way (ADR-0005). So a reply whose own four figures are zero while its iterations carry
+  figures, and that has no copy elsewhere with figures of its own (A3), is under-counted. Such replies
+  exist; the under-count is known and accepted while the figures match ccusage's, because reading the
+  iterations would part from the meter the figures are reconciled against, which ADR-0005 defers until
+  the two differ perceptibly.
 
 **Sequence B: Codex-side aggregation**
 - B1 Sum per-response usage: in a paginated rollout from the usage boundary on, each usage record's
