@@ -60,57 +60,29 @@ pub(super) struct Item<'a> {
     pub(super) texts: Option<Vec<Str<'a>>>,
 }
 
-/// What a line holds, for the parse
-pub(super) enum Parsed<'a> {
-    /// An object: the fields read off it
-    Object(Line<'a>),
-    /// An array, which is an object to `typeof`: the line counts as one that parsed, and has none of the fields
-    Array,
-    /// A string, a number, a boolean or null: not a line the parse is given
-    Other,
-}
-
 /// The line, read; Bad when `JSON.parse` would refuse it
-pub(super) fn read(text: &str) -> Read<Parsed<'_>> {
-    let mut r = Reader::new(text);
-    let parsed = match r.kind()? {
-        Kind::Object => {
-            let mut line = Line::default();
-            r.members(|key, r| {
-                if key.is("timestamp") {
-                    line.timestamp = r.string_or_skip()?;
-                } else if key.is("type") {
-                    line.kind = r.string_or_skip()?;
-                } else if key.is("payload") {
-                    line.payload = payload(r)?;
-                } else {
-                    r.skip()?;
-                }
-                Ok(())
-            })?;
-            Parsed::Object(line)
-        }
-        Kind::Array => {
-            r.skip()?;
-            Parsed::Array
-        }
-        _ => {
-            r.skip()?;
-            Parsed::Other
-        }
-    };
-    r.end()?;
-    Ok(parsed)
-}
-
-/// The members of the object here, through `member`; a value of another kind is skipped and gives none
-fn record<'a>(r: &mut Reader<'a>, member: impl FnMut(Str<'a>, &mut Reader<'a>) -> Read<()>) -> Read<()> {
-    if r.kind()? == Kind::Object { r.members(member) } else { r.skip() }
+pub(super) fn read(text: &str) -> Read<json::Line<Line<'_>>> {
+    json::line(text, |r| {
+        let mut line = Line::default();
+        r.members(|key, r| {
+            if key.is("timestamp") {
+                line.timestamp = r.string_or_skip()?;
+            } else if key.is("type") {
+                line.kind = r.string_or_skip()?;
+            } else if key.is("payload") {
+                line.payload = payload(r)?;
+            } else {
+                r.skip()?;
+            }
+            Ok(())
+        })?;
+        Ok(line)
+    })
 }
 
 fn payload<'a>(r: &mut Reader<'a>) -> Read<Payload<'a>> {
     let mut p = Payload::default();
-    record(r, |key, r| {
+    json::record(r, |key, r| {
         if key.is("type") {
             p.kind = r.string_or_skip()?;
         } else if key.is("model") {
@@ -159,7 +131,7 @@ fn tokens(r: &mut Reader<'_>) -> Read<Tokens> {
 
 fn info<'a>(r: &mut Reader<'a>) -> Read<Info<'a>> {
     let mut i = Info::default();
-    record(r, |key, r| {
+    json::record(r, |key, r| {
         if key.is("last_token_usage") {
             i.last = tokens(r)?;
         } else if key.is("total_token_usage") {
@@ -178,7 +150,7 @@ fn info<'a>(r: &mut Reader<'a>) -> Read<Info<'a>> {
 
 fn item<'a>(r: &mut Reader<'a>) -> Read<Item<'a>> {
     let mut it = Item::default();
-    record(r, |key, r| {
+    json::record(r, |key, r| {
         if key.is("type") {
             it.kind = r.string_or_skip()?;
         } else if key.is("content") {
@@ -187,7 +159,7 @@ fn item<'a>(r: &mut Reader<'a>) -> Read<Item<'a>> {
                 r.elements(|r| {
                     // `asRecord(s)?.['text']`, kept when a string; the last `text` of an element counts
                     let mut text = None;
-                    record(r, |key, r| {
+                    json::record(r, |key, r| {
                         if key.is("text") {
                             text = r.string_or_skip()?;
                         } else {

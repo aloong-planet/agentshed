@@ -61,7 +61,9 @@ all of them.
 
 **Sequence A: Claude-side aggregation**
 - A1 The total sums all four fields (input/output/cacheRead/cacheWrite), with cache displayed
-  separately; model buckets use the same rule.
+  separately; model buckets use the same rule. The four are the line's own usage fields. A usage also
+  lists `iterations` whose elements repeat those names (269,590 of 322,852 usage lines on 2026-11-15,
+  the last iteration's figures differing from the line's own on 61), and no iteration's figure counts.
 - A2 Whole-tree scan: an unregistered project's encoded directory also counts toward the global total
   (independent of the registry) but is not listed as its own project.
 - A3 Duplicate lines with the same `message.id + requestId` count once, keeping the one with the more

@@ -331,6 +331,30 @@ async function indexFile(file: string): Promise<QuestionRec[]> {
 const uLine = (t: string): string => JSON.stringify({ type: 'user', timestamp: TS, message: { role: 'user', content: t } })
 const aLine = (t: string): string => JSON.stringify(cA([{ type: 'text', text: t }]))
 
+// The question index counts a turn's subagents by the engine module's dispatch names (engine/src/sides/claude/
+// question.rs), and the turn draws a sub block by CLAUDE_DISPATCH: for each tool name below, alone in a turn, the two
+// agree on whether the call dispatched a subagent. Each copy is the other's expected value, so a name added to one
+// alone goes red here.
+describe('the question index and the turn take the same tool calls as subagent dispatches', () => {
+  test('claude: a call is counted as a subagent exactly when its turn shows it as one', async () => {
+    const NAMES = ['Agent', 'Task', 'Bash', 'TaskCreate', 'agent', 'Agent ', '']
+    const judged: Array<{ name: string; counted: unknown; shown: unknown }> = []
+    for (const name of NAMES) {
+      const raw = [uLine('a question'), JSON.stringify(cA([{ type: 'tool_use', id: 'tu1', name, input: { prompt: 'p' } }]))].join('\n') + '\n'
+      await withFile(raw, async (file) => {
+        const [rec] = await indexFile(file)
+        const { texts } = await readRanges(file, [{ start: rec[1], end: rec[2] }])
+        const kinds = turnBlocksFromText('claude', texts[0]).map((b) => b.kind)
+        judged.push({ name, counted: [rec[4], rec[5]], shown: [kinds.filter((k) => k === 'tool').length, kinds.filter((k) => k === 'sub').length] })
+      })
+    }
+    expect(judged.filter((j) => JSON.stringify(j.counted) !== JSON.stringify(j.shown))).toEqual([])
+    // Both answers occur among the names, so the agreement is not one answer given throughout
+    expect(judged.map((j) => j.shown)).toContainEqual([0, 1])
+    expect(judged.map((j) => j.shown)).toContainEqual([1, 0])
+  })
+})
+
 describe('a range fetch agrees with a full parse (the anchor)', () => {
   test('for every turn: the blocks from the offset path == the corresponding turn\'s blocks from the whole-file path', async () => {
     const raw = [

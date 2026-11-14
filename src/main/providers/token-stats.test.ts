@@ -6,7 +6,9 @@
 //
 // Gap (#158): a file growing *while* it is being parsed is not driven here — that the cache signature
 // is taken before the parse, so the growth shows as a change on the next scan, needs a writer racing
-// the reader, which no test here controls. A read hook in eachJsonlLine would let a test append mid-read.
+// the reader, which no test here controls. A read hook would let a test append mid-read: a seam in the engine
+// module's reader (engine/src/read/) for Claude Code and Codex files, or in eachJsonlLine for Grok's streams and
+// Antigravity's transcripts.
 //
 // Gap (#278): the session questions' re-title failing on the session's own line — they then keep the title
 // it was parsed with — has no case of its own. It could have one: the cache signature is mtime and size, so a
@@ -3456,7 +3458,8 @@ describe('how a rollout line is read', () => {
 describe('how a Claude Code session line is read', () => {
   const AT = '2026-07-30T10:00:00.000Z'
   const REPLACEMENT = String.fromCharCode(0xfffd)
-  /** A usage line in the shape Claude Code writes one, its uuid chain left out: no case here reads the walk-back */
+  /** A usage line with the keys the rules read, in the order Claude Code writes them, its uuid chain left out: no case
+   * here reads the walk-back. The whole shape Claude Code writes now is the case on its iterations. */
   const usage = (id: string, input: number | string, output: number, extra: Record<string, unknown> = {}): string =>
     `{"isSidechain":false,"message":{"model":"claude-opus-5","id":"${id}","type":"message","role":"assistant","content":[{"type":"text","text":"ok"}],"usage":{"input_tokens":${input},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":${output}}},"requestId":"req_${id}","type":"assistant","timestamp":"${AT}"${Object.entries(extra).map(([k, v]) => `,"${k}":${JSON.stringify(v)}`).join('')}}`
   const question = (content: unknown): string => JSON.stringify({ isSidechain: false, type: 'user', message: { role: 'user', content }, timestamp: AT })
@@ -3480,6 +3483,63 @@ describe('how a Claude Code session line is read', () => {
   }
   /** Each entry without its day, which is the time zone's: the case on local days holds it */
   const figures = (a: ClaudeAgg): unknown[] => a.entries.map((e) => e.slice(0, 8))
+
+  it('takes a usage line in the shape Claude Code writes now by its own figures, never by the iterations it lists, which repeat their names (A1, A7)', async () => {
+    // The shape of a real line (2026-11-15), its values changed: of 322,852 usage lines on this machine 269,590 carry an
+    // iterations array, its elements repeating the line's figure names (773 a model too), and on 61 the last iteration's
+    // figures are not the line's own. The first line is one of those 61: zeros at the top, its cache write in the
+    // breakdown alone
+    const real = (id: string, top: Record<string, unknown>, iterations: Array<Record<string, unknown>>): string =>
+      JSON.stringify({
+        parentUuid: null,
+        isSidechain: false,
+        message: {
+          model: 'claude-opus-5',
+          id,
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          stop_sequence: null,
+          stop_details: null,
+          usage: {
+            ...top,
+            server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 },
+            service_tier: 'standard',
+            inference_geo: 'not_available',
+            iterations,
+            speed: 'standard'
+          },
+          diagnostics: null
+        },
+        requestId: `req_${id}`,
+        type: 'assistant',
+        uuid: `u-${id}`,
+        timestamp: AT,
+        sessionId: 's',
+        version: '2.1.0',
+        gitBranch: 'main'
+      })
+    const figure = (input: number, output: number, read: number, flat: number, fiveMinutes: number, oneHour: number): Record<string, unknown> => ({
+      input_tokens: input,
+      cache_creation_input_tokens: flat,
+      cache_read_input_tokens: read,
+      output_tokens: output,
+      cache_creation: { ephemeral_1h_input_tokens: oneHour, ephemeral_5m_input_tokens: fiveMinutes }
+    })
+    const f = session([
+      real('r1', figure(0, 0, 0, 0, 0, 447), [{ ...figure(175, 401, 999027, 447, 0, 447), type: 'message' }]),
+      real('r2', { ...figure(12, 34, 56, 78, 0, 0), output_tokens_details: { thinking_tokens: 9 } }, [
+        { ...figure(1, 2, 3, 4, 5, 6), type: 'message', model: 'claude-haiku-5' },
+        { ...figure(7, 8, 9, 10, 11, 12), type: 'message', model: 'claude-haiku-5' }
+      ])
+    ])
+    const a = await entryOf(f)
+    expect(figures(a)).toEqual([
+      ['r1', 'req_r1', 0, 0, 0, 0, 447, 'claude-opus-5'],
+      ['r2', 'req_r2', 0, 12, 34, 56, 0, 'claude-opus-5']
+    ])
+  })
 
   it('as UTF-8 with U+FFFD for each maximal invalid subpart, a line with an invalid byte outside a string being a bad line', async () => {
     const bytes = (...b: number[]): Buffer => Buffer.from(b)
