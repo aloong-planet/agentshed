@@ -15,6 +15,7 @@ import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTrans
 import { localDayOffset } from './support/dates'
 import { mkUsageHome, mkEmptyProjectHome, questionLine } from './support/homes'
 import { launch, close } from './support/launch'
+import { holdStoreWrites } from './support/token-store'
 
 /**
  * Ticket 03b: the fixture home for a Codex fork.
@@ -1098,7 +1099,8 @@ test('a project search with one session file that cannot be read shows the other
   await close(l)
 })
 
-test('a failed token cache write on a session page: a session whose index has to be rebuilt opens, with no raw error, and the failure is logged (P6, C4)', async () => {
+// The store held by another process for longer than a write waits: the rebuild's write fails (token-stats C3, C27)
+test('a failed token store write on a session page: a session whose index has to be rebuilt opens, with no raw error, and the failure is logged (P6, C4)', async () => {
   const home = mkUsageHome()
   const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
   const l = await launch(undefined, home)
@@ -1110,14 +1112,18 @@ test('a failed token cache write on a session page: a session whose index has to
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
 
-  mkdirSync(join(l.userData, `.token-cache.j-${l.app.process().pid}`))
-  appendFileSync(join(home, '.claude', 'projects', enc, 'a.jsonl'), questionLine('Third question') + '\n')
-  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
-  // Only a rebuild knows the third question
-  await expect(win.locator('.qlist .q')).toHaveCount(3)
-  await expect(win.locator('.qlist .q', { hasText: 'Third question' })).toBeVisible()
-  await expect(win.locator('.pane-body .none')).toHaveCount(0)
-  await expect.poll(() => stderr.join('')).toContain('[token-cache] save failed:')
+  const held = holdStoreWrites(l.userData)
+  try {
+    appendFileSync(join(home, '.claude', 'projects', enc, 'a.jsonl'), questionLine('Third question') + '\n')
+    await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+    // Only a rebuild knows the third question; the page answers once the rebuild's write has given up waiting
+    await expect(win.locator('.qlist .q')).toHaveCount(3, { timeout: 15000 })
+    await expect(win.locator('.qlist .q', { hasText: 'Third question' })).toBeVisible()
+    await expect(win.locator('.pane-body .none')).toHaveCount(0)
+    await expect.poll(() => stderr.join('')).toContain('[token-store] write failed:')
+  } finally {
+    held.release()
+  }
   expect(l.errors).toEqual([])
   await close(l)
 })

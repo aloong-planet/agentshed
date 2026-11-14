@@ -8,6 +8,7 @@ import { parse as parseToml } from 'smol-toml'
 import type { RegistryResult } from './claude'
 import { isAbsent } from './read-utils'
 import { ERR } from '@shared/errors'
+import { byName } from './scan-order'
 
 export interface GrokSessionMeta {
   /** The authoritative update stream's absolute path — the session's identity (ADR-0019) */
@@ -31,7 +32,8 @@ export function readGrokSessions(grokHome: string): GrokSessionMeta[] {
   const root = join(grokHome, 'sessions')
   let cwdDirs
   try {
-    cwdDirs = readdirSync(root, { withFileTypes: true })
+    // In scan order (scan-order.ts), as are the session directories
+    cwdDirs = readdirSync(root, { withFileTypes: true }).sort(byName)
   } catch {
     return out
   }
@@ -46,7 +48,7 @@ export function readGrokSessions(grokHome: string): GrokSessionMeta[] {
     const cwdDir = join(root, cwdEntry.name)
     let sessionDirs
     try {
-      sessionDirs = readdirSync(cwdDir, { withFileTypes: true })
+      sessionDirs = readdirSync(cwdDir, { withFileTypes: true }).sort(byName)
     } catch {
       continue
     }

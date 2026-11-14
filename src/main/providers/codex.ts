@@ -7,6 +7,7 @@ import type { RegistryResult } from './claude'
 import { isColdRollout, isRolloutName, readFirstLineCold } from './cold-rollout'
 import { isAbsent } from './read-utils'
 import { ERR } from '@shared/errors'
+import { byName } from './scan-order'
 
 const PROJECT_HEADER = /^\s*\[projects\."(.+)"\]\s*$/
 
@@ -78,10 +79,11 @@ export class CodexHeads {
   }
 }
 
+/** The rollouts under a directory, depth-first in scan order (scan-order.ts) */
 function walk(dir: string, out: CodexSessionMeta[], kept: ReadonlyMap<string, KeptHead>, next: Map<string, KeptHead>): void {
   let entries
   try {
-    entries = readdirSync(dir, { withFileTypes: true })
+    entries = readdirSync(dir, { withFileTypes: true }).sort(byName)
   } catch {
     return
   }

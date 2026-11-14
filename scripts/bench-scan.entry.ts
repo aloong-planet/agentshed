@@ -6,36 +6,39 @@
 // Modes (the first argument):
 //   cold          a full scan into an empty cache directory — what a first launch or a
 //                 CACHE_VERSION bump costs
-//   warm          a full scan against a copy of the app's own cache — what a routine launch costs
-//                 (Electron only: the copy is taken from app.getPath('userData'))
+//   warm          a full scan against a copy of the app's own token store — what a routine launch costs
+//                 (Electron only: the copy is taken from app.getPath('userData')). An app that still has
+//                 only its JSON cache gives a copy of that instead, which the build imports first
+//                 (token-stats C26): what the first launch after the upgrade costs
 //   file <path>…  eachJsonlLine over the given files, one at a time
 //   grow <rollout> a Codex rollout copied into a scratch home, scanned whole, then grown by about 1 MB
 //                 of its own last lines and scanned again — the rescan a live session costs (#158). The
 //                 grown scan is checked against a cold scan of the same file.
 //   workers       a cold scan parsed on the main thread, then one parsed on the parse pool (#159): the
 //                 time of each, the main thread's longest event-loop stall during each (how long an IPC
-//                 call could wait), and whether the two caches agree entry by entry.
+//                 call could wait), and whether the two token stores agree entry by entry.
 //                 `workers --pool-only` runs the pool's scan alone, for a peak-memory figure that is
 //                 not stacked on the main-thread run's.
 //   rescan        two scans in one process against a copy of the app's cache, as the app runs them: on
 //                 the scan worker, with the archive merge on the main process (Electron only). What a
 //                 scan costs once the run's first is behind it, and what token-stats::QR-001 is judged
 //                 by: for the second scan, the main process's longest event-loop stall, whether the
-//                 token cache file was written, and where the scan ran — the scan worker, or the main
+//                 token store was written, and where the scan ran — the scan worker, or the main
 //                 process when the worker failed. A file an agent writes between the two scans is
-//                 parsed, and the cache is then written.
+//                 parsed, and the store is then written.
 //                 `rescan --main` runs both scans on the main process instead, by the scanner the app
 //                 falls back to once its scan worker has failed, and counts the files parsed.
 //                 `rescan --grow` appends to the newest Claude session file its own last line between
-//                 the two scans, so the second has a file to parse and a cache to write. It writes to
+//                 the two scans, so the second has a file to parse and a store to write. It writes to
 //                 the scanned home, so it runs only when AGENTSHED_HOME_OVERRIDE points at a copy of
-//                 one, and starts from an empty cache: the app's cache knows none of the copy's paths.
+//                 one, and starts from an empty store: the app's store knows none of the copy's paths.
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
-import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { DatabaseSync } from '../src/main/providers/sqlite'
 import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
 import { availableParallelism } from 'node:os'
 import { scan, walkSessions } from '../src/main/providers/scan'
@@ -85,16 +88,35 @@ async function userDataDir(): Promise<string | null> {
   return join(app.getPath('appData'), name)
 }
 
-/** A fresh cache directory holding a copy of the app's token cache and archive */
+/** The token store's file in a settings directory (engine/src/store/) */
+const STORE_FILE = 'token-store.sqlite'
+
+/**
+ * A fresh cache directory holding a copy of the app's token store and archive. The store is copied through SQLite, so
+ * the copy holds what the app's log does too, whole even while the app writes. An app that has only its JSON cache
+ * yet has that copied instead, and the first build imports it (token-stats C26).
+ */
 async function warmCacheDir(mode: string): Promise<string> {
   const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-'))
   const from = await userDataDir()
   if (from === null) throw new Error(`${mode} needs the app cache, which only the Electron run can locate: drop --node`)
-  const cache = join(from, 'token-cache.json')
-  // No cache is not a warm run at all; saying so beats reporting a cold run under the wrong label
-  if (!existsSync(cache)) throw new Error(`${mode} needs the app cache and none exists at ${cache}: launch the app once first`)
-  copyFileSync(cache, join(cacheDir, 'token-cache.json'))
-  console.log(`[${mode}] token-cache.json ${(statSync(cache).size / 1e6).toFixed(1)} MB copied from ${from}`)
+  const store = join(from, STORE_FILE)
+  const json = join(from, 'token-cache.json')
+  if (existsSync(store)) {
+    const db = new DatabaseSync(store, { readOnly: true })
+    try {
+      db.exec(`VACUUM INTO '${join(cacheDir, STORE_FILE).replace(/'/g, "''")}'`)
+    } finally {
+      db.close()
+    }
+    console.log(`[${mode}] ${STORE_FILE} ${(statSync(join(cacheDir, STORE_FILE)).size / 1e6).toFixed(1)} MB copied from ${from}`)
+  } else if (existsSync(json)) {
+    copyFileSync(json, join(cacheDir, 'token-cache.json'))
+    console.log(`[${mode}] token-cache.json ${(statSync(json).size / 1e6).toFixed(1)} MB copied from ${from}, imported by the first build`)
+  } else {
+    // No cache is not a warm run at all; saying so beats reporting a cold run under the wrong label
+    throw new Error(`${mode} needs the app cache and none exists in ${from}: launch the app once first`)
+  }
   const archive = join(from, 'usage-archive.json')
   if (existsSync(archive)) copyFileSync(archive, join(cacheDir, 'usage-archive.json'))
   return cacheDir
@@ -114,9 +136,12 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   const snap = await scan(roots, { now: () => Date.now(), sessions })
   console.log(`[scan()] registries, activity, global layer, memory: ${since(t0)} (projects=${snap.projects.length})`)
 
+  const engine = new TokenEngine(cacheDir, engineSource())
+  // A page's freshness check opens the store before it reads it, so this times the open alone: with a JSON cache in
+  // the directory, the one import of the first launch after the upgrade (token-stats C26)
   t0 = performance.now()
-  const engine = new TokenEngine(cacheDir)
-  console.log(`[TokenEngine] load cache: ${since(t0)}`)
+  engine.isFresh(join(cacheDir, 'no-session'))
+  console.log(`[TokenEngine] store open, and import of any JSON cache: ${since(t0)}`)
 
   // The stamp only matters for the archive's conflict rule, which a benchmark never exercises twice
   const archive = new UsageArchive(cacheDir, { stamp: 'bench' })
@@ -125,7 +150,7 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   t0 = performance.now()
   const built = await engine.build(roots, claudePaths, registered, sessions)
   console.log(
-    `[TokenEngine.build] cache lookups, parses, combine, persist: ${since(t0)} (rows=${built.rows.length}, sessionFiles=${built.sessionFiles.size})`
+    `[TokenEngine.build] store reads, parses, combine, store writes: ${since(t0)} (rows=${built.rows.length}, sessionFiles=${built.sessionFiles.size})`
   )
 
   t0 = performance.now()
@@ -159,7 +184,7 @@ async function growScan(source: string): Promise<void> {
     const roots = realRoots()
     const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-'))
     const build = (dirName: string): ReturnType<TokenEngine['build']> =>
-      new TokenEngine(dirName).build(roots, [], undefined, walkSessions(roots))
+      new TokenEngine(dirName, engineSource()).build(roots, [], undefined, walkSessions(roots))
     let t0 = performance.now()
     await build(cacheDir)
     console.log(`[grow] whole parse of ${(statSync(file).size / 1e6).toFixed(0)} MB: ${since(t0)}`)
@@ -222,7 +247,7 @@ async function workersScan(): Promise<void> {
     let took = ''
     const stall = await longestStall(async () => {
       const t0 = performance.now()
-      await new TokenEngine(cacheDir, runner).build(roots, claudePaths, registered, sessions)
+      await new TokenEngine(cacheDir, engineSource(), runner).build(roots, claudePaths, registered, sessions)
       took = since(t0)
     })
     console.log(`[workers] ${label}: ${took}; main-thread event-loop stall max ${stall.max} ms, p99 ${stall.p99} ms`)
@@ -238,21 +263,53 @@ async function workersScan(): Promise<void> {
   const pool = new ParsePool(script, poolSize(), engineSource())
   const poolDir = await run(`parse pool of ${pool.concurrency}`, pool)
   pool.close()
-  const files = (d: string): Record<string, unknown> =>
-    (JSON.parse(readFileSync(join(d, 'token-cache.json'), 'utf8')) as { files: Record<string, unknown> }).files
-  const a = files(inlineDir)
-  const b = files(poolDir)
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+  const a = storeRows(inlineDir)
+  const b = storeRows(poolDir)
+  const keys = new Set([...a.keys(), ...b.keys()])
   let differ = 0
-  for (const k of keys) if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) differ++
-  console.log(`[workers] cache entries: ${keys.size}, differing between the two: ${differ}`)
+  for (const k of keys) if (a.get(k) !== b.get(k)) differ++
+  console.log(`[workers] store entries: ${keys.size}, differing between the two: ${differ}`)
   if (differ > 0) process.exitCode = 1
 }
 
-/** The token cache file's identity: a write replaces the file, so a new inode or time is a write */
-function cacheFileId(cacheDir: string): string {
-  const st = statSync(join(cacheDir, 'token-cache.json'))
-  return `${st.ino}:${st.mtimeMs}`
+/**
+ * Every row of a token store, as text by path. Read from a copy of the store's file: the engine that wrote it is in this
+ * process and has it open, and a second SQLite here would take its locks away (engine/src/store/mod.rs). Each write
+ * the engine makes ends with a checkpoint into that file, so with no other process reading the store the copy holds
+ * every write that landed.
+ */
+function storeRows(cacheDir: string): Map<string, string> {
+  const copy = join(mkdtempSync(join(tmpdir(), 'agentshed-bench-store-')), STORE_FILE)
+  copyFileSync(join(cacheDir, STORE_FILE), copy)
+  const db = new DatabaseSync(copy, { readOnly: true })
+  try {
+    const rows = db.prepare('SELECT path, sig, agg, resume FROM entries').all() as Array<Record<string, unknown>>
+    return new Map(rows.map((r) => [String(r['path']), JSON.stringify([r['sig'], r['agg'], r['resume']])]))
+  } finally {
+    db.close()
+    rmSync(dirname(copy), { recursive: true, force: true })
+  }
+}
+
+/**
+ * Watches a token store for a write: one that lands adds to the store's log and is checkpointed into its file, and a
+ * scan that writes nothing touches neither. Told by the two files' modification times and sizes, not by a connection
+ * to the store, which a second SQLite in this process must not open (engine/src/store/mod.rs).
+ */
+function watchStore(cacheDir: string): () => boolean {
+  const state = (): string =>
+    ['', '-wal']
+      .map((suffix) => {
+        try {
+          const st = statSync(join(cacheDir, STORE_FILE + suffix))
+          return `${st.mtimeMs}:${st.size}`
+        } catch {
+          return '-'
+        }
+      })
+      .join(' ')
+  const before = state()
+  return () => state() !== before
 }
 
 /** One way of running the rescan mode's scans: `once` runs a scan and reports it, `counted` adds to the last line */
@@ -349,10 +406,10 @@ async function rescan(flags: string[]): Promise<void> {
   try {
     await run.once('first')
     if (grow) growNewestClaudeSession(roots)
-    const before = cacheFileId(cacheDir)
+    const written = watchStore(cacheDir)
     const stall = await longestStall(() => run.once('second'))
     console.log(
-      `[rescan] second scan: main-process event-loop stall max ${stall.max} ms; ${run.counted()}token cache file written: ${cacheFileId(cacheDir) === before ? 'no' : 'yes'}`
+      `[rescan] second scan: main-process event-loop stall max ${stall.max} ms; ${run.counted()}token store written: ${written() ? 'yes' : 'no'}`
     )
   } finally {
     await run.close()

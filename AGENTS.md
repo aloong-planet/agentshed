@@ -88,9 +88,12 @@ a retried "does not appear" check cannot prove absence.
 - A figure about reading files from the main process, its worker threads included, counts only when measured
   under Electron with `pnpm bench:scan` (the chunk-size reasoning is in `src/main/providers/jsonl.ts`).
 - Application code reads a token cache entry only through `CacheEntries` (`src/main/providers/token-stats.ts`), which hands
-  out a well-formed entry or none, and never opens the cache file itself; `pnpm lint` fails when a file under `src/` other
-  than the engine and the tests names `token-cache.json` (postmortems `2026-10-29-a-guard-read-after-the-value-it-guards`
-  and `2026-11-11-a-null-files-object-passed-the-cache-loader`).
+  out a well-formed entry or none, and never opens the token store or the JSON cache it replaced itself; `pnpm lint` fails
+  when a file under `src/` other than the engine, the tests and the test helpers in `src/main/testing/` names
+  `token-store.sqlite` or `token-cache.json` (postmortems `2026-10-29-a-guard-read-after-the-value-it-guards` and
+  `2026-11-11-a-null-files-object-passed-the-cache-loader`).
+- A process holding the token store open reaches it only through the engine module's SQLite, never through `node:sqlite` or
+  another copy of SQLite (`engine/src/store/mod.rs`).
 - Every e2e case closes its app through `closeApp` (`e2e/close-app.ts`), and a teardown warning on an
   unloaded run is a defect.
 - An e2e case starts its app through `startApp` (`e2e/support/launch.ts`); `pnpm lint` fails on any other static import of

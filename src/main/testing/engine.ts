@@ -15,3 +15,10 @@ export interface PanicSeam extends EngineModule {
   /** A stand-in for a function that parses a session file: answers with the file once the seam lets it through */
   seamParse(file: string): string
 }
+
+/** The store-write seam a build made for tests exports (engine/src/seams.rs) */
+export interface StoreWriteSeam extends EngineModule {
+  /** Makes the next write to a token store fail after this many of its statements, or none fail; one for the whole
+   * process, spent by the write it fails */
+  seamCutStoreWriteAfter(statements: number | null): void
+}

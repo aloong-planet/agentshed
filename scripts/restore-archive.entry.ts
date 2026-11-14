@@ -1,19 +1,24 @@
-// The body of the archive restore (spec C16, ADR-0026): read a token-cache snapshot this application
-// wrote, run it through the same aggregation the scan uses, and write the rows of one side over one day
-// range into the usage archive as accepted changes under the current accounting stamp. Whatever those
-// rows replace is kept as superseded values; the scan's own day is never touched. Dry run by default —
-// nothing is written without --apply.
+// The body of the archive restore (spec C16, ADR-0026): read a snapshot — a copy of the token store this
+// application wrote (token-store.sqlite in its settings directory, copied while the application is not
+// running) — through the engine module, run its entries through the same aggregation the scan uses, and write
+// the rows of one side over one day range into the usage archive as accepted changes under the current
+// accounting stamp. Whatever those rows replace is kept as superseded values; the scan's own day is never
+// touched. Dry run by default — nothing is written without --apply. The snapshot is read without writing to
+// it or beside it.
 //
-// scripts/restore-archive.mjs bundles this file with esbuild and runs it under Node; the stamp's
-// application-version half arrives in AGENTSHED_APP_VERSION from the runner (the entry is bundled into a
-// temporary directory and cannot find package.json by itself).
+// scripts/restore-archive.mjs builds the engine module and bundles this file with esbuild against the same
+// build, and runs it under Node; the module's path arrives in AGENTSHED_RESTORE_ENGINE_MODULE and the stamp's
+// application-version half in AGENTSHED_APP_VERSION from the runner (the entry is bundled into a temporary
+// directory and cannot find package.json by itself).
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AgentSide, UsageRow } from '../src/shared/domain'
 import { UsageArchive } from '../src/main/providers/archive'
-import { CACHE_VERSION, rowsFromCacheFile } from '../src/main/providers/token-stats'
+import { CACHE_VERSION, rowsFromStoreSnapshot } from '../src/main/providers/token-stats'
+import { ENGINE_BUILD } from '../src/main/engine-module'
 import { AGENT_SIDES } from '../src/shared/validate'
+import { realRoots } from '../src/main/roots'
 
 // The contract's own side set, so the script cannot fall a side behind the app
 const SIDES = AGENT_SIDES
@@ -26,7 +31,7 @@ function arg(name: string): string | undefined {
 
 function usage(): never {
   console.error(
-    `usage: pnpm restore:archive --snapshot <token-cache.json> --side <${[...SIDES].join('|')}> --from <YYYY-MM-DD> --to <YYYY-MM-DD> [--user-data <dir>] [--apply]`
+    `usage: pnpm restore:archive --snapshot <a copy of token-store.sqlite> --side <${[...SIDES].join('|')}> --from <YYYY-MM-DD> --to <YYYY-MM-DD> [--user-data <dir>] [--apply]`
   )
   process.exit(2)
 }
@@ -55,8 +60,9 @@ function main(): void {
     process.exit(2)
   }
   const version = process.env['AGENTSHED_APP_VERSION']
-  if (!version) {
-    console.error('AGENTSHED_APP_VERSION is not set: run through scripts/restore-archive.mjs')
+  const engineModule = process.env['AGENTSHED_RESTORE_ENGINE_MODULE']
+  if (!version || !engineModule) {
+    console.error('AGENTSHED_APP_VERSION or AGENTSHED_RESTORE_ENGINE_MODULE is not set: run through scripts/restore-archive.mjs')
     process.exit(2)
   }
   const stamp = `${version}+c${CACHE_VERSION}`
@@ -75,8 +81,9 @@ function main(): void {
     process.exit(2)
   }
 
-  // rowsFromCacheFile refuses a snapshot of another cache structure version (spec C16)
-  const all = rowsFromCacheFile(snapshot)
+  // rowsFromStoreSnapshot refuses what is no store of this cache structure version, and one holding an entry that
+  // is not well formed (spec C16)
+  const all = rowsFromStoreSnapshot(snapshot, { path: engineModule, build: ENGINE_BUILD }, realRoots())
   const rows = all.filter((r) => r.side === (side as AgentSide) && r.day !== '' && r.day >= from && r.day <= to)
   const byDay = new Map<string, UsageRow[]>()
   for (const r of rows) {

@@ -18,17 +18,21 @@
 // in rest on a state the app does not build itself (a pinned mtime) or one in which the page fails as a whole
 // (no read permission). The list's fallback is driven through a parse runner that removes the file. A case is
 // due if the session's own call stops sharing that expression.
-import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
-import { join } from 'node:path'
+import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
+import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
+import { TEST_ENGINE, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
+import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule } from '../engine-module'
-import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
+import { compareScanOrder } from './scan-order'
+import { spawn } from 'node:child_process'
 import { constants as zstdConstants, zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
 import { ERR, decodeAppError } from '@shared/errors'
+import { mergeKey } from '@shared/path-key'
 import type { ScanRoots } from './types'
 import { walkSessions } from './scan'
 import { AGENT_SIDES } from '@shared/validate'
@@ -392,7 +396,7 @@ afterEach(() => {
 })
 
 function engine(): TokenEngine {
-  return new TokenEngine(join(dir, 'cache'))
+  return new TokenEngine(join(dir, 'cache'), TEST_ENGINE)
 }
 
 describe('Claude aggregation (the ccusage rules)', () => {
@@ -964,8 +968,8 @@ describe('Grok aggregation (sequence F, continued)', () => {
     for (const row of r.rows) {
       expect(Object.keys(row).some((k) => /cost/i.test(k))).toBe(false)
     }
-    // The per-file cache is the other archived form: the raw figure must not survive into it either
-    const cacheRaw = readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')
+    // The token store is the other archived form: the raw figure must not survive into it either
+    const cacheRaw = JSON.stringify(storeRows(join(dir, 'cache')))
     expect(cacheRaw.includes('costUsdTicks')).toBe(false)
     expect(/cost/i.test(cacheRaw)).toBe(false)
   })
@@ -1191,398 +1195,164 @@ describe('a session\'s at = the largest timestamp in the file (the same meaning 
   })
 })
 
-describe('cache version migration (a real bug regression)', () => {
-  it('an old-format cache (a Codex agg with no events field) does not crash and is recomputed into the new structure', async () => {
-    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
-    const rollout = mkCodexRollout('rollout-old-019f900.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
-      { input: 30, cached: 0, output: 5 }
-    ])
-    // A hand-written cache in the previous version's structure: the Codex entry has only totals/byDay and
-    // no events
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    const st = statSync(rollout)
-    writeFileSync(
-      join(dir, 'cache', 'token-cache.json'),
-      JSON.stringify({
-        version: 2,
-        files: {
-          [rollout]: {
-            sig: `${st.mtimeMs}:${st.size}`,
-            agg: {
-              kind: 'codex',
-              projectKey: proj.toLowerCase(),
-              listed: true,
-              title: 'old format',
-              at: 1,
-              model: 'gpt-5.6-sol',
-              totals: { input: 999, output: 0, cacheRead: 0, cacheWrite: 0, total: 999 },
-              byDay: { '2026-07-30': 999 }
-            }
-          }
-        }
-      })
-    )
-    const r = await engine().build(roots(), [proj])
-    // No crash, and the number comes from the recomputation (35) rather than the old cache (999)
-    expect(r.global.bySide.codex.total).toBe(35)
-    expect(r.global.bySide.claude.total).toBe(15)
-  })
+// The token store (ADR-0044) as a launch finds it and as a build leaves it. Each case reads and changes the store from
+// outside the engine — as another process, a disk or a hand would (testing/token-store.ts) — and judges the engine by
+// which files a launch parses and by the figures it gives.
+const cacheDir = (): string => join(dir, 'cache')
 
-  it('a previous version\'s stale non-zero cacheWrite is recomputed to 0, and the four fields still sum to the total', async () => {
-    // ⚠️ **This does not catch a missed CACHE_VERSION bump** — same limitation as the neighbouring
-    //    "outdated algorithm" case, and for the same reason: the fixture writes `CACHE_VERSION - 1`,
-    //    one notch below the current value whatever it is, so it never matches and always recomputes.
-    //    Measured 2026-08-18: rolling CACHE_VERSION back 13 → 12 (simulating the missed bump that
-    //    ADR-0023's implementation actually made) leaves this case **green**.
-    //    The algorithm-change half of the rule relies on process, not on any unit test.
-    //
-    // What it does assert: once recomputation happens, the ADR-0023 field comes back as 0 rather than
-    // inheriting the parsed value, and the invariant the composition view depends on still holds.
-    // Both would have been violated by a stale entry flowing through unrecomputed.
-    const rollout = mkCodexRollout('rollout-stale-019f901.jsonl', proj, '2026-07-30T03:00:00Z', 'gpt-5.6-sol', [
-      { input: 100, cached: 80, output: 10 }
-    ])
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    const st = statSync(rollout)
-    writeFileSync(
-      join(dir, 'cache', 'token-cache.json'),
-      JSON.stringify({
-        // Deliberately the immediately previous version rather than a literal, so the guard keeps
-        // meaning as the version grows (the convention CACHE_VERSION's own comment sets out)
-        version: CACHE_VERSION - 1,
-        files: {
-          [rollout]: {
-            sig: `${st.mtimeMs}:${st.size}`,
-            agg: {
-              kind: 'codex',
-              file: rollout,
-              projectKey: proj.toLowerCase(),
-              listed: true,
-              title: 'stale cache-write',
-              at: Date.parse('2026-07-30T03:00:00Z'),
-              model: 'gpt-5.6-sol',
-              titleFromThread: false,
-              sessionId: null,
-              parentId: null,
-              forkedAt: null,
-              questions: [],
-              // The stale part: a non-zero cache-write parsed under the old rule
-              events: [[Date.parse('2026-07-30T03:00:00Z'), 100, 80, 10, 500]]
-            }
-          }
-        }
-      })
-    )
-    const r = await engine().build(roots(), [proj])
-    const c = r.global.bySide.codex
-    expect(c.cacheWrite, 'the stale 500 must not survive into the recomputed result').toBe(0)
-    expect(c.total).toBe(110)
-    expect(c.input + c.output + c.cacheRead + c.cacheWrite).toBe(c.total)
-  })
-
-  it('an old cache predating the grok variant does not crash, and grok data on disk is computed fresh', async () => {
-    // The cache below has no idea grok exists (its version predates the variant); the session on
-    // disk must still be metered — the extension of the case above to the new shape (#124)
-    mkGrokSession(proj, '019f-oldcache', [grokTurn(1786088656, { input: 100, output: 10 })])
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    writeFileSync(
-      join(dir, 'cache', 'token-cache.json'),
-      JSON.stringify({ version: CACHE_VERSION - 1, files: {} })
-    )
-    const r = await engine().build(roots(), [proj])
-    expect(r.global.bySide.grok.total).toBe(110)
-  })
-
-  it('a same-version Codex entry gone null is recomputed, not dereferenced by the resume check', async () => {
-    const f = mkCodexRollout('rollout-null-agg-019fd02.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }])
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    for (const entry of [{ sig: '1:1', agg: null }, null]) {
-      writeFileSync(join(dir, 'cache', 'token-cache.json'), JSON.stringify({ version: CACHE_VERSION, files: { [f]: entry } }))
-      const r = await engine().build(roots(), [proj])
-      expect(r.global.bySide.codex.total).toBe(110)
-    }
-  })
-
-  it('a same-version entry gone null elsewhere in the cache does not break a Codex fork\'s session page before the first scan', async () => {
-    const parent = mkCodexFork('rollout-p-019fd03.jsonl', proj, { id: 'p-1', parentId: 'none', forkedAtIso: '2026-07-30T01:00:00Z' }, 'gpt-5.6-sol', [{ input: 10, cached: 0, output: 1 }])
-    const child = mkCodexFork('rollout-c-019fd04.jsonl', proj, { id: 'c-1', parentId: 'p-1', forkedAtIso: '2026-07-30T02:00:00Z' }, 'gpt-5.6-sol', [{ input: 20, cached: 0, output: 2 }])
-    await engine().build(roots(), [proj])
-    const cacheFile = join(dir, 'cache', 'token-cache.json')
-    const cache = JSON.parse(readFileSync(cacheFile, 'utf8')) as { files: Record<string, unknown> }
-    for (const entry of [{ sig: '1:1', agg: null }, null]) {
-      cache.files[join(dir, 'gone.jsonl')] = entry
-      writeFileSync(cacheFile, JSON.stringify(cache))
-      // A new engine reads the cache from disk, as at startup, and serves the page before any build has run
-      const page = await engine().sessionQuestions(roots(), child)
-      expect(page.forkParentFile).toBe(parent)
-    }
-  })
-
-  // A defence against a false green: when what changed is "how a field is computed" rather than the
-  // structure, the signature still hits and the shape is still valid,
-  // and the old value flows all the way to the UI. Fixtures with a fresh cache always pass, and existing
-  // users never see the fix.
-  //
-  // ⚠️ This case tests **the version invalidation mechanism itself** (a previous version's cache is
-  //    refused), not "the author remembered to bump".
-  //    No unit test can cover the latter: a missed bump **leaves no trace whatsoever** in the code under
-  //    test, and the fixture writes
-  //    `CACHE_VERSION - 1`, which is one notch below the current value whatever it is and never matches.
-  //    Confirmed by measurement: rolling CACHE_VERSION back from 6 to 5 (simulating a missed bump) leaves
-  //    this case green.
-  //    The shape-change half is backstopped by the field-set fingerprint below; the algorithm-change half
-  //    relies on process alone (see the spec).
-  it('a value in the immediately previous version\'s cache, structurally valid but computed by an outdated algorithm, must not be reused', async () => {
-    const rollout = mkCodexRollout('rollout-staleat-019f901.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
-      { input: 10, cached: 0, output: 5, at: '2026-07-29T12:00:00Z' },
-      { input: 20, cached: 0, output: 5, at: '2026-07-30T18:30:00Z' }
-    ])
-    const st = statSync(rollout)
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    writeFileSync(
-      join(dir, 'cache', 'token-cache.json'),
-      JSON.stringify({
-        // A relative version number rather than a literal: hard-coding 3 would, once the version reached
-        // 6 or 7, degrade this into
-        // the neighbouring "a very old version is refused" case, leaving "the immediately previous version
-        // is refused" untested — and a missed bump uncaught all the same.
-        version: CACHE_VERSION - 1,
-        files: {
-          [rollout]: {
-            sig: `${st.mtimeMs}:${st.size}`,
-            // **Everything but the version number is valid** — `file` especially must be present:
-            // isWellFormedAgg would judge it invalid on the missing field
-            // and recompute, which would leave this case green even with the version check deleted
-            // entirely,
-            // so the version mechanism itself would go untested.
-            agg: {
-              kind: 'codex',
-              file: rollout,
-              projectKey: proj.toLowerCase(),
-              listed: true,
-              title: 'stale',
-              at: Date.parse('2026-07-29T12:00:00Z'),
-              model: 'gpt-5.6-sol',
-              sessionId: null,
-              parentId: null,
-              forkedAt: null,
-              events: [
-                [Date.parse('2026-07-29T12:00:00Z'), 10, 0, 5, 0],
-                [Date.parse('2026-07-30T18:30:00Z'), 20, 0, 5, 0]
-              ]
-            }
-          }
-        }
-      })
-    )
-    const s = (await engine().build(roots(), [proj])).perProject
-      .get(proj.toLowerCase())
-      ?.sessions.find((x) => x.side === 'codex')
-    expect(s?.at, 'the version must be bumped with an algorithm change, or the old value is reused').toBe(Date.parse('2026-07-30T18:30:00Z'))
-  })
-
-  // Found at review: isWellFormedAgg is the guard rail for corruption and drift **within one version**,
-  // and `file` was added without being added to it.
-  // The escape surface is upward — a cache entry missing `file` makes SessionMeta.file undefined,
-  // contract validation throws, and the whole of getProjectDetail dies (skills, memory, plugins and
-  // artifacts all gone).
-  // After the fix the escape surface drops to self-harm: that one file is recomputed.
-  // The version must be CACHE_VERSION itself rather than a hard-coded literal: the moment it is hard-coded
-  // it equals the current version,
-  // and after the next bump loadCache would discard the whole cache on the version mismatch and recompute
-  // that file anyway — turning the case into
-  // a **vacuous pass** that never exercises isWellFormedAgg again. (This case originally hard-coded 5, and
-  // had already gone vacuous by version 7.)
-  it.each([
-    // Each row is missing only its target field with the rest complete (forkPoints included) — a fixture
-    // missing two fields would let
-    // the guard go red even while checking one fewer, so the target check would go untested
-    ['file', { projectKey: 'X', listed: true, title: 'a stale title from the cache', at: 1, questions: [], forkPoints: 0 }],
-    ['questions', { file: 'X', projectKey: 'X', listed: true, title: 'a stale title from the cache', at: 1, forkPoints: 0 }],
-    ['forkPoints (ticket 06 banner signal)', { file: 'X', projectKey: 'X', listed: true, title: 'a stale title from the cache', at: 1, questions: [] }],
-    // Ticket 03b: the record's arity went from 6 to 7 (adding the content fingerprint). An old record's
-    // 7th element reads back as undefined,
-    // and undefined === undefined makes Codex's replay fingerprint check always true and strips blindly.
-    [
-      'a questions record one element short (the old arity)',
-      {
-        file: 'X',
-        projectKey: 'X',
-        listed: true,
-        title: 'a stale title from the cache',
-        at: 1,
-        forkPoints: 0,
-        questions: [[0, 10, 20, 1, 0, 0]]
+/** A runner that parses as usual and keeps every job it was handed */
+function recording(): { runner: ParseRunner; jobs: Array<Parameters<ParseRunner['run']>[0]> } {
+  const jobs: Array<Parameters<ParseRunner['run']>[0]> = []
+  return {
+    jobs,
+    runner: {
+      concurrency: 1,
+      run: (job) => {
+        jobs.push(job)
+        return runParseJob(job)
       }
-    ]
-  ])('an entry missing %s in a same-version cache → recompute that file only, without polluting the whole detail', async (_missing, partial) => {
-    const cl = mkClaudeFile('wellformed.jsonl', [
-      userLine('x'),
-      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
-    ])
-    const st = statSync(cl)
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    const agg = { kind: 'claude', ...partial, entries: [[null, null, 0, 10, 5, 0, 0, 'claude-fable-5', '2026-07-30']] }
-    if ('file' in agg) agg.file = cl
-    if ('projectKey' in agg) agg.projectKey = proj.toLowerCase()
-    writeFileSync(
-      join(dir, 'cache', 'token-cache.json'),
-      JSON.stringify({
-        version: CACHE_VERSION, // Same version: the version number cannot catch it and only isWellFormedAgg can
-        files: { [cl]: { sig: `${st.mtimeMs}:${st.size}`, agg } }
-      })
-    )
-    const s = (await engine().build(roots(), [proj])).perProject
-      .get(proj.toLowerCase())
-      ?.sessions.find((x) => x.side === 'claude')
-    expect(s?.file, 'a cache entry with a missing field must be judged invalid and recomputed, never letting undefined through to the contract layer').toBe(cl)
-    // Assert the recomputation really happened: the cache holds a sentinel title while a real parse yields
-    // the content of userLine.
-    // Without this, "the entry was judged invalid" and "the cache never hit at all" are indistinguishable
-    // in the result.
-    expect(s?.title, 'it must be the freshly parsed title, not the cached one').toBe('x')
-  })
-
-  // The only automated defence against a missed bump on a shape change: this goes red when the field set
-  // changes, forcing the author to think about the version number.
-  // The assertion targets **the persisted cache** — the very thing the version number protects, not a
-  // side channel.
-  // Coverage stated explicitly: it covers adding and removing fields only, not a change to how a field is
-  // computed (that leaves the field set, and the fingerprint, unchanged).
-  it('a change to FileAgg\'s field set must be noticed (a shape change is the only half of a missed bump that is testable)', async () => {
-    mkClaudeFile('shape.jsonl', [
-      userLine('question'),
-      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
-    ])
-    mkCodexRollout('rollout-shape-019fd01.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
-      { input: 10, cached: 0, output: 5 }
-    ])
-    mkAgyConversation('agy-shape', proj, [{ usage: { messageId: 'm-shape', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
-    await engine().build(roots(), [proj])
-    const cache = JSON.parse(readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')) as {
-      files: Record<string, { agg: Record<string, unknown> }>
     }
-    const keysOf = (kind: string): string[] => {
-      const hit = Object.values(cache.files).find((f) => f.agg['kind'] === kind)
-      expect(hit, `the cache should hold a ${kind} entry`).toBeDefined()
-      return Object.keys((hit as { agg: Record<string, unknown> }).agg).sort()
-    }
-    expect(keysOf('claude')).toEqual([
-      'at', 'entries', 'file', 'forkPoints', 'kind', 'listed', 'projectKey', 'questions', 'title'
-    ])
-    expect(keysOf('codex')).toEqual([
-      'at', 'boundary', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'paginated', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
-    ])
-    expect(keysOf('antigravity')).toEqual([
-      'at', 'calls', 'conversationId', 'file', 'forkOf', 'kind', 'listed', 'projectKey', 'questions', 'subagent', 'title', 'unreadable'
-    ])
+  }
+}
+
+/** A new launch's first build against the store as it is: what it gives, and the files it parsed */
+async function relaunch(): Promise<{ result: TokenBuildResult; parsed: string[] }> {
+  const { runner, jobs } = recording()
+  const result = await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
+  return { result, parsed: jobs.map((j) => j.file) }
+}
+
+/** The files a new launch parses against the store as it is: none when it holds a current entry for each */
+async function parsedOnRelaunch(): Promise<string[]> {
+  return (await relaunch()).parsed
+}
+
+type Side = 'claude' | 'codex' | 'grok' | 'antigravity'
+
+/** A session on every side, stored by a build that the launch after it finds complete; each file by its side */
+async function storedSides(into = cacheDir()): Promise<Record<Side, string>> {
+  const files = {
+    claude: mkClaudeFile('field.jsonl', [userLine('a question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)]),
+    codex: mkCodexRollout('rollout-field-019fd13.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_f1' }]),
+    grok: mkGrokSession(proj, 'field-1', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })]),
+    antigravity: mkAgyConversation('agy-field', proj, [{ usage: { messageId: 'm-field', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+  }
+  await new TokenEngine(into, TEST_ENGINE).build(roots(), [proj])
+  if (into === cacheDir()) {
+    // The control: every entry as the build wrote it is a hit
+    expect(await parsedOnRelaunch()).toEqual([])
+  }
+  return files
+}
+
+/** Rewrites one file's stored aggregate, as a hand editing the store would; the row keeps its signature */
+function changeStored(file: string, change: (agg: Record<string, unknown>) => void): void {
+  const agg = storedEntries(cacheDir()).get(file)?.agg
+  if (!agg) throw new Error('the build stored no aggregate for the file')
+  change(agg)
+  onStore(cacheDir(), 'UPDATE entries SET agg = ? WHERE path = ?', JSON.stringify(agg), file)
+}
+
+const storeBytes = (): string[] => storeFileBytes(cacheDir())
+
+/** Makes the next write to a token store fail after this many of its statements (engine/src/seams.rs) */
+const cutStoreWriteAfter = (statements: number | null): void => (loadEngineModule(TEST_ENGINE) as StoreWriteSeam).seamCutStoreWriteAfter(statements)
+
+describe('the store a launch finds (token-stats C1, C2)', () => {
+  // The version a store records is all that tells its structure; one of another version, older or newer, is replaced
+  // and not read. A value this build would read differently is planted first, and the control shows it read while the
+  // version is this one, so that a store a launch took as it is shows in the figures as well as in the parses.
+  it.each([
+    ['an older', -1],
+    ['a newer', 1]
+  ])('a store of %s structure version is replaced by an empty store of this version, and every file is parsed (C1)', async (_what, step) => {
+    const files = await storedSides()
+    changeStored(files.codex, (agg) => {
+      agg['title'] = 'a title from the replaced store'
+    })
+    const titleOf = (r: TokenBuildResult): string | null | undefined =>
+      r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === files.codex)?.title
+    const kept = await relaunch()
+    expect(kept.parsed, 'the control: a store of this version is read as it is').toEqual([])
+    expect(titleOf(kept.result)).toBe('a title from the replaced store')
+
+    onStore(cacheDir(), `PRAGMA user_version = ${CACHE_VERSION + step}`)
+    const replaced = await relaunch()
+    expect([...replaced.parsed].sort()).toEqual(Object.values(files).sort())
+    expect(titleOf(replaced.result)).not.toBe('a title from the replaced store')
+    expect(storeVersion(cacheDir())).toBe(CACHE_VERSION)
+    expect(await parsedOnRelaunch(), 'and the store it made is the next launch\'s').toEqual([])
   })
 
-  // Ticket 03a's founding premise (spec D2a): the index **stores offsets only, not even a truncated
-  // preview**.
-  // The reason: in a cache read at every startup across the whole repository, question text is about 9.5%
-  // of the whole, a megabyte-scale burden.
-  // Without this assertion, a later "might as well store a preview to help search" would not go red — and
-  // that is exactly what this decision exists to prevent.
-  it('the cache contains no question text at all (offsets only)', async () => {
-    const uniq = 'a unique question text CANARY7391'
-    mkClaudeFile('notext.jsonl', [
-      userLine(uniq),
-      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
-    ])
+  it.each([
+    ['a zero-byte file', (): void => writeFileSync(storePath(cacheDir()), '')],
+    ['a text file', (): void => writeFileSync(storePath(cacheDir()), 'not a database at all')],
+    ['a database of this version without its table', (): void => {
+        onStore(cacheDir(), 'DROP TABLE entries')
+      }]
+  ])('%s at the store\'s path is replaced, and every file is parsed (C2)', async (_what, plant) => {
+    const files = await storedSides()
+    plant()
+    expect([...(await parsedOnRelaunch())].sort()).toEqual(Object.values(files).sort())
+    expect(storeVersion(cacheDir())).toBe(CACHE_VERSION)
+    expect(await parsedOnRelaunch()).toEqual([])
+  })
+
+  it('a run that finds no store makes an empty one of this version before its first scan, a home with no session file included', async () => {
     await engine().build(roots(), [proj])
-    const raw = readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')
-    const cache = JSON.parse(raw) as { files: Record<string, { agg: Record<string, unknown> }> }
-    const hit = Object.values(cache.files).find((f) => String(f.agg['file']).endsWith('notext.jsonl'))
-    // First prove this really entered the cache, or the "no text found" below is a vacuous pass
-    expect(hit, 'that file should be in the cache').toBeDefined()
-    expect((hit as { agg: Record<string, unknown> }).agg['questions']).toHaveLength(1)
-    // The title is stored by design (the session list displays it) while the question **body** is not;
-    // the judgement uses a string that appears only in a question and can be nothing but its title.
-    const questionsJson = JSON.stringify((hit as { agg: Record<string, unknown> }).agg['questions'])
-    expect(questionsJson, 'question text appeared in the index').not.toContain('CANARY')
-    expect(questionsJson, 'the index should hold only numbers and null').toMatch(/^\[\[[\d,\s.enull-]*\]\]$/)
+    expect(storeVersion(cacheDir())).toBe(CACHE_VERSION)
+    expect(storeRows(cacheDir())).toEqual([])
   })
 
-  it('a cache file full of garbage does not crash and triggers a full recomputation', async () => {
-    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    writeFileSync(join(dir, 'cache', 'token-cache.json'), '{"version":3,"files":{"x":{"sig":"1:1","agg":{"kind":"claude"}}}}')
-    const r = await engine().build(roots(), [proj])
-    expect(r.global.bySide.claude.total).toBe(15)
-  })
-
-  it.each(['null', '[]', '"none"'])('a cache of the current version whose files are %s is recomputed, with or without session files (C2)', async (files) => {
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    const seed = (): void => writeFileSync(join(dir, 'cache', 'token-cache.json'), `{"version":${CACHE_VERSION},"files":${files}}`)
-    seed()
-    const empty = await engine().build(roots(), [proj])
-    expect(empty.global.bySide.claude.total).toBe(0)
-    const f = mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
-    // Seeded again: each of the two builds meets the malformed cache itself
-    seed()
-    const r = await engine().build(roots(), [proj])
-    expect(r.global.bySide.claude.total).toBe(15)
-    const saved = JSON.parse(readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')) as { files: Record<string, unknown> }
-    expect(Object.keys(saved.files)).toEqual([f])
+  // A store that cannot be opened nor replaced is no store: nothing is read from it or written to it, and it fails no
+  // build. The next build tries again, and once the store can be made it is the store from then on.
+  it('a store that cannot be made — a directory at its path — fails no build and no page: every file is parsed, the figures go out, a page is served, and the failure is logged', async () => {
+    const f = mkClaudeFile('a.jsonl', [userLine('the one question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    mkdirSync(join(storePath(cacheDir()), 'x'), { recursive: true })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { runner, jobs } = recording()
+      const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner)
+      const r = await e.build(roots(), [proj])
+      expect(r.global.bySide.claude.total).toBe(15)
+      expect(r.sessionFiles.has(f)).toBe(true)
+      expect(logged).toHaveBeenCalledWith('[token-store] open failed:', expect.stringContaining('cannot be removed'))
+      // The session the list shows opens: its index rebuilt for the page, with nothing to keep it in (session-view C4)
+      expect((await e.sessionQuestions(roots(), f)).questions).toHaveLength(1)
+      expect((await e.build(roots(), [proj])).global.bySide.claude.total).toBe(15)
+      expect(jobs.map((j) => j.file), 'with no store each build parses again').toEqual([f, f])
+      rmSync(storePath(cacheDir()), { recursive: true })
+      await e.build(roots(), [proj])
+      expect(await parsedOnRelaunch(), 'the build after the path is free makes the store and fills it').toEqual([])
+    } finally {
+      logged.mockRestore()
+    }
   })
 })
 
-// C2: within an object of entries, one that is not well formed is a miss. The cases above and the Antigravity ones
-// drive a corrupt aggregate through a build and through the Codex and Antigravity session pages; these drive what
-// they leave: the Claude session page, the fields those cases do not take away, an entry's signature and resume
-// state, and the snapshot reader.
-describe('a cache entry that is not well formed is no entry (C2)', () => {
-  const cacheFile = (): string => join(dir, 'cache', 'token-cache.json')
-  type SavedEntry = { sig?: unknown; agg: Record<string, unknown> | null; resume?: Record<string, unknown> }
-  type Saved = { files: Record<string, SavedEntry | null> }
-  const saved = (): Saved => JSON.parse(readFileSync(cacheFile(), 'utf8')) as Saved
-  /** A runner that parses as usual and keeps every job it was handed */
-  function recording(): { runner: ParseRunner; jobs: Array<Parameters<ParseRunner['run']>[0]> } {
-    const jobs: Array<Parameters<ParseRunner['run']>[0]> = []
-    return {
-      jobs,
-      runner: {
-        concurrency: 1,
-        run: (job) => {
-          jobs.push(job)
-          return runParseJob(job)
-        }
-      }
+// A store that stops reading under an engine that has it open — its table taken away by another connection, as a hand
+// would — fails no page: the read that fails is logged, and the page rebuilds its file's index (session-view C4)
+describe('a store whose read fails', () => {
+  it('fails no page: the session opens, and the failure is logged', async () => {
+    const f = mkClaudeFile('a.jsonl', [userLine('the one question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const e = engine()
+    await e.build(roots(), [proj])
+    onStore(cacheDir(), 'DROP TABLE entries')
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect((await e.sessionQuestions(roots(), f)).questions).toHaveLength(1)
+      expect(logged).toHaveBeenCalledWith('[token-store] read failed:', expect.anything())
+    } finally {
+      logged.mockRestore()
     }
-  }
-  /** The files a new launch parses against the saved cache: none when it holds a current entry for each */
-  async function parsedOnRelaunch(): Promise<string[]> {
-    const { runner, jobs } = recording()
-    await new TokenEngine(join(dir, 'cache'), runner).build(roots(), [proj])
-    return jobs.map((j) => j.file)
-  }
+  })
+})
 
-  type Side = 'claude' | 'codex' | 'grok' | 'antigravity'
-  /** A session on every side, cached by a build that the launch after it finds complete; each file by its side */
-  async function cachedSides(): Promise<Record<Side, string>> {
-    const files = {
-      claude: mkClaudeFile('field.jsonl', [userLine('a question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)]),
-      codex: mkCodexRollout('rollout-field-019fd13.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_f1' }]),
-      grok: mkGrokSession(proj, 'field-1', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })]),
-      antigravity: mkAgyConversation('agy-field', proj, [{ usage: { messageId: 'm-field', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
-    }
-    await engine().build(roots(), [proj])
-    // The control: every entry as the build wrote it is a hit
-    expect(await parsedOnRelaunch()).toEqual([])
-    return files
-  }
-  /** Rewrites one file's saved aggregate; the entry keeps its signature */
-  function changeSaved(file: string, change: (agg: Record<string, unknown>) => void): void {
-    const cache = saved()
-    const agg = cache.files[file]?.agg
-    if (!agg) throw new Error('the build saved no aggregate for the file')
-    change(agg)
-    writeFileSync(cacheFile(), JSON.stringify(cache))
-  }
-
+// C2: within a store of this version, an entry that is not well formed is a miss, and only its file is parsed again.
+// The cases drive a corrupt row through a build, through the session pages and through the resume.
+describe('a stored entry that is not well formed is no entry (C2)', () => {
   // One row for each field of the Claude, Codex and Grok aggregates beside `file`, `questions` and `forkPoints`, which
-  // the cases above take away, each starting from the entry a build wrote, so that every other field is there. The
+  // the cases below take away, each starting from the entry a build wrote, so that every other field is there. The
   // Antigravity side has such a row for each of its fields in antigravity.test.ts.
   it.each([
     ['claude', 'projectKey'],
@@ -1590,6 +1360,9 @@ describe('a cache entry that is not well formed is no entry (C2)', () => {
     ['claude', 'title'],
     ['claude', 'at'],
     ['claude', 'entries'],
+    ['claude', 'file'],
+    ['claude', 'questions'],
+    ['claude', 'forkPoints'],
     ['codex', 'projectKey'],
     ['codex', 'listed'],
     ['codex', 'title'],
@@ -1607,10 +1380,10 @@ describe('a cache entry that is not well formed is no entry (C2)', () => {
     ['grok', 'at'],
     ['grok', 'events'],
     ['grok', 'subagent']
-  ] as const)('a %s aggregate that lost %s is parsed again, that file alone, and saved repaired', async (side, field) => {
-    const files = await cachedSides()
-    changeSaved(files[side], (agg) => {
-      if (!(field in agg)) throw new Error(`the build saved no ${field} for the ${side} file`)
+  ] as const)('a %s aggregate that lost %s is parsed again, that file alone, and stored repaired', async (side, field) => {
+    const files = await storedSides()
+    changeStored(files[side], (agg) => {
+      if (!(field in agg)) throw new Error(`the build stored no ${field} for the ${side} file`)
       delete agg[field]
     })
     expect(await parsedOnRelaunch(), 'the entry is a miss').toEqual([files[side]])
@@ -1628,11 +1401,25 @@ describe('a cache entry that is not well formed is no entry (C2)', () => {
     ['codex', 'parentId', 7],
     ['codex', 'forkedAt', 'yesterday']
   ] as const)('a %s aggregate whose %s is %j is parsed again, that file alone', async (side, field, value) => {
-    const files = await cachedSides()
-    changeSaved(files[side], (agg) => {
+    const files = await storedSides()
+    changeStored(files[side], (agg) => {
       agg[field] = value
     })
     expect(await parsedOnRelaunch()).toEqual([files[side]])
+  })
+
+  // What the row holds rather than what its aggregate says: a column a disk or a hand left as no JSON, as JSON that is
+  // no aggregate, or as no text at all. The Codex row is the one taken, as its resume check reads the entry it finds.
+  it.each([
+    ['an aggregate that is no JSON', "UPDATE entries SET agg = 'not json' WHERE path = ?"],
+    ['an aggregate that is JSON null', "UPDATE entries SET agg = 'null' WHERE path = ?"],
+    ['an aggregate that is no text', "UPDATE entries SET agg = X'7b7d' WHERE path = ?"],
+    ['a signature that is no text', "UPDATE entries SET sig = X'31' WHERE path = ?"]
+  ])('a row holding %s is parsed again, that file alone, and every other file is a hit', async (_what, sql) => {
+    const files = await storedSides()
+    onStore(cacheDir(), sql, files.codex)
+    expect(await parsedOnRelaunch()).toEqual([files.codex])
+    expect(await parsedOnRelaunch()).toEqual([])
   })
 
   // Every list an aggregate holds, row by row: a row as its type has it, written by hand, is added first and the
@@ -1655,11 +1442,11 @@ describe('a cache entry that is not well formed is no entry (C2)', () => {
       ['a row with text where a number belongs', row.map((x, i) => (i === numberAt ? '1000' : x))],
       ['a row with null where a number belongs', row.map((x, i) => (i === numberAt ? null : x))]
     ])('with %s is parsed again, that file alone', async (_what, bad) => {
-      const files = await cachedSides()
+      const files = await storedSides()
       const add = (extra: unknown): void =>
-        changeSaved(files[side], (agg) => {
+        changeStored(files[side], (agg) => {
           const rows = agg[field]
-          if (!Array.isArray(rows)) throw new Error(`the build saved no ${field} for the ${side} file`)
+          if (!Array.isArray(rows)) throw new Error(`the build stored no ${field} for the ${side} file`)
           rows.push(extra)
         })
       add([...row])
@@ -1672,12 +1459,8 @@ describe('a cache entry that is not well formed is no entry (C2)', () => {
   it('a Claude session whose aggregate is gone null: its page is served before the first build, and that build still credits it to its project', async () => {
     const cl = mkClaudeFile('page.jsonl', [userLine('the one question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
     await engine().build(roots(), [proj])
-    const cache = saved()
-    const entry = cache.files[cl]
-    if (!entry || !entry.agg) throw new Error('the build saved no entry for the session')
-    cache.files[cl] = { sig: entry.sig, agg: null }
-    writeFileSync(cacheFile(), JSON.stringify(cache))
-    // A new engine reads the cache from disk, as at startup, and serves the page before any build has run
+    onStore(cacheDir(), "UPDATE entries SET agg = 'null' WHERE path = ?", cl)
+    // A new engine opens the store, as at startup, and serves the page before any build has run
     const e = engine()
     expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(1)
     // The project a Claude session is credited to comes from the registry, which the page does not read: an index
@@ -1687,8 +1470,18 @@ describe('a cache entry that is not well formed is no entry (C2)', () => {
     expect(r.sessionFiles.has(cl)).toBe(true)
   })
 
+  it('a row gone null elsewhere in the store does not break a Codex fork\'s session page before the first scan', async () => {
+    const parent = mkCodexFork('rollout-p-019fd03.jsonl', proj, { id: 'p-1', parentId: 'none', forkedAtIso: '2026-07-30T01:00:00Z' }, 'gpt-5.6-sol', [{ input: 10, cached: 0, output: 1 }])
+    const child = mkCodexFork('rollout-c-019fd04.jsonl', proj, { id: 'c-1', parentId: 'p-1', forkedAtIso: '2026-07-30T02:00:00Z' }, 'gpt-5.6-sol', [{ input: 20, cached: 0, output: 2 }])
+    await engine().build(roots(), [proj])
+    onStore(cacheDir(), "INSERT INTO entries (path, sig, agg) VALUES (?, '1:1', 'null')", join(dir, 'gone.jsonl'))
+    // A new engine opens the store, as at startup, and serves the page before any build has run
+    const page = await engine().sessionQuestions(roots(), child)
+    expect(page.forkParentFile).toBe(parent)
+  })
+
   describe('a Codex rollout\'s entry', () => {
-    /** A rollout a build has cached with its resume state, then grown by one response */
+    /** A rollout a build has stored with its resume state, then grown by one response */
     async function grown(): Promise<string> {
       const f = mkCodexRollout('rollout-entry-019fd10.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_e1' }])
       await engine().build(roots(), [proj])
@@ -1696,86 +1489,202 @@ describe('a cache entry that is not well formed is no entry (C2)', () => {
       appendFileSync(f, JSON.stringify({ timestamp: '2026-07-30T01:10:00Z', type: 'token_usage_record', payload: { response_id: 'resp_e2', usage: u, turn_token_usage: u, thread_token_usage: u } }) + '\n')
       return f
     }
+    const resumeOf = (f: string): Record<string, unknown> => {
+      const resume = storedEntries(cacheDir()).get(f)?.resume
+      if (typeof resume !== 'object' || resume === null) throw new Error('the build stored no resume state for the rollout')
+      return resume as Record<string, unknown>
+    }
 
     it.each([
       // The control: the grown rollout does resume from an entry left as the build wrote it
       { name: 'left as written is resumed from', change: (): void => {}, resumed: true },
-      { name: 'whose signature is a number is not resumed from', change: (e: SavedEntry): void => { e.sig = 7 }, resumed: false },
-      { name: 'whose signature is missing is not resumed from', change: (e: SavedEntry): void => { delete e.sig }, resumed: false },
+      { name: 'whose signature is no text is not resumed from', change: (f: string): void => {
+        onStore(cacheDir(), "UPDATE entries SET sig = X'37' WHERE path = ?", f)
+      }, resumed: false },
       {
         name: 'whose resume state is not well formed is not resumed from',
-        change: (e: SavedEntry): void => {
-          if (!e.resume) throw new Error('the build saved no resume state for the rollout')
-          e.resume['cursor'] = 'not a number'
+        change: (f: string): void => {
+          const resume = resumeOf(f)
+          resume['cursor'] = 'not a number'
+          onStore(cacheDir(), 'UPDATE entries SET resume = ? WHERE path = ?', JSON.stringify(resume), f)
         },
         resumed: false
-      }
+      },
+      { name: 'whose resume state is no JSON is not resumed from', change: (f: string): void => {
+        onStore(cacheDir(), "UPDATE entries SET resume = 'not json' WHERE path = ?", f)
+      }, resumed: false }
     ])('an entry $name, and the figures are the grown rollout\'s', async ({ change, resumed }) => {
       const f = await grown()
-      const cache = saved()
-      const entry = cache.files[f]
-      if (!entry) throw new Error('the build saved no entry for the rollout')
-      change(entry)
-      writeFileSync(cacheFile(), JSON.stringify(cache))
+      change(f)
       const { runner, jobs } = recording()
-      const r = await new TokenEngine(join(dir, 'cache'), runner).build(roots(), [proj])
+      const r = await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
       expect(jobs.map((j) => (j.kind === 'codex' ? j.from !== undefined : null))).toEqual([resumed])
       expect(r.global.bySide.codex.total).toBe(330)
     })
 
     // What makes an entry does not include its resume state: a state the resume check turns down costs the
     // rollout its resume and nothing else. Were it part of the entry, a parse leaving such a state would make
-    // its rollout a miss at every scan, and every scan would write the file.
+    // its rollout a miss at every scan, and every scan would write it.
     it('an entry whose resume state is not well formed is still a hit under the rollout\'s unchanged signature', async () => {
       const f = mkCodexRollout('rollout-entry-019fd11.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_e1' }])
       await engine().build(roots(), [proj])
-      const cache = saved()
-      const resume = cache.files[f]?.resume
-      if (!resume) throw new Error('the build saved no resume state for the rollout')
+      const resume = resumeOf(f)
       resume['prevTotal'] = 110
-      writeFileSync(cacheFile(), JSON.stringify(cache))
+      onStore(cacheDir(), 'UPDATE entries SET resume = ? WHERE path = ?', JSON.stringify(resume), f)
       expect(await parsedOnRelaunch()).toEqual([])
-      expect(rowsFromCacheFile(cacheFile()).map((r) => [r.side, r.total])).toEqual([['codex', 110]])
     })
   })
+})
 
-  // A scan parses again the file of an entry that is not well formed. A restore has no file to parse: the rows of
-  // the other entries alone would write the day's figure short of that entry's usage, as an accepted change (C16)
-  it.each([
-    ['an entry gone null', (e: SavedEntry | null): SavedEntry | null => (e ? null : e), /1 of 2 entries that are not well formed/],
-    ['an aggregate gone null', (e: SavedEntry | null): SavedEntry | null => (e ? { ...e, agg: null } : e), /1 of 2 entries that are not well formed/],
-    // Short of a field no row reads: its rows would be right, and the entry is still not one this build wrote
-    ['an aggregate that lost listed', (e: SavedEntry | null): SavedEntry | null => {
-      delete e?.agg?.['listed']
-      return e
-    }, /1 of 2 entries that are not well formed/]
-  ])('rowsFromCacheFile refuses a snapshot holding %s rather than give the rows of its other entries (C16)', async (_what, corrupt, refusal) => {
-    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
-    const codex = mkCodexRollout('rollout-snap-019fd12.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 0 }])
-    await engine().build(roots(), [proj])
-    expect(rowsFromCacheFile(cacheFile()).map((r) => [r.side, r.total]).sort()).toEqual([['claude', 15], ['codex', 40]])
-    const cache = saved()
-    cache.files[codex] = corrupt(cache.files[codex])
-    writeFileSync(cacheFile(), JSON.stringify(cache))
-    expect(() => rowsFromCacheFile(cacheFile())).toThrow(refusal)
+// C26: the first launch after the upgrade finds the JSON cache the earlier builds kept. Its entries are built here the
+// way they were kept — a store's entries are v19's per-file aggregates, unchanged — in a file shaped as this machine's
+// own v19 file is: `{ version, files: { <path>: { sig, agg, resume? } } }`.
+describe('upgrading from the JSON cache (token-stats C26)', () => {
+  const jsonFile = (): string => join(cacheDir(), 'token-cache.json')
+  /** Every file's entry as a v19 JSON file keeps it, taken from a store a build made elsewhere */
+  async function v19Files(): Promise<{ files: Record<Side, string>; entries: Record<string, Record<string, unknown>> }> {
+    const scratch = join(dir, 'scratch-cache')
+    const files = await storedSides(scratch)
+    const entries: Record<string, Record<string, unknown>> = {}
+    for (const [path, e] of storedEntries(scratch)) entries[path] = e.resume === null ? { sig: e.sig, agg: e.agg } : { sig: e.sig, agg: e.agg, resume: e.resume }
+    rmSync(scratch, { recursive: true })
+    return { files, entries }
+  }
+  const writeJson = (text: string): void => {
+    mkdirSync(cacheDir(), { recursive: true })
+    writeFileSync(jsonFile(), text)
+  }
+
+  it('a v19 file: its well-formed entries are imported and hit at the first scan, the one that is not is parsed, and the file is gone', async () => {
+    const { files, entries } = await v19Files()
+    delete (entries[files.claude]['agg'] as Record<string, unknown>)['listed']
+    writeJson(JSON.stringify({ version: 19, files: entries }))
+    // The store as the import left it, before any scan: the freshness check opens it, and the first scan would parse
+    // the file whose entry is not well formed and store it repaired, whether or not it was imported
+    expect(new TokenEngine(cacheDir(), TEST_ENGINE).isFresh(files.claude)).toBe(false)
+    expect(storeRows(cacheDir()).map((r) => r.path).sort()).toEqual([files.codex, files.grok, files.antigravity].sort())
+    const first = await relaunch()
+    expect(first.parsed).toEqual([files.claude])
+    expect(existsSync(jsonFile())).toBe(false)
+    expect(first.result.global.bySide.codex.total).toBe(110)
+    expect(await parsedOnRelaunch()).toEqual([])
   })
 
-  it.each(['null', '[]', '"none"'])('rowsFromCacheFile refuses a snapshot of this version whose files are %s (C16)', (files) => {
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    writeFileSync(cacheFile(), `{"version":${CACHE_VERSION},"files":${files}}`)
-    expect(() => rowsFromCacheFile(cacheFile())).toThrow(/no object of entries/)
+  it.each([
+    ['of version 18', (e: unknown): string => JSON.stringify({ version: 18, files: e })],
+    ['of version 2, the Codex aggregate before its events', (): string => JSON.stringify({ version: 2, files: {} })],
+    ['that does not parse', (): string => '{"version":19,"files":'],
+    ['whose files are null', (): string => '{"version":19,"files":null}'],
+    ['whose files are an array', (): string => '{"version":19,"files":[]}'],
+    ['whose files are text', (): string => '{"version":19,"files":"none"}']
+  ])('a file %s is deleted without an import, and the first scan parses every file', async (_what, text) => {
+    const { files, entries } = await v19Files()
+    writeJson(text(entries))
+    expect([...(await parsedOnRelaunch())].sort()).toEqual(Object.values(files).sort())
+    expect(existsSync(jsonFile())).toBe(false)
+  })
+
+  // A build from before the store, run since, left a JSON file of its own beside the store: the store's signatures
+  // decide what is current, so the file is not read. Its entries here hold another title under each file's own
+  // signature, which an import would have taken.
+  it('a v19 file beside a usable store is deleted unread, and the store\'s entries are used', async () => {
+    await storedSides()
+    const entries: Record<string, unknown> = {}
+    for (const [path, e] of storedEntries(cacheDir())) entries[path] = { sig: e.sig, agg: { ...e.agg, title: 'a title from the JSON file' } }
+    writeJson(JSON.stringify({ version: 19, files: entries }))
+    const { parsed, result } = await relaunch()
+    expect(parsed).toEqual([])
+    expect(existsSync(jsonFile())).toBe(false)
+    const titles = [...result.perProject.values()].flatMap((p) => p.sessions.map((s) => s.title))
+    expect(titles.length).toBeGreaterThan(0)
+    expect(titles).not.toContain('a title from the JSON file')
+  })
+
+  it('an import that fails lands nothing: the first scan parses every file, and the next launch deletes the file', async () => {
+    const { files, entries } = await v19Files()
+    writeJson(JSON.stringify({ version: 19, files: entries }))
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      // The import is the store's first write: it is cut short before its second statement
+      cutStoreWriteAfter(1)
+      expect([...(await parsedOnRelaunch())].sort()).toEqual(Object.values(files).sort())
+      expect(logged).toHaveBeenCalledWith('[token-store] write failed:', expect.stringContaining('store-write seam'))
+      expect(existsSync(jsonFile()), 'the file is left for a later launch').toBe(true)
+    } finally {
+      cutStoreWriteAfter(null)
+      logged.mockRestore()
+    }
+    expect(await parsedOnRelaunch(), 'the first scan landed what it parsed').toEqual([])
+    expect(existsSync(jsonFile())).toBe(false)
+  })
+
+  // Skipped as root, which ignores the directory's mode
+  it.skipIf(process.getuid?.() === 0)('a deletion that fails is logged, and a later launch deletes the file', async () => {
+    await storedSides()
+    writeJson(JSON.stringify({ version: 19, files: {} }))
+    // Another process connected to the store keeps its log and shared-memory files there while the directory takes no
+    // new file
+    const held = await openElsewhere(cacheDir(), { lock: false })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    chmodSync(cacheDir(), 0o555)
+    try {
+      expect(await parsedOnRelaunch()).toEqual([])
+      expect(logged).toHaveBeenCalledWith('[token-store] token-cache.json could not be deleted:', expect.anything())
+      expect(existsSync(jsonFile())).toBe(true)
+    } finally {
+      chmodSync(cacheDir(), 0o755)
+      logged.mockRestore()
+      await held.release()
+    }
+    expect(await parsedOnRelaunch()).toEqual([])
+    expect(existsSync(jsonFile())).toBe(false)
+  })
+})
+
+// The only automated defence against a missed bump on a shape change: this goes red when the field set changes,
+// forcing the author to think about the version number. The assertion targets the stored aggregates — the very thing
+// the version number protects, not a side channel. Coverage stated explicitly: it covers adding and removing fields
+// only, not a change to how a field is computed (that leaves the field set, and the fingerprint, unchanged).
+describe('the cache structure version (token-stats C10)', () => {
+  it('a change to FileAgg\'s field set must be noticed (a shape change is the only half of a missed bump that is testable)', async () => {
+    mkClaudeFile('shape.jsonl', [
+      userLine('question'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    mkCodexRollout('rollout-shape-019fd01.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 5 }
+    ])
+    mkAgyConversation('agy-shape', proj, [{ usage: { messageId: 'm-shape', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    mkGrokSession(proj, 'grok-shape', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })])
+    await engine().build(roots(), [proj])
+    const stored = [...storedEntries(cacheDir()).values()]
+    const keysOf = (kind: string): string[] => {
+      const hit = stored.find((e) => e.agg['kind'] === kind)
+      expect(hit, `the store should hold a ${kind} entry`).toBeDefined()
+      return Object.keys((hit as { agg: Record<string, unknown> }).agg).sort()
+    }
+    expect(keysOf('claude')).toEqual([
+      'at', 'entries', 'file', 'forkPoints', 'kind', 'listed', 'projectKey', 'questions', 'title'
+    ])
+    expect(keysOf('codex')).toEqual([
+      'at', 'boundary', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'paginated', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
+    ])
+    expect(keysOf('antigravity')).toEqual([
+      'at', 'calls', 'conversationId', 'file', 'forkOf', 'kind', 'listed', 'projectKey', 'questions', 'subagent', 'title', 'unreadable'
+    ])
+    expect(keysOf('grok')).toEqual([
+      'at', 'events', 'file', 'kind', 'listed', 'projectKey', 'questions', 'subagent', 'title'
+    ])
   })
 })
 
 describe('the incremental cache', () => {
-  it('a second build gives the same result (idempotent); the cache file is valid JSON and lands atomically', async () => {
+  it('a second build gives the same result (idempotent)', async () => {
     mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
     const e = engine()
     const r1 = await e.build(roots(), [proj])
-    const r2 = await new TokenEngine(join(dir, 'cache')).build(roots(), [proj])
+    const r2 = await new TokenEngine(cacheDir(), TEST_ENGINE).build(roots(), [proj])
     expect(r2.global).toEqual(r1.global)
-    expect(existsSync(join(dir, 'cache', 'token-cache.json'))).toBe(true)
-    expect(readdirSync(join(dir, 'cache')).filter((f) => f.includes('tmp'))).toHaveLength(0)
   })
 
   it('a changed source file (mtime or size) → recomputed to reflect the new content', async () => {
@@ -1789,7 +1698,7 @@ describe('the incremental cache', () => {
       ].join('\n') + '\n'
     )
     utimesSync(f, 2000, 2000)
-    const r2 = await new TokenEngine(join(dir, 'cache')).build(roots(), [proj])
+    const r2 = await new TokenEngine(cacheDir(), TEST_ENGINE).build(roots(), [proj])
     expect(r2.global.bySide.claude.total).toBe(165)
   })
 
@@ -1801,21 +1710,14 @@ describe('the incremental cache', () => {
       usageLine('claude-fable-5', '2026-07-30T02:01:00Z', 100, 50, { id: 'm1', requestId: 'r2', sidechain: true })
     ])
     await engine().build(roots(), [proj])
-    const r2 = await new TokenEngine(join(dir, 'cache')).build(roots(), [proj])
+    const r2 = await new TokenEngine(cacheDir(), TEST_ENGINE).build(roots(), [proj])
     expect(r2.global.bySide.claude.total).toBe(150)
   })
 })
 
-// The cache file is written only when a build changed the cache, or when its last write failed
-// (token-stats::QR-002/AC-02). A write lands by renaming a new file over the old one, so the file's inode
-// tells whether a build wrote it.
-describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () => {
-  const cacheFile = (): string => join(dir, 'cache', 'token-cache.json')
-  const fileId = (): string => {
-    const st = statSync(cacheFile())
-    return `${st.ino}:${st.mtimeMs}`
-  }
-  /** A session on every side, so that a side whose files never hit the cache would show as a write */
+// A build writes to the store only what it changed (token-stats::QR-002/AC-02), all of it in one transaction (C3).
+describe('what a build writes to the store (token-stats::QR-002/AC-02, C3)', () => {
+  /** A session on every side, so that a side whose files never hit the store would show as a write */
   function everySide(): { claude: string; codex: string; grok: string; agy: string } {
     return {
       claude: mkClaudeFile('a.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)]),
@@ -1824,29 +1726,16 @@ describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () =>
       agy: mkAgyConversation('agy-w1', proj, [{ usage: { messageId: 'm-w1', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
     }
   }
-  /** How many files a new launch parses against the saved cache: none when the file holds everything current */
-  async function parsesOnRelaunch(): Promise<number> {
-    let parses = 0
-    const counting: ParseRunner = {
-      concurrency: 1,
-      run: (job) => {
-        parses++
-        return runParseJob(job)
-      }
-    }
-    await new TokenEngine(join(dir, 'cache'), counting).build(roots(), [proj])
-    return parses
-  }
-  const savedFiles = (): string[] => Object.keys((JSON.parse(readFileSync(cacheFile(), 'utf8')) as { files: Record<string, unknown> }).files).sort()
+  const storedFiles = (): string[] => storeRows(cacheDir()).map((r) => String(r.path)).sort()
 
-  it('a build that changed nothing leaves the file as the build before it wrote it', async () => {
+  it('a build that changed nothing writes nothing: the store and its log are as the build before left them', async () => {
     const s = everySide()
     const e = engine()
     const r1 = await e.build(roots(), [proj])
-    expect(savedFiles()).toEqual([s.claude, s.codex, s.grok, s.agy].sort())
-    const first = fileId()
+    expect(storedFiles()).toEqual([s.claude, s.codex, s.grok, s.agy].sort())
+    const first = storeBytes()
     const r2 = await e.build(roots(), [proj])
-    expect(fileId()).toBe(first)
+    expect(storeBytes()).toEqual(first)
     expect(r2.global).toEqual(r1.global)
   })
 
@@ -1857,10 +1746,10 @@ describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () =>
     try {
       const e = engine()
       await e.build(roots(), [proj])
-      expect(savedFiles(), 'the file that cannot be read has no entry').toEqual([s.claude, s.codex, s.grok, s.agy].sort())
-      const first = fileId()
+      expect(storedFiles(), 'the file that cannot be read has no entry').toEqual([s.claude, s.codex, s.grok, s.agy].sort())
+      const first = storeBytes()
       await e.build(roots(), [proj])
-      expect(fileId()).toBe(first)
+      expect(storeBytes()).toEqual(first)
     } finally {
       chmodSync(locked, 0o644)
     }
@@ -1892,7 +1781,7 @@ describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () =>
       claudeTotal: 0
     },
     {
-      // Still in the scan set, and the entry the cache held for it is gone all the same
+      // Still in the scan set, and the entry the store held for it is gone all the same
       name: 'a session file changed into one that cannot be read',
       change: (s: ReturnType<typeof everySide>): string[] => {
         appendFileSync(s.claude, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
@@ -1903,92 +1792,175 @@ describe('when a build writes the cache file (token-stats::QR-002/AC-02)', () =>
       // It has no entry to hit, so a launch tries it again
       triedAgain: 1
     }
-  ])('a build after $name writes the file, which then holds every file that gives an entry', async ({ change, claudeTotal, triedAgain = 0 }) => {
+  ])('a build after $name writes the store, which then holds every file that gives an entry', async ({ change, claudeTotal, triedAgain = 0 }) => {
     const s = everySide()
     const e = engine()
     await e.build(roots(), [proj])
-    const first = fileId()
+    const first = storeBytes()
     const now = change(s)
     try {
       const r2 = await e.build(roots(), [proj])
       expect(r2.global.bySide.claude.total).toBe(claudeTotal)
-      expect(fileId()).not.toBe(first)
-      expect(savedFiles()).toEqual([...now].sort())
-      expect(await parsesOnRelaunch(), 'a new launch parses only a file the saved cache has no entry for').toBe(triedAgain)
+      expect(storeBytes()).not.toEqual(first)
+      expect(storedFiles()).toEqual([...now].sort())
+      expect((await parsedOnRelaunch()).length, 'a new launch parses only a file the store has no entry for').toBe(triedAgain)
     } finally {
       if (existsSync(s.claude)) chmodSync(s.claude, 0o644)
     }
   })
 
-  // A file that was no readable cache of this version when the run loaded it is not what memory holds, so the
-  // first build writes whether or not it parsed anything: a fresh directory gets its file, and a garbage or
-  // old-format one is replaced, also over a home that holds no session file
-  it.each([
-    { name: 'missing', seed: null },
-    { name: 'garbage', seed: 'not json at all' },
-    { name: 'of another version', seed: '{"version":3,"files":{"x":{"sig":"1:1","agg":{"kind":"claude"}}}}' },
-    { name: 'of this version with no files object', seed: `{"version":${CACHE_VERSION},"files":null}` },
-    { name: 'of this version with an array for its files', seed: `{"version":${CACHE_VERSION},"files":[]}` }
-  ])('a cache file that was $name at launch is written by the first build though no session file exists, and left alone from then on', async ({ seed }) => {
-    mkdirSync(join(dir, 'cache'), { recursive: true })
-    if (seed !== null) writeFileSync(cacheFile(), seed)
-    const e = engine()
-    await e.build(roots(), [proj])
-    expect(existsSync(cacheFile()) ? readFileSync(cacheFile(), 'utf8') : null, 'the first build wrote the file').not.toBe(seed)
-    const first = fileId()
-    await e.build(roots(), [proj])
-    expect(fileId(), 'the same run leaves it alone').toBe(first)
-    // A launch that loads it takes it for its cache: were it not a readable cache of this version, that
-    // launch's first build would write it again
+  // What a build writes is the entries it parsed, never the ones it found current. SQLite leaves a row rewritten with
+  // the content it holds as it was, so a build that held every entry again shows only where the store moved under it:
+  // another process landed a newer entry for a file this build had found current (token-stats C27), and this build
+  // would write its older one back over it.
+  it('a build after one file changed writes that file\'s entry alone: an entry another engine landed meanwhile stays (C27)', async () => {
+    const x = mkClaudeFile('x.jsonl', [userLine('x'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const y = mkClaudeFile('y.jsonl', [userLine('y'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 20, 5)])
     await engine().build(roots(), [proj])
-    expect(fileId(), 'and so does the next launch').toBe(first)
+    appendFileSync(y, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
+    const other = engine()
+    let landed = false
+    const b = new TokenEngine(cacheDir(), TEST_ENGINE, {
+      concurrency: 1,
+      run: async (job) => {
+        // This build has read the store and found x current; while it parses y, x grows and the other engine lands it
+        if (!landed) {
+          landed = true
+          appendFileSync(x, usageLine('claude-fable-5', '2026-07-30T04:00:00Z', 1000, 500) + '\n')
+          await other.build(roots(), [proj])
+        }
+        return runParseJob(job)
+      }
+    })
+    await b.build(roots(), [proj])
+    expect(landed, 'the build parsed y').toBe(true)
+    const after = await relaunch()
+    expect(after.parsed, 'the store holds the other engine\'s entry for x and this build\'s for y').toEqual([])
+    expect(after.result.global.bySide.claude.total).toBe(15 + 25 + 150 + 1500)
   })
 
-  // A write that failed is tried again at each later build, whether or not that build changes the cache, so
-  // the file catches up without a restart once the directory is writable (C3)
+  // A write that cannot get the store within its wait fails, and so does one a full disk stops: either way it lands
+  // nothing, fails no build and no page, and is logged. The store is then taken as it is: the next build parses again
+  // what did not land, and lands it. Another connection holding the write lock is what makes it fail here; it is let
+  // go once the failure is in.
   it.each([
-    { name: 'at the first build', after: async (): Promise<void> => {} },
     {
-      name: 'at a later build',
-      after: async (e: TokenEngine, s: ReturnType<typeof everySide>): Promise<void> => {
+      name: 'a build',
+      fail: async (e: TokenEngine, s: ReturnType<typeof everySide>): Promise<void> => {
         appendFileSync(s.claude, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
-        await e.build(roots(), [proj])
+        expect((await e.build(roots(), [proj])).global.bySide.claude.total).toBe(165)
       }
     },
     {
-      name: 'on a session page',
-      after: async (e: TokenEngine, s: ReturnType<typeof everySide>): Promise<void> => {
+      name: 'a session page',
+      fail: async (e: TokenEngine, s: ReturnType<typeof everySide>): Promise<void> => {
         appendFileSync(s.claude, userLine('second') + '\n')
         expect((await e.sessionQuestions(roots(), s.claude)).questions).toHaveLength(2)
       }
     }
-  ])('a write that failed $name is made by the next build that can, though that build changed nothing', async ({ name, after }) => {
+  ])('a write that fails on $name lands nothing and fails nothing, and the next build parses what it held and lands it (C3, C27)', async ({ fail }) => {
     const s = everySide()
     const e = engine()
-    const block = join(dir, 'cache', `.token-cache.j-${process.pid}`)
+    await e.build(roots(), [proj])
+    const before = storeRows(cacheDir())
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const hold = await openElsewhere(cacheDir(), { lock: true })
     try {
-      if (name === 'at the first build') mkdirSync(block, { recursive: true })
-      await e.build(roots(), [proj])
-      const first = name === 'at the first build' ? null : fileId()
-      if (first !== null) mkdirSync(block)
-      await after(e, s)
-      expect(logged).toHaveBeenCalledWith('[token-cache] save failed:', expect.anything())
-      expect(existsSync(cacheFile()) ? fileId() : null, 'the failed write left the file as it was').toBe(first)
-
-      rmSync(block, { recursive: true })
-      await e.build(roots(), [proj])
-      const caughtUp = fileId()
-      expect(caughtUp).not.toBe(first)
-      expect(await parsesOnRelaunch(), 'the file holds what the failed write would have saved').toBe(0)
-      expect(logged).toHaveBeenCalledTimes(1)
-
-      await e.build(roots(), [proj])
-      expect(fileId(), 'once written, an unchanged build leaves it alone again').toBe(caughtUp)
+      await fail(e, s)
+      expect(logged).toHaveBeenCalledWith('[token-store] write failed:', expect.stringContaining('locked'))
     } finally {
+      await hold.release()
       logged.mockRestore()
     }
+    expect(storeRows(cacheDir()), 'the failed write left the store as it was').toEqual(before)
+    expect(await parsedOnRelaunch(), 'the store still lacks what the write held').toEqual([s.claude])
+    expect(await parsedOnRelaunch(), 'and the build that parsed it landed it').toEqual([])
+  }, 20_000)
+
+  it('a write cut short between two of its statements leaves the store as the build before it left it (C3)', async () => {
+    const s = everySide()
+    const e = engine()
+    await e.build(roots(), [proj])
+    const before = storeRows(cacheDir())
+    appendFileSync(s.claude, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
+    mkClaudeFile('b.jsonl', [usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50)])
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      cutStoreWriteAfter(1)
+      await e.build(roots(), [proj])
+      expect(logged).toHaveBeenCalledWith('[token-store] write failed:', expect.stringContaining('store-write seam'))
+    } finally {
+      cutStoreWriteAfter(null)
+      logged.mockRestore()
+    }
+    expect(storeRows(cacheDir())).toEqual(before)
   })
+})
+
+// C27: a development run and the installed copy share one store. Two engines here are two processes' worth of
+// connections to it.
+describe('two processes on one store (token-stats C27)', () => {
+  it('what one writes the other reads at its next scan and its next page, and the other\'s own write keeps it', async () => {
+    const claude = mkClaudeFile('a.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const grok = mkGrokSession(proj, 'gw2', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })])
+    const a = engine()
+    const other = recording()
+    const b = new TokenEngine(cacheDir(), TEST_ENGINE, other.runner)
+    await a.build(roots(), [proj])
+    await b.build(roots(), [proj])
+    expect(other.jobs, 'the second engine hits what the first stored').toEqual([])
+
+    appendFileSync(claude, userLine('second') + '\n' + usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
+    await a.build(roots(), [proj])
+    expect(b.isFresh(claude), 'the other engine\'s page sees the entry the first wrote').toBe(true)
+    expect((await b.sessionQuestions(roots(), claude)).questions).toHaveLength(2)
+    expect((await b.build(roots(), [proj])).global.bySide.claude.total).toBe(165)
+    expect(other.jobs, 'and its scan parses nothing').toEqual([])
+
+    appendFileSync(grok, grokTurn(1785369700, { input: 50, output: 5 }) + '\n')
+    await b.build(roots(), [proj])
+    expect(other.jobs.map((j) => j.file)).toEqual([grok])
+    const after = await relaunch()
+    expect(after.parsed, 'the other engine\'s write kept the first one\'s entry').toEqual([])
+    expect(after.result.global.bySide.claude.total).toBe(165)
+  })
+
+  it('a fork\'s parent the other engine stored is found by this one\'s page', async () => {
+    const child = mkCodexFork('rollout-c-019fd24.jsonl', proj, { id: 'c-2', parentId: 'p-2', forkedAtIso: '2026-07-30T02:00:00Z' }, 'gpt-5.6-sol', [{ input: 20, cached: 0, output: 2 }])
+    const b = engine()
+    await b.build(roots(), [proj])
+    expect((await b.sessionQuestions(roots(), child)).forkParentFile, 'an orphan while its parent is not there').toBeNull()
+    const parent = mkCodexFork('rollout-p-019fd23.jsonl', proj, { id: 'p-2', parentId: 'none', forkedAtIso: '2026-07-30T01:00:00Z' }, 'gpt-5.6-sol', [{ input: 10, cached: 0, output: 1 }])
+    await engine().build(roots(), [proj])
+    expect((await b.sessionQuestions(roots(), child)).forkParentFile).toBe(parent)
+  })
+
+  // The other process holds the store for one write and lets it go; the write waits for it rather than fail
+  it('a write that finds the store held by the other waits for it, and lands once it is let go', async () => {
+    const claude = mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const e = engine()
+    await e.build(roots(), [proj])
+    appendFileSync(claude, usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 100, 50) + '\n')
+    const holder = spawn(process.execPath, [
+      '-e',
+      "const { DatabaseSync } = require('node:sqlite'); const db = new DatabaseSync(process.argv[1]); db.exec('BEGIN IMMEDIATE'); " +
+        "console.log('held'); setTimeout(() => { db.exec('ROLLBACK'); db.close() }, 1000)",
+      storePath(cacheDir())
+    ])
+    await new Promise<void>((resolve, reject) => {
+      holder.stdout.on('data', (b: Buffer) => b.toString().includes('held') && resolve())
+      holder.on('exit', () => reject(new Error('the holder exited before it held the store')))
+    })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await e.build(roots(), [proj])
+      expect(logged).not.toHaveBeenCalled()
+    } finally {
+      logged.mockRestore()
+      holder.kill()
+    }
+    expect(await parsedOnRelaunch()).toEqual([])
+  }, 20_000)
 })
 
 describe('the archive row output (for UsageArchive to persist)', () => {
@@ -2211,7 +2183,7 @@ describe('session titles and the listing rules', () => {
         return result
       }
     }
-    const r = await new TokenEngine(join(dir, 'cache'), removing).build(roots(), [proj])
+    const r = await new TokenEngine(join(dir, 'cache'), TEST_ENGINE, removing).build(roots(), [proj])
     const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === childFile)
     expect([child?.forkState, child?.questionCount, child?.title]).toEqual(['stripped', 1, 'parent question one'])
   })
@@ -2312,21 +2284,19 @@ describe('sessionQuestions (the session page service)', () => {
     expect(r.forkState).toBe('none')
   })
 
-  it('a changed signature: only that file\'s index is rebuilt, and the new index is written back to the cache (visible on disk)', async () => {
+  it('a changed signature: only that file\'s index is rebuilt, and the new index is written back to the store', async () => {
     const cl = mkClaudeFile('sq2.jsonl', [userLine('question one', '2026-07-30T02:00:00Z')])
     const e = engine()
     await e.build(roots(), [proj])
     appendFileSync(cl, userLine('question two', '2026-07-30T04:00:00Z') + '\n') // the size changes → the signature mismatches
     const r = await e.sessionQuestions(roots(), cl)
     expect(r.questions, 'after the rebuild the appended question should be visible').toHaveLength(2)
-    // The write-back assertion: that file's index and signature in the persisted cache are both updated —
-    // the evidence for "no rebuild needed next time"
-    const cache = JSON.parse(readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')) as {
-      files: Record<string, { sig: string; agg: { questions: unknown[] } }>
-    }
-    expect(cache.files[cl].agg.questions).toHaveLength(2)
+    // The write-back assertion: that file's index and signature in the store are both updated — the evidence
+    // for "no rebuild needed next time"
+    const stored = storedEntries(join(dir, 'cache')).get(cl)
+    expect(stored?.agg['questions']).toHaveLength(2)
     const st = statSync(cl)
-    expect(cache.files[cl].sig).toBe(`${st.mtimeMs}:${st.size}`)
+    expect(stored?.sig).toBe(`${st.mtimeMs}:${st.size}`)
   })
 
   // The project a Claude session is credited to comes from the registry, which the page does not read: the
@@ -2335,7 +2305,7 @@ describe('sessionQuestions (the session page service)', () => {
   it('a changed signature on a Claude session: the rebuilt index keeps its project, and the next build takes it as it is', async () => {
     const cl = mkClaudeFile('sq-project.jsonl', [userLine('question one', '2026-07-30T02:00:00Z'), usageLine('claude-fable-5', '2026-07-30T02:00:10Z', 10, 5)])
     const parsed: string[] = []
-    const e = new TokenEngine(join(dir, 'cache'), {
+    const e = new TokenEngine(join(dir, 'cache'), TEST_ENGINE, {
       concurrency: 1,
       run: (job) => {
         parsed.push(job.file)
@@ -2593,37 +2563,6 @@ describe('sessionQuestions (the session page service)', () => {
     expect(code).toBe(ERR.sessionFileUnreadable)
   })
 
-  it('a rebuild whose cache write fails still answers: the index is in memory, and only the next launch rebuilds again', async () => {
-    const cl = mkClaudeFile('blocked.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
-    const e = engine()
-    await e.build(roots(), [proj])
-    mkdirSync(join(dir, 'cache', `.token-cache.j-${process.pid}`))
-    appendFileSync(cl, userLine('second') + '\n')
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(2)
-      expect(logged).toHaveBeenCalledWith('[token-cache] save failed:', expect.anything())
-      expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(2)
-      expect(e.isFresh(cl)).toBe(true)
-    } finally {
-      logged.mockRestore()
-    }
-  })
-
-  it('a build whose cache write fails still completes, and the failure is logged', async () => {
-    const cl = mkClaudeFile('first-scan.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
-    mkdirSync(join(dir, 'cache', `.token-cache.j-${process.pid}`), { recursive: true })
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      const r = await engine().build(roots(), [proj])
-      expect([...r.sessionFiles]).toContain(cl)
-      expect(existsSync(join(dir, 'cache', 'token-cache.json'))).toBe(false)
-      expect(logged).toHaveBeenCalledWith('[token-cache] save failed:', expect.anything())
-    } finally {
-      logged.mockRestore()
-    }
-  })
-
   it('a file not in the cache: refused (with the caller guiding a refresh) rather than a silent empty list', async () => {
     const e = engine()
     await e.build(roots(), [proj])
@@ -2778,7 +2717,17 @@ describe('usage rows are the one source the projections derive from (ADR-0025)',
 })
 
 describe('the archive restore path (spec C16) and project figures from the effective rows (spec G6)', () => {
-  it('rowsFromCacheFile: a snapshot of the current cache version yields exactly the rows a build of that data produces', async () => {
+  /** A copy of the store, taken as a developer takes one: the store's own file, with the application not writing. It
+   * is put under the store's name in a directory of its own, so that a case can change it as a store */
+  const snapshot = (): string => {
+    const copy = join(dir, 'snapshot', STORE_FILE)
+    mkdirSync(dirname(copy), { recursive: true })
+    copyFileSync(storePath(join(dir, 'cache')), copy)
+    return copy
+  }
+  const dirOf = dirname
+
+  it('rowsFromStoreSnapshot: a copy of the store yields exactly the rows a build of that data produces', async () => {
     mkClaudeFile('a.jsonl', [
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5),
       usageLine('claude-opus-5', '2026-07-31T03:00:00Z', 20, 10)
@@ -2787,21 +2736,160 @@ describe('the archive restore path (spec C16) and project figures from the effec
       { input: 40, cached: 0, output: 0 }
     ])
     const built = await engine().build(roots(), [proj])
-    const fromFile = rowsFromCacheFile(join(dir, 'cache', 'token-cache.json'))
+    const fromFile = rowsFromStoreSnapshot(snapshot(), TEST_ENGINE, roots())
     const key = (r: { day: string; side: string; projectKey: string; model: string }): string => `${r.day}|${r.side}|${r.projectKey}|${r.model}`
     const sorted = (rows: typeof built.rows): typeof built.rows => [...rows].sort((a, b) => (key(a) < key(b) ? -1 : 1))
     expect(sorted(fromFile)).toEqual(sorted(built.rows))
     expect(fromFile.length).toBeGreaterThan(1)
   })
 
-  it('rowsFromCacheFile: a snapshot of another cache version is refused rather than misread', async () => {
+  // Where several files share a key, the combination keeps the first: the copy of a message a scan meets first, the
+  // first file of a session id as a fork's parent, the first conversation holding a call. The store holds its rows in
+  // the order it first held them, and each case here makes that another order than the walk's — the file the walk
+  // meets second stored by an earlier scan — so that only taking the rows in scan order gives the scan's rows (C16).
+  describe('in scan order, whatever order the store holds its rows in (C16)', () => {
+    const proj2 = (): string => join(dir, 'work', 'p2')
+    const twoProjects = (): void => {
+      mkdirSync(proj2(), { recursive: true })
+      writeFileSync(join(dir, '.claude.json'), JSON.stringify({ projects: { [proj]: {}, [proj2()]: {} } }))
+    }
+    const sortedRows = (rows: TokenBuildResult['rows']): string[] =>
+      rows.map((r) => JSON.stringify([r.day, r.side, r.projectKey, r.model, r.input, r.output, r.cacheRead, r.cacheWrite, r.total])).sort()
+    const storedOrder = (): string[] => storeRows(cacheDir()).map((r) => String(r.path))
+
+    it('a Claude message held with equal figures in the files of two projects: credited to the file the walk meets first', async () => {
+      twoProjects()
+      const tied = usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'm1', requestId: 'r1' })
+      const second = mkClaudeFile('in-p2.jsonl', [tied], 1000, encodeClaudeProjectDir(proj2()))
+      await engine().build(roots(), [proj, proj2()])
+      const first = mkClaudeFile('in-p1.jsonl', [tied])
+      const built = await engine().build(roots(), [proj, proj2()])
+      expect(storedOrder(), 'the store holds the second-walked file first').toEqual([second, first])
+      expect(built.rows.map((r) => [r.projectKey, r.total])).toEqual([[proj.toLowerCase(), 15]])
+      expect(sortedRows(rowsFromStoreSnapshot(snapshot(), TEST_ENGINE, roots()))).toEqual(sortedRows(built.rows))
+    })
+
+    // A Codex thread continued in a new rollout: the continuation's first line carries the thread's own id, as this
+    // machine's continuations do (`rollout-<time>-<thread>_<new>.jsonl`). A fork of the thread replays the original's
+    // question and two turns before its own, and is stripped against the first file holding the thread's id.
+    const THREAD = '019f0000-0000-7000-8000-00000000aaaa'
+    type Turn = [string, number, number]
+    function rollout(name: string, first: Record<string, unknown>, at: string, questions: Array<[string, string]>, turns: Turn[], cumulative: boolean): string {
+      const d = join(dir, '.codex', 'sessions', '2026', '07', '29')
+      mkdirSync(d, { recursive: true })
+      let sum = { input: 0, output: 0 }
+      const usage = (input: number, output: number): Record<string, number> =>
+        ({ input_tokens: input, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: output, total_tokens: input + output })
+      const lines = [
+        { timestamp: at, type: 'session_meta', payload: { cwd: proj, ...first } },
+        { timestamp: at, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } },
+        ...questions.map(([t, text]) => ({ timestamp: t, type: 'event_msg', payload: { type: 'user_message', message: text } })),
+        ...turns.map(([t, input, output]) => {
+          sum = { input: sum.input + input, output: sum.output + output }
+          const info: Record<string, unknown> = { last_token_usage: usage(input, output) }
+          if (cumulative) info['total_token_usage'] = usage(sum.input, sum.output)
+          return { timestamp: t, type: 'event_msg', payload: { type: 'token_count', info } }
+        })
+      ]
+      const file = join(d, name)
+      writeFileSync(file, lines.map((l) => JSON.stringify(l)).join('\n') + '\n')
+      utimesSync(file, 2000, 2000)
+      return file
+    }
+    /** The continuation stored first, by a scan before the original and the fork were there */
+    async function continuedThread(): Promise<{ original: string; continuation: string; fork: string; built: TokenBuildResult; builder: TokenEngine }> {
+      const continuation = rollout(`rollout-2026-07-29T02-00-00-${THREAD}_019f0000-0000-7000-8000-00000000bbbb.jsonl`, { id: THREAD }, '2026-07-29T02:00:00Z',
+        [['2026-07-29T02:00:00Z', 'a continuation question']], [['2026-07-29T02:00:00Z', 30, 3]], true)
+      await engine().build(roots(), [proj])
+      const original = rollout(`rollout-2026-07-29T01-00-00-${THREAD}.jsonl`, { id: THREAD }, '2026-07-29T01:00:00Z',
+        [['2026-07-29T01:00:00Z', 'the parent question']], [['2026-07-29T01:00:00Z', 10, 1], ['2026-07-29T01:00:10Z', 20, 2]], true)
+      const fork = rollout('rollout-2026-07-29T01-30-00-019f0000-0000-7000-8000-00000000cccc.jsonl',
+        { id: '019f0000-0000-7000-8000-00000000cccc', forked_from_id: THREAD }, '2026-07-29T01:30:00Z',
+        [['2026-07-29T01:30:00Z', 'the parent question'], ['2026-07-29T01:31:00Z', 'a question after the fork']],
+        [['2026-07-29T01:00:00Z', 10, 1], ['2026-07-29T01:00:10Z', 20, 2], ['2026-07-29T01:31:00Z', 5, 5]], false)
+      const builder = engine()
+      const built = await builder.build(roots(), [proj])
+      expect(storedOrder()[0], 'the store holds the continuation first').toBe(continuation)
+      return { original, continuation, fork, built, builder }
+    }
+
+    it('a Codex fork of a continued thread: stripped against the file the walk meets first', async () => {
+      const { built } = await continuedThread()
+      // 33 the original, 33 the continuation, 10 the fork's own turn: its replayed two are stripped
+      expect(built.global.bySide.codex.total).toBe(76)
+      const restored = rowsFromStoreSnapshot(snapshot(), TEST_ENGINE, roots())
+      expect(restored.filter((r) => r.side === 'codex').reduce((n, r) => n + r.total, 0)).toBe(76)
+      expect(sortedRows(restored)).toEqual(sortedRows(built.rows))
+    })
+
+    // The page's parent lookup takes the store's rows again once the other process wrote (C27), and takes them in scan
+    // order, so the page strips the fork against the parent the list stripped it against (session-view C4)
+    it('a Codex fork of a continued thread: its page, after the other process wrote, names the parent the list was stripped against', async () => {
+      const { original, fork, built, builder } = await continuedThread()
+      const listed = [...built.perProject.values()].flatMap((p) => p.sessions).find((x) => x.file === fork)
+      expect(listed?.forkState).toBe('stripped')
+      mkClaudeFile('another.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+      await engine().build(roots(), [proj])
+      const page = await builder.sessionQuestions(roots(), fork)
+      expect([page.forkState, page.forkParentFile, page.questions.length]).toEqual(['stripped', original, 1])
+    })
+
+    it('an Antigravity call held by two conversations of two projects: credited to the conversation the walk meets first', async () => {
+      twoProjects()
+      const call = [{ usage: { messageId: 'm-shared', input: 100, output: 10 }, at: Date.parse('2026-07-30T02:00:00Z') }]
+      const second = mkAgyConversation('conv-b', proj2(), call)
+      await engine().build(roots(), [proj, proj2()])
+      const first = mkAgyConversation('conv-a', proj, call)
+      const built = await engine().build(roots(), [proj, proj2()])
+      expect(storedOrder(), 'the store holds the second-walked conversation first').toEqual([second, first])
+      expect(built.rows.filter((r) => r.side === 'antigravity').map((r) => [r.projectKey, r.total])).toEqual([[mergeKey(proj), 110]])
+      expect(sortedRows(rowsFromStoreSnapshot(snapshot(), TEST_ENGINE, roots()))).toEqual(sortedRows(built.rows))
+    })
+  })
+
+  // The snapshot is read without anything written to it or beside it, and it is a store or it is refused: its version
+  // is all a store of another structure is known by, and a JSON cache file is no store (C16)
+  it.each([
+    ['of another cache version', (file: string): void => {
+        onStore(dirOf(file), `PRAGMA user_version = ${CACHE_VERSION - 1}`)
+      }, `cache snapshot is version ${CACHE_VERSION - 1}, this build reads version ${CACHE_VERSION}`],
+    ['that is a JSON cache file', (file: string): void => writeFileSync(file, JSON.stringify({ version: CACHE_VERSION, files: {} })), `cache snapshot is version none, this build reads version ${CACHE_VERSION}`]
+  ])('rowsFromStoreSnapshot refuses a snapshot %s rather than misread it', async (_what, plant, refusal) => {
     mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
     await engine().build(roots(), [proj])
-    const file = join(dir, 'cache', 'token-cache.json')
-    const raw = JSON.parse(readFileSync(file, 'utf8')) as { version: number }
-    raw.version = CACHE_VERSION - 1
-    writeFileSync(file, JSON.stringify(raw))
-    expect(() => rowsFromCacheFile(file)).toThrow(/version/)
+    const file = snapshot()
+    plant(file)
+    expect(() => rowsFromStoreSnapshot(file, TEST_ENGINE, roots())).toThrow(refusal)
+  })
+
+  // A scan parses again the file of an entry that is not well formed. A restore has no file to parse: the rows of
+  // the other entries alone would write the day's figure short of that entry's usage, as an accepted change (C16)
+  it.each([
+    ['an aggregate gone null', "UPDATE entries SET agg = 'null' WHERE path = ?"],
+    ['an aggregate that is no JSON', "UPDATE entries SET agg = 'not json' WHERE path = ?"],
+    // Short of a field no row reads: its rows would be right, and the entry is still not one this build wrote
+    ['an aggregate that lost listed', "UPDATE entries SET agg = json_remove(agg, '$.listed') WHERE path = ?"]
+  ])('rowsFromStoreSnapshot refuses a snapshot holding %s rather than give the rows of its other entries (C16)', async (_what, sql) => {
+    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const codex = mkCodexRollout('rollout-snap-019fd12.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 0 }])
+    await engine().build(roots(), [proj])
+    const file = snapshot()
+    expect(rowsFromStoreSnapshot(file, TEST_ENGINE, roots()).map((r) => [r.side, r.total]).sort()).toEqual([['claude', 15], ['codex', 40]])
+    onStore(dirOf(file), sql, codex)
+    expect(() => rowsFromStoreSnapshot(file, TEST_ENGINE, roots())).toThrow('cache snapshot holds 1 of 2 entries that are not well formed')
+  })
+
+  it('rowsFromStoreSnapshot leaves the snapshot byte for byte as it was, with no log or shared-memory file beside it (C16)', async () => {
+    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    await engine().build(roots(), [proj])
+    const copyDir = join(dir, 'snapshot-dir')
+    mkdirSync(copyDir)
+    const file = join(copyDir, 'snapshot.sqlite')
+    copyFileSync(storePath(join(dir, 'cache')), file)
+    const bytes = readFileSync(file)
+    expect(rowsFromStoreSnapshot(file, TEST_ENGINE, roots()).map((r) => r.total)).toEqual([15])
+    expect(readFileSync(file).equals(bytes)).toBe(true)
+    expect(readdirSync(copyDir)).toEqual(['snapshot.sqlite'])
   })
 
   it('projectStatsFromRows: a project\'s figures come from the rows it owns in the effective set, its sessions stay, and a project present only in the archive gets an entry with none', () => {
@@ -2819,6 +2907,33 @@ describe('the archive restore path (spec C16) and project figures from the effec
     expect(out.get('/archived-only')?.tokens.bySide.codex.total).toBe(700)
     expect(out.get('/archived-only')?.sessions).toEqual([])
     expect(out.has('')).toBe(false)
+  })
+})
+
+// Scan order (token-stats, Implementation Decisions, Scan order): the order the build takes every side's files in, as
+// its parses are handed out one at a time, is the files sorted by the one comparator (scan-order.ts) — over names that
+// JavaScript's string order and a whole-path order each get wrong, nested directories, and Codex's archived sessions
+describe('scan order', () => {
+  it('every side\'s walk gives its files in scan order', async () => {
+    const names = ['Mike', '_x', 'a', 'a-b', 'a.d', '9', '10', '\u00e9']
+    for (const name of names) {
+      mkClaudeFile('one.jsonl', [userLine('q'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)], 1000, name)
+      mkClaudeFile(join('one', 'subagents', 'agent.jsonl'), [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)], 1000, name)
+    }
+    const codex = join(dir, '.codex')
+    for (const [i, to] of [['1', join(codex, 'sessions', '2026', '07', '9')], ['2', join(codex, 'sessions', '2026', '07', '10')], ['3', join(codex, 'archived_sessions')], ['4', join(codex, 'sessions', '2026', '07', 'a-b')], ['5', join(codex, 'sessions', '2026', '07', 'a.d')]]) {
+      const made = mkCodexRollout(`rollout-2026-07-30T01-00-0${i}-019f0000-0000-7000-8000-00000000000${i}.jsonl`, proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 1, cached: 0, output: 1 }])
+      mkdirSync(to, { recursive: true })
+      renameSync(made, join(to, made.slice(made.lastIndexOf('/') + 1)))
+    }
+    for (const name of ['Mike', '_x', 'a', 'a-b', 'a.d', '\u00e9']) mkGrokSession(join(proj, name), name, [grokTurn(1785369600, { input: 1, output: 1 })])
+    for (const name of ['Mike', '_x', 'a', 'a-b', 'a.d', '\u00e9']) mkAgyConversation(name, proj, [{ usage: { messageId: `m-${name}`, input: 1, output: 1 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    const { runner, jobs } = recording()
+    await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
+    const walked = jobs.map((j) => j.file)
+    expect(walked, 'every file of every side was handed out').toHaveLength(names.length * 2 + 5 + 6 + 6)
+    expect(new Set(jobs.map((j) => j.kind))).toEqual(new Set(['claude', 'codex', 'grok', 'antigravity']))
+    expect(walked).toEqual([...walked].sort(compareScanOrder(roots())))
   })
 })
 
@@ -2884,7 +2999,7 @@ describe('resuming a grown Codex rollout', () => {
     }
   }
   async function cold(): Promise<unknown> {
-    return shape(await new TokenEngine(join(dir, `cache-cold-${Math.random()}`)).build(roots(), [proj]))
+    return shape(await new TokenEngine(join(dir, `cache-cold-${Math.random()}`), TEST_ENGINE).build(roots(), [proj]))
   }
   /** Overwrite bytes in place: same inode, same size — invisible to the resume check by design */
   function overwrite(file: string, at: number, bytes: string): void {
@@ -2896,9 +3011,9 @@ describe('resuming a grown Codex rollout', () => {
     }
   }
 
-  /** The rollout's entry in a cache directory's file, its resume state included */
+  /** The rollout's entry in a cache directory's store, its resume state included */
   function entryIn(cacheDir: string, file: string): { resume: Record<string, unknown> } & Record<string, unknown> {
-    return (JSON.parse(readFileSync(join(cacheDir, 'token-cache.json'), 'utf8')) as { files: Record<string, { resume: Record<string, unknown> }> }).files[file]
+    return storedEntries(cacheDir).get(file) as { resume: Record<string, unknown> } & Record<string, unknown>
   }
 
   it('wherever the file is cut, scanning the first part and then the grown file gives the cold result, and the rollout the entry a whole parse gives', async () => {
@@ -2918,13 +3033,13 @@ describe('resuming a grown Codex rollout', () => {
     for (const cut of cuts) {
       const cacheDir = join(dir, `cache-resume-${cut}`)
       writeFileSync(f, text.subarray(0, cut))
-      await new TokenEngine(cacheDir).build(roots(), [proj])
+      await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj])
       // A cut inside the first line leaves no session to keep an entry for, and the grown file is parsed whole
       const resumes = entryIn(cacheDir, f) === undefined ? 0 : 1
       appendFileSync(f, text.subarray(cut))
-      const resumed = shape(await new TokenEngine(cacheDir).build(roots(), [proj]))
+      const resumed = shape(await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj]))
       const coldDir = join(dir, `cache-cold-${cut}`)
-      expect(resumed, `cut at byte ${cut}`).toEqual(shape(await new TokenEngine(coldDir).build(roots(), [proj])))
+      expect(resumed, `cut at byte ${cut}`).toEqual(shape(await new TokenEngine(coldDir, TEST_ENGINE).build(roots(), [proj])))
       // The entry, the state the next resume starts from included, but for the count of resumes since a whole parse
       const whole = entryIn(coldDir, f)
       expect(entryIn(cacheDir, f), `cut at byte ${cut}`).toEqual({ ...whole, resume: { ...whole.resume, resumes } })
@@ -2939,14 +3054,14 @@ describe('resuming a grown Codex rollout', () => {
     const cut = text.lastIndexOf(0x0a, text.indexOf('second question')) + 1
     writeFileSync(f, zstdCompressSync(text.subarray(0, cut)))
     const cacheDir = join(dir, 'cache-resume')
-    await new TokenEngine(cacheDir).build(roots(), [proj])
+    await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj])
     const before = statSync(f)
     writeFileSync(f, zstdCompressSync(text))
     const after = statSync(f)
     // What would make a plain rollout resume: the same inode, a larger size
     expect(after.ino).toBe(before.ino)
     expect(after.size).toBeGreaterThan(before.size)
-    expect(shape(await new TokenEngine(cacheDir).build(roots(), [proj]))).toEqual(await cold())
+    expect(shape(await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj]))).toEqual(await cold())
     expect(entryIn(cacheDir, f).resume['resumes']).toBe(0)
   })
 
@@ -2956,12 +3071,12 @@ describe('resuming a grown Codex rollout', () => {
     const cut = text.indexOf('second question')
     writeFileSync(f, text.subarray(0, cut))
     const cacheDir = join(dir, 'cache-resume')
-    const first = await new TokenEngine(cacheDir).build(roots(), [proj])
+    const first = await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj])
     // 100 → 900 in the first usage event, already parsed
     overwrite(f, text.indexOf('"input_tokens":100'), '"input_tokens":900')
     appendFileSync(f, text.subarray(cut))
-    const resumed = await new TokenEngine(cacheDir).build(roots(), [proj])
-    const coldTotal = (await new TokenEngine(join(dir, 'cache-cold')).build(roots(), [proj])).global.bySide.codex.total
+    const resumed = await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj])
+    const coldTotal = (await new TokenEngine(join(dir, 'cache-cold'), TEST_ENGINE).build(roots(), [proj])).global.bySide.codex.total
     // The appended part adds resp-3 (770); resp-2 repeats and counts once
     expect(resumed.global.bySide.codex.total).toBe(first.global.bySide.codex.total + 770)
     expect(coldTotal).toBe(resumed.global.bySide.codex.total + 800)
@@ -2973,11 +3088,11 @@ describe('resuming a grown Codex rollout', () => {
     const cut = text.indexOf('second question')
     writeFileSync(f, text.subarray(0, cut))
     const cacheDir = join(dir, 'cache-resume')
-    await new TokenEngine(cacheDir).build(roots(), [proj])
+    await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj])
     const staged = `${f}.staged`
     writeFileSync(staged, Buffer.from(text.toString('utf8').replace('"input_tokens":100', '"input_tokens":900')))
     renameSync(staged, f)
-    expect(shape(await new TokenEngine(cacheDir).build(roots(), [proj]))).toEqual(await cold())
+    expect(shape(await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj]))).toEqual(await cold())
   })
 
   it('a rollout that shrank in place is parsed whole', async () => {
@@ -2985,9 +3100,9 @@ describe('resuming a grown Codex rollout', () => {
     const f = rolloutPath()
     writeFileSync(f, text)
     const cacheDir = join(dir, 'cache-resume')
-    await new TokenEngine(cacheDir).build(roots(), [proj])
+    await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj])
     writeFileSync(f, text.subarray(0, text.indexOf('second question')))
-    expect(shape(await new TokenEngine(cacheDir).build(roots(), [proj]))).toEqual(await cold())
+    expect(shape(await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj]))).toEqual(await cold())
   })
 
   it(`after ${RESUME_LIMIT} resumes the next growth is parsed whole, bounding an edit no cheap check sees`, async () => {
@@ -2995,17 +3110,17 @@ describe('resuming a grown Codex rollout', () => {
     const f = rolloutPath()
     writeFileSync(f, text)
     const cacheDir = join(dir, 'cache-resume')
-    await new TokenEngine(cacheDir).build(roots(), [proj])
+    await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj])
     overwrite(f, text.indexOf('"input_tokens":100'), '"input_tokens":900')
     const coldNow = async (): Promise<number> =>
-      (await new TokenEngine(join(dir, `cache-cold-${Math.random()}`)).build(roots(), [proj])).global.bySide.codex.total
+      (await new TokenEngine(join(dir, `cache-cold-${Math.random()}`), TEST_ENGINE).build(roots(), [proj])).global.bySide.codex.total
     for (let i = 0; i < RESUME_LIMIT; i++) {
       appendFileSync(f, JSON.stringify(record(`grow-${i}`, '2026-07-31T03:00:00Z', 1, 0)) + '\n')
-      const total = (await new TokenEngine(cacheDir).build(roots(), [proj])).global.bySide.codex.total
+      const total = (await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj])).global.bySide.codex.total
       expect(total, `resume ${i + 1}`).toBe((await coldNow()) - 800)
     }
     appendFileSync(f, JSON.stringify(record('grow-last', '2026-07-31T03:00:00Z', 1, 0)) + '\n')
-    const total = (await new TokenEngine(cacheDir).build(roots(), [proj])).global.bySide.codex.total
+    const total = (await new TokenEngine(cacheDir, TEST_ENGINE).build(roots(), [proj])).global.bySide.codex.total
     expect(total).toBe(await coldNow())
   })
 
@@ -3014,11 +3129,11 @@ describe('resuming a grown Codex rollout', () => {
     const f = rolloutPath()
     const cut = text.indexOf('second question')
     writeFileSync(f, text.subarray(0, cut))
-    const e = new TokenEngine(join(dir, 'cache-resume'))
+    const e = new TokenEngine(join(dir, 'cache-resume'), TEST_ENGINE)
     await e.build(roots(), [proj])
     appendFileSync(f, text.subarray(cut))
     const page = await e.sessionQuestions(roots(), f)
-    const fresh = new TokenEngine(join(dir, 'cache-cold'))
+    const fresh = new TokenEngine(join(dir, 'cache-cold'), TEST_ENGINE)
     await fresh.build(roots(), [proj])
     expect(page).toEqual(await fresh.sessionQuestions(roots(), f))
     expect(page.questions).toHaveLength(2)
@@ -3055,12 +3170,12 @@ describe('a parse runner that finishes out of order', () => {
       perProject: Object.fromEntries([...r.perProject].sort(([a], [b]) => a.localeCompare(b))),
       sessionFiles: [...r.sessionFiles].sort()
     })
-    const pooled = await new TokenEngine(join(dir, 'cache-pooled'), reversing).build(roots(), [proj, proj2])
-    const inline = await new TokenEngine(join(dir, 'cache-inline')).build(roots(), [proj, proj2])
+    const pooled = await new TokenEngine(join(dir, 'cache-pooled'), TEST_ENGINE, reversing).build(roots(), [proj, proj2])
+    const inline = await new TokenEngine(join(dir, 'cache-inline'), TEST_ENGINE).build(roots(), [proj, proj2])
     expect(started).toBe(5)
     expect(shape(pooled)).toEqual(shape(inline))
-    // And the pooled cache is the inline cache, entry by entry
-    const cacheOf = (d: string): unknown => (JSON.parse(readFileSync(join(dir, d, 'token-cache.json'), 'utf8')) as { files: unknown }).files
+    // And the pooled store is the inline store, entry by entry
+    const cacheOf = (d: string): unknown => Object.fromEntries([...storedEntries(join(dir, d))].sort(([a], [b]) => a.localeCompare(b)))
     expect(cacheOf('cache-pooled')).toEqual(cacheOf('cache-inline'))
   })
 })
@@ -3074,7 +3189,7 @@ describe('the session page of a Grok session whose stream grew', () => {
     await e.build(roots(), [proj])
     appendFileSync(f, grokUser(1786088700, 'second grok question', 1) + '\n')
     const page = await e.sessionQuestions(roots(), f)
-    const fresh = new TokenEngine(join(dir, 'cache-cold'))
+    const fresh = new TokenEngine(join(dir, 'cache-cold'), TEST_ENGINE)
     await fresh.build(roots(), [proj])
     expect(page).toEqual(await fresh.sessionQuestions(roots(), f))
     expect(page.side).toBe('grok')
@@ -3171,34 +3286,34 @@ describe('a panic in the engine module while a session file is parsed', () => {
     const named = mkClaudeFile('panic.jsonl', [userLine('a question in the file that panics'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 40, 4, { id: 'mp', requestId: 'rp' })])
     mkClaudeFile('other.jsonl', [userLine('a question in the other file'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 70, 7, { id: 'mo', requestId: 'ro' })])
     seam().seamPanicWhileParsing(named)
-    const panicked = await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])
+    const panicked = await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])
     seam().seamPanicWhileParsing(null)
     expect(panicked.global.bySide.claude.total).toBe(77)
     chmodSync(named, 0)
     try {
-      expect(shape(panicked)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable')).build(roots(), [proj])))
+      expect(shape(panicked)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable'), TEST_ENGINE).build(roots(), [proj])))
     } finally {
       chmodSync(named, 0o644)
     }
     // As for an unreadable file, nothing is kept for it: the next build parses it
-    expect((await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])).global.bySide.claude.total).toBe(77 + 44)
+    expect((await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])).global.bySide.claude.total).toBe(77 + 44)
   })
 
   it('is that rollout\'s failed read: it is skipped as an unreadable one is, every other rollout is parsed, and the scan delivers its figures', async () => {
     const named = mkCodexRollout('rollout-panic-019f500.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 4 }])
     mkCodexRollout('rollout-other-019f501.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 70, cached: 0, output: 7 }])
     seam().seamPanicWhileParsing(named)
-    const panicked = await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])
+    const panicked = await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])
     seam().seamPanicWhileParsing(null)
     expect(panicked.global.bySide.codex.total).toBe(77)
     chmodSync(named, 0)
     try {
-      expect(shape(panicked)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable')).build(roots(), [proj])))
+      expect(shape(panicked)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable'), TEST_ENGINE).build(roots(), [proj])))
     } finally {
       chmodSync(named, 0o644)
     }
     // As for an unreadable file, nothing is kept for it: the next build parses it
-    expect((await new TokenEngine(join(dir, 'cache-panic')).build(roots(), [proj])).global.bySide.codex.total).toBe(77 + 44)
+    expect((await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])).global.bySide.codex.total).toBe(77 + 44)
   })
 })
 
