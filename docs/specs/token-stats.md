@@ -907,12 +907,8 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   list of archived-only days, computed per day; the retained set never leaves the archive.
 - **Restore**: a repository script, run by a developer, that reads a copy of the token store and applies
   C16 through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
-  combining the snapshot's entries as one scan set in the order the store first held them, so the
-  restored rows are what a scan of that data would have produced, but that a message held with equal
-  figures in files of two projects is credited to the file the store holds first, where a scan credits
-  the one it meets first. Only the project of such a row can differ: the copies of one message share its
-  timestamp and its model, so the totals per day, side and model are the same either way. It opens the
-  copy so that nothing is written to it or beside it. It refuses
+  combining the snapshot's entries as one scan set, so the restored rows are exactly what a scan of that
+  data would have produced. It opens the copy so that nothing is written to it or beside it. It refuses
   a snapshot that is not a store of the current structure version, or that holds an entry that is not
   well formed (Cache, below), and says how many entries are not: a scan parses such an entry's file again,
   and a restore has no file to parse, so the rows of the other entries alone would write a day short
@@ -978,6 +974,15 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   never a file. The largest file alone bounds the time, so workers past four mostly cost memory. The
   pooled cache is identical, file by file, to one parsed without the pool. The session page's
   single-file rebuild parses on the thread that runs the scan.
+- **Scan order**: the order a scan takes session files in, which the combination makes part of the
+  figures wherever it keeps the first of several files sharing a key — a message's copies, the files of
+  one Codex session id as a fork's parent, the conversations holding one Antigravity call. A scan walks
+  the data roots in a fixed order — Claude Code's projects, Codex's sessions, Codex's archived sessions,
+  Grok's sessions, Antigravity CLI's conversations — and each depth-first, a directory's entries ordered
+  by the UTF-8 bytes of their names and a directory's files coming at that directory's own place among
+  its siblings. Scan order is so a function of the paths, and what takes the store's entries outside a
+  scan — the restore (C16), a fork's parent lookup on the session page — puts them in it: the store holds
+  its rows in the order it first held them.
 - **Where a scan runs** (ADR-0043): on the scan worker, one worker thread kept for the run that owns
   the token store: the session walk, the registry and component reads, the planning, the pool of
   parse workers it starts, the aggregation, the store's writes and the single-file rebuild. The main

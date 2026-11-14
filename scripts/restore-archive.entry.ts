@@ -18,6 +18,7 @@ import { UsageArchive } from '../src/main/providers/archive'
 import { CACHE_VERSION, rowsFromStoreSnapshot } from '../src/main/providers/token-stats'
 import { ENGINE_BUILD } from '../src/main/engine-module'
 import { AGENT_SIDES } from '../src/shared/validate'
+import { realRoots } from '../src/main/roots'
 
 // The contract's own side set, so the script cannot fall a side behind the app
 const SIDES = AGENT_SIDES
@@ -82,7 +83,7 @@ function main(): void {
 
   // rowsFromStoreSnapshot refuses what is no store of this cache structure version, and one holding an entry that
   // is not well formed (spec C16)
-  const all = rowsFromStoreSnapshot(snapshot, { path: engineModule, build: ENGINE_BUILD })
+  const all = rowsFromStoreSnapshot(snapshot, { path: engineModule, build: ENGINE_BUILD }, realRoots())
   const rows = all.filter((r) => r.side === (side as AgentSide) && r.day !== '' && r.day >= from && r.day <= to)
   const byDay = new Map<string, UsageRow[]>()
   for (const r of rows) {

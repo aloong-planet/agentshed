@@ -52,6 +52,7 @@ import {
 import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
 import { walkSessions, type SessionWalk } from './scan'
+import { byName, compareNames, compareScanOrder } from './scan-order'
 import { agySessionSignature, agyTranscriptPath, readAgySummaryTitles, readAntigravityUsage, type AgyCall } from './antigravity'
 import type { UsageRow } from './archive'
 import { loadEngineModule, type EngineSource, type TokenStore, type TokenStoreRow } from '../engine-module'
@@ -280,21 +281,22 @@ const JSON_CACHE_VERSION = 19
 
 /**
  * The archive rows a snapshot implies — a copy of the token store — through the same aggregation the scan uses,
- * combining its entries as one scan set in the order the store first held them (spec C16: a restore writes what a scan
- * of that data would have produced, but that a message held with equal figures in files of two projects is credited
- * to the file the store holds first, where a scan credits the one its walk meets first; Implementation Decisions,
- * Restore). The copy is read through the engine module without anything written to it or beside it. It must be a
+ * combining its entries as one scan set, in scan order (scan-order.ts; spec C16: a restore writes exactly what a scan of
+ * that data would have produced). `roots` are the data roots of the machine the store was made on, which the order
+ * is taken by. The copy is read through the engine module without anything written to it or beside it. It must be a
  * store of the current cache structure version — the aggregation only understands the shape it was written for,
  * and reading an older shape would produce plausible nonsense rather than an error; a JSON cache file is no store.
  */
-export function rowsFromStoreSnapshot(file: string, engine: EngineSource): UsageRow[] {
+export function rowsFromStoreSnapshot(file: string, engine: EngineSource, roots: ScanRoots): UsageRow[] {
   const snapshot = loadEngineModule(engine).readTokenStoreSnapshot(file, CACHE_VERSION)
   if (snapshot.version !== CACHE_VERSION || !snapshot.rows) {
     throw new Error(`cache snapshot is version ${snapshot.version ?? 'none'}, this build reads version ${CACHE_VERSION}`)
   }
   // A scan parses again the file of an entry that is not well formed; a restore has no file to parse, and rows
   // from the other entries alone would write a day's figure short of that entry's usage as an accepted change
-  const entries = snapshot.rows.map(CacheEntries.entryOf)
+  // The store holds its rows in the order it first held them, which a later scan's order need not be
+  const order = compareScanOrder(roots)
+  const entries = [...snapshot.rows].sort((a, b) => order(a.path, b.path)).map(CacheEntries.entryOf)
   const aggs = entries.flatMap((entry) => (entry ? [entry.agg] : []))
   if (aggs.length !== entries.length) {
     throw new Error(`cache snapshot holds ${entries.length - aggs.length} of ${entries.length} entries that are not well formed`)
@@ -664,13 +666,18 @@ interface Slot {
 interface ParentFiles {
   codex: Map<string, string[]>
   antigravity: Map<string, string[]>
+  /** Scan order (scan-order.ts), which each list is kept in: the lookup takes the first file, as the combination does */
+  order: (a: string, b: string) => number
 }
 
 function addParentFile(index: ParentFiles, file: string, agg: FileAgg): void {
   const add = (by: Map<string, string[]>, id: string): void => {
     const files = by.get(id)
     if (!files) by.set(id, [file])
-    else if (!files.includes(file)) files.push(file)
+    else if (!files.includes(file)) {
+      files.push(file)
+      files.sort(index.order)
+    }
   }
   if (agg.kind === 'codex' && agg.sessionId !== null) add(index.codex, agg.sessionId)
   if (agg.kind === 'antigravity' && !agg.unreadable && agg.conversationId !== '') add(index.antigravity, agg.conversationId)
@@ -721,10 +728,11 @@ export class TokenEngine {
     return store
   }
 
-  /** The files a fork's parent may be in, taken again from the store when another process wrote to it since */
-  private parentFilesOf(store: CacheEntries | null): ParentFiles {
+  /** The files a fork's parent may be in, taken again from the store when another process wrote to it since — the
+   * store's rows put in scan order, which the store does not hold them in */
+  private parentFilesOf(store: CacheEntries | null, roots: ScanRoots): ParentFiles {
     if (this.parentFiles && !store?.changedByOther()) return this.parentFiles
-    const index: ParentFiles = { codex: new Map(), antigravity: new Map() }
+    const index: ParentFiles = { codex: new Map(), antigravity: new Map(), order: compareScanOrder(roots) }
     for (const [file, entry] of store?.all() ?? []) if (entry) addParentFile(index, file, entry.agg)
     this.parentFiles = index
     return index
@@ -775,9 +783,11 @@ export class TokenEngine {
     if (existsSync(projectsRoot)) {
       let dirs: string[]
       try {
+        // In scan order (scan-order.ts)
         dirs = readdirSync(projectsRoot, { withFileTypes: true })
           .filter((e) => e.isDirectory())
           .map((e) => e.name)
+          .sort(compareNames)
       } catch {
         dirs = []
       }
@@ -832,7 +842,7 @@ export class TokenEngine {
     // file the store held no entry for, or that fell back on the entry already held, changed nothing.
     const puts = new Map<string, CacheEntry>()
     const ending = new Set<string>()
-    const parentFiles: ParentFiles = { codex: new Map(), antigravity: new Map() }
+    const parentFiles: ParentFiles = { codex: new Map(), antigravity: new Map(), order: compareScanOrder(roots) }
     for (const slot of slots) {
       if (!slot.entry) continue
       aggs.push(slot.entry.agg)
@@ -1051,7 +1061,7 @@ export class TokenEngine {
     if (agg.kind === 'antigravity') {
       // A conversation that cannot be read in the supported format is listed nowhere and has no page
       if (agg.unreadable) throw appError(ERR.sessionParseFailed)
-      const parent = this.agyParent(agg)
+      const parent = this.agyParent(agg, roots)
       // Read once when no build has yet: the titles the list shows, so the page and the banner agree with it
       this.agyTitles ??= readAgySummaryTitles(roots.antigravityHome, this.agyTmpParent) ?? new Map()
       return {
@@ -1100,7 +1110,7 @@ export class TokenEngine {
         source: file
       }
     }
-    const shown = await this.codexShown(agg)
+    const shown = await this.codexShown(agg, roots)
     return {
       side: 'codex',
       questions: shown.questions,
@@ -1110,7 +1120,7 @@ export class TokenEngine {
       forkPoints: 0,
       // The parent is named as its own page and the list title it: a parent that is itself a stripped fork by
       // its first question left, not by the question it replayed (#278)
-      forkParentTitle: shown.parent ? (await this.codexShown(shown.parent)).title : null,
+      forkParentTitle: shown.parent ? (await this.codexShown(shown.parent, roots)).title : null,
       forkParentFile: shown.parent?.file ?? null,
       // Codex keeps the ID in its record's session metadata, read by the scan
       sessionId: agg.sessionId,
@@ -1123,9 +1133,9 @@ export class TokenEngine {
    * store whose own id is the one the fork's last copied step names (session-view::REQ-005/AC-02, AC-04). The store is
    * the scan set, so a parent deleted since the last scan is gone from it at the next one.
    */
-  private agyParent(agg: AntigravityFileAgg): AntigravityFileAgg | undefined {
+  private agyParent(agg: AntigravityFileAgg, roots: ScanRoots): AntigravityFileAgg | undefined {
     if (agg.forkOf === null) return undefined
-    for (const file of this.parentFilesOf(this.store).antigravity.get(agg.forkOf) ?? []) {
+    for (const file of this.parentFilesOf(this.store, roots).antigravity.get(agg.forkOf) ?? []) {
       if (file === agg.file) continue
       const v = this.store?.get(file)?.agg
       if (v?.kind === 'antigravity' && !v.unreadable && v.conversationId === agg.forkOf) return v
@@ -1141,11 +1151,12 @@ export class TokenEngine {
    * keeps priority (A4).
    */
   private async codexShown(
-    agg: CodexFileAgg
+    agg: CodexFileAgg,
+    roots: ScanRoots
   ): Promise<{ questions: QuestionRec[]; state: ForkState; title: string | null; parent: CodexFileAgg | undefined }> {
     let parent: CodexFileAgg | undefined
     if (agg.parentId) {
-      for (const file of this.parentFilesOf(this.store).codex.get(agg.parentId) ?? []) {
+      for (const file of this.parentFilesOf(this.store, roots).codex.get(agg.parentId) ?? []) {
         if (file === agg.file) continue
         const v = this.store?.get(file)?.agg
         if (v?.kind === 'codex' && v.sessionId === agg.parentId) {
@@ -1611,13 +1622,14 @@ function addTotals(into: TokenTotals, from: TokenTotals): void {
 
 // ── File enumeration and parsing ──
 
-/** Every jsonl under a directory: top level = a session, nested = a subagent or other transcript */
+/** Every jsonl under a directory, in scan order (scan-order.ts): top level = a session, nested = a subagent or other
+ * transcript */
 function listJsonl(root: string): Array<{ file: string; nested: boolean }> {
   const out: Array<{ file: string; nested: boolean }> = []
   const walk = (dir: string, nested: boolean): void => {
     let entries
     try {
-      entries = readdirSync(dir, { withFileTypes: true })
+      entries = readdirSync(dir, { withFileTypes: true }).sort(byName)
     } catch {
       return
     }

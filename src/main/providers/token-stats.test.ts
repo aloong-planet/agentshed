@@ -24,11 +24,13 @@ import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFro
 import { TEST_ENGINE, type StoreWriteSeam } from '../testing/engine'
 import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule } from '../engine-module'
+import { compareScanOrder } from './scan-order'
 import { spawn } from 'node:child_process'
 import { zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
 import { ERR, decodeAppError } from '@shared/errors'
+import { mergeKey } from '@shared/path-key'
 import type { ScanRoots } from './types'
 import { walkSessions } from './scan'
 import { AGENT_SIDES } from '@shared/validate'
@@ -1623,6 +1625,7 @@ describe('the cache structure version (token-stats C10)', () => {
       { input: 10, cached: 0, output: 5 }
     ])
     mkAgyConversation('agy-shape', proj, [{ usage: { messageId: 'm-shape', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    mkGrokSession(proj, 'grok-shape', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })])
     await engine().build(roots(), [proj])
     const stored = [...storedEntries(cacheDir()).values()]
     const keysOf = (kind: string): string[] => {
@@ -1638,6 +1641,9 @@ describe('the cache structure version (token-stats C10)', () => {
     ])
     expect(keysOf('antigravity')).toEqual([
       'at', 'calls', 'conversationId', 'file', 'forkOf', 'kind', 'listed', 'projectKey', 'questions', 'subagent', 'title', 'unreadable'
+    ])
+    expect(keysOf('grok')).toEqual([
+      'at', 'events', 'file', 'kind', 'listed', 'projectKey', 'questions', 'subagent', 'title'
     ])
   })
 })
@@ -2700,31 +2706,119 @@ describe('the archive restore path (spec C16) and project figures from the effec
       { input: 40, cached: 0, output: 0 }
     ])
     const built = await engine().build(roots(), [proj])
-    const fromFile = rowsFromStoreSnapshot(snapshot(), TEST_ENGINE)
+    const fromFile = rowsFromStoreSnapshot(snapshot(), TEST_ENGINE, roots())
     const key = (r: { day: string; side: string; projectKey: string; model: string }): string => `${r.day}|${r.side}|${r.projectKey}|${r.model}`
     const sorted = (rows: typeof built.rows): typeof built.rows => [...rows].sort((a, b) => (key(a) < key(b) ? -1 : 1))
     expect(sorted(fromFile)).toEqual(sorted(built.rows))
     expect(fromFile.length).toBeGreaterThan(1)
   })
 
-  // The snapshot is read without anything written to it or beside it, and it is a store or it is refused: its version
-  // is all a store of another structure is known by, and a JSON cache file is no store (C16)
-  // A message held with equal figures in files of two projects: a scan credits the file its walk meets first, which
-  // depends on how the directory lists them, and the restore the file the store holds first (Implementation Decisions,
-  // Restore). Here the store holds the second project's file first, as it was stored by an earlier scan.
-  it('rowsFromStoreSnapshot credits a message held with equal figures in the files of two projects to the file the store holds first', async () => {
-    const proj2 = join(dir, 'work', 'p2')
-    mkdirSync(proj2, { recursive: true })
-    writeFileSync(join(dir, '.claude.json'), JSON.stringify({ projects: { [proj]: {}, [proj2]: {} } }))
-    const tied = usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'm1', requestId: 'r1' })
-    mkClaudeFile('first-held.jsonl', [tied], 1000, encodeClaudeProjectDir(proj2))
-    await engine().build(roots(), [proj, proj2])
-    mkClaudeFile('held-second.jsonl', [tied])
-    const built = await engine().build(roots(), [proj, proj2])
-    expect(built.rows.map((r) => r.total), 'one message, counted once').toEqual([15])
-    expect(rowsFromStoreSnapshot(snapshot(), TEST_ENGINE).map((r) => [r.projectKey, r.total])).toEqual([[proj2.toLowerCase(), 15]])
+  // Where several files share a key, the combination keeps the first: the copy of a message a scan meets first, the
+  // first file of a session id as a fork's parent, the first conversation holding a call. The store holds its rows in
+  // the order it first held them, and each case here makes that another order than the walk's — the file the walk
+  // meets second stored by an earlier scan — so that only taking the rows in scan order gives the scan's rows (C16).
+  describe('in scan order, whatever order the store holds its rows in (C16)', () => {
+    const proj2 = (): string => join(dir, 'work', 'p2')
+    const twoProjects = (): void => {
+      mkdirSync(proj2(), { recursive: true })
+      writeFileSync(join(dir, '.claude.json'), JSON.stringify({ projects: { [proj]: {}, [proj2()]: {} } }))
+    }
+    const sortedRows = (rows: TokenBuildResult['rows']): string[] =>
+      rows.map((r) => JSON.stringify([r.day, r.side, r.projectKey, r.model, r.input, r.output, r.cacheRead, r.cacheWrite, r.total])).sort()
+    const storedOrder = (): string[] => storeRows(cacheDir()).map((r) => String(r.path))
+
+    it('a Claude message held with equal figures in the files of two projects: credited to the file the walk meets first', async () => {
+      twoProjects()
+      const tied = usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'm1', requestId: 'r1' })
+      const second = mkClaudeFile('in-p2.jsonl', [tied], 1000, encodeClaudeProjectDir(proj2()))
+      await engine().build(roots(), [proj, proj2()])
+      const first = mkClaudeFile('in-p1.jsonl', [tied])
+      const built = await engine().build(roots(), [proj, proj2()])
+      expect(storedOrder(), 'the store holds the second-walked file first').toEqual([second, first])
+      expect(built.rows.map((r) => [r.projectKey, r.total])).toEqual([[proj.toLowerCase(), 15]])
+      expect(sortedRows(rowsFromStoreSnapshot(snapshot(), TEST_ENGINE, roots()))).toEqual(sortedRows(built.rows))
+    })
+
+    // A Codex thread continued in a new rollout: the continuation's first line carries the thread's own id, as this
+    // machine's continuations do (`rollout-<time>-<thread>_<new>.jsonl`). A fork of the thread replays the original's
+    // question and two turns before its own, and is stripped against the first file holding the thread's id.
+    const THREAD = '019f0000-0000-7000-8000-00000000aaaa'
+    type Turn = [string, number, number]
+    function rollout(name: string, first: Record<string, unknown>, at: string, questions: Array<[string, string]>, turns: Turn[], cumulative: boolean): string {
+      const d = join(dir, '.codex', 'sessions', '2026', '07', '29')
+      mkdirSync(d, { recursive: true })
+      let sum = { input: 0, output: 0 }
+      const usage = (input: number, output: number): Record<string, number> =>
+        ({ input_tokens: input, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: output, total_tokens: input + output })
+      const lines = [
+        { timestamp: at, type: 'session_meta', payload: { cwd: proj, ...first } },
+        { timestamp: at, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } },
+        ...questions.map(([t, text]) => ({ timestamp: t, type: 'event_msg', payload: { type: 'user_message', message: text } })),
+        ...turns.map(([t, input, output]) => {
+          sum = { input: sum.input + input, output: sum.output + output }
+          const info: Record<string, unknown> = { last_token_usage: usage(input, output) }
+          if (cumulative) info['total_token_usage'] = usage(sum.input, sum.output)
+          return { timestamp: t, type: 'event_msg', payload: { type: 'token_count', info } }
+        })
+      ]
+      const file = join(d, name)
+      writeFileSync(file, lines.map((l) => JSON.stringify(l)).join('\n') + '\n')
+      utimesSync(file, 2000, 2000)
+      return file
+    }
+    /** The continuation stored first, by a scan before the original and the fork were there */
+    async function continuedThread(): Promise<{ original: string; continuation: string; fork: string; built: TokenBuildResult; builder: TokenEngine }> {
+      const continuation = rollout(`rollout-2026-07-29T02-00-00-${THREAD}_019f0000-0000-7000-8000-00000000bbbb.jsonl`, { id: THREAD }, '2026-07-29T02:00:00Z',
+        [['2026-07-29T02:00:00Z', 'a continuation question']], [['2026-07-29T02:00:00Z', 30, 3]], true)
+      await engine().build(roots(), [proj])
+      const original = rollout(`rollout-2026-07-29T01-00-00-${THREAD}.jsonl`, { id: THREAD }, '2026-07-29T01:00:00Z',
+        [['2026-07-29T01:00:00Z', 'the parent question']], [['2026-07-29T01:00:00Z', 10, 1], ['2026-07-29T01:00:10Z', 20, 2]], true)
+      const fork = rollout('rollout-2026-07-29T01-30-00-019f0000-0000-7000-8000-00000000cccc.jsonl',
+        { id: '019f0000-0000-7000-8000-00000000cccc', forked_from_id: THREAD }, '2026-07-29T01:30:00Z',
+        [['2026-07-29T01:30:00Z', 'the parent question'], ['2026-07-29T01:31:00Z', 'a question after the fork']],
+        [['2026-07-29T01:00:00Z', 10, 1], ['2026-07-29T01:00:10Z', 20, 2], ['2026-07-29T01:31:00Z', 5, 5]], false)
+      const builder = engine()
+      const built = await builder.build(roots(), [proj])
+      expect(storedOrder()[0], 'the store holds the continuation first').toBe(continuation)
+      return { original, continuation, fork, built, builder }
+    }
+
+    it('a Codex fork of a continued thread: stripped against the file the walk meets first', async () => {
+      const { built } = await continuedThread()
+      // 33 the original, 33 the continuation, 10 the fork's own turn: its replayed two are stripped
+      expect(built.global.bySide.codex.total).toBe(76)
+      const restored = rowsFromStoreSnapshot(snapshot(), TEST_ENGINE, roots())
+      expect(restored.filter((r) => r.side === 'codex').reduce((n, r) => n + r.total, 0)).toBe(76)
+      expect(sortedRows(restored)).toEqual(sortedRows(built.rows))
+    })
+
+    // The page's parent lookup takes the store's rows again once the other process wrote (C27), and takes them in scan
+    // order, so the page strips the fork against the parent the list stripped it against (session-view C4)
+    it('a Codex fork of a continued thread: its page, after the other process wrote, names the parent the list was stripped against', async () => {
+      const { original, fork, built, builder } = await continuedThread()
+      const listed = [...built.perProject.values()].flatMap((p) => p.sessions).find((x) => x.file === fork)
+      expect(listed?.forkState).toBe('stripped')
+      mkClaudeFile('another.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+      await engine().build(roots(), [proj])
+      const page = await builder.sessionQuestions(roots(), fork)
+      expect([page.forkState, page.forkParentFile, page.questions.length]).toEqual(['stripped', original, 1])
+    })
+
+    it('an Antigravity call held by two conversations of two projects: credited to the conversation the walk meets first', async () => {
+      twoProjects()
+      const call = [{ usage: { messageId: 'm-shared', input: 100, output: 10 }, at: Date.parse('2026-07-30T02:00:00Z') }]
+      const second = mkAgyConversation('conv-b', proj2(), call)
+      await engine().build(roots(), [proj, proj2()])
+      const first = mkAgyConversation('conv-a', proj, call)
+      const built = await engine().build(roots(), [proj, proj2()])
+      expect(storedOrder(), 'the store holds the second-walked conversation first').toEqual([second, first])
+      expect(built.rows.filter((r) => r.side === 'antigravity').map((r) => [r.projectKey, r.total])).toEqual([[mergeKey(proj), 110]])
+      expect(sortedRows(rowsFromStoreSnapshot(snapshot(), TEST_ENGINE, roots()))).toEqual(sortedRows(built.rows))
+    })
   })
 
+  // The snapshot is read without anything written to it or beside it, and it is a store or it is refused: its version
+  // is all a store of another structure is known by, and a JSON cache file is no store (C16)
   it.each([
     ['of another cache version', (file: string): void => {
         onStore(dirOf(file), `PRAGMA user_version = ${CACHE_VERSION - 1}`)
@@ -2735,7 +2829,7 @@ describe('the archive restore path (spec C16) and project figures from the effec
     await engine().build(roots(), [proj])
     const file = snapshot()
     plant(file)
-    expect(() => rowsFromStoreSnapshot(file, TEST_ENGINE)).toThrow(refusal)
+    expect(() => rowsFromStoreSnapshot(file, TEST_ENGINE, roots())).toThrow(refusal)
   })
 
   // A scan parses again the file of an entry that is not well formed. A restore has no file to parse: the rows of
@@ -2750,9 +2844,9 @@ describe('the archive restore path (spec C16) and project figures from the effec
     const codex = mkCodexRollout('rollout-snap-019fd12.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 0 }])
     await engine().build(roots(), [proj])
     const file = snapshot()
-    expect(rowsFromStoreSnapshot(file, TEST_ENGINE).map((r) => [r.side, r.total]).sort()).toEqual([['claude', 15], ['codex', 40]])
+    expect(rowsFromStoreSnapshot(file, TEST_ENGINE, roots()).map((r) => [r.side, r.total]).sort()).toEqual([['claude', 15], ['codex', 40]])
     onStore(dirOf(file), sql, codex)
-    expect(() => rowsFromStoreSnapshot(file, TEST_ENGINE)).toThrow('cache snapshot holds 1 of 2 entries that are not well formed')
+    expect(() => rowsFromStoreSnapshot(file, TEST_ENGINE, roots())).toThrow('cache snapshot holds 1 of 2 entries that are not well formed')
   })
 
   it('rowsFromStoreSnapshot leaves the snapshot byte for byte as it was, with no log or shared-memory file beside it (C16)', async () => {
@@ -2763,7 +2857,7 @@ describe('the archive restore path (spec C16) and project figures from the effec
     const file = join(copyDir, 'snapshot.sqlite')
     copyFileSync(storePath(join(dir, 'cache')), file)
     const bytes = readFileSync(file)
-    expect(rowsFromStoreSnapshot(file, TEST_ENGINE).map((r) => r.total)).toEqual([15])
+    expect(rowsFromStoreSnapshot(file, TEST_ENGINE, roots()).map((r) => r.total)).toEqual([15])
     expect(readFileSync(file).equals(bytes)).toBe(true)
     expect(readdirSync(copyDir)).toEqual(['snapshot.sqlite'])
   })
@@ -2783,6 +2877,33 @@ describe('the archive restore path (spec C16) and project figures from the effec
     expect(out.get('/archived-only')?.tokens.bySide.codex.total).toBe(700)
     expect(out.get('/archived-only')?.sessions).toEqual([])
     expect(out.has('')).toBe(false)
+  })
+})
+
+// Scan order (token-stats, Implementation Decisions, Scan order): the order the build takes every side's files in, as
+// its parses are handed out one at a time, is the files sorted by the one comparator (scan-order.ts) — over names that
+// JavaScript's string order and a whole-path order each get wrong, nested directories, and Codex's archived sessions
+describe('scan order', () => {
+  it('every side\'s walk gives its files in scan order', async () => {
+    const names = ['Mike', '_x', 'a', 'a-b', 'a.d', '9', '10', '\u00e9']
+    for (const name of names) {
+      mkClaudeFile('one.jsonl', [userLine('q'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)], 1000, name)
+      mkClaudeFile(join('one', 'subagents', 'agent.jsonl'), [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)], 1000, name)
+    }
+    const codex = join(dir, '.codex')
+    for (const [i, to] of [['1', join(codex, 'sessions', '2026', '07', '9')], ['2', join(codex, 'sessions', '2026', '07', '10')], ['3', join(codex, 'archived_sessions')], ['4', join(codex, 'sessions', '2026', '07', 'a-b')], ['5', join(codex, 'sessions', '2026', '07', 'a.d')]]) {
+      const made = mkCodexRollout(`rollout-2026-07-30T01-00-0${i}-019f0000-0000-7000-8000-00000000000${i}.jsonl`, proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 1, cached: 0, output: 1 }])
+      mkdirSync(to, { recursive: true })
+      renameSync(made, join(to, made.slice(made.lastIndexOf('/') + 1)))
+    }
+    for (const name of ['Mike', '_x', 'a', 'a-b', 'a.d', '\u00e9']) mkGrokSession(join(proj, name), name, [grokTurn(1785369600, { input: 1, output: 1 })])
+    for (const name of ['Mike', '_x', 'a', 'a-b', 'a.d', '\u00e9']) mkAgyConversation(name, proj, [{ usage: { messageId: `m-${name}`, input: 1, output: 1 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    const { runner, jobs } = recording()
+    await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
+    const walked = jobs.map((j) => j.file)
+    expect(walked, 'every file of every side was handed out').toHaveLength(names.length * 2 + 5 + 6 + 6)
+    expect(new Set(jobs.map((j) => j.kind))).toEqual(new Set(['claude', 'codex', 'grok', 'antigravity']))
+    expect(walked).toEqual([...walked].sort(compareScanOrder(roots())))
   })
 })
 

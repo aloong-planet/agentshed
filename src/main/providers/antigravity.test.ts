@@ -800,6 +800,44 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     expect(agyTotal(await build())).toBe(330 + 1100)
   })
 
+  // The result kept is the entry the store held when this build read it. SQLite leaves a row rewritten with the content
+  // it holds as it was, so writing it back shows only where the store moved meanwhile: another engine landed the
+  // conversation's newer entry, and this build would put its older one back over it (token-stats C27, QR-002/AC-02).
+  it('a kept result is not written back: the entry another engine landed while this build\'s read failed stays (AC-03, token-stats C27)', async () => {
+    const p = mkProject('p')
+    trust([p])
+    usageConversation('busy', [p], [{ usage: { messageId: 'm-b1', input: 100, output: 10 }, at: oct(26) }], { keepOpen: true })
+    expect(agyTotal(await build())).toBe(110)
+    const more = callRows('busy', [{ usage: { messageId: 'm-b2', input: 200, output: 20 }, at: oct(26) }], 3, 1)
+    insertSteps(writers[0], more.steps)
+    insertGens(writers[0], more.gens)
+    let landed = false
+    const failsAfterTheOther: ParseRunner = {
+      concurrency: 1,
+      run: async (job) => {
+        // This build has read the store and planned the read; before that read fails, another engine makes it and lands
+        // the conversation's new entry
+        if (!landed) {
+          landed = true
+          expect(agyTotal(await build())).toBe(330)
+        }
+        return copyFails.run(job)
+      }
+    }
+    expect(agyTotal(await build(failsAfterTheOther))).toBe(110)
+    expect(landed).toBe(true)
+    const parsed: string[] = []
+    const counting: ParseRunner = {
+      concurrency: 1,
+      run: (job) => {
+        parsed.push(job.file)
+        return runParseJob(job)
+      }
+    }
+    expect(agyTotal(await build(counting)), 'the store holds the other engine\'s entry').toBe(330)
+    expect(parsed).toEqual([])
+  })
+
   describe('a conversation deleted between the scan\'s listing and its read is not unreadable', () => {
     function two(): string {
       const p = mkProject('p')
