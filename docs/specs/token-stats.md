@@ -998,8 +998,9 @@ read with macOS `footprint`.
   own structure version (ADR-0044). It holds each file's entry under its path — its
   signature and its per-file aggregate — the de-duplication keys each entry carries, and each group's
   combined result with the combination it came from. A group is the set of
-  files linked, directly or through others, by a key they share: a Claude message's id with its request
-  id, a Codex session id or the parent id a fork names, an Antigravity call's identity; a file with none
+  files linked, directly or through others, by a key they share: a Claude message's id (not with its
+  request id: a sidechain replay carries the same id under a new one, A4), a Codex session id or the
+  parent id a fork names, an Antigravity call's identity; a file with none
   is a group alone. A group's input is, file by file in scan order, its entry and what the scan adds to
   it — the project it is credited to, its admission to the read allow-list, a title read beside it — and
   a group whose input differs from the one its stored result came from is combined again; the scan's
