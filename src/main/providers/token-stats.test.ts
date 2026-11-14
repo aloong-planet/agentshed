@@ -988,6 +988,19 @@ describe('Grok aggregation (sequence F, continued)', () => {
     expect(r.global.bySide.grok.total).toBe(100)
   })
 
+  it('a session whose update stream cannot be read contributes nothing, keeps no entry, and counts once it can be read', async () => {
+    mkGrokSession(proj, '019f-whole6b', [grokTurn(1786088656, { input: 100, output: 0 })])
+    const locked = mkGrokSession(proj, '019f-locked6b', [grokTurn(1786088656, { input: 30, output: 0 })])
+    chmodSync(locked, 0)
+    try {
+      expect((await engine().build(roots(), [proj])).global.bySide.grok.total).toBe(100)
+    } finally {
+      chmodSync(locked, 0o644)
+    }
+    // Its signature is unchanged, so an entry kept for it would stand: none was
+    expect((await engine().build(roots(), [proj])).global.bySide.grok.total).toBe(130)
+  })
+
   it('two sides with volume on the same day stay keyed apart (a per-side keying mistake is invisible while only one side has data)', async () => {
     mkCodexRollout('rollout-side9-019f902.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
       { input: 100, cached: 0, output: 0, at: '2026-07-29T12:00:00Z' }
