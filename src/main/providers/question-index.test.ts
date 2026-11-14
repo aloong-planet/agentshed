@@ -373,6 +373,17 @@ describe('Claude branches: the last-leaf walk-back', () => {
     })
   })
 
+  test('the last question on an abandoned branch: the turn before it still ends where it starts, so the abandoned lines join no kept turn', async () => {
+    // u2b's branch is abandoned: the last main-chain line, a2, goes back to a1. The file's end belonged to u2b's turn,
+    // and goes with it
+    const objs = [cq('u1', null, 'question one'), ca('a1', 'u1'), cq('u2b', 'a1', 'question on the abandoned branch'), ca('a2b', 'u2b'), ca('a2', 'a1')]
+    await withLines(objs, async (file) => {
+      const recs = await indexOf(file, 'claude')
+      const lineStarts = objs.map((_, i) => objs.slice(0, i).reduce<number>((n, o) => n + Buffer.byteLength(JSON.stringify(o)) + 1, 0))
+      expect(recs.map((r) => [r[0], r[2]])).toEqual([[lineStarts[0], lineStarts[2]]])
+    })
+  })
+
   test('a file ending on a sidechain: the walk-back starts from the last non-sidechain line and does not fall into the subagent chain', async () => {
     const objs = [
       cq('u1', null, 'question one'),
