@@ -19,6 +19,8 @@
 //   left in — a directory only the user can read — is asserted while a read runs. The engine module's copy, for the
 //   usage and the titles, is made the same way (`engine/src/sides/antigravity/db.rs`), but no case can look at it while
 //   it exists: the module's read is one call that takes no pause; a seam that kept the copy would close this.
+// - The records read one at a time (token-stats failure modes, on prompts): a read holding every record of a
+//   conversation at once gives the same entry and differs only in what it holds in memory, which no case measures.
 // - A panic inside the module's read of a conversation whose log went away during that read: the module judges a
 //   panic by the log as it stands when the panic is caught. The panic seam panics before the read begins, so the cases
 //   below drive the judgement on the log's state then, which is the state before the read.
@@ -846,21 +848,19 @@ describe('the usage records as agy wrote them, read by the engine module (token-
 
   it.each([
     // Inside the usage (field 9 starts at offset 54 of the API-key step, its 37-byte body at 56)
-    ['a step cut inside its usage', (): StepRow => ({ idx: 1, metadata: measuredUsage('stepApiKey').subarray(0, 80) }), null],
-    // Inside the generator record's chat-model branch (its 544-byte body starts at 47)
-    ['a generator record cut inside its chat-model branch', null, (): GenRow => ({ idx: 0, data: measuredUsage('genApiKey').subarray(0, 300) })],
+    ['a step cut inside its usage', measuredUsage('stepApiKey').subarray(0, 80)],
     // model_usage (9) written as a varint where the descriptor declares a message
-    ['a usage arriving as a varint', (): StepRow => ({ idx: 1, metadata: Uint8Array.from([0x48, 0x05]) }), null],
+    ['a usage arriving as a varint', Uint8Array.from([0x48, 0x05])],
     // input_tokens (2) inside model_usage arriving length-delimited, and fixed-width (fixed32), where the descriptor
     // declares a varint — read as absent, the call would quietly lose its tokens
-    ['an input count arriving length-delimited', (): StepRow => ({ idx: 1, metadata: Uint8Array.from([0x4a, 0x03, 0x12, 0x01, 0x05]) }), null],
-    ['an input count arriving fixed-width', (): StepRow => ({ idx: 1, metadata: Uint8Array.from([0x4a, 0x05, 0x15, 0x01, 0x00, 0x00, 0x00]) }), null]
-  ])('%s does not decode, and the conversation is unreadable', async (_shape, step, gen) => {
+    ['an input count arriving length-delimited', Uint8Array.from([0x4a, 0x03, 0x12, 0x01, 0x05])],
+    ['an input count arriving fixed-width', Uint8Array.from([0x4a, 0x05, 0x15, 0x01, 0x00, 0x00, 0x00])]
+  ])('%s does not decode, and the conversation is unreadable', async (_shape, metadata) => {
     const id = MEASURED_USAGE_CONVERSATION.apiKey
     mkdirSync(conversations(), { recursive: true })
     const { file } = writeConversation(conversations(), id, measured('mainApiKey'), {
-      steps: [step?.() ?? { idx: 1, metadata: measuredUsage('stepApiKey') }],
-      gens: [gen?.() ?? { idx: 0, data: measuredUsage('genApiKey') }]
+      steps: [{ idx: 1, metadata }],
+      gens: [{ idx: 0, data: measuredUsage('genApiKey') }]
     })
     expect(await entryOf(file)).toMatchObject({ unreadable: true, calls: [] })
   })
@@ -930,6 +930,8 @@ describe('the trajectory record, read by the engine module (token-stats::REQ-003
   it.each([
     ['two folders: the first', { folders: ['/work/First', '/work/second'] }, '/work/first'],
     ['folders in the workspaces alone: the first', { folders: ['/work/only-ws', '/work/later'], omitWorkspaceUris: true }, '/work/only-ws'],
+    // Derived: every measured record names the same folders in both fields
+    ['workspace URIs and workspaces naming other folders: the workspace URIs\' first', { folders: [], rawUris: ['file:///work/from-uris'], workspaceFolderUris: ['file:///work/from-ws'] }, '/work/from-uris'],
     ['a percent-encoded URI: its path', { folders: [], rawUris: ['file:///Users/x/My%20Project'] }, '/users/x/my project'],
     ['a trailing slash: left off', { folders: [], rawUris: ['file:///work/p/'] }, '/work/p'],
     // JavaScript's own lowercasing, its final sigma included
@@ -1261,10 +1263,14 @@ describe('reading usage writes nothing, and reads a conversation again only when
     usageConversation('busy', [p], [{ usage: { messageId: 'm-b', input: 200, output: 20 }, at: oct(26) }], { keepOpen: true })
     const before = contents(conversations())
     expect(before.map((l) => l.split(' ')[0])).toEqual(['busy.db', 'busy.db-shm', 'busy.db-wal', 'quiet.db'])
+    const copiesUnder = (parent: string): ParseRunner => ({ run: (job) => runParseJob(job.kind === 'antigravity' ? { ...job, tmpParent: parent } : job), concurrency: 1 })
+    // With no directory to copy into, only a read in place reads: the closed conversation is read, the one agy is writing
+    // is not
+    expect(agyTotal(await build(copiesUnder(join(dir, 'no-such-dir'))))).toBe(110)
+    expect(contents(conversations())).toEqual(before)
     const tmp = join(dir, 'tmp')
     mkdirSync(tmp)
-    const copiesUnderTmp: ParseRunner = { run: (job) => runParseJob(job.kind === 'antigravity' ? { ...job, tmpParent: tmp } : job), concurrency: 1 }
-    expect(agyTotal(await build(copiesUnderTmp))).toBe(330)
+    expect(agyTotal(await build(copiesUnder(tmp)))).toBe(330)
     expect(contents(conversations())).toEqual(before)
     expect(readdirSync(tmp)).toEqual([])
   })

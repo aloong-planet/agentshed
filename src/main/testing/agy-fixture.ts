@@ -179,6 +179,9 @@ export interface TrajectoryFixture {
   omitWorkspaceUris?: boolean
   /** Folder URIs written as given rather than from `folders` (a percent-encoded or non-file URI) */
   rawUris?: string[]
+  /** The workspaces' folder URIs (1.1) when they are not the workspace URIs (7): every measured record writes the two
+   * alike, so a case that tells them apart writes them apart */
+  workspaceFolderUris?: string[]
 }
 
 function varint(n: number): number[] {
@@ -199,7 +202,7 @@ const varField = (field: number, n: number): number[] => [...key(field, 0), ...v
 export function encodeTrajectoryMetadata(f: TrajectoryFixture): Uint8Array {
   const uris = f.rawUris ?? f.folders.map((p) => pathToFileURL(p).href)
   const out: number[] = []
-  for (const uri of uris) {
+  for (const uri of f.workspaceFolderUris ?? uris) {
     out.push(...lenField(1, [...strField(1, uri), ...strField(2, uri), ...lenField(3, []), ...strField(4, 'main')]))
   }
   const at = f.createdAt ?? { seconds: 1793174782, nanos: 117495000 }
