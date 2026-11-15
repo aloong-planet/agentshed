@@ -913,6 +913,17 @@ with macOS `footprint`.
   display copy ([agents-overview::REQ-008](agents-overview.md)) and the archive are written by their own
   rules and are not counted.
 
+### token-stats::QR-004 A full parse of every session file
+
+Applies to: a locally packaged build with its window shown, launched on an empty token store with no JSON
+cache to import (C26), so that every session file is parsed, on about 7,300 session files holding 19.5 GB
+of lines once cold rollouts are decompressed. Memory is the main process's, its worker threads included,
+read with macOS `footprint`.
+
+- token-stats::QR-004/AC-01: From launch until the first scan's figures reach the window takes at most
+  15 s.
+- token-stats::QR-004/AC-02: Over the same span, the main process's peak footprint is at most 600 MB.
+
 ### Failure modes and boundaries: the token store
 
 - An entry the session page rebuilt between two scans (session-view C4) is a changed file for the next
@@ -1019,10 +1030,12 @@ with macOS `footprint`.
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
-  and holds the session walk, the reading and parsing of Codex rollouts, Claude Code sessions, Grok
-  sessions and Antigravity CLI conversations, the entries, the store, the grouping and the combination,
-  and the line rules that a question's text and a turn's contents are read by on the session page and in
-  both searches. A value in a line is built only where a rule reads it; every other value is scanned
+  and holds the session walk, the reading and parsing of every session file a scan reads, the question index
+  and the titles, the entries, the store, the grouping and the combination, and the line rules that a
+  question's text and a turn's contents are read by on the session page and in both searches. A Codex
+  session's thread name comes from Codex's session index, which is read outside the module and handed to it
+  with the rollout; the session page and both searches read a file's bytes themselves and hand them to those
+  line rules. A value in a line is built only where a rule reads it; every other value is scanned
   past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of
   ECMAScript's `JSON.parse`, with its results: a repeated key keeps its last value, a number beyond the
   double range is infinite and so no finite count, a lone surrogate escape stays that code unit, and a
