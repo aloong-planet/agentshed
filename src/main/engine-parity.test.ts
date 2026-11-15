@@ -5,7 +5,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { firstDifference, parityExitCode, runParity } from './engine-parity'
+import { TYPESCRIPT_WALK, firstDifference, moduleWalk, parityExitCode, runParity, runWalkParity, walkParityExitCode, type WalkReader } from './engine-parity'
+import { threadEngineModule } from './engine-module'
 import { runParseJob, type ParseJob, type ParseResult } from './providers/token-stats'
 import { mkScanHome, type ScanHome } from './testing/scan-home'
 import { TEST_ENGINE } from './testing/engine'
@@ -91,6 +92,28 @@ describe('the parity command (ADR-0045)', () => {
       missing: [never]
     })
     expect(parityExitCode(report)).toBe(1)
+  })
+})
+
+describe('the session walk\'s parity (#431; removed with the TypeScript walk)', () => {
+  it('over the scan fixture the two walks are equal, and a difference planted in one rollout\'s single-file read is reported where it parts', () => {
+    const module = moduleWalk(threadEngineModule())
+    const equal = runWalkParity(home.roots, TYPESCRIPT_WALK, module)
+    expect(equal.differing).toEqual([])
+    expect(equal.failed).toEqual([])
+    expect(equal.compared.filter((c) => c.what.startsWith('codex meta ')).length).toBe(3)
+    expect(walkParityExitCode(equal)).toBe(0)
+
+    const planted: WalkReader = {
+      ...module,
+      meta: (kind, file) => {
+        const read = module.meta(kind, file)
+        return file === home.codex.fork ? { ...(read as object), cwd: 'elsewhere' } : read
+      }
+    }
+    const report = runWalkParity(home.roots, TYPESCRIPT_WALK, planted)
+    expect(report.differing).toEqual([{ what: `codex meta ${home.codex.fork}`, before: 'cwd', after: 'cwd' }])
+    expect(walkParityExitCode(report)).toBe(1)
   })
 })
 
