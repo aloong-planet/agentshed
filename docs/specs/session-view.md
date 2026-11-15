@@ -352,7 +352,8 @@ hands the command over; it never runs it.
   Corollary: the ellipsis on a list row is **display-layer truncation** (CSS), not data-layer — the
   full text can be laid out when it expands.
 - D2b **File reads go through bounded concurrency, defaulting to 4.** The range-read paths (question
-  list, search, on-demand fetch) all go through it; the existing token scan stays serial.
+  list, search, on-demand fetch) all go through it; the token scan is not bound by it, its files being parsed
+  on a pool of worker threads ([token-stats](token-stats.md), Implementation Decisions, Where parsing runs).
   🔬 **4 is a provisional value, not a conclusion.** It equals Node's default libuv thread pool size,
   and going beyond 4 requires raising `UV_THREADPOOL_SIZE` at the same time to be realised; raising
   it to 16 measured **no faster and slightly slower** on a warm cache (the bottleneck is memory
