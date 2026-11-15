@@ -4024,6 +4024,14 @@ describe('how a Grok stream line is read', () => {
     ])
   })
 
+  it('with an array line counted as a line that parsed, its bytes joining the open turn, and a number no line the parse is given', async () => {
+    // An array has none of an object's fields, so it holds no turn and no question
+    const f = stream('019f-array', [grokUser(AT, 'a question over unusual lines', 0), '[1,2,3]', '42'])
+    const entry = await entryOf(f)
+    expect(entry.events).toEqual([])
+    expect(entry.questions.map((q) => q[2])).toEqual([statSync(f).size - Buffer.byteLength('42\n')])
+  })
+
   it('with a repeated key keeping its last value, at the place the key first held, and a per-model map\'s entries in the order Object.entries gives them', async () => {
     const m = (input: number): string => figures(input, 0)
     const f = stream('019f-repeated', [

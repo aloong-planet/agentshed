@@ -10,7 +10,7 @@
 
 use super::entry::{Job, Parsed, Usage};
 use super::{line, question, title};
-use crate::json;
+use crate::json::{self, max};
 use crate::question::{Calls, Indexer};
 use crate::read::{self, Stored};
 use crate::text::{self, Units};
@@ -56,9 +56,8 @@ pub(super) fn parse(job: &Job, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Opt
             question_uuids.push(l.uuid.map(|u| u.units()));
         }
         file_end = end as f64;
-        // Time values are never NaN, nor a negative zero
         if let Some(t) = at {
-            last_at = Some(last_at.map_or(t, |l| l.max(t)));
+            last_at = Some(last_at.map_or(t, |l| max(l, t)));
         }
         let m = &l.message;
         let Some(u) = m.usage else { return };

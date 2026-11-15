@@ -10,7 +10,7 @@ use super::entry::{Event, Job, Parsed};
 use super::line::{self, Line};
 use super::question::Indexer;
 use super::title;
-use crate::json::max;
+use crate::json::{self, max};
 use crate::read::{self, Stored};
 
 /// The session's entry; None when its stream cannot be read to its end
@@ -30,9 +30,9 @@ pub(super) fn parse(job: &Job) -> Option<Parsed> {
         // A line `JSON.parse` refuses is skipped (A8), and so is a string, a number, a boolean or null; the bytes still
         // count toward the offsets of the lines after them
         let l = match line::read(&decoded) {
-            Ok(line::Parsed::Object(l)) => l,
-            Ok(line::Parsed::Array) => Line::default(),
-            Ok(line::Parsed::Other) | Err(_) => return,
+            Ok(json::Line::Object(l)) => l,
+            Ok(json::Line::Array) => Line::default(),
+            Ok(json::Line::Other) | Err(_) => return,
         };
         let at = l.timestamp.filter(|t| t.is_finite()).map(|t| t * 1000.0);
         index.line(&l, at, start, end);
