@@ -229,8 +229,7 @@ channel rule of app-update::US-004 depends on GitHub's release feed.
 ### app-update::CON-003 No natural language from the main process (direct acceptance)
 
 Applies to: the update states and outcomes that cross IPC. They cross as enumerated states, versions,
-progress and error codes. Every word the user reads comes from the renderer's dictionaries (ADR-0015,
-ADR-0016).
+progress and error codes. Every word the user reads comes from the renderer's dictionaries (ADR-0001).
 
 ### app-update::CON-004 Nothing restarts without the user (direct acceptance)
 

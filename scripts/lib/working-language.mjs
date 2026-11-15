@@ -1,4 +1,4 @@
-// The shared core of the working-language gates (ADR-0017, ADR-0030): which characters count as Chinese,
+// The shared core of the working-language gates (ADR-0017): which characters count as Chinese,
 // and the prose rule "Chinese may be cited, never written". scripts/check-lang.mjs applies it to the files
 // in the repository; scripts/check-message-lang.mjs applies it to commit messages and pull-request text.
 //

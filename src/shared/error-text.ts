@@ -44,7 +44,7 @@ export function errorText(lang: Language, raw: unknown): string {
   const p = err.params
   // A switch rather than a lookup table: the `never` assertion at the end turns **adding an error code
   // and forgetting its wording** into a compile error
-  // rather than a blank at runtime. ADR-0015's "naming a new failure path is a mandatory question" lands
+  // rather than a blank at runtime. ADR-0001's "a question every new failure path has to answer" lands
   // exactly here.
   switch (err.code) {
     case ERR.badArgs:

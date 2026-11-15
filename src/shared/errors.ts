@@ -1,9 +1,9 @@
-// The single type source for cross-process failures (ADR-0015): an error **code plus parameters**,
+// The single type source for cross-process failures (ADR-0001): an error **code plus parameters**,
 // containing no natural language at all.
 // The wording is produced in the renderer in the current language, see the i18n dictionaries' `errors`
 // section.
 //
-// This is the fourth of ADR-0001's "three shared pieces", and both ends import only from here.
+// It is one of the shared pieces ADR-0001 keeps in `src/shared/`, and both ends import only from here.
 //
 // ── Why the payload is encoded into the message ──
 // When Electron sends an Error thrown by the main process back across IPC, **its custom properties are

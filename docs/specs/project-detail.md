@@ -110,7 +110,7 @@ cached visits under project-detail::REQ-001)
   visit under project-detail::REQ-001; discarding alone must not erase the cross-restart
   recovery copy. Without either copy the visit follows T1.
 - T12 Changing the UI language or the theme refetches nothing: the detail carries no natural
-  language (ADR-0016), so the cache is language-independent.
+  language (ADR-0001), so the cache is language-independent.
 - T13 Window focus refetches nothing by itself: the snapshot is the app's one refresh clock (the
   focus rescan produces a snapshot, which is T3).
 

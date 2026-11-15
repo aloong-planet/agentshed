@@ -1,7 +1,7 @@
 // The app update contract (docs/specs/app-update.md): the lifecycle the main process pushes to the renderer,
 // and the outcome of an update check.
 //
-// Only states, versions, progress and codes cross IPC (app-update::CON-003, ADR-0016): every word the user
+// Only states, versions, progress and codes cross IPC (app-update::CON-003, ADR-0001): every word the user
 // reads comes from the renderer's dictionaries. A version string from the release feed is external content,
 // so it reaches the renderer only after `isReleaseVersion` has accepted it (app-update Failures A6, H1).
 

@@ -308,7 +308,7 @@ _Avoid_: refresh, sync, polling
 - **"AgentDex" is retired**: it was the name while the product was a read-only catalogue; the product is
   Agentshed, positioned as an overview, not a catalogue.
 - **"Six languages" and "the six official UN languages" are retired**: the supported set is Simplified
-  Chinese and English (ADR-0035); text written before 2026-10-19 uses the old sets (ADR-0013).
+  Chinese and English (ADR-0035); text written before 2026-10-19 uses the old sets.
 - **Cross-project artifact aggregation is retired**: artifacts are shown only within project detail;
   cross-project retrieval belongs to global search, which searches session questions only.
 - **Codex same-name semantics differ per component**: two same-name skills across layers coexist, while
