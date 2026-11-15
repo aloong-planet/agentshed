@@ -18,10 +18,11 @@ use napi::{Error, Result};
 
 use self::entry::{Earlier, Event, Job, KeptTotal, Parsed};
 use self::walk::{Readings, Session};
-use super::{Kept, Side};
+use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
 use crate::question::Record;
 use crate::text::{self, Units};
+use crate::walk::Held;
 
 pub(crate) struct Codex;
 
@@ -56,12 +57,12 @@ impl Side for Codex {
     }
 
     /// Every rollout under Codex's data root, `roots.codexHome`, with the run's first-line readings
-    fn walk(&self, js: &Js, roots: napi_value, kept: &mut Kept, _tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
-        let mut walked = || -> Result<napi_value> {
+    fn walk(&self, js: &Js, roots: napi_value, kept: &mut Kept, held: &mut Held, _tmp_parent: Option<&str>) -> Option<Result<Walked>> {
+        let mut walked = || -> Result<Walked> {
             let home = js.string(js.get(roots, "codexHome")?)?.ok_or_else(|| Error::from_reason("the scan roots name no codexHome"))?;
             let trees = walk::TREES.iter().map(|t| Ok(String::from_utf16_lossy(&js.path_join(&[&home, &text::units(t)])?))).collect::<Result<Vec<_>>>()?;
-            let sessions = walk::walk(&trees, kept.of::<Readings>(), &mut |t| js.date_parse(t));
-            js.array(sessions.iter().map(|s| write_session(js, s)))
+            let (listed, kept_apart) = walk::walk(&trees, kept.of::<Readings>(), held, &mut |t| js.date_parse(t));
+            Ok(Walked { listed: js.array(listed.iter().map(|s| write_session(js, s)))?, held: js.array(kept_apart.iter().map(|s| write_session(js, s)))? })
         };
         Some(walked())
     }

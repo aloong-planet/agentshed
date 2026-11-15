@@ -724,6 +724,10 @@ Applies to: every conversation database of the side, forks and subagent conversa
   result, as for a read that fails while agy writes, and it leaves the figures at the next scan. Only a
   database that is no longer there is deleted; one that is there but cannot be looked at is unreadable
   (token-stats::REQ-004/AC-01).
+- A conversations directory the scan cannot list: a conversation below it that the token store holds an
+  entry for stays in the scan (Failure modes and boundaries: the token store), so one that cannot be
+  looked at is counted (token-stats::REQ-004/AC-01) and its notice shows (token-stats::REQ-004/AC-02).
+  One the store holds nothing for is not known, and counts nowhere until the directory can be listed.
 - External content: the side's figures are numbers this application computes, and its model names are
   shown as plain text in the existing model rows, as every side's are; nothing read from agy's files
   is rendered or loaded at a new point (G14 holds).
@@ -925,6 +929,14 @@ with macOS `footprint`.
   leaves such a file out of the figures it combines in memory in the same way. An Antigravity
   conversation left out this way is not counted as unreadable (unlike token-stats::REQ-004/AC-01); its
   figures are decoded from varints of at most ten bytes, which stay far inside that range.
+- A directory the session walk lists — a side's data root or one below it — that is there but cannot be
+  listed is not taken as empty: each file below it that the store holds an entry for stays in the scan
+  set, at its place in scan order, and is looked at as a listed file is. One whose signature has not
+  changed is kept from the store; one that cannot be looked at is that file's failed read, under the rule
+  its side has for a read that fails (A10, B12, F6, token-stats::REQ-004). A file written below it since
+  it was last listed is not seen until it can be listed again, and with nothing held below it — a first
+  scan, or a build with no store — it gives nothing. The session walk's own lists, which the projects
+  list reads ([projects-list](projects-list.md)), keep only what it can list.
 - Interface: unchanged (the prototype exemption, declared); G14 holds.
 
 ## Implementation Decisions

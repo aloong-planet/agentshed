@@ -1,8 +1,8 @@
 // The scanner (ADR-0043): what one scan hands the main process, and what the main process makes of it. The
 // aggregation itself is the token engine's and has its own cases (token-stats.test.ts); these cover the steps a
 // scan adds around it, which ran inline in the main process before and had no case below e2e.
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { emptyTokenStats } from '@shared/domain'
@@ -77,6 +77,47 @@ describe('the session walk\'s memory, which a scanner keeps for its run', () => 
     } finally {
       writer?.close()
     }
+  })
+})
+
+// token-stats, Failure modes and boundaries: the token store, and projects-list B10. The scan's one walk is handed the
+// files the store holds, so the build keeps those below a directory it cannot list, and the row's session count, the
+// build's, keeps them; the row's time is the activity's own listing's, which keeps what it lists. Each row makes its
+// side's sessions the project's latest, so that the time shows whose sessions it takes.
+describe('a session directory a scan cannot list', () => {
+  type Out = Awaited<ReturnType<Scanner['scan']>>
+  const LATEST = 1_900_000_000
+  const EARLIER = 1_800_000_000
+  it.skipIf(process.getuid?.() === 0).each([
+    { name: 'a registered Claude Code project\'s directory', locked: (): string => dirname(home.claude.asked), side: 'claude', latest: (): string[] => [home.claude.asked, home.claude.silent], kept: [5, EARLIER], shut: [4, EARLIER], unreadable: 1 },
+    { name: 'Claude Code\'s projects directory', locked: (): string => dirname(dirname(home.claude.asked)), side: 'claude', latest: (): string[] => [home.claude.asked, home.claude.silent], kept: [5, LATEST], shut: [4, EARLIER], unreadable: 1 },
+    { name: 'a Codex day\'s directory', locked: (): string => dirname(home.codex.parent), side: 'codex', latest: (): string[] => [home.codex.parent, home.codex.fork], kept: [5, EARLIER], shut: [3, EARLIER], unreadable: 1 },
+    { name: 'a Grok project\'s directory', locked: (): string => dirname(dirname(home.grok)), side: 'grok', latest: (): string[] => [home.grok], kept: [5, EARLIER], shut: [4, EARLIER], unreadable: 1 },
+    { name: 'Antigravity CLI\'s conversations', locked: (): string => dirname(home.antigravity.listed), side: 'antigravity', latest: (): string[] => [home.antigravity.listed], kept: [5, EARLIER], shut: [4, EARLIER], unreadable: 2 }
+  ] as const)('below $name, a scan fails nowhere and keeps the files the store holds, in the row\'s session count and in its time where the activity lists them; once they cannot be looked at either, they leave', async ({ locked, side, latest, kept, shut, unreadable }) => {
+    const sessions = [home.claude.asked, home.claude.silent, home.codex.parent, home.codex.fork, home.grok, home.antigravity.listed]
+    const newest = latest()
+    for (const f of sessions) utimesSync(f, newest.includes(f) ? LATEST : EARLIER, newest.includes(f) ? LATEST : EARLIER)
+    const scanner = new Scanner(join(dir, 'cache'), TEST_ENGINE)
+    const shape = (out: Out): unknown => ({ rows: out.rows, sessions: [...out.sessions], sessionFiles: [...out.sessionFiles], unreadable: out.snapshot.sides.antigravity.unreadable })
+    const row = (out: Out): unknown => out.snapshot.projects.map((p) => [p.sessionCount, p.lastSessionAt])
+    const tokens = (out: Out): number => out.rows.filter((r) => r.side === side).reduce((n, r) => n + r.total, 0)
+    const ms = ([count, at]: readonly [number, number]): unknown => [[count, at * 1000]]
+    const first = await scanner.scan(home.roots)
+    expect([row(first), tokens(first) > 0, first.snapshot.sides.antigravity.unreadable], 'the control: five sessions, the latest this side\'s, its tokens counted, one conversation unreadable').toEqual([ms([5, LATEST]), true, 1])
+    chmodSync(locked(), 0o300)
+    try {
+      const listedNot = await scanner.scan(home.roots)
+      expect(shape(listedNot)).toEqual(shape(first))
+      expect(row(listedNot)).toEqual(ms(kept))
+      chmodSync(locked(), 0o000)
+      const enteredNot = await scanner.scan(home.roots)
+      expect([row(enteredNot), tokens(enteredNot), enteredNot.snapshot.sides.antigravity.unreadable]).toEqual([ms(shut), 0, unreadable])
+    } finally {
+      chmodSync(locked(), 0o755)
+    }
+    const back = await scanner.scan(home.roots)
+    expect([shape(back), row(back)]).toEqual([shape(first), row(first)])
   })
 })
 

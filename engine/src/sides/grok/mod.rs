@@ -16,9 +16,10 @@ use napi::sys::napi_value;
 use napi::{Error, Result};
 
 use self::entry::{Job, Parsed};
-use super::{Kept, Side};
+use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
 use crate::text::{self, Units};
+use crate::walk::Held;
 
 pub(crate) struct Grok;
 
@@ -55,19 +56,22 @@ impl Side for Grok {
     }
 
     /// Every session under Grok's data root, `roots.grokHome`
-    fn walk(&self, js: &Js, roots: napi_value, _kept: &mut Kept, _tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
-        let walked = || -> Result<napi_value> {
+    fn walk(&self, js: &Js, roots: napi_value, _kept: &mut Kept, held: &mut Held, _tmp_parent: Option<&str>) -> Option<Result<Walked>> {
+        let mut walked = || -> Result<Walked> {
             let home = js.string(js.get(roots, "grokHome")?)?.ok_or_else(|| Error::from_reason("the scan roots name no grokHome"))?;
             let tree = String::from_utf16_lossy(&js.path_join(&[&home, &text::units(walk::TREE)])?);
-            let sessions = walk::walk(&tree, &|name| js.decode_uri_component(&text::units(name)))?;
-            js.array(sessions.iter().map(|s| {
-                js.object(&[
-                    ("file", js.text(&text::units(&s.file))?),
-                    ("cwd", js.text(&s.cwd)?),
-                    ("subagent", js.boolean(s.subagent)?),
-                    ("mtimeMs", js.num(s.mtime_ms)?),
-                ])
-            }))
+            let (listed, kept_apart) = walk::walk(&tree, held, &|name| js.decode_uri_component(&text::units(name)))?;
+            let list = |sessions: &[walk::Session]| {
+                js.array(sessions.iter().map(|s| {
+                    js.object(&[
+                        ("file", js.text(&text::units(&s.file))?),
+                        ("cwd", js.text(&s.cwd)?),
+                        ("subagent", js.boolean(s.subagent)?),
+                        ("mtimeMs", js.num(s.mtime_ms)?),
+                    ])
+                }))
+            };
+            Ok(Walked { listed: list(&listed)?, held: list(&kept_apart)? })
         };
         Some(walked())
     }

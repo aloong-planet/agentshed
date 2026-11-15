@@ -10,6 +10,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use super::head;
 use crate::read::{self, Stored};
 use crate::text::{self, Units};
+use crate::walk::Held;
 use crate::{seams, walk};
 
 /// The trees under Codex's data root the walk takes, in the order it takes them
@@ -63,37 +64,65 @@ struct Reading {
 pub(super) struct Readings(HashMap<String, Reading>);
 
 /// Every rollout under `trees` (the paths of `TREES` under the data root), in scan order, with what `readings` holds
-/// from the last walk; `readings` then holds this walk's. `date_parse` is JavaScript's own `Date.parse`, for a time
-/// outside the forms `text::date_parse` reads.
-pub(super) fn walk(trees: &[String], readings: &mut Readings, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Vec<Session> {
-    let mut out = Vec::new();
+/// from the last walk; `readings` then holds this walk's. Apart, in scan order, the rollouts of those `held` names that
+/// the walk kept below a directory there that it could not list. `date_parse` is JavaScript's own `Date.parse`, for a
+/// time outside the forms `text::date_parse` reads.
+pub(super) fn walk(trees: &[String], readings: &mut Readings, held: &mut Held, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> (Vec<Session>, Vec<Session>) {
+    let mut out = (Vec::new(), Vec::new());
     let mut last = std::mem::take(&mut readings.0);
     // Rebuilt at each walk, so a rollout that left the tree leaves the readings with it
     let mut next = HashMap::new();
     for tree in trees {
-        walk_dir(tree, &mut out, &mut last, &mut next, date_parse);
+        walk_dir(tree, &mut out, held, &mut last, &mut next, date_parse);
     }
     readings.0 = next;
     out
 }
 
-/// The rollouts under a directory, depth-first: a directory's entries in scan order, each subdirectory at its place
-fn walk_dir(dir: &str, out: &mut Vec<Session>, last: &mut HashMap<String, Reading>, next: &mut HashMap<String, Reading>, date_parse: &mut dyn FnMut(&[u16]) -> f64) {
-    // A directory that cannot be listed loses its own rollouts only
-    let Some(entries) = walk::entries(dir) else { return };
+/// The rollouts under a directory, depth-first: a directory's entries in scan order, each subdirectory at its place.
+/// `out` holds the listed rollouts, then the held ones.
+fn walk_dir(
+    dir: &str,
+    out: &mut (Vec<Session>, Vec<Session>),
+    held: &mut Held,
+    last: &mut HashMap<String, Reading>,
+    next: &mut HashMap<String, Reading>,
+    date_parse: &mut dyn FnMut(&[u16]) -> f64,
+) {
+    let Some(entries) = walk::entries(dir) else {
+        // A directory there that cannot be listed loses its own rollouts but those the store holds below it, each looked
+        // at as a listed one is, its reading kept alike; one no longer there has lost them (token-stats, Failure modes
+        // and boundaries: the token store)
+        if !walk::is_absent(dir) {
+            for (file, parts) in held.below(dir) {
+                if !parts.last().is_some_and(|name| is_rollout(name)) {
+                    continue;
+                }
+                if let Some(session) = kept_or_read(&file, last, next, date_parse) {
+                    out.1.push(session);
+                }
+            }
+        }
+        return;
+    };
     for entry in entries {
         if entry.kind == walk::Kind::Directory {
-            walk_dir(&entry.path, out, last, next, date_parse);
+            walk_dir(&entry.path, out, held, last, next, date_parse);
             continue;
         }
-        // Plain and cold rollouts alike (token-stats B12): a cold one is the same session under its compressed path
-        if !(entry.name.ends_with(".jsonl") || entry.name.ends_with(".jsonl.zst")) {
+        if !is_rollout(&entry.name) {
             continue;
         }
         if let Some(session) = kept_or_read(&entry.path, last, next, date_parse) {
-            out.push(session);
+            out.0.push(session);
         }
     }
+}
+
+/// Whether a file of this name is a rollout: plain and cold alike (token-stats B12), a cold one being the same session
+/// under its compressed path
+fn is_rollout(name: &str) -> bool {
+    name.ends_with(".jsonl") || name.ends_with(".jsonl.zst")
 }
 
 /// A rollout's session: the kept one while its signature stands, a fresh reading otherwise. The signature is taken

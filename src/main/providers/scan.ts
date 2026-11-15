@@ -33,6 +33,14 @@ export interface SessionWalk {
   codex: CodexSessionMeta[]
   grok: GrokSessionMeta[]
   antigravity: AntigravitySessionMeta[]
+  /**
+   * The sessions the walk kept below a directory that is there but that it could not list, each side's in scan order:
+   * the files the token store holds there, looked at as a listed file is — a Codex rollout's and a Grok stream's
+   * session as the side's list has it, an Antigravity conversation by its path alone, which the token build looks at
+   * itself (token-stats, Failure modes and boundaries: the token store). Not in the lists above, which keep only what
+   * the walk listed, and which the projects list reads.
+   */
+  held: { codex: CodexSessionMeta[]; grok: GrokSessionMeta[]; antigravity: string[] }
 }
 
 // Every reader below is synchronous; the Promise is the seam's shape, which both callers await.

@@ -685,6 +685,124 @@ describe('the session walk, read by the engine module', () => {
     }
   })
 
+  // token-stats, Failure modes and boundaries: the token store. A directory the walk lists that is there but cannot be
+  // listed keeps each file the store holds below it, looked at as a listed one is, in a list of its own: the walk's own
+  // lists, which the projects list reads, keep what it listed. Each locked directory is left enterable (0o300), so
+  // what is below it can still be looked at by its path. The store's files are handed to the walk in no order, as the
+  // store keeps them; among them, paths that name no session of their side, which a listing would not take either.
+  //
+  // Gap: the walk asks for the store's files only at the first directory it cannot list, so a scan that lists every
+  // directory never reads them (token-stats::QR-002). The answer is the same either way; no case counts the asks.
+  describe.skipIf(process.getuid?.() === 0)('below a directory it cannot list', () => {
+    const walkHolding = (held: () => string[]): SessionWalk => module().walkSessions(roots(), undefined, undefined, held)
+    function locked<T>(dirs: string[], run: () => T): T {
+      for (const d of dirs) chmodSync(d, 0o300)
+      try {
+        return run()
+      } finally {
+        for (const d of dirs) chmodSync(d, 0o755)
+      }
+    }
+    const touch = (file: string): string => {
+      mkdirSync(dirname(file), { recursive: true })
+      writeFileSync(file, 'x')
+      return file
+    }
+    const grokStream = (cwd: string, id: string, subagent = false): string => join(mkGrokSession(cwd, id, 3000, { subagent }), 'updates.jsonl')
+    const coldRolloutAt = (file: string, cwd: string): string => {
+      mkdirSync(dirname(file), { recursive: true })
+      writeFileSync(file, zstdCompressSync(Buffer.from(`${JSON.stringify({ timestamp: '2026-07-30T00:00:00Z', type: 'session_meta', payload: { cwd } })}\n`)))
+      utimesSync(file, 3100, 3100)
+      return file
+    }
+
+    it('a data root it cannot list keeps the files held below it, each read as a listed one, in scan order and not by whole paths', () => {
+      // `a` before `a-b`, as the walk takes directory `a` first; by whole paths `a-b/` would come first
+      const p = mkProject('a')
+      const q = mkProject('a-b')
+      const codex = join(dir, '.codex', 'sessions')
+      const grok = join(dir, '.grok', 'sessions')
+      const agy = join(dir, '.gemini', 'antigravity-cli', 'conversations')
+      const r1 = rolloutAt(join(codex, 'a', 'rollout-1.jsonl'), p)
+      const r2 = coldRolloutAt(join(codex, 'a-b', 'rollout-2.jsonl.zst'), q)
+      const archived = rolloutAt(join(dir, '.codex', 'archived_sessions', 'rollout-archived.jsonl'), q)
+      const g1 = grokStream(p, '019f-g1')
+      const g2 = grokStream(p, '019f-g2', true)
+      const g3 = grokStream(q, '019f-g3')
+      const c1 = touch(join(agy, 'c1.db'))
+      const c2 = touch(join(agy, 'c2.db'))
+      const wrong = [
+        rolloutAt(join(codex, 'a', 'rollout-1.json'), p),
+        join(dirname(g1), 'summary.json'),
+        touch(join(grok, encodeURIComponent(p), 'updates.jsonl')),
+        touch(join(dirname(g1), 'nested', 'updates.jsonl')),
+        touch(`${c1}-wal`),
+        touch(join(agy, 'nested', 'c3.db'))
+      ]
+      const held = [c2, g3, r2, archived, ...wrong, g2, c1, r1, g1]
+
+      const open = walkHolding(() => held)
+      const w = locked([codex, grok, agy], () => walkHolding(() => held))
+      expect(w.held.codex.map((s) => [s.file, s.cwd])).toEqual([[r1, p], [r2, q]])
+      expect(w.held.codex, 'read as the listed walk reads them').toEqual(open.codex.slice(0, 2))
+      expect(w.held.grok.map((s) => [s.file, s.cwd, s.subagent])).toEqual([[g1, p, false], [g2, p, true], [g3, q, false]])
+      expect(w.held.grok, 'read as the listed walk reads them').toEqual(open.grok)
+      expect(w.held.antigravity).toEqual([c1, c2])
+      expect([w.codex.map((s) => s.file), w.grok, w.antigravity], 'the walk\'s own lists keep what it listed').toEqual([[archived], [], []])
+      expect(open.held, 'a walk that lists every directory keeps nothing apart').toEqual({ codex: [], grok: [], antigravity: [] })
+
+      // The store's files cannot be read: nothing is held
+      const unread = locked([codex, grok, agy], () => walkHolding(() => { throw new Error('the store cannot be read') }))
+      expect([unread.held, unread.codex.map((s) => s.file)]).toEqual([{ codex: [], grok: [], antigravity: [] }, [archived]])
+    })
+
+    it('a directory inside a data root it cannot list keeps the files held below it; its siblings are listed', () => {
+      const p = mkProject('inner-p')
+      const q = mkProject('inner-q')
+      const lockedDay = rolloutAt(join(day('30'), 'rollout-locked.jsonl'), p)
+      const next = rolloutAt(join(day('31'), 'rollout-next.jsonl'), q)
+      const g1 = grokStream(p, '019f-g1')
+      const g2 = grokStream(p, '019f-g2', true)
+      const open = grokStream(q, '019f-open')
+      const project = dirname(dirname(g1))
+      const wrong = [touch(join(project, 'updates.jsonl')), touch(join(project, 'loose.jsonl')), join(dirname(g1), 'summary.json')]
+      const held = [g2, next, ...wrong, lockedDay, g1, open]
+
+      const w = locked([day('30'), project], () => walkHolding(() => held))
+      expect(w.held.codex.map((s) => [s.file, s.cwd])).toEqual([[lockedDay, p]])
+      expect(w.held.grok.map((s) => [s.file, s.cwd, s.subagent])).toEqual([[g1, p, false], [g2, p, true]])
+      expect([w.codex.map((s) => s.file), w.grok.map((s) => s.file)], 'the walk\'s own lists keep what it listed').toEqual([[next], [open]])
+    })
+
+    it('a rollout kept below a directory it cannot list keeps the reading a listing took while its signature stands, and is read again once it moves (token-stats::QR-002/AC-01)', () => {
+      const p = mkProject('read-p')
+      const q = mkProject('read-q')
+      const f = rolloutAt(join(day('30'), 'rollout-kept.jsonl'), p, 3000)
+      const run = memory()
+      expect(walked(run).codex.map((s) => s.cwd), 'listed').toEqual([p])
+      const kept = (): string[] => locked([day('30')], () => module().walkSessions(roots(), run, undefined, () => [f])).held.codex.map((s) => s.cwd)
+      // Rewritten to credit another project under the same signature: its time put back, its size the same
+      rolloutAt(f, q, 3000)
+      expect(kept()).toEqual([p])
+      utimesSync(f, 3001, 3001)
+      expect(kept()).toEqual([q])
+    })
+
+    // token-stats, Scans and the window, failure modes: a panic while the walk reads an entry is that entry's failed read
+    it('a read that panics on a file kept below a directory it cannot list is that file\'s failed read: a rollout gives no session and its sibling stays, a Grok summary says nothing', () => {
+      const p = mkProject('panic-held')
+      const named = rolloutAt(join(day('30'), 'rollout-1.jsonl'), p)
+      const sibling = rolloutAt(join(day('30'), 'rollout-2.jsonl'), p)
+      const child = grokStream(p, '019f-child', true)
+      const project = dirname(dirname(child))
+      const held = (): SessionWalk => locked([day('30'), project], () => walkHolding(() => [named, sibling, child]))
+      module().seamPanicWhileWalking(named)
+      expect(held().held.codex.map((s) => s.file)).toEqual([sibling])
+      module().seamPanicWhileWalking(child)
+      expect(held().held.grok.map((s) => [s.file, s.subagent])).toEqual([[child, false]])
+    })
+  })
+
   it('a Grok directory whose name is not valid percent-encoding is skipped, its sibling counted, and its stream read alone gives nothing', () => {
     const p = mkProject('gk-good')
     const good = join(mkGrokSession(p, '019f-good', 3000), 'updates.jsonl')

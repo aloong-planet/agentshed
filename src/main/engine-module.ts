@@ -128,9 +128,12 @@ export interface EngineModule {
    * The Codex, Grok and Antigravity session lists under `roots`, each in scan order, read without writing under agy's
    * directories (token-stats::CON-002). Given `memory`, a walk opens only what changed since the last walk that was
    * given it; without, it reads everything. A failure reading one entry loses only that entry; a copy a read needs is
-   * made under `tmpParent`, the system temporary directory when it is absent.
+   * made under `tmpParent`, the system temporary directory when it is absent. Given `held`, a directory that is there
+   * but cannot be listed keeps the files `held` names below it, in `SessionWalk.held` (token-stats, Failure modes and
+   * boundaries: the token store): it is called at the first such directory, once, and not at all by a walk that lists
+   * every directory; one that throws holds nothing.
    */
-  walkSessions(roots: ScanRoots, memory?: SessionMemory, tmpParent?: string): SessionWalk
+  walkSessions(roots: ScanRoots, memory?: SessionMemory, tmpParent?: string, held?: () => string[]): SessionWalk
   /** A memory for `walkSessions`, holding nothing yet */
   SessionMemory: new () => SessionMemory
   /**

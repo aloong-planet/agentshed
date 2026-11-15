@@ -50,13 +50,19 @@ export interface Activity {
 }
 
 /** A project's Claude session activity: the count of *.jsonl under the encoded directory + the largest
- * mtime. Contents are not parsed. */
+ * mtime. Contents are not parsed. A directory that is not there, or is there but cannot be listed, lists nothing: only
+ * this project's activity is empty, never the scan (token-stats, Failure modes and boundaries: the token store). */
 export function readClaudeActivity(claudeHome: string, projectPath: string): Activity {
   const dir = join(claudeHome, 'projects', encodeClaudeProjectDir(projectPath))
-  if (!existsSync(dir)) return { sessionCount: 0, lastSessionAt: null }
+  let names: string[]
+  try {
+    names = readdirSync(dir)
+  } catch {
+    return { sessionCount: 0, lastSessionAt: null }
+  }
   let count = 0
   let last: number | null = null
-  for (const name of readdirSync(dir)) {
+  for (const name of names) {
     if (!name.endsWith('.jsonl')) continue
     try {
       const m = statSync(join(dir, name)).mtimeMs
