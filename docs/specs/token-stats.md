@@ -63,7 +63,9 @@ all of them.
 - A1 The total sums all four fields (input/output/cacheRead/cacheWrite), with cache displayed
   separately; model buckets use the same rule.
 - A2 Whole-tree scan: an unregistered project's encoded directory also counts toward the global total
-  (independent of the registry) but is not listed as its own project.
+  (independent of the registry) but is not listed as its own project. Subagent transcripts under a
+  session's `subagents/` directory are scanned like any other file: their usage counts, and they give
+  no session entry (as B3 and F5 say of the Codex and Grok sides).
 - A3 Duplicate lines with the same `message.id + requestId` count once, keeping the one with the more
   complete usage.
 - A4 Sidechain replays (same message.id, new requestId) are deduplicated across files, keeping the
