@@ -15,7 +15,8 @@ use std::any::Any;
 use napi::Result;
 use napi::sys::napi_value;
 
-use crate::exports::js::Js;
+use crate::exports::js::{Js, LocalDates};
+use crate::group::{Builder, Decoded, Member};
 use crate::text::Units;
 
 /// What side-free code asks of a side
@@ -52,6 +53,15 @@ pub(crate) trait Side: Sync {
     fn titles(&self, _js: &Js, _home: &str, _tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
         None
     }
+
+    /// What the store records beside an entry of this side, read from its aggregate's text: its de-duplication keys and
+    /// its facts; None when the aggregate is not well formed by the side's rules (`isWellFormedAgg` in
+    /// src/main/providers/token-stats.ts, rule for rule)
+    fn decode(&self, agg: &str) -> Option<Decoded>;
+
+    /// Combines a group's members of this side, in scan order, into `out`, as the combination over every file of the
+    /// scan set gives them (token-stats::CON-003); Err with a member whose aggregate is not well formed
+    fn combine(&self, dates: &LocalDates<'_>, members: &[Member<'_>], out: &mut Builder) -> Result<std::result::Result<(), u32>>;
 
     /// The side's list in the session walk: its sessions under its data root, which `roots` (the TypeScript `ScanRoots`)
     /// names, in scan order, as its list in the TypeScript `SessionWalk`. `kept` holds what the run's walks keep, of which

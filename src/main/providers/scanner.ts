@@ -36,10 +36,16 @@ export class Scanner {
 
   /**
    * `module`: the engine module this thread loads (ADR-0045); `runner`: where the builds' parses run, a parse pool in
-   * the app, on the calling thread when absent
+   * the app, on the calling thread when absent; `combination`: what the stored group results come from (TokenEngine),
+   * this scanner's own when absent
    */
-  constructor(cacheDir: string, private readonly module: EngineSource, private readonly runner?: ParseRunner & { close?: () => void }) {
-    this.engine = new TokenEngine(cacheDir, module, runner)
+  constructor(
+    cacheDir: string,
+    private readonly module: EngineSource,
+    private readonly runner?: ParseRunner & { close?: () => void },
+    combination?: string
+  ) {
+    this.engine = new TokenEngine(cacheDir, module, runner, undefined, combination)
   }
 
   /**

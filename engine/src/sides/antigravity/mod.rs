@@ -6,6 +6,7 @@
 //! as the TypeScript `AntigravitySessionMeta`.
 
 mod db;
+mod combine;
 mod entry;
 mod parse;
 mod proto;
@@ -76,6 +77,19 @@ impl Side for Antigravity {
             }
         };
         Some(answer())
+    }
+
+    fn decode(&self, agg: &str) -> Option<crate::group::Decoded> {
+        combine::decode(agg)
+    }
+
+    fn combine(
+        &self,
+        dates: &crate::exports::js::LocalDates<'_>,
+        members: &[crate::group::Member<'_>],
+        out: &mut crate::group::Builder,
+    ) -> Result<std::result::Result<(), u32>> {
+        combine::combine(dates, members, out)
     }
 
     /// Every conversation in agy's data root, `roots.antigravityHome`, with what the run's walks read of each

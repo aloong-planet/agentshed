@@ -4,6 +4,7 @@
 //! file, its project and whether the session is a subagent's — goes back as the job's own JavaScript value. The walk's
 //! sessions it writes as the TypeScript `GrokSessionMeta`.
 
+mod combine;
 mod entry;
 mod line;
 mod parse;
@@ -30,6 +31,19 @@ impl Side for Grok {
             Some(parsed) => write_result(js, job, file, subagent, &parsed),
             None => js.null(),
         }
+    }
+
+    fn decode(&self, agg: &str) -> Option<crate::group::Decoded> {
+        combine::decode(agg)
+    }
+
+    fn combine(
+        &self,
+        dates: &crate::exports::js::LocalDates<'_>,
+        members: &[crate::group::Member<'_>],
+        out: &mut crate::group::Builder,
+    ) -> Result<std::result::Result<(), u32>> {
+        combine::combine(dates, members, out)
     }
 
     fn question_text(&self, range: &str) -> Option<Units> {

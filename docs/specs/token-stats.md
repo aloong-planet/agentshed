@@ -122,7 +122,8 @@ all of them.
 - B2 Sessions spanning midnight are apportioned to their respective dates by event timestamp (not
   piled onto the first day).
 - B3 Subagent sessions' tokens count toward the statistics but do not enter the session list.
-- B4 Titles come from `session_index`.
+- B4 Titles come from `session_index`, read when the rollout is parsed: a rename shows once the rollout is
+  next written.
 - B9 **The usage boundary is by line order.** The first usage record line in a rollout is the
   boundary: usage events after it are ignored whatever their timestamps, usage events before it
   count under B7. Measured on every dual-source rollout, line order and timestamp select the same
@@ -183,7 +184,8 @@ all of them.
 - C2 A store that will not open, is not a database, or whose tables are not the shape its version
   has, is garbage: it is replaced and every file is parsed again. Within a store of this version, an
   entry that is not well formed is a miss, and only its file is parsed again (Implementation Decisions,
-  Cache).
+  Cache); a group's stored result that does not read back is combined again from its files' entries,
+  with nothing parsed.
 - C3 A second build gives the same result (idempotent). What a scan changes in the store lands in one
   transaction, so the store holds all of it or none of it, wherever the scan was stopped. A failed write
   (a blocked or full settings directory) does not fail the scan: what was computed is in memory and goes
@@ -825,8 +827,9 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   line — the project it is credited to, whether it is a subagent's, its ids and its fork time among
   them — is what was read then. A rollout that differs in any of the three is read again.
 - token-stats::QR-002/AC-02: A scan writes to the token store only what it changed: the entry of each
-  file a parse gave a new entry, and the removal of each entry whose file ends the scan with none (it left
-  the scan set, or no longer gives an entry). A scan that changed nothing writes nothing; a parse that gave nothing to a
+  file a parse gave a new entry, the removal of each entry whose file ends the scan with none (it left
+  the scan set, or no longer gives an entry), and the stored result of each group it combined again
+  (token-stats::CON-003). A scan that changed nothing writes nothing; a parse that gave nothing to a
   file the store held no entry for, or that kept the entry the store already held
   (token-stats::REQ-004/AC-03), changed nothing.
 
@@ -879,6 +882,49 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   runs and what it reads again, and the figures are the same (the prototype exemption, declared). No
   new point renders or loads external content (G14 holds).
 
+## The token store
+
+### token-stats::CON-003 Combining by group gives the figures of one combination (direct acceptance)
+
+Applies to: every scan, on the scan worker or on the main process, and everything it derives from the
+token cache — the usage rows, each project's sessions and their order, the session read allow-list,
+each side's count of unreadable conversations and every title it shows. These are exactly what one
+combination over every file of the scan set, in scan order, gives from the same entries.
+
+### token-stats::QR-003 A scan's memory and its writes follow what changed
+
+Applies to: a locally packaged build from its second launch on — not the first launch of a build, which
+imports the JSON cache (C26) or combines every group again (Implementation Decisions, Cache) — with its
+window shown and its store current to within ten files at launch, on about 7,000 session files. Memory
+is the main process's, its worker threads included, read
+with macOS `footprint`.
+
+- token-stats::QR-003/AC-01: From launch through the first scan and five rescans, the main process's
+  peak footprint is at most 400 MB.
+- token-stats::QR-003/AC-02: After those rescans, its footprint is at most 250 MB.
+- token-stats::QR-003/AC-03: A rescan that parses at most ten files writes at most 10 MB to the token
+  store, its log and the checkpoint into the store included, whether or not the window has focus. The
+  display copy ([agents-overview::REQ-008](agents-overview.md)) and the archive are written by their own
+  rules and are not counted.
+
+### Failure modes and boundaries: the token store
+
+- An entry the session page rebuilt between two scans (session-view C4) is a changed file for the next
+  scan: its group was combined from the entry it replaced.
+- A scan takes the store as it is when it combines (C27): a file it keeps from the store is combined
+  from the entry the store holds then, which another process may have written after the scan planned
+  its reads. An entry another process removed or rewrote so that it no longer reads back is parsed
+  again in that scan, once; what the store still cannot give after that is left out of the scan's
+  figures, counted nowhere, and read again at the next scan.
+- A file whose parsed entry the store cannot hold — a line's figures, each a finite count, summing past
+  the range of a double, which the entry's text writes as null — is that file's failed read for that
+  scan, as A10, B12 and F6 have a read that fails: nothing of it is counted or listed, the entry held
+  for it is removed, it is parsed again at the next scan, and the scan goes on. A build with no store
+  leaves such a file out of the figures it combines in memory in the same way. An Antigravity
+  conversation left out this way is not counted as unreadable (unlike token-stats::REQ-004/AC-01); its
+  figures are decoded from varints of at most ten bytes, which stay far inside that range.
+- Interface: unchanged (the prototype exemption, declared); G14 holds.
+
 ## Implementation Decisions
 
 - **Global preference and derived window**: the selected number is an app-owned preference. All
@@ -906,10 +952,11 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 - **Usage rows are the one source every figure derives from** (ADR-0025). Windowing needs day × side
   × project × model at four-field grain, which the archive persists. Deriving every figure from one
   row set is also what makes G7 hold by construction.
-- **Cache version bumps**: the incremental cache stores per-file parse output, and the combination
-  step downstream of it re-runs on every build. A *structure* change to what is cached must bump the
-  version, and a change downstream of the cache must not, or every release would force a full rescan
-  for nothing.
+- **Cache version bumps**: the store keeps per-file parse output, and each group's combined result
+  with the combination it came from (Cache, below). A *structure* change to what is stored must bump the
+  version, and a change to the combination must not: the results it would make stale are combined again
+  from the stored entries with nothing parsed, while a bump makes every file parse again, so a bump for a
+  combination change would force a full rescan for nothing.
 - **Archive**: see ADR-0007 for its existence and grain, ADR-0026 for the conflict rule. The archive
   is the sole owner of the effective row set: each scan hands it the live rows and the scan anchor,
   and it returns the rows every figure derives from together with the archived-only days — no caller
@@ -959,17 +1006,30 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
   and holds the session walk, the reading and parsing of Codex rollouts, Claude Code sessions, Grok
-  sessions and Antigravity CLI conversations, the entries and the store, and the line rules that a
-  question's text and a turn's contents are read by on the session page and in both searches. A value in
-  a line is built only where a rule reads it; every other value is scanned past. A line is decoded as
-  UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of ECMAScript's `JSON.parse`, with
-  its results: a repeated key keeps its last value, a number beyond the double range is infinite and so no
-  finite count, a lone surrogate escape stays that code unit, and a line `JSON.parse` refuses is a bad
-  line (A8).
+  sessions and Antigravity CLI conversations, the entries, the store, the grouping and the combination,
+  and the line rules that a question's text and a turn's contents are read by on the session page and in
+  both searches. A value in a line is built only where a rule reads it; every other value is scanned
+  past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of
+  ECMAScript's `JSON.parse`, with its results: a repeated key keeps its last value, a number beyond the
+  double range is infinite and so no finite count, a lone surrogate escape stays that code unit, and a
+  line `JSON.parse` refuses is a bad line (A8).
 - **Cache**: incremental by file signature, kept in a SQLite store in the settings directory, opened
   by the engine module in whichever thread runs the scan (Where a scan runs, below) and recording its
   own structure version (ADR-0044). It holds each file's entry under its path — its
-  signature and its per-file aggregate. **A structure change must bump the version number at the same
+  signature and its per-file aggregate — the de-duplication keys each entry carries, and each group's
+  combined result with the combination it came from. A group is the set of
+  files linked, directly or through others, by a key they share: a Claude message's id (not with its
+  request id: a sidechain replay carries the same id under a new one, A4), a Codex session id or the
+  parent id a fork names, an Antigravity call's identity; a file with none
+  is a group alone. A group's input is, file by file in scan order, its entry and what the scan adds to
+  it — its admission to the read allow-list and a title read beside it — and
+  a group whose input differs from the one its stored result came from is combined again; the scan's
+  figures are the stored results summed (token-stats::CON-003). The combination a result came from is
+  the application version in a packaged build, with the time zone the scan runs in; every run of an
+  unpackaged build is a combination of its own, so its first scan combines every group again. A Claude
+  Code entry's days are cut when its file is parsed, so after a time zone change they stay in the zone of
+  that parse until the file is parsed again. Combining every group again reads the entries of one
+  group at a time. **A structure change must bump the version number at the same
   time**, and within one version a shape check treats corrupt or drifted entries as a miss and
   recomputes. An entry is well formed when its signature is a string and its per-file aggregate has
   every field its side requires, each of the type it requires, every row of each of its lists

@@ -177,6 +177,30 @@ pub(crate) fn number_string(x: f64) -> String {
     buffer.format_finite(x).to_owned()
 }
 
+/// `String(x)` for any number: `number_string`'s digits for a finite one, and `NaN`, `Infinity` or `-Infinity`
+fn any_number_string(x: f64) -> String {
+    if x.is_nan() {
+        "NaN".to_owned()
+    } else if x.is_infinite() {
+        (if x > 0.0 { "Infinity" } else { "-Infinity" }).to_owned()
+    } else {
+        number_string(x)
+    }
+}
+
+/// The day a time is filed under: its local date in the time zone the process runs in, `YYYY-MM-DD` as `localDay` in
+/// `src/shared/format.ts` writes it, from `[getFullYear(), getMonth(), getDate()]` (`NaN-NaN-NaN` for a time no date
+/// has, as `localDay` writes one). The date is asked of JavaScript's `Date` (`Js::local_dates`) rather than worked out
+/// here, so the time zone, its rules and their data are the ones every other day in the app is cut by, and no time-zone
+/// rule exists twice.
+pub(crate) fn day([year, month, date]: [f64; 3]) -> Units {
+    let two = |n: f64| {
+        let s = any_number_string(n);
+        if s.len() < 2 { format!("0{s}") } else { s }
+    };
+    units(&format!("{}-{}-{}", any_number_string(year), two(month + 1.0), two(date)))
+}
+
 /// `Date.parse(s)`, None for NaN: the forms `date_parse` reads here, any other by `fallback`, JavaScript's own
 /// `Date.parse`
 pub(crate) fn time_value(s: &[u16], fallback: &mut dyn FnMut(&[u16]) -> f64) -> Option<f64> {

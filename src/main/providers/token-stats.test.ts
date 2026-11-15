@@ -17,13 +17,25 @@
 // in rest on a state the app does not build itself (a pinned mtime) or one in which the page fails as a whole
 // (no read permission). The list's fallback is driven through a parse runner that removes the file. A case is
 // due if the session's own call stops sharing that expression.
+//
+// Gap (#420): a panic while the engine module combines a group is not driven here. It fails the scan as any panic
+// outside a parse does (Scans and the window, failure modes): `TokenStore.scan` catches it where it crosses into the
+// application (`catch_unwind`, which build.rs requires of every export) and throws. No seam panics there; the panic
+// seam names a file to panic on while it is parsed. A case is due if a seam is added for the combination.
+//
+// Gap (#420): an entry that passes the shape check (isWellFormedEntry) and that the engine module still cannot read is
+// not driven here: the module's reading of an aggregate follows the check rule for rule, and no entry that splits them
+// is known. `rowsFromStoreSnapshot` refusing the snapshot when `combineEntries` leaves an entry out waits on one; a case
+// is due once such an entry is found, as a fix to the check or to the module. Nor is `TokenStore.scan` on a store that
+// did not open, which combines in memory and names the files it leaves out as `combineEntries` does: TypeScript never
+// asks it, as `openStore` keeps no store whose open failed.
 import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { TEST_ENGINE, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
-import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storePath, storeRows, storeVersion } from '../testing/token-store'
+import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storedGroups, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule, threadEngineModule } from '../engine-module'
 import { compareScanOrder } from './scan-order'
 import { spawn } from 'node:child_process'
@@ -35,7 +47,8 @@ import { mergeKey } from '@shared/path-key'
 import type { ScanRoots } from './types'
 import { AGENT_SIDES } from '@shared/validate'
 import type { AgentSide } from '@shared/domain'
-import { callRecord, encodeTrajectoryMetadata, writeConversation, type UsageFixture } from '../testing/agy-fixture'
+import { callRecord, encodeTrajectoryMetadata, writeConversation, writeSummaries, type UsageFixture } from '../testing/agy-fixture'
+import { MEASURED_TRANSCRIPT, writeTranscript } from '../testing/agy-transcript-fixture'
 
 let dir: string
 let proj: string
@@ -235,13 +248,34 @@ function mkCodexRollout(
 function mkCodexFork(
   file: string,
   cwd: string,
-  o: { id: string; parentId: string; forkedAtIso: string },
+  /** `replay`: the parent's question and turn the fork opens with, written at the fork's moment as a legacy child's
+   * replayed prefix is (B10, session-view B2); `askedAtIso`: when the fork's own question was asked, the fork's moment
+   * when absent */
+  o: { id: string; parentId: string; forkedAtIso: string; replay?: { question: string; turn: { input: number; cached: number; output: number } }; askedAtIso?: string },
   model: string,
   turns: Array<{ input: number; cached: number; output: number; at?: string }>,
   atSec = 2000
 ): string {
   const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
   mkdirSync(d, { recursive: true })
+  const question = (message: string, at: string): string => JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'user_message', message } })
+  const tokenCount = (t: { input: number; cached: number; output: number }, at: string): string =>
+    JSON.stringify({
+      timestamp: at,
+      type: 'event_msg',
+      payload: {
+        type: 'token_count',
+        info: {
+          last_token_usage: {
+            input_tokens: t.input,
+            cached_input_tokens: t.cached,
+            cache_write_input_tokens: 0,
+            output_tokens: t.output,
+            total_tokens: t.input + t.output
+          }
+        }
+      }
+    })
   const lines = [
     JSON.stringify({
       timestamp: o.forkedAtIso,
@@ -249,29 +283,9 @@ function mkCodexFork(
       payload: { cwd, id: o.id, forked_from_id: o.parentId }
     }),
     JSON.stringify({ timestamp: o.forkedAtIso, type: 'turn_context', payload: { model, cwd } }),
-    JSON.stringify({
-      timestamp: o.forkedAtIso,
-      type: 'event_msg',
-      payload: { type: 'user_message', message: 'question after the fork' }
-    }),
-    ...turns.map((t) =>
-      JSON.stringify({
-        timestamp: t.at ?? o.forkedAtIso,
-        type: 'event_msg',
-        payload: {
-          type: 'token_count',
-          info: {
-            last_token_usage: {
-              input_tokens: t.input,
-              cached_input_tokens: t.cached,
-              cache_write_input_tokens: 0,
-              output_tokens: t.output,
-              total_tokens: t.input + t.output
-            }
-          }
-        }
-      })
-    )
+    ...(o.replay ? [question(o.replay.question, o.forkedAtIso), tokenCount(o.replay.turn, o.forkedAtIso)] : []),
+    question('question after the fork', o.askedAtIso ?? o.forkedAtIso),
+    ...turns.map((t) => tokenCount(t, t.at ?? o.forkedAtIso))
   ]
   const f = join(d, file)
   writeFileSync(f, `${lines.join('\n')}\n`)
@@ -1365,6 +1379,12 @@ describe('a stored entry that is not well formed is no entry (C2)', () => {
   // One row for each field of the Claude, Codex and Grok aggregates beside `file`, `questions` and `forkPoints`, which
   // the cases below take away, each starting from the entry a build wrote, so that every other field is there. The
   // Antigravity side has such a row for each of its fields in antigravity.test.ts.
+  //
+  // Each rule is judged twice, and each case asks both: by TypeScript's own read of an entry (`isWellFormedAgg`, which
+  // the session page's freshness check takes), and by the engine module's, which reads a stored entry as its group is
+  // combined again. A new launch is a run of its own, which combines every group again, so its parse of the file is the
+  // module turning the entry away; the row the hand changed still carries what the module read of it when it was
+  // written.
   it.each([
     ['claude', 'projectKey'],
     ['claude', 'listed'],
@@ -1397,6 +1417,7 @@ describe('a stored entry that is not well formed is no entry (C2)', () => {
       if (!(field in agg)) throw new Error(`the build stored no ${field} for the ${side} file`)
       delete agg[field]
     })
+    expect(engine().isFresh(files[side]), 'TypeScript turns the entry away').toBe(false)
     expect(await parsedOnRelaunch(), 'the entry is a miss').toEqual([files[side]])
     expect(await parsedOnRelaunch(), 'and the launch after it finds it repaired').toEqual([])
   })
@@ -1406,7 +1427,10 @@ describe('a stored entry that is not well formed is no entry (C2)', () => {
   it.each([
     ['claude', 'projectKey', 7],
     ['claude', 'listed', 'yes'],
+    ['claude', 'title', 7],
     ['claude', 'at', 'yesterday'],
+    ['claude', 'file', ''],
+    ['claude', 'kind', 'claude-code'],
     ['codex', 'model', 7],
     ['codex', 'sessionId', 7],
     ['codex', 'parentId', 7],
@@ -1416,6 +1440,7 @@ describe('a stored entry that is not well formed is no entry (C2)', () => {
     changeStored(files[side], (agg) => {
       agg[field] = value
     })
+    expect(engine().isFresh(files[side]), 'TypeScript turns the entry away').toBe(false)
     expect(await parsedOnRelaunch()).toEqual([files[side]])
   })
 
@@ -1429,6 +1454,7 @@ describe('a stored entry that is not well formed is no entry (C2)', () => {
   ])('a row holding %s is parsed again, that file alone, and every other file is a hit', async (_what, sql) => {
     const files = await storedSides()
     onStore(cacheDir(), sql, files.codex)
+    expect(engine().isFresh(files.codex), 'TypeScript turns the entry away').toBe(false)
     expect(await parsedOnRelaunch()).toEqual([files.codex])
     expect(await parsedOnRelaunch()).toEqual([])
   })
@@ -1436,23 +1462,26 @@ describe('a stored entry that is not well formed is no entry (C2)', () => {
   // Every list an aggregate holds, row by row: a row as its type has it, written by hand, is added first and the
   // entry is still a hit, so what turns the entry away after it is the one thing wrong with the row
   const QUESTION = [0, 10, 20, null, 0, 0, 1]
+  // `textAt`: a column of text, where one there is
   describe.each([
-    ['claude', 'questions', QUESTION, 0],
-    ['claude', 'entries', [null, null, 0, 10, 5, 0, 0, 'claude-fable-5', '2026-07-30'], 3],
-    ['codex', 'questions', QUESTION, 0],
-    ['codex', 'events', [null, 10, 0, 5, 0], 1],
-    ['grok', 'questions', QUESTION, 0],
-    ['grok', 'events', [null, 10, 0, 5, 0, null], 1],
-    ['antigravity', 'questions', QUESTION, 0],
-    ['antigravity', 'calls', [null, null, 10, 5, 0, 0, null], 2]
-  ] as const)('a %s aggregate\'s %s', (side, field, row, numberAt) => {
-    it.each([
+    ['claude', 'questions', QUESTION, 0, null],
+    ['claude', 'entries', [null, null, 0, 10, 5, 0, 0, 'claude-fable-5', '2026-07-30'], 3, 7],
+    ['codex', 'questions', QUESTION, 0, null],
+    ['codex', 'events', [null, 10, 0, 5, 0], 1, null],
+    ['grok', 'questions', QUESTION, 0, null],
+    ['grok', 'events', [null, 10, 0, 5, 0, null], 1, 5],
+    ['antigravity', 'questions', QUESTION, 0, null],
+    ['antigravity', 'calls', [null, null, 10, 5, 0, 0, null], 2, 0]
+  ] as const)('a %s aggregate\'s %s', (side, field, row, numberAt, textAt) => {
+    const cases: Array<[string, unknown]> = [
       ['a null among its rows', null],
       ['a row one element short', row.slice(0, -1)],
       ['a row one element long', [...row, 0]],
       ['a row with text where a number belongs', row.map((x, i) => (i === numberAt ? '1000' : x))],
-      ['a row with null where a number belongs', row.map((x, i) => (i === numberAt ? null : x))]
-    ])('with %s is parsed again, that file alone', async (_what, bad) => {
+      ['a row with null where a number belongs', row.map((x, i) => (i === numberAt ? null : x))],
+      ...(textAt === null ? [] : [['a row with a number where text belongs', row.map((x, i) => (i === textAt ? 1000 : x))] as [string, unknown]])
+    ]
+    it.each(cases)('with %s is parsed again, that file alone', async (_what, bad) => {
       const files = await storedSides()
       const add = (extra: unknown): void =>
         changeStored(files[side], (agg) => {
@@ -1463,6 +1492,7 @@ describe('a stored entry that is not well formed is no entry (C2)', () => {
       add([...row])
       expect(await parsedOnRelaunch(), 'a row of the right shape leaves the entry a hit').toEqual([])
       add(bad)
+      expect(engine().isFresh(files[side]), 'TypeScript turns the entry away').toBe(false)
       expect(await parsedOnRelaunch()).toEqual([files[side]])
     })
   })
@@ -1579,6 +1609,22 @@ describe('upgrading from the JSON cache (token-stats C26)', () => {
     expect(existsSync(jsonFile())).toBe(false)
     expect(first.result.global.bySide.codex.total).toBe(110)
     expect(await parsedOnRelaunch()).toEqual([])
+  })
+
+  // The store records each entry's keys as it takes the entry, the import's included: the first scan after it groups
+  // the imported entries as a scan's own, and parses nothing
+  it('a v19 file\'s entries are imported with their de-duplication keys: the first scan groups them, parsing nothing', async () => {
+    const scratch = join(dir, 'scratch-cache')
+    const chain = linkedChain()
+    await new TokenEngine(scratch, TEST_ENGINE).build(roots(), [proj])
+    const entries: Record<string, unknown> = {}
+    for (const [path, e] of storedEntries(scratch)) entries[path] = { sig: e.sig, agg: e.agg }
+    rmSync(scratch, { recursive: true })
+    writeJson(JSON.stringify({ version: 19, files: entries }))
+    const first = await relaunch()
+    expect(first.parsed).toEqual([])
+    expect(storedGroups(cacheDir())).toEqual([[chain.a, chain.b, chain.c]])
+    await expectFromScratch(first.result)
   })
 
   it.each([
@@ -1744,6 +1790,9 @@ describe('what a build writes to the store (token-stats::QR-002/AC-02, C3)', () 
     const e = engine()
     const r1 = await e.build(roots(), [proj])
     expect(storedFiles()).toEqual([s.claude, s.codex, s.grok, s.agy].sort())
+    // And a result for each file's group, which the build after it leaves unwritten (token-stats, Implementation
+    // Decisions, Cache: a scan with no input changed combines no group)
+    expect(storedGroups(cacheDir())).toHaveLength(4)
     const first = storeBytes()
     const r2 = await e.build(roots(), [proj])
     expect(storeBytes()).toEqual(first)
@@ -1972,6 +2021,609 @@ describe('two processes on one store (token-stats C27)', () => {
     }
     expect(await parsedOnRelaunch()).toEqual([])
   }, 20_000)
+})
+
+// Combining by group (token-stats::CON-003): what a scan derives from the token cache is exactly what one combination
+// over every file of the scan set, in scan order, gives from the same entries. The cases for each way files share a key
+// compare with what they recorded while the whole TypeScript combination still ran beside them and gave the same
+// (#420); the cases that change a scan set compare each scan with the store's every group combined again from scratch.
+/** What a build derives from the token cache, each list in its order: the usage rows, each project's figures and
+ * sessions, the stripped forks titled by their first question left, and the unreadable conversations */
+function figures(r: TokenBuildResult): unknown {
+  return {
+    global: r.global,
+    perProject: [...r.perProject],
+    rows: r.rows,
+    retitle: r.retitle.map(({ session, file, start, end }) => ({ session, file, start, end })),
+    antigravityUnreadable: r.antigravityUnreadable
+  }
+}
+
+/** What a build gives that the combination decides, compactly: each usage row, each project's sessions in their order,
+ * and the count of unreadable conversations; every other figure is derived from the rows (`deriveStats`) */
+function scanOutput(r: TokenBuildResult): unknown {
+  const p = (key: string): string => (key === mergeKey(proj) ? '<proj>' : key)
+  return {
+    rows: r.rows.map((x) => [x.day, x.side, p(x.projectKey), x.model, x.input, x.output, x.cacheRead, x.cacheWrite, x.total]),
+    sessions: [...r.perProject].map(([key, s]) => [p(key), s.sessions.map((x) => [basename(x.file), x.title, x.tokens, x.questionCount, x.forkState])]),
+    unreadable: r.antigravityUnreadable
+  }
+}
+
+let copies = 0
+
+/**
+ * The scan's figures are one combination's over the scan set, from scratch: a copy of the store, scanned by an engine of
+ * a combination of its own, combines every group again from the stored entries, with nothing parsed and the scan's own
+ * store left as it was. `build` is the scan's own call, made again by that engine.
+ */
+async function expectFromScratch(r: TokenBuildResult, build: (e: TokenEngine) => Promise<TokenBuildResult> = (e) => e.build(roots(), [proj])): Promise<void> {
+  const copy = join(dir, `store-copy-${copies++}`)
+  mkdirSync(copy)
+  for (const suffix of ['', '-wal']) {
+    const from = storePath(cacheDir()) + suffix
+    if (existsSync(from)) copyFileSync(from, join(copy, STORE_FILE + suffix))
+  }
+  const { runner, jobs } = recording()
+  const again = await build(new TokenEngine(copy, TEST_ENGINE, runner))
+  expect(jobs.map((j) => j.file), 'every entry of the copy is current').toEqual([])
+  expect(figures(r)).toStrictEqual(figures(again))
+}
+
+/**
+ * A Claude Code assistant line with the keys Claude Code writes (an assistant line on this machine, 2026-11-15): one
+ * content block of a message, under the usage the message had when the block was written, whose output grows as the
+ * message streams. The input, cache read and cache write figures are fixed: 6, 18000 and 1200.
+ */
+function realAssistantLine(o: { uuid: string; parent: string; id: string; requestId: string; at: string; block: 'thinking' | 'text'; output: number; session: string }): string {
+  const cache = { ephemeral_1h_input_tokens: 1200, ephemeral_5m_input_tokens: 0 }
+  return JSON.stringify({
+    parentUuid: o.parent,
+    isSidechain: false,
+    message: {
+      model: 'claude-fable-5',
+      id: o.id,
+      type: 'message',
+      role: 'assistant',
+      content: [o.block === 'thinking' ? { type: 'thinking', thinking: '', signature: 'EsQBCkYIBxgCKkB' } : { type: 'text', text: 'Done.' }],
+      container: null,
+      stop_reason: o.block === 'text' ? 'end_turn' : null,
+      stop_sequence: null,
+      stop_details: null,
+      usage: {
+        input_tokens: 6,
+        cache_creation_input_tokens: 1200,
+        cache_read_input_tokens: 18000,
+        output_tokens: o.output,
+        output_tokens_details: { thinking_tokens: 0 },
+        server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 },
+        service_tier: 'standard',
+        cache_creation: cache,
+        inference_geo: 'not_available',
+        iterations: [{ input_tokens: 6, output_tokens: o.output, cache_read_input_tokens: 18000, cache_creation_input_tokens: 1200, cache_creation: cache, type: 'message' }],
+        speed: 'standard',
+        fallback_credit: null
+      },
+      input_transformations: [],
+      diagnostics: null,
+      context_management: null
+    },
+    requestId: o.requestId,
+    type: 'assistant',
+    uuid: o.uuid,
+    timestamp: o.at,
+    userType: 'external',
+    entrypoint: 'cli',
+    cwd: proj,
+    sessionId: o.session,
+    version: '2.1.140',
+    gitBranch: 'main'
+  })
+}
+
+/** A Claude Code user line with the keys Claude Code writes, beside realAssistantLine */
+function realUserLine(o: { uuid: string; parent: string | null; text: string; at: string; session: string }): string {
+  return JSON.stringify({
+    parentUuid: o.parent,
+    isSidechain: false,
+    userType: 'external',
+    entrypoint: 'cli',
+    cwd: proj,
+    sessionId: o.session,
+    version: '2.1.140',
+    gitBranch: 'main',
+    type: 'user',
+    message: { role: 'user', content: o.text },
+    uuid: o.uuid,
+    timestamp: o.at
+  })
+}
+
+/**
+ * Three Claude sessions of one project, A–B–C, linked by two message ids: B shares one with A and another with C. The
+ * figures differ by file, so which copy of a message is kept shows: B's copy of m1 is the larger, so it replaces A's;
+ * C's copy of m2 is a sidechain's under another request id, so it matches B's by the id alone and B's is kept (A4).
+ */
+function linkedChain(): { a: string; b: string; c: string } {
+  const a = mkClaudeFile('a.jsonl', [userLine('first question', '2026-07-01T09:00:00Z'), usageLine('claude-fable-5', '2026-07-01T10:00:00Z', 100, 10, { id: 'm1', requestId: 'r1' })])
+  const b = mkClaudeFile('b.jsonl', [
+    userLine('second question', '2026-07-01T10:30:00Z'),
+    usageLine('claude-fable-5', '2026-07-01T11:00:00Z', 150, 10, { id: 'm1', requestId: 'r1' }),
+    usageLine('claude-opus-5-5', '2026-07-02T09:00:00Z', 40, 4, { id: 'm2', requestId: 'r2' })
+  ])
+  const c = mkClaudeFile('c.jsonl', [
+    userLine('third question', '2026-07-02T08:00:00Z'),
+    usageLine('claude-opus-5-5', '2026-07-02T09:30:00Z', 400, 40, { id: 'm2', requestId: 'r9', sidechain: true })
+  ])
+  return { a, b, c }
+}
+
+describe('combining by group gives the figures of one combination (token-stats::CON-003)', () => {
+  it('a file that links two otherwise separate groups: the three are combined as one', async () => {
+    const { a, b, c } = linkedChain()
+    const r = await engine().build(roots(), [proj])
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-01', 'claude', '<proj>', 'claude-fable-5', 150, 10, 0, 0, 160],
+        ['2026-07-02', 'claude', '<proj>', 'claude-opus-5-5', 40, 4, 0, 0, 44]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['c.jsonl', 'third question', 0, 1, 'none'],
+          ['b.jsonl', 'second question', 204, 1, 'none'],
+          ['a.jsonl', 'first question', 0, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
+    // The control that the link decided something: B kept both messages, A and C none
+    const tokens = new Map(r.perProject.get(mergeKey(proj))?.sessions.map((s) => [s.file, s.tokens]))
+    expect(Object.fromEntries([a, b, c].map((f) => [f, tokens.get(f)]))).toEqual({ [a]: 0, [b]: 204, [c]: 0 })
+  })
+
+  it('a Claude message repeated across files, the more complete usage in the later one (A3; real-shaped lines)', async () => {
+    // A session resumed into a new file carries its history over: the first file holds message m1 as streamed when
+    // it stopped, the resumed one the same message with its usage complete, and a message of its own
+    const first = mkClaudeFile('1f0c-first.jsonl', [
+      realUserLine({ uuid: 'u1', parent: null, text: 'add a retry to the uploader', at: '2026-07-01T09:00:00.000Z', session: 's-1' }),
+      realAssistantLine({ uuid: 'a1', parent: 'u1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:05.000Z', block: 'thinking', output: 8, session: 's-1' }),
+      realAssistantLine({ uuid: 'a2', parent: 'a1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:09.000Z', block: 'text', output: 8, session: 's-1' })
+    ])
+    const resumed = mkClaudeFile('7a2e-resumed.jsonl', [
+      realUserLine({ uuid: 'u1', parent: null, text: 'add a retry to the uploader', at: '2026-07-01T09:00:00.000Z', session: 's-2' }),
+      realAssistantLine({ uuid: 'a1', parent: 'u1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:05.000Z', block: 'thinking', output: 8, session: 's-2' }),
+      realAssistantLine({ uuid: 'a2', parent: 'a1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:40.000Z', block: 'text', output: 412, session: 's-2' }),
+      realUserLine({ uuid: 'u2', parent: 'a2', text: 'and log each attempt', at: '2026-07-02T10:00:00.000Z', session: 's-2' }),
+      realAssistantLine({ uuid: 'a3', parent: 'u2', id: 'msg_01m2', requestId: 'req_01r2', at: '2026-07-02T10:00:30.000Z', block: 'text', output: 90, session: 's-2' })
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-01', 'claude', '<proj>', 'claude-fable-5', 6, 412, 18000, 1200, 19618],
+        ['2026-07-02', 'claude', '<proj>', 'claude-fable-5', 6, 90, 18000, 1200, 19296]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['7a2e-resumed.jsonl', 'add a retry to the uploader', 38914, 2, 'none'],
+          ['1f0c-first.jsonl', 'add a retry to the uploader', 0, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
+    const tokens = new Map(r.perProject.get(mergeKey(proj))?.sessions.map((s) => [s.file, s.tokens]))
+    // m1 once, with the resumed file's complete usage: 6 + 412 + 18000 + 1200, then m2's
+    expect([tokens.get(first), tokens.get(resumed)]).toEqual([0, 19618 + 19296])
+  })
+
+  it('a sidechain replay across files, under a request id other than the original\'s (A4)', async () => {
+    // A subagent's transcript sits in its session's directory, which comes before the session's own file in scan order:
+    // its replay of m1 is met first and the session's own copy replaces it
+    const sub = mkClaudeFile(join('9b1d', 'subagents', 'agent-a1.jsonl'), [
+      usageLine('claude-fable-5', '2026-07-03T08:00:01Z', 300, 30, { id: 'm1', requestId: 'r-sub', sidechain: true }),
+      usageLine('claude-fable-5', '2026-07-03T08:00:02Z', 50, 5, { id: 'm-sub', requestId: 'r-sub', sidechain: true })
+    ])
+    const own = mkClaudeFile('9b1d.jsonl', [userLine('dispatch a reviewer', '2026-07-03T07:59:00Z'), usageLine('claude-fable-5', '2026-07-03T08:00:00Z', 120, 12, { id: 'm1', requestId: 'r-own' })])
+    const r = await engine().build(roots(), [proj])
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-03', 'claude', '<proj>', 'claude-fable-5', 170, 17, 0, 0, 187]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['9b1d.jsonl', 'dispatch a reviewer', 132, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
+    expect(r.global.bySide.claude.total, 'm1 counted once, as the session\'s own copy, beside the subagent\'s own message').toBe(132 + 55)
+    expect(r.sessionFiles).toEqual(new Set([own, sub]))
+  })
+
+  // The fork opens with its parent's one question and one turn, replayed at the fork's moment, and asks its own question
+  // half an hour later. One replayed turn is no rewrite burst, and a question at a person's pace after it ends the
+  // questions' burst, so only the parent, found after the fork in scan order, strips the replay: without it the fork
+  // would count the parent's turn again and show its question as its own, marked uncertain.
+  it('a legacy Codex fork whose parent sits later in scan order (B10)', async () => {
+    const turn = { input: 100, cached: 20, output: 10 }
+    mkCodexFork(
+      'rollout-a-019fd10.jsonl',
+      proj,
+      { id: 'c-10', parentId: 'p-10', forkedAtIso: '2026-07-30T05:00:00Z', replay: { question: 'sample question', turn }, askedAtIso: '2026-07-30T05:30:00Z' },
+      'gpt-5.6-sol',
+      [{ input: 300, cached: 0, output: 30, at: '2026-07-30T05:30:00Z' }]
+    )
+    mkCodexRollout('rollout-z-019fd11.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ ...turn, at: '2026-07-30T01:10:00Z' }], false, 2000, 'sample question', { id: 'p-10' })
+    const r = await engine().build(roots(), [proj])
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-30', 'codex', '<proj>', 'gpt-5.6-sol', 380, 40, 20, 0, 440]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['rollout-a-019fd10.jsonl', 'question after the fork', 330, 1, 'stripped'],
+          ['rollout-z-019fd11.jsonl', 'sample question', 110, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
+  })
+
+  it('an Antigravity call recorded in two databases (token-stats::REQ-003/AC-01)', async () => {
+    mkAgyConversation('agy-a', proj, [{ usage: { messageId: 'm-shared', input: 40, output: 4 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    mkAgyConversation('agy-b', proj, [
+      { usage: { messageId: 'm-shared', input: 40, output: 4 }, at: Date.parse('2026-07-30T02:00:00Z') },
+      { usage: { messageId: 'm-own', input: 7, output: 1 }, at: Date.parse('2026-07-31T02:00:00Z') }
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-30', 'antigravity', '<proj>', 'gemini-3.6-flash', 40, 4, 0, 0, 44],
+        ['2026-07-31', 'antigravity', '<proj>', 'gemini-3.6-flash', 7, 1, 0, 0, 8]
+      ],
+      sessions: [
+        ['<proj>', []]
+      ],
+      unreadable: 0
+    })
+    expect(r.global.bySide.antigravity.total).toBe(44 + 8)
+  })
+
+  it('two sessions of different groups with the same time keep their scan order', async () => {
+    const at = '2026-07-30T03:00:00Z'
+    mkClaudeFile('b.jsonl', [userLine('second', at), usageLine('claude-fable-5', at, 10, 1, { id: 'mb' })])
+    mkClaudeFile('a.jsonl', [userLine('first', at), usageLine('claude-fable-5', at, 20, 2, { id: 'ma' })])
+    mkCodexRollout('rollout-t-019fd12.jsonl', proj, at, 'gpt-5.6-sol', [{ input: 30, cached: 0, output: 3, at }], false, 2000, 'sample question', { id: 't-12' })
+    mkClaudeFile('c.jsonl', [userLine('later', '2026-07-30T04:00:00Z'), usageLine('claude-fable-5', '2026-07-30T04:00:00Z', 5, 1, { id: 'mc' })])
+    const r = await engine().build(roots(), [proj])
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-30', 'claude', '<proj>', 'claude-fable-5', 35, 4, 0, 0, 39],
+        ['2026-07-30', 'codex', '<proj>', 'gpt-5.6-sol', 30, 3, 0, 0, 33]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['c.jsonl', 'later', 6, 1, 'none'],
+          ['a.jsonl', 'first', 22, 1, 'none'],
+          ['b.jsonl', 'second', 11, 1, 'none'],
+          ['rollout-t-019fd12.jsonl', 'sample question', 33, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
+    expect(r.perProject.get(mergeKey(proj))?.sessions.map((s) => s.title)).toEqual(['later', 'first', 'second', 'sample question'])
+  })
+
+  it('a file with no key is a group alone', async () => {
+    const keyless = mkClaudeFile('k.jsonl', [userLine('no ids here', '2026-07-30T03:00:00Z'), usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 10, 1)])
+    const keyed = mkClaudeFile('m.jsonl', [userLine('ids here', '2026-07-30T03:30:00Z'), usageLine('claude-fable-5', '2026-07-30T03:30:00Z', 10, 1, { id: 'mk' })])
+    const grok = mkGrokSession(proj, 'gk', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })])
+    const r = await engine().build(roots(), [proj])
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-30', 'claude', '<proj>', 'claude-fable-5', 20, 2, 0, 0, 22],
+        ['2026-07-30', 'grok', '<proj>', 'grok-4.5-build', 50, 5, 0, 0, 55]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['m.jsonl', 'ids here', 11, 1, 'none'],
+          ['k.jsonl', 'no ids here', 11, 1, 'none'],
+          ['updates.jsonl', 'a grok question', 55, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
+    expect(storedGroups(cacheDir()).sort()).toEqual([[keyless], [keyed], [grok]].sort())
+  })
+
+  it('a sequence of scans over one home: after each, the summed stored results are one combination over the scan set', async () => {
+    const e = engine()
+    const scan = async (): Promise<void> => expectFromScratch(await e.build(roots(), [proj]))
+    const day = (d: number, h = 10): string => `2026-07-${String(d).padStart(2, '0')}T${String(h).padStart(2, '0')}:00:00Z`
+    const aLines = [userLine('a question', day(1)), usageLine('claude-fable-5', day(1), 10, 1, { id: 'm1' })]
+    const a = mkClaudeFile('a.jsonl', aLines)
+    const b = mkClaudeFile('b.jsonl', [userLine('b question', day(2)), usageLine('claude-fable-5', day(2), 20, 2, { id: 'm2' })])
+    const rollout = 'rollout-s-019fd20.jsonl'
+    mkCodexRollout(rollout, proj, day(1), 'gpt-5.6-sol', [{ input: 100, cached: 10, output: 10, at: day(1) }], false, 2000, 'sample question', { id: 's-20' })
+    mkGrokSession(proj, 'gs', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })])
+    const x = mkAgyConversation('agy-x', proj, [{ usage: { messageId: 'c1', input: 40, output: 4 }, at: Date.parse(day(3)) }])
+    await scan()
+    // Added: c shares m2 with b, and y shares the call c1 with x — two groups gain a file each
+    const c = mkClaudeFile('c.jsonl', [userLine('c question', day(4)), usageLine('claude-fable-5', day(4), 30, 3, { id: 'm2' })])
+    const y = mkAgyConversation('agy-y', proj, [
+      { usage: { messageId: 'c1', input: 40, output: 4 }, at: Date.parse(day(3)) },
+      { usage: { messageId: 'c2', input: 9, output: 1 }, at: Date.parse(day(5)) }
+    ])
+    await scan()
+    // Grown: a and the rollout gain a turn each
+    appendFileSync(a, usageLine('claude-fable-5', day(6), 5, 1, { id: 'm3' }) + '\n')
+    mkCodexRollout(rollout, proj, day(1), 'gpt-5.6-sol', [{ input: 100, cached: 10, output: 10, at: day(1) }, { input: 60, cached: 0, output: 6, at: day(6) }], false, 3000, 'sample question', { id: 's-20' })
+    await scan()
+    // Removed: b, which c shared m2 with
+    rmSync(b)
+    await scan()
+    // Moved: y takes a place before x, so it is the conversation that keeps c1
+    renameSync(y, join(dirname(y), 'agy-0.db'))
+    await scan()
+    // Two groups join: a gains a copy of m2, which only c holds now
+    mkClaudeFile('a.jsonl', [...aLines, usageLine('claude-fable-5', day(6), 5, 1, { id: 'm3' }), usageLine('claude-fable-5', day(7), 30, 3, { id: 'm2' })], 4000)
+    await scan()
+    expect(storedGroups(cacheDir()).find((g) => g.includes(a))).toEqual([a, c])
+    // And split again
+    mkClaudeFile('a.jsonl', [...aLines, usageLine('claude-fable-5', day(6), 5, 1, { id: 'm3' })], 5000)
+    await scan()
+    expect(storedGroups(cacheDir()).find((g) => g.includes(a))).toEqual([a])
+    expect(storedGroups(cacheDir()).find((g) => g.includes(x))?.length, 'the moved conversation still shares its group').toBe(2)
+  })
+})
+
+describe('a group (token-stats, Implementation Decisions, Cache)', () => {
+  it('a chain linked by two different keys is one group, and removing the middle file\'s keys splits it', async () => {
+    const { a, b, c } = linkedChain()
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect(storedGroups(cacheDir())).toEqual([[a, b, c]])
+    // B's usage lines lose their message ids: nothing links A, B and C any more
+    mkClaudeFile('b.jsonl', [userLine('second question', '2026-07-01T10:30:00Z'), usageLine('claude-fable-5', '2026-07-01T11:00:00Z', 150, 10), usageLine('claude-opus-5-5', '2026-07-02T09:00:00Z', 40, 4)], 2000)
+    await expectFromScratch(await e.build(roots(), [proj]))
+    expect(storedGroups(cacheDir()).sort()).toEqual([[a], [b], [c]].sort())
+  })
+})
+
+// A group's input: each file in scan order, its entry and what the scan adds to it (token-stats, Implementation
+// Decisions, Cache). Each case changes one thing the scan adds, the entries unchanged, and the scan after it gives what
+// one combination over the scan set gives, with nothing parsed.
+describe('a group whose input differs is combined again (token-stats, Implementation Decisions, Cache)', () => {
+  /** An engine of one combination whose parses are recorded */
+  function recorded(): { e: TokenEngine; parsed: () => string[] } {
+    const { runner, jobs } = recording()
+    const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, '1.0.0')
+    return { e, parsed: () => jobs.splice(0).map((j) => j.file) }
+  }
+
+  it('a file moved in the scan order inside its group: the copy kept is the one now first', async () => {
+    // Two copies of one message with equal figures: the first in scan order is kept, and the session it is in counts it
+    const line = usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 1, { id: 'm-eq', requestId: 'r-eq' })
+    const first = mkClaudeFile('b.jsonl', [userLine('b question', '2026-07-30T01:00:00Z'), line])
+    const other = mkClaudeFile('c.jsonl', [userLine('c question', '2026-07-30T01:30:00Z'), line])
+    const { e, parsed } = recorded()
+    const tokens = (r: TokenBuildResult): Record<string, number | undefined> =>
+      Object.fromEntries((r.perProject.get(mergeKey(proj))?.sessions ?? []).map((s) => [s.title ?? '', s.tokens]))
+    expect(tokens(await e.build(roots(), [proj]))).toEqual({ 'b question': 11, 'c question': 0 })
+    parsed()
+    const moved = join(dirname(first), 'd.jsonl')
+    renameSync(first, moved)
+    const r = await e.build(roots(), [proj])
+    await expectFromScratch(r)
+    expect(tokens(r)).toEqual({ 'b question': 0, 'c question': 11 })
+    expect(parsed(), 'the moved file alone is new to the store').toEqual([moved])
+    expect(other).toBeTruthy()
+  })
+
+  it('a project registered for a Codex session\'s folder admits the session to the read allow-list', async () => {
+    const rollout = mkCodexRollout('rollout-r-019fd30.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }], false, 2000, 'sample question', { id: 'r-30' })
+    const { e, parsed } = recorded()
+    expect((await e.build(roots(), [], new Set())).sessionFiles.has(rollout)).toBe(false)
+    parsed()
+    const r = await e.build(roots(), [], new Set([mergeKey(proj)]))
+    expect(r.sessionFiles.has(rollout)).toBe(true)
+    expect(parsed()).toEqual([])
+    await expectFromScratch(r, (e) => e.build(roots(), [], new Set([mergeKey(proj)])))
+  })
+
+  it('a Claude project registered admits its subagent\'s transcript to the read allow-list', async () => {
+    const own = mkClaudeFile('5c1e.jsonl', [userLine('dispatch a helper', '2026-07-30T01:00:00Z'), usageLine('claude-fable-5', '2026-07-30T01:00:00Z', 10, 1, { id: 'm-own' })])
+    const sub = mkClaudeFile(join('5c1e', 'subagents', 'agent-h.jsonl'), [usageLine('claude-fable-5', '2026-07-30T01:00:05Z', 30, 3, { id: 'm-sub', sidechain: true })])
+    const { e, parsed } = recorded()
+    expect((await e.build(roots(), [proj], new Set())).sessionFiles).toEqual(new Set())
+    parsed()
+    const r = await e.build(roots(), [proj], new Set([mergeKey(proj)]))
+    expect(r.sessionFiles).toEqual(new Set([own, sub]))
+    expect(parsed()).toEqual([])
+    await expectFromScratch(r, (e) => e.build(roots(), [proj], new Set([mergeKey(proj)])))
+  })
+
+  it('an Antigravity title changed in agy\'s titles database titles the session', async () => {
+    const agyHome = roots().antigravityHome
+    mkAgyConversation('agy-t', proj, [{ usage: { messageId: 'm-t', input: 40, output: 4 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    writeTranscript(agyHome, 'agy-t', [MEASURED_TRANSCRIPT.main[0]])
+    const titles = (t: string): void => {
+      for (const suffix of ['', '-wal', '-shm']) rmSync(join(agyHome, `conversation_summaries.db${suffix}`), { force: true })
+      writeSummaries(agyHome, [{ id: 'agy-t', title: t }])
+    }
+    titles('Explaining Calc.py')
+    const { e, parsed } = recorded()
+    const titleOf = (r: TokenBuildResult): Array<string | null> => (r.perProject.get(mergeKey(proj))?.sessions ?? []).map((s) => s.title)
+    expect(titleOf(await e.build(roots(), [proj]))).toEqual(['Explaining Calc.py'])
+    parsed()
+    titles('Calc.py, renamed')
+    const r = await e.build(roots(), [proj])
+    expect(titleOf(r)).toEqual(['Calc.py, renamed'])
+    expect(parsed()).toEqual([])
+    await expectFromScratch(r)
+  })
+
+  // A Codex session's name is read from the session index when its rollout is parsed (session-view B4): renamed there
+  // alone, the session keeps the name its entry holds, and takes the new one when its rollout is next written. This
+  // machine's index, 2026-11-15: 19 of 669 ids carry more than one name, and every one of their rollouts was written at or
+  // after its last rename.
+  it('a Codex title changed in the session index shows once the rollout is next written (B4)', async () => {
+    const id = '019f0000-0000-7000-8000-00000000c0de'
+    const file = `rollout-2026-07-30T01-00-00-${id}.jsonl`
+    writeIndex([{ id, name: 'first name' }])
+    mkCodexRollout(file, proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }], false, 2000, 'sample question', { id })
+    const { e, parsed } = recorded()
+    const titleOf = (r: TokenBuildResult): Array<string | null> => (r.perProject.get(mergeKey(proj))?.sessions ?? []).map((s) => s.title)
+    expect(titleOf(await e.build(roots(), [proj]))).toEqual(['first name'])
+    parsed()
+    writeIndex([{ id, name: 'first name' }, { id, name: 'renamed' }])
+    const unchanged = await e.build(roots(), [proj])
+    expect(titleOf(unchanged)).toEqual(['first name'])
+    expect(parsed()).toEqual([])
+    await expectFromScratch(unchanged)
+    mkCodexRollout(file, proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }, { input: 50, cached: 0, output: 5 }], false, 3000, 'sample question', { id })
+    expect(titleOf(await e.build(roots(), [proj]))).toEqual(['renamed'])
+  })
+})
+
+// A group's stored result (token-stats C2; Implementation Decisions, Cache; QR-002/AC-02): read back and summed while its
+// input and its combination are the ones it came from, combined again from the stored entries otherwise, with nothing
+// parsed.
+describe('a group\'s stored result', () => {
+  /** The store's group rows, each column as text */
+  const resultRows = (): string[][] => onStore(cacheDir(), 'SELECT id, members, input, combination, result FROM results ORDER BY id').map((row) => row.map(String))
+  /** Builds under `combination`: the result, and the files it parsed */
+  async function launch(combination?: string): Promise<{ result: TokenBuildResult; parsed: string[] }> {
+    const { runner, jobs } = recording()
+    const result = await new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, combination).build(roots(), [proj])
+    return { result, parsed: jobs.map((j) => j.file) }
+  }
+  /** The linked chain and a lone file, the file each is in */
+  function twoGroups(): { chain: ReturnType<typeof linkedChain>; lone: string } {
+    const chain = linkedChain()
+    const lone = mkClaudeFile('d.jsonl', [userLine('a lone question', '2026-07-03T09:00:00Z'), usageLine('claude-fable-5', '2026-07-03T09:00:00Z', 7, 1, { id: 'md' })])
+    return { chain, lone }
+  }
+
+  // Each with the member list the row then holds: a list of numbers, of three members or four
+  it.each([
+    ['a result that is no blob', "UPDATE results SET result = 'none' WHERE id = ?", '24'],
+    ['a result cut short', 'UPDATE results SET result = substr(result, 1, length(result) - 3) WHERE id = ?', '24'],
+    // `||` makes text of two blobs: cast back, the row still holds a list of numbers
+    ['a member list naming a file the store does not hold', "UPDATE results SET members = CAST(members || X'ffffffffffffff7f' AS BLOB) WHERE id = ?", '32'],
+    // The input reordered with it (each Claude Code member's ten bytes: its write, its admission, no title), so that it is
+    // the input of the members in that order: only the order is wrong
+    [
+      'a member list out of scan order',
+      'UPDATE results SET members = CAST(substr(members, 17, 8) || substr(members, 9, 8) || substr(members, 1, 8) AS BLOB), ' +
+        'input = CAST(substr(input, 21, 10) || substr(input, 11, 10) || substr(input, 1, 10) AS BLOB) WHERE id = ?',
+      '24'
+    ]
+  ])('%s is combined again from its files\' entries, with nothing parsed (C2)', async (_what, sql, members) => {
+    const { chain } = twoGroups()
+    await launch('1.0.0')
+    const [chainGroup] = onStore(cacheDir(), 'SELECT id FROM results WHERE length(members) = 24')
+    onStore(cacheDir(), sql, chainGroup[0])
+    expect(onStore(cacheDir(), 'SELECT typeof(members), length(members) FROM results WHERE id = ?', chainGroup[0]), 'the control: the member list the row holds').toEqual([['blob', members]])
+    const again = await launch('1.0.0')
+    expect(again.parsed).toEqual([])
+    await expectFromScratch(again.result)
+    expect(storedGroups(cacheDir()).find((g) => g.includes(chain.a))).toEqual([chain.a, chain.b, chain.c])
+  })
+
+  // Two lone files share no key, so neither group reaches the other: the later row naming the earlier group's file as
+  // well leaves the earlier row as it was, and only reading neither row back keeps that file from being summed from
+  // the earlier group's result and combined again in the later one.
+  it('a member list naming a file another group names: neither row reads back, and both groups are combined again from their files\' entries, with nothing parsed (C2)', async () => {
+    const x = mkClaudeFile('x.jsonl', [userLine('the first lone question', '2026-07-03T09:00:00Z'), usageLine('claude-fable-5', '2026-07-03T09:00:00Z', 10, 1, { id: 'mx' })])
+    const y = mkClaudeFile('y.jsonl', [userLine('the second lone question', '2026-07-03T10:00:00Z'), usageLine('claude-fable-5', '2026-07-03T10:00:00Z', 100, 10, { id: 'my' })])
+    await launch('1.0.0')
+    const [later] = onStore(cacheDir(), 'SELECT id FROM results ORDER BY id DESC LIMIT 1')
+    onStore(cacheDir(), 'UPDATE results SET members = CAST((SELECT members FROM results WHERE id <> ?1) || members AS BLOB) WHERE id = ?1', later[0])
+    expect(onStore(cacheDir(), 'SELECT typeof(members), length(members) FROM results WHERE id = ?', later[0]), 'the control: a list of two numbers').toEqual([['blob', '16']])
+    expect(storedGroups(cacheDir()).flat().sort(), 'the control: one file named by both rows').toHaveLength(3)
+    const again = await launch('1.0.0')
+    expect(again.parsed).toEqual([])
+    expect(again.result.global.bySide.claude.total).toBe(11 + 110)
+    await expectFromScratch(again.result)
+    expect(storedGroups(cacheDir()).flat().sort()).toEqual([x, y].sort())
+  })
+
+  it('a second launch of one version, after one file changed, rewrites that file\'s entry and its group\'s result alone (QR-002/AC-02)', async () => {
+    const { lone } = twoGroups()
+    await launch('1.0.0')
+    expect((await launch('1.0.0')).parsed, 'the control: a launch with nothing changed parses nothing').toEqual([])
+    const before = { entries: storeRows(cacheDir()), results: resultRows() }
+    mkClaudeFile('d.jsonl', [userLine('a lone question', '2026-07-03T09:00:00Z'), usageLine('claude-fable-5', '2026-07-03T09:00:00Z', 7, 1, { id: 'md' }), usageLine('claude-fable-5', '2026-07-03T10:00:00Z', 9, 1, { id: 'md2' })], 3000)
+    const after = await launch('1.0.0')
+    expect(after.parsed).toEqual([lone])
+    await expectFromScratch(after.result)
+    const entries = storeRows(cacheDir())
+    expect(entries.filter((r) => r.path !== lone)).toEqual(before.entries.filter((r) => r.path !== lone))
+    expect(entries.find((r) => r.path === lone)).not.toEqual(before.entries.find((r) => r.path === lone))
+    // The chain's row is the one it was; the lone file's row is a new one
+    const results = resultRows()
+    expect(results.filter((r) => before.results.some((b) => b.join() === r.join())).length).toBe(1)
+    expect(results).toHaveLength(2)
+  })
+
+  it.each([
+    ['another application version', '0.9.0', '1.0.0'],
+    ['an unpackaged run, whose next run is a combination of its own', undefined, undefined]
+  ])('results stored under %s are every one combined again at the next scan, with nothing parsed', async (_what, first, next) => {
+    twoGroups()
+    await launch(first)
+    const before = resultRows()
+    const again = await launch(next)
+    expect(again.parsed).toEqual([])
+    await expectFromScratch(again.result)
+    // Each row records the combination it came from (a row's number is reused once every row is gone)
+    const earlier = new Set(before.map((r) => r[3]))
+    expect(resultRows().filter((r) => earlier.has(r[3])), 'no row is one the earlier combination wrote').toEqual([])
+    expect(resultRows()).toHaveLength(2)
+  })
+
+  // The time zone a scan runs in is part of the combination: Codex, Grok and Antigravity usage is filed under its day as
+  // the groups are combined. A Claude Code entry's days are cut when its file is parsed, so after a change they stay in
+  // the zone of that parse until the file is parsed again (Implementation Decisions, Cache).
+  it('the same store scanned in another time zone: every group combined again, nothing parsed, the days in the new zone', async () => {
+    const at = '2026-07-30T20:00:00Z'
+    mkClaudeFile('z.jsonl', [userLine('a late question', at), usageLine('claude-fable-5', at, 10, 1, { id: 'mz' })])
+    mkCodexRollout('rollout-z-019fd40.jsonl', proj, at, 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, at }], false, 2000, 'sample question', { id: 'z-40' })
+    mkGrokSession(proj, 'gz', [grokUser(Date.parse(at) / 1000 - 60, 'a grok question', 0), grokTurn(Date.parse(at) / 1000, { input: 50, output: 5 })])
+    mkAgyConversation('agy-z', proj, [{ usage: { messageId: 'm-z', input: 40, output: 4 }, at: Date.parse(at) }])
+    const zone = process.env['TZ']
+    const days = (r: TokenBuildResult): Record<string, string> => Object.fromEntries(r.rows.map((row) => [row.side, row.day]))
+    try {
+      process.env['TZ'] = 'UTC'
+      const utc = await launch('1.0.0')
+      expect(days(utc.result)).toEqual({ claude: '2026-07-30', codex: '2026-07-30', grok: '2026-07-30', antigravity: '2026-07-30' })
+      const before = resultRows()
+      process.env['TZ'] = 'Asia/Tokyo'
+      const tokyo = await launch('1.0.0')
+      expect(tokyo.parsed).toEqual([])
+      expect(days(tokyo.result)).toEqual({ claude: '2026-07-30', codex: '2026-07-31', grok: '2026-07-31', antigravity: '2026-07-31' })
+      await expectFromScratch(tokyo.result)
+      const earlier = new Set(before.map((r) => r[3]))
+      expect(resultRows().filter((r) => earlier.has(r[3])), 'no row is one the earlier zone\'s combination wrote').toEqual([])
+    } finally {
+      if (zone === undefined) delete process.env['TZ']
+      else process.env['TZ'] = zone
+    }
+  })
+
+  it('an entry the session page rebuilt between two scans is a changed file for the next: its figures are in that scan', async () => {
+    const f = mkClaudeFile('p.jsonl', [userLine('first', '2026-07-30T01:00:00Z'), usageLine('claude-fable-5', '2026-07-30T01:00:00Z', 10, 1, { id: 'mp1' })])
+    const { runner, jobs } = recording()
+    const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, '1.0.0')
+    await e.build(roots(), [proj])
+    jobs.length = 0
+    appendFileSync(f, userLine('second', '2026-07-30T02:00:00Z') + '\n' + usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 100, 10, { id: 'mp2' }) + '\n')
+    expect((await e.sessionQuestions(roots(), f)).questions, 'the page rebuilt and stored the entry').toHaveLength(2)
+    const r = await e.build(roots(), [proj])
+    expect(jobs, 'the scan finds the page\'s entry current').toEqual([])
+    expect(r.global.bySide.claude.total).toBe(11 + 110)
+    await expectFromScratch(r)
+  })
 })
 
 describe('the archive row output (for UsageArchive to persist)', () => {
@@ -3376,6 +4028,81 @@ describe('a panic in the engine module while a Grok session is parsed', () => {
     }
     // Nothing is kept for it: the next build parses it
     expect((await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])).global.bySide.grok.total).toBe(77 + 44)
+  })
+})
+
+// token-stats, Scans and the window, failure modes: a file whose parsed entry the store cannot hold is that file's failed
+// read for that scan, under the rule its side has for a read that fails, parsed again at the next scan, and the scan
+// goes on. A line's two cache-write figures, each a finite count, sum past the range of a double, which the entry's
+// JSON text writes as null.
+describe('a session file whose parsed entry the store cannot hold', () => {
+  const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
+  /** An assistant line of the measured shape whose two cache-write figures sum past the range of a double */
+  const overflowing = (): string =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-07-30T02:00:00Z',
+      requestId: 'rp',
+      isSidechain: false,
+      message: { id: 'mp', model: 'claude-fable-5', usage: { input_tokens: 40, output_tokens: 4, cache_creation: { ephemeral_5m_input_tokens: 1e308, ephemeral_1h_input_tokens: 1e308 } } }
+    })
+  const LEFT_OUT = '[token-store] left out of this scan and read again at the next:'
+
+  it('is that Claude Code session\'s failed read: skipped as an unreadable one is, its held entry removed, the warning naming it, and at the next scan parsed again and left out again', async () => {
+    const question = 'a question in the file that overflows'
+    const named = mkClaudeFile('overflow.jsonl', [userLine(question), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 40, 4, { id: 'mp', requestId: 'rp' })])
+    mkClaudeFile('other.jsonl', [userLine('a question in the other file'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 70, 7, { id: 'mo', requestId: 'ro' })])
+    const { runner, jobs } = recording()
+    const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner)
+    expect((await e.build(roots(), [proj])).global.bySide.claude.total, 'the control: both files counted').toBe(77 + 44)
+    expect(storedEntries(cacheDir()).has(named), 'the control: its entry held').toBe(true)
+    mkClaudeFile('overflow.jsonl', [userLine(question), overflowing()], 2000)
+    jobs.length = 0
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const left = await e.build(roots(), [proj])
+      expect(jobs.map((j) => j.file)).toEqual([named])
+      expect(left.global.bySide.claude.total).toBe(77)
+      expect(warned).toHaveBeenCalledWith(LEFT_OUT, named)
+      expect(storedEntries(cacheDir()).has(named), 'its held entry removed').toBe(false)
+      chmodSync(named, 0)
+      try {
+        expect(shape(left)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable'), TEST_ENGINE).build(roots(), [proj])))
+      } finally {
+        chmodSync(named, 0o644)
+      }
+      warned.mockClear()
+      jobs.length = 0
+      const again = await e.build(roots(), [proj])
+      expect(jobs.map((j) => j.file), 'nothing is kept for it: the next scan parses it').toEqual([named])
+      expect(shape(again)).toEqual(shape(left))
+      expect(warned).toHaveBeenCalledWith(LEFT_OUT, named)
+    } finally {
+      warned.mockRestore()
+    }
+  })
+
+  it('with no store to hold it (one that cannot be made, a directory at its path), the same: left out of the figures the build combines in memory, the warning naming it', async () => {
+    const named = mkClaudeFile('overflow.jsonl', [userLine('a question in the file that overflows'), overflowing()])
+    mkClaudeFile('other.jsonl', [userLine('a question in the other file'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 70, 7, { id: 'mo', requestId: 'ro' })])
+    mkdirSync(join(storePath(cacheDir()), 'x'), { recursive: true })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const left = await new TokenEngine(cacheDir(), TEST_ENGINE).build(roots(), [proj])
+      expect(logged, 'the control: no store').toHaveBeenCalledWith('[token-store] open failed:', expect.anything())
+      expect(left.global.bySide.claude.total).toBe(77)
+      expect(warned).toHaveBeenCalledWith(LEFT_OUT, named)
+      chmodSync(named, 0)
+      try {
+        expect(shape(left)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable'), TEST_ENGINE).build(roots(), [proj])))
+      } finally {
+        chmodSync(named, 0o644)
+      }
+    } finally {
+      logged.mockRestore()
+      warned.mockRestore()
+    }
   })
 })
 

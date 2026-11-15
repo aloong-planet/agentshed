@@ -53,6 +53,22 @@ export function storedEntries(cacheDir: string): Map<string, { sig: string | nul
   return out
 }
 
+/** Each group the store holds a combined result for (token-stats::CON-003): its members' paths, in the order the group
+ * keeps them, the groups in the order the store holds them */
+export function storedGroups(cacheDir: string): string[][] {
+  const paths = new Map(onStore(cacheDir, 'SELECT id, path FROM entries').map(([id, path]) => [String(id), String(path)]))
+  return onStore(cacheDir, 'SELECT members FROM results ORDER BY id').map(([members]) => {
+    // A blob reads as x'…' in hexadecimal; each member is a 64-bit file number, little-endian
+    const bytes = Buffer.from(String(members).slice(2, -1), 'hex')
+    const files: string[] = []
+    for (let i = 0; i + 8 <= bytes.length; i += 8) {
+      const id = bytes.readBigInt64LE(i).toString()
+      files.push(paths.get(id) ?? `(no file ${id})`)
+    }
+    return files
+  })
+}
+
 /** The structure version the store records */
 export function storeVersion(cacheDir: string): number {
   return Number(onStore(cacheDir, 'PRAGMA user_version')[0]?.[0])

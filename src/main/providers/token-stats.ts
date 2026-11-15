@@ -1,14 +1,14 @@
 // The token aggregation engine (aligned with ccusage, 2026-07-30; the source-level basis is in ADR-0005):
 // - Claude: recursively scan **the whole tree** under claudeHome/projects (independent of the project
 //   registry; unregistered directories count toward the global total); each session file read and parsed by
-//   the engine module, engine/src/sides/claude/, into the entries combined here:
-//   each usage line becomes an entry, and the aggregation layer deduplicates across files — the exact
+//   the engine module, engine/src/sides/claude/, into the entries it combines by group (engine/src/group/):
+//   each usage line becomes an entry, and the combination deduplicates across files — the exact
 //   key is message.id+requestId, falling back to message.id-only when either side is isSidechain
 //   (a subagent replays its parent's messages under a new requestId); keep the non-sidechain one,
 //   otherwise the one with the larger four-field token sum. The total rule = input+output+cacheRead+cacheWrite;
 //   entries whose model is '<synthetic>' or missing count toward the total but do not enter a model bucket.
-// - Codex (each rollout read and parsed by the engine module, engine/src/sides/codex/, into the entry
-//   combined here): per-turn last_token_usage increment events (payload.type=token_count inside event_msg);
+// - Codex (each rollout read and parsed by the engine module, engine/src/sides/codex/, into the entry it
+//   combines): per-turn last_token_usage increment events (payload.type=token_count inside event_msg);
 //   a fork or subagent session replays its parent's history, stripped by the same rules as ccusage's
 //   replay.rs — take the parent's event sequence before the fork moment and skip entries at the start
 //   of the child that match it by value (if the very first does not match, strip nothing);
@@ -17,40 +17,38 @@
 //   accounting: sanitise input (subtract cached), count cached as cacheRead, total = input + output
 //   (cache creation is not collected on this side or on Grok's — ADR-0023);
 //   the model comes from the last turn_context (an approximation of the session's primary model).
-// - The incremental cache stores entry-level data (deduplication has to happen across files, in the
-//   aggregation layer, so a deduplicated result cannot be what is cached);
-//   keyed by (path, mtime, size), one row per file in the token store the engine module keeps (ADR-0044). The
-//   statistics include stale projects.
+// - The incremental cache stores entry-level data, and each de-duplication group's combined result: deduplication
+//   happens across files, and only among the files a key links, so a group is combined again when its input changes
+//   (token-stats::CON-003); keyed by (path, mtime, size), one row per file in the token store the engine module keeps
+//   (ADR-0044). The statistics include stale projects.
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'node:fs'
 import { dirname, join, sep } from 'node:path'
-import type {
-  AgentSide,
-  ForkState,
-  ProjectStats,
-  SessionMeta,
-  TokenStats,
-  TokenTotals
-} from '@shared/domain'
-import { emptyTokenStats, emptyTotals } from '@shared/domain'
+import type { AgentSide, ForkState, ProjectStats, SessionMeta, TokenStats } from '@shared/domain'
 import { deriveStats } from '@shared/usage'
 import { mergeKey } from '@shared/path-key'
-import { localDay } from '@shared/format'
 import { sessionIdFromPath } from '@shared/session-resume'
 import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
 import { isColdRollout } from './cold-rollout'
 import { mapLimit, readRanges } from './range-read'
 import { isAbsent, isReadable } from './read-utils'
-import {
-  stripReplayPrefix,
-  type QuestionRec
-} from './question-index'
+import type { QuestionRec } from './question-index'
 import type { ScanRoots } from './types'
 import type { SessionWalk } from './scan'
 import { byName, compareNames, compareScanOrder } from './scan-order'
 import { agySessionSignature, agyTranscriptPath } from './antigravity'
 import type { UsageRow } from './archive'
-import { loadEngineModule, threadEngineModule, type EngineSource, type TokenStore, type TokenStoreRow } from '../engine-module'
+import {
+  loadEngineModule,
+  threadEngineModule,
+  type CombinedScan,
+  type EngineSource,
+  type ScanFile,
+  type TokenStore,
+  type TokenStoreHead,
+  type TokenStoreRow
+} from '../engine-module'
 
 /** One Claude usage entry (encoded into the cache as a compact array): [mid, rid, sc, in, out, cr, cw, model, day] */
 type PackedEntry = [
@@ -263,6 +261,11 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  *      change of the cache as a whole**, which the store records as its own version. The per-file aggregate is v19's,
  *      unchanged, which is why the first launch imports a v19 JSON file and no other (JSON_CACHE_VERSION, token-stats
  *      C26). The store's tables are this version's too (engine/src/store/): changing them bumps this number.
+ * v21: the token store gained each entry's de-duplication keys and each group's combined result, with the group's input
+ *      and the combination it came from — the tables `keys` and `results`, and beside each entry its number, the write
+ *      that held it and what the grouping read of it (engine/src/store/) — **a structure change of the store**. The
+ *      per-file aggregate is still v19's, so the first launch still imports a v19 JSON file. Version 20 never shipped (no
+ *      release tag holds it): only a development store of v20 is replaced, and parses every file once.
  *
  * Not bumped, for one computation change and its reasons alone (#427): a Codex rollout's last line is read only once its
  *      line feed is written, where the TypeScript parser read it at once. The change reaches only an entry cached while a
@@ -276,7 +279,7 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  * Not bumped, for one computation change and its reasons alone (#439): an Antigravity conversation is unreadable when
  *      its trajectory record carries a field the reader reads in another wire type than its descriptor declares, where
  *      the field was passed over, and when the scan lists its database but cannot look at it, where it was left out as
- *      deleted. The second never reached the store: such a conversation had no slot, so an entry held for it was
+ *      deleted. The second never reached the store: such a conversation had no entry in a scan, so one held for it was
  *      removed. The first reaches only an entry cached from a record already in that state, and no conversation on this
  *      machine is (none of the 19, 2026-11-15). Such an entry stands whole — its figures, its project and its place
  *      in the session lists — until the conversation's signature next changes, while the walk, which keeps no
@@ -297,11 +300,11 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  * rules. Production code must not **branch** on it: the only version comparison is the store's own, when it
  * opens (engine/src/store/), and a second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 20
+export const CACHE_VERSION = 21
 
 /**
  * The last structure version kept in the JSON cache file, and the only one a first launch imports (token-stats C26): its
- * per-file aggregate is the store's (CACHE_VERSION, v20). A literal, not `CACHE_VERSION - 1`: a later bump changes what
+ * per-file aggregate is the store's (CACHE_VERSION, v20 and v21). A literal, not `CACHE_VERSION - 1`: a later bump changes what
  * the store holds, never what that file held.
  */
 const JSON_CACHE_VERSION = 19
@@ -315,20 +318,23 @@ const JSON_CACHE_VERSION = 19
  * and reading an older shape would produce plausible nonsense rather than an error; a JSON cache file is no store.
  */
 export function rowsFromStoreSnapshot(file: string, engine: EngineSource, roots: ScanRoots): UsageRow[] {
-  const snapshot = loadEngineModule(engine).readTokenStoreSnapshot(file, CACHE_VERSION)
+  const module = loadEngineModule(engine)
+  const snapshot = module.readTokenStoreSnapshot(file, CACHE_VERSION)
   if (snapshot.version !== CACHE_VERSION || !snapshot.rows) {
     throw new Error(`cache snapshot is version ${snapshot.version ?? 'none'}, this build reads version ${CACHE_VERSION}`)
   }
-  // A scan parses again the file of an entry that is not well formed; a restore has no file to parse, and rows
-  // from the other entries alone would write a day's figure short of that entry's usage as an accepted change
   // The store holds its rows in the order it first held them, which a later scan's order need not be
   const order = compareScanOrder(roots)
-  const entries = [...snapshot.rows].sort((a, b) => order(a.path, b.path)).map(CacheEntries.entryOf)
-  const aggs = entries.flatMap((entry) => (entry ? [entry.agg] : []))
-  if (aggs.length !== entries.length) {
-    throw new Error(`cache snapshot holds ${entries.length - aggs.length} of ${entries.length} entries that are not well formed`)
-  }
-  return combine(aggs).rows
+  const rows = [...snapshot.rows].sort((a, b) => order(a.path, b.path))
+  // A scan parses again the file of an entry that is not well formed; a restore has no file to parse, and rows
+  // from the other entries alone would write a day's figure short of that entry's usage as an accepted change
+  const bad = rows.filter((row) => !CacheEntries.entryOf(row)).length
+  if (bad > 0) throw new Error(`cache snapshot holds ${bad} of ${rows.length} entries that are not well formed`)
+  // One combination over every entry, as a scan of that data sums its groups to; the rows need no admission or title.
+  // An entry the module cannot read, which the check above let through, is refused as well
+  const combined = module.combineEntries(rows.map((row) => ({ path: row.path, agg: String(row.agg), admitted: false, title: null })))
+  if (combined.leftOut.length > 0) throw new Error(`cache snapshot holds ${combined.leftOut.length} of ${rows.length} entries that are not well formed`)
+  return combined.rows
 }
 
 /**
@@ -442,7 +448,7 @@ class CacheEntries {
     return isWellFormedEntry(entry) ? entry : undefined
   }
 
-  static #read(read: { rows: TokenStoreRow[]; failure?: string | null }): TokenStoreRow[] {
+  static #read<T>(read: { rows: T[]; failure?: string | null }): T[] {
     if (read.failure) console.error('[token-store] read failed:', read.failure)
     return read.rows
   }
@@ -463,22 +469,31 @@ class CacheEntries {
     return this.lookup(file).entry
   }
 
-  /** Every file something is held for, with its entry, or null for one that is not well formed */
-  all(): Map<string, CacheEntry | null> {
-    const out = new Map<string, CacheEntry | null>()
-    for (const row of CacheEntries.#read(this.#store.all())) out.set(row.path, CacheEntries.entryOf(row) ?? null)
+  /** Every file something is held for, by path, with what the module read of its entry when it was written: a read
+   * that fails is nothing held, and every file is a miss. Asked at every build: no file's signature or group is kept
+   * between two scans, in this thread or in the module, and the aggregates and the key index stay in the store, a
+   * group's aggregates read only when it is combined again (engine/src/group/) */
+  heads(): Map<string, TokenStoreHead> {
+    const out = new Map<string, TokenStoreHead>()
+    for (const head of CacheEntries.#read(this.#store.heads())) out.set(head.path, head)
     return out
+  }
+
+  /** An entry as the store takes it: its aggregate and resume state as JSON text */
+  static putOf(this: void, e: CacheEntry): NonNullable<ScanFile['put']> {
+    return { sig: e.sig, agg: JSON.stringify(e.agg), ...(e.resume === undefined ? {} : { resume: JSON.stringify(e.resume) }) }
+  }
+
+  /** A scan by group (token-stats::CON-003): the module reads a held entry, and judges it, as its group is combined
+   * again; the store's failures come back as a value, which the caller logs */
+  scan(combination: string, files: ScanFile[], last: boolean): CombinedScan | { bad: string[]; failure: string | null } {
+    return this.#store.scan(combination, files, last)
   }
 
   /** Holds `puts` and removes `removes`, all of it or none (token-stats C3); whether it landed */
   write(puts: ReadonlyMap<string, CacheEntry>, removes: readonly string[] = []): boolean {
     if (puts.size === 0 && removes.length === 0) return true
-    const rows = [...puts].map(([path, e]) => ({
-      path,
-      sig: e.sig,
-      agg: JSON.stringify(e.agg),
-      ...(e.resume === undefined ? {} : { resume: JSON.stringify(e.resume) })
-    }))
+    const rows = [...puts].map(([path, e]) => ({ path, ...CacheEntries.putOf(e) }))
     const failure = this.#store.write(rows, [...removes])
     if (failure === null) return true
     console.error('[token-store] write failed:', failure)
@@ -623,16 +638,27 @@ export interface ParseRunner {
 /** On the calling thread, one file at a time — what tests and the session page use */
 const INLINE: ParseRunner = { run: runParseJob, concurrency: 1 }
 
-/** One file of a build, in scan order: its entry once known, and the job that produces it otherwise */
+/** What a session file's admission to the read allow-list is judged by: its entry's project and whether it is listed */
+interface Admission {
+  projectKey: string
+  listed: boolean
+}
+
+/** One file of a build, in scan order: held in the store, or given a new entry by a parse, or neither (no entry) */
 interface Slot {
   file: string
-  entry: CacheEntry | null
+  /** What the store holds for the file, when the held entry is the file's entry for this scan */
+  held?: TokenStoreHead
+  /** The entry a parse gave */
+  entry?: CacheEntry
   plan?: { job: ParseJob; st: { sig: string; ino: number; size: number } }
-  /** Whether the agg admits the file into the session read allow-list */
-  admit: (agg: FileAgg) => boolean
+  /** Whether the entry admits the file into the session read allow-list */
+  admit: (agg: Admission) => boolean
   /** The entry kept when the parse fails while agy writes an Antigravity conversation (token-stats::REQ-004/AC-03):
    * its last successful read, under its old signature, so the next build reads the conversation again */
-  fallback?: CacheEntry
+  fallback?: TokenStoreHead
+  /** The file's slot as a miss with nothing held: the parse a held entry the combination could not read needs */
+  miss: () => Slot
 }
 
 /**
@@ -649,7 +675,8 @@ interface ParentFiles {
   order: (a: string, b: string) => number
 }
 
-function addParentFile(index: ParentFiles, file: string, agg: FileAgg): void {
+/** Adds a file by the id its side's forks name it by (`own`, ownOf) */
+function addParentFile(index: ParentFiles, file: string, kind: string | null | undefined, own: string | null | undefined): void {
   const add = (by: Map<string, string[]>, id: string): void => {
     const files = by.get(id)
     if (!files) by.set(id, [file])
@@ -658,8 +685,49 @@ function addParentFile(index: ParentFiles, file: string, agg: FileAgg): void {
       files.sort(index.order)
     }
   }
-  if (agg.kind === 'codex' && agg.sessionId !== null) add(index.codex, agg.sessionId)
-  if (agg.kind === 'antigravity' && !agg.unreadable && agg.conversationId !== '') add(index.antigravity, agg.conversationId)
+  if (typeof own !== 'string') return
+  if (kind === 'codex') add(index.codex, own)
+  if (kind === 'antigravity' && own !== '') add(index.antigravity, own)
+}
+
+/** The id an entry's side's forks name it by, as the module records it beside the entry: a Codex session's id, a
+ * readable Antigravity conversation's own id; null for any other */
+function ownOf(agg: FileAgg): string | null {
+  if (agg.kind === 'codex') return agg.sessionId
+  if (agg.kind === 'antigravity' && !agg.unreadable) return agg.conversationId
+  return null
+}
+
+/** Whether the module read the held entry when it was written: it records the entry's side beside it then, and only
+ * for an entry well formed by its side's rules */
+function isReadEntry(head: TokenStoreHead): boolean {
+  return typeof head.kind === 'string'
+}
+
+/** A build's result from what the combination gives: every figure derived from the rows (ADR-0025), each project's
+ * from its own */
+function resultOf(c: CombinedScan): TokenBuildResult {
+  const byProject = new Map<string, UsageRow[]>()
+  for (const r of c.rows) {
+    if (!r.projectKey) continue
+    const list = byProject.get(r.projectKey)
+    if (list) list.push(r)
+    else byProject.set(r.projectKey, [r])
+  }
+  const perProject = new Map<string, ProjectStats>()
+  for (const [key, sessions] of c.projects) perProject.set(key, { tokens: deriveStats(byProject.get(key) ?? []), sessions })
+  const retitle = c.retitle.map(([project, i, start, end]) => {
+    const session = c.projects[project][1][i]
+    return { session, file: session.file, start, end }
+  })
+  return {
+    global: deriveStats(c.rows),
+    perProject,
+    rows: c.rows,
+    retitle,
+    sessionFiles: new Set(c.sessionFiles),
+    antigravityUnreadable: c.antigravityUnreadable
+  }
 }
 
 export class TokenEngine {
@@ -678,12 +746,16 @@ export class TokenEngine {
   private readonly agyTmpParent: string | undefined
   /** The files a fork's parent may be in (ParentFiles); null until a build or a page needs it */
   private parentFiles: ParentFiles | null = null
+  /** What the stored group results this engine writes come from, before the time zone each build adds (token-stats,
+   * Implementation Decisions, Cache): the application version in a packaged build, a run of its own otherwise */
+  private readonly combination: string
 
-  constructor(cacheDir: string, engine: EngineSource, runner: ParseRunner = INLINE, agyTmpParent?: string) {
+  constructor(cacheDir: string, engine: EngineSource, runner: ParseRunner = INLINE, agyTmpParent?: string, combination = `run ${randomUUID()}`) {
     this.cacheDir = cacheDir
     this.engine = engine
     this.runner = runner
     this.agyTmpParent = agyTmpParent
+    this.combination = combination
   }
 
   /**
@@ -712,7 +784,7 @@ export class TokenEngine {
   private parentFilesOf(store: CacheEntries | null, roots: ScanRoots): ParentFiles {
     if (this.parentFiles && !store?.changedByOther()) return this.parentFiles
     const index: ParentFiles = { codex: new Map(), antigravity: new Map(), order: compareScanOrder(roots) }
-    for (const [file, entry] of store?.all() ?? []) if (entry) addParentFile(index, file, entry.agg)
+    for (const [file, head] of store?.heads() ?? []) addParentFile(index, file, head.kind, head.ownId)
     this.parentFiles = index
     return index
   }
@@ -741,16 +813,15 @@ export class TokenEngine {
   ): Promise<TokenBuildResult> {
     const isRegistered = (key: string): boolean =>
       registeredKeys ? registeredKeys.has(key) : key !== ''
-    const aggs: FileAgg[] = []
-    const sessionFiles = new Set<string>()
-    // Every entry the store holds, read as it is now: whatever another process wrote before this point is in it
-    // (token-stats C27). Held for this build only.
+    // What the store holds for each file, as it is now: whatever another process wrote before this point is in it
+    // (token-stats C27). Held for this build only. A hit's entry is not read here: it stays in the store, which the
+    // scan reads it from when its group is combined again.
     const store = this.openStore()
     store?.changedByOther()
-    const held = store?.all() ?? new Map<string, CacheEntry | null>()
+    const held = store?.heads() ?? new Map<string, TokenStoreHead>()
     // Every file in scan order. The cache is consulted here, on the engine's thread; the misses are parsed
     // together below, as many at once as the runner allows; then every file is taken in this order, so
-    // the aggregation sees exactly the sequence a one-at-a-time build saw.
+    // the combination sees exactly the sequence a one-at-a-time build saw.
     const slots: Slot[] = []
 
     // Encoded directory name → the project's merge key
@@ -777,8 +848,8 @@ export class TokenEngine {
           // are never displayed (spec A2),
           // so the read side does not admit them either — the same goes for nested transcripts, whose
           // parent sessions are all invisible
-          const admit = (agg: FileAgg): boolean => isRegistered(projectKey) && (nested || listedOf(agg))
-          slots.push(this.plan(held.get(file) ?? undefined, file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
+          const admit = (agg: Admission): boolean => isRegistered(projectKey) && (nested || agg.listed)
+          slots.push(this.plan(held.get(file), file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
         }
       }
     }
@@ -787,8 +858,8 @@ export class TokenEngine {
     const walked = sessions ?? loadEngineModule(this.engine).walkSessions(roots)
     const titles = readCodexIndex(roots.codexHome)
     for (const s of walked.codex) {
-      const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && (s.subagent || listedOf(agg))
-      slots.push(this.codexPlan(held.get(s.file) ?? undefined, s.file, s.cwd, s, titles, admit))
+      const admit = (agg: Admission): boolean => isRegistered(agg.projectKey) && (s.subagent || agg.listed)
+      slots.push(this.codexPlan(store, held.get(s.file), s.file, s.cwd, s, titles, admit))
     }
 
     // ── Grok: the session store, attributed by the percent-encoded directory name ──
@@ -798,8 +869,8 @@ export class TokenEngine {
       // Listed sessions only: a subagent's stream is never expanded in a parent turn on this side
       // (the dispatch's result comes from the parent's own finished record), so unlike Claude's
       // nested transcripts it stays outside the read allow-list
-      const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && listedOf(agg)
-      slots.push(this.plan(held.get(s.file) ?? undefined, s.file, admit, { kind: 'grok', file: s.file, projectKey: mergeKey(s.cwd), subagent: s.subagent }))
+      const admit = (agg: Admission): boolean => isRegistered(agg.projectKey) && agg.listed
+      slots.push(this.plan(held.get(s.file), s.file, admit, { kind: 'grok', file: s.file, projectKey: mergeKey(s.cwd), subagent: s.subagent }))
     }
 
     // ── Antigravity CLI: every conversation database, attributed by its own trajectory record ──
@@ -807,111 +878,154 @@ export class TokenEngine {
     // transcript a page reads is derived from it on the main process (session-view::REQ-004/AC-09). A subagent's
     // transcript is never expanded in a parent turn on this side (its return is the parent's own system message).
     for (const s of walked.antigravity) {
-      const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && listedOf(agg)
-      slots.push(this.antigravityPlan(held.get(s.file) ?? undefined, s.file, admit))
+      const admit = (agg: Admission): boolean => isRegistered(agg.projectKey) && agg.listed
+      slots.push(this.antigravityPlan(held.get(s.file), s.file, admit))
     }
 
-    const misses = slots.filter((slot) => slot.plan !== undefined)
-    await mapLimit(misses, this.runner.concurrency, async (slot) => {
-      if (slot.plan) slot.entry = entryOf(slot.plan, await this.runner.run(slot.plan.job)) ?? slot.fallback ?? null
-    })
-    // What this build changed in the store, and all it writes (token-stats::QR-002/AC-02): each entry that is not
-    // the one the store held — a parse produced it — and the removal of each file the store held something for that
-    // ends the build with no entry: it left the scan set, or gives no entry any more. A parse that gave nothing to a
-    // file the store held no entry for, or that fell back on the entry already held, changed nothing.
-    const puts = new Map<string, CacheEntry>()
-    const ending = new Set<string>()
+    await this.parse(slots)
+    // agy's titles, read before the combination: a title read beside a conversation is part of its group's input. A
+    // failed read while agy writes its summaries keeps the last ones read
+    this.agyTitles = readAgyTitles(roots.antigravityHome, this.agyTmpParent) ?? this.agyTitles ?? new Map()
+    // The time zone the scan runs in is part of the combination: Codex, Grok and Antigravity usage is filed under its
+    // day as the groups are combined
+    const combination = `${this.combination} ${Intl.DateTimeFormat().resolvedOptions().timeZone}`
+    let combined = this.combine(store, combination, slots, false)
+    // A stored entry the combination cannot read is parsed again, its file a miss, and the scan run again, once: that
+    // round is the last, and what the store still cannot give then — another process removed or rewrote it meanwhile —
+    // is left out of this scan's figures and read again at the next (token-stats C27)
+    if ('bad' in combined) {
+      if (combined.failure) console.error('[token-store] read failed:', combined.failure)
+      const bad = new Set(combined.bad)
+      const again: Slot[] = []
+      slots.forEach((slot, i) => {
+        if (!bad.has(slot.file)) return
+        slots[i] = slot.miss()
+        again.push(slots[i])
+      })
+      await this.parse(again)
+      combined = this.combine(store, combination, slots, true)
+      if ('bad' in combined) throw new Error('the token store named entries to parse again in a scan\'s last round')
+    }
+    // A file whose parsed entry the store cannot hold is left out too, as that file's failed read (A10, B12, F6)
+    if (combined.leftOut.length > 0) console.warn('[token-store] left out of this scan and read again at the next:', combined.leftOut.join(', '))
+    // A scan whose write did not land is logged and costs the next scan the work again, which the store then still
+    // lacks (token-stats C3)
+    if (combined.failure) console.error('[token-store] write failed:', combined.failure)
     const parentFiles: ParentFiles = { codex: new Map(), antigravity: new Map(), order: compareScanOrder(roots) }
     for (const slot of slots) {
-      if (!slot.entry) continue
-      aggs.push(slot.entry.agg)
-      ending.add(slot.file)
-      addParentFile(parentFiles, slot.file, slot.entry.agg)
-      if (!isHeldEntry(held.get(slot.file) ?? undefined, slot.entry)) puts.set(slot.file, slot.entry)
-      if (slot.admit(slot.entry.agg)) sessionFiles.add(slot.file)
+      if (slot.entry) addParentFile(parentFiles, slot.file, slot.entry.agg.kind, ownOf(slot.entry.agg))
+      else if (slot.held) addParentFile(parentFiles, slot.file, slot.held.kind, slot.held.ownId)
     }
-    const removes = [...held.keys()].filter((file) => !ending.has(file))
-    // One transaction: the store holds all of it or none of it. One that does not land is logged and costs the next
-    // scan the parses of what it held, which the store then still lacks (token-stats C3).
-    store?.write(puts, removes)
     this.parentFiles = parentFiles
-    // agy's titles: a failed read while agy writes its summaries keeps the last ones read
-    this.agyTitles = readAgyTitles(roots.antigravityHome, this.agyTmpParent) ?? this.agyTitles ?? new Map()
-    const result = combine(aggs, this.agyTitles)
-    result.sessionFiles = sessionFiles
+    const result = resultOf(combined)
     await retitleStripped(result.retitle)
     return result
   }
 
+  /** Parses the slots that need it, as many at once as the runner allows; a parse that gives nothing leaves the slot
+   * with the entry standing by, if any */
+  private async parse(slots: Slot[]): Promise<void> {
+    await mapLimit(
+      slots.filter((slot) => slot.plan !== undefined),
+      this.runner.concurrency,
+      async (slot) => {
+        if (!slot.plan) return
+        slot.entry = entryOf(slot.plan, await this.runner.run(slot.plan.job)) ?? undefined
+        if (!slot.entry) slot.held = slot.fallback
+      }
+    )
+  }
+
   /**
-   * A file's slot: its cached entry when the signature still matches, otherwise the job that parses it.
+   * The scan's files given to the combination, in scan order, each with its new entry when a parse gave it one and
+   * otherwise held in the store; a file with neither has no entry, and its held one, if any, is removed. With no store,
+   * every file was parsed, and the entries are combined in memory.
+   */
+  private combine(store: CacheEntries | null, combination: string, slots: Slot[], last: boolean): CombinedScan | { bad: string[]; failure: string | null } {
+    const files: ScanFile[] = []
+    for (const slot of slots) {
+      if (slot.entry) {
+        const { agg } = slot.entry
+        files.push({ path: slot.file, put: CacheEntries.putOf(slot.entry), admitted: slot.admit(agg), title: this.titleBeside(agg.kind, ownOf(agg)) })
+      } else if (slot.held) {
+        const h = slot.held
+        files.push({ path: slot.file, admitted: slot.admit({ projectKey: h.projectKey ?? '', listed: h.listed === true }), title: this.titleBeside(h.kind, h.ownId) })
+      }
+    }
+    if (store) return store.scan(combination, files, last)
+    return loadEngineModule(this.engine).combineEntries(
+      files.map((f) => ({ path: f.path, agg: f.put?.agg ?? '', admitted: f.admitted, title: f.title }))
+    )
+  }
+
+  /** The title read beside a session file: agy's own for an Antigravity conversation it could read (session-view::REQ-003/AC-03) */
+  private titleBeside(kind: string | null | undefined, own: string | null | undefined): string | null {
+    return kind === 'antigravity' && typeof own === 'string' ? (this.agyTitles?.get(own) ?? null) : null
+  }
+
+  /**
+   * A file's slot: held in the store when the signature still matches, otherwise the job that parses it.
    * The signature is the one taken **before** parsing, so a file that grows while it is read shows as
    * changed on the next scan rather than matching a signature that already counts bytes the parse
-   * never saw. An unreadable file gets neither. `cached` is the file's entry in the store, if it has one.
+   * never saw. An unreadable file gets neither. `cached` is what the store holds for the file, if anything.
    */
-  private plan(cached: CacheEntry | undefined, file: string, admit: Slot['admit'], job: ParseJob): Slot {
+  private plan(cached: TokenStoreHead | undefined, file: string, admit: Slot['admit'], job: ParseJob): Slot {
+    const miss = (): Slot => this.plan(undefined, file, admit, job)
     const st = statOf(file)
-    if (st === null) return { file, entry: null, admit }
-    // Beyond the version, the store hands out an entry only when its shape holds: manual corruption or future
-    // drift within one version is always recomputed, so a missing field never flows into the aggregation layer.
-    // The store is keyed by file path and a path's side never changes, so a hit is the same side's agg.
-    if (cached && cached.sig === st.sig) return { file, entry: { sig: st.sig, agg: cached.agg }, admit }
-    return { file, entry: null, admit, plan: { job, st } }
+    if (st === null) return { file, admit, miss }
+    // Beyond the version, a hit is an entry the module could read when it was written, which it records beside it:
+    // manual corruption or future drift within one version is recomputed, so a missing field never flows into the
+    // combination. The store is keyed by file path and a path's side never changes, so a hit is the same side's.
+    if (cached && isReadEntry(cached) && cached.sig === st.sig) return { file, held: cached, admit, miss }
+    return { file, admit, miss, plan: { job, st } }
   }
 
   /**
-   * An Antigravity conversation's slot: cached while its signature — the database's time and the log's presence, time
+   * An Antigravity conversation's slot: held while its signature — the database's time and the log's presence, time
    * and size, never the database's size — still matches; read whole otherwise, as agy rewrites and truncates rows in
    * place. Its last readable entry stands by in case the read fails while agy writes (token-stats::REQ-004/AC-03).
-   * One no longer there has no slot; one there whose database cannot be looked at is read, and that read finds a
+   * One no longer there has no entry; one there whose database cannot be looked at is read, and that read finds a
    * database that will not open (AC-01), its entry kept under UNLOOKED_SIGNATURE while it stays so (QR-002).
    */
-  private antigravityPlan(cached: CacheEntry | undefined, file: string, admit: Slot['admit']): Slot {
+  private antigravityPlan(cached: TokenStoreHead | undefined, file: string, admit: Slot['admit']): Slot {
+    const miss = (): Slot => this.antigravityPlan(undefined, file, admit)
     const looked = agySessionSignature(file)
-    if (looked === null && isAbsent(file)) return { file, entry: null, admit }
+    if (looked === null && isAbsent(file)) return { file, admit, miss }
     const sig = looked ?? UNLOOKED_SIGNATURE
-    const usable = cached !== undefined && cached.agg.kind === 'antigravity'
+    const usable = cached !== undefined && cached.kind === 'antigravity'
+    // The module records a conversation's own id for one it could read, and only then
+    const readable = usable && typeof cached.ownId === 'string'
     // Under UNLOOKED_SIGNATURE only the verdict a read out of sight gives holds: a readable entry there was read once
     // the scan could look again after its planning could not, and is read again (AC-01)
-    const holds = looked !== null || (cached?.agg.kind === 'antigravity' && cached.agg.unreadable)
-    if (usable && cached.sig === sig && holds) return { file, entry: cached, admit }
-    const fallback = usable && cached.agg.kind === 'antigravity' && !cached.agg.unreadable ? cached : undefined
-    const st = { sig, ino: 0, size: 0 }
-    return { file, entry: null, admit, fallback, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st } }
+    const holds = looked !== null || !readable
+    if (usable && cached.sig === sig && holds) return { file, held: cached, admit, miss }
+    const fallback = readable ? cached : undefined
+    return { file, admit, fallback, miss, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st: { sig, ino: 0, size: 0 } } }
   }
 
   /**
-   * A Codex rollout's slot: cached when its signature still matches; a job resuming from the cached
-   * parse state when the rollout only grew (CodexResume); a whole parse otherwise.
+   * A Codex rollout's slot: held when its signature still matches; a job resuming from the held parse
+   * state when the rollout only grew (CodexResume), which the miss reads from the store; a whole parse otherwise.
    */
   private codexPlan(
-    cached: CacheEntry | undefined,
+    store: CacheEntries | null,
+    cached: TokenStoreHead | undefined,
     file: string,
     cwd: string,
     meta: CodexParseMeta,
     titles: Map<string, string>,
     admit: Slot['admit']
   ): Slot {
+    const miss = (): Slot => this.codexPlan(store, undefined, file, cwd, meta, titles, admit)
     const st = statOf(file)
-    if (st === null) return { file, entry: null, admit }
-    if (cached && cached.sig === st.sig) return { file, entry: cached, admit }
-    const state = cached?.resume
-    const from =
-      cached !== undefined &&
-      cached.agg.kind === 'codex' &&
-      isCodexResume(state) &&
-      !isColdRollout(file) &&
-      state.ino === st.ino &&
-      st.size > state.size &&
-      state.resumes < RESUME_LIMIT
-        ? { agg: cached.agg, state }
-        : undefined
-    const job: ParseJob = { kind: 'codex', file, projectKey: mergeKey(cwd), meta: codexParseMeta(meta), threadName: threadNameOf(file, titles), from }
-    return { file, entry: null, admit, plan: { job, st } }
+    if (st === null) return { file, admit, miss }
+    if (cached && isReadEntry(cached) && cached.sig === st.sig) return { file, held: cached, admit, miss }
+    const entry = cached?.kind === 'codex' ? store?.get(file) : undefined
+    return { file, admit, miss, plan: { job: codexJob(entry, file, cwd, meta, titles, st), st } }
   }
 
   /**
-   * One Codex rollout's entry outside a build (the session page), through the same plan. Parsed on the
+   * One Codex rollout's entry outside a build (the session page), by the same rules. Parsed on the
    * calling thread, not the runner: the page is waiting, and during a scan the runner's queue holds that
    * scan's whole backlog.
    */
@@ -922,9 +1036,11 @@ export class TokenEngine {
     meta: CodexParseMeta,
     titles: Map<string, string>
   ): Promise<CacheEntry | null> {
-    const slot = this.codexPlan(cached, file, cwd, meta, titles, () => false)
-    if (!slot.plan) return slot.entry
-    return entryOf(slot.plan, await runParseJob(slot.plan.job))
+    const st = statOf(file)
+    if (st === null) return null
+    if (cached && cached.sig === st.sig) return cached
+    const plan = { job: codexJob(cached, file, cwd, meta, titles, st), st }
+    return entryOf(plan, await runParseJob(plan.job))
   }
 
   /**
@@ -1041,7 +1157,7 @@ export class TokenEngine {
         // A write that fails is logged and fails no page: the index answers from here, and the store still lacks it,
         // so the next read and the next scan parse the file again (session-view C4, token-stats C3)
         store.write(new Map([[file, codexEntry ?? { sig, agg: fresh }]]))
-        if (this.parentFiles) addParentFile(this.parentFiles, file, fresh)
+        if (this.parentFiles) addParentFile(this.parentFiles, file, fresh.kind, ownOf(fresh))
       }
     }
     if (agg.kind === 'antigravity') {
@@ -1151,19 +1267,21 @@ export class TokenEngine {
         }
       }
     }
-    const shown = stripReplayPrefix(
+    // The scan's own rule, in the engine module, so the page and the list strip alike (spec B2)
+    const shown = loadEngineModule(this.engine).stripReplayPrefix(
       agg.questions,
       parent && parent.kind === 'codex' ? parent.questions : null,
       agg.forkedAt,
       // A paginated child carries no replayed events (spec B2): nothing to strip, no check to fail
       agg.parentId !== null && !agg.paginated
     )
-    const first = shown.questions[0]
+    const questions = agg.questions.slice(shown.stripped)
+    const first = questions[0]
     const retitled =
-      !agg.titleFromThread && first && shown.questions.length < agg.questions.length
+      !agg.titleFromThread && first && questions.length < agg.questions.length
         ? await strippedForkTitle(agg.file, first[0], first[1])
         : null
-    return { questions: shown.questions, state: shown.state, title: retitled ?? agg.title, parent }
+    return { questions, state: shown.state, title: retitled ?? agg.title, parent }
   }
 }
 
@@ -1221,398 +1339,6 @@ async function retitleStripped(items: TokenBuildResult['retitle']): Promise<void
   }
 }
 
-// ── Aggregation (including cross-file deduplication) ──
-
-interface KeptEntry {
-  e: PackedEntry
-  fileIdx: number
-}
-
-function entryTotal(e: PackedEntry): number {
-  return e[3] + e[4] + e[5] + e[6]
-}
-
-/** Non-sidechain wins; otherwise the one with the larger four-field sum */
-function shouldReplace(oldE: PackedEntry, cand: PackedEntry): boolean {
-  if (oldE[2] !== cand[2]) return oldE[2] === 1 && cand[2] === 0
-  return entryTotal(cand) > entryTotal(oldE)
-}
-
-function dedupeClaude(files: Array<{ agg: ClaudeFileAgg; fileIdx: number }>): KeptEntry[] {
-  const kept: KeptEntry[] = []
-  const byExact = new Map<string, number>()
-  const byMid = new Map<string, number[]>()
-
-  const register = (mid: string, exact: string, idx: number): void => {
-    byExact.set(exact, idx)
-    const list = byMid.get(mid)
-    if (list) list.push(idx)
-    else byMid.set(mid, [idx])
-  }
-
-  for (const { agg, fileIdx } of files) {
-    for (const e of agg.entries) {
-      const mid = e[0]
-      if (mid === null) {
-        kept.push({ e, fileIdx })
-        continue
-      }
-      const exact = `${mid}\x00${e[1] ?? ''}`
-      let matchIdx = byExact.get(exact)
-      if (matchIdx === undefined) {
-        // Sidechain fallback: match by message.id-only when either side is a sidechain
-        for (const i of byMid.get(mid) ?? []) {
-          if (kept[i].e[2] === 1 || e[2] === 1) {
-            matchIdx = i
-            break
-          }
-        }
-      }
-      if (matchIdx === undefined) {
-        kept.push({ e, fileIdx })
-        register(mid, exact, kept.length - 1)
-      } else if (shouldReplace(kept[matchIdx].e, e)) {
-        kept[matchIdx] = { e, fileIdx }
-        byExact.set(exact, matchIdx)
-      }
-    }
-  }
-  return kept
-}
-
-/** `agyTitles`: agy's own conversation titles by conversation id (session-view::REQ-003/AC-03); none for a restore,
- * which needs the rows alone */
-function combine(aggs: FileAgg[], agyTitles: ReadonlyMap<string, string> = new Map()): TokenBuildResult {
-  const retitle: TokenBuildResult['retitle'] = []
-  // Accumulate archive rows: keyed day|side|project|model
-  const rowMap = new Map<string, UsageRow>()
-  const addRow = (
-    day: string | null,
-    side: AgentSide,
-    projectKey: string,
-    model: string,
-    v: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }
-  ): void => {
-    // An entry carrying no timestamp is kept with an empty day rather than dropped: it is on record,
-    // so the whole-history figures must include it, and only a **bounded** window can honestly exclude
-    // it. Dropping it would leave the side totals and the sum of their days free to differ with
-    // nothing reporting it — a latent divergence rather than an observed one, since the timestamp is
-    // present on every row measured to date. It is not archived: the archive is keyed by day, and the
-    // filtering happens at that call.
-    const key = `${day ?? ''}|${side}|${projectKey}|${model}`
-    const cur =
-      rowMap.get(key) ??
-      { day: day ?? '', side, projectKey, model, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
-    cur.input += v.input
-    cur.output += v.output
-    cur.cacheRead += v.cacheRead
-    cur.cacheWrite += v.cacheWrite
-    cur.total += v.total
-    rowMap.set(key, cur)
-  }
-  const perProject = new Map<string, ProjectStats>()
-
-  const projectOf = (key: string): ProjectStats => {
-    const p = perProject.get(key) ?? { tokens: emptyTokenStats(), sessions: [] }
-    perProject.set(key, p)
-    return p
-  }
-
-  // ── Claude: deduplicate at entry level, then aggregate ──
-  const claudeFiles: Array<{ agg: ClaudeFileAgg; fileIdx: number }> = []
-  aggs.forEach((a, i) => {
-    if (a.kind === 'claude') claudeFiles.push({ agg: a, fileIdx: i })
-  })
-  const kept = dedupeClaude(claudeFiles)
-  const perFileTokens = new Map<number, number>()
-  for (const { e, fileIdx } of kept) {
-    const agg = aggs[fileIdx] as ClaudeFileAgg
-    const t = entryTotal(e)
-    perFileTokens.set(fileIdx, (perFileTokens.get(fileIdx) ?? 0) + t)
-    addRow(e[8], 'claude', agg.projectKey, e[7] ?? '', {
-      input: e[3],
-      output: e[4],
-      cacheRead: e[5],
-      cacheWrite: e[6],
-      total: t
-    })
-    // Registers the project; its figures are derived from its rows at the end
-    if (agg.projectKey) projectOf(agg.projectKey)
-  }
-  // Claude session entries (top-level files; tokens = the sum of the entries this file keeps after dedup)
-  claudeFiles.forEach(({ agg, fileIdx }) => {
-    if (!agg.listed || !agg.projectKey) return
-    projectOf(agg.projectKey).sessions.push({
-      side: 'claude',
-      title: agg.title,
-      at: agg.at,
-      tokens: perFileTokens.get(fileIdx) ?? 0,
-      file: agg.file,
-      questionCount: agg.questions.length,
-      // Claude's branches are resolved by the last-leaf walk-back at indexing time, so there is no such
-      // thing as a "replay prefix"
-      forkState: 'none'
-    })
-  })
-
-  // ── Codex: strip the fork/subagent replay prefix first, then aggregate event by event ──
-  const codexAggs = aggs.filter((a): a is CodexFileAgg => a.kind === 'codex')
-  const bySessionId = new Map<string, CodexFileAgg>()
-  for (const a of codexAggs) {
-    if (a.sessionId && !bySessionId.has(a.sessionId)) bySessionId.set(a.sessionId, a)
-  }
-  const sameUsage = (x: CodexEvent, y: CodexEvent): boolean =>
-    x[1] === y[1] && x[2] === y[2] && x[3] === y[3] && x[4] === y[4]
-
-  for (const a of codexAggs) {
-    let start = 0
-    // Only the legacy span can hold a replayed prefix: records are never copied into a child thread and
-    // paginated children get no usage events either (spec B10), so a fully paginated child has an
-    // empty legacy span and nothing below strips anything from it.
-    const legacy = a.events.slice(0, a.boundary)
-    if (a.parentId) {
-      const parent = bySessionId.get(a.parentId)
-      if (!parent || parent === a) {
-        // The parent log is not in the scan set: degrade to the "rewrite burst" heuristic
-        start = skipRewrittenBurst(legacy)
-      } else {
-        // The parent session's events before the fork moment are the history this session replays.
-        // Consistent with ccusage: cut at the first timestamp later than the fork moment rather than
-        // filtering everything
-        // (the two are not equivalent when the parent's event timestamps are not strictly ordered, and
-        // filtering would strip too much).
-        let replayLen = parent.events.length
-        if (a.forkedAt !== null) {
-          const pos = parent.events.findIndex((e) => e[0] !== null && e[0] > (a.forkedAt as number))
-          if (pos !== -1) replayLen = pos
-        }
-        const prefix = parent.events.slice(0, replayLen)
-        while (start < legacy.length && start < prefix.length && sameUsage(prefix[start], legacy[start])) {
-          start++
-        }
-        // The very first does not match → the parent stream cannot anchor this replay (the log was
-        // rewritten), so degrade to the burst heuristic
-        if (start === 0) start = skipRewrittenBurst(legacy)
-      }
-    }
-    const totals = emptyTotals()
-    // Per day, the **four fields measured on that day's own turns** — not the session's totals
-    // apportioned by each day's share (spec B8). The events already carry all four figures and a
-    // timestamp, so nothing has to be reconstructed; apportioning rounded four times per day and the
-    // roundings did not cancel, which broke "the three buckets sum to the total".
-    const byDay = new Map<string, TokenTotals>()
-    /** Turns whose timestamp is unreadable: on record, but attributable to no day */
-    const undated = emptyTotals()
-    for (let i = start; i < a.events.length; i++) {
-      const [ts, rawInput, cached, output, cacheWrite] = a.events[i]
-      const turn: TokenTotals = {
-        input: Math.max(0, rawInput - cached),
-        cacheRead: cached,
-        output,
-        cacheWrite,
-        // The total is input + output — exactly the total this side reports for itself. Adding
-        // cacheRead (the Claude four-field sum) would double-count: it is a **measured** subset of the
-        // reported input. Adding cache creation would make the total exceed the side's own, which is
-        // why it is not collected at all (ADR-0023, `cacheWrite` is always 0 on this side).
-        total: rawInput + output
-      }
-      addTotals(totals, turn)
-      if (turn.total === 0) continue
-      if (ts === null) {
-        addTotals(undated, turn)
-        continue
-      }
-      const day = localDay(ts)
-      const cur = byDay.get(day) ?? emptyTotals()
-      addTotals(cur, turn)
-      byDay.set(day, cur)
-    }
-    for (const [day, v] of byDay) addRow(day, 'codex', a.projectKey, a.model, v)
-    if (undated.total > 0) addRow(null, 'codex', a.projectKey, a.model, undated)
-    if (a.projectKey) {
-      const p = projectOf(a.projectKey)
-      if (a.listed) {
-        // The display-side stripping happens **here**, not in the parser: it needs the parent session's
-        // index, and the cache is
-        // stored per file, so the parser cannot reach the parent. It also **does not reuse the token
-        // side's `start`** —
-        // metering is a deduplication rule and display is "what this conversation looks like"; they mean
-        // different things (ticket 03b's acceptance).
-        const forkParent = a.parentId ? bySessionId.get(a.parentId) : undefined
-        const shown = stripReplayPrefix(
-          a.questions,
-          forkParent && forkParent !== a ? forkParent.questions : null,
-          a.forkedAt,
-          // A paginated child carries no replayed events (spec B2): nothing to strip, no check to fail
-          a.parentId !== null && !a.paginated
-        )
-        // A session verified to have been stripped empty (every question fingerprint-verified as a replay,
-        // with no new question after the fork) is not listed,
-        // and its tokens still count (ruled 2026-08-05, structurally identical to A3a). Stripping empty
-        // can only come from the fingerprint path:
-        // the heuristic never strips empty, and a session that never had questions already has
-        // listed=false from parse time. The allow-list still follows
-        // the pre-strip rule — its contents are entirely replays of an already-readable parent session,
-        // so it does not widen the read exposure surface, while narrowing it would mean moving
-        // the allow-list decision after combine, a bigger change than the benefit.
-        if (shown.questions.length > 0) {
-          const meta: SessionMeta = {
-            side: 'codex',
-            title: a.title,
-            at: a.at,
-            tokens: totals.total,
-            file: a.file,
-            questionCount: shown.questions.length,
-            forkState: shown.state
-          }
-          p.sessions.push(meta)
-          // Some leading entries were stripped and the original title came from the first question →
-          // re-derive it from the first survivor;
-          // thread_name's priority (spec A4) is not invalidated by stripping
-          if (!a.titleFromThread && shown.questions.length < a.questions.length) {
-            const first = shown.questions[0]
-            retitle.push({ session: meta, file: a.file, start: first[0], end: first[1] })
-          }
-        }
-      }
-    }
-  }
-
-  // ── Grok: per-turn, per-model events carry all four fields, so days are exact by each turn's
-  // own timestamp (F7) with no ratio apportionment. F5: a subagent's real record appears exactly
-  // once in the scan (the parent holds only a pointer), so its tokens sum with no cross-file
-  // dedup — and no session entry is produced here at all; the session-view ticket lands that side.
-  const grokAggs = aggs.filter((a): a is GrokFileAgg => a.kind === 'grok')
-  for (const a of grokAggs) {
-    let fileTokens = 0
-    for (const [ts, rawInput, cached, output, cacheWrite, model] of a.events) {
-      // F2, the Codex shape: reported input already includes cached reads (measured), so input is
-      // sanitised and the total is input + output — exactly the total this side reports for itself.
-      // The Claude four-field sum would double-count the cache; adding cache creation would make the
-      // total exceed the side's own, which is why it is not collected here at all (ADR-0023,
-      // `cacheWrite` is always 0 on this side).
-      const turnTotal = rawInput + output
-      if (turnTotal === 0) continue
-      fileTokens += turnTotal
-      const v = {
-        input: Math.max(0, rawInput - cached),
-        output,
-        cacheRead: cached,
-        cacheWrite,
-        total: turnTotal
-      }
-      addRow(ts !== null ? localDay(ts) : null, 'grok', a.projectKey, model ?? '', v)
-      if (a.projectKey) projectOf(a.projectKey)
-    }
-    // The session row (ticket #125): no fork mechanism exists on this side, so no stripping and
-    // forkState is always none; a subagent or question-less session already has listed=false
-    if (a.projectKey && a.listed) {
-      projectOf(a.projectKey).sessions.push({
-        side: 'grok',
-        title: a.title,
-        at: a.at,
-        tokens: fileTokens,
-        file: a.file,
-        questionCount: a.questions.length,
-        forkState: 'none'
-      })
-    }
-  }
-
-  // ── Antigravity CLI: each model call once across every conversation (token-stats::REQ-003/AC-01) ──
-  // A call's identity spans databases — a generator record a fork copied from its parent carries the parent's call —
-  // so calls are matched here, after the per-file reads, keeping the first in scan order. A call without an identity
-  // cannot be matched and counts where it is. The total is the four fields (AC-03): agy's input already leaves the
-  // cache reads out and its output already holds the thinking, so nothing is subtracted or added again.
-  let antigravityUnreadable = 0
-  const seenCalls = new Set<string>()
-  for (const a of aggs) {
-    if (a.kind !== 'antigravity') continue
-    if (a.unreadable) {
-      antigravityUnreadable++
-      continue
-    }
-    /** The conversation's own usage: the calls it keeps after the match across databases (session-view::REQ-003/AC-05,
-     * the rule the Claude rows follow) — a fork's copies were already left out by the read */
-    let fileTokens = 0
-    for (const [identity, at, input, output, cacheRead, cacheWrite, model] of a.calls) {
-      if (identity !== null) {
-        if (seenCalls.has(identity)) continue
-        seenCalls.add(identity)
-      }
-      const total = input + output + cacheRead + cacheWrite
-      fileTokens += total
-      addRow(at === null ? null : localDay(at), 'antigravity', a.projectKey, model ?? '', { input, output, cacheRead, cacheWrite, total })
-      if (a.projectKey) projectOf(a.projectKey)
-    }
-    // The session row (session-view::REQ-003): a subagent, a conversation that asked nothing and one in an unregistered
-    // folder have none, their tokens counted above. A fork is marked as one, its state never uncertain (REQ-005/AC-05)
-    if (a.projectKey && a.listed) {
-      projectOf(a.projectKey).sessions.push({
-        side: 'antigravity',
-        title: agyTitles.get(a.conversationId) ?? a.title,
-        at: a.at,
-        tokens: fileTokens,
-        file: a.file,
-        questionCount: a.questions.length,
-        forkState: a.forkOf === null ? 'none' : 'stripped'
-      })
-    }
-  }
-
-  // Every figure is derived from the rows here, in one place. It used to be accumulated in parallel
-  // with them, which left the totals and the days free to disagree with nothing reporting it
-  // (ADR-0025) — and did: an entry with no timestamp joined the totals but no day.
-  const rows = [...rowMap.values()]
-  const global = deriveStats(rows)
-
-  const byProject = new Map<string, UsageRow[]>()
-  for (const r of rows) {
-    if (!r.projectKey) continue
-    const list = byProject.get(r.projectKey)
-    if (list) list.push(r)
-    else byProject.set(r.projectKey, [r])
-  }
-  for (const [key, p] of perProject) {
-    const own = byProject.get(key) ?? []
-    p.tokens = deriveStats(own)
-    p.sessions.sort((x, y) => (y.at ?? 0) - (x.at ?? 0))
-  }
-  return { global, perProject, rows, retitle, sessionFiles: new Set<string>(), antigravityUnreadable }
-}
-
-/** A rewrite burst (the same rule as ccusage's detect_rewritten_burst): if the first two events are
- * ≤1s apart, treat the start as copied history and skip forward to the first gap > 1s */
-const BURST_PAUSE_MS = 1000
-
-function skipRewrittenBurst(events: CodexEvent[]): number {
-  if (events.length < 2) return 0
-  const t0 = events[0][0]
-  const t1 = events[1][0]
-  if (t0 === null || t1 === null) return 0
-  const gap = t1 - t0
-  if (gap < 0 || gap > BURST_PAUSE_MS) return 0
-  let i = 1
-  let prev = t1
-  while (i + 1 < events.length) {
-    const next = events[i + 1][0]
-    if (next === null) break
-    const d = next - prev
-    if (d < 0 || d > BURST_PAUSE_MS) break
-    prev = next
-    i++
-  }
-  return i + 1
-}
-
-function addTotals(into: TokenTotals, from: TokenTotals): void {
-  into.input += from.input
-  into.output += from.output
-  into.cacheRead += from.cacheRead
-  into.cacheWrite += from.cacheWrite
-  into.total += from.total
-}
-
 // ── File enumeration and parsing ──
 
 /** Every jsonl under a directory, in scan order (scan-order.ts): top level = a session, nested = a subagent or other
@@ -1637,11 +1363,6 @@ function listJsonl(root: string): Array<{ file: string; nested: boolean }> {
   }
   walk(root, false)
   return out
-}
-
-/** Whether a session is listed */
-function listedOf(agg: FileAgg): boolean {
-  return agg.listed
 }
 
 /**
@@ -1742,15 +1463,6 @@ function statOf(file: string): { sig: string; ino: number; size: number } | null
 }
 
 /**
- * Whether a build's entry for a file is the one the cache already held. A cache hit hands the held aggregate
- * on, with its signature and resume state, and every parse makes a new aggregate, a resumed one included, so
- * the aggregate being the very object held is the whole test.
- */
-function isHeldEntry(held: CacheEntry | undefined, entry: CacheEntry): boolean {
-  return held?.agg === entry.agg
-}
-
-/**
  * Whether what the cache holds under a path is an entry: a signature and a well-formed aggregate. CacheEntries asks
  * this before it hands anything out, so both are checked in one place and before either is read. The resume state
  * a Codex entry carries is not asked about here (CacheEntry).
@@ -1771,6 +1483,30 @@ function entryOf(plan: NonNullable<Slot['plan']>, parsed: ParseResult): CacheEnt
     agg: parsed.agg,
     resume: { ...parsed.state, ino: st.ino, size: st.size, resumes: job.from ? job.from.state.resumes + 1 : 0 }
   }
+}
+
+/** A Codex rollout's parse job: resuming from the held entry's state when the rollout only grew since (CodexResume), a
+ * whole parse otherwise */
+function codexJob(
+  cached: CacheEntry | undefined,
+  file: string,
+  cwd: string,
+  meta: CodexParseMeta,
+  titles: Map<string, string>,
+  st: { ino: number; size: number }
+): ParseJob {
+  const state = cached?.resume
+  const from =
+    cached !== undefined &&
+    cached.agg.kind === 'codex' &&
+    isCodexResume(state) &&
+    !isColdRollout(file) &&
+    state.ino === st.ino &&
+    st.size > state.size &&
+    state.resumes < RESUME_LIMIT
+      ? { agg: cached.agg, state }
+      : undefined
+  return { kind: 'codex', file, projectKey: mergeKey(cwd), meta: codexParseMeta(meta), threadName: threadNameOf(file, titles), from }
 }
 
 /** Only the fields a parse reads — a walk's session meta carries more, which a worker need not receive */
