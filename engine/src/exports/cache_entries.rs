@@ -169,19 +169,24 @@ impl TokenStore {
     /// Scans `files` (`{ path, put?: { sig, agg, resume? }, admitted, title }`, in scan order) by group under the
     /// combination `combination`: `{ bad, failure }` naming the files whose stored entry the combination cannot read,
     /// with nothing written, or the scan's figures (`summed`) with why the store could not be read or written, or null.
-    /// A `last` scan names no file: what it cannot combine it leaves out of its figures, and names in `leftOut`.
+    /// A `last` scan names no file: what it cannot combine it leaves out of its figures, and names in `leftOut`. A file
+    /// whose new entry does not read back is left out of any scan, and named there too (group::storable).
     #[napi(catch_unwind)]
     pub fn scan<'env>(&self, env: &'env Env, combination: String, files: Unknown<'env>, last: bool) -> Result<Unknown<'env>> {
         let js = Js::new(env);
-        let files = scan_files(&js, files.value().value)?;
+        let (files, decoded, unstorable) = group::storable(scan_files(&js, files.value().value)?);
         let Some(store) = &self.store else {
             // No store: every file is the caller's to parse, or all of them were
             let failure = Some(self.unopened());
-            return answer(env, if files.iter().all(|f| f.put.is_some()) { in_memory(&js, &files, failure)? } else { bad(&js, &files, failure)? });
+            return answer(
+                env,
+                if files.iter().all(|f| f.put.is_some()) { in_memory(&js, &files, failure, &unstorable)? } else { bad(&js, &files, failure)? },
+            );
         };
         let dates = js.local_dates()?;
-        let answer_value = match group::scan(store, &dates, &combination, &files, last)? {
-            Scanned::Summed { summed: s, failure, left_out } => {
+        let answer_value = match group::scan(store, &dates, &combination, &files, &decoded, last)? {
+            Scanned::Summed { summed: s, failure, mut left_out } => {
+                left_out.extend(unstorable);
                 summed(&js, &s, &files.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(), failure, &left_out)?
             }
             Scanned::Bad { files: paths, failure } => {
@@ -249,12 +254,13 @@ fn scan_files(js: &Js, files: napi_value) -> Result<Vec<ScanFile>> {
     Ok(out)
 }
 
-/// A scan with no store to read, every file given its entry: combined in memory
-fn in_memory(js: &Js, files: &[ScanFile], failure: Option<String>) -> Result<napi_value> {
+/// A scan with no store to read, every file given its entry: combined in memory; `left_out` the files whose new entry
+/// does not read back
+fn in_memory(js: &Js, files: &[ScanFile], failure: Option<String>, left_out: &[String]) -> Result<napi_value> {
     let entries: Vec<_> = files.iter().map(|f| (f.put.as_ref().map_or("", |p| p.agg.as_str()), f.admitted, f.title.as_deref())).collect();
     let dates = js.local_dates()?;
     match group::combine_entries(&dates, &entries)? {
-        Ok(s) => summed(js, &s, &files.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(), failure, &[]),
+        Ok(s) => summed(js, &s, &files.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(), failure, left_out),
         Err(bad) => Err(Error::from_reason(format!("the entry parsed for {} is not well formed", files[bad[0]].path))),
     }
 }
@@ -272,7 +278,7 @@ fn bad(js: &Js, files: &[ScanFile], failure: Option<String>) -> Result<napi_valu
 /// The figures a scan derives from the token cache, as `TokenEngine` takes them: `{ rows, projects, sessionFiles,
 /// antigravityUnreadable, retitle, failure, leftOut }`. `projects` holds `[key, sessions]` pairs; `retitle` holds
 /// `[project, session, start, end]` for each session titled by its first question left; `leftOut` the files a last scan
-/// could not combine; `paths` are the scan's files by place.
+/// could not combine and those whose new entry does not read back; `paths` are the scan's files by place.
 pub(super) fn summed(js: &Js, s: &Summed, paths: &[&str], failure: Option<String>, left_out: &[String]) -> Result<napi_value> {
     let rows = js.array(s.rows.iter().map(|r| {
         let [input, output, read, write, total] = r.figures;

@@ -26,7 +26,8 @@ pub fn session_titles<'env>(env: &'env Env, kind: String, home: String, tmp_pare
 }
 
 /// Combines `entries` (`{ path, agg, admitted, title }`, in scan order) as one combination over them gives: the figures
-/// a scan derives from them, as `TokenStore.scan` gives a scan's. An entry the combination cannot read throws.
+/// a scan derives from them, as `TokenStore.scan` gives a scan's. An entry the combination cannot read is left out of
+/// them and named in `leftOut`: in a build with no store, that file's failed read (token-stats A10, B12, F6).
 #[napi(catch_unwind)]
 pub fn combine_entries<'env>(env: &'env Env, entries: Unknown<'env>) -> Result<Unknown<'env>> {
     let js = Js::new(env);
@@ -36,11 +37,20 @@ pub fn combine_entries<'env>(env: &'env Env, entries: Unknown<'env>) -> Result<U
         let agg = String::from_utf16_lossy(&js.string(js.get(e, "agg")?)?.unwrap_or_default());
         held.push((path, agg, js.truthy(js.get(e, "admitted")?)?, js.string(js.get(e, "title")?)?));
     }
-    let given: Vec<_> = held.iter().map(|(_, agg, admitted, title)| (agg.as_str(), *admitted, title.as_deref())).collect();
     let dates = js.local_dates()?;
-    let answer = match crate::group::combine_entries(&dates, &given)? {
-        Ok(s) => summed(&js, &s, &held.iter().map(|(path, ..)| path.as_str()).collect::<Vec<_>>(), None, &[])?,
-        Err(bad) => return Err(Error::from_reason(format!("the entry for {} is not well formed", held[bad[0]].0))),
+    let mut left_out = Vec::new();
+    // Each round leaves out at least one entry, so the rounds end
+    let answer = loop {
+        let given: Vec<_> = held.iter().map(|(_, agg, admitted, title)| (agg.as_str(), *admitted, title.as_deref())).collect();
+        match crate::group::combine_entries(&dates, &given)? {
+            Ok(s) => break summed(&js, &s, &held.iter().map(|(path, ..)| path.as_str()).collect::<Vec<_>>(), None, &left_out)?,
+            // In scan order, removed from the last so that the earlier places stand
+            Err(bad) => {
+                let mut out: Vec<String> = bad.iter().rev().map(|&i| held.remove(i).0).collect();
+                out.reverse();
+                left_out.extend(out);
+            }
+        }
     };
     unsafe { Unknown::from_napi_value(env.raw(), answer) }
 }

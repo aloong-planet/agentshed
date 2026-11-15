@@ -320,8 +320,11 @@ export function rowsFromStoreSnapshot(file: string, engine: EngineSource, roots:
   // from the other entries alone would write a day's figure short of that entry's usage as an accepted change
   const bad = rows.filter((row) => !CacheEntries.entryOf(row)).length
   if (bad > 0) throw new Error(`cache snapshot holds ${bad} of ${rows.length} entries that are not well formed`)
-  // One combination over every entry, as a scan of that data sums its groups to; the rows need no admission or title
-  return module.combineEntries(rows.map((row) => ({ path: row.path, agg: String(row.agg), admitted: false, title: null }))).rows
+  // One combination over every entry, as a scan of that data sums its groups to; the rows need no admission or title.
+  // An entry the module cannot read, which the check above let through, is refused as well
+  const combined = module.combineEntries(rows.map((row) => ({ path: row.path, agg: String(row.agg), admitted: false, title: null })))
+  if (combined.leftOut.length > 0) throw new Error(`cache snapshot holds ${combined.leftOut.length} of ${rows.length} entries that are not well formed`)
+  return combined.rows
 }
 
 /**
@@ -891,6 +894,7 @@ export class TokenEngine {
       combined = this.combine(store, combination, slots, true)
       if ('bad' in combined) throw new Error('the token store named entries to parse again in a scan\'s last round')
     }
+    // A file whose parsed entry the store cannot hold is left out too, as that file's failed read (A10, B12, F6)
     if (combined.leftOut.length > 0) console.warn('[token-store] left out of this scan and read again at the next:', combined.leftOut.join(', '))
     // A scan whose write did not land is logged and costs the next scan the work again, which the store then still
     // lacks (token-stats C3)

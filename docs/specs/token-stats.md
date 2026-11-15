@@ -911,6 +911,13 @@ with macOS `footprint`.
   its reads. An entry another process removed or rewrote so that it no longer reads back is parsed
   again in that scan, once; what the store still cannot give after that is left out of the scan's
   figures, counted nowhere, and read again at the next scan.
+- A file whose parsed entry the store cannot hold — a line's figures, each a finite count, summing past
+  the range of a double, which the entry's text writes as null — is that file's failed read for that
+  scan, as A10, B12 and F6 have a read that fails: nothing of it is counted or listed, the entry held
+  for it is removed, it is parsed again at the next scan, and the scan goes on. A build with no store
+  leaves such a file out of the figures it combines in memory in the same way. An Antigravity
+  conversation left out this way is not counted as unreadable (unlike token-stats::REQ-004/AC-01); its
+  figures are decoded from varints of at most ten bytes, which stay far inside that range.
 - Interface: unchanged (the prototype exemption, declared); G14 holds.
 
 ## Implementation Decisions

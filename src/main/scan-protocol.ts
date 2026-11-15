@@ -1,5 +1,6 @@
 // What the main process and the scan worker say to each other (ADR-0043), and the worker's side of it. The
 // main process's side is scan-client.ts; the thread itself is scan-worker.ts.
+import { randomUUID } from 'node:crypto'
 import type { EngineSource } from './engine-module'
 import type { Scanner } from './providers/scanner'
 import type { ScanRoots } from './providers/types'
@@ -31,8 +32,18 @@ export interface ScanWorkerData {
   /** The engine module the worker and its parse workers load (ADR-0045) */
   engine: EngineSource
   /** The combination the scans' stored group results come from (token-stats, Implementation Decisions, Cache): the
-   * application version in a packaged build, this run in an unpackaged one */
+   * application version in a packaged build, this run in an unpackaged one (scanCombination) */
   combination: string
+}
+
+/**
+ * The combination a run's scans store their group results under (token-stats, Implementation Decisions, Cache): a
+ * packaged build's rules are its version's, so each launch of one version sums what the one before stored; an unpackaged
+ * run's code can differ from the last run's under the same version, and the installed copy shares its settings
+ * directory (token-stats C27), so each run is a combination of its own and sums nothing another run stored.
+ */
+export function scanCombination(packaged: boolean, version: string): string {
+  return packaged ? version : `run ${randomUUID()}`
 }
 
 /** The part of its port the worker's side uses */

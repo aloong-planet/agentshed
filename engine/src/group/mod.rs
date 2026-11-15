@@ -382,18 +382,40 @@ fn stored_results(conn: &Connection, plan: &mut Plan) -> Result<Vec<(usize, Grou
     Ok(out)
 }
 
-/// Scans `files`, in scan order: the store's entries and the new ones combined by group, each group combined again only
-/// when it differs from what its stored result came from, the store left holding this scan's entries and results, and
-/// the results summed. A new entry that is not well formed throws: the module's own parse made it. A `last` scan names
-/// no file to parse again: what it cannot combine it leaves out.
-pub(crate) fn scan(store: &Store, dates: &LocalDates<'_>, combination: &str, files: &[ScanFile], last: bool) -> napi::Result<Scanned> {
+/// A scan's files, each new entry decoded, and the paths of the files left out because their new entry does not read
+/// back. The module's parse can make an entry the store's text cannot hold — a figure past the range of a double, which
+/// JSON writes as null — and such a file is that scan's failed read (token-stats A10, B12, F6): nothing of it is counted
+/// or listed, the entry held for it is removed as the file is not among the scan's, and the next scan parses it again.
+pub(crate) fn storable(files: Vec<ScanFile>) -> (Vec<ScanFile>, Vec<Option<(Facts, Vec<i64>)>>, Vec<String>) {
+    let mut kept = Vec::with_capacity(files.len());
     let mut decoded = Vec::with_capacity(files.len());
+    let mut left_out = Vec::new();
     for f in files {
-        decoded.push(match &f.put {
-            Some(put) => Some(decode(&put.agg).ok_or_else(|| Error::from_reason(format!("the entry parsed for {} is not well formed", f.path)))?),
-            None => None,
-        });
+        match f.put.as_ref().map(|put| decode(&put.agg)) {
+            None => decoded.push(None),
+            Some(Some(d)) => decoded.push(Some(d)),
+            Some(None) => {
+                left_out.push(f.path);
+                continue;
+            }
+        }
+        kept.push(f);
     }
+    (kept, decoded, left_out)
+}
+
+/// Scans `files`, in scan order, each new entry decoded in `decoded` (storable): the store's entries and the new ones
+/// combined by group, each group combined again only when it differs from what its stored result came from, the store
+/// left holding this scan's entries and results, and the results summed. A `last` scan names no file to parse again:
+/// what it cannot combine it leaves out.
+pub(crate) fn scan(
+    store: &Store,
+    dates: &LocalDates<'_>,
+    combination: &str,
+    files: &[ScanFile],
+    decoded: &[Option<(Facts, Vec<i64>)>],
+    last: bool,
+) -> napi::Result<Scanned> {
     // Most scans change nothing: that is seen without the write lock, and the stored results are summed
     if let Ok(tx) = store.read_transaction() {
         if let Ok(mut plan) = plan(&tx, combination, files) {
@@ -419,7 +441,7 @@ pub(crate) fn scan(store: &Store, dates: &LocalDates<'_>, combination: &str, fil
             Err(_) => return unread(dates, files, Some(why), last),
         },
     };
-    let combined = match combine_planned(&tx, dates, combination, files, &decoded, last)? {
+    let combined = match combine_planned(&tx, dates, combination, files, decoded, last)? {
         Ok(combined) => combined,
         Err(Unread::Store(why)) => {
             drop(tx);
@@ -435,7 +457,7 @@ pub(crate) fn scan(store: &Store, dates: &LocalDates<'_>, combination: &str, fil
         sum.add(result, &places(members));
     }
     if writable {
-        match write(&tx, combination, files, &decoded, &combined) {
+        match write(&tx, combination, files, decoded, &combined) {
             Ok(()) => match tx.commit() {
                 Ok(()) => store.checkpoint(),
                 Err(why) => failure = Some(why.to_string()),

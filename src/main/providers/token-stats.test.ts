@@ -22,6 +22,14 @@
 // outside a parse does (Scans and the window, failure modes): `TokenStore.scan` catches it where it crosses into the
 // application (`catch_unwind`, which build.rs requires of every export) and throws. No seam panics there; the panic
 // seam names a file to panic on while it is parsed. A case is due if a seam is added for the combination.
+//
+// Gap (#420): an entry that passes the shape check (isWellFormedEntry) and that the engine module still cannot read is
+// not driven here: the module's reading of an aggregate follows the check rule for rule, and no entry that splits them
+// is known. Two branches wait on one: `rowsFromStoreSnapshot` refusing the snapshot when `combineEntries` leaves an
+// entry out, and `combineEntries` combining again without an entry its side's combination could not read. A case is
+// due once such an entry is found, as a fix to the check or to the module. Nor is `TokenStore.scan` on a store that did
+// not open, which combines in memory and names the files it leaves out as `combineEntries` does: TypeScript never asks
+// it, as `openStore` keeps no store whose open failed.
 import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -242,13 +250,34 @@ function mkCodexRollout(
 function mkCodexFork(
   file: string,
   cwd: string,
-  o: { id: string; parentId: string; forkedAtIso: string },
+  /** `replay`: the parent's question and turn the fork opens with, written at the fork's moment as a legacy child's
+   * replayed prefix is (B10, session-view B2); `askedAtIso`: when the fork's own question was asked, the fork's moment
+   * when absent */
+  o: { id: string; parentId: string; forkedAtIso: string; replay?: { question: string; turn: { input: number; cached: number; output: number } }; askedAtIso?: string },
   model: string,
   turns: Array<{ input: number; cached: number; output: number; at?: string }>,
   atSec = 2000
 ): string {
   const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
   mkdirSync(d, { recursive: true })
+  const question = (message: string, at: string): string => JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'user_message', message } })
+  const tokenCount = (t: { input: number; cached: number; output: number }, at: string): string =>
+    JSON.stringify({
+      timestamp: at,
+      type: 'event_msg',
+      payload: {
+        type: 'token_count',
+        info: {
+          last_token_usage: {
+            input_tokens: t.input,
+            cached_input_tokens: t.cached,
+            cache_write_input_tokens: 0,
+            output_tokens: t.output,
+            total_tokens: t.input + t.output
+          }
+        }
+      }
+    })
   const lines = [
     JSON.stringify({
       timestamp: o.forkedAtIso,
@@ -256,29 +285,9 @@ function mkCodexFork(
       payload: { cwd, id: o.id, forked_from_id: o.parentId }
     }),
     JSON.stringify({ timestamp: o.forkedAtIso, type: 'turn_context', payload: { model, cwd } }),
-    JSON.stringify({
-      timestamp: o.forkedAtIso,
-      type: 'event_msg',
-      payload: { type: 'user_message', message: 'question after the fork' }
-    }),
-    ...turns.map((t) =>
-      JSON.stringify({
-        timestamp: t.at ?? o.forkedAtIso,
-        type: 'event_msg',
-        payload: {
-          type: 'token_count',
-          info: {
-            last_token_usage: {
-              input_tokens: t.input,
-              cached_input_tokens: t.cached,
-              cache_write_input_tokens: 0,
-              output_tokens: t.output,
-              total_tokens: t.input + t.output
-            }
-          }
-        }
-      })
-    )
+    ...(o.replay ? [question(o.replay.question, o.forkedAtIso), tokenCount(o.replay.turn, o.forkedAtIso)] : []),
+    question('question after the fork', o.askedAtIso ?? o.forkedAtIso),
+    ...turns.map((t) => tokenCount(t, t.at ?? o.forkedAtIso))
   ]
   const f = join(d, file)
   writeFileSync(f, `${lines.join('\n')}\n`)
@@ -2232,30 +2241,33 @@ describe('combining by group gives the figures of one combination (token-stats::
     expect(r.sessionFiles).toEqual(new Set([own, sub]))
   })
 
+  // The fork opens with its parent's one question and one turn, replayed at the fork's moment, and asks its own question
+  // half an hour later. One replayed turn is no rewrite burst, and a question at a person's pace after it ends the
+  // questions' burst, so only the parent, found after the fork in scan order, strips the replay: without it the fork
+  // would count the parent's turn again and show its question as its own, marked uncertain.
   it('a legacy Codex fork whose parent sits later in scan order (B10)', async () => {
-    const turns = [
-      { input: 100, cached: 20, output: 10, at: '2026-07-30T01:10:00Z' },
-      { input: 200, cached: 50, output: 20, at: '2026-07-30T01:20:00Z' }
-    ]
-    mkCodexFork('rollout-a-019fd10.jsonl', proj, { id: 'c-10', parentId: 'p-10', forkedAtIso: '2026-07-30T05:00:00Z' }, 'gpt-5.6-sol', [
-      ...turns.map((t) => ({ ...t, at: '2026-07-30T05:00:00Z' })),
-      { input: 300, cached: 0, output: 30, at: '2026-07-30T05:30:00Z' }
-    ])
-    mkCodexRollout('rollout-z-019fd11.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', turns, false, 2000, 'sample question', { id: 'p-10' })
+    const turn = { input: 100, cached: 20, output: 10 }
+    mkCodexFork(
+      'rollout-a-019fd10.jsonl',
+      proj,
+      { id: 'c-10', parentId: 'p-10', forkedAtIso: '2026-07-30T05:00:00Z', replay: { question: 'sample question', turn }, askedAtIso: '2026-07-30T05:30:00Z' },
+      'gpt-5.6-sol',
+      [{ input: 300, cached: 0, output: 30, at: '2026-07-30T05:30:00Z' }]
+    )
+    mkCodexRollout('rollout-z-019fd11.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ ...turn, at: '2026-07-30T01:10:00Z' }], false, 2000, 'sample question', { id: 'p-10' })
     const r = await engine().build(roots(), [proj])
     expect(scanOutput(r)).toEqual({
       rows: [
-        ['2026-07-30', 'codex', '<proj>', 'gpt-5.6-sol', 530, 60, 70, 0, 660]
+        ['2026-07-30', 'codex', '<proj>', 'gpt-5.6-sol', 380, 40, 20, 0, 440]
       ],
       sessions: [
         ['<proj>', [
-          ['rollout-a-019fd10.jsonl', 'question after the fork', 330, 1, 'uncertain'],
-          ['rollout-z-019fd11.jsonl', 'sample question', 330, 1, 'none']
+          ['rollout-a-019fd10.jsonl', 'question after the fork', 330, 1, 'stripped'],
+          ['rollout-z-019fd11.jsonl', 'sample question', 110, 1, 'none']
         ]]
       ],
       unreadable: 0
     })
-    expect(r.global.bySide.codex.total, 'the fork\'s replay of its parent stripped: the parent\'s two turns once, the fork\'s own one').toBe(110 + 220 + 330)
   })
 
   it('an Antigravity call recorded in two databases (token-stats::REQ-003/AC-01)', async () => {
@@ -2494,21 +2506,48 @@ describe('a group\'s stored result', () => {
     return { chain, lone }
   }
 
+  // Each with the member list the row then holds: a list of numbers, of three members or four
   it.each([
-    ['a result that is no blob', "UPDATE results SET result = 'none' WHERE id = ?"],
-    ['a result cut short', 'UPDATE results SET result = substr(result, 1, length(result) - 3) WHERE id = ?'],
-    ['a member list naming a file another group names', 'UPDATE results SET members = members || (SELECT members FROM results WHERE id <> ?1) WHERE id = ?1'],
-    ['a member list naming a file the store does not hold', "UPDATE results SET members = members || X'ffffffffffffff7f' WHERE id = ?"],
-    ['a member list out of scan order', 'UPDATE results SET members = substr(members, 17, 8) || substr(members, 9, 8) || substr(members, 1, 8) WHERE id = ?']
-  ])('%s is combined again from its files\' entries, with nothing parsed (C2)', async (_what, sql) => {
+    ['a result that is no blob', "UPDATE results SET result = 'none' WHERE id = ?", '24'],
+    ['a result cut short', 'UPDATE results SET result = substr(result, 1, length(result) - 3) WHERE id = ?', '24'],
+    // `||` makes text of two blobs: cast back, the row still holds a list of numbers
+    ['a member list naming a file the store does not hold', "UPDATE results SET members = CAST(members || X'ffffffffffffff7f' AS BLOB) WHERE id = ?", '32'],
+    // The input reordered with it (each Claude Code member's ten bytes: its write, its admission, no title), so that it is
+    // the input of the members in that order: only the order is wrong
+    [
+      'a member list out of scan order',
+      'UPDATE results SET members = CAST(substr(members, 17, 8) || substr(members, 9, 8) || substr(members, 1, 8) AS BLOB), ' +
+        'input = CAST(substr(input, 21, 10) || substr(input, 11, 10) || substr(input, 1, 10) AS BLOB) WHERE id = ?',
+      '24'
+    ]
+  ])('%s is combined again from its files\' entries, with nothing parsed (C2)', async (_what, sql, members) => {
     const { chain } = twoGroups()
     await launch('1.0.0')
     const [chainGroup] = onStore(cacheDir(), 'SELECT id FROM results WHERE length(members) = 24')
     onStore(cacheDir(), sql, chainGroup[0])
+    expect(onStore(cacheDir(), 'SELECT typeof(members), length(members) FROM results WHERE id = ?', chainGroup[0]), 'the control: the member list the row holds').toEqual([['blob', members]])
     const again = await launch('1.0.0')
     expect(again.parsed).toEqual([])
     await expectFromScratch(again.result)
     expect(storedGroups(cacheDir()).find((g) => g.includes(chain.a))).toEqual([chain.a, chain.b, chain.c])
+  })
+
+  // Two lone files share no key, so neither group reaches the other: the later row naming the earlier group's file as
+  // well leaves the earlier row as it was, and only reading neither row back keeps that file from being summed from
+  // the earlier group's result and combined again in the later one.
+  it('a member list naming a file another group names: neither row reads back, and both groups are combined again from their files\' entries, with nothing parsed (C2)', async () => {
+    const x = mkClaudeFile('x.jsonl', [userLine('the first lone question', '2026-07-03T09:00:00Z'), usageLine('claude-fable-5', '2026-07-03T09:00:00Z', 10, 1, { id: 'mx' })])
+    const y = mkClaudeFile('y.jsonl', [userLine('the second lone question', '2026-07-03T10:00:00Z'), usageLine('claude-fable-5', '2026-07-03T10:00:00Z', 100, 10, { id: 'my' })])
+    await launch('1.0.0')
+    const [later] = onStore(cacheDir(), 'SELECT id FROM results ORDER BY id DESC LIMIT 1')
+    onStore(cacheDir(), 'UPDATE results SET members = CAST((SELECT members FROM results WHERE id <> ?1) || members AS BLOB) WHERE id = ?1', later[0])
+    expect(onStore(cacheDir(), 'SELECT typeof(members), length(members) FROM results WHERE id = ?', later[0]), 'the control: a list of two numbers').toEqual([['blob', '16']])
+    expect(storedGroups(cacheDir()).flat().sort(), 'the control: one file named by both rows').toHaveLength(3)
+    const again = await launch('1.0.0')
+    expect(again.parsed).toEqual([])
+    expect(again.result.global.bySide.claude.total).toBe(11 + 110)
+    await expectFromScratch(again.result)
+    expect(storedGroups(cacheDir()).flat().sort()).toEqual([x, y].sort())
   })
 
   it('a second launch of one version, after one file changed, rewrites that file\'s entry and its group\'s result alone (QR-002/AC-02)', async () => {
@@ -3969,6 +4008,81 @@ describe('a panic in the engine module while a Grok session is parsed', () => {
     }
     // Nothing is kept for it: the next build parses it
     expect((await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])).global.bySide.grok.total).toBe(77 + 44)
+  })
+})
+
+// token-stats, Scans and the window, failure modes: a file whose parsed entry the store cannot hold is that file's failed
+// read for that scan, under the rule its side has for a read that fails, parsed again at the next scan, and the scan
+// goes on. A line's two cache-write figures, each a finite count, sum past the range of a double, which the entry's
+// JSON text writes as null.
+describe('a session file whose parsed entry the store cannot hold', () => {
+  const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
+  /** An assistant line of the measured shape whose two cache-write figures sum past the range of a double */
+  const overflowing = (): string =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-07-30T02:00:00Z',
+      requestId: 'rp',
+      isSidechain: false,
+      message: { id: 'mp', model: 'claude-fable-5', usage: { input_tokens: 40, output_tokens: 4, cache_creation: { ephemeral_5m_input_tokens: 1e308, ephemeral_1h_input_tokens: 1e308 } } }
+    })
+  const LEFT_OUT = '[token-store] left out of this scan and read again at the next:'
+
+  it('is that Claude Code session\'s failed read: skipped as an unreadable one is, its held entry removed, the warning naming it, and at the next scan parsed again and left out again', async () => {
+    const question = 'a question in the file that overflows'
+    const named = mkClaudeFile('overflow.jsonl', [userLine(question), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 40, 4, { id: 'mp', requestId: 'rp' })])
+    mkClaudeFile('other.jsonl', [userLine('a question in the other file'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 70, 7, { id: 'mo', requestId: 'ro' })])
+    const { runner, jobs } = recording()
+    const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner)
+    expect((await e.build(roots(), [proj])).global.bySide.claude.total, 'the control: both files counted').toBe(77 + 44)
+    expect(storedEntries(cacheDir()).has(named), 'the control: its entry held').toBe(true)
+    mkClaudeFile('overflow.jsonl', [userLine(question), overflowing()], 2000)
+    jobs.length = 0
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const left = await e.build(roots(), [proj])
+      expect(jobs.map((j) => j.file)).toEqual([named])
+      expect(left.global.bySide.claude.total).toBe(77)
+      expect(warned).toHaveBeenCalledWith(LEFT_OUT, named)
+      expect(storedEntries(cacheDir()).has(named), 'its held entry removed').toBe(false)
+      chmodSync(named, 0)
+      try {
+        expect(shape(left)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable'), TEST_ENGINE).build(roots(), [proj])))
+      } finally {
+        chmodSync(named, 0o644)
+      }
+      warned.mockClear()
+      jobs.length = 0
+      const again = await e.build(roots(), [proj])
+      expect(jobs.map((j) => j.file), 'nothing is kept for it: the next scan parses it').toEqual([named])
+      expect(shape(again)).toEqual(shape(left))
+      expect(warned).toHaveBeenCalledWith(LEFT_OUT, named)
+    } finally {
+      warned.mockRestore()
+    }
+  })
+
+  it('with no store to hold it (one that cannot be made, a directory at its path), the same: left out of the figures the build combines in memory, the warning naming it', async () => {
+    const named = mkClaudeFile('overflow.jsonl', [userLine('a question in the file that overflows'), overflowing()])
+    mkClaudeFile('other.jsonl', [userLine('a question in the other file'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 70, 7, { id: 'mo', requestId: 'ro' })])
+    mkdirSync(join(storePath(cacheDir()), 'x'), { recursive: true })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const left = await new TokenEngine(cacheDir(), TEST_ENGINE).build(roots(), [proj])
+      expect(logged, 'the control: no store').toHaveBeenCalledWith('[token-store] open failed:', expect.anything())
+      expect(left.global.bySide.claude.total).toBe(77)
+      expect(warned).toHaveBeenCalledWith(LEFT_OUT, named)
+      chmodSync(named, 0)
+      try {
+        expect(shape(left)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable'), TEST_ENGINE).build(roots(), [proj])))
+      } finally {
+        chmodSync(named, 0o644)
+      }
+    } finally {
+      logged.mockRestore()
+      warned.mockRestore()
+    }
   })
 })
 

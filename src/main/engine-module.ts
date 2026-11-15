@@ -50,7 +50,8 @@ export interface CombinedScan {
   retitle: Array<[number, number, number, number]>
   /** Why the store could not be read or written, or null */
   failure: string | null
-  /** The files a last scan could not combine, left out of its figures */
+  /** The files left out of the scan's figures: those a last scan could not combine, and those whose new entry the store
+   * cannot hold (a figure past the range of a double), each that file's failed read */
   leftOut: string[]
 }
 
@@ -104,7 +105,8 @@ export interface EngineModule {
   /** A copy of a token store, read without writing to it or beside it (token-stats C16): the version it records,
    * absent when it is no store, and its rows when that is the version asked */
   readTokenStoreSnapshot(file: string, version: number): { version?: number | null; rows?: TokenStoreRow[] | null }
-  /** Combines entries held in memory, in scan order, as one combination over them gives; an entry it cannot read throws */
+  /** Combines entries held in memory, in scan order, as one combination over them gives; an entry it cannot read is left
+   * out of the figures and named in `leftOut` */
   combineEntries(entries: Array<{ path: string; agg: string; admitted: boolean; title: string | null }>): CombinedScan
   /** How many of a Codex fork's leading questions replay its parent's, and its fork state (session-view B2); `parent` is
    * null when the parent is not in the scan set */
