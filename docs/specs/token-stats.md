@@ -954,11 +954,12 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
   and holds the reading and parsing of Codex rollouts, Claude Code sessions, Grok sessions and Antigravity
-  CLI conversations, the entries and the store. A value in a line is built only where a rule reads it; every
-  other value is scanned past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by
-  the grammar of ECMAScript's `JSON.parse`, with its results: a repeated key keeps its last value, a number
-  beyond the double range is infinite and so no finite count, a lone surrogate escape stays that code unit,
-  and a line `JSON.parse` refuses is a bad line (A8).
+  CLI conversations, the entries and the store, and the line rules that a question's text and a turn's
+  contents are read by on the session page and in both searches. A value in a line is built only where a
+  rule reads it; every other value is scanned past. A line is decoded as UTF-8, an invalid sequence
+  becoming U+FFFD, and read by the grammar of ECMAScript's `JSON.parse`, with its results: a repeated key
+  keeps its last value, a number beyond the double range is infinite and so no finite count, a lone
+  surrogate escape stays that code unit, and a line `JSON.parse` refuses is a bad line (A8).
 - **Cache**: incremental by file signature, kept in a SQLite store in the settings directory, opened
   by the engine module in whichever thread runs the scan (Where a scan runs, below) and recording its
   own structure version (ADR-0044). It holds each file's entry under its path — its

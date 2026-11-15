@@ -15,6 +15,7 @@ use napi::sys::napi_value;
 use self::entry::{Job, Parsed};
 use super::Side;
 use crate::exports::js::Js;
+use crate::text::Units;
 
 pub(crate) struct Grok;
 
@@ -27,6 +28,14 @@ impl Side for Grok {
             Some(parsed) => write_result(js, job, file, subagent, &parsed),
             None => js.null(),
         }
+    }
+
+    fn question_text(&self, range: &str) -> Option<Units> {
+        question::shown(range)
+    }
+
+    fn dispatches(&self) -> &'static [&'static str] {
+        std::slice::from_ref(&question::DISPATCH)
     }
 }
 

@@ -9,7 +9,18 @@
 use std::fs::File;
 use std::io::{ErrorKind, Read, Seek, SeekFrom};
 
-/// How much of the file one read takes
+/// How much of the file one read takes: 1 MB, the size the TypeScript line reader this one replaced settled on
+/// (`eachJsonlLine`, through `fs.ReadStream`, #157), kept as it was. Its figures were taken on that reader, under
+/// Electron, on 2026-09-09. Each 64 KB stream chunk, the stream's default, cost about 3 ms more under Electron than
+/// under Node: an 839 MB Codex session already in the page cache read in 44.6 s in the Electron main process against
+/// 3.5 s under Node, and a worker thread in the same process paid the same (the mechanism was not profiled). The size
+/// was chosen on the whole cold scan, not on that file, because `fs.ReadStream` allocated a chunk-sized buffer for every
+/// read, so a scan over thousands of small files paid for a large chunk on each: the big file alone kept getting faster
+/// up to 8 MB (2.0 s at 1 MB, 1.4 s at 8 MB), while the whole set (3.3 GB in 3947 files) read in 15.5 s at 256 KB,
+/// 12.5 s at 512 KB, 11.3 s at 1 MB, 12.5 s at 2 MB, 17.6 s at 4 MB and 49.8 s at 16 MB, against 90.5 s at the default.
+/// This reader holds one buffer per file and reads into it directly, so those per-read costs were not measured on it: a
+/// figure for a size of its own is taken under Electron with `pnpm bench:scan` (the AGENTS.md invariant on such
+/// figures), its `file` mode reading through this function.
 const CHUNK: usize = 1024 * 1024;
 
 /// How a file's bytes are stored

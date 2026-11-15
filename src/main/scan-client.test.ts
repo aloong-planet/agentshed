@@ -16,6 +16,7 @@ import { Scanner, type ScanOutput } from './providers/scanner'
 import { runParseJob, type ParseRunner } from './providers/token-stats'
 import { ScanClient, type ScanWorker } from './scan-client'
 import { answerScans, type ScanReply, type ScanRequest, type Scans } from './scan-protocol'
+import { loadEngineModule } from './engine-module'
 import { TEST_ENGINE } from './testing/engine'
 import { FORK_TITLE, mkScanHome, type ScanHome } from './testing/scan-home'
 
@@ -113,13 +114,17 @@ function standIn(scans: Scans): StandIn {
   return s
 }
 
+/** The engine module confirmed on this thread before a question index is asked for: the test thread's own */
+const confirmed = (): void => {}
+
 /** A client over one stand-in, with nothing behind it: a fallback is this case's failure */
-function clientOver(scans: Scans): { client: ScanClient; worker: () => StandIn } {
+function clientOver(scans: Scans, confirm = confirmed): { client: ScanClient; worker: () => StandIn } {
   const client = new ScanClient({
     spawn: () => standIn(scans),
     fallback: () => {
       throw new Error('the worker was taken for failed')
-    }
+    },
+    confirm
   })
   return { client, worker: () => standIns[standIns.length - 1] }
 }
@@ -266,7 +271,8 @@ describe('a scan worker that fails (token-stats, Failure modes and boundaries: s
       fallback: () => {
         fallbacks++
         return new Scanner(cacheDir, TEST_ENGINE, onMain.runner)
-      }
+      },
+      confirm: confirmed
     })
     const direct = reference()
     const here = timeless(await direct.scan(home.roots))
@@ -301,7 +307,8 @@ describe('a scan worker that fails (token-stats, Failure modes and boundaries: s
           sessionQuestions: (roots, file) => (answering ? onWorker.sessionQuestions(roots, file) : unanswered()),
           isFresh: (file) => onWorker.isFresh(file)
         }),
-      fallback: () => new Scanner(cacheDir, TEST_ENGINE)
+      fallback: () => new Scanner(cacheDir, TEST_ENGINE),
+      confirm: confirmed
     })
     const direct = reference()
     const here = timeless(await direct.scan(home.roots))
@@ -337,7 +344,8 @@ describe('an engine module that will not load, or is another build\'s (token-sta
       spawn: () => {
         throw new Error('no thread to be had')
       },
-      fallback: () => new Scanner(cacheDir, module)
+      fallback: () => new Scanner(cacheDir, module),
+      confirm: confirmed
     })
 
     for (const client of [onWorker.client, onMain]) {
@@ -350,6 +358,15 @@ describe('an engine module that will not load, or is another build\'s (token-sta
     expect(onWorker.client.servedOn).toBe('worker')
     expect(onMain.servedOn).toBe('main')
     expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('a module that will not load on the main process, where a question index is read: that read fails as that read, while scans go on', async () => {
+    const { client } = clientOver(new Scanner(cacheDir, TEST_ENGINE), () => loadEngineModule({ ...TEST_ENGINE, path: damaged() }))
+
+    await expect(client.sessionQuestions(home.roots, home.grok)).rejects.toThrow('the engine module will not load')
+    expect((await client.scan(home.roots)).snapshot.projects).toHaveLength(1)
+    expect(client.servedOn).toBe('worker')
+    expect(warn).not.toHaveBeenCalled()
   })
 })
 
@@ -421,7 +438,8 @@ describe('quitting (token-stats, Failure modes and boundaries: scans and the win
         close: () => {
           closed++
         }
-      })
+      }),
+      confirm: confirmed
     })
     await client.scan(home.roots)
 

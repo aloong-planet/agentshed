@@ -65,17 +65,34 @@ pub(crate) fn find(s: &[u16], needle: &[u16], from: usize) -> Option<usize> {
 }
 
 /// One human message → the real question inside it; None when the whole of it is noise. The caller takes None as "this
-/// is not a question", for the title and for whether the session is listed alike. The noise shapes and why each is
-/// matched as it is are in `src/main/providers/session-title.ts`'s header, where the sides that still read their lines
-/// in TypeScript apply the same rules.
+/// is not a question", for the title and for whether the session is listed alike.
+///
+/// **The noise shapes come from real sampling, not from imagining a list** (2026-08-02, 297 real Claude Code sessions):
+/// Warmup 188, `[cron:…]` 92, `<local-command-*>` 20, slash commands 2. `<local-command-stdout>` is a second layer of
+/// noise that only surfaces once the earlier layers are stripped: sampling the first message cannot see it, and it was
+/// found only by running the rule over the stripped results. The "Conversation info" the research-phase spec listed did
+/// not appear in the sample, and no rule is written for a shape not seen (postmortem
+/// `2026-08-02-noise-list-vs-real-data`). Two places intuition gets wrong, both corrected by real data: what follows
+/// `[cron:…]` is the actual instruction, so only the bracket is stripped; and a slash command's user input is inside
+/// `<command-args>`, not outside the tag.
 pub(crate) fn real_user_text(raw: &[u16]) -> Option<Units> {
     let t = normalize(raw);
+    // A warmup session's whole message is that one word; it is noise only on exact equality, so a real question that
+    // holds the word is not caught
     if t.is_empty() || t == units("Warmup") {
         return None;
     }
     for noise in [
+        // The trace the harness leaves when it wraps a `!` command from the input box, no member of the family written
+        // by a human: caveat (13/297, the disclaimer before a command runs) and stdout (7/144, the command's output)
+        // measured, matched by family, as the same mechanism makes sibling tags
         "<local-command-",
+        // A skill body a slash command injects, which appears as the user but was not written by one
         "Base directory for this skill:",
+        // Codex's harness speaking as the user, in the paginated format's user-message items (measured 2026-09-11 over
+        // every rollout: 330 of 8285 items, each shape pure, none mixed with a human sentence): the guardian's
+        // transcript preamble (328), a task notification (1), a delegation block (1). Matched by prefix, each a family
+        // the same mechanism keeps making.
         "The following is the Codex agent history",
         "<task-notification>",
         "<codex_delegation>",
@@ -122,9 +139,9 @@ pub(crate) fn merge_key<R>(path: &[u16], lower: impl FnOnce(&[u16]) -> R) -> R {
 /// The title cap, in code points as a string's iterator counts them: a surrogate pair is one, a lone surrogate is one
 pub(crate) const TITLE_MAX: usize = 60;
 
-/// A stripped question → a title, clipped at `TITLE_MAX` code points with `…` after the cut, as `clipTitle` in
-/// `src/main/providers/session-title.ts` clips the titles the sides that still read their lines in TypeScript give
-/// (session-title.test.ts holds the two together). Stripping is not idempotent (`[cron:x] Warmup` strips to `Warmup`, then to nothing), so what reaches here is never stripped again.
+/// A stripped question → a title, clipped at `TITLE_MAX` code points with `…` after the cut. It is kept apart from
+/// `real_user_text` because stripping is not idempotent (`[cron:x] Warmup` strips to `Warmup`, then to nothing), so
+/// what reaches here is never stripped again.
 pub(crate) fn clip_title(t: &[u16]) -> Units {
     let mut points = 0;
     let mut i = 0;
@@ -142,8 +159,7 @@ pub(crate) fn clip_title(t: &[u16]) -> Units {
 }
 
 /// The content fingerprint, FNV-1a over the UTF-16 code units (32-bit): the same text gives the same value, and it is
-/// compared, entry by entry, to recognise a fork's replayed questions (session-view B2). `fingerprint` in
-/// `src/main/providers/question-index.ts` is the same function, for the sides whose index is still TypeScript's.
+/// compared, entry by entry, to recognise a fork's replayed questions (session-view B2).
 pub(crate) fn fingerprint(t: &[u16]) -> u32 {
     let mut h: u32 = 0x811c_9dc5;
     for &u in t {

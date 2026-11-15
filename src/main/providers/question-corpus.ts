@@ -11,7 +11,8 @@
 import type { GlobalSearchResult, GlobalSearchSession, ProjectEntry, ProjectStats, SessionMeta } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
 import { statSync } from 'node:fs'
-import { questionTextOfRange, type QuestionRec } from './question-index'
+import type { QuestionRec } from './question-index'
+import { threadEngineModule } from '../engine-module'
 import { mapLimit, readRanges, type ByteRange } from './range-read'
 import type { TokenEngine } from './token-stats'
 import type { ScanRoots } from './types'
@@ -157,7 +158,7 @@ export class QuestionCorpus {
     const { texts } = await (this.opts.read ?? readRanges)(q.source, q.questions.map((r) => ({ start: r[0], end: r[1] })), 1)
     const questions: SessionTexts['questions'] = []
     q.questions.forEach((rec, idx) => {
-      const text = questionTextOfRange(q.side, texts[idx])
+      const text = threadEngineModule().questionText(q.side, texts[idx])
       // An unreadable question cannot match anything; the session's other questions still can
       if (text !== null) questions.push({ i: idx + 1, text, at: rec[3] })
     })

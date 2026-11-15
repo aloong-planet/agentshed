@@ -1,14 +1,13 @@
 //! Which Claude Code line holds a human question, what a line called, and which questions stay once the session's
-//! branches are resolved (session-view B1, B3, C3). `claudeQuestion` and `CLAUDE_DISPATCH` in
-//! `src/main/providers/question-index.ts` are the same question rule and dispatch names, for the session page's and
-//! both searches' question text and the session page's turns, until those read through the module (#432): a change
-//! here is made there too.
+//! branches are resolved (session-view B1, B3, C3). The question index, a question's text on the session page and in
+//! both searches, and the subagent dispatches the session page's turns draw all take these rules from here.
 
 use std::collections::{HashMap, HashSet};
 
-use super::line::{Content, Line};
+use super::line::{self, Content, Line};
+use crate::json;
 use crate::question::Calls;
-use crate::text::Units;
+use crate::text::{self, Units};
 
 /// A human question's raw text (session-view B1): a `type=user` line that is no sidechain — a sidechain is a
 /// subagent's own transcript, whose user message is the prompt its parent dispatched — whose content is a string, or
@@ -40,13 +39,21 @@ pub(super) fn question(line: &Line<'_>) -> Option<Units> {
     }
 }
 
+/// The question a range the index recorded holds, as the session page and both searches show it (session-view B1,
+/// REQ-002): the range is the question's line, and its text the one the index took from that line, its noise stripped;
+/// None when the line holds no question
+pub(super) fn shown(range: &str) -> Option<Units> {
+    let Ok(json::Line::Object(l)) = line::read(range) else { return None };
+    question(&l).and_then(|raw| text::real_user_text(&raw))
+}
+
 /// The tool names that dispatch a subagent. Measured across the repository: `Agent` 152 times, `Task` 4 — two
 /// generations of the same tool's name, both taking description, prompt and subagent_type as arguments. The
 /// seemingly more mechanism-based criterion "the arguments contain subagent_type" is not used: checked back across the
 /// repository, it wrongly counts one `TaskCreate` and misses 5 `Agent` calls that omitted the optional parameter. A
 /// future rename can only undercount, never miscount — what is displayed is a volume figure, and an undercount does
 /// not pollute other turns.
-const DISPATCH: [&str; 2] = ["Agent", "Task"];
+pub(super) const DISPATCH: [&str; 2] = ["Agent", "Task"];
 
 /// What the line called: each `tool_use` segment of its content is a tool, or a subagent when it dispatches one. A
 /// sidechain line is a subagent's own transcript: what it did counts under the subagent, not again in the parent

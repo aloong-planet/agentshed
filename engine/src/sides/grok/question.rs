@@ -7,7 +7,8 @@
 //! the one the other sides share (`question/`): a question spans several lines, and a turn ends at the last line that
 //! parsed before the next question, not at that question's start.
 
-use super::line::Line;
+use super::line::{self, Line, Update};
+use crate::json;
 use crate::question::Record;
 use crate::text::{self, Units};
 
@@ -19,7 +20,27 @@ const NOTICE: &str = "<system-reminder";
 /// The tool call that dispatches a subagent; every other tool call is a tool. Its `subagent_spawned` and
 /// `subagent_finished` records are the call's typed mirror and are not counted again (session-view, Implementation
 /// Decisions, the per-side turn volume).
-const DISPATCH: &str = "spawn_subagent";
+pub(super) const DISPATCH: &str = "spawn_subagent";
+
+/// A user chunk's text, the update's own: empty when its content carries none; None when the update is no user chunk
+fn chunk(u: &Update<'_>) -> Option<Units> {
+    u.kind.is_some_and(|k| k.is("user_message_chunk")).then(|| u.text.map(|t| t.units()).unwrap_or_default())
+}
+
+/// The question a range the index recorded holds, as the session page and both searches show it (session-view G1): the
+/// texts of the user chunks among its lines, joined as written; None when it holds none. A line that will not parse is
+/// skipped, as the index skips it.
+pub(super) fn shown(range: &str) -> Option<Units> {
+    let mut joined: Option<Units> = None;
+    for text in range.split('\n') {
+        if let Ok(json::Line::Object(l)) = line::read(text) {
+            if let Some(chunk) = chunk(&l.update) {
+                joined.get_or_insert_with(Vec::new).extend(chunk);
+            }
+        }
+    }
+    joined
+}
 
 #[derive(Default)]
 pub(super) struct Indexer {
@@ -41,9 +62,7 @@ impl Indexer {
     pub(super) fn line(&mut self, line: &Line<'_>, at: Option<f64>, start: u64, end: u64) {
         let u = &line.update;
         let end = end as f64;
-        if u.kind.is_some_and(|k| k.is("user_message_chunk")) {
-            // A chunk whose content carries no text is a chunk of empty text
-            let chunk = u.text.map(|t| t.units()).unwrap_or_default();
+        if let Some(chunk) = chunk(u) {
             let prompt = u.prompt_index;
             if prompt.is_some() && prompt == self.open_prompt {
                 if self.open_pushed {

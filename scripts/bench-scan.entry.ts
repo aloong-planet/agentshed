@@ -10,7 +10,8 @@
 //                 (Electron only: the copy is taken from app.getPath('userData')). An app that still has
 //                 only its JSON cache gives a copy of that instead, which the build imports first
 //                 (token-stats C26): what the first launch after the upgrade costs
-//   file <path>…  eachJsonlLine over the given files, one at a time
+//   file <path>…  the engine module's line reader, the one every parse reads a session file by
+//                 (engine/src/read/), over the given files, one at a time, through its test seam
 //   grow <rollout> a Codex rollout copied into a scratch home, scanned whole, then grown by about 1 MB
 //                 of its own last lines and scanned again — the rescan a live session costs (#158). The
 //                 grown scan is checked against a cold scan of the same file.
@@ -44,12 +45,12 @@ import { availableParallelism } from 'node:os'
 import { scan, walkSessions } from '../src/main/providers/scan'
 import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
 import { ParsePool } from '../src/main/parse-pool'
-import { ENGINE_BUILD, loadEngineModule, type EngineSource } from '../src/main/engine-module'
+import { ENGINE_BUILD, loadEngineModule, threadEngineModule, type EngineModule, type EngineSource } from '../src/main/engine-module'
 import { Scanner, settleScan, type ScanOutput } from '../src/main/providers/scanner'
 import { startScans } from '../src/main/scan-client'
 import { UsageArchive } from '../src/main/providers/archive'
 import type { ScanRoots } from '../src/main/providers/types'
-import { eachJsonlLine } from '../src/main/providers/jsonl'
+import { isColdRollout } from '../src/main/providers/cold-rollout'
 import { realRoots } from '../src/main/roots'
 import { mergeKey } from '../src/shared/path-key'
 
@@ -59,13 +60,16 @@ function since(t0: number): string {
   return `${(performance.now() - t0).toFixed(0)} ms`
 }
 
-async function timeFile(file: string): Promise<void> {
+/** The line-reader seam the development build of the engine module exports (engine/src/seams.rs): the lines a file
+ * gives the reader, a cold rollout read through its zstd stream */
+interface LineReaderSeam extends EngineModule {
+  seamEachLine(file: string, cold: boolean): number
+}
+
+function timeFile(file: string): void {
   const size = statSync(file).size
-  let lines = 0
   const t0 = performance.now()
-  await eachJsonlLine(file, () => {
-    lines++
-  })
+  const lines = (threadEngineModule() as LineReaderSeam).seamEachLine(file, isColdRollout(file))
   const seconds = (performance.now() - t0) / 1000
   console.log(
     `[file] ${(size / 1e6).toFixed(1)} MB, ${lines} lines, ${(seconds * 1000).toFixed(0)} ms, ${(size / 1e6 / seconds).toFixed(1)} MB/s  ${file}`
@@ -424,7 +428,7 @@ async function main(): Promise<void> {
   const [mode = 'cold', ...rest] = process.argv.slice(2)
   if (mode === 'file') {
     if (rest.length === 0) throw new Error('file mode needs at least one path')
-    for (const f of rest) await timeFile(f)
+    for (const f of rest) timeFile(f)
     return
   }
   if (mode === 'workers') {

@@ -49,7 +49,11 @@ import type {
   TurnThinkBlock,
   TurnToolBlock
 } from '@shared/domain'
-import { AGY_DISPATCH, CLAUDE_DISPATCH, agyKeptLines, agyStepIndex } from './question-index'
+import { threadEngineModule } from '../engine-module'
+
+/** The tool names whose call dispatches a subagent on the turn's side: the engine module's, which the question index
+ * counts the turn's subagents by */
+type Dispatches = ReadonlySet<string>
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
@@ -195,7 +199,6 @@ const CODEX_OUTPUTS: Record<string, string> = {
   function_call_output: 'function_call',
   tool_search_output: 'tool_search_call'
 }
-const CODEX_SPAWN = 'spawn_agent'
 
 interface Unknowns {
   counts: Map<string, number>
@@ -210,7 +213,7 @@ function unknownBlock(u: Unknowns): TurnBlock[] {
   return [{ kind: 'unknown', count, types: [...u.counts.keys()] }]
 }
 
-function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
+function claudeAssemble(objs: Array<Record<string, unknown>>, dispatches: Dispatches): TurnBlock[] {
   const out: TurnBlock[] = []
   const toolById = new Map<string, TurnToolBlock>()
   const subById = new Map<string, TurnSubBlock>()
@@ -240,7 +243,7 @@ function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
         } else if (s['type'] === 'tool_use' && typeof s['id'] === 'string') {
           const name = typeof s['name'] === 'string' ? s['name'] : null
           const input = asRecord(s['input'])
-          if (name !== null && CLAUDE_DISPATCH.has(name)) {
+          if (name !== null && dispatches.has(name)) {
             const sub: TurnSubBlock = {
               kind: 'sub',
               at,
@@ -305,7 +308,7 @@ function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
   return [...out, ...unknownBlock(u)]
 }
 
-function codexAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
+function codexAssemble(objs: Array<Record<string, unknown>>, dispatches: Dispatches): TurnBlock[] {
   const out: TurnBlock[] = []
   const byCallId = new Map<string, TurnToolBlock | TurnSubBlock>()
   const u: Unknowns = { counts: new Map() }
@@ -346,7 +349,7 @@ function codexAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
         const callId = typeof p['call_id'] === 'string' ? p['call_id'] : null
         const name = typeof p['name'] === 'string' ? p['name'] : pt
         const text = inputText(p['input'] ?? p['arguments'])
-        if (name === CODEX_SPAWN) {
+        if (dispatches.has(name)) {
           const sub: TurnSubBlock = {
             kind: 'sub',
             at: atOf(o),
@@ -442,7 +445,7 @@ function grokUpdateContentText(upd: Record<string, unknown>): string | null {
   return out === '' ? null : out
 }
 
-function grokAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
+function grokAssemble(objs: Array<Record<string, unknown>>, dispatches: Dispatches): TurnBlock[] {
   const out: TurnBlock[] = []
   const u: Unknowns = { counts: new Map() }
   const toolById = new Map<string, TurnToolBlock>()
@@ -492,7 +495,7 @@ function grokAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
       openThink = null
       const id = typeof upd['toolCallId'] === 'string' ? upd['toolCallId'] : null
       const rawInput = upd['rawInput']
-      if (upd['title'] === 'spawn_subagent') {
+      if (typeof upd['title'] === 'string' && dispatches.has(upd['title'])) {
         const input = rawInput as Record<string, unknown> | undefined
         const prompt =
           typeof input?.['prompt'] === 'string'
@@ -602,19 +605,17 @@ function agyAt(o: Record<string, unknown>): number | null {
  * (`invoke_subagent`) is a sub block: its result only echoes the creation, and its return is the message the created
  * conversation sends back — a system message whose sender is that conversation's id, in this turn (C3). A failed model
  * call's error line is prose (owner's ruling 2026-10-28); every other system message is harness noise. Lines a rewind
- * undid inside the turn are dropped by the indexer's rule; a rewind back to a question never reaches here, the
+ * undid inside the turn never reach here (`turnBlocksFromText`); a rewind back to a question does not either, the
  * indexer having ended the turn before it.
  */
-function antigravityAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
+function antigravityAssemble(objs: Array<Record<string, unknown>>, dispatches: Dispatches): TurnBlock[] {
   const out: TurnBlock[] = []
   const u: Unknowns = { counts: new Map() }
-  const kept = agyKeptLines(objs.map(agyStepIndex))
   /** Calls awaiting their result line, in order */
   const pending: Array<TurnToolBlock | TurnSubBlock> = []
   /** A dispatched conversation's id → its sub block, for the message it sends back */
   const subByConversation = new Map<string, TurnSubBlock>()
-  objs.forEach((o, i) => {
-    if (!kept[i]) return
+  for (const o of objs) {
     const t = labelOf(o['type'])
     const at = agyAt(o)
     if (t === 'PLANNER_RESPONSE') {
@@ -625,7 +626,7 @@ function antigravityAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] 
         const name = typeof call?.['name'] === 'string' ? call['name'] : null
         const args = asRecord(call?.['args'])
         const block: TurnToolBlock | TurnSubBlock =
-          name === AGY_DISPATCH
+          name !== null && dispatches.has(name)
             ? {
                 kind: 'sub',
                 at,
@@ -666,22 +667,29 @@ function antigravityAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] 
       noteUnknown(u, t)
     }
     // USER_INPUT: the question renders in its own row; an empty request renders nothing
-  })
+  }
   return [...out, ...unknownBlock(u)]
 }
 
+/**
+ * A turn's range, read, → its blocks. The lines the turn holds are the engine module's to say (a line agy's rewind
+ * undid is not one), as are the tool names that dispatch a subagent: the rules the question index applies.
+ */
 export function turnBlocksFromText(side: AgentSide, raw: string): TurnBlock[] {
+  const engine = threadEngineModule()
+  const kept = engine.keptLines(side, raw)
   const objs: Array<Record<string, unknown>> = []
-  for (const line of raw.split('\n')) {
-    if (!line.trim()) continue
+  raw.split('\n').forEach((line, i) => {
+    if (!kept[i] || !line.trim()) return
     try {
       const obj: unknown = JSON.parse(line)
       if (typeof obj === 'object' && obj !== null) objs.push(obj as Record<string, unknown>)
     } catch {
       // Skip bad lines
     }
-  }
-  if (side === 'grok') return grokAssemble(objs)
-  if (side === 'antigravity') return antigravityAssemble(objs)
-  return side === 'claude' ? claudeAssemble(objs) : codexAssemble(objs)
+  })
+  const dispatches = new Set(engine.dispatches(side))
+  if (side === 'grok') return grokAssemble(objs, dispatches)
+  if (side === 'antigravity') return antigravityAssemble(objs, dispatches)
+  return side === 'claude' ? claudeAssemble(objs, dispatches) : codexAssemble(objs, dispatches)
 }

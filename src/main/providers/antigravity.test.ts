@@ -64,14 +64,13 @@ import { mergeKey } from '@shared/path-key'
 import { scan, walkSessions } from './scan'
 import { agyTranscriptPath, readAntigravitySessions, readConversationDb } from './antigravity'
 import { TokenEngine, runParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
-import { loadEngineModule } from '../engine-module'
+import { loadEngineModule, threadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
 import { onStore, storeFileBytes } from '../testing/token-store'
 import { UsageArchive } from './archive'
 import type { ScanRoots } from './types'
 import { DatabaseSync } from './sqlite'
 import { readRanges } from './range-read'
-import { questionTextOfRange } from './question-index'
 import { sessionReadTarget } from '../security'
 import type { SessionMeta } from '@shared/domain'
 import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTranscript } from '../testing/agy-transcript-fixture'
@@ -1468,7 +1467,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
   async function questionTexts(e: TokenEngine, file: string): Promise<Array<string | null>> {
     const q = await e.sessionQuestions(roots(), file)
     const { texts } = await readRanges(q.source, q.questions.map((r) => ({ start: r[0], end: r[1] })))
-    return texts.map((t) => questionTextOfRange(q.side, t))
+    return texts.map((t) => threadEngineModule().questionText(q.side, t))
   }
   /** A step agy records for a user's input: its creation time and no call */
   const inputStep = (conversationId: string, idx: number, at: number): StepRow => ({

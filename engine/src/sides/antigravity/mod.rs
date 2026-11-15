@@ -40,6 +40,19 @@ impl Side for Antigravity {
         }
     }
 
+    fn question_text(&self, range: &str) -> Option<Units> {
+        transcript::shown(range)
+    }
+
+    fn dispatches(&self) -> &'static [&'static str] {
+        std::slice::from_ref(&transcript::DISPATCH)
+    }
+
+    /// The lines a rewind left behind (session-view::REQ-004/AC-03)
+    fn kept_lines(&self, range: &str) -> Vec<bool> {
+        transcript::kept_in(range)
+    }
+
     /// A panic while a conversation was parsed is its failed read (token-stats, Scans and the window), judged as
     /// token-stats::REQ-004/AC-03 judges one: not counted, its last result kept, while a log is beside the database or
     /// the database is gone, and unreadable otherwise (AC-01). The log is looked at as the panic is caught: the read it

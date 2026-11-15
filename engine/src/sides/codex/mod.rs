@@ -16,6 +16,7 @@ use self::entry::{Earlier, Event, Job, KeptTotal, Parsed};
 use super::Side;
 use crate::exports::js::Js;
 use crate::question::Record;
+use crate::text::Units;
 
 pub(crate) struct Codex;
 
@@ -26,6 +27,14 @@ impl Side for Codex {
             Some(parsed) => write_result(js, &given, &parsed),
             None => js.null(),
         }
+    }
+
+    fn question_text(&self, range: &str) -> Option<Units> {
+        question::shown(range)
+    }
+
+    fn dispatches(&self) -> &'static [&'static str] {
+        std::slice::from_ref(&question::DISPATCH)
     }
 }
 

@@ -47,7 +47,6 @@ import {
   stripReplayPrefix,
   type QuestionRec
 } from './question-index'
-import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
 import { walkSessions, type SessionWalk } from './scan'
 import { byName, compareNames, compareScanOrder } from './scan-order'
@@ -1180,8 +1179,8 @@ export function sessionReadSource(roots: ScanRoots, file: string): string {
 
 /**
  * The title a stripped Codex fork takes from its first question left: that line read live by byte range,
- * its real user text clipped as a title; null when the line cannot be read or holds no real text, and the
- * caller then keeps the original title — degradation only hurts that one title.
+ * titled by the engine module as the index titles a session by its first question; null when the line cannot be read
+ * or holds no question, and the caller then keeps the original title — degradation only hurts that one title.
  * The scan's re-title of the listed session and the session questions behind the session page, the
  * project search and the fork banner's parent title all use it, so every surface shows the same title
  * (spec B2). It runs only for such forks, of which there are very few (0 in this machine's real data),
@@ -1191,11 +1190,7 @@ async function strippedForkTitle(file: string, start: number, end: number): Prom
   try {
     // The shared range reader: a byte read on a plain rollout, one streaming pass on a cold one (spec C2)
     const { texts } = await readRanges(file, [{ start, end }])
-    const obj: unknown = JSON.parse(texts[0])
-    const msg = (obj as Record<string, unknown>)?.['payload'] as Record<string, unknown> | undefined
-    const text = typeof msg?.['message'] === 'string' ? msg['message'] : null
-    const clean = text === null ? null : realUserText(text)
-    return clean === null ? null : clipTitle(clean)
+    return threadEngineModule().questionTitle('codex', texts[0])
   } catch {
     return null
   }
