@@ -221,12 +221,12 @@ async function longestStall(work: () => Promise<void>): Promise<{ max: string; p
   return { max: (lag.max / 1e6).toFixed(0), p99: (lag.percentile(99) / 1e6).toFixed(0) }
 }
 
-/** The engine module (ADR-0045) every scanner and parse worker here loads: the development build the runner made */
 /** The session walk, by the engine module, with no memory behind it */
 function walkSessions(roots: ScanRoots): SessionWalk {
   return loadEngineModule(engineSource()).walkSessions(roots)
 }
 
+/** The engine module (ADR-0045) every scanner and parse worker here loads: the development build the runner made */
 function engineSource(): EngineSource {
   const path = process.env['AGENTSHED_BENCH_ENGINE_MODULE']
   if (!path) throw new Error('AGENTSHED_BENCH_ENGINE_MODULE is not set: run through scripts/bench-scan.mjs')

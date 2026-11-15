@@ -15,6 +15,8 @@
 //   pair — not counted, the last result kept, read again — is driven below through a copy that cannot be made.
 // - A conversation deleted between the walk's look at its signature and its read: no seam between the two. The rule it
 //   shares with the usage read (a database gone is no format change) is driven below through the usage read's window.
+//   One deleted between the listing and the look at its signature is driven below through a directory the walk can list
+//   but not enter, which leaves the signature as one gone would.
 // - A read killed half-way leaving its copy behind: killing the process is outside this seam. What a copy is left in —
 //   a directory only the user can read — is asserted through the module's copy seam, which notes the directory as it is
 //   made; the walk, the usage read and the titles read make it the same way (`engine/src/sides/antigravity/db.rs`).
@@ -461,8 +463,9 @@ describe("reading agy's files writes nothing there (token-stats::CON-002)", () =
 })
 
 describe('a conversation is read again only when it changed, and a failed read is tried again', () => {
-  // A conversation with a log is read through a copy made under the walk's temporary parent: a parent that does not
-  // exist makes every fresh read fail, which tells a read served from the last one apart from a new read
+  // A conversation with a log is read through a copy made under the walk's temporary parent: the module's copy seam
+  // notes each copy made there, which tells a read served from the last one apart from a new read; a parent that does
+  // not exist makes every fresh read fail
   function busy(): string {
     const p = mkProject('p')
     mkdirSync(conversations(), { recursive: true })
@@ -477,11 +480,21 @@ describe('a conversation is read again only when it changed, and a failed read i
   }
   const unusable = (): string => join(dir, 'no-such-dir')
 
-  it('an unchanged conversation is not read again', () => {
+  it('an unchanged conversation is not read again: the walk after makes no copy of it', () => {
     const p = busy()
     const memory = sessionMemory()
-    expect(agySessions(usable(), memory).map((s) => s.cwd)).toEqual([p])
-    expect(agySessions(unusable(), memory).map((s) => s.cwd)).toEqual([p])
+    const tmp = usable()
+    const seam = threadEngineModule() as CopySeam
+    try {
+      seam.seamWatchCopiesUnder(tmp)
+      expect(agySessions(tmp, memory).map((s) => s.cwd)).toEqual([p])
+      expect(seam.seamCopiesMade(), 'the first walk reads it through a copy').toHaveLength(1)
+      seam.seamWatchCopiesUnder(tmp)
+      expect(agySessions(tmp, memory).map((s) => s.cwd)).toEqual([p])
+      expect(seam.seamCopiesMade()).toEqual([])
+    } finally {
+      seam.seamWatchCopiesUnder(null)
+    }
   })
 
   it('a read that failed is tried again at the next walk', () => {
@@ -536,8 +549,9 @@ describe('the walk\'s reads of a conversation, by the engine module: a panic, it
     expect(agySessions(usable(), memory).map((s) => s.cwd)).toEqual([second])
   })
 
-  // The walk keeps a reading only for the conversations the last walk saw. Each case rewrites the conversation to credit
-  // another folder under the signature it was read under, which a walk that kept the reading would not see.
+  // The walk keeps a reading only for the conversations the last walk saw and took a signature of. Each case rewrites
+  // the conversation to credit another folder under the signature it was read under, which a walk that kept the reading
+  // would not see.
   it.each([
     {
       name: 'that left the directory and came back',
@@ -551,6 +565,15 @@ describe('the walk\'s reads of a conversation, by the engine module: a panic, it
       name: 'in a directory the walk could not list',
       away: (): (() => void) => {
         chmodSync(conversations(), 0o000)
+        return () => chmodSync(conversations(), 0o755)
+      }
+    },
+    {
+      // The listing names the database and its signature cannot be taken, as for one deleted in between (token-stats
+      // failure modes, a conversation deleted between the scan's listing and its read)
+      name: 'whose database the walk listed but could not then look at',
+      away: (): (() => void) => {
+        chmodSync(conversations(), 0o444)
         return () => chmodSync(conversations(), 0o755)
       }
     }

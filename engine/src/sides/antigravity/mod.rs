@@ -56,10 +56,7 @@ impl Side for Antigravity {
     /// failed while agy was writing them
     fn titles(&self, js: &Js, home: &str, tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
         let answer = || -> Result<napi_value> {
-            let tmp = match tmp_parent {
-                Some(t) => PathBuf::from(t),
-                None => PathBuf::from(String::from_utf16_lossy(&js.os_tmpdir()?)),
-            };
+            let tmp = copy_parent(js, tmp_parent)?;
             match titles::read(Path::new(home), &tmp) {
                 Some(pairs) => js.array(pairs.iter().map(|(id, title)| js.array([js.text(&text::units(id)), js.text(&text::units(title))]))),
                 None => js.null(),
@@ -73,10 +70,7 @@ impl Side for Antigravity {
         let mut walked = || -> Result<napi_value> {
             let home = js.string(js.get(roots, "antigravityHome")?)?.ok_or_else(|| Error::from_reason("the scan roots name no antigravityHome"))?;
             let tree = String::from_utf16_lossy(&js.path_join(&[&home, &text::units(walk::TREE)])?);
-            let tmp = match tmp_parent {
-                Some(t) => PathBuf::from(t),
-                None => PathBuf::from(String::from_utf16_lossy(&js.os_tmpdir()?)),
-            };
+            let tmp = copy_parent(js, tmp_parent)?;
             let sessions = walk::walk(&tree, kept.of::<Attributions>(), &tmp, &JsRuntime(js))?;
             js.array(sessions.iter().map(|s| {
                 js.object(&[
@@ -124,6 +118,15 @@ fn tmp_parent(js: &Js, value: napi_value) -> Result<PathBuf> {
         None => js.os_tmpdir()?,
     };
     Ok(PathBuf::from(String::from_utf16_lossy(&dir)))
+}
+
+/// Where a copy is made for a call that names its directory or none: that directory, else the system temporary
+/// directory
+fn copy_parent(js: &Js, given: Option<&str>) -> Result<PathBuf> {
+    Ok(match given {
+        Some(t) => PathBuf::from(t),
+        None => PathBuf::from(String::from_utf16_lossy(&js.os_tmpdir()?)),
+    })
 }
 
 fn text_or_null(js: &Js, s: Option<&String>) -> Result<napi_value> {

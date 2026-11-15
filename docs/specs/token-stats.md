@@ -839,9 +839,9 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   display copy is not written ([agents-overview::REQ-008/AC-05](agents-overview.md)). The failure is logged.
 - A panic in the engine module is caught where it crosses into the application. One raised while a file
   is parsed, or read by the session walk, is that file's failed read, under the rule its side has for a
-  read that fails (A10, B12, F6, token-stats::REQ-004), and the scan goes on (the AGENTS.md invariant on
-  reading agent data); one raised elsewhere in a scan fails that scan (E3), and one raised in a read fails
-  that read (session-view C4).
+  read that fails (A10, B12, F6, projects-list B4 and B8, token-stats::REQ-004), and the scan goes on (the
+  AGENTS.md invariant on reading agent data); one raised elsewhere in a scan fails that scan (E3), and one
+  raised in a read fails that read (session-view C4).
 - A rollout replaced under its path, appended to or edited in place differs in its inode, its size or
   its modification time, and its first line is read again (token-stats::QR-002/AC-01). An edit that
   moves none of the three is not seen until the file next changes — the limit the token cache's own

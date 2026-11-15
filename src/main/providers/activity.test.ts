@@ -53,7 +53,8 @@ function writeGrokRegistry(paths: string[]): void {
  * Build a Grok session directory (the real layout measured 2026-08-16):
  * sessions/<percent-encoded cwd>/<session-id>/ with updates.jsonl as the authoritative stream.
  * A real child session carries `"session_kind": "subagent"` in its summary.json and sits beside its
- * parent; a parent has no session_kind key at all.
+ * parent; a parent has no session_kind key at all. The summary is written as Grok writes one (measured
+ * 2026-11-15): indented two spaces over many lines, with no final line feed.
  */
 function mkGrokSession(
   cwd: string,
@@ -65,7 +66,7 @@ function mkGrokSession(
   mkdirSync(d, { recursive: true })
   const summary: Record<string, unknown> = { info: { id, cwd } }
   if (opts.subagent) summary['session_kind'] = 'subagent'
-  writeFileSync(join(d, 'summary.json'), JSON.stringify(summary))
+  writeFileSync(join(d, 'summary.json'), JSON.stringify(summary, null, 2))
   const f = join(d, 'updates.jsonl')
   writeFileSync(f, '{"type":"x"}\n')
   utimesSync(f, atSec, atSec)
@@ -694,6 +695,7 @@ describe('the session walk, read by the engine module', () => {
   it.each<{ name: string; line: string | Buffer; read: Partial<CodexSessionMeta> | null }>([
     { name: 'repeating a key: the last one counts', line: '{"payload":{"cwd":"/first","cwd":"/a"}}', read: {} },
     { name: 'whose cwd is no string', line: '{"payload":{"cwd":5}}', read: null },
+    { name: 'whose cwd is empty: it names no project', line: '{"payload":{"cwd":""}}', read: null },
     { name: 'whose payload is an array', line: '{"payload":["/a"]}', read: null },
     { name: 'that is an array', line: '[{"payload":{"cwd":"/a"}}]', read: null },
     { name: 'that begins with a byte order mark', line: `${String.fromCharCode(0xfeff)}{"payload":{"cwd":"/a"}}`, read: null },
