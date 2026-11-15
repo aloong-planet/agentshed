@@ -6,12 +6,12 @@
 
 Comments, documents and tests carry reasons a contributor who reads no Chinese cannot rebuild from the code, and a
 squash merge commit carries the pull request's title and every commit message on the branch. The working language
-is declared in `capabilities.toml` (`working-language`), so a check follows the declaration.
+is declared in `capabilities.toml` (`working-language`), which the message checks follow.
 
 ## Options
 
-1. **English for the files and the text beside them, held by a writing rule, a gate over the tracked files, a
-   `commit-msg` hook and a pull-request check, each following the declared working language**
+1. **English for the files and the text beside them, held by a writing rule, a gate over the tracked files, and a
+   `commit-msg` hook and a pull-request check that follow the declaration**
 2. `docs/` kept in Chinese — rejected: its reason weighed translating into every UI language, which one working
    language does not involve, and it shuts out contributors who read no Chinese.
 3. Terminal output only — rejected: a half-converted repository is harder to maintain than either single language.
@@ -44,8 +44,8 @@ We adopt **option 1**.
   source dictionary (ADR-0014), the landing page, the prototypes' mockups and the Chinese README.
 - **The rule**: Chinese may be cited, inside backticks, quotes, corner brackets or a closed fenced code block, and
   never written.
-- **By declaration**: a Chinese `working-language` turns the checks off, and they say so; a Japanese one, or none
-  declared, fails them; any other language is checked.
+- **By declaration**, for the hook and the pull-request check: a Chinese `working-language` turns them off, and they
+  say so; a Japanese one, or none, fails them; any other is checked.
 - **Layers**: the writing rule; `scripts/check-lang.mjs` over every tracked file, whose exemptions are shapes, never
   counts; a husky `commit-msg` hook; and the `Message language` workflow over a pull request's title, body and every
   commit, a required check ([the CI runbook](../ops/ci.md)). Issues have the writing rule alone.

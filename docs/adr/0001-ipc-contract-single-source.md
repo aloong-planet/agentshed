@@ -13,8 +13,8 @@ sentence breaks silently when its wording changes.
 
 1. **One shared source in `src/shared/` (channel names, domain types, hand-written structural validators, the
    error-code enum), checked on both sides of the boundary, with nothing but structured signals crossing it**
-2. A schema library such as zod — rejected: for the surface validated (see Sources), not worth a runtime dependency
-   and a second schema definition beside the types.
+2. A schema library such as zod — rejected when the validated surface was one snapshot and a handful of parameters
+   (see Sources): not worth a runtime dependency and a second schema definition beside the types.
 3. TypeScript types alone, with no runtime validation — rejected: IPC crosses the type boundary, so drift passes
    silently.
 4. Error codes for the failures users commonly see, leaving diagnostics such as the validators' reasons as
@@ -24,8 +24,8 @@ sentence breaks silently when its wording changes.
    failures, and code would still branch on the wording.
 6. A renderer map from main-process sentences to their wording — rejected: a whole sentence as a key breaks on any
    rewording, and it cannot carry parameters such as a turn index.
-7. Main-process code reading the i18n dictionaries — rejected: the main process would have to track the interface
-   language, which is renderer state.
+7. The main process reading the dictionaries for the copy it sends over IPC — rejected: it would have to hold the
+   interface language, which is renderer state, and follow every switch.
 8. Structuring the failure-shaped data fields only — rejected: placeholders and the truncation marker are the most
    frequent copy on screen.
 
@@ -36,10 +36,13 @@ We adopt **option 1**.
 - **One source**: channel names, domain types, structural validators, and the error-code enum with its parameter
   types live in `src/shared/`, and both ends import them only from there. The main process asserts a payload before
   sending it and the preload checks it on receipt; a failure throws, naming the path of the field.
-- **Structured signals only**: neither the main process nor the shared layer emits user-facing natural language. A
-  payload carries error codes with parameters, `null` for "no value here", booleans such as "was this truncated",
-  counts and field values. The renderer composes every sentence in the effective language: failure wording,
-  placeholders, quantifiers, truncation markers and advisory copy.
+- **Structured signals only**: no payload crossing IPC carries user-facing natural language. It carries error codes
+  with parameters, `null` for "no value here", booleans such as "was this truncated", counts and field values, and
+  the renderer composes every sentence they stand for in the effective language: failure wording, placeholders,
+  quantifiers, truncation markers and advisory copy.
+- **Wording lives in the dictionaries**: outside them, neither the main process nor the shared layer holds wording
+  that varies by language. The native surfaces the main process draws itself, the application menu and the launch
+  dialog, take their copy from the dictionaries ([i18n spec](../specs/i18n.md)).
 - **Branch on codes**: error semantics are decided by the code, never by matching wording.
 - Developer logs never reach the interface and are outside this rule.
 
@@ -47,8 +50,8 @@ We adopt **option 1**.
 
 - Positive: a broken contract fails at the boundary at the first opportunity, and says where; there is one copy of
   the types, so drift has nowhere to hide.
-- Positive: every word the user reads is translated in the renderer, and the main process does not need to know the
-  interface language.
+- Positive: every word a payload stands for is translated in the renderer, and the main process needs the interface
+  language only for the surfaces it draws itself.
 - Positive: error codes are a stable contract, so a branch on them does not drift with the wording. The enum makes
   "should the user see this, and what is it called" a question every new failure path has to answer.
 - Negative: every payload extension needs a matching validator change, and every new failure needs a code and its
@@ -64,5 +67,5 @@ We adopt **option 1**.
 
 Transfer's ADR on converging its message domain model onto a single source of truth. What crosses IPC in place of a
 sentence, and the carrier format the codes take, are in the [i18n spec](../specs/i18n.md), Implementation Decisions.
-The requirements sessions of 2026-08-08 and 2026-08-09. The validated surface: one snapshot and a handful of
-parameters when option 2 was rejected; 36 channels and a 593-line validator module at commit `64d12a4`.
+The requirements sessions of 2026-08-08 and 2026-08-09. The validated surface at commit `64d12a4`: 36 channels and a
+593-line validator module.
