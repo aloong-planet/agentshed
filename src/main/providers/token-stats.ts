@@ -44,7 +44,6 @@ import { mapLimit, readRanges } from './range-read'
 import { eachJsonlLine } from './jsonl'
 import { isReadable } from './read-utils'
 import {
-  makeGrokQuestionIndexer,
   makeQuestionIndexer,
   stripReplayPrefix,
   type QuestionRec
@@ -597,12 +596,9 @@ export async function runParseJob(job: ParseJob): Promise<ParseResult> {
       return agg ? { agg } : null
     }
     case 'codex':
+    case 'grok':
       // Read and parsed by the engine module (ADR-0045), which this thread loaded before it parses
       return threadEngineModule().parse(job)
-    case 'grok': {
-      const agg = await parseGrokFile(job.file, job.projectKey, job.subagent)
-      return agg ? { agg } : null
-    }
     case 'antigravity':
       // Read by the engine module (ADR-0045), databases and transcript alike
       return threadEngineModule().parse(job)
@@ -1010,7 +1006,7 @@ export class TokenEngine {
         // used to fall through to the Codex branch below, whose meta reader cannot read a Grok stream
         const meta = readGrokSessionMeta(file)
         if (!meta) throw appError(ERR.sessionMetaUnreadable)
-        fresh = await parseGrokFile(file, mergeKey(meta.cwd), meta.subagent)
+        fresh = (await runParseJob({ kind: 'grok', file, projectKey: mergeKey(meta.cwd), subagent: meta.subagent }))?.agg ?? null
       } else {
         const meta = readCodexSessionMeta(file)
         // No metadata out of a file that cannot be read is the file's failure, not its first line's (session-view P6)
@@ -1876,91 +1872,6 @@ interface CodexParseMeta {
 /** The state a parse carries out of a rollout (the engine module's, engine/src/sides/codex/); entryOf adds the inode,
  * the size and the count */
 type CodexParseState = Omit<CodexResume, 'ino' | 'size' | 'resumes'>
-
-/**
- * Grok: walk the update stream for turn_completed records (sequence F). The top-level timestamp is
- * epoch **seconds** (measured; params._meta carries the same instant in ms). Where a modelUsage map
- * exists its entries are the events — one per billed model, which is what makes the per-model split
- * exact (F3) — and a record without one falls back to the top-level usage with no model bucket.
- * The cost figure in the record is **never read** (F4). Full enumeration of this machine's 224
- * turn_completed records, 2026-08-16: 222 full-shape, one empty usage `{}`, one lacking
- * costUsdTicks but flagged usageIsIncomplete — so every numeric read tolerates absence.
- */
-async function parseGrokFile(
-  file: string,
-  projectKey: string,
-  subagent: boolean
-): Promise<GrokFileAgg | null> {
-  const events: GrokEvent[] = []
-  const idx = makeGrokQuestionIndexer()
-  let lastTs: number | null = null
-  let fileEnd = 0
-  try {
-    await eachJsonlLine(file, (obj, start, end) => {
-      idx.line(obj, start, end)
-      fileEnd = end
-      const tsRaw = obj['timestamp']
-      const ts = typeof tsRaw === 'number' && Number.isFinite(tsRaw) ? tsRaw * 1000 : null
-      if (ts !== null) lastTs = lastTs === null ? ts : Math.max(lastTs, ts)
-      const params = obj['params'] as Record<string, unknown> | undefined
-      const update = params?.['update'] as Record<string, unknown> | undefined
-      if (update?.['sessionUpdate'] !== 'turn_completed') return
-      const usage = update['usage'] as Record<string, unknown> | undefined
-      if (!usage) return
-      const mu = usage['modelUsage']
-      const perModel: Array<[string | null, Record<string, unknown>]> =
-        typeof mu === 'object' && mu !== null && Object.keys(mu).length > 0
-          ? Object.entries(mu as Record<string, Record<string, unknown>>)
-          : [[null, usage]]
-      for (const [model, u] of perModel) {
-        events.push([
-          ts,
-          num(u['inputTokens']),
-          num(u['cachedReadTokens']),
-          num(u['outputTokens']),
-          // Cache creation is deliberately NOT read on this side (ADR-0023). `cacheCreationTokens`
-          // exists in the record but has never carried a value, and the side's own reported total is
-          // input + output with no write term — so reading it would make our total exceed the total
-          // the side publishes for itself. Where those tokens actually sit is **not observable**
-          // from this data; zero asserts no quantity, only that this side reports none.
-          0,
-          model
-        ])
-      }
-    })
-  } catch {
-    return null
-  }
-  const questions = idx.done(fileEnd)
-  const first = idx.firstQuestionText()
-  // The summary's own name first (the same priority rule as Codex thread_name: the side's own
-  // summary reads better than a first question); reading summary.json here is the file the
-  // registry walk already reads for session_kind, not a second data source for the conversation
-  let summaryTitle: string | null = null
-  try {
-    const parsed: unknown = JSON.parse(readFileSync(join(dirname(file), 'summary.json'), 'utf8'))
-    if (typeof parsed === 'object' && parsed !== null) {
-      const p = parsed as Record<string, unknown>
-      const cand = p['session_summary'] ?? p['generated_title']
-      if (typeof cand === 'string' && cand !== '') summaryTitle = cand
-    }
-  } catch {
-    // No summary is no title source — the fallbacks below carry it
-  }
-  const stem = dirname(file).split('/').pop() ?? null
-  return {
-    kind: 'grok',
-    file,
-    projectKey,
-    subagent,
-    title: summaryTitle ?? (first === null ? null : clipTitle(first)) ?? stem,
-    at: lastTs,
-    // The same rule as the other sides (spec A3a): no real question → not listed, tokens count
-    listed: !subagent && questions.length > 0,
-    questions,
-    events
-  }
-}
 
 function readCodexIndex(codexHome: string): Map<string, string> {
   const out = new Map<string, string>()

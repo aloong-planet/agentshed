@@ -11,14 +11,10 @@ use std::collections::HashSet;
 
 use super::entry::{Event, Job, KeptTotal, Parsed};
 use super::{line, question, title};
+use crate::json::max;
 use crate::question::{Calls, Indexer};
 use crate::read::{self, Stored};
 use crate::text::{self, Units};
-
-/// `Math.max(a, b)` over two numbers that are not NaN
-fn max(a: f64, b: f64) -> f64 {
-    if a > b || (a == b && a.is_sign_positive()) { a } else { b }
-}
 
 /// `Math.max(0, x)` for an x that is not NaN
 fn at_least_zero(x: f64) -> f64 {

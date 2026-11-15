@@ -432,3 +432,14 @@ pub(crate) fn finite_or_zero(r: &mut Reader<'_>) -> Read<f64> {
     }
     r.skip().map(|_| 0.0)
 }
+
+/// The members of the object here, through `member`, as a rule reads a property of a value it takes for a record; a
+/// value of another kind is skipped and gives none
+pub(crate) fn record<'a>(r: &mut Reader<'a>, member: impl FnMut(Str<'a>, &mut Reader<'a>) -> Read<()>) -> Read<()> {
+    if r.kind()? == Kind::Object { r.members(member) } else { r.skip() }
+}
+
+/// `Math.max(a, b)` over two numbers that are not NaN, as no number a line gives is: the larger, and +0 over -0
+pub(crate) fn max(a: f64, b: f64) -> f64 {
+    if a > b || (a == b && a.is_sign_positive()) { a } else { b }
+}

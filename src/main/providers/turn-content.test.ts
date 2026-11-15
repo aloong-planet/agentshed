@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeGrokQuestionIndexer, makeQuestionIndexer, type QuestionRec } from './question-index'
+import { makeQuestionIndexer, type QuestionRec } from './question-index'
+import { runParseJob } from './token-stats'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { withIndexedTranscript } from '../testing/agy-transcript-index'
 import { readRanges } from './range-read'
@@ -428,13 +429,8 @@ describe('the Grok block model (ticket #125)', () => {
         gline(101, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'y'.repeat(2 * 1024 * 1024) } })
       ].join('\n') + '\n'
     await withFile(raw, async (file) => {
-      const idx = makeGrokQuestionIndexer()
-      let fileEnd = 0
-      await eachJsonlLine(file, (obj, start, end) => {
-        idx.line(obj, start, end)
-        fileEnd = end
-      })
-      const recs = idx.done(fileEnd)
+      // The question index the engine module gives the stream
+      const recs = (await runParseJob({ kind: 'grok', file, projectKey: '', subagent: false }))?.agg.questions ?? []
       expect(recs).toHaveLength(2)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
       const one = await readRanges(file, [{ start: recs[0][1], end: recs[0][2] }])

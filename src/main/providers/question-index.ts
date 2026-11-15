@@ -32,8 +32,8 @@ export type QuestionRec = [number, number, number, number | null, number, number
 
 
 /**
- * The content fingerprint (FNV-1a, 32-bit), also the engine module's for Codex (engine/src/text/mod.rs: a change here
- * is made there too). It only needs "same text, same value; different text, very
+ * The content fingerprint (FNV-1a, 32-bit), also the engine module's for Codex and Grok (engine/src/text/mod.rs: a
+ * change here is made there too). It only needs "same text, same value; different text, very
  * likely a different value", not cryptographic strength —
  * its only use is comparing, entry by entry, whether the start of a child session and the parent hold
  * the same questions.
@@ -284,22 +284,15 @@ function grokUpdate(obj: Record<string, unknown>): Record<string, unknown> | und
   return params?.['update'] as Record<string, unknown> | undefined
 }
 
-/** A user chunk's text; null when the line is not a user_message_chunk */
+/** A user chunk's text; null when the line is not a user_message_chunk. The engine module's Grok indexer
+ * (engine/src/sides/grok/question.rs) reads the same field to decide which chunks are a question: a change here is made
+ * there too. */
 function grokUserChunkText(obj: Record<string, unknown>): string | null {
   const upd = grokUpdate(obj)
   if (upd?.['sessionUpdate'] !== 'user_message_chunk') return null
   const content = upd['content'] as Record<string, unknown> | undefined
   const text = content?.['text']
   return typeof text === 'string' ? text : ''
-}
-
-/**
- * An injected harness notice, not the user speaking (measured 2026-08-16: 15 of 237 prompts, all of
- * them pure `<system-reminder>` background-task notices). Only a prompt whose FIRST chunk is such a
- * notice is excluded — a mixed prompt (unobserved) stays a question, erring in the visible direction.
- */
-function grokInjectedNotice(text: string): boolean {
-  return text.trimStart().startsWith('<system-reminder')
 }
 
 /**
@@ -330,80 +323,8 @@ export function grokQuestionTextFromSlice(raw: string): string | null {
 }
 
 /**
- * The Grok question indexer: a question = the run of user_message_chunk lines sharing one
- * promptIndex (chunks concatenate raw), skipping prompts that open with an injected notice. Tools
- * and subagent dispatches count from tool_call lines — a spawn_subagent call is a dispatch, not a
- * tool (the same split as the other sides).
- */
-export function makeGrokQuestionIndexer(): {
-  line(obj: Record<string, unknown>, start: number, end: number): void
-  firstQuestionText(): string | null
-  done(fileEnd: number): QuestionRec[]
-} {
-  const out: QuestionRec[] = []
-  /** Parallel to out: each question's concatenated text (for the fingerprint and the title) */
-  const qText: string[] = []
-  let openPrompt: number | null = null
-  /** Whether the open prompt became a question — a suppressed notice's later chunks must not be
-   * appended to the previous real question */
-  let openPushed = false
-  const extendTurn = (end: number): void => {
-    if (out.length > 0) out[out.length - 1][2] = end
-  }
-  return {
-    line(obj, start, end) {
-      const text = grokUserChunkText(obj)
-      if (text !== null) {
-        const upd = grokUpdate(obj)
-        const meta = upd?.['_meta'] as Record<string, unknown> | undefined
-        const pi = typeof meta?.['promptIndex'] === 'number' ? meta['promptIndex'] : null
-        if (pi !== null && pi === openPrompt) {
-          if (openPushed) {
-            // Another chunk of the open question: extend its range and its text
-            const rec = out[out.length - 1]
-            rec[1] = end
-            rec[2] = end
-            qText[qText.length - 1] += text
-            rec[6] = fingerprint(qText[qText.length - 1])
-          } else {
-            extendTurn(end) // a suppressed prompt's chunk still lies inside the previous turn
-          }
-          return
-        }
-        openPrompt = pi
-        if (grokInjectedNotice(text)) {
-          openPushed = false
-          extendTurn(end)
-          return
-        }
-        openPushed = true
-        const tsRaw = obj['timestamp']
-        const ts = typeof tsRaw === 'number' && Number.isFinite(tsRaw) ? tsRaw * 1000 : null
-        out.push([start, end, end, ts, 0, 0, fingerprint(text)])
-        qText.push(text)
-        return
-      }
-      if (out.length === 0) return
-      const rec = out[out.length - 1]
-      rec[2] = end // every later parseable line extends the open turn
-      const upd = grokUpdate(obj)
-      if (upd?.['sessionUpdate'] === 'tool_call') {
-        if (upd['title'] === 'spawn_subagent') rec[5]++
-        else rec[4]++
-      }
-    },
-    firstQuestionText() {
-      return qText.length > 0 ? qText[0] : null
-    },
-    done(fileEnd) {
-      if (out.length > 0) out[out.length - 1][2] = fileEnd
-      return out
-    }
-  }
-}
-
-/**
- * The Claude Code question indexer; Codex's is the engine module's (engine/src/sides/codex/). It is never
+ * The Claude Code question indexer; Codex's and Grok's are the engine module's (engine/src/sides/codex/,
+ * engine/src/sides/grok/). It is never
  * resumed: its last-leaf walk-back needs the whole parentUuid graph.
  */
 export function makeQuestionIndexer(): QuestionIndexer {
