@@ -275,7 +275,8 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  *      the resume reads on under the new rule, and only that question's end stays one byte short until the file is
  *      next parsed whole: no figure and no question's text differ. No rollout on this machine was in that state (none
  *      of the 311 non-empty plain rollouts, 2026-11-15). A bump would make every install parse every rollout again, and
- *      would take version 20, which the token store's change lands on, past the version-19 import its upgrade reads.
+ *      would not reach such an entry where one could be: every released install keeps a version-19 JSON file, which
+ *      its first launch with the store imports whatever this number is.
  *
  * Not bumped, for one computation change and its reasons alone (#439): an Antigravity conversation is unreadable when
  *      its trajectory record carries a field the reader reads in another wire type than its descriptor declares, where

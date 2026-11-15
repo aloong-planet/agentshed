@@ -35,7 +35,7 @@ export class Scanner {
   private memory: SessionMemory | null = null
 
   /**
-   * `module`: the engine module this thread loads (ADR-0045); `runner`: where the builds' parses run, a parse pool in
+   * `module`: the engine module this thread loads (ADR-0046); `runner`: where the builds' parses run, a parse pool in
    * the app, on the calling thread when absent; `combination`: what the stored group results come from (TokenEngine),
    * this scanner's own when absent
    */

@@ -11,7 +11,7 @@ import { Worker } from 'node:worker_threads'
 import type { EngineSource } from './engine-module'
 import { runParseJob, type ParseJob, type ParseResult, type ParseRunner } from './providers/token-stats'
 
-/** What a parse worker is started with: the engine module it loads as it starts (ADR-0045) */
+/** What a parse worker is started with: the engine module it loads as it starts (ADR-0046) */
 export interface ParseWorkerData {
   engine: EngineSource
 }

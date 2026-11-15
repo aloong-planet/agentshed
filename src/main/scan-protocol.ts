@@ -29,7 +29,7 @@ export interface ScanWorkerData {
   /** The built parse-worker entry, which the scanner's parse pool starts */
   parseScript: string
   poolSize: number
-  /** The engine module the worker and its parse workers load (ADR-0045) */
+  /** The engine module the worker and its parse workers load (ADR-0046) */
   engine: EngineSource
   /** The combination the scans' stored group results come from (token-stats, Implementation Decisions, Cache): the
    * application version in a packaged build, this run in an unpackaged one (scanCombination) */
