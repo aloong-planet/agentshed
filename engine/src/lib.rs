@@ -17,10 +17,12 @@
 //!   `text/` (text as JavaScript holds it, and the normalisation, noise, title, fingerprint, merge key and `Date.parse`
 //!   rules over it), `question/` (the question indexer the sides share) and `store/` (the token store, ADR-0044, which
 //!   holds each session file's entry under its path without reading it by side).
-//! - `display/`: the display copy's writer, which serialises what the main process hands it and knows nothing of
-//!   what the copy holds.
+//! - `display/`: the display copy's writer, which serialises what the main process hands it by `JSON.stringify`'s
+//!   rules and knows nothing of what the copy holds.
 //! - `exports/`: every `#[napi]` function, one file per caller, with the conversions between JavaScript's values and
-//!   the module's. An export converts and dispatches, and holds no rule.
+//!   the module's (`exports/js.rs`), which the sides and `display/` read JavaScript values through as the exports do:
+//!   no other file reads one, but for the arguments napi-rs converts at the call. An export converts and dispatches,
+//!   and holds no rule.
 //! - `seams.rs`: the test seams, in builds made for tests only.
 //!
 //! Nothing is laid down ahead of the change that needs it: no file, module or trait method waits for later work.

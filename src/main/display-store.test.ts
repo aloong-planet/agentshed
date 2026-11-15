@@ -38,13 +38,25 @@ function numbers(): number[] {
   return [...fixed, ...drawn]
 }
 
-it('the module writes a value as the text JSON.stringify gives it, byte for byte, into a directory it creates, readable by its user alone', async () => {
+/** `levels` containers, arrays and objects in turn, each the only element or member of the one around it */
+function nested(levels: number): unknown {
+  let value: unknown = []
+  for (let i = 1; i < levels; i++) value = i % 2 === 1 ? { in: value } : [value]
+  return value
+}
+
+/** A value of every kind JSON holds, and of every kind JSON.stringify leaves out of one without failing */
+function everyKind(): unknown {
   const strings = ['plain', 'quote " backslash \\ slash /', '\b\f\n\r\t', '\u0000\u0001\u001f\u007f', 'line\u2028para\u2029', 'café \u6f22\u5b57',
     '😀 emoji', 'lone high \ud83d', 'lone low \ude00', 'reversed \ude00\ud83d', '\ud83d😀', '']
   // A hole at index 3
   const elements: unknown[] = [undefined, () => 1, Symbol('s')]
   elements[4] = 'after a hole'
-  const value = {
+  // Its members are its own enumerable ones, as Object.keys gives them: an inherited member and a hidden one are left out
+  const ownKeys = Object.create({ inherited: 1 }) as Record<string, unknown>
+  Object.defineProperty(ownKeys, 'hidden', { value: 2, enumerable: false })
+  ownKeys['own'] = 3
+  return {
     strings,
     numbers: numbers(),
     flags: [true, false, null],
@@ -53,10 +65,26 @@ it('the module writes a value as the text JSON.stringify gives it, byte for byte
     elements,
     empty: [{}, [], [[]], { inner: {} }],
     keys: { [strings[7]]: 'lone surrogate key', 'tab\tkey': 1, '': 'empty key', ['k'.repeat(5000)]: 'a long key' },
-    // Around the length the module reads in one call, and far past it, each ending in a character JSON escapes, so a
-    // string cut short shows
-    long: [4094, 4095, 4096, 4097, 100_000].map((units) => 'x'.repeat(units - 1) + '"')
+    // Long strings, each ending in a character JSON escapes, so a string cut short shows. The long key above has already
+    // grown the buffer the module reuses past 4,097 units, so only the last is too long to read in one call; the edge at
+    // the buffer's starting size is the rows below, each the copy's only string
+    long: [4094, 4095, 4096, 4097, 100_000].map((units) => 'x'.repeat(units - 1) + '"'),
+    ownKeys,
+    // 1,000 levels with the root: the deepest the module writes, as a deeper value stands for a cycle
+    deep: nested(999)
   }
+}
+
+it.each<[string, () => unknown]>([
+  ['a value of every kind JSON holds', everyKind],
+  // Each the copy's only string, so that the module reads it into its buffer at the size it starts with: around the
+  // length that fills that buffer, and ending in a character JSON escapes, so that a string cut short shows
+  ...[4095, 4096, 4097].map((units): [string, () => unknown] => [
+    `a string of ${units} code units ending in a lone surrogate`,
+    () => 'x'.repeat(units - 1) + String.fromCharCode(0xd83d)
+  ])
+])('the module writes %s as the text JSON.stringify gives it, byte for byte, into a directory it creates, readable by its user alone', async (_what, make) => {
+  const value = make()
   const file = join(dir(), 'missing', 'copy.json')
   await engine.writeDisplayCopy(file, value)
   // As text first, so that a difference shows where it is; the bytes then rule out an invalid sequence read as U+FFFD
@@ -72,6 +100,16 @@ it.each([
 ])('a value holding %s, which JSON.stringify refuses, fails the write and leaves the copy before it whole', async (_what, make) => {
   const value = make()
   expect(() => JSON.stringify(value)).toThrow(TypeError)
+  const root = dir(), file = join(root, 'copy.json')
+  writeFileSync(file, 'the copy before')
+  await expect(Promise.resolve().then(() => engine.writeDisplayCopy(file, value))).rejects.toThrow()
+  expect(readFileSync(file, 'utf8')).toBe('the copy before')
+  expect(readdirSync(root)).toEqual(['copy.json'])
+})
+
+it('a value nesting deeper than 1,000 levels, which stands for a cycle, fails the write and leaves the copy before it whole, though JSON.stringify writes it', async () => {
+  const value = nested(1001)
+  expect(() => JSON.stringify(value)).not.toThrow()
   const root = dir(), file = join(root, 'copy.json')
   writeFileSync(file, 'the copy before')
   await expect(Promise.resolve().then(() => engine.writeDisplayCopy(file, value))).rejects.toThrow()

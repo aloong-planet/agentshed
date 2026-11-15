@@ -3380,14 +3380,15 @@ describe('how a rollout line is read', () => {
     return f
   }
 
-  /** The entry a parse gives the rollout */
-  async function entryOf(file: string): Promise<NonNullable<ParseResult>> {
+  /** The entry a parse gives the rollout, with `more` of a job the plan makes */
+  async function entryOf(file: string, more: Partial<Pick<Extract<ParseJob, { kind: 'codex' }>, 'threadName' | 'from'>> = {}): Promise<NonNullable<ParseResult>> {
     const job: ParseJob = {
       kind: 'codex',
       file,
       projectKey: 'p',
       meta: { subagent: false, sessionId: 'sid', parentId: null, forkedAt: null, paginated: true },
-      threadName: undefined
+      threadName: undefined,
+      ...more
     }
     const parsed = await runParseJob(job)
     if (parsed?.agg.kind !== 'codex') throw new Error('no Codex entry')
@@ -3516,6 +3517,30 @@ describe('how a rollout line is read', () => {
     expect(entry.agg.title).toBe(`${'a'.repeat(59)}${high}${String.fromCharCode(0x2026)}`)
     expect(entry.state?.seenResponses).toEqual([high, `${high}${low}`])
     expect(entry.agg.events.map((e) => e[1])).toEqual([1, 2])
+  })
+
+  // The strings a job carries are read from it by the module: around the length that fills the buffer a string is
+  // read into at first, each ending in a lone surrogate, so that one cut short or made well formed shows
+  it.each([4095, 4096, 4097])('a resumed job\'s model, response ID and thread name of %i code units are read as the job holds them', async (units) => {
+    const long = (letter: string): string => letter.repeat(units - 1) + String.fromCharCode(0xd800)
+    const [model, id, thread] = [long('m'), long('r'), long('t')]
+    const usage = (input: number): string =>
+      JSON.stringify({ timestamp: AT, type: 'token_usage_record', payload: { response_id: id, usage: { input_tokens: input, cached_input_tokens: 0, output_tokens: 1 } } })
+    const f = rollout([JSON.stringify({ timestamp: AT, type: 'turn_context', payload: { model } }), usage(1)])
+    const whole = await entryOf(f)
+    if (whole.agg.kind !== 'codex' || whole.state === undefined) throw new Error('no Codex entry')
+    // The rollout grows by the same response's record, and the parse resumes from the state the whole parse left, with
+    // the size and inode the plan gives it
+    const st = statSync(f)
+    appendFileSync(f, `${usage(9)}\n`)
+    const resumed = await entryOf(f, { threadName: thread, from: { agg: whole.agg, state: { ...whole.state, ino: st.ino, size: st.size, resumes: 0 } } })
+    if (resumed.agg.kind !== 'codex') throw new Error('no Codex entry')
+    expect(resumed.agg.title).toBe(thread)
+    expect(resumed.agg.model).toBe(model)
+    expect(resumed.state?.model).toBe(model)
+    expect(resumed.state?.seenResponses).toEqual([id])
+    // The response the state names is the one counted already
+    expect(resumed.agg.events.map((e) => e[1])).toEqual([1])
   })
 
   it('across the module\'s 1 MB reads: a line several reads long, lines and multibyte text across a read\'s end, a bad line, lines that are no object, and a last line not read until its line feed is written', async () => {
