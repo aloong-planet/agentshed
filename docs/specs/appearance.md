@@ -261,9 +261,9 @@ trackpad, in light or dark)
   light/dark following rule, the two dimensions' independence, purple being the default).  
 - **The section's closing explanation is plain text with no bold**: inline markup would need the
   sentence split into fragment keys maintained in every language, which conflicts with i18n's "rich
-  text must not be assembled from fragment keys" convention and with ADR-0014's "the copy layer
-  does not depend on React"; the paragraph already distinguishes the policy name from the prose with
-  quotation marks.  
+  text must not be assembled from fragment keys" convention and with the i18n spec's "the copy layer
+  is pure data plus pure functions with no React dependency" (ADR-0014); the paragraph already
+  distinguishes the policy name from the prose with quotation marks.  
 - A selection recolours the whole app immediately (including the rail's selected state), with no save
   button.  
 - **Side badges share one tier**: every side's badge colour pair — the text on its background — sits at
