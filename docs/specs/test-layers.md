@@ -11,10 +11,10 @@ goes elsewhere brings its own copy of the helpers.
 
 ## Solution
 
-ADR-0038 decides what e2e is for and what it admits. A layer below e2e is not adopted for renderer
-behaviour (see Out of Scope). ADR-0038 also admits component tests for one narrow case, the
-rendering branches nothing else checks. ADR-0041 decides which e2e file a case goes in and where a helper
-lives.
+ADR-0038 decides what e2e is for and what it admits. A component-test layer that takes cases from e2e
+is not adopted for renderer behaviour (see Out of Scope). ADR-0038 also admits component tests for one
+narrow case, the rendering branches nothing else checks. ADR-0041 decides which e2e file a case goes in
+and where a helper lives.
 
 ## User Stories
 
@@ -151,12 +151,13 @@ sites too.
 ## Testing Decisions
 
 Seams are ADR-0038's: the data layer, the contract, and e2e, with pure functions of the renderer unit tested.
-ADR-0038 also adds the renderer's boundary to the main process, for rendering branches only. A case's figures there are
-chosen to differ from anything that could stand in for them: an index, a position, another count.
+Component tests, which ADR-0038 admits for rendering branches only, stand on the renderer's boundary to the main
+process. A case's figures there are chosen to differ from anything that could stand in for them: an index, a
+position, another count.
 
 ## Out of Scope
 
-- **A component-test layer below e2e: not adopted.** A pilot that mounted the real component tree
+- **A component-test layer that takes cases from e2e: not adopted.** A pilot that mounted the real component tree
   over a fake `window.agentshed` whose payloads pass the real contract caught the same injected
   renderer bugs as the e2e cases it replaced and ran stably, but failed its time and line-count
   criteria: the criteria were a run time within one fifth of the e2e time replaced and no more
