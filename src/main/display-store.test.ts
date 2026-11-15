@@ -65,8 +65,9 @@ function everyKind(): unknown {
     elements,
     empty: [{}, [], [[]], { inner: {} }],
     keys: { [strings[7]]: 'lone surrogate key', 'tab\tkey': 1, '': 'empty key', ['k'.repeat(5000)]: 'a long key' },
-    // Around the length the module reads in one call, and far past it, each ending in a character JSON escapes, so a
-    // string cut short shows
+    // Long strings, each ending in a character JSON escapes, so a string cut short shows. The long key above has already
+    // grown the buffer the module reuses past 4,097 units, so only the last is too long to read in one call; the edge at
+    // the buffer's starting size is the rows below, each the copy's only string
     long: [4094, 4095, 4096, 4097, 100_000].map((units) => 'x'.repeat(units - 1) + '"'),
     ownKeys,
     // 1,000 levels with the root: the deepest the module writes, as a deeper value stands for a cycle
