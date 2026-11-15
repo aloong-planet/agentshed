@@ -1017,7 +1017,7 @@ with macOS `footprint`.
   request id: a sidechain replay carries the same id under a new one, A4), a Codex session id or the
   parent id a fork names, an Antigravity call's identity; a file with none
   is a group alone. A group's input is, file by file in scan order, its entry and what the scan adds to
-  it — the project it is credited to, its admission to the read allow-list, a title read beside it — and
+  it — its admission to the read allow-list and a title read beside it — and
   a group whose input differs from the one its stored result came from is combined again; the scan's
   figures are the stored results summed (token-stats::CON-003). The combination a result came from is
   the application version in a packaged build, with the time zone the scan runs in; every run of an
