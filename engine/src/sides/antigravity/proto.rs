@@ -6,7 +6,9 @@
 //!
 //! Only the fields the side needs are read; every other field is skipped by its wire type — a length-delimited one by
 //! its length prefix, so a large field (a prompt) is never decoded. A record that ends inside a field is malformed: read
-//! as "less", it would quietly turn a broken conversation into a different one.
+//! as "less", it would quietly turn a broken conversation into a different one. So is a record carrying a field the side
+//! reads in another wire type than its descriptor declares: it is a record of another shape, and read as "no such field"
+//! it would quietly drop a call, a folder or a subagent's marker (token-stats::REQ-004/AC-01).
 //!
 //! Every number is read as a double built by the operations of the TypeScript reader this one replaced
 //! (`src/main/providers/agy-proto.ts`, removed with #431), so a varint beyond 2^53 gives the value JavaScript gave.
@@ -70,21 +72,16 @@ impl<'a> Field<'a> {
         self.number == f64::from(number)
     }
 
-    /// The bytes of a length-delimited field
-    fn bytes(&self) -> Option<&'a [u8]> {
+    /// The bytes of a field the side reads as a message or a string: one in another wire type is a record of another
+    /// shape
+    fn length_delimited(&self) -> Decoded<&'a [u8]> {
         match self.value {
-            Value::Bytes(b) => Some(b),
-            _ => None,
+            Value::Bytes(b) => Ok(b),
+            _ => Err(Malformed),
         }
     }
 
-    /// The bytes of a field a usage record reads as a message or a string: one in another wire type is a record of
-    /// another shape
-    fn length_delimited(&self) -> Decoded<&'a [u8]> {
-        self.bytes().ok_or(Malformed)
-    }
-
-    /// The number of a field a usage record reads as a varint
+    /// The number of a field the side reads as a varint
     fn varint_value(&self) -> Decoded<f64> {
         match self.value {
             Value::Varint(v) => Ok(v),
@@ -154,26 +151,31 @@ impl TrajectoryMetadata {
 
 /// Decodes exa.cortex_pb.CortexTrajectoryMetadata, the `main` row of a conversation's trajectory_metadata_blob table.
 /// Measured on every conversation of 2026-10-28 (19): both folder fields carry the same folder, a main conversation has
-/// none of fields 5, 8 and 17, and a subagent has all three. A field here in another wire type than it is read in is
-/// passed over, as the TypeScript reader passes it over.
+/// none of fields 5, 8 and 17, and a subagent has all three. A field read here in another wire type than its descriptor
+/// declares makes the record one that will not decode, the workspaces (1) included, since a workspace's folder (1.1) is
+/// reached only through them; the subagent spec (8) is checked for its wire type alone, its content not decoded.
 pub(super) fn trajectory_metadata(buf: &[u8]) -> Decoded<TrajectoryMetadata> {
     let mut uris = Vec::new();
     let mut workspace_folders = Vec::new();
     let mut m = TrajectoryMetadata { folder_uris: Vec::new(), parent_conversation_id: None, nesting_depth: 0.0, has_subagent_spec: false };
     each_field(buf, |f| {
-        match (f.number, f.value) {
+        if f.is(1) {
             // CortexWorkspaceMetadata: workspace_folder_absolute_uri = 1
-            (n, Value::Bytes(b)) if n == 1.0 => each_field(b, |w| {
-                if let (true, Some(folder)) = (w.is(1), w.bytes()) {
-                    workspace_folders.push(text(folder));
+            each_field(f.length_delimited()?, |w| {
+                if w.is(1) {
+                    workspace_folders.push(text(w.length_delimited()?));
                 }
                 Ok(())
-            })?,
-            (n, Value::Bytes(b)) if n == 5.0 => m.parent_conversation_id = text_or_none(b),
-            (n, Value::Bytes(b)) if n == 7.0 => uris.push(text(b)),
-            (n, Value::Bytes(_)) if n == 8.0 => m.has_subagent_spec = true,
-            (n, Value::Varint(v)) if n == 17.0 => m.nesting_depth = v,
-            _ => {}
+            })?;
+        } else if f.is(5) {
+            m.parent_conversation_id = text_or_none(f.length_delimited()?);
+        } else if f.is(7) {
+            uris.push(text(f.length_delimited()?));
+        } else if f.is(8) {
+            f.length_delimited()?;
+            m.has_subagent_spec = true;
+        } else if f.is(17) {
+            m.nesting_depth = f.varint_value()?;
         }
         Ok(())
     })?;

@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, OpenFlags, Row};
 
-use crate::seams;
+use crate::{seams, walk};
 
 /// The read failed: the database would not open or read in the shape asked for, a record would not decode, or the copy
 /// could not be made. What the read gave is then not used.
@@ -41,21 +41,20 @@ impl From<super::proto::Malformed> for Failed {
 
 pub(super) type Read<T> = Result<T, Failed>;
 
-/// Whether a path is there, as Node's `existsSync` answers: any failure to look counts as not there
-fn exists(path: &str) -> bool {
-    Path::new(path).exists()
-}
-
-/// Whether a log is beside the database
+/// Whether a log the scan can see is beside the database. One it cannot look at counts as none: it sits in the
+/// database's directory, so what keeps the scan from looking at it keeps it from the database too, and taken as a log it
+/// would make that database's failed read agy writing it, never counted (token-stats::REQ-004/AC-01).
 pub(super) fn has_log(file: &str) -> bool {
-    exists(&format!("{file}-wal"))
+    Path::new(&format!("{file}-wal")).exists()
 }
 
 /// Whether a failed read is agy writing the database rather than a format it cannot be read in
 /// (token-stats::REQ-004/AC-03): a log was beside the database before the read or is after it — agy had it open, and a
-/// torn copy or a database mid-write is not a format change — or the database is gone (deleted since the listing).
+/// torn copy or a database mid-write is not a format change — or the database is no longer there (deleted since the
+/// listing), as `walk::is_absent` decides. One there that cannot be looked at is a database that will not open
+/// (token-stats::REQ-004/AC-01).
 pub(super) fn failed_while_written(file: &str, log_before: bool) -> bool {
-    log_before || has_log(file) || !exists(file)
+    log_before || has_log(file) || walk::is_absent(file)
 }
 
 /// A directory of this application's own, made under the temporary parent and holding a copy only while it is read:

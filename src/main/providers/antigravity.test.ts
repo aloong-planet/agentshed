@@ -15,8 +15,9 @@
 //   pair — not counted, the last result kept, read again — is driven below through a copy that cannot be made.
 // - A conversation deleted between the walk's look at its signature and its read: no seam between the two. The rule it
 //   shares with the usage read (a database gone is no format change) is driven below through the usage read's window.
-//   One deleted between the listing and the look at its signature is driven below through a directory the walk can list
-//   but not enter, which leaves the signature as one gone would.
+//   One deleted between the listing and the look at its signature has no seam either, nothing running between the two.
+//   A directory the walk can list but not enter, which leaves the signature as one gone would, drives the rule's other
+//   side below: a database that is there but cannot be looked at is one that will not open.
 // - A read killed half-way leaving its copy behind: killing the process is outside this seam. What a copy is left in —
 //   a directory only the user can read — is asserted through the module's copy seam, which notes the directory as it is
 //   made; the walk, the usage read and the titles read make it the same way (`engine/src/sides/antigravity/db.rs`).
@@ -558,25 +559,28 @@ describe('the walk\'s reads of a conversation, by the engine module: a panic, it
         const aside = join(dir, 'aside.db')
         renameSync(file, aside)
         return () => renameSync(aside, file)
-      }
+      },
+      listedAway: false
     },
     {
       name: 'in a directory the walk could not list',
       away: (): (() => void) => {
         chmodSync(conversations(), 0o000)
         return () => chmodSync(conversations(), 0o755)
-      }
+      },
+      listedAway: false
     },
     {
-      // The listing names the database and its signature cannot be taken, as for one deleted in between (token-stats
-      // failure modes, a conversation deleted between the scan's listing and its read)
+      // The listing names the database and its signature cannot be taken: there but not to be looked at, it is a
+      // conversation that will not open, listed with no folder and no time (token-stats::REQ-004/AC-01)
       name: 'whose database the walk listed but could not then look at',
       away: (): (() => void) => {
         chmodSync(conversations(), 0o444)
         return () => chmodSync(conversations(), 0o755)
-      }
+      },
+      listedAway: true
     }
-  ])('a conversation $name is read again, though its signature is the one its reading was kept under', ({ away }) => {
+  ])('a conversation $name is read again, though its signature is the one its reading was kept under', ({ away, listedAway }) => {
     const p = mkProject('p')
     const q = mkProject('q')
     const file = conversation('comes-back', [p], 1_793_000_000)
@@ -590,7 +594,7 @@ describe('the walk\'s reads of a conversation, by the engine module: a panic, it
     expect(agySessions(undefined, memory).map((s) => s.cwd), 'unchanged to the walk, so not read again').toEqual([p])
     const back = away(file)
     try {
-      expect(agySessions(undefined, memory)).toEqual([])
+      expect(agySessions(undefined, memory)).toEqual(listedAway ? [{ file, cwd: null, subagent: false, mtimeMs: 0 }] : [])
     } finally {
       back()
     }
@@ -1091,6 +1095,13 @@ describe('the trajectory record, read by the engine module (token-stats::REQ-003
     })
     expect((await entryOf(file))?.projectKey).toBe(key)
   })
+
+  // Derived: a field no descriptor of agy 1.4.9 declares, as a later agy may add one, at the top level and inside each
+  // workspace; groups and wire types 6 and 7 stay malformed, whatever the field (proto.rs, `each_field`)
+  it.each([0, 1, 2, 5] as const)('a record carrying a field the reader does not read, in wire type %i, still decodes (token-stats::REQ-004/AC-01)', async (unreadField) => {
+    const e = await entryOf(asked('conv-u', encodeTrajectoryMetadata({ folders: ['/work/p'], conversationId: 'conv-u', unreadField })))
+    expect(e).toMatchObject({ unreadable: false, projectKey: '/work/p', subagent: false, calls: [['m-conv-u', oct(26), 10, 1, 0, 0, 'gemini-3.6-flash']] })
+  })
 })
 
 // token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
@@ -1255,6 +1266,29 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     const r = await build()
     expect(r.antigravityUnreadable).toBe(9)
     expect(agyTotal(r)).toBe(110)
+  })
+
+  // Derived: no measured record carries a field in another wire type. Read as absent, each would still credit the
+  // conversation to a folder — 7 and 1 each name it when the other cannot — and as a main one
+  it.each([
+    ['its workspaces', 'workspaces'],
+    ['a workspace\'s folder URI', 'workspaceFolders'],
+    ['its parent conversation', 'parentConversation'],
+    ['its workspace URIs', 'workspaceUris'],
+    ['its subagent spec', 'subagentSpec'],
+    ['its nesting depth', 'nestingDepth']
+  ] as const)('a trajectory record carrying %s in another wire type will not decode: left out of every figure and every list, and counted (AC-01)', async (_field, wrongWireType) => {
+    const p = mkProject('p')
+    trust([p])
+    usageConversation('good', [p], [{ usage: { messageId: 'm-good', input: 100, output: 10 }, at: oct(26) }])
+    writeTranscript(agyRoot(), 'good', [MEASURED_TRANSCRIPT.main[0]])
+    usageConversation('drifted', [p], [{ usage: { messageId: 'm-drifted', input: 5000 }, at: oct(26) }], {
+      record: encodeTrajectoryMetadata({ folders: [p], conversationId: 'drifted', wrongWireType })
+    })
+    writeTranscript(agyRoot(), 'drifted', [MEASURED_TRANSCRIPT.main[0]])
+    const r = await build()
+    const listed = (r.perProject.get(mergeKey(p))?.sessions ?? []).map((s) => basename(s.file))
+    expect([agyTotal(r), r.antigravityUnreadable, listed]).toEqual([110, 1, ['good.db']])
   })
 
   it('a read that fails while a log is beside the database is not counted, keeps the last result, and is read again (AC-03)', async () => {
@@ -1423,6 +1457,73 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     })
   })
 
+  // Only a database that is no longer there is deleted: behind a directory the scan lists but cannot enter, each is
+  // there, and the walk, the planning and the read each find it so
+  it.skipIf(process.getuid?.() === 0)('a conversation the scan lists but cannot look at is one that will not open: counted, never its last result, not read again while it stays so, and read again once it can be (AC-01, QR-002)', async () => {
+    const p = mkProject('p')
+    trust([p])
+    usageConversation('one', [p], [{ usage: { messageId: 'm-1', input: 100, output: 10 }, at: oct(26) }])
+    usageConversation('two', [p], [{ usage: { messageId: 'm-2', input: 100, output: 10 }, at: oct(26) }])
+    expect(agyTotal(await build())).toBe(220)
+    chmodSync(conversations(), 0o444)
+    let shut: TokenBuildResult
+    let still: TokenBuildResult
+    const jobs: string[] = []
+    try {
+      shut = await build()
+      still = await build({
+        run: (job) => {
+          jobs.push(basename(job.file))
+          return runParseJob(job)
+        },
+        concurrency: 1
+      })
+    } finally {
+      chmodSync(conversations(), 0o755)
+    }
+    expect([agyTotal(shut), shut.antigravityUnreadable, [...shut.sessionFiles]]).toEqual([0, 2, []])
+    // Nothing changed for the scan while the directory stays shut: the entries held are taken, none read again
+    // (token-stats::QR-002). A store-bytes check would not tell, as SQLite leaves a row rewritten with what it holds as
+    // it was.
+    expect([jobs, still.antigravityUnreadable, agyTotal(still)]).toEqual([[], 2, 0])
+    const back = await build()
+    expect([agyTotal(back), back.antigravityUnreadable]).toEqual([220, 0])
+  })
+
+  // The planning and the read look at a database at two moments: the permission given back between the two, the read
+  // finds the conversation as it is, and its result is kept with no signature to keep it under
+  it.skipIf(process.getuid?.() === 0)('a conversation read once the scan could look again, after its planning could not, is read again when it is out of sight once more: counted, never that result (AC-01)', async () => {
+    const p = mkProject('p')
+    trust([p])
+    usageConversation('one', [p], [{ usage: { messageId: 'm-1', input: 100, output: 10 }, at: oct(26) }])
+    expect(agyTotal(await build())).toBe(110)
+    chmodSync(conversations(), 0o444)
+    let raced: TokenBuildResult
+    let shut: TokenBuildResult
+    const jobs: string[] = []
+    try {
+      raced = await build({
+        run: (job) => {
+          chmodSync(conversations(), 0o755)
+          return runParseJob(job)
+        },
+        concurrency: 1
+      })
+      chmodSync(conversations(), 0o444)
+      shut = await build({
+        run: (job) => {
+          jobs.push(basename(job.file))
+          return runParseJob(job)
+        },
+        concurrency: 1
+      })
+    } finally {
+      chmodSync(conversations(), 0o755)
+    }
+    expect([agyTotal(raced), raced.antigravityUnreadable], 'the read saw the conversation').toEqual([110, 0])
+    expect([agyTotal(shut), shut.antigravityUnreadable, jobs]).toEqual([0, 1, ['one.db']])
+  })
+
   it('an unreadable conversation agy then writes is not counted while its read fails, and counted again once agy closes it (AC-03)', async () => {
     const p = mkProject('p')
     trust([p])
@@ -1442,7 +1543,7 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     expect([existsSync(`${file}-wal`), again.antigravityUnreadable, agyTotal(again)]).toEqual([false, 1, 110])
   })
 
-  it('a conversation in another format gives its folder no activity either (AC-01)', () => {
+  it('a conversation in another format, or whose trajectory record will not decode, gives its folder no activity either (AC-01; projects-list::REQ-001)', () => {
     const p = mkProject('p')
     const good = mkProject('good')
     trust([p, good])
@@ -1451,9 +1552,24 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
       alterSchema: (sql) => (sql.startsWith('CREATE TABLE `steps`') ? 'CREATE TABLE `steps` (`idx` integer,`step_type` integer,`status` integer,PRIMARY KEY (`idx`))' : sql)
     })
     usageConversation('no-gen-table', [p], [], { alterSchema: (sql) => (sql.startsWith('CREATE TABLE `gen_metadata`') ? null : sql) })
+    // The records the usage read finds will not decode, each naming p but for one read field in another wire type
+    for (const wrongWireType of ['workspaces', 'workspaceFolders', 'parentConversation', 'workspaceUris', 'subagentSpec', 'nestingDepth'] as const) {
+      usageConversation(`drifted-${wrongWireType}`, [p], [], { record: encodeTrajectoryMetadata({ folders: [p], conversationId: wrongWireType, wrongWireType }) })
+    }
     usageConversation('fine', [good], [])
     const byName: Record<string, string | null> = Object.fromEntries(agySessions().map((s) => [basename(s.file), s.cwd]))
-    expect(byName).toEqual({ 'version-2.db': null, 'no-metadata-column.db': null, 'no-gen-table.db': null, 'fine.db': good })
+    expect(byName).toEqual({
+      'version-2.db': null,
+      'no-metadata-column.db': null,
+      'no-gen-table.db': null,
+      'drifted-workspaces.db': null,
+      'drifted-workspaceFolders.db': null,
+      'drifted-parentConversation.db': null,
+      'drifted-workspaceUris.db': null,
+      'drifted-subagentSpec.db': null,
+      'drifted-nestingDepth.db': null,
+      'fine.db': good
+    })
   })
 
   it('a walk read that fails while a log is beside the database keeps the last folder, and reads it again next time (AC-03)', () => {

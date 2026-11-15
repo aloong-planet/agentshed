@@ -32,7 +32,7 @@ import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
 import { isColdRollout } from './cold-rollout'
 import { mapLimit, readRanges } from './range-read'
-import { isReadable } from './read-utils'
+import { isAbsent, isReadable } from './read-utils'
 import type { QuestionRec } from './question-index'
 import type { ScanRoots } from './types'
 import type { SessionWalk } from './scan'
@@ -275,7 +275,20 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  *      next parsed whole: no figure and no question's text differ. No rollout on this machine was in that state (none
  *      of the 311 non-empty plain rollouts, 2026-11-15). A bump would make every install parse every rollout again, and
  *      would take version 20, which the token store's change lands on, past the version-19 import its upgrade reads.
- *      This exempts that one change; the rule above stands for every other.
+ *
+ * Not bumped, for one computation change and its reasons alone (#439): an Antigravity conversation is unreadable when
+ *      its trajectory record carries a field the reader reads in another wire type than its descriptor declares, where
+ *      the field was passed over, and when the scan lists its database but cannot look at it, where it was left out as
+ *      deleted. The second never reached the store: such a conversation had no entry in a scan, so one held for it was
+ *      removed. The first reaches only an entry cached from a record already in that state, and no conversation on this
+ *      machine is (none of the 19, 2026-11-15). Such an entry stands whole — its figures, its project and its place
+ *      in the session lists — until the conversation's signature next changes, while the walk, which keeps no
+ *      reading across launches, credits it to no folder. A bump would make every
+ *      install parse every side's files again, and would still not reach such an entry where one could be: every
+ *      released install keeps a version-19 JSON file, which its first launch with the store imports whatever this
+ *      number is.
+ *
+ * Each of the two exempts its own change; the rule above stands for every other.
  *
  * **A bump also moves the accounting stamp** (`<app version>+c<this>`), and the e2e archive cases seed
  * archive rows under that stamp as a literal on purpose, so a bump turns them red until they are
@@ -971,15 +984,22 @@ export class TokenEngine {
    * An Antigravity conversation's slot: held while its signature — the database's time and the log's presence, time
    * and size, never the database's size — still matches; read whole otherwise, as agy rewrites and truncates rows in
    * place. Its last readable entry stands by in case the read fails while agy writes (token-stats::REQ-004/AC-03).
+   * One no longer there has no entry; one there whose database cannot be looked at is read, and that read finds a
+   * database that will not open (AC-01), its entry kept under UNLOOKED_SIGNATURE while it stays so (QR-002).
    */
   private antigravityPlan(cached: TokenStoreHead | undefined, file: string, admit: Slot['admit']): Slot {
     const miss = (): Slot => this.antigravityPlan(undefined, file, admit)
-    const sig = agySessionSignature(file)
-    if (sig === null) return { file, admit, miss }
+    const looked = agySessionSignature(file)
+    if (looked === null && isAbsent(file)) return { file, admit, miss }
+    const sig = looked ?? UNLOOKED_SIGNATURE
     const usable = cached !== undefined && cached.kind === 'antigravity'
-    if (usable && cached.sig === sig) return { file, held: cached, admit, miss }
     // The module records a conversation's own id for one it could read, and only then
-    const fallback = usable && typeof cached.ownId === 'string' ? cached : undefined
+    const readable = usable && typeof cached.ownId === 'string'
+    // Under UNLOOKED_SIGNATURE only the verdict a read out of sight gives holds: a readable entry there was read once
+    // the scan could look again after its planning could not, and is read again (AC-01)
+    const holds = looked !== null || !readable
+    if (usable && cached.sig === sig && holds) return { file, held: cached, admit, miss }
+    const fallback = readable ? cached : undefined
     return { file, admit, fallback, miss, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st: { sig, ino: 0, size: 0 } } }
   }
 
@@ -1422,6 +1442,11 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   if (a['kind'] === 'grok') return isRows(a['events'], 'NnnnnS') && typeof a['subagent'] === 'boolean'
   return false
 }
+
+/** The signature an Antigravity conversation's entry is kept under when its database could not be looked at: a real one
+ * starts with the database's time, so none equals it, and the first scan that can look at the database reads it
+ * again */
+const UNLOOKED_SIGNATURE = '-'
 
 function sigOf(file: string): string | null {
   return statOf(file)?.sig ?? null

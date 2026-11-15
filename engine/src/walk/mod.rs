@@ -1,5 +1,5 @@
 //! What every side's session walk does alike, written once: a directory's entries in scan order, a path below a
-//! directory the walk listed, and what `statSync` tells of a file.
+//! directory the walk listed, what `statSync` tells of a file, and whether a path is no longer there.
 //!
 //! Scan order is a function of paths (token-stats, Implementation Decisions, Scan order): a directory's entries ordered
 //! by the UTF-8 bytes of their names, a directory's files at the directory's own place among its siblings. The
@@ -8,6 +8,7 @@
 //! listing is sorted here.
 
 use std::fs;
+use std::io::ErrorKind;
 use std::os::unix::fs::MetadataExt;
 
 /// What an entry is, as its listing says without following a link (`Dirent.isDirectory()` and `isFile()`): a link to a
@@ -64,4 +65,11 @@ pub(crate) struct Stat {
 pub(crate) fn stat(path: &str) -> Option<Stat> {
     let m = fs::metadata(path).ok()?;
     Some(Stat { mtime_ms: m.mtime() as f64 * 1000.0 + m.mtime_nsec() as f64 / 1_000_000.0, size: m.size() as f64, ino: m.ino() as f64 })
+}
+
+/// Whether a path is no longer there, as `isAbsent` (src/main/providers/read-utils.ts) decides: the look at it fails
+/// because it is not found or a part of the path is not a directory. A path behind a directory that cannot be entered is
+/// there but cannot be looked at, which `Path::exists` would answer as not there.
+pub(crate) fn is_absent(path: &str) -> bool {
+    fs::metadata(path).is_err_and(|e| matches!(e.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory))
 }

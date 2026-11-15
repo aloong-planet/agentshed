@@ -643,8 +643,10 @@ Applies to: every conversation database of the side, forks and subagent conversa
 ### token-stats::REQ-004 Report Antigravity conversations that cannot be read
 
 - token-stats::REQ-004/AC-01: A conversation database that cannot be read in the supported format
-  (token-stats::CON-001) — it will not open, its user version, tables or columns differ, or a usage
-  record will not decode — is left out of every figure and every list, and counted.
+  (token-stats::CON-001) — it will not open, its user version, tables or columns differ, or its
+  trajectory record or a usage record will not decode — is left out of every figure and every list,
+  and counted. A database the scan lists but cannot look at, such as one behind a directory that
+  cannot be entered, is one that will not open.
 - token-stats::REQ-004/AC-02: The scan's count of unreadable conversations reaches the Antigravity side
   card ([agents-overview::REQ-003/AC-02](agents-overview.md)); a count of zero shows no notice.
 - token-stats::REQ-004/AC-03: A read that fails while a log is beside the database, before or after
@@ -669,7 +671,8 @@ Applies to: every conversation database of the side, forks and subagent conversa
   conversation that changed is read twice in one scan — once for its folder (the session walk) and
   once for its usage — so one agy is writing is copied twice. A conversation whose database time and
   log did not change since its last read is not read again, and a conversation found unreadable keeps
-  that verdict, counted at every scan, until its database or its log changes. The session walk keeps
+  that verdict, counted at every scan, until its database or its log changes — one the scan could not
+  look at, until it can. The session walk keeps
   only successful reads, so it opens an unreadable conversation again at every scan — in place, or
   through a copy while a log is beside it — and finds it unreadable again.
 - A read cut short by the application being killed leaves its copy in a temporary directory only the
@@ -716,7 +719,9 @@ Applies to: every conversation database of the side, forks and subagent conversa
   across databases.
 - A conversation deleted between the scan's listing and its read is not unreadable: deleted before its
   read starts, it leaves the figures in that scan; deleted while it is read, that scan keeps its last
-  result, as for a read that fails while agy writes, and it leaves the figures at the next scan.
+  result, as for a read that fails while agy writes, and it leaves the figures at the next scan. Only a
+  database that is no longer there is deleted; one that is there but cannot be looked at is unreadable
+  (token-stats::REQ-004/AC-01).
 - External content: the side's figures are numbers this application computes, and its model names are
   shown as plain text in the existing model rows, as every side's are; nothing read from agy's files
   is rendered or loaded at a new point (G14 holds).
@@ -1082,7 +1087,11 @@ with macOS `footprint`.
   token-stats::CON-002. The records are decoded by field
   number against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and
   skipping the prompt fields by their length prefix; a field the reader reads arriving in another
-  wire type than its descriptor declares is a record that will not decode. The extraction script and
+  wire type than its descriptor declares is a record that will not decode. An entry an earlier version
+  of the app cached from a record already in that state stands whole — its figures, its project and
+  its place in the session lists, a drifted subagent marker leaving it listed as a main conversation —
+  and is not counted, until the conversation's signature changes, while the session walk credits it to
+  no folder (the `CACHE_VERSION` comment in `src/main/providers/token-stats.ts` says why). The extraction script and
   the descriptor set stay with the research record so a drift can be re-checked. Within a database a
   call's three records are joined by identity — the step brings the time, the generator record the
   model; calls are de-duplicated across databases after the per-file results are combined, since

@@ -27,7 +27,7 @@ pub(super) struct Session {
     pub(super) cwd: Option<Units>,
     pub(super) subagent: bool,
     /// The later of the database's and its log's modification times: while agy writes, only the log changes
-    /// (projects-list::REQ-001/AC-04, measured)
+    /// (projects-list::REQ-001/AC-04, measured); 0 for a database that cannot be looked at, which has no folder
     pub(super) mtime_ms: f64,
 }
 
@@ -82,8 +82,14 @@ pub(super) fn walk(tree: &str, kept: &mut Attributions, tmp_parent: &Path, rt: &
             continue;
         }
         let file = entry.path;
-        // Gone since the listing
-        let Some((signature, mtime_ms)) = signature(&file) else { continue };
+        let Some((signature, mtime_ms)) = signature(&file) else {
+            // Gone since the listing, or there but not to be looked at: the second is a conversation that will not open,
+            // listed with no folder and no time, and nothing is kept of it (token-stats::REQ-004/AC-01)
+            if !walk::is_absent(&file) {
+                out.push(Session { file, cwd: None, subagent: false, mtime_ms: 0.0 });
+            }
+            continue;
+        };
         let last = kept.0.remove(&file);
         let attributed = match last {
             Some(last) if last.signature == signature => Some(last),
@@ -105,7 +111,7 @@ pub(super) fn walk(tree: &str, kept: &mut Attributions, tmp_parent: &Path, rt: &
     Ok(out)
 }
 
-/// The conversation's signature and its time; None when the database is gone
+/// The conversation's signature and its time; None when the database cannot be looked at, gone or not
 fn signature(file: &str) -> Option<(Signature, f64)> {
     let db = walk::stat(file)?.mtime_ms;
     let log = walk::stat(&format!("{file}-wal")).map(|s| (s.mtime_ms, s.size));
@@ -114,9 +120,9 @@ fn signature(file: &str) -> Option<(Signature, f64)> {
 }
 
 /// One read of a conversation's folder and subagent markers. A read that panics is its failed read, judged as a parse's
-/// is (token-stats, Scans and the window): agy writing it while a log is beside the database or the database is gone,
-/// otherwise credited to none. The log is looked at as the panic is caught: the read it interrupted is not there to say
-/// whether one was beside the database when it began.
+/// is (token-stats, Scans and the window): agy writing it while a log is beside the database or the database is no
+/// longer there, otherwise credited to none. The log is looked at as the panic is caught: the read it interrupted is not
+/// there to say whether one was beside the database when it began.
 fn attempt(file: &str, tmp_parent: &Path, rt: &dyn Runtime) -> Result<Attempt> {
     let read = catch_unwind(AssertUnwindSafe(|| {
         seams::before_walk_read(file);
