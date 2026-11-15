@@ -1,6 +1,6 @@
 # Session view
 
-> Related: ADR-0038 (test layers) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0015, ADR-0016 (structured errors) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0040 (rendering branch tests) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module)
+> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module)
 
 > Successful display payloads persist independently of the accounting index (ADR-0029).
 
@@ -991,7 +991,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   session-view::R1's exact-path allow-list first, before any file system call; then the path must
   still exist — and, for an entry restored before the first scan, be a regular file — because
   Finder's own call reports no failure. A refusal or a missing file is a structured error
-  (ADR-0015).
+  (ADR-0001).
 - **The resume command** is built from the agent side, the session ID and the project directory,
   carrying session-view::CON-002's quoting; copying goes through the clipboard channel. The session
   page is given its project's directory and stale flag from the project entry it opened in, on every
