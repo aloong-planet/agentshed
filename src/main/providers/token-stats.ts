@@ -272,7 +272,19 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  *      next parsed whole: no figure and no question's text differ. No rollout on this machine was in that state (none
  *      of the 311 non-empty plain rollouts, 2026-11-15). A bump would make every install parse every rollout again, and
  *      would take version 20, which the token store's change lands on, past the version-19 import its upgrade reads.
- *      This exempts that one change; the rule above stands for every other.
+ *
+ * Not bumped, for one computation change and its reasons alone (#439): an Antigravity conversation is unreadable when
+ *      its trajectory record carries a field the reader reads in another wire type than its descriptor declares, where
+ *      the field was passed over, and when the scan lists its database but cannot look at it, where it was left out as
+ *      deleted. The second never reached the store: such a conversation had no slot, so an entry held for it was
+ *      removed. The first reaches only an entry cached from a record already in that state, and no conversation on this
+ *      machine is (none of the 19, 2026-11-15). Such an entry keeps its figures until the conversation's signature next
+ *      changes, while the walk, which keeps no reading across launches, credits it to no folder. A bump would make every
+ *      install parse every side's files again, and would still not reach such an entry where one could be: every
+ *      released install keeps a version-19 JSON file, which its first launch with the store imports whatever this
+ *      number is.
+ *
+ * Each of the two exempts its own change; the rule above stands for every other.
  *
  * **A bump also moves the accounting stamp** (`<app version>+c<this>`), and the e2e archive cases seed
  * archive rows under that stamp as a literal on purpose, so a bump turns them red until they are

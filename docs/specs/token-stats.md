@@ -641,8 +641,10 @@ Applies to: every conversation database of the side, forks and subagent conversa
 ### token-stats::REQ-004 Report Antigravity conversations that cannot be read
 
 - token-stats::REQ-004/AC-01: A conversation database that cannot be read in the supported format
-  (token-stats::CON-001) — it will not open, its user version, tables or columns differ, or a usage
-  record will not decode — is left out of every figure and every list, and counted.
+  (token-stats::CON-001) — it will not open, its user version, tables or columns differ, or its
+  trajectory record or a usage record will not decode — is left out of every figure and every list,
+  and counted. A database the scan lists but cannot look at, such as one behind a directory that
+  cannot be entered, is one that will not open.
 - token-stats::REQ-004/AC-02: The scan's count of unreadable conversations reaches the Antigravity side
   card ([agents-overview::REQ-003/AC-02](agents-overview.md)); a count of zero shows no notice.
 - token-stats::REQ-004/AC-03: A read that fails while a log is beside the database, before or after
@@ -714,7 +716,9 @@ Applies to: every conversation database of the side, forks and subagent conversa
   across databases.
 - A conversation deleted between the scan's listing and its read is not unreadable: deleted before its
   read starts, it leaves the figures in that scan; deleted while it is read, that scan keeps its last
-  result, as for a read that fails while agy writes, and it leaves the figures at the next scan.
+  result, as for a read that fails while agy writes, and it leaves the figures at the next scan. Only a
+  database that is no longer there is deleted; one that is there but cannot be looked at is unreadable
+  (token-stats::REQ-004/AC-01).
 - External content: the side's figures are numbers this application computes, and its model names are
   shown as plain text in the existing model rows, as every side's are; nothing read from agy's files
   is rendered or loaded at a new point (G14 holds).
