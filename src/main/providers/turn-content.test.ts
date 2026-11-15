@@ -615,15 +615,21 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
     expect(turnBlocksFromText('antigravity', transcriptText([again]))).toEqual([])
   })
 
-  test('a rewind inside a turn: the undone call and its result are not shown, the redo is (AC-03)', () => {
-    // Derived position of the measured mechanism: the redo reuses the index of a call within the turn
-    const line = (step: number, type: string, extra: Record<string, unknown>): string =>
-      JSON.stringify({ step_index: step, source: 'MODEL', type, status: 'DONE', created_at: '2026-10-28T08:06:23Z', ...extra })
+  // Derived position of the measured mechanism: the redo reuses the index of a call within the turn. The second row
+  // puts a line that will not parse and an empty line before the undone result: which lines are undone is told per
+  // line of the turn's text, so a line without a step must not shift the lines after it
+  const rewound = (step: number, type: string, extra: Record<string, unknown>): string =>
+    JSON.stringify({ step_index: step, source: 'MODEL', type, status: 'DONE', created_at: '2026-10-28T08:06:23Z', ...extra })
+  test.each([
+    { name: 'every line read', between: [] },
+    { name: 'a bad line and an empty line before the undone result', between: ['{"step_index":', ''] }
+  ])('a rewind inside a turn: the undone call and its result are not shown, the redo is, $name (AC-03)', ({ between }) => {
     const bs = turnBlocksFromText('antigravity', transcriptText([
-      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }),
-      line(2, 'GENERIC', { content: 'undone' }),
-      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }),
-      line(2, 'GENERIC', { content: 'redone' })
+      rewound(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }),
+      ...between,
+      rewound(2, 'GENERIC', { content: 'undone' }),
+      rewound(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }),
+      rewound(2, 'GENERIC', { content: 'redone' })
     ]))
     expect(bs.map((b) => b.kind === 'tool' && [b.name, b.output])).toEqual([['run_command', 'redone']])
   })

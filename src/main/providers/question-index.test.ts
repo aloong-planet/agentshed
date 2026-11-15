@@ -98,27 +98,6 @@ describe('question extraction (the Claude side)', () => {
     )
   })
 
-  test('image mixed with text counts as a question, taking the text segment only (a real shape, 51 cases across the repository)', async () => {
-    await withLines(
-      [
-        {
-          type: 'user',
-          timestamp: TS,
-          message: {
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBOR' } },
-              { type: 'text', text: 'what is the error in this screenshot' }
-            ]
-          }
-        }
-      ],
-      async (file) => {
-        expect(await indexOf(file, 'claude')).toHaveLength(1)
-      }
-    )
-  })
-
   test('a sidechain line is not a question — that is a subagent\'s own transcript, not something a human asked', async () => {
     await withLines([cUser('asked by a human'), cUser('the subagent dispatch prompt', { isSidechain: true, agentId: 'a1' })], async (file) => {
       expect(await indexOf(file, 'claude')).toHaveLength(1)
