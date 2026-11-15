@@ -17,6 +17,11 @@
 // in rest on a state the app does not build itself (a pinned mtime) or one in which the page fails as a whole
 // (no read permission). The list's fallback is driven through a parse runner that removes the file. A case is
 // due if the session's own call stops sharing that expression.
+//
+// Gap (#420): a panic while the engine module combines a group is not driven here. It fails the scan as any panic
+// outside a parse does (Scans and the window, failure modes): `TokenStore.scan` catches it where it crosses into the
+// application (`catch_unwind`, which build.rs requires of every export) and throws. No seam panics there; the panic
+// seam names a file to panic on while it is parsed. A case is due if a seam is added for the combination.
 import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
