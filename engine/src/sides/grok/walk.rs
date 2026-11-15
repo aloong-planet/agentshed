@@ -53,7 +53,7 @@ pub(super) fn walk(tree: &str, decode: &dyn Fn(&str) -> Result<Option<Units>>) -
             let Some(st) = walk::stat(&stream) else { continue };
             // A read that panics is the summary's failed read, which says nothing (token-stats, Scans and the window)
             let subagent = catch_unwind(AssertUnwindSafe(|| {
-                seams::before_parse(&stream);
+                seams::before_walk_read(&stream);
                 subagent(&session_dir.path)
             }))
             .unwrap_or(false);

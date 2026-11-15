@@ -119,7 +119,7 @@ fn signature(file: &str) -> Option<(Signature, f64)> {
 /// whether one was beside the database when it began.
 fn attempt(file: &str, tmp_parent: &Path, rt: &dyn Runtime) -> Result<Attempt> {
     let read = catch_unwind(AssertUnwindSafe(|| {
-        seams::before_parse(file);
+        seams::before_walk_read(file);
         read_attribution(file, tmp_parent, rt)
     }));
     match read {

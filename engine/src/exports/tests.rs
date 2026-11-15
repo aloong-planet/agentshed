@@ -13,6 +13,12 @@ mod seam {
         seams::name_panic_file(file);
     }
 
+    /// Names the entry the module panics while the session walk reads it, or none
+    #[napi(catch_unwind)]
+    pub fn seam_panic_while_walking(file: Option<String>) {
+        seams::name_walk_panic_file(file);
+    }
+
     /// A stand-in for a function that parses a session file, for the seam's own tests: it parses nothing, and answers
     /// with the file once the seam has let it through
     #[napi(catch_unwind)]

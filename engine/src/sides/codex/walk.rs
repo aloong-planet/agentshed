@@ -111,7 +111,7 @@ fn kept_or_read(file: &str, last: &mut HashMap<String, Reading>, next: &mut Hash
     // A read that panics is the rollout's failed read: it gives no session, and nothing is kept (token-stats, Scans and
     // the window)
     let session = catch_unwind(AssertUnwindSafe(|| {
-        seams::before_parse(file);
+        seams::before_walk_read(file);
         read_head(file, Some(st.mtime_ms), date_parse)
     }))
     .ok()

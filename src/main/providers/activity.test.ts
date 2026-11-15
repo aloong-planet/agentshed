@@ -6,14 +6,15 @@
 // scanner (scanner.ts), and no case counts the walks; `pnpm bench:scan` prints the walk on its own line in
 // the app's order.
 import { chmodSync, closeSync, mkdtempSync, openSync, renameSync, rmSync, mkdirSync, statSync, writeFileSync, writeSync, utimesSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { threadEngineModule, type SessionMemory } from '../engine-module'
-import { scan } from './scan'
+import type { PanicSeam } from '../testing/engine'
+import { scan, type SessionWalk } from './scan'
 import { encodeClaudeProjectDir } from './claude'
-import type { CodexSessionMeta } from './codex'
+import { readCodexSessions, type CodexSessionMeta } from './codex'
 import type { ScanRoots } from './types'
 
 let dir: string
@@ -593,5 +594,135 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
       chmodSync(f, 0o644)
     }
     expect(walk(heads).map((s) => s.cwd)).toEqual([a])
+  })
+})
+
+// The session walk as the engine module reads it (#431), each rule as the TypeScript walk had it, the laxities included.
+describe('the session walk, read by the engine module', () => {
+  const module = (): PanicSeam => threadEngineModule() as PanicSeam
+  const walked = (memory?: SessionMemory): SessionWalk => module().walkSessions(roots(), memory)
+  const memory = (): SessionMemory => new (module().SessionMemory)()
+  const day = (d: string): string => join(dir, '.codex', 'sessions', '2026', '07', d)
+  /** A rollout whose first line credits it to `cwd`, written at `file` */
+  function rolloutAt(file: string, cwd: string, atSec = 3000): string {
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, `${JSON.stringify({ timestamp: '2026-07-30T00:00:00Z', type: 'session_meta', payload: { cwd } })}\n{"type":"other"}\n`)
+    utimesSync(file, atSec, atSec)
+    return file
+  }
+  afterEach(() => {
+    module().seamPanicWhileWalking(null)
+  })
+
+  // token-stats, Scans and the window, failure modes: a panic while the walk reads an entry is that entry's failed read,
+  // under its side's rule, and the walk goes on
+  it('a rollout whose read panics gives no session, its sibling stays, and nothing is kept for it: the walk after reads it afresh', () => {
+    const a = mkProject('panic-a')
+    const b = mkProject('panic-b')
+    const named = rolloutAt(join(day('30'), 'rollout-1.jsonl'), a)
+    const sibling = rolloutAt(join(day('30'), 'rollout-2.jsonl'), a)
+    const kept = memory()
+    expect(walked(kept).codex.map((s) => [s.file, s.cwd])).toEqual([[named, a], [sibling, a]])
+    // Rewritten, its time moved, and read while the seam names it
+    rolloutAt(named, b, 3001)
+    module().seamPanicWhileWalking(named)
+    expect(walked(kept).codex.map((s) => [s.file, s.cwd])).toEqual([[sibling, a]])
+    module().seamPanicWhileWalking(null)
+    expect(walked(kept).codex.map((s) => [s.file, s.cwd])).toEqual([[named, b], [sibling, a]])
+  })
+
+  it('a Grok session whose summary read panics is no subagent\'s: it counts, and its sibling is read', () => {
+    const p = mkProject('gk-panic')
+    const child = join(mkGrokSession(p, '019f-child', 3000, { subagent: true }), 'updates.jsonl')
+    const parent = join(mkGrokSession(p, '019f-parent', 3100), 'updates.jsonl')
+    expect(walked().grok.map((s) => [s.file, s.subagent])).toEqual([[child, true], [parent, false]])
+    module().seamPanicWhileWalking(child)
+    expect(walked().grok.map((s) => [s.file, s.subagent])).toEqual([[child, false], [parent, false]])
+  })
+
+  it('a Codex directory the walk cannot list loses its own rollouts only: the next day\'s and the archived ones are walked', () => {
+    const p = mkProject('cx-unlistable')
+    rolloutAt(join(day('30'), 'rollout-locked.jsonl'), p)
+    const next = rolloutAt(join(day('31'), 'rollout-next.jsonl'), p)
+    const archived = rolloutAt(join(dir, '.codex', 'archived_sessions', 'rollout-archived.jsonl'), p)
+    chmodSync(day('30'), 0o000)
+    try {
+      expect(walked().codex.map((s) => s.file)).toEqual([next, archived])
+    } finally {
+      chmodSync(day('30'), 0o755)
+    }
+  })
+
+  it('a Grok project directory the walk cannot list loses its own sessions only', () => {
+    const locked = mkProject('gk-locked')
+    const open = mkProject('gk-open')
+    const lockedDir = dirname(mkGrokSession(locked, '019f-l', 3000))
+    mkGrokSession(open, '019f-o', 3000)
+    chmodSync(lockedDir, 0o000)
+    try {
+      expect(walked().grok.map((s) => s.cwd)).toEqual([open])
+    } finally {
+      chmodSync(lockedDir, 0o755)
+    }
+  })
+
+  it('a Grok directory whose name is not valid percent-encoding is skipped, its sibling counted, and its stream read alone gives nothing', () => {
+    const p = mkProject('gk-good')
+    const good = join(mkGrokSession(p, '019f-good', 3000), 'updates.jsonl')
+    const lost = join(dir, '.grok', 'sessions', 'bad%zz', '019f-lost')
+    mkdirSync(lost, { recursive: true })
+    writeFileSync(join(lost, 'updates.jsonl'), '{"type":"x"}\n')
+    expect(walked().grok.map((s) => s.file)).toEqual([good])
+    expect(module().sessionMeta('grok', join(lost, 'updates.jsonl'))).toBeNull()
+    expect(module().sessionMeta('grok', good)).toEqual({ cwd: p, subagent: false })
+  })
+
+  it('a session\'s time is the one Node gives its file, to the fraction of a millisecond', () => {
+    const p = mkProject('exact')
+    const rollout = rolloutAt(join(day('30'), 'rollout-exact.jsonl'), p)
+    const stream = join(mkGrokSession(p, '019f-exact', 3000), 'updates.jsonl')
+    for (const f of [rollout, stream]) utimesSync(f, 1_786_088_600.123457, 1_786_088_600.123457)
+    const times = [statSync(rollout).mtimeMs, statSync(stream).mtimeMs]
+    expect(times.map((t) => t % 1 !== 0), 'times that are no whole millisecond').toEqual([true, true])
+    const w = walked()
+    expect([w.codex.map((s) => s.mtimeMs), w.grok.map((s) => s.mtimeMs)]).toEqual([[times[0]], [times[1]]])
+  })
+
+  // A first line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of ECMAScript's
+  // JSON.parse, each field as JavaScript's property access on the parsed line reads it. The values expected are worked
+  // out from that reading by hand; until the TypeScript walk is removed, it is held to them too.
+  it.each<{ name: string; line: string | Buffer; read: Partial<CodexSessionMeta> | null }>([
+    { name: 'repeating a key: the last one counts', line: '{"payload":{"cwd":"/first","cwd":"/a"}}', read: {} },
+    { name: 'whose cwd is no string', line: '{"payload":{"cwd":5}}', read: null },
+    { name: 'whose payload is an array', line: '{"payload":["/a"]}', read: null },
+    { name: 'that is an array', line: '[{"payload":{"cwd":"/a"}}]', read: null },
+    { name: 'that begins with a byte order mark', line: `${String.fromCharCode(0xfeff)}{"payload":{"cwd":"/a"}}`, read: null },
+    { name: 'with text after its value', line: '{"payload":{"cwd":"/a"}} x', read: null },
+    { name: 'whose id is empty: kept as it is', line: '{"payload":{"cwd":"/a","id":""}}', read: { sessionId: '' } },
+    {
+      name: 'whose fork id is empty: the spawning thread is the parent',
+      line: '{"payload":{"cwd":"/a","forked_from_id":"","source":{"subagent":{"thread_spawn":{"parent_thread_id":"p-1"}}}}}',
+      read: { parentId: 'p-1' }
+    },
+    { name: 'whose source is a string: no spawning thread, and the payload\'s own parent id is none', line: '{"payload":{"cwd":"/a","source":"cli","parent_thread_id":"p-1"}}', read: {} },
+    { name: 'whose ordinal is a number: paginated', line: '{"ordinal":0,"payload":{"cwd":"/a"}}', read: { paginated: true } },
+    { name: 'whose ordinal is a string: not paginated', line: '{"ordinal":"0","payload":{"cwd":"/a"}}', read: {} },
+    { name: 'whose timestamp is a number: no fork time', line: '{"timestamp":5,"payload":{"cwd":"/a"}}', read: {} },
+    { name: 'whose timestamp is in a form only JavaScript reads', line: '{"timestamp":"July 30, 2026 01:00:00 GMT","payload":{"cwd":"/a"}}', read: { forkedAt: Date.UTC(2026, 6, 30, 1, 0, 0) } },
+    { name: 'whose thread source repeats: the last one counts', line: '{"payload":{"cwd":"/a","thread_source":"subagent","thread_source":"user"}}', read: {} },
+    { name: 'with a lone surrogate escaped in its cwd: kept as that unit', line: '{"payload":{"cwd":"/a\\ud800"}}', read: { cwd: `/a${String.fromCharCode(0xd800)}` } },
+    {
+      name: 'with a byte that is no UTF-8 in its cwd: read as U+FFFD',
+      line: Buffer.concat([Buffer.from('{"payload":{"cwd":"/a'), Buffer.from([0xff]), Buffer.from('"}}')]),
+      read: { cwd: `/a${String.fromCharCode(0xfffd)}` }
+    }
+  ])('a first line $name', ({ line, read }) => {
+    const file = join(day('30'), 'rollout-line.jsonl')
+    mkdirSync(day('30'), { recursive: true })
+    writeFileSync(file, Buffer.concat([Buffer.from(line), Buffer.from('\n{"type":"other"}\n')]))
+    utimesSync(file, 3000, 3000)
+    const want = read === null ? [] : [{ file, cwd: '/a', subagent: false, mtimeMs: 3000_000, sessionId: null, parentId: null, forkedAt: null, paginated: false, ...read }]
+    expect(walked().codex).toEqual(want)
+    expect(readCodexSessions(join(dir, '.codex')), 'the TypeScript walk, while it exists').toEqual(want)
   })
 })

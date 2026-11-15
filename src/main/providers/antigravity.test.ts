@@ -485,6 +485,106 @@ describe('a conversation is read again only when it changed, and a failed read i
   })
 })
 
+describe('the walk\'s reads of a conversation, by the engine module: a panic, its memory, and its time', () => {
+  const seam = (): PanicSeam => threadEngineModule() as PanicSeam
+  afterEach(() => {
+    seam().seamPanicWhileWalking(null)
+  })
+  const usable = (): string => {
+    const t = join(dir, 'tmp')
+    mkdirSync(t, { recursive: true })
+    return t
+  }
+
+  // token-stats, Scans and the window, failure modes: a panic while the walk reads an entry is that entry's failed read,
+  // judged as a failed read is, by the log as the panic is caught
+  it('a read that panics with no log beside the database credits it to no folder, its sibling read; the walk after reads it again', () => {
+    const p = mkProject('p')
+    const q = mkProject('q')
+    const named = conversation('panics', [p], 1_793_000_000)
+    conversation('sibling', [q], 1_793_000_000)
+    const memory = sessionMemory()
+    expect(agySessions(undefined, memory).map((s) => s.cwd)).toEqual([p, q])
+    utimesSync(named, 1_793_000_100, 1_793_000_100)
+    seam().seamPanicWhileWalking(named)
+    expect(agySessions(undefined, memory).map((s) => [basename(s.file), s.cwd])).toEqual([['panics.db', null], ['sibling.db', q]])
+    seam().seamPanicWhileWalking(null)
+    expect(agySessions(undefined, memory).map((s) => s.cwd)).toEqual([p, q])
+  })
+
+  it('a read that panics while a log is beside the database keeps the last folder, and the walk after reads it again (token-stats::REQ-004/AC-03)', () => {
+    const first = mkProject('first1')
+    const second = mkProject('second')
+    mkdirSync(conversations(), { recursive: true })
+    const { file, writer } = writeConversation(conversations(), 'busy', encodeTrajectoryMetadata({ folders: [first], conversationId: 'busy' }), { keepOpen: true })
+    if (!writer) throw new Error('no writer')
+    writers.push(writer)
+    const memory = sessionMemory()
+    expect(agySessions(usable(), memory).map((s) => s.cwd)).toEqual([first])
+    // agy rewrites the record, so its log changes, and the read of it panics
+    writer.prepare("UPDATE trajectory_metadata_blob SET data = ? WHERE id = 'main'").run(encodeTrajectoryMetadata({ folders: [second], conversationId: 'busy' }))
+    seam().seamPanicWhileWalking(file)
+    expect(agySessions(usable(), memory).map((s) => s.cwd)).toEqual([first])
+    seam().seamPanicWhileWalking(null)
+    expect(agySessions(usable(), memory).map((s) => s.cwd)).toEqual([second])
+  })
+
+  // The walk keeps a reading only for the conversations the last walk saw. Each case rewrites the conversation to credit
+  // another folder under the signature it was read under, which a walk that kept the reading would not see.
+  it.each([
+    {
+      name: 'that left the directory and came back',
+      away: (file: string): (() => void) => {
+        const aside = join(dir, 'aside.db')
+        renameSync(file, aside)
+        return () => renameSync(aside, file)
+      }
+    },
+    {
+      name: 'in a directory the walk could not list',
+      away: (): (() => void) => {
+        chmodSync(conversations(), 0o000)
+        return () => chmodSync(conversations(), 0o755)
+      }
+    }
+  ])('a conversation $name is read again, though its signature is the one its reading was kept under', ({ away }) => {
+    const p = mkProject('p')
+    const q = mkProject('q')
+    const file = conversation('comes-back', [p], 1_793_000_000)
+    const memory = sessionMemory()
+    expect(agySessions(undefined, memory).map((s) => s.cwd)).toEqual([p])
+    const staged = join(dir, 'staged')
+    mkdirSync(staged)
+    const { file: rewritten } = writeConversation(staged, 'comes-back', encodeTrajectoryMetadata({ folders: [q], conversationId: 'comes-back' }))
+    utimesSync(rewritten, 1_793_000_000, 1_793_000_000)
+    renameSync(rewritten, file)
+    expect(agySessions(undefined, memory).map((s) => s.cwd), 'unchanged to the walk, so not read again').toEqual([p])
+    const back = away(file)
+    try {
+      expect(agySessions(undefined, memory)).toEqual([])
+    } finally {
+      back()
+    }
+    expect(agySessions(undefined, memory).map((s) => s.cwd)).toEqual([q])
+  })
+
+  it('a conversation\'s time is the later of its database\'s and its log\'s as Node gives them, to the fraction of a millisecond', () => {
+    const p = mkProject('p')
+    const quiet = conversation('quiet', [p], 1_793_000_000)
+    utimesSync(quiet, 1_793_000_000.123457, 1_793_000_000.123457)
+    const { file: busy, writer } = writeConversation(conversations(), 'busy', encodeTrajectoryMetadata({ folders: [p], conversationId: 'busy' }), { keepOpen: true })
+    if (writer) writers.push(writer)
+    utimesSync(busy, 1_793_000_000.5, 1_793_000_000.5)
+    utimesSync(`${busy}-wal`, 1_793_000_100.654321, 1_793_000_100.654321)
+    const times = [statSync(`${busy}-wal`).mtimeMs, statSync(quiet).mtimeMs]
+    expect(times.map((t) => t % 1 !== 0), 'times that are no whole millisecond').toEqual([true, true])
+    expect(agySessions(usable()).map((s) => [basename(s.file), s.mtimeMs])).toEqual([
+      ['busy.db', times[0]],
+      ['quiet.db', times[1]]
+    ])
+  })
+})
+
 // ── Usage (token-stats::REQ-003, token-stats::REQ-004) at the providers seam: the token build over a fixture home ──
 
 /** A local time on a day of October 2026, so a day key written as a literal holds in every time zone */
