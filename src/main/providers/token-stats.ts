@@ -460,7 +460,9 @@ class CacheEntries {
   }
 
   /** Every file something is held for, by path, with what the module read of its entry when it was written: a read
-   * that fails is nothing held, and every file is a miss */
+   * that fails is nothing held, and every file is a miss. Asked at every build: no file's signature or group is kept
+   * between two scans, in this thread or in the module, and the aggregates and the key index stay in the store, a
+   * group's aggregates read only when it is combined again (engine/src/group/) */
   heads(): Map<string, TokenStoreHead> {
     const out = new Map<string, TokenStoreHead>()
     for (const head of CacheEntries.#read(this.#store.heads())) out.set(head.path, head)
