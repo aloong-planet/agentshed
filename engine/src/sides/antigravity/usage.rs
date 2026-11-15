@@ -1,5 +1,6 @@
 //! A conversation's usage read (token-stats::REQ-003, token-stats::REQ-004): its format checked (token-stats::CON-001),
-//! its trajectory record, its own id, and its model calls, each once within the database.
+//! its trajectory record, its own id, and its model calls, each once within the database. The session walk takes the
+//! format check and the trajectory record from here (`walk.rs`).
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -23,7 +24,7 @@ const REQUIRED_COLUMNS: [(&str, &[&str]); 4] = [
     ("trajectory_meta", &["cascade_id"]),
 ];
 
-fn check_format(conn: &Connection) -> Read<()> {
+pub(super) fn check_format(conn: &Connection) -> Read<()> {
     let version = db::first_row(conn, "PRAGMA user_version", |cells| Ok(matches!(cells.first(), Some(Cell::Number(v)) if *v == SUPPORTED_USER_VERSION)))?;
     if version != Some(true) {
         return Err(Failed);
@@ -47,7 +48,7 @@ fn check_format(conn: &Connection) -> Read<()> {
 
 /// The conversation's trajectory record (the `main` row; the table's default id and the only row in every measured
 /// database); None when there is none, or its data is no blob
-fn trajectory_record(conn: &Connection) -> Read<Option<TrajectoryMetadata>> {
+pub(super) fn trajectory_record(conn: &Connection) -> Read<Option<TrajectoryMetadata>> {
     let record = db::first_row(conn, "SELECT data FROM trajectory_metadata_blob WHERE id = 'main'", |cells| match cells.first() {
         Some(Cell::Blob(b)) => Ok(Some(proto::trajectory_metadata(b)?)),
         _ => Ok(None),

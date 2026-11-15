@@ -4,8 +4,8 @@
 // empty cache, so every file gets the job, inputs included, that a cold scan gives it, and the comparison runs in the
 // place of the parse. The application never imports this.
 import { mergeKey } from '@shared/path-key'
-import type { EngineModule, EngineSource } from './engine-module'
-import { scan, walkSessions } from './providers/scan'
+import { loadEngineModule, type EngineModule, type EngineSource } from './engine-module'
+import { scan } from './providers/scan'
 import { TokenEngine, type ParseJob, type ParseResult } from './providers/token-stats'
 import type { ScanRoots } from './providers/types'
 
@@ -111,7 +111,7 @@ export async function runParity(o: {
     }
   })
   // The scan's own inputs to the build: the walk, and the projects that credit Claude sessions and admit reads
-  const walked = walkSessions(o.roots)
+  const walked = loadEngineModule(o.engine).walkSessions(o.roots)
   const snapshot = await scan(o.roots, { now: () => Date.now(), sessions: walked })
   const claudePaths = snapshot.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
   await engine.build(o.roots, claudePaths, new Set(snapshot.projects.map((p) => mergeKey(p.path))), walked)

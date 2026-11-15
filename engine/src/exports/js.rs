@@ -357,6 +357,40 @@ impl Js {
         self.string(dir)?.ok_or_else(|| Error::from_reason("os.tmpdir gave no string"))
     }
 
+    /// `path[method](...parts)` of Node's `path` module, how the application's own code joins and splits paths
+    fn path(&self, method: &str, parts: &[&[u16]]) -> Result<Units> {
+        let module = self.builtin("node:path")?;
+        let arguments = parts.iter().map(|p| self.text(p)).collect::<Result<Vec<_>>>()?;
+        let out = self.call_method(module, method, &arguments)?.ok_or_else(|| Error::from_reason(format!("path.{method} threw")))?;
+        self.string(out)?.ok_or_else(|| Error::from_reason(format!("path.{method} gave no string")))
+    }
+
+    /// `join(...parts)` of Node's `path` module
+    pub(crate) fn path_join(&self, parts: &[&[u16]]) -> Result<Units> {
+        self.path("join", parts)
+    }
+
+    /// `dirname(path)` of Node's `path` module
+    pub(crate) fn path_dirname(&self, path: &[u16]) -> Result<Units> {
+        self.path("dirname", &[path])
+    }
+
+    /// `basename(path)` of Node's `path` module
+    pub(crate) fn path_basename(&self, path: &[u16]) -> Result<Units> {
+        self.path("basename", &[path])
+    }
+
+    /// `decodeURIComponent(text)`; None when it throws, as it does for text that is not valid percent-encoding
+    pub(crate) fn decode_uri_component(&self, text: &[u16]) -> Result<Option<Units>> {
+        let mut global = ptr::null_mut();
+        check(unsafe { sys::napi_get_global(self.env, &mut global) })?;
+        let s = self.text(text)?;
+        match self.call_method(global, "decodeURIComponent", &[s])? {
+            Some(decoded) => self.string(decoded),
+            None => Ok(None),
+        }
+    }
+
     /// `new URL(text)`; None when it throws, as it does for text that does not parse as a URL
     pub(crate) fn new_url(&self, text: &[u16]) -> Result<Option<napi_value>> {
         let mut global = ptr::null_mut();

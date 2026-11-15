@@ -6,7 +6,11 @@
 // electron, which a worker thread cannot load.
 import { join } from 'node:path'
 import type { AgentSide } from '@shared/domain'
+import type { CodexSessionMeta } from './providers/codex'
+import type { GrokSessionMeta } from './providers/grok'
+import type { SessionWalk } from './providers/scan'
 import type { ParseJob, ParseResult } from './providers/token-stats'
+import type { ScanRoots } from './providers/types'
 
 /** A row of the token store as the module hands it out (engine/src/exports/cache_entries.rs): a column holding anything
  * but text is absent */
@@ -30,6 +34,10 @@ export interface TokenStore {
   /** Whether another process wrote to the store since this thread last asked (token-stats C27) */
   changedByOther(): boolean
 }
+
+/** The run's memory of what the session walk read (engine/src/exports/scanner.rs): the Codex rollouts' first lines
+ * (token-stats::QR-002/AC-01) and the Antigravity conversations' metadata. One Scanner holds one, and nothing saves it. */
+export type SessionMemory = object
 
 /** What the application calls in the engine module */
 export interface EngineModule {
@@ -70,6 +78,21 @@ export interface EngineModule {
    * is not held (session-view::REQ-004/AC-03); every other side's turn holds every line.
    */
   keptLines(kind: AgentSide, text: string): boolean[]
+  /**
+   * The Codex, Grok and Antigravity session lists under `roots`, each in scan order, read without writing under agy's
+   * directories (token-stats::CON-002). Given `memory`, a walk opens only what changed since the last walk that was
+   * given it; without, it reads everything. A failure reading one entry loses only that entry; a copy a read needs is
+   * made under `tmpParent`, the system temporary directory when it is absent.
+   */
+  walkSessions(roots: ScanRoots, memory?: SessionMemory, tmpParent?: string): SessionWalk
+  /** A memory for `walkSessions`, holding nothing yet */
+  SessionMemory: new () => SessionMemory
+  /**
+   * One session's entry as the walk reads it, for the session page's single-file rebuild: a Codex rollout's or a Grok
+   * update stream's, by its path; null when the walk would list no session for it
+   */
+  sessionMeta(kind: 'codex', file: string): CodexSessionMeta | null
+  sessionMeta(kind: 'grok', file: string): Pick<GrokSessionMeta, 'cwd' | 'subagent'> | null
   /**
    * Writes `copy` to `file` as the text `JSON.stringify(copy)` gives, by an atomic replacement (engine/src/display/).
    * The value is read during the call, as it stands then, and the call throws when it holds what JSON cannot (a BigInt, a

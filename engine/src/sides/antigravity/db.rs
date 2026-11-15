@@ -12,9 +12,6 @@
 //!
 //! A copy is made by `std::fs::copy`, which on macOS clones the file (`fclonefileat`) when the database and the copy are
 //! on one volume that clones (APFS), and copies it (`fcopyfile`) otherwise: across volumes, or on a volume that does not.
-//!
-//! The walk still opens conversations through `readConversationDb` in `src/main/providers/antigravity.ts` (until #431),
-//! by the same rules.
 
 use std::fs::{self, DirBuilder};
 use std::os::unix::fs::DirBuilderExt;
@@ -22,6 +19,8 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, OpenFlags, Row};
+
+use crate::seams;
 
 /// The read failed: the database would not open or read in the shape asked for, a record would not decode, or the copy
 /// could not be made. What the read gave is then not used.
@@ -79,7 +78,10 @@ impl CopyDir {
                 .collect();
             let dir = parent.join(format!("agentshed-agy-{suffix}"));
             match DirBuilder::new().mode(0o700).create(&dir) {
-                Ok(()) => return Ok(CopyDir(dir)),
+                Ok(()) => {
+                    seams::copy_dir_made(&dir);
+                    return Ok(CopyDir(dir));
+                }
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
                 Err(_) => return Err(Failed),
             }
