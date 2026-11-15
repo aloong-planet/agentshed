@@ -6,7 +6,8 @@
 //
 // Gap (#158): a file growing *while* it is being parsed is not driven here — that the cache signature
 // is taken before the parse, so the growth shows as a change on the next scan, needs a writer racing
-// the reader, which no test here controls. A read hook in eachJsonlLine would let a test append mid-read.
+// the reader, which no test here controls. A read hook would let a test append mid-read: a seam in the engine
+// module's reader (engine/src/read/), which reads every side's session files.
 //
 // Gap (#278): the session questions' re-title failing on the session's own line — they then keep the title
 // it was parsed with — has no case of its own. It could have one: the cache signature is mtime and size, so a
@@ -3286,16 +3287,33 @@ describe('the session ID on the session page', () => {
 // token-stats, Scans and the window, failure modes: "A panic in the engine module is caught where it crosses into the
 // application. One raised while a file is parsed is that file's failed read, under the rule its side has for a read
 // that fails ... and the scan goes on." Driven through the panic seam, which the tests' module is built with.
-describe('a panic in the engine module while a Codex rollout is parsed', () => {
+describe('a panic in the engine module while a session file is parsed', () => {
   const seam = (): PanicSeam => loadEngineModule(TEST_ENGINE) as PanicSeam
+  const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
   afterEach(() => {
     seam().seamPanicWhileParsing(null)
+  })
+
+  it('is that Claude Code session\'s failed read: it is skipped as an unreadable one is, every other file is parsed, and the scan delivers its figures', async () => {
+    const named = mkClaudeFile('panic.jsonl', [userLine('a question in the file that panics'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 40, 4, { id: 'mp', requestId: 'rp' })])
+    mkClaudeFile('other.jsonl', [userLine('a question in the other file'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 70, 7, { id: 'mo', requestId: 'ro' })])
+    seam().seamPanicWhileParsing(named)
+    const panicked = await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])
+    seam().seamPanicWhileParsing(null)
+    expect(panicked.global.bySide.claude.total).toBe(77)
+    chmodSync(named, 0)
+    try {
+      expect(shape(panicked)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable'), TEST_ENGINE).build(roots(), [proj])))
+    } finally {
+      chmodSync(named, 0o644)
+    }
+    // As for an unreadable file, nothing is kept for it: the next build parses it
+    expect((await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])).global.bySide.claude.total).toBe(77 + 44)
   })
 
   it('is that rollout\'s failed read: it is skipped as an unreadable one is, every other rollout is parsed, and the scan delivers its figures', async () => {
     const named = mkCodexRollout('rollout-panic-019f500.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 4 }])
     mkCodexRollout('rollout-other-019f501.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 70, cached: 0, output: 7 }])
-    const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
     seam().seamPanicWhileParsing(named)
     const panicked = await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])
     seam().seamPanicWhileParsing(null)
@@ -3587,6 +3605,300 @@ describe('how a rollout line is read', () => {
   })
 })
 
+// The same clauses for a Claude Code session file (#428), one file per clause, parsed through the module, and the
+// rules a Claude line adds: a value of another kind than a rule takes, a last line without its line feed, the time
+// taken from the file when no line has one, and the local day a usage line is filed under. Until the TypeScript Claude
+// parser was removed (#428), each case also held the module's entry to the one that parser gave for the same file,
+// field for field, and the values they expect are the ones both gave; the local days were held in every time zone the
+// case sets.
+describe('how a Claude Code session line is read', () => {
+  const AT = '2026-07-30T10:00:00.000Z'
+  const REPLACEMENT = String.fromCharCode(0xfffd)
+  /** A usage line with the keys the rules read, in the order Claude Code writes them, its uuid chain left out: no case
+   * here reads the walk-back. The whole shape Claude Code writes now is the case on its iterations. */
+  const usage = (id: string, input: number | string, output: number, extra: Record<string, unknown> = {}): string =>
+    `{"isSidechain":false,"message":{"model":"claude-opus-5","id":"${id}","type":"message","role":"assistant","content":[{"type":"text","text":"ok"}],"usage":{"input_tokens":${input},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":${output}}},"requestId":"req_${id}","type":"assistant","timestamp":"${AT}"${Object.entries(extra).map(([k, v]) => `,"${k}":${JSON.stringify(v)}`).join('')}}`
+  const question = (content: unknown): string => JSON.stringify({ isSidechain: false, type: 'user', message: { role: 'user', content }, timestamp: AT })
+  /** A line of `fields`, an assistant's unless they say otherwise */
+  const line = (fields: Record<string, unknown>): string => JSON.stringify({ type: 'assistant', timestamp: AT, ...fields })
+
+  /** A session file of `lines`, each a line's text or its raw bytes, every one ending with a line feed */
+  function session(lines: Array<string | Buffer>): string {
+    const f = join(dir, '.claude', 'projects', encodeClaudeProjectDir(proj), 'line-cases.jsonl')
+    mkdirSync(join(f, '..'), { recursive: true })
+    writeFileSync(f, Buffer.concat(lines.flatMap((l) => [typeof l === 'string' ? Buffer.from(l) : l, Buffer.from('\n')])))
+    return f
+  }
+
+  type ClaudeAgg = Extract<NonNullable<ParseResult>['agg'], { kind: 'claude' }>
+  /** The entry a parse gives the file */
+  async function entryOf(file: string): Promise<ClaudeAgg> {
+    const parsed = await runParseJob({ kind: 'claude', file, projectKey: 'p', listed: true })
+    if (parsed?.agg.kind !== 'claude') throw new Error('no Claude entry')
+    return parsed.agg
+  }
+  /** Each entry without its day, which is the time zone's: the case on local days holds it */
+  const figures = (a: ClaudeAgg): unknown[] => a.entries.map((e) => e.slice(0, 8))
+
+  it('takes a usage line in the shape Claude Code writes now by its own figures, never by the iterations it lists, which repeat their names (A9)', async () => {
+    // The shape of a real line (2026-11-15), its values changed: of 322,852 usage lines on this machine 269,590 carry an
+    // iterations array, its elements repeating the line's figure names (773 a model too), and on 61 the last iteration's
+    // figures are not the line's own. The first line is one of those 61: zeros at the top, its cache write in the
+    // breakdown alone
+    const real = (id: string, top: Record<string, unknown>, iterations: Array<Record<string, unknown>>): string =>
+      JSON.stringify({
+        parentUuid: null,
+        isSidechain: false,
+        message: {
+          model: 'claude-opus-5',
+          id,
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          stop_sequence: null,
+          stop_details: null,
+          usage: {
+            ...top,
+            server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 },
+            service_tier: 'standard',
+            inference_geo: 'not_available',
+            iterations,
+            speed: 'standard'
+          },
+          diagnostics: null
+        },
+        requestId: `req_${id}`,
+        type: 'assistant',
+        uuid: `u-${id}`,
+        timestamp: AT,
+        sessionId: 's',
+        version: '2.1.0',
+        gitBranch: 'main'
+      })
+    const figure = (input: number, output: number, read: number, flat: number, fiveMinutes: number, oneHour: number): Record<string, unknown> => ({
+      input_tokens: input,
+      cache_creation_input_tokens: flat,
+      cache_read_input_tokens: read,
+      output_tokens: output,
+      cache_creation: { ephemeral_1h_input_tokens: oneHour, ephemeral_5m_input_tokens: fiveMinutes }
+    })
+    const f = session([
+      real('r1', figure(0, 0, 0, 0, 0, 447), [{ ...figure(175, 401, 999027, 447, 0, 447), type: 'message' }]),
+      real('r2', { ...figure(12, 34, 56, 78, 0, 0), output_tokens_details: { thinking_tokens: 9 } }, [
+        { ...figure(1, 2, 3, 4, 5, 6), type: 'message', model: 'claude-haiku-5' },
+        { ...figure(7, 8, 9, 10, 11, 12), type: 'message', model: 'claude-haiku-5' }
+      ])
+    ])
+    const a = await entryOf(f)
+    expect(figures(a)).toEqual([
+      ['r1', 'req_r1', 0, 0, 0, 0, 447, 'claude-opus-5'],
+      ['r2', 'req_r2', 0, 12, 34, 56, 0, 'claude-opus-5']
+    ])
+  })
+
+  it('as UTF-8 with U+FFFD for each maximal invalid subpart, a line with an invalid byte outside a string being a bad line', async () => {
+    const bytes = (...b: number[]): Buffer => Buffer.from(b)
+    const [head, tail] = usage('m1', 100, 10).split('"usage"')
+    const f = session([
+      // c FF a E2 82 b C0 80 c ED A0 80 d F4 90 80 80 e: one, one, two, three and four replacements
+      Buffer.concat([
+        Buffer.from('{"isSidechain":false,"type":"user","message":{"role":"user","content":"c'),
+        bytes(0xff), Buffer.from('a'), bytes(0xe2, 0x82), Buffer.from('b'), bytes(0xc0, 0x80), Buffer.from('c'),
+        bytes(0xed, 0xa0, 0x80), Buffer.from('d'), bytes(0xf4, 0x90, 0x80, 0x80), Buffer.from(`e"},"timestamp":"${AT}"}`)
+      ]),
+      // Invalid bytes in a value no rule reads leave the line readable
+      Buffer.concat([Buffer.from(`${head}"note":"`), bytes(0xff, 0xfe), Buffer.from(`","usage"${tail}`)]),
+      // Outside a string a replacement character is no token, and the line is refused
+      Buffer.concat([Buffer.from('{"isSidechain":false,'), bytes(0xff), Buffer.from(usage('m2', 999, 9).slice(1))])
+    ])
+    const a = await entryOf(f)
+    const R = REPLACEMENT
+    expect(a.title).toBe(`c${R}a${R}b${R}${R}c${R}${R}${R}d${R}${R}${R}${R}e`)
+    expect(a.questions).toHaveLength(1)
+    expect(figures(a)).toEqual([['m1', 'req_m1', 0, 100, 10, 0, 0, 'claude-opus-5']])
+  })
+
+  it('by JSON.parse\'s grammar: a line it refuses is a bad line (A8), and a line it takes counts however unusual, nested deeper than any fixed limit included', async () => {
+    const BS = String.fromCharCode(0x5c)
+    const good = [
+      // 5,000 levels deep in a value no rule reads
+      usage('v1', 7, 1).replace('"requestId"', `"deep":${'['.repeat(5000)}${']'.repeat(5000)},"requestId"`),
+      // Tabs, spaces and a carriage return between tokens; numbers in exponent form; no request id and no model
+      `{ "isSidechain" : false , "message" : { "id" : "v2" , "usage" : { "input_tokens" : 1E2 , "cache_read_input_tokens" : 0.5e1 , "output_tokens" : 3 } } , "type" :\t"assistant" , "timestamp" : "${AT}" }\r`,
+      // A key and a value spelled with escapes
+      usage('v3', 2, 2).replace('"message"', `"m${BS}u0065ssage"`).replace('"id":"v3"', `"id":"v${BS}u0033"`),
+      // A raw U+2028 in a string, and an id spelled with an escaped solidus
+      usage(`a${BS}/b`, 4, 4, { note: `x${String.fromCharCode(0x2028)}y` })
+    ]
+    // Each carries usage that must not count
+    const refused = [
+      usage('b1', 1001, 1).replace('"output_tokens":1}', '"output_tokens":1,}'),
+      usage(`b2${String.fromCharCode(9)}tab`, 1002, 1),
+      usage('b3', 1003, 1, { note: 'x' }).replace('"x"', `"${BS}x41"`),
+      `${String.fromCharCode(0xfeff)}${usage('b4', 1004, 1)}`,
+      `${usage('b5', 1005, 1)} x`,
+      usage('b6', '01', 1),
+      usage('b7', '+1', 1),
+      usage('b8', '1.', 1),
+      usage('b9', '.5', 1),
+      usage('b10', 'NaN', 1),
+      usage('b11', 1011, 1).replace('"id":"b11"', `"id":"${BS}ud8"`),
+      usage('b12', 1012, 1).replace('"requestId"', '\'requestId\''),
+      usage('b13', 1013, 1).slice(0, -1)
+    ]
+    // An array is a line that parsed, and its bytes join the last turn; a number is no line the parse is given
+    const lines = [question('a question over unusual lines'), ...good, ...refused, '[1,2,3]', '42']
+    const f = session(lines)
+    const a = await entryOf(f)
+    expect(figures(a)).toEqual([
+      ['v1', 'req_v1', 0, 7, 1, 0, 0, 'claude-opus-5'],
+      ['v2', null, 0, 100, 3, 5, 0, null],
+      ['v3', 'req_v3', 0, 2, 2, 0, 0, 'claude-opus-5'],
+      ['a/b', 'req_a/b', 0, 4, 4, 0, 0, 'claude-opus-5']
+    ])
+    expect(a.questions.map((q) => q[2])).toEqual([statSync(f).size - Buffer.byteLength('42\n')])
+  })
+
+  it('with a repeated key keeping its last value', async () => {
+    const f = session([
+      `{"type":"assistant","type":"user","isSidechain":true,"isSidechain":false,"message":{"role":"user","content":"lost"},"message":{"role":"user","content":"kept question"},"timestamp":"${AT}"}`,
+      // The second message replaces the first whole: no usage is left to count
+      `{"type":"assistant","message":{"id":"d1","usage":{"input_tokens":10,"output_tokens":1}},"message":{"id":"d2"},"timestamp":"${AT}"}`,
+      `{"type":"assistant","isSidechain":true,"isSidechain":false,"requestId":"r1","requestId":"r2","message":{"model":"first","model":"second","id":"d3","id":"d4","usage":{"input_tokens":1,"input_tokens":30,"output_tokens":3,"cache_creation":{"ephemeral_5m_input_tokens":4,"ephemeral_1h_input_tokens":5},"cache_creation":null,"cache_creation_input_tokens":6}},"timestamp":"${AT}"}`,
+      `{"type":"assistant","isSidechain":false,"isSidechain":true,"message":{"id":"d5","usage":{"input_tokens":1,"output_tokens":1,"cache_creation_input_tokens":99,"cache_creation":{"ephemeral_5m_input_tokens":4,"ephemeral_5m_input_tokens":40,"ephemeral_1h_input_tokens":2}}},"timestamp":"${AT}"}`
+    ])
+    const a = await entryOf(f)
+    expect(a.title).toBe('kept question')
+    expect(figures(a)).toEqual([
+      ['d4', 'r2', 0, 30, 3, 0, 6, 'second'],
+      ['d5', null, 1, 1, 1, 0, 42, null]
+    ])
+  })
+
+  it('with a number beyond the double range infinite and so no finite count, and a negative zero kept', async () => {
+    const f = session([
+      line({ message: { id: 'n1', usage: {} } }).replace('"usage":{}', '"usage":{"input_tokens":1e400,"output_tokens":-0,"cache_read_input_tokens":1e-400,"cache_creation_input_tokens":1e21}'),
+      line({ message: { id: 'n2', usage: {} } }).replace('"usage":{}', '"usage":{"input_tokens":-1e400,"output_tokens":5,"cache_creation":{"ephemeral_5m_input_tokens":1e400,"ephemeral_1h_input_tokens":7}}'),
+      line({ message: { id: 'n3', usage: {} } }).replace('"usage":{}', '"usage":{"input_tokens":-0,"output_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":-0,"ephemeral_1h_input_tokens":-0}}')
+    ])
+    const a = await entryOf(f)
+    expect(figures(a)).toEqual([
+      ['n1', null, 0, 0, -0, 0, 1e21, null],
+      ['n2', null, 0, 0, 5, 0, 7, null],
+      ['n3', null, 0, -0, 0, 0, -0, null]
+    ])
+  })
+
+  it('with a lone surrogate escape staying that code unit, in text, in a model and in the ids', async () => {
+    const [high, low] = [String.fromCharCode(0xd800), String.fromCharCode(0xdc00)]
+    const f = session([
+      // 59 letters, the lone surrogate, then two more: the title is clipped after the surrogate, a code point of its own
+      question(`${'a'.repeat(59)}${high}bc`),
+      line({ requestId: `${high}${low}`, message: { id: high, model: `claude${low}`, usage: { input_tokens: 1, output_tokens: 1 } } }),
+      line({ requestId: low, message: { id: `${high}${low}`, usage: { input_tokens: 2, output_tokens: 2 } } })
+    ])
+    const a = await entryOf(f)
+    expect(a.title).toBe(`${'a'.repeat(59)}${high}${String.fromCharCode(0x2026)}`)
+    expect(figures(a)).toEqual([
+      [high, `${high}${low}`, 0, 1, 1, 0, 0, `claude${low}`],
+      [`${high}${low}`, low, 0, 2, 2, 0, 0, null]
+    ])
+  })
+
+  it('with a value of another kind than a rule takes read as JavaScript reads it: undefined to the rule, and an array has none of an object\'s fields', async () => {
+    const f = session([
+      // A truthy usage that is no object counts, with no figure; a falsy one is no usage
+      ...[5, 'x', [], true, {}].map((u, i) => line({ message: { id: `t${i}`, usage: u } })),
+      ...[0, '', null, false].map((u, i) => line({ message: { id: `f${i}`, usage: u } })),
+      // A message that is no object holds neither usage nor content
+      line({ message: 'not a record' }),
+      line({ message: [{ id: 'in an array', usage: { input_tokens: 9 } }] }),
+      // A cache_creation that is an array is a breakdown with neither figure; one of another kind leaves the flat field
+      line({ message: { id: 'c1', usage: { input_tokens: 1, cache_creation_input_tokens: 50, cache_creation: [] } } }),
+      line({ message: { id: 'c2', usage: { input_tokens: 1, cache_creation_input_tokens: 50, cache_creation: 'x' } } }),
+      line({ message: { id: 'c3', usage: { input_tokens: 1, cache_creation_input_tokens: 50, cache_creation: 0 } } }),
+      // Ids, a model, a figure and the sidechain flag of another kind; an empty model is a model
+      line({ isSidechain: 'true', requestId: 7, message: { id: 5, model: 9, usage: { output_tokens: '3', input_tokens: 2 } } }),
+      line({ isSidechain: 1, message: { id: 's1', model: '', usage: { input_tokens: 1 } } }),
+      // A timestamp that is no string gives no time and no day
+      line({ timestamp: 1785405600000, message: { id: 'ts', usage: { input_tokens: 1 } } }),
+      // Questions: content that is an object is none; an array's text segments, strings only, joined by a space
+      line({ type: 'user', message: { content: { text: 'not a question' } } }),
+      line({ type: 'user', message: { content: ['str', 1, null, ['text'], { type: 'text', text: 5 }, { text: '' }, { type: 'text', text: 'real' }, { type: 'image', text: 'question' }] } }),
+      line({ type: 'user', message: [{ content: 'an array message' }] }),
+      // A tool_use whose name is no string is a tool; a segment that is no object, or not a tool_use, is nothing
+      line({ message: { content: [{ type: 'tool_use', name: 5 }, { type: 'tool_use', name: 'Agent' }, { type: 'tool_use' }, 'tool_use', { type: 'text', name: 'Task' }] } })
+    ])
+    const a = await entryOf(f)
+    const zeros = (id: string): unknown[] => [id, null, 0, 0, 0, 0, 0, null]
+    expect(figures(a)).toEqual([
+      ...['t0', 't1', 't2', 't3', 't4'].map(zeros),
+      ['c1', null, 0, 1, 0, 0, 0, null],
+      ['c2', null, 0, 1, 0, 0, 50, null],
+      ['c3', null, 0, 1, 0, 0, 50, null],
+      [null, null, 0, 2, 0, 0, 0, null],
+      ['s1', null, 0, 1, 0, 0, 0, ''],
+      ['ts', null, 0, 1, 0, 0, 0, null]
+    ])
+    expect(a.entries.find((e) => e[0] === 'ts')?.[8]).toBeNull()
+    expect(a.title).toBe('real question')
+    expect(a.questions.map((q) => [q[4], q[5]])).toEqual([[2, 1]])
+  })
+
+  it('with a timestamp outside the form Claude Code writes read as Date.parse reads it', async () => {
+    const stamped = (timestamp: string, id: string): string => line({ timestamp, message: { id, usage: { input_tokens: 1, output_tokens: 1 } } })
+    const f = session([
+      stamped('2026-07-30T10:00:00+08:00', 't1'),
+      stamped('2026-07-30', 't2'),
+      stamped('2026-07-30T10:00:00.123456Z', 't3'),
+      // Read by V8 as the second of March
+      stamped('2026-02-30T00:00:00.000Z', 't4'),
+      stamped('not a time', 't5')
+    ])
+    const a = await entryOf(f)
+    expect(a.at).toBe(1785405600123)
+    expect(a.entries.map((e) => e[8] === null)).toEqual([false, false, false, false, true])
+  })
+
+  it('files a usage line under its local day, in the time zone the app runs in, the year written as String writes it', async () => {
+    const f = session(
+      ['2026-07-29T16:30:00.000Z', '0005-07-01T12:00:00.000Z', '+012345-03-04T12:00:00.000Z', '-000001-12-31T12:00:00.000Z'].map((timestamp, i) =>
+        line({ timestamp, message: { id: `z${i}`, usage: { input_tokens: 1 } } })
+      )
+    )
+    const days = async (tz: string): Promise<unknown[]> => {
+      process.env['TZ'] = tz
+      return (await entryOf(f)).entries.map((e) => e[8])
+    }
+    const was = process.env['TZ']
+    try {
+      expect(await days('UTC')).toEqual(['2026-07-29', '5-07-01', '12345-03-04', '-1-12-31'])
+      expect((await days('Asia/Shanghai'))[0]).toBe('2026-07-30')
+      expect((await days('America/Los_Angeles'))[0]).toBe('2026-07-29')
+    } finally {
+      if (was === undefined) delete process.env['TZ']
+      else process.env['TZ'] = was
+    }
+  })
+
+  it('reads a last line no line feed ends, as a Claude Code session is parsed whole and a line that parses counts', async () => {
+    const f = session([question('the first question')])
+    appendFileSync(f, usage('m1', 10, 1))
+    const a = await entryOf(f)
+    expect(figures(a)).toEqual([['m1', 'req_m1', 0, 10, 1, 0, 0, 'claude-opus-5']])
+    expect(a.questions.map((q) => q[2])).toEqual([statSync(f).size])
+  })
+
+  it('with no timestamp in the file, takes the file\'s modification time, to the fraction of a millisecond Node reads it to', async () => {
+    const f = session([JSON.stringify({ type: 'user', message: { content: 'a question with no time' } })])
+    utimesSync(f, 1000.25, 1785405600.123456)
+    const a = await entryOf(f)
+    expect(a.at).toBe(statSync(f).mtimeMs)
+    expect(Number.isInteger(a.at)).toBe(false)
+  })
+})
+
 // token-stats Sequence F and session-view G1–G2 through the engine module, and the clauses of token-stats,
 // Implementation Decisions, The engine module ("read by the grammar of ECMAScript's JSON.parse, with its results"), one
 // Grok stream per clause. Until the TypeScript Grok parser was removed (#429), each entry was also held, field for field,
@@ -3709,6 +4021,14 @@ describe('how a Grok stream line is read', () => {
       [MS, 2, 0, 2, 0, null],
       [MS, 4, 0, 4, 0, null]
     ])
+  })
+
+  it('with an array line counted as a line that parsed, its bytes joining the open turn, and a number no line the parse is given', async () => {
+    // An array has none of an object's fields, so it holds no turn and no question
+    const f = stream('019f-array', [grokUser(AT, 'a question over unusual lines', 0), '[1,2,3]', '42'])
+    const entry = await entryOf(f)
+    expect(entry.events).toEqual([])
+    expect(entry.questions.map((q) => q[2])).toEqual([statSync(f).size - Buffer.byteLength('42\n')])
   })
 
   it('with a repeated key keeping its last value, at the place the key first held, and a per-model map\'s entries in the order Object.entries gives them', async () => {

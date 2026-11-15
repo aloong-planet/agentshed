@@ -424,6 +424,35 @@ impl<'a> Reader<'a> {
     }
 }
 
+/// What a line holds, as the parse takes it: `typeof` of the value `JSON.parse` gives
+pub(crate) enum Line<T> {
+    /// An object: what the side read off it
+    Object(T),
+    /// An array, which is an object to `typeof`: the line counts as one that parsed, and has none of an object's fields
+    Array,
+    /// A string, a number, a boolean or null: not a line the parse is given
+    Other,
+}
+
+/// The line, read: `object` reads an object's members, and every other value is checked and skipped. Bad when
+/// `JSON.parse` would refuse the line.
+pub(crate) fn line<'a, T>(text: &'a str, object: impl FnOnce(&mut Reader<'a>) -> Read<T>) -> Read<Line<T>> {
+    let mut r = Reader::new(text);
+    let read = match r.kind()? {
+        Kind::Object => Line::Object(object(&mut r)?),
+        Kind::Array => {
+            r.skip()?;
+            Line::Array
+        }
+        _ => {
+            r.skip()?;
+            Line::Other
+        }
+    };
+    r.end()?;
+    Ok(read)
+}
+
 /// `typeof v === 'number' && Number.isFinite(v) ? v : 0` over the value here
 pub(crate) fn finite_or_zero(r: &mut Reader<'_>) -> Read<f64> {
     if r.kind()? == Kind::Number {

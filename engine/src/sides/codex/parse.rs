@@ -11,7 +11,7 @@ use std::collections::HashSet;
 
 use super::entry::{Event, Job, KeptTotal, Parsed};
 use super::{line, question, title};
-use crate::json::max;
+use crate::json::{self, max};
 use crate::question::{Calls, Indexer};
 use crate::read::{self, Stored};
 use crate::text::{self, Units};
@@ -79,20 +79,16 @@ pub(super) fn parse(job: &Job, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Opt
         // A line `JSON.parse` refuses is skipped (A8), and so is a string, a number, a boolean or null; the bytes still
         // count toward the offsets of the lines after them
         let parsed = match line::read(&decoded) {
-            Ok(line::Parsed::Object(l)) => l,
-            Ok(line::Parsed::Array) => {
+            Ok(json::Line::Object(l)) => l,
+            Ok(json::Line::Array) => {
                 index.line(None, None, Calls::default, start, end);
                 file_end = end as f64;
                 return;
             }
-            Ok(line::Parsed::Other) | Err(_) => return,
+            Ok(json::Line::Other) | Err(_) => return,
         };
         let l = &parsed;
-        let at = l.timestamp.and_then(|t| {
-            let units = t.units();
-            let ms = text::date_parse(&units).unwrap_or_else(|| date_parse(&units));
-            (!ms.is_nan()).then_some(ms)
-        });
+        let at = l.timestamp.and_then(|t| text::time_value(&t.units(), date_parse));
         index.line(question::question(l), at, || question::calls(l), start, end);
         file_end = end as f64;
         if let Some(t) = at {
