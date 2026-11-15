@@ -275,8 +275,8 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  *      the resume reads on under the new rule, and only that question's end stays one byte short until the file is
  *      next parsed whole: no figure and no question's text differ. No rollout on this machine was in that state (none
  *      of the 311 non-empty plain rollouts, 2026-11-15). A bump would make every install parse every rollout again, and
- *      would not reach such an entry where one could be: every released install keeps a version-19 JSON file, which
- *      its first launch with the store imports whatever this number is.
+ *      would not reach such an entry where one could be: an entry from a released install reaches the store only
+ *      through a version-19 JSON file, which its first launch with the store imports whatever this number is.
  *
  * Not bumped, for one computation change and its reasons alone (#439): an Antigravity conversation is unreadable when
  *      its trajectory record carries a field the reader reads in another wire type than its descriptor declares, where
@@ -286,9 +286,9 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  *      machine is (none of the 19, 2026-11-15). Such an entry stands whole — its figures, its project and its place
  *      in the session lists — until the conversation's signature next changes, while the walk, which keeps no
  *      reading across launches, credits it to no folder. A bump would make every
- *      install parse every side's files again, and would still not reach such an entry where one could be: every
- *      released install keeps a version-19 JSON file, which its first launch with the store imports whatever this
- *      number is.
+ *      install parse every side's files again, and would still not reach such an entry where one could be: an entry
+ *      from a released install reaches the store only through a version-19 JSON file, which its first launch with the
+ *      store imports whatever this number is.
  *
  * Each of the two exempts its own change; the rule above stands for every other.
  *

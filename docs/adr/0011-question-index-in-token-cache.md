@@ -26,14 +26,15 @@ Token statistics already keep a per-file incremental cache keyed by each file's 
 We adopt **option 1**. The index is stored in each file's per-file aggregate, alongside the metering data, and
 contains no question text (session-view D2a: only offsets and a 4-byte fingerprint). A change to the index's shape
 or to how it is computed is a change to the per-file aggregate, so it bumps the cache structure version
-(token-stats, Implementation Decisions, Cache version bumps).
+(token-stats, Implementation Decisions, Cache version bumps and Codex usage sources).
 
 ## Consequences
 
 - Positive: two readings from one scan pass, with a single point of signature invalidation; the session page's
   single-file rebuild reuses the same cache entry directly.
 - Negative: the display and metering cache lifecycles are welded together: a purely display-side change bumps the
-  cache structure version and parses every session file again.
+  cache structure version, so every session file is parsed again wherever a store of the old version is open
+  (token-stats C1).
 - Negative: the two readings' fields share one structure, so reading the code requires keeping in mind that
   "metering deduplicates, display strips" and that neither one's conclusions transfer to the other.
 - Negative: a change to how a stored field is computed has nothing automated to notice a missed version bump.

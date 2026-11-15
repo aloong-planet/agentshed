@@ -5,8 +5,8 @@
 ## Context
 
 The engine module (ADR-0045) can be missing, damaged, built for another architecture, or another build than the
-application's code was made with. Every token figure, question index and question text the app shows comes from
-it.
+application's code was made with. Every token figure a scan makes, and every question index and question text the
+app shows, comes from it.
 
 ## Options
 
