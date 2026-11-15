@@ -15,8 +15,15 @@
 //   pair — not counted, the last result kept, read again — is driven below through a copy that cannot be made.
 // - A conversation deleted between the walk's look at its signature and its read: no seam between the two. The rule it
 //   shares with the usage read (a database gone is no format change) is driven below through the usage read's window.
-// - A read killed half-way leaving its copy behind: killing the process is outside this seam. What the copy is left
-//   in — a directory only the user can read — is asserted while a read runs.
+// - A read killed half-way leaving its copy behind: killing the process is outside this seam. What the walk's copy is
+//   left in — a directory only the user can read — is asserted while a read runs. The engine module's copy, for the
+//   usage and the titles, is made the same way (`engine/src/sides/antigravity/db.rs`), but no case can look at it while
+//   it exists: the module's read is one call that takes no pause; a seam that kept the copy would close this.
+// - The records read one at a time (token-stats failure modes, on prompts): a read holding every record of a
+//   conversation at once gives the same entry and differs only in what it holds in memory, which no case measures.
+// - A panic inside the module's read of a conversation whose log went away during that read: the module judges a
+//   panic by the log as it stands when the panic is caught. The panic seam panics before the read begins, so the cases
+//   below drive the judgement on the log's state then, which is the state before the read.
 // - Usage agy never writes to a database (the /btw side question, the Auto mode's command reviewer): there is nothing
 //   to read, so nothing to drive; the under-count is stated in the token-stats spec.
 // - A conversation whose format and trajectory record read but one of whose usage records will not decode: the usage
@@ -38,6 +45,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   realpathSync,
   renameSync,
@@ -46,6 +54,7 @@ import {
   utimesSync,
   writeFileSync
 } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -53,9 +62,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ERR, decodeAppError } from '@shared/errors'
 import { mergeKey } from '@shared/path-key'
 import { scan, walkSessions } from './scan'
-import { readAntigravitySessions, readConversationDb } from './antigravity'
-import { TokenEngine, runParseJob, type ParseRunner, type TokenBuildResult } from './token-stats'
-import { TEST_ENGINE } from '../testing/engine'
+import { agyTranscriptPath, readAntigravitySessions, readConversationDb } from './antigravity'
+import { TokenEngine, runParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
+import { loadEngineModule } from '../engine-module'
+import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
 import { onStore, storeFileBytes } from '../testing/token-store'
 import { UsageArchive } from './archive'
 import type { ScanRoots } from './types'
@@ -135,6 +145,17 @@ function listing(d: string): string[] {
     .map((n) => {
       const s = statSync(join(d, n))
       return `${n} ${s.size} ${s.mtimeMs}`
+    })
+}
+/** Every entry in a directory with its modification time and, for a file, the digest of its bytes: the CON-002
+ * comparison of the engine module's reads */
+function contents(d: string): string[] {
+  return readdirSync(d)
+    .sort()
+    .map((n) => {
+      const s = statSync(join(d, n), { bigint: true })
+      const bytes = s.isFile() ? createHash('sha256').update(readFileSync(join(d, n))).digest('hex') : 'dir'
+      return `${n} ${bytes} ${s.mtimeNs}`
     })
 }
 
@@ -367,12 +388,17 @@ describe("reading agy's files writes nothing there (token-stats::CON-002)", () =
   it('a database with no log is read in place: the directory keeps the same files, sizes and times', async () => {
     const p = mkProject('p')
     trust([p])
-    conversation('quiet', [p], 1_793_000_000)
+    const file = conversation('quiet', [p], 1_793_000_000)
     const before = listing(conversations())
     expect(before).toHaveLength(1) // the database alone: its writer closed, so the log was merged and removed
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.projects[0].sessionCount).toBe(1)
     expect(listing(conversations())).toEqual(before)
+    // Its time moved, so the walk reads it again; with no directory to copy into, only a read in place reads it
+    utimesSync(file, 1_793_000_100, 1_793_000_100)
+    const moved = listing(conversations())
+    expect(readAntigravitySessions(agyRoot(), join(dir, 'no-such-dir')).map((s) => s.cwd)).toEqual([p])
+    expect(listing(conversations())).toEqual(moved)
   })
 
   it('a database agy is writing is read through a copy: nothing changes there, and the rows only its log holds are seen', async () => {
@@ -749,6 +775,316 @@ describe('usage: each model call once (token-stats::REQ-003)', () => {
 
 })
 
+// ── The engine module's reading of one conversation (ADR-0045) ──
+//
+// Each conversation below is parsed as a scan parses it, through runParseJob, which hands an Antigravity job to the
+// engine module. Until the TypeScript reader was removed (#430), every entry these cases read was also held, field for
+// field, to the one the TypeScript reader gave for the same files (`entryOf`), and the values they expect are the ones
+// both gave.
+
+type AgyAgg = Extract<NonNullable<ParseResult>['agg'], { kind: 'antigravity' }>
+
+/** A conversation's entry, as a scan's parse gives it; null for a read that failed while agy was writing it */
+async function entryOf(file: string): Promise<AgyAgg | null> {
+  const parsed = await runParseJob({ kind: 'antigravity', file, transcript: agyTranscriptPath(file) })
+  if (parsed === null) return null
+  const { agg } = parsed
+  if (agg.kind !== 'antigravity') throw new Error('not an Antigravity entry')
+  return agg
+}
+
+describe('the usage records as agy wrote them, read by the engine module (token-stats::REQ-003, REQ-004/AC-01)', () => {
+  // The measured API-key call Aa3haqKe… of 06d3cae9 and signed-in call bLzhasLy… of fc99511b: their figures as the research
+  // record's descriptor-based decoder read them, reconciled against agy's own per-call output
+  const MEASURED = {
+    apiKey: {
+      record: 'mainApiKey',
+      step: 'stepApiKey',
+      gen: 'genApiKey',
+      call: ['Aa3haqKeCoDNrfcPq8SHyAg', 1_793_174_787_218, 6813, 109, 0, 0, 'gemini-3.6-flash'],
+      created: 1_793_174_782_173,
+      completed: 1_793_174_787_218,
+      usage: { input: 6813, output: 109, thinking: 76, response: 33, messageId: 'Aa3haqKeCoDNrfcPq8SHyAg' },
+      model: 'gemini-3.6-flash'
+    },
+    signedIn: {
+      record: 'mainSignedIn',
+      step: 'stepSignedIn',
+      gen: 'genSignedIn',
+      // Identified by its response id, not its bot- message id; its model keeps its suffix
+      call: ['bLzhasLyEa_Z1e8P8sCAuAY', 1_793_178_732_621, 6745, 96, 0, 0, 'gemini-3.8-flash-n'],
+      created: 1_793_178_728_665,
+      completed: 1_793_178_732_621,
+      usage: { model: 1318, input: 6745, output: 96, thinking: 63, response: 33, messageId: 'bot-4054365f-3ec6-484e-aeea-d480532d9801', responseId: 'bLzhasLyEa_Z1e8P8sCAuAY' },
+      model: 'gemini-3.8-flash-n'
+    }
+  } as const
+
+  /** A conversation holding the measured call's step and generator record, as agy wrote them */
+  function measuredConversation(which: keyof typeof MEASURED, name: string, rows?: { step: Uint8Array; gen: Uint8Array }): string {
+    const m = MEASURED[which]
+    mkdirSync(conversations(), { recursive: true })
+    return writeConversation(conversations(), name, measured(m.record), {
+      steps: [{ idx: 1, metadata: rows?.step ?? measuredUsage(m.step) }],
+      gens: [{ idx: 0, data: rows?.gen ?? measuredUsage(m.gen) }]
+    }).file
+  }
+
+  it.each(['apiKey', 'signedIn'] as const)('the measured %s call is its identity, its step\'s completion, its figures and its model, once (AC-01, AC-03 to AC-05)', async (which) => {
+    const m = MEASURED[which]
+    const e = await entryOf(measuredConversation(which, MEASURED_USAGE_CONVERSATION[which]))
+    expect(e).toMatchObject({ unreadable: false, calls: [m.call], at: m.completed, projectKey: mergeKey(MEASURED_FOLDER), subagent: false, forkOf: null })
+    expect(e?.conversationId).toBe(MEASURED_USAGE_CONVERSATION[which])
+  })
+
+  it.each(['apiKey', 'signedIn'] as const)('the fixture encoders write what the module reads off the measured %s records', async (which) => {
+    const m = MEASURED[which]
+    const id = MEASURED_USAGE_CONVERSATION[which]
+    const real = await entryOf(measuredConversation(which, id))
+    rmSync(conversations(), { recursive: true })
+    const encoded = await entryOf(
+      measuredConversation(which, id, {
+        step: encodeStepMetadata({ conversationId: id, stepIndex: 1, createdAt: m.created, completedAt: m.completed, usage: m.usage }),
+        gen: encodeGeneratorMetadata({ stepIndices: [1, 2], usage: m.usage, responseModel: m.model, conversationId: id })
+      })
+    )
+    expect(encoded).toEqual(real)
+  })
+
+  it.each([
+    // Inside the usage (field 9 starts at offset 54 of the API-key step, its 37-byte body at 56)
+    ['a step cut inside its usage', measuredUsage('stepApiKey').subarray(0, 80)],
+    // model_usage (9) written as a varint where the descriptor declares a message
+    ['a usage arriving as a varint', Uint8Array.from([0x48, 0x05])],
+    // input_tokens (2) inside model_usage arriving length-delimited, and fixed-width (fixed32), where the descriptor
+    // declares a varint — read as absent, the call would quietly lose its tokens
+    ['an input count arriving length-delimited', Uint8Array.from([0x4a, 0x03, 0x12, 0x01, 0x05])],
+    ['an input count arriving fixed-width', Uint8Array.from([0x4a, 0x05, 0x15, 0x01, 0x00, 0x00, 0x00])]
+  ])('%s does not decode, and the conversation is unreadable', async (_shape, metadata) => {
+    const id = MEASURED_USAGE_CONVERSATION.apiKey
+    mkdirSync(conversations(), { recursive: true })
+    const { file } = writeConversation(conversations(), id, measured('mainApiKey'), {
+      steps: [{ idx: 1, metadata }],
+      gens: [{ idx: 0, data: measuredUsage('genApiKey') }]
+    })
+    expect(await entryOf(file)).toMatchObject({ unreadable: true, calls: [] })
+  })
+
+  it.each([false, true])('step indices read %s join a generator record to its step, whose time its call takes (unpacked: %s)', async (unpacked) => {
+    // A step that records no call of its own, and the generator record naming it: the call is the record's, dated by the
+    // step it names — a record naming no step it can find would be undated
+    const at = oct(26, 9)
+    const file = usageConversation('conv-idx', [mkProject('p')], [], {
+      steps: [{ idx: 7, metadata: encodeStepMetadata({ conversationId: 'conv-idx', stepIndex: 7, createdAt: at - 5_000, completedAt: at }) }],
+      gens: [{ idx: 0, data: encodeGeneratorMetadata({ stepIndices: [7], unpacked, usage: { messageId: 'm-idx', input: 10, output: 1 }, responseModel: 'gemini-3.6-flash', conversationId: 'conv-idx' }) }]
+    })
+    expect((await entryOf(file))?.calls).toEqual([['m-idx', at, 10, 1, 0, 0, 'gemini-3.6-flash']])
+  })
+
+  it('a record\'s text is read as TextDecoder reads it, a leading byte order mark dropped', async () => {
+    // Derived: no measured string carries one
+    const file = usageConversation('conv-bom', [mkProject('p')], [{ usage: { messageId: `${String.fromCharCode(0xfeff)}m-bom`, input: 10 }, at: oct(26), model: `${String.fromCharCode(0xfeff)}gemini-3.6-flash` }])
+    expect((await entryOf(file))?.calls).toEqual([['m-bom', oct(26), 10, 0, 0, 0, 'gemini-3.6-flash']])
+  })
+
+  it('a step index beyond 2^53 − 1 makes the conversation unreadable: no number reads it exactly', async () => {
+    const file = usageConversation('conv-big', [mkProject('p')], [{ usage: { messageId: 'm-big', input: 10 }, at: oct(26) }])
+    const db = new DatabaseSync(file)
+    db.exec('UPDATE steps SET idx = 9007199254740992')
+    db.close()
+    expect(await entryOf(file)).toMatchObject({ unreadable: true })
+  })
+
+  it('a generator record\'s prompt is passed over by its length prefix and never decoded, however large (the failure mode on prompts)', async () => {
+    // A million bytes that will not decode as a message: each 0x0f is field 1 in wire type 7, which protobuf has not
+    const undecodable = new Uint8Array(1_000_000).fill(0x0f)
+    const p = mkProject('p')
+    const prompted = usageConversation('conv-prompt', [p], [], {
+      gens: [{ idx: 0, data: encodeGeneratorMetadata({ prompt: undecodable, usage: { messageId: 'm-large', input: 10, output: 2 }, responseModel: 'gemini-3.6-flash', conversationId: 'conv-prompt' }) }]
+    })
+    expect(await entryOf(prompted)).toMatchObject({ unreadable: false, calls: [['m-large', null, 10, 2, 0, 0, 'gemini-3.6-flash']] })
+    // The control: the same bytes where a record is decoded make the conversation unreadable
+    const decoded = usageConversation('conv-decoded', [p], [], { steps: [{ idx: 1, metadata: undecodable }] })
+    expect(await entryOf(decoded)).toMatchObject({ unreadable: true })
+  })
+})
+
+describe('the trajectory record, read by the engine module (token-stats::REQ-003/AC-07, AC-08)', () => {
+  /** A conversation with one call and one question, its trajectory record as given */
+  function asked(id: string, record: Uint8Array): string {
+    const file = usageConversation(id, [], [{ usage: { messageId: `m-${id}`, input: 10, output: 1 }, at: oct(26) }], { record })
+    writeTranscript(agyRoot(), id, [MEASURED_TRANSCRIPT.main[0]])
+    return file
+  }
+
+  it.each([
+    ['a parent conversation', { parentConversationId: 'p-1' }, true],
+    ['a nesting depth', { nestingDepth: 1 }, true],
+    ['a subagent spec', { subagentSpec: true }, true],
+    ['a nesting depth of zero', { nestingDepth: 0 }, false],
+    ['no marker', {}, false]
+  ])('a record carrying %s: a subagent %s, with no row, its usage still counted', async (_marker, extra, subagent) => {
+    const e = await entryOf(asked('conv-m', encodeTrajectoryMetadata({ folders: ['/work/p'], conversationId: 'conv-m', ...extra })))
+    expect([e?.subagent, e?.listed, e?.calls.length]).toEqual([subagent, !subagent, 1])
+  })
+
+  it('the measured subagent record is a subagent', async () => {
+    expect((await entryOf(asked('conv-sub', measured('subagent'))))?.subagent).toBe(true)
+  })
+
+  it.each([
+    ['two folders: the first', { folders: ['/work/First', '/work/second'] }, '/work/first'],
+    ['folders in the workspaces alone: the first', { folders: ['/work/only-ws', '/work/later'], omitWorkspaceUris: true }, '/work/only-ws'],
+    // Derived: every measured record names the same folders in both fields
+    ['workspace URIs and workspaces naming other folders: the workspace URIs\' first', { folders: [], rawUris: ['file:///work/from-uris'], workspaceFolderUris: ['file:///work/from-ws'] }, '/work/from-uris'],
+    ['a percent-encoded URI: its path', { folders: [], rawUris: ['file:///Users/x/My%20Project'] }, '/users/x/my project'],
+    ['a trailing slash: left off', { folders: [], rawUris: ['file:///work/p/'] }, '/work/p'],
+    // JavaScript's own lowercasing, its final sigma included
+    ['letters beyond ASCII: lowercased as JavaScript lowercases them', { folders: [], rawUris: ['file:///work/%CE%A3%CE%91%CE%A3'] }, `/work/${String.fromCharCode(0x3c3, 0x3b1, 0x3c2)}`],
+    ['a remote URI: no project', { folders: [], rawUris: ['vscode-remote://ssh-remote+host/home/x', 'file:///work/p'] }, ''],
+    ['a file URI naming a host: no project', { folders: [], rawUris: ['file://host/work/p'] }, ''],
+    ['text that is no URI: no project', { folders: [], rawUris: ['not a uri'] }, ''],
+    ['no folder: no project', { folders: [] }, '']
+  ])('the project key of a record listing %s', async (_shape, fixture, key) => {
+    const file = usageConversation('conv-f', [], [{ usage: { messageId: 'm-f', input: 10 }, at: oct(26) }], {
+      record: encodeTrajectoryMetadata({ conversationId: 'conv-f', ...fixture })
+    })
+    expect((await entryOf(file))?.projectKey).toBe(key)
+  })
+})
+
+// token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
+// U+FFFD, and read by the grammar of ECMAScript's JSON.parse, with its results". One transcript per clause, plus the two
+// rules agy's lines add: a time outside the form agy writes goes to JavaScript's own Date.parse, and a last line without
+// its line feed is read, as agy's writer is not known to end every line with one.
+describe('how a transcript line is read by the engine module', () => {
+  const REPLACEMENT = String.fromCharCode(0xfffd)
+  const ID = 'conv-lines'
+  /** A user-input line in agy's shape, its request as given */
+  const asking = (step: number, request: string, extra: Record<string, unknown> = {}): string =>
+    JSON.stringify({ step_index: step, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:06:22Z', content: `<USER_REQUEST>\n${request}\n</USER_REQUEST>`, ...extra })
+  const answering = (step: number): string =>
+    JSON.stringify({ step_index: step, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:06:25Z', content: 'answer' })
+
+  /** The entry of a conversation whose transcript is these bytes */
+  async function transcriptEntry(bytes: Buffer): Promise<AgyAgg | null> {
+    const file = usageConversation(ID, [mkProject('p')], [])
+    const transcript = transcriptFile(agyRoot(), ID)
+    mkdirSync(dirname(transcript), { recursive: true })
+    writeFileSync(transcript, bytes)
+    return entryOf(file)
+  }
+  const lines = (...ls: Array<string | Buffer>): Buffer => Buffer.concat(ls.flatMap((l) => [Buffer.isBuffer(l) ? l : Buffer.from(l), Buffer.from('\n')]))
+
+  it('a line is decoded as UTF-8, an invalid sequence becoming U+FFFD', async () => {
+    const [before, after] = asking(0, 'ab@cd').split('@')
+    const e = await transcriptEntry(lines(Buffer.concat([Buffer.from(before), Buffer.from([0xff]), Buffer.from(after)])))
+    expect(e?.title).toBe(`ab${REPLACEMENT}cd`)
+    expect(e?.questions).toHaveLength(1)
+  })
+
+  it('a line JSON.parse refuses is skipped, its bytes still counted; lines it takes are read however they are written', async () => {
+    const refused = [
+      '{"step_index": 1, "type": "USER_INPUT", "content": "<USER_REQUEST>trailing comma</USER_REQUEST>",}',
+      "{'step_index': 1, 'type': 'USER_INPUT'}",
+      '{step_index: 1}',
+      '{"step_index": NaN}',
+      '{"step_index": 01}',
+      '{"content": "a\u0001b"}',
+      '{"content": "\\x41"}',
+      `${String.fromCharCode(0xfeff)}${asking(1, 'behind a byte order mark')}`,
+      `${asking(1, 'with something after')} x`,
+      '{"step_index": 1'
+    ]
+    const taken = [
+      ` \t ${asking(2, 'between spaces')} \r`,
+      // A unicode escape where the line writes a letter
+      asking(3, 'escaped').replace('escaped', '\\u0065scaped'),
+      `{"deep": ${'['.repeat(5000)}${']'.repeat(5000)}, ${asking(4, 'after a deep value').slice(1)}`
+    ]
+    // After the last question: an array, which is an object to `typeof`, is a line that parsed, so the last turn runs
+    // past it; a string or a number is no line the index is given, so it runs no further
+    const after = ['[1, 2, 3]', '"a string"', '42']
+    const text = lines(asking(0, 'first'), ...refused, ...taken, asking(5, 'last'), ...after)
+    const e = await transcriptEntry(text)
+    expect(e?.questions.map((q) => q[0])).toEqual(
+      [asking(0, 'first'), taken[0], taken[1], taken[2], asking(5, 'last')].map((l) => text.indexOf(Buffer.from(l)))
+    )
+    expect(e?.questions.at(-1)?.[2]).toBe(text.indexOf(Buffer.from(after[1])))
+    expect(e?.title).toBe('first')
+  })
+
+  it('of a repeated key, the last value counts', async () => {
+    // The type and the content each written twice, the question in the last of both
+    const twice = `{"type": "PLANNER_RESPONSE", "content": "<USER_REQUEST>not this</USER_REQUEST>", ${asking(0, 'this one').slice(1)}`
+    const e = await transcriptEntry(lines(twice))
+    expect([e?.title, e?.questions.length]).toEqual(['this one', 1])
+  })
+
+  it('a step index beyond the double range is infinite, and so no step: neither a redo nor undone', async () => {
+    // Read as a step, or the line refused, the second question would be undone or lost with the first
+    const huge = asking(0, 'huge').replace('"step_index":0', '"step_index":1e400')
+    const e = await transcriptEntry(lines(asking(5, 'undone'), huge, answering(4)))
+    expect(e?.title).toBe('huge')
+    expect(e?.questions).toHaveLength(1)
+  })
+
+  it('a lone surrogate escape stays that code unit', async () => {
+    const e = await transcriptEntry(lines(asking(0, 'a@b').replace('@', '\\ud800')))
+    expect(e?.title).toBe(`a${String.fromCharCode(0xd800)}b`)
+  })
+
+  it('a time outside the form agy writes is read by JavaScript\'s own Date.parse', async () => {
+    const e = await transcriptEntry(lines(asking(0, 'offset', { created_at: '2026-10-28T16:06:22+08:00' }), asking(1, 'none', { created_at: 'not a time' })))
+    expect(e?.questions.map((q) => q[3])).toEqual([Date.parse('2026-10-28T08:06:22Z'), null])
+  })
+
+  it('a last line without its line feed is read, and its turn runs to the end of the file', async () => {
+    const text = Buffer.concat([lines(asking(0, 'first')), Buffer.from(asking(1, 'unterminated'))])
+    const e = await transcriptEntry(text)
+    expect(e?.questions.map((q) => [q[0], q[2]])).toEqual([
+      [0, Buffer.byteLength(`${asking(0, 'first')}\n`)],
+      [Buffer.byteLength(`${asking(0, 'first')}\n`), text.length]
+    ])
+  })
+})
+
+// token-stats, Scans and the window, failure modes: "One raised while a file is parsed is that file's failed read,
+// under the rule its side has for a read that fails".
+describe('a panic in the engine module while an Antigravity conversation is parsed', () => {
+  const seam = (): PanicSeam => loadEngineModule(TEST_ENGINE) as PanicSeam
+  afterEach(() => {
+    seam().seamPanicWhileParsing(null)
+  })
+
+  it('with no log beside it: counted unreadable (token-stats::REQ-004/AC-01), and the scan delivers the other conversations', async () => {
+    const p = mkProject('p')
+    trust([p])
+    const named = usageConversation('conv-panic', [p], [{ usage: { messageId: 'm-panic', input: 100, output: 10 }, at: oct(26) }])
+    usageConversation('conv-other', [p], [{ usage: { messageId: 'm-other', input: 200, output: 20 }, at: oct(26) }])
+    seam().seamPanicWhileParsing(named)
+    const r = await build()
+    expect([agyTotal(r), r.antigravityUnreadable]).toEqual([220, 1])
+  })
+
+  it('with a log beside it: not counted, its last result kept (token-stats::REQ-004/AC-03), and read again once the panic is gone', async () => {
+    const p = mkProject('p')
+    trust([p])
+    const named = usageConversation('conv-panic', [p], [{ usage: { messageId: 'm-p1', input: 100, output: 10 }, at: oct(26) }], { keepOpen: true })
+    usageConversation('conv-other', [p], [{ usage: { messageId: 'm-other', input: 200, output: 20 }, at: oct(26) }])
+    expect(agyTotal(await build())).toBe(330)
+    // agy writes on, so the next scan reads the conversation again
+    const more = callRows('conv-panic', [{ usage: { messageId: 'm-p2', input: 300, output: 30 }, at: oct(26) }], 3, 1)
+    insertSteps(writers[0], more.steps)
+    insertGens(writers[0], more.gens)
+    seam().seamPanicWhileParsing(named)
+    const panicked = await build()
+    expect([agyTotal(panicked), panicked.antigravityUnreadable]).toEqual([330, 0])
+    seam().seamPanicWhileParsing(null)
+    expect(agyTotal(await build())).toBe(330 + 330)
+  })
+})
+
 describe('conversations that cannot be read (token-stats::REQ-004)', () => {
   it('each unreadable shape is left out of every figure and counted; the others still count (AC-01, CON-001)', async () => {
     const p = mkProject('p')
@@ -925,15 +1261,23 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
 })
 
 describe('reading usage writes nothing, and reads a conversation again only when it changed', () => {
-  it('a closed conversation and one agy is writing: the directory is unchanged, and the calls only the log holds count (token-stats::CON-002)', async () => {
+  it('a closed conversation read in place and one agy is writing read through a copy: every file there keeps its bytes and time, the calls only the log holds count, and no copy is left (token-stats::CON-002)', async () => {
     const p = mkProject('p')
     trust([p])
     usageConversation('quiet', [p], [{ usage: { messageId: 'm-q', input: 100, output: 10 }, at: oct(26) }])
     usageConversation('busy', [p], [{ usage: { messageId: 'm-b', input: 200, output: 20 }, at: oct(26) }], { keepOpen: true })
-    const before = listing(conversations())
+    const before = contents(conversations())
     expect(before.map((l) => l.split(' ')[0])).toEqual(['busy.db', 'busy.db-shm', 'busy.db-wal', 'quiet.db'])
-    expect(agyTotal(await build())).toBe(330)
-    expect(listing(conversations())).toEqual(before)
+    const copiesUnder = (parent: string): ParseRunner => ({ run: (job) => runParseJob(job.kind === 'antigravity' ? { ...job, tmpParent: parent } : job), concurrency: 1 })
+    // With no directory to copy into, only a read in place reads: the closed conversation is read, the one agy is writing
+    // is not
+    expect(agyTotal(await build(copiesUnder(join(dir, 'no-such-dir'))))).toBe(110)
+    expect(contents(conversations())).toEqual(before)
+    const tmp = join(dir, 'tmp')
+    mkdirSync(tmp)
+    expect(agyTotal(await build(copiesUnder(tmp)))).toBe(330)
+    expect(contents(conversations())).toEqual(before)
+    expect(readdirSync(tmp)).toEqual([])
   })
 
   it('a conversation whose log changed while its database\'s size and time did not is read again', async () => {
@@ -1244,22 +1588,26 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     expect((await engine().sessionQuestions(roots(), main)).title).toBe(want)
   })
 
-  it('reading the summaries writes nothing there, and reads the titles only a log holds (token-stats::CON-002)', async () => {
+  it('reading the summaries writes nothing there, in place or through a copy, reads the titles only a log holds, and leaves no copy (token-stats::CON-002)', async () => {
     const { p } = dispatchHome()
-    const before = listing(agyRoot())
-    await build()
-    expect(listing(agyRoot())).toEqual(before)
+    const tmp = join(dir, 'tmp')
+    mkdirSync(tmp)
+    const rebuild = (): Promise<TokenBuildResult> => new TokenEngine(cacheDir(), TEST_ENGINE, undefined, tmp).build(roots(), [], undefined, walkSessions(roots()))
+    const before = contents(agyRoot())
+    await rebuild()
+    expect(contents(agyRoot())).toEqual(before)
     // agy holds the summaries open and retitles the conversation: the new title is only in the log
     rmSync(join(agyRoot(), 'conversation_summaries.db'))
     const { writer } = writeSummaries(agyRoot(), [], { keepOpen: true })
     if (!writer) throw new Error('no writer')
     writers.push(writer)
     insertSummaries(writer, [{ id: ID.dispatch, title: 'Retitled While Running' }])
-    const during = listing(agyRoot())
+    const during = contents(agyRoot())
     expect(during.map((l) => l.split(' ')[0])).toContain('conversation_summaries.db-wal')
-    const r = await build()
+    const r = await rebuild()
     expect(sessionsOf(r, p).map((s) => s.title)).toEqual(['Retitled While Running'])
-    expect(listing(agyRoot())).toEqual(during)
+    expect(contents(agyRoot())).toEqual(during)
+    expect(readdirSync(tmp)).toEqual([])
   })
 
   it('a summaries read that fails while agy writes them keeps the titles last read (REQ-003/AC-03)', async () => {

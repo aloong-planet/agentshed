@@ -7,8 +7,7 @@
 // Gap (#158): a file growing *while* it is being parsed is not driven here — that the cache signature
 // is taken before the parse, so the growth shows as a change on the next scan, needs a writer racing
 // the reader, which no test here controls. A read hook would let a test append mid-read: a seam in the engine
-// module's reader (engine/src/read/) for Claude Code and Codex files and Grok's streams, or in eachJsonlLine for
-// Antigravity's transcripts.
+// module's reader (engine/src/read/), which reads every side's session files.
 //
 // Gap (#278): the session questions' re-title failing on the session's own line — they then keep the title
 // it was parsed with — has no case of its own. It could have one: the cache signature is mtime and size, so a

@@ -20,8 +20,8 @@ napi = { version = "3.16.2", features = ["napi6"] }
 napi-derive = "3.7.1"
 # Line splitting over each read chunk
 memchr = "2.8.3"
-# The token store (ADR-0044): SQLite compiled into the module, so every build reads one SQLite whatever the system has;
-# `cache` keeps the store's prepared statements
+# The token store (ADR-0044) and Antigravity CLI's conversation databases (token-stats::CON-002): SQLite compiled into
+# the module, so every build reads one SQLite whatever the system has; `cache` keeps prepared statements
 rusqlite = { version = "0.42.0", default-features = false, features = ["bundled", "cache"] }
 # JavaScript's String(number), for the running-total key a Codex usage event is compared by
 ryu-js = "1.0.3"

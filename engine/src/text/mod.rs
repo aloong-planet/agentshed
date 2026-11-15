@@ -1,5 +1,5 @@
 //! Text as JavaScript holds it, and the rules over it that more than one side shares: the normalisation, the noise
-//! stripping, the title clipping, the fingerprints, `String(number)` and `Date.parse`.
+//! stripping, the title clipping, the fingerprints, a folder's merge key, `String(number)` and `Date.parse`.
 //!
 //! Text is a sequence of UTF-16 code units, as a JavaScript string is: a line's string can hold a lone surrogate (an
 //! escape `JSON.parse` keeps as that code unit), and every rule here counts and compares what JavaScript counts and
@@ -38,7 +38,8 @@ pub(crate) fn normalize(raw: &[u16]) -> Units {
     out
 }
 
-fn trim(s: &[u16]) -> &[u16] {
+/// `String.prototype.trim`
+pub(crate) fn trim(s: &[u16]) -> &[u16] {
     let start = s.iter().position(|&u| !is_space(u)).unwrap_or(s.len());
     let end = s.iter().rposition(|&u| !is_space(u)).map_or(start, |i| i + 1);
     &s[start..end]
@@ -56,7 +57,7 @@ pub(crate) fn starts_with(s: &[u16], prefix: &str) -> bool {
 }
 
 /// The first index at or after `from` where `needle` occurs
-fn find(s: &[u16], needle: &[u16], from: usize) -> Option<usize> {
+pub(crate) fn find(s: &[u16], needle: &[u16], from: usize) -> Option<usize> {
     if needle.is_empty() || s.len() < needle.len() {
         return None;
     }
@@ -104,6 +105,18 @@ pub(crate) fn real_user_text(raw: &[u16]) -> Option<Units> {
         }
     }
     Some(t)
+}
+
+/// A folder's merge key, the key projects are merged by: its trailing slashes removed (`/` when nothing is left), then
+/// lowercased by `lower`, JavaScript's own `String.prototype.toLowerCase` (the macOS file system is case-insensitive),
+/// whose answer this answers. `mergeKey` in `src/shared/path-key.ts` is the same rule, for the keys made in TypeScript: a
+/// change here is made there too.
+pub(crate) fn merge_key<R>(path: &[u16], lower: impl FnOnce(&[u16]) -> R) -> R {
+    let end = path.iter().rposition(|&u| u != u16::from(b'/')).map_or(0, |i| i + 1);
+    if end == 0 {
+        return lower(&units("/"));
+    }
+    lower(&path[..end])
 }
 
 /// The title cap, in code points as a string's iterator counts them: a surrogate pair is one, a lone surrogate is one

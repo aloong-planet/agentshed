@@ -40,6 +40,13 @@ export interface EngineModule {
    */
   parse(job: ParseJob): ParseResult
   /**
+   * The titles agy keeps for its conversations apart from their files (session-view::REQ-003/AC-03), read from its data
+   * root `home` without writing there (token-stats::CON-002): `[conversation id, title]` pairs in its table's order, or
+   * null when the read failed while agy was writing them. A copy a read needs is made under `tmpParent`, the system
+   * temporary directory when it is absent.
+   */
+  sessionTitles(kind: 'antigravity', home: string, tmpParent?: string): Array<[string, string]> | null
+  /**
    * Writes `copy` to `file` as the text `JSON.stringify(copy)` gives, by an atomic replacement (engine/src/display/).
    * The value is read during the call, as it stands then, and the call throws when it holds what JSON cannot (a BigInt, a
    * cycle); the promise settles once the file is replaced, and rejects with why it was not.

@@ -2,9 +2,9 @@ import { describe, expect, test } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { eachJsonlLine } from './jsonl'
-import { makeAntigravityQuestionIndexer, questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
+import { questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
+import { withIndexedTranscript } from '../testing/agy-transcript-index'
 import { clipTitle } from './session-title'
 import { runParseJob, type ParseResult } from './token-stats'
 
@@ -824,24 +824,14 @@ describe('Antigravity CLI questions and turns (session-view::REQ-004)', () => {
   const answer = (step: number, content: string): string =>
     JSON.stringify({ step_index: step, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:06:25Z', input_tokens: 1, cache_read_tokens: 0, output_tokens: 1, content })
 
-  async function indexText(text: string): Promise<{ recs: QuestionRec[]; title: string | null; texts: string[] }> {
-    const dir = mkdtempSync(join(tmpdir(), 'qidx-agy-'))
-    const file = join(dir, 'transcript_full.jsonl')
-    writeFileSync(file, text)
-    try {
-      const idx = makeAntigravityQuestionIndexer()
-      let fileEnd = 0
-      await eachJsonlLine(file, (o, start, end) => {
-        idx.line(o, start, end)
-        fileEnd = end
-      })
-      const recs = idx.done(fileEnd)
-      const buf = readFileSync(file)
-      const texts = recs.map((r) => questionTextOfRange('antigravity', buf.subarray(r[0], r[1]).toString('utf8')) ?? '<unreadable>')
-      return { recs, title: idx.firstQuestionText(), texts }
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
+  /** The transcript indexed by the engine module, as a scan indexes it, and each question's text read by its range as
+   * the session page reads it */
+  function indexText(text: string): Promise<{ recs: QuestionRec[]; title: string | null; texts: string[] }> {
+    return withIndexedTranscript(text, ({ questions, title, transcript }) => {
+      const buf = readFileSync(transcript)
+      const texts = questions.map((r) => questionTextOfRange('antigravity', buf.subarray(r[0], r[1]).toString('utf8')) ?? '<unreadable>')
+      return { recs: questions, title, texts }
+    })
   }
   /** Where a line starts in a transcript's text: read off the text, not computed by the indexer */
   const offsetOf = (text: string, line: string): number => Buffer.byteLength(text.slice(0, text.indexOf(line)))
@@ -886,7 +876,7 @@ describe('Antigravity CLI questions and turns (session-view::REQ-004)', () => {
     const { recs, texts, title } = await indexText(text)
     expect(recs.map((r) => [r[0], r[2]])).toEqual([[offsetOf(text, T.forkRewound[3]), Buffer.byteLength(text)]])
     expect(texts).toEqual(['In one short sentence, which function in calc.py is the simplest?'])
-    expect(title).toBe('In one short sentence, which function in calc.py is the simplest?')
+    expect(title).toBe('In one short sentence, which function in calc.py is the simp…')
   })
 
   test('a rewind back to a question ends the turn before it at the undone lines; one inside a turn counts only the redo (AC-03, AC-07)', async () => {
