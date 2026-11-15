@@ -1384,7 +1384,7 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
 
   // Only a database that is no longer there is deleted: behind a directory the scan lists but cannot enter, each is
   // there, and the walk, the planning and the read each find it so
-  it.skipIf(process.getuid?.() === 0)('a conversation the scan lists but cannot look at is one that will not open: counted, never its last result, and read again once it can be (AC-01)', async () => {
+  it.skipIf(process.getuid?.() === 0)('a conversation the scan lists but cannot look at is one that will not open: counted, never its last result, not read again while it stays so, and read again once it can be (AC-01, QR-002)', async () => {
     const p = mkProject('p')
     trust([p])
     usageConversation('one', [p], [{ usage: { messageId: 'm-1', input: 100, output: 10 }, at: oct(26) }])
@@ -1392,12 +1392,25 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     expect(agyTotal(await build())).toBe(220)
     chmodSync(conversations(), 0o444)
     let shut: TokenBuildResult
+    let still: TokenBuildResult
+    const jobs: string[] = []
     try {
       shut = await build()
+      still = await build({
+        run: (job) => {
+          jobs.push(basename(job.file))
+          return runParseJob(job)
+        },
+        concurrency: 1
+      })
     } finally {
       chmodSync(conversations(), 0o755)
     }
     expect([agyTotal(shut), shut.antigravityUnreadable, [...shut.sessionFiles]]).toEqual([0, 2, []])
+    // Nothing changed for the scan while the directory stays shut: the entries held are taken, none read again
+    // (token-stats::QR-002). A store-bytes check would not tell, as SQLite leaves a row rewritten with what it holds as
+    // it was.
+    expect([jobs, still.antigravityUnreadable, agyTotal(still)]).toEqual([[], 2, 0])
     const back = await build()
     expect([agyTotal(back), back.antigravityUnreadable]).toEqual([220, 0])
   })
@@ -1421,7 +1434,7 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     expect([existsSync(`${file}-wal`), again.antigravityUnreadable, agyTotal(again)]).toEqual([false, 1, 110])
   })
 
-  it('a conversation in another format gives its folder no activity either (AC-01)', () => {
+  it('a conversation in another format, or whose trajectory record will not decode, gives its folder no activity either (AC-01; projects-list::REQ-001)', () => {
     const p = mkProject('p')
     const good = mkProject('good')
     trust([p, good])
@@ -1430,9 +1443,24 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
       alterSchema: (sql) => (sql.startsWith('CREATE TABLE `steps`') ? 'CREATE TABLE `steps` (`idx` integer,`step_type` integer,`status` integer,PRIMARY KEY (`idx`))' : sql)
     })
     usageConversation('no-gen-table', [p], [], { alterSchema: (sql) => (sql.startsWith('CREATE TABLE `gen_metadata`') ? null : sql) })
+    // The records the usage read finds will not decode, each naming p but for one read field in another wire type
+    for (const wrongWireType of ['workspaces', 'workspaceFolders', 'parentConversation', 'workspaceUris', 'subagentSpec', 'nestingDepth'] as const) {
+      usageConversation(`drifted-${wrongWireType}`, [p], [], { record: encodeTrajectoryMetadata({ folders: [p], conversationId: wrongWireType, wrongWireType }) })
+    }
     usageConversation('fine', [good], [])
     const byName: Record<string, string | null> = Object.fromEntries(agySessions().map((s) => [basename(s.file), s.cwd]))
-    expect(byName).toEqual({ 'version-2.db': null, 'no-metadata-column.db': null, 'no-gen-table.db': null, 'fine.db': good })
+    expect(byName).toEqual({
+      'version-2.db': null,
+      'no-metadata-column.db': null,
+      'no-gen-table.db': null,
+      'drifted-workspaces.db': null,
+      'drifted-workspaceFolders.db': null,
+      'drifted-parentConversation.db': null,
+      'drifted-workspaceUris.db': null,
+      'drifted-subagentSpec.db': null,
+      'drifted-nestingDepth.db': null,
+      'fine.db': good
+    })
   })
 
   it('a walk read that fails while a log is beside the database keeps the last folder, and reads it again next time (AC-03)', () => {

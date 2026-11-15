@@ -863,15 +863,16 @@ export class TokenEngine {
    * and size, never the database's size — still matches; read whole otherwise, as agy rewrites and truncates rows in
    * place. Its last readable entry stands by in case the read fails while agy writes (token-stats::REQ-004/AC-03).
    * One no longer there has no slot; one there whose database cannot be looked at is read, and that read finds a
-   * database that will not open (AC-01), its entry kept under UNLOOKED_SIGNATURE.
+   * database that will not open (AC-01), its entry kept under UNLOOKED_SIGNATURE while it stays so (QR-002).
    */
   private antigravityPlan(cached: CacheEntry | undefined, file: string, admit: Slot['admit']): Slot {
-    const sig = agySessionSignature(file)
-    if (sig === null && isAbsent(file)) return { file, entry: null, admit }
+    const looked = agySessionSignature(file)
+    if (looked === null && isAbsent(file)) return { file, entry: null, admit }
+    const sig = looked ?? UNLOOKED_SIGNATURE
     const usable = cached !== undefined && cached.agg.kind === 'antigravity'
     if (usable && cached.sig === sig) return { file, entry: cached, admit }
     const fallback = usable && cached.agg.kind === 'antigravity' && !cached.agg.unreadable ? cached : undefined
-    const st = { sig: sig ?? UNLOOKED_SIGNATURE, ino: 0, size: 0 }
+    const st = { sig, ino: 0, size: 0 }
     return { file, entry: null, admit, fallback, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st } }
   }
 
@@ -1718,7 +1719,8 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
 }
 
 /** The signature an Antigravity conversation's entry is kept under when its database could not be looked at: a real one
- * starts with the database's time, so none equals it, and the next scan reads the conversation again */
+ * starts with the database's time, so none equals it, and the first scan that can look at the database reads it
+ * again */
 const UNLOOKED_SIGNATURE = '-'
 
 function sigOf(file: string): string | null {
