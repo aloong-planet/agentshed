@@ -60,8 +60,9 @@ We adopt **option 1**.
   module is built from source for each target: darwin-arm64 for releases and development, linux-x64 for CI.
   No binary is committed, and its source lives in this repository.
 - **What it owns**:
-  - the session walk (each side's session list and every Codex rollout's first line), whose result goes to
-    the project scan, which stays in TypeScript;
+  - the session walk (the Codex, Grok and Antigravity CLI session lists and every Codex rollout's first line;
+    Claude Code's sessions are listed by the planning, which stays in TypeScript), whose result goes to the
+    project scan, which stays in TypeScript;
   - reading every session file, cold rollouts decompressed;
   - each side's per-line rules, the question index and the titles;
   - each file's entry, the store (ADR-0044), the grouping and the combination;
