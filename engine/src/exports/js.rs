@@ -1,6 +1,8 @@
-//! The conversions between JavaScript's values and the module's, for the exports and for each side's adapter, which
-//! alone knows its job's and its entry's shape. Text crosses as UTF-16 code units both ways, so a lone surrogate in a
-//! string comes back as it went in; a value the module only hands back crosses as the JavaScript value itself.
+//! The conversions between JavaScript's values and the module's, for the exports, for each side's adapter, which alone
+//! knows its job's and its entry's shape, and for the display copy's writer, which reads a whole value as
+//! `JSON.stringify` does (crate::display). Every value the module reads off JavaScript is read here, but for the
+//! arguments napi-rs converts at the call. Text crosses as UTF-16 code units both ways, so a lone surrogate in a string
+//! comes back as it went in; a value the module only hands back crosses as the JavaScript value itself.
 
 use std::ffi::CString;
 use std::ptr;
@@ -13,6 +15,21 @@ use crate::text::Units;
 
 fn check(status: sys::napi_status) -> Result<()> {
     if status == sys::Status::napi_ok { Ok(()) } else { Err(Error::from_status(Status::from(status))) }
+}
+
+/// A value's type, as Node-API tells them apart: `typeof`'s, with null its own and an array an object
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Kind {
+    Undefined,
+    Null,
+    Boolean,
+    Number,
+    String,
+    Symbol,
+    Object,
+    Function,
+    External,
+    BigInt,
 }
 
 /// The JavaScript side of one call into the module
@@ -29,6 +46,23 @@ impl Js {
         let mut t = 0;
         check(unsafe { sys::napi_typeof(self.env, v, &mut t) })?;
         Ok(t)
+    }
+
+    /// The value's type
+    pub(crate) fn kind(&self, v: napi_value) -> Result<Kind> {
+        Ok(match self.type_of(v)? {
+            sys::ValueType::napi_undefined => Kind::Undefined,
+            sys::ValueType::napi_null => Kind::Null,
+            sys::ValueType::napi_boolean => Kind::Boolean,
+            sys::ValueType::napi_number => Kind::Number,
+            sys::ValueType::napi_string => Kind::String,
+            sys::ValueType::napi_symbol => Kind::Symbol,
+            sys::ValueType::napi_object => Kind::Object,
+            sys::ValueType::napi_function => Kind::Function,
+            sys::ValueType::napi_external => Kind::External,
+            sys::ValueType::napi_bigint => Kind::BigInt,
+            other => return Err(Error::new(Status::InvalidArg, format!("a value of a type Node-API added after the module was written ({other})"))),
+        })
     }
 
     /// `object[key]`, for an object or a function; undefined for any other value, whose property a rule never reads
@@ -53,9 +87,7 @@ impl Js {
     pub(crate) fn truthy(&self, v: napi_value) -> Result<bool> {
         let mut b = ptr::null_mut();
         check(unsafe { sys::napi_coerce_to_bool(self.env, v, &mut b) })?;
-        let mut out = false;
-        check(unsafe { sys::napi_get_value_bool(self.env, b, &mut out) })?;
-        Ok(out)
+        self.boolean_value(b)
     }
 
     /// The string's code units, or None for a value of another kind
@@ -63,13 +95,11 @@ impl Js {
         if self.type_of(v)? != sys::ValueType::napi_string {
             return Ok(None);
         }
-        let mut len = 0;
-        check(unsafe { sys::napi_get_value_string_utf16(self.env, v, ptr::null_mut(), 0, &mut len) })?;
-        let mut buf = vec![0u16; len + 1];
-        let mut written = 0;
-        check(unsafe { sys::napi_get_value_string_utf16(self.env, v, buf.as_mut_ptr(), buf.len(), &mut written) })?;
-        buf.truncate(written);
-        Ok(Some(buf))
+        let mut units = Vec::new();
+        self.units_into(v, &mut units)?;
+        // The units kept hold no more room than they take
+        units.shrink_to_fit();
+        Ok(Some(units))
     }
 
     /// The number, or None for a value of another kind
@@ -77,28 +107,106 @@ impl Js {
         if self.type_of(v)? != sys::ValueType::napi_number {
             return Ok(None);
         }
-        let mut x = 0.0;
-        check(unsafe { sys::napi_get_value_double(self.env, v, &mut x) })?;
-        Ok(Some(x))
+        self.number_value(v).map(Some)
     }
 
     /// The array's elements, or None for a value that is no array
     pub(crate) fn elements(&self, v: napi_value) -> Result<Option<Vec<napi_value>>> {
-        let mut is = false;
-        check(unsafe { sys::napi_is_array(self.env, v, &mut is) })?;
-        if !is {
+        if !self.is_array(v)? {
             return Ok(None);
         }
+        (0..self.length(v)?).map(|i| self.element(v, i)).collect::<Result<Vec<_>>>().map(Some)
+    }
+
+    /// A boolean's value; the value must be a boolean
+    pub(crate) fn boolean_value(&self, v: napi_value) -> Result<bool> {
+        let mut out = false;
+        check(unsafe { sys::napi_get_value_bool(self.env, v, &mut out) })?;
+        Ok(out)
+    }
+
+    /// A number's value; the value must be a number
+    pub(crate) fn number_value(&self, v: napi_value) -> Result<f64> {
+        let mut x = 0.0;
+        check(unsafe { sys::napi_get_value_double(self.env, v, &mut x) })?;
+        Ok(x)
+    }
+
+    /// A string's UTF-16 code units, lone surrogates included, into `units`, which a caller reading many strings keeps
+    /// for every one of them: in one call when the string fits the room reserved, as nearly every string does, and
+    /// otherwise in a second once its length is known. The value must be a string.
+    pub(crate) fn units_into(&self, v: napi_value, units: &mut Vec<u16>) -> Result<()> {
+        units.clear();
+        // The room past the units is for the terminator Node-API writes
+        units.reserve(4096);
+        let mut room = units.capacity();
+        let mut copied = 0;
+        check(unsafe { sys::napi_get_value_string_utf16(self.env, v, units.as_mut_ptr(), room, &mut copied) })?;
+        if copied + 1 == room {
+            let mut length = 0;
+            check(unsafe { sys::napi_get_value_string_utf16(self.env, v, ptr::null_mut(), 0, &mut length) })?;
+            units.reserve(length + 1);
+            room = units.capacity();
+            check(unsafe { sys::napi_get_value_string_utf16(self.env, v, units.as_mut_ptr(), room, &mut copied) })?;
+        }
+        // SAFETY: Node-API wrote `copied` units into the reserved capacity, which is at least `copied + 1`
+        unsafe { units.set_len(copied) };
+        Ok(())
+    }
+
+    /// Whether the value is an array (`Array.isArray`)
+    pub(crate) fn is_array(&self, v: napi_value) -> Result<bool> {
+        let mut is = false;
+        check(unsafe { sys::napi_is_array(self.env, v, &mut is) })?;
+        Ok(is)
+    }
+
+    /// An array's length; the value must be an array
+    pub(crate) fn length(&self, array: napi_value) -> Result<u32> {
         let mut len = 0;
-        check(unsafe { sys::napi_get_array_length(self.env, v, &mut len) })?;
-        (0..len)
-            .map(|i| {
-                let mut e = ptr::null_mut();
-                check(unsafe { sys::napi_get_element(self.env, v, i, &mut e) })?;
-                Ok(e)
-            })
-            .collect::<Result<Vec<_>>>()
-            .map(Some)
+        check(unsafe { sys::napi_get_array_length(self.env, array, &mut len) })?;
+        Ok(len)
+    }
+
+    /// `array[index]`
+    pub(crate) fn element(&self, array: napi_value, index: u32) -> Result<napi_value> {
+        let mut e = ptr::null_mut();
+        check(unsafe { sys::napi_get_element(self.env, array, index, &mut e) })?;
+        Ok(e)
+    }
+
+    /// `Object.keys(object)`: an array of the object's own enumerable string keys, an integer key as its string, in
+    /// the order the engine gives them; the value must be an object
+    pub(crate) fn keys(&self, object: napi_value) -> Result<napi_value> {
+        let mut keys = ptr::null_mut();
+        check(unsafe {
+            sys::napi_get_all_property_names(
+                self.env,
+                object,
+                sys::KeyCollectionMode::own_only,
+                sys::KeyFilter::enumerable | sys::KeyFilter::skip_symbols,
+                sys::KeyConversion::numbers_to_strings,
+                &mut keys,
+            )
+        })?;
+        Ok(keys)
+    }
+
+    /// `object[key]` for a key that is a JavaScript value; the value must be an object
+    pub(crate) fn property(&self, object: napi_value, key: napi_value) -> Result<napi_value> {
+        let mut v = ptr::null_mut();
+        check(unsafe { sys::napi_get_property(self.env, object, key, &mut v) })?;
+        Ok(v)
+    }
+
+    /// `f`'s result, with every handle it created let go once it returns, so that a walk through a large value holds
+    /// only one path's worth; what `f` gives back must hold none of them. A scope that fails to close fails the call.
+    pub(crate) fn scoped<T>(&self, f: impl FnOnce() -> Result<T>) -> Result<T> {
+        let mut scope = ptr::null_mut();
+        check(unsafe { sys::napi_open_handle_scope(self.env, &mut scope) })?;
+        let out = f();
+        check(unsafe { sys::napi_close_handle_scope(self.env, scope) })?;
+        out
     }
 
     pub(crate) fn undefined(&self) -> Result<napi_value> {
