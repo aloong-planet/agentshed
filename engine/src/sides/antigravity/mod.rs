@@ -58,8 +58,8 @@ impl Side for Antigravity {
 
     /// A panic while a conversation was parsed is its failed read (token-stats, Scans and the window), judged as
     /// token-stats::REQ-004/AC-03 judges one: not counted, its last result kept, while a log is beside the database or
-    /// the database is gone, and unreadable otherwise (AC-01). The log is looked at as the panic is caught: the read it
-    /// interrupted is not there to say whether one was beside the database when it began.
+    /// the database is no longer there, and unreadable otherwise (AC-01). The log is looked at as the panic is caught:
+    /// the read it interrupted is not there to say whether one was beside the database when it began.
     fn failed(&self, js: &Js, job: napi_value) -> Result<napi_value> {
         let file = js.get(job, "file")?;
         if db::failed_while_written(&path_text(js, file)?, false) { js.null() } else { write_unreadable(js, file) }

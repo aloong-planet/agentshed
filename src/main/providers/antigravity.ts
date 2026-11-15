@@ -51,7 +51,8 @@ export interface AntigravitySessionMeta {
   /** Whether its own metadata says it is a subagent (token-stats::REQ-003/AC-07) */
   subagent: boolean
   /** The later of the database's and its log's modification times: while agy writes, only the log changes
-   * (projects-list::REQ-001/AC-04, measured) */
+   * (projects-list::REQ-001/AC-04, measured); 0 for a database the walk listed but cannot look at, whose `cwd` is then
+   * null (token-stats::REQ-004/AC-01) */
   mtimeMs: number
 }
 
@@ -59,7 +60,7 @@ export interface AntigravitySessionMeta {
  * A conversation's signature: the database's modification time and the log's presence, time and size — never the
  * database's size, which a checkpoint leaves unchanged (measured; token-stats Implementation Decisions). The token cache
  * keys a conversation by it, and the session walk's memory by the same parts (engine/src/sides/antigravity/walk.rs).
- * Null when the database is gone.
+ * Null when the database cannot be looked at, whether it is gone or there behind a directory that cannot be entered.
  */
 function conversationSignature(file: string): string | null {
   let dbMtime: number

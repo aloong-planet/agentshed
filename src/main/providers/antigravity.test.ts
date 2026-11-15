@@ -15,8 +15,9 @@
 //   pair — not counted, the last result kept, read again — is driven below through a copy that cannot be made.
 // - A conversation deleted between the walk's look at its signature and its read: no seam between the two. The rule it
 //   shares with the usage read (a database gone is no format change) is driven below through the usage read's window.
-//   One deleted between the listing and the look at its signature is driven below through a directory the walk can list
-//   but not enter, which leaves the signature as one gone would.
+//   One deleted between the listing and the look at its signature has no seam either, nothing running between the two.
+//   A directory the walk can list but not enter, which leaves the signature as one gone would, drives the rule's other
+//   side below: a database that is there but cannot be looked at is one that will not open.
 // - A read killed half-way leaving its copy behind: killing the process is outside this seam. What a copy is left in —
 //   a directory only the user can read — is asserted through the module's copy seam, which notes the directory as it is
 //   made; the walk, the usage read and the titles read make it the same way (`engine/src/sides/antigravity/db.rs`).
@@ -558,25 +559,28 @@ describe('the walk\'s reads of a conversation, by the engine module: a panic, it
         const aside = join(dir, 'aside.db')
         renameSync(file, aside)
         return () => renameSync(aside, file)
-      }
+      },
+      listedAway: false
     },
     {
       name: 'in a directory the walk could not list',
       away: (): (() => void) => {
         chmodSync(conversations(), 0o000)
         return () => chmodSync(conversations(), 0o755)
-      }
+      },
+      listedAway: false
     },
     {
-      // The listing names the database and its signature cannot be taken, as for one deleted in between (token-stats
-      // failure modes, a conversation deleted between the scan's listing and its read)
+      // The listing names the database and its signature cannot be taken: there but not to be looked at, it is a
+      // conversation that will not open, listed with no folder and no time (token-stats::REQ-004/AC-01)
       name: 'whose database the walk listed but could not then look at',
       away: (): (() => void) => {
         chmodSync(conversations(), 0o444)
         return () => chmodSync(conversations(), 0o755)
-      }
+      },
+      listedAway: true
     }
-  ])('a conversation $name is read again, though its signature is the one its reading was kept under', ({ away }) => {
+  ])('a conversation $name is read again, though its signature is the one its reading was kept under', ({ away, listedAway }) => {
     const p = mkProject('p')
     const q = mkProject('q')
     const file = conversation('comes-back', [p], 1_793_000_000)
@@ -590,7 +594,7 @@ describe('the walk\'s reads of a conversation, by the engine module: a panic, it
     expect(agySessions(undefined, memory).map((s) => s.cwd), 'unchanged to the walk, so not read again').toEqual([p])
     const back = away(file)
     try {
-      expect(agySessions(undefined, memory)).toEqual([])
+      expect(agySessions(undefined, memory)).toEqual(listedAway ? [{ file, cwd: null, subagent: false, mtimeMs: 0 }] : [])
     } finally {
       back()
     }
@@ -1376,6 +1380,26 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
       const next = await build()
       expect([agyTotal(next), next.antigravityUnreadable]).toEqual([110, 0])
     })
+  })
+
+  // Only a database that is no longer there is deleted: behind a directory the scan lists but cannot enter, each is
+  // there, and the walk, the planning and the read each find it so
+  it.skipIf(process.getuid?.() === 0)('a conversation the scan lists but cannot look at is one that will not open: counted, never its last result, and read again once it can be (AC-01)', async () => {
+    const p = mkProject('p')
+    trust([p])
+    usageConversation('one', [p], [{ usage: { messageId: 'm-1', input: 100, output: 10 }, at: oct(26) }])
+    usageConversation('two', [p], [{ usage: { messageId: 'm-2', input: 100, output: 10 }, at: oct(26) }])
+    expect(agyTotal(await build())).toBe(220)
+    chmodSync(conversations(), 0o444)
+    let shut: TokenBuildResult
+    try {
+      shut = await build()
+    } finally {
+      chmodSync(conversations(), 0o755)
+    }
+    expect([agyTotal(shut), shut.antigravityUnreadable, [...shut.sessionFiles]]).toEqual([0, 2, []])
+    const back = await build()
+    expect([agyTotal(back), back.antigravityUnreadable]).toEqual([220, 0])
   })
 
   it('an unreadable conversation agy then writes is not counted while its read fails, and counted again once agy closes it (AC-03)', async () => {
