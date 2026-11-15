@@ -14,7 +14,7 @@ use crate::text::{self, Units};
 pub(super) trait Runtime {
     /// `Date.parse(text)`; NaN when it reads none
     fn date_parse(&self, text: &[u16]) -> f64;
-    /// A folder URI's local path (`folderPath` in `src/main/providers/agy-proto.ts`): `fileURLToPath(new URL(uri))` for
+    /// A folder URI's local path: `fileURLToPath(new URL(uri))` for
     /// a `file:` URI; None for a URI of another scheme, one that does not parse, or one naming no local path
     fn folder_path(&self, uri: &str) -> Result<Option<Units>>;
     /// `text.toLowerCase()`

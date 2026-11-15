@@ -8,9 +8,9 @@ import { mergeKey, normalizePath } from '@shared/path-key'
 import { threadEngineModule } from '../engine-module'
 import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
-import { readCodexRegistry, readCodexSessions, type CodexHeads, type CodexSessionMeta } from './codex'
-import { readGrokRegistry, readGrokSessions, type GrokSessionMeta } from './grok'
-import { readAntigravityRegistry, readAntigravitySessions, type AntigravitySessionMeta } from './antigravity'
+import { readCodexRegistry, type CodexSessionMeta } from './codex'
+import { readGrokRegistry, type GrokSessionMeta } from './grok'
+import { readAntigravityRegistry, type AntigravitySessionMeta } from './antigravity'
 import { readGlobalLayer } from './global'
 import { readMemorySummary } from './memory'
 import { isAbsent } from './read-utils'
@@ -24,27 +24,15 @@ export interface ScanDeps {
 }
 
 /**
- * The Codex, Grok and Antigravity session lists. Walking them reads every Codex rollout's first line, every Grok
- * session's summary and every Antigravity conversation's trajectory metadata, so a scan walks once and hands the
- * result to both scan() and TokenEngine.build (#160) — which also gives the two one shared set of sessions instead of
- * two walks a moment apart.
+ * The Codex, Grok and Antigravity session lists, as the engine module walks them (EngineModule.walkSessions). Walking
+ * them reads every Codex rollout's first line, every Grok session's summary and every Antigravity conversation's
+ * trajectory metadata, so a scan walks once and hands the result to both scan() and TokenEngine.build (#160) — which
+ * also gives the two one shared set of sessions instead of two walks a moment apart.
  */
 export interface SessionWalk {
   codex: CodexSessionMeta[]
   grok: GrokSessionMeta[]
   antigravity: AntigravitySessionMeta[]
-}
-
-/**
- * `heads` holds the run's first-line readings: given it, a walk opens only the rollouts that changed since
- * its last walk (token-stats::QR-002/AC-01); without it every first line is read.
- */
-export function walkSessions(roots: ScanRoots, heads?: CodexHeads): SessionWalk {
-  return {
-    codex: heads ? heads.walk(roots.codexHome) : readCodexSessions(roots.codexHome),
-    grok: readGrokSessions(roots.grokHome),
-    antigravity: readAntigravitySessions(roots.antigravityHome)
-  }
 }
 
 // Every reader below is synchronous; the Promise is the seam's shape, which both callers await.

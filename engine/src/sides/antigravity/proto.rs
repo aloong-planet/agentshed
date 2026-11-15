@@ -8,9 +8,8 @@
 //! its length prefix, so a large field (a prompt) is never decoded. A record that ends inside a field is malformed: read
 //! as "less", it would quietly turn a broken conversation into a different one.
 //!
-//! Every number is read as `src/main/providers/agy-proto.ts` reads it, as a double built by the same operations, so a
-//! varint beyond 2^53 gives the value JavaScript gives. The walk still reads the trajectory record through that file's
-//! `decodeTrajectoryMetadata` (until #431): a change to the trajectory rules here is made there too.
+//! Every number is read as a double built by the operations of the TypeScript reader this one replaced
+//! (`src/main/providers/agy-proto.ts`, removed with #431), so a varint beyond 2^53 gives the value JavaScript gave.
 
 /// A record that will not decode
 #[derive(Debug)]

@@ -110,7 +110,7 @@ function roots(): ScanRoots {
 }
 const agyRoot = (): string => join(dir, '.gemini', 'antigravity-cli')
 /** The session walk, by the engine module, with no memory behind it */
-const walkSessions = (): SessionWalk => threadEngineModule().walkSessions(roots())
+const moduleWalk = (): SessionWalk => threadEngineModule().walkSessions(roots())
 /** The walk's conversations, through `memory` when given, a copy made under `tmpParent` when given */
 const agySessions = (tmpParent?: string, memory?: SessionMemory): AntigravitySessionMeta[] =>
   threadEngineModule().walkSessions(roots(), memory, tmpParent).antigravity
@@ -363,8 +363,12 @@ describe("activity: a conversation's folder and time (projects-list::REQ-001/AC-
     conversation('good', [p], 1_793_000_000)
     writeFileSync(join(conversations(), 'zero.db'), '')
     writeFileSync(join(conversations(), 'text.db'), 'not a database')
-    const bad = writeConversation(conversations(), 'cut', measured('mainApiKey').subarray(0, 40)).file
-    for (const f of [join(conversations(), 'zero.db'), join(conversations(), 'text.db'), bad]) utimesSync(f, 1_793_009_000, 1_793_009_000)
+    // Trajectory records cut short: inside the first workspace's length-delimited body (its length says 110, 38 bytes
+    // follow), and inside a varint (the signed-in record's field 15 starts at offset 253, 7a d8 03 …, so cutting at 255
+    // leaves its length's first byte, whose continuation bit is set)
+    const cut = writeConversation(conversations(), 'cut', measured('mainApiKey').subarray(0, 40)).file
+    const cutVarint = writeConversation(conversations(), 'cut-varint', measured('mainSignedIn').subarray(0, 255)).file
+    for (const f of [join(conversations(), 'zero.db'), join(conversations(), 'text.db'), cut, cutVarint]) utimesSync(f, 1_793_009_000, 1_793_009_000)
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.projects[0]).toMatchObject({ sessionCount: 1, lastSessionAt: 1_793_000_000_000 })
     expect(snap.sides.antigravity).toEqual({ detected: true })
@@ -376,13 +380,16 @@ describe("activity: a conversation's folder and time (projects-list::REQ-001/AC-
     trust([before, after])
     // Folder names of one length, so the rewritten record — and the database — keep their size
     const file = conversation('moved', [before], 1_793_000_000)
-    expect((await scan(roots(), { now: () => 1 })).projects.find((e) => e.name === 'alpha1')?.sessionCount).toBe(1)
+    // The two scans walk through one memory, as a run's scans do
+    const memory = sessionMemory()
+    const scanned = (): ReturnType<typeof scan> => scan(roots(), { now: () => 1, sessions: threadEngineModule().walkSessions(roots(), memory) })
+    expect((await scanned()).projects.find((e) => e.name === 'alpha1')?.sessionCount).toBe(1)
     const size = statSync(file).size
     rmSync(file)
     writeConversation(conversations(), 'moved', encodeTrajectoryMetadata({ folders: [after], conversationId: 'moved' }))
     utimesSync(file, 1_793_000_100, 1_793_000_100)
     expect(statSync(file).size).toBe(size)
-    const byName = Object.fromEntries((await scan(roots(), { now: () => 1 })).projects.map((e) => [e.name, e]))
+    const byName = Object.fromEntries((await scanned()).projects.map((e) => [e.name, e]))
     expect(byName['bravo2']).toMatchObject({ sessionCount: 1, lastSessionAt: 1_793_000_100_000 })
     expect(byName['alpha1']).toMatchObject({ sessionCount: 0, lastSessionAt: null })
   })
@@ -637,7 +644,7 @@ function usageConversation(
 
 const cacheDir = (): string => join(dir, 'cache')
 function build(runner?: ParseRunner): Promise<TokenBuildResult> {
-  return new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [], undefined, walkSessions())
+  return new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [], undefined, moduleWalk())
 }
 const agyRows = (r: TokenBuildResult): TokenBuildResult['rows'] => r.rows.filter((x) => x.side === 'antigravity')
 const agyTotal = (r: TokenBuildResult): number => r.global.bySide.antigravity.total
@@ -1294,7 +1301,7 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     it('deleted after the walk listed it: it leaves the figures in that scan', async () => {
       const goes = two()
       expect(agyTotal(await build())).toBe(1210)
-      const walked = walkSessions()
+      const walked = moduleWalk()
       rmSync(goes)
       const r = await new TokenEngine(cacheDir(), TEST_ENGINE).build(roots(), [], undefined, walked)
       expect([agyTotal(r), r.antigravityUnreadable]).toEqual([110, 0])
@@ -1702,7 +1709,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     const { p } = dispatchHome()
     const tmp = join(dir, 'tmp')
     mkdirSync(tmp)
-    const rebuild = (): Promise<TokenBuildResult> => new TokenEngine(cacheDir(), TEST_ENGINE, undefined, tmp).build(roots(), [], undefined, walkSessions())
+    const rebuild = (): Promise<TokenBuildResult> => new TokenEngine(cacheDir(), TEST_ENGINE, undefined, tmp).build(roots(), [], undefined, moduleWalk())
     const before = contents(agyRoot())
     await rebuild()
     expect(contents(agyRoot())).toEqual(before)
@@ -1724,7 +1731,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     const { p, main } = dispatchHome()
     // The copy a read makes while a log is beside the summaries cannot be made: a read while agy writes that fails
     const e = new TokenEngine(cacheDir(), TEST_ENGINE, undefined, join(dir, 'no-such-dir'))
-    const rebuild = (): Promise<TokenBuildResult> => e.build(roots(), [], undefined, walkSessions())
+    const rebuild = (): Promise<TokenBuildResult> => e.build(roots(), [], undefined, moduleWalk())
     expect(sessionsOf(await rebuild(), p).map((s) => s.title)).toEqual(['List Calc.py Function Names'])
     rmSync(join(agyRoot(), 'conversation_summaries.db'))
     const { writer } = writeSummaries(agyRoot(), [], { keepOpen: true })
@@ -1738,7 +1745,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     const fallback = 'Use the invoke_subagent tool to start one subagent of type s…'
     const fresh = (): TokenEngine => new TokenEngine(cacheDir(), TEST_ENGINE, undefined, join(dir, 'no-such-dir'))
     expect((await fresh().sessionQuestions(roots(), main)).title).toBe(fallback)
-    expect(sessionsOf(await fresh().build(roots(), [], undefined, walkSessions()), p).map((s) => s.title)).toEqual([fallback])
+    expect(sessionsOf(await fresh().build(roots(), [], undefined, moduleWalk()), p).map((s) => s.title)).toEqual([fallback])
   })
 
   it('a changed transcript is indexed again for that conversation alone, its database untouched (C4)', async () => {

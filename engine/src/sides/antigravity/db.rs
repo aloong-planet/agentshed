@@ -12,9 +12,6 @@
 //!
 //! A copy is made by `std::fs::copy`, which on macOS clones the file (`fclonefileat`) when the database and the copy are
 //! on one volume that clones (APFS), and copies it (`fcopyfile`) otherwise: across volumes, or on a volume that does not.
-//!
-//! The walk still opens conversations through `readConversationDb` in `src/main/providers/antigravity.ts` (until #431),
-//! by the same rules.
 
 use std::fs::{self, DirBuilder};
 use std::os::unix::fs::DirBuilderExt;

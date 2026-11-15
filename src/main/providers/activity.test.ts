@@ -14,7 +14,7 @@ import { threadEngineModule, type SessionMemory } from '../engine-module'
 import type { PanicSeam } from '../testing/engine'
 import { scan, type SessionWalk } from './scan'
 import { encodeClaudeProjectDir } from './claude'
-import { readCodexSessions, type CodexSessionMeta } from './codex'
+import type { CodexSessionMeta } from './codex'
 import type { ScanRoots } from './types'
 
 let dir: string
@@ -690,7 +690,7 @@ describe('the session walk, read by the engine module', () => {
 
   // A first line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of ECMAScript's
   // JSON.parse, each field as JavaScript's property access on the parsed line reads it. The values expected are worked
-  // out from that reading by hand; until the TypeScript walk is removed, it is held to them too.
+  // out from that reading by hand, and the TypeScript walk gave each of them too until it was removed (#431).
   it.each<{ name: string; line: string | Buffer; read: Partial<CodexSessionMeta> | null }>([
     { name: 'repeating a key: the last one counts', line: '{"payload":{"cwd":"/first","cwd":"/a"}}', read: {} },
     { name: 'whose cwd is no string', line: '{"payload":{"cwd":5}}', read: null },
@@ -723,6 +723,5 @@ describe('the session walk, read by the engine module', () => {
     utimesSync(file, 3000, 3000)
     const want = read === null ? [] : [{ file, cwd: '/a', subagent: false, mtimeMs: 3000_000, sessionId: null, parentId: null, forkedAt: null, paginated: false, ...read }]
     expect(walked().codex).toEqual(want)
-    expect(readCodexSessions(join(dir, '.codex')), 'the TypeScript walk, while it exists').toEqual(want)
   })
 })
