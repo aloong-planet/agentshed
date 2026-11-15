@@ -2,7 +2,7 @@
 //! is checked and skipped. A field reads as JavaScript's property access on the parsed line reads it — a value of another
 //! kind than a rule takes is undefined to it, and of a repeated key the last value counts, as `JSON.parse` keeps it.
 
-use crate::json::{Kind, Read, Reader, Str, record};
+use crate::json::{self, Kind, Line, Read, Reader, Str, record};
 
 /// The first line, read
 #[derive(Default)]
@@ -27,8 +27,7 @@ pub(super) struct Payload<'a> {
 /// The first line, read; None when it holds no object (an array, a string, a number, a boolean or null), and Bad when
 /// `JSON.parse` would refuse it
 pub(super) fn read(text: &str) -> Read<Option<Head<'_>>> {
-    let mut r = Reader::new(text);
-    let head = if r.kind()? == Kind::Object {
+    let line = json::line(text, |r| {
         let mut head = Head::default();
         r.members(|key, r| {
             if key.is("timestamp") {
@@ -43,13 +42,12 @@ pub(super) fn read(text: &str) -> Read<Option<Head<'_>>> {
             }
             Ok(())
         })?;
-        Some(head)
-    } else {
-        r.skip()?;
-        None
-    };
-    r.end()?;
-    Ok(head)
+        Ok(head)
+    })?;
+    Ok(match line {
+        Line::Object(head) => Some(head),
+        Line::Array | Line::Other => None,
+    })
 }
 
 fn payload<'a>(r: &mut Reader<'a>) -> Read<Payload<'a>> {

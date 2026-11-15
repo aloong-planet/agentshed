@@ -8,7 +8,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use napi::Result;
 
-use crate::json::{Kind, Read, Reader};
+use crate::json::{self, Line, Read};
 use crate::text::Units;
 use crate::{seams, walk};
 
@@ -75,9 +75,8 @@ pub(super) fn subagent(session_dir: &str) -> bool {
 /// Whether the summary, read by `JSON.parse`'s grammar, is an object whose `session_kind` is "subagent", its last
 /// `session_kind` counting
 fn says_subagent(text: &str) -> Read<bool> {
-    let mut r = Reader::new(text);
-    let mut kind = None;
-    if r.kind()? == Kind::Object {
+    let line = json::line(text, |r| {
+        let mut kind = None;
         r.members(|key, r| {
             if key.is("session_kind") {
                 kind = r.string_or_skip()?;
@@ -86,9 +85,7 @@ fn says_subagent(text: &str) -> Read<bool> {
             }
             Ok(())
         })?;
-    } else {
-        r.skip()?;
-    }
-    r.end()?;
-    Ok(kind.is_some_and(|k| k.is("subagent")))
+        Ok(kind.is_some_and(|k| k.is("subagent")))
+    })?;
+    Ok(matches!(line, Line::Object(true)))
 }

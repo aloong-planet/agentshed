@@ -131,13 +131,7 @@ pub(super) fn read_head(file: &str, mtime_ms: Option<f64>, date_parse: &mut dyn 
     let p = &h.payload;
     let cwd = p.cwd.filter(|c| !c.is_empty())?;
     let parent = p.forked_from_id.filter(|s| !s.is_empty()).or(p.spawn_parent.filter(|s| !s.is_empty()));
-    let forked_at = h
-        .timestamp
-        .map(|t| {
-            let units = t.units();
-            text::date_parse(&units).unwrap_or_else(|| date_parse(&units))
-        })
-        .filter(|ms| !ms.is_nan());
+    let forked_at = h.timestamp.and_then(|t| text::time_value(&t.units(), date_parse));
     let mtime_ms = match mtime_ms {
         Some(t) => t,
         None => walk::stat(file)?.mtime_ms,
