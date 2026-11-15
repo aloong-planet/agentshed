@@ -1,6 +1,5 @@
 // The app's token store (ADR-0044) as an e2e case reaches it from outside. This test process is another process to the
 // app's, so its own SQLite (`node:sqlite`) takes the store's locks the way the other process of token-stats C27 does.
-import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
@@ -19,23 +18,5 @@ export function holdStoreWrites(userData: string): { release(): void } {
       db.exec('ROLLBACK')
       db.close()
     }
-  }
-}
-
-/**
- * The combinations the store's group results were combined under (token-stats, Implementation Decisions, Cache), each
- * once: none before the app has made the store or stored a result, as no file is made here
- */
-export function storedCombinations(userData: string): string[] {
-  const file = join(userData, STORE_FILE)
-  if (!existsSync(file)) return []
-  const db = new DatabaseSync(file)
-  try {
-    return db.prepare('SELECT DISTINCT combination FROM results ORDER BY combination').all().map((row) => String(row['combination']))
-  } catch {
-    // No results table yet: the store is being made
-    return []
-  } finally {
-    db.close()
   }
 }

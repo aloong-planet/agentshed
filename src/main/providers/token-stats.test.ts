@@ -25,11 +25,10 @@
 //
 // Gap (#420): an entry that passes the shape check (isWellFormedEntry) and that the engine module still cannot read is
 // not driven here: the module's reading of an aggregate follows the check rule for rule, and no entry that splits them
-// is known. Two branches wait on one: `rowsFromStoreSnapshot` refusing the snapshot when `combineEntries` leaves an
-// entry out, and `combineEntries` combining again without an entry its side's combination could not read. A case is
-// due once such an entry is found, as a fix to the check or to the module. Nor is `TokenStore.scan` on a store that did
-// not open, which combines in memory and names the files it leaves out as `combineEntries` does: TypeScript never asks
-// it, as `openStore` keeps no store whose open failed.
+// is known. `rowsFromStoreSnapshot` refusing the snapshot when `combineEntries` leaves an entry out waits on one; a case
+// is due once such an entry is found, as a fix to the check or to the module. Nor is `TokenStore.scan` on a store that
+// did not open, which combines in memory and names the files it leaves out as `combineEntries` does: TypeScript never
+// asks it, as `openStore` keeps no store whose open failed.
 import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'

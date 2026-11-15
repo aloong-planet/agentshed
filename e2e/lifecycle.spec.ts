@@ -10,11 +10,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
+import { DatabaseSync } from 'node:sqlite'
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
 import { mkUsageHome, questionLine } from './support/homes'
 import { makeUserData, launch, close, startApp, failOnMainErrors } from './support/launch'
-import { STORE_FILE, holdStoreWrites, storedCombinations } from './support/token-store'
+import { STORE_FILE, holdStoreWrites } from './support/token-store'
 import { emptySnapshot } from '../src/shared/domain'
 
 const mainErrors = failOnMainErrors()
@@ -351,6 +352,25 @@ test('a token store the first scan cannot make: the app comes up with its data r
   expect(errors).toEqual([])
   await close({ app, errors, userData, home })
 })
+
+/**
+ * The combinations the store's group results were combined under (token-stats, Implementation Decisions, Cache), each
+ * once: none before the app has made the store or stored a result, as no file is made here. Read from this process, which
+ * is another process to the app's (e2e/support/token-store.ts)
+ */
+function storedCombinations(userData: string): string[] {
+  const file = join(userData, STORE_FILE)
+  if (!existsSync(file)) return []
+  const db = new DatabaseSync(file)
+  try {
+    return db.prepare('SELECT DISTINCT combination FROM results ORDER BY combination').all().map((row) => String(row['combination']))
+  } catch {
+    // No results table yet: the store is being made
+    return []
+  } finally {
+    db.close()
+  }
+}
 
 // token-stats, Implementation Decisions, Cache: an unpackaged run's code can differ from the last run's under one
 // version, and it shares the installed copy's settings directory (C27), so each run's scans store their group results
