@@ -1415,6 +1415,40 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     expect([agyTotal(back), back.antigravityUnreadable]).toEqual([220, 0])
   })
 
+  // The planning and the read look at a database at two moments: the permission given back between the two, the read
+  // finds the conversation as it is, and its result is kept with no signature to keep it under
+  it.skipIf(process.getuid?.() === 0)('a conversation read once the scan could look again, after its planning could not, is read again when it is out of sight once more: counted, never that result (AC-01)', async () => {
+    const p = mkProject('p')
+    trust([p])
+    usageConversation('one', [p], [{ usage: { messageId: 'm-1', input: 100, output: 10 }, at: oct(26) }])
+    expect(agyTotal(await build())).toBe(110)
+    chmodSync(conversations(), 0o444)
+    let raced: TokenBuildResult
+    let shut: TokenBuildResult
+    const jobs: string[] = []
+    try {
+      raced = await build({
+        run: (job) => {
+          chmodSync(conversations(), 0o755)
+          return runParseJob(job)
+        },
+        concurrency: 1
+      })
+      chmodSync(conversations(), 0o444)
+      shut = await build({
+        run: (job) => {
+          jobs.push(basename(job.file))
+          return runParseJob(job)
+        },
+        concurrency: 1
+      })
+    } finally {
+      chmodSync(conversations(), 0o755)
+    }
+    expect([agyTotal(raced), raced.antigravityUnreadable], 'the read saw the conversation').toEqual([110, 0])
+    expect([agyTotal(shut), shut.antigravityUnreadable, jobs]).toEqual([0, 1, ['one.db']])
+  })
+
   it('an unreadable conversation agy then writes is not counted while its read fails, and counted again once agy closes it (AC-03)', async () => {
     const p = mkProject('p')
     trust([p])

@@ -278,8 +278,9 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  *      the field was passed over, and when the scan lists its database but cannot look at it, where it was left out as
  *      deleted. The second never reached the store: such a conversation had no slot, so an entry held for it was
  *      removed. The first reaches only an entry cached from a record already in that state, and no conversation on this
- *      machine is (none of the 19, 2026-11-15). Such an entry keeps its figures until the conversation's signature next
- *      changes, while the walk, which keeps no reading across launches, credits it to no folder. A bump would make every
+ *      machine is (none of the 19, 2026-11-15). Such an entry stands whole — its figures, its project and its place
+ *      in the session lists — until the conversation's signature next changes, while the walk, which keeps no
+ *      reading across launches, credits it to no folder. A bump would make every
  *      install parse every side's files again, and would still not reach such an entry where one could be: every
  *      released install keeps a version-19 JSON file, which its first launch with the store imports whatever this
  *      number is.
@@ -870,7 +871,10 @@ export class TokenEngine {
     if (looked === null && isAbsent(file)) return { file, entry: null, admit }
     const sig = looked ?? UNLOOKED_SIGNATURE
     const usable = cached !== undefined && cached.agg.kind === 'antigravity'
-    if (usable && cached.sig === sig) return { file, entry: cached, admit }
+    // Under UNLOOKED_SIGNATURE only the verdict a read out of sight gives holds: a readable entry there was read once
+    // the scan could look again after its planning could not, and is read again (AC-01)
+    const holds = looked !== null || (cached?.agg.kind === 'antigravity' && cached.agg.unreadable)
+    if (usable && cached.sig === sig && holds) return { file, entry: cached, admit }
     const fallback = usable && cached.agg.kind === 'antigravity' && !cached.agg.unreadable ? cached : undefined
     const st = { sig, ino: 0, size: 0 }
     return { file, entry: null, admit, fallback, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st } }

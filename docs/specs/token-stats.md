@@ -1027,9 +1027,10 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   number against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and
   skipping the prompt fields by their length prefix; a field the reader reads arriving in another
   wire type than its descriptor declares is a record that will not decode. An entry an earlier version
-  of the app cached from a record already in that state keeps the figures it was cached with, and is
-  not counted, until the conversation's signature changes, while the session walk credits it to no
-  folder (the `CACHE_VERSION` comment in `src/main/providers/token-stats.ts` says why). The extraction script and
+  of the app cached from a record already in that state stands whole — its figures, its project and
+  its place in the session lists, a drifted subagent marker leaving it listed as a main conversation —
+  and is not counted, until the conversation's signature changes, while the session walk credits it to
+  no folder (the `CACHE_VERSION` comment in `src/main/providers/token-stats.ts` says why). The extraction script and
   the descriptor set stay with the research record so a drift can be re-checked. Within a database a
   call's three records are joined by identity — the step brings the time, the generator record the
   model; calls are de-duplicated across databases after the per-file results are combined, since
