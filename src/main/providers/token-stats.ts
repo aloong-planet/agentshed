@@ -867,9 +867,11 @@ export class TokenEngine {
         for (const { file, nested } of listJsonl(join(projectsRoot, encName), below)) claude(projectKey, file, nested)
       }
     } else if (!isAbsent(projectsRoot)) {
-      // A session is a project directory's own transcript, a nested one any deeper
-      for (const { file, parts } of below(projectsRoot)) {
-        if (parts.length >= 2 && file.endsWith('.jsonl')) claude(encToProject.get(parts[0]) ?? '', file, parts.length > 2)
+      // Each in a project's directory, taken as listJsonl takes one held there; one directly in the root is no
+      // project's, as the listing above takes only directories
+      for (const { file, parts: [encName, ...rest] } of below(projectsRoot)) {
+        const t = rest.length > 0 ? heldTranscript({ file, parts: rest }, false) : null
+        if (t) claude(encToProject.get(encName) ?? '', t.file, t.nested)
       }
     }
 
@@ -1370,7 +1372,10 @@ function listJsonl(root: string, below: (dir: string) => HeldFile[]): Array<{ fi
       entries = readdirSync(dir, { withFileTypes: true }).sort(byName)
     } catch {
       if (!isAbsent(dir)) {
-        for (const { file, parts } of below(dir)) if (file.endsWith('.jsonl')) out.push({ file, nested: nested || parts.length > 1 })
+        for (const held of below(dir)) {
+          const t = heldTranscript(held, nested)
+          if (t) out.push(t)
+        }
       }
       return
     }
@@ -1380,11 +1385,22 @@ function listJsonl(root: string, below: (dir: string) => HeldFile[]): Array<{ fi
         walk(p, true)
         continue
       }
-      if (e.name.endsWith('.jsonl')) out.push({ file: p, nested })
+      if (isTranscript(e.name)) out.push({ file: p, nested })
     }
   }
   walk(root, false)
   return out
+}
+
+/** Whether a file of this name in Claude Code's projects tree is a transcript */
+function isTranscript(file: string): boolean {
+  return file.endsWith('.jsonl')
+}
+
+/** A file the store holds below a directory listJsonl walks at `nested`, as the listing gives it: one directly in it
+ * keeps the directory's `nested`, one any deeper is nested; null when it is no transcript */
+function heldTranscript({ file, parts }: HeldFile, nested: boolean): { file: string; nested: boolean } | null {
+  return isTranscript(file) ? { file, nested: nested || parts.length > 1 } : null
 }
 
 /** A file the store holds, with its path's components below the directory it was asked for under */

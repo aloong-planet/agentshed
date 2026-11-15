@@ -82,12 +82,12 @@ pub(super) fn walk(tree: &str, kept: &mut Attributions, held: &mut Held, tmp_par
         let apart = if walk::is_absent(tree) {
             Vec::new()
         } else {
-            held.below(tree).into_iter().filter(|(_, parts)| matches!(parts.as_slice(), [name] if name.ends_with(".db"))).map(|(file, _)| file).collect()
+            held.below(tree).into_iter().filter(|(_, parts)| matches!(parts.as_slice(), [name] if is_conversation(name))).map(|(file, _)| file).collect()
         };
         return Ok((out, apart));
     };
     for entry in entries {
-        if entry.kind != walk::Kind::File || !entry.name.ends_with(".db") {
+        if entry.kind != walk::Kind::File || !is_conversation(&entry.name) {
             continue;
         }
         let file = entry.path;
@@ -118,6 +118,12 @@ pub(super) fn walk(tree: &str, kept: &mut Attributions, held: &mut Held, tmp_par
     }
     kept.0 = seen;
     Ok((out, Vec::new()))
+}
+
+/// Whether a file of this name directly in the conversations directory is a conversation: its database, never the
+/// database's `-wal` and `-shm` companions (token-stats::CON-001)
+fn is_conversation(name: &str) -> bool {
+    name.ends_with(".db")
 }
 
 /// The conversation's signature and its time; None when the database cannot be looked at, gone or not

@@ -4204,22 +4204,13 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
     expect(figures(back)).toEqual(figures(first))
   })
 
+  // The late file lands in a directory below the locked one that can be listed, where a walk that listed a held file's
+  // own directory would see it. Below a flat one (Codex's archived sessions, Antigravity CLI's conversations) nothing
+  // could, and the rows of the same name above hold the rest.
   it.each([
     { name: 'Claude Code\'s projects directory', locked: projects, side: 'claude' as const, write: (): string => mkClaudeFile('late.jsonl', [userLine('late'), usageLine('claude-fable-5', '2026-07-30T04:00:00Z', 7, 0, { id: 'mk-late', requestId: 'rk-late' })]) },
     { name: 'Codex\'s sessions', locked: (): string => join(dir, '.codex', 'sessions'), side: 'codex' as const, write: (): string => mkCodexRollout('rollout-2026-07-30T04-00-00-019f5a09.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [{ input: 7, cached: 0, output: 0, record: 'resp_late' }]) },
-    {
-      name: 'Codex\'s archived sessions',
-      locked: (): string => join(dir, '.codex', 'archived_sessions'),
-      side: 'codex' as const,
-      write: (): string => {
-        const made = mkCodexRollout('rollout-2026-07-30T04-00-00-019f5a0a.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [{ input: 7, cached: 0, output: 0, record: 'resp_late' }])
-        const to = join(dir, '.codex', 'archived_sessions', basename(made))
-        renameSync(made, to)
-        return to
-      }
-    },
-    { name: 'Grok\'s sessions', locked: (): string => join(dir, '.grok', 'sessions'), side: 'grok' as const, write: (): string => mkGrokSession(proj, 'gk-late', [grokTurn(1785380000, { input: 7, output: 0 })]) },
-    { name: 'Antigravity CLI\'s conversations', locked: agyDir, side: 'antigravity' as const, write: (): string => mkAgyConversation('agy-late', proj, [{ usage: { messageId: 'm-late', input: 7, output: 0 }, at: Date.parse('2026-07-30T04:00:00Z') }]) }
+    { name: 'Grok\'s sessions', locked: (): string => join(dir, '.grok', 'sessions'), side: 'grok' as const, write: (): string => mkGrokSession(proj, 'gk-late', [grokTurn(1785380000, { input: 7, output: 0 })]) }
   ])('a file written below $name while it cannot be listed is not seen until it can be', async ({ locked, side, write }) => {
     everySide()
     const e = engine()
@@ -4269,30 +4260,31 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
     expect(Object.values(files).filter((f) => !lost.includes(f) && !stored.has(f)), 'the others\' kept').toEqual([])
   })
 
-  // One whose signature moved is parsed again, once, and counted as it now is
+  // One whose signature moved is parsed again, once, and counted as it now is, a session still where it was one
+  const changedClaude = (): string => mkClaudeFile('a.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'mk1', requestId: 'rk1' }), usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 7, 0, { id: 'mk3', requestId: 'rk3' })], 2000)
   it.each([
-    {
-      name: 'a Claude Code project\'s directory',
-      locked: claudeDir,
-      side: 'claude' as const,
-      change: (): string => mkClaudeFile('a.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'mk1', requestId: 'rk1' }), usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 7, 0, { id: 'mk3', requestId: 'rk3' })], 2000)
-    },
+    { name: 'Claude Code\'s projects directory', locked: projects, side: 'claude' as const, session: true, change: changedClaude },
+    { name: 'a Claude Code project\'s directory', locked: claudeDir, side: 'claude' as const, session: true, change: changedClaude },
     {
       name: 'a Codex day\'s directory',
       locked: codexDay,
       side: 'codex' as const,
+      session: true,
       change: (): string => mkCodexRollout('rollout-2026-07-30T01-00-00-019f5a02.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_k1' }, { input: 7, cached: 0, output: 0, record: 'resp_k3' }], false, 3000)
     },
     {
       name: 'a Grok project\'s directory',
       locked: grokDir,
       side: 'grok' as const,
+      session: true,
       change: (): string => mkGrokSession(proj, 'gk1', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 }), grokTurn(1785369900, { input: 7, output: 0 })])
     },
     {
       name: 'Antigravity CLI\'s conversations',
       locked: agyDir,
       side: 'antigravity' as const,
+      // A conversation with no transcript is in no project's sessions
+      session: false,
       change: (): string => {
         const staged = join(dir, 'staged')
         mkdirSync(staged, { recursive: true })
@@ -4306,7 +4298,7 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
         return to
       }
     }
-  ])('a file changed below $name while it cannot be listed is parsed again, once, and counted as it now is', async ({ locked, side, change }) => {
+  ])('a file changed below $name while it cannot be listed is parsed again, once, and counted as it now is', async ({ locked, side, session, change }) => {
     everySide()
     const { runner, jobs } = recording()
     const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner)
@@ -4322,6 +4314,9 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
       chmodSync(locked(), 0o755)
     }
     expect([jobs.map((j) => j.file), r.global.bySide[side].total]).toEqual([[changed], first.global.bySide[side].total + 7])
+    expect([...first.perProject.values()].flatMap((p) => p.sessions.map((s) => s.file)).includes(changed), 'the control: whether it is a session').toBe(session)
+    const listedIn = (b: TokenBuildResult): unknown => [...b.perProject].map(([key, p]) => [key, p.sessions.map((s) => s.file).sort()])
+    expect(listedIn(r), 'each project\'s sessions').toEqual(listedIn(first))
   })
 
   // With nothing held below it — a first scan, or a build with no store — it gives nothing
