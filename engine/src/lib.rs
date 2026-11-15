@@ -38,3 +38,4 @@ mod seams;
 mod sides;
 mod store;
 mod text;
+mod walk;

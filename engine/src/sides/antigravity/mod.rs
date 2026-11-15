@@ -2,7 +2,8 @@
 //! conversations directory, read without writing there (token-stats::CON-001, CON-002, REQ-003, REQ-004; session-view's
 //! Antigravity rules) — and agy's own conversation titles. This file is the adapter the side registers in
 //! `sides/mod.rs`: it reads a parse job, the TypeScript `ParseJob` of kind `antigravity`, and writes the entry as the
-//! TypeScript `ParseResult`. The file goes back as the job's own JavaScript value.
+//! TypeScript `ParseResult`. The file goes back as the job's own JavaScript value. Its side of the session walk it writes
+//! as the TypeScript `AntigravitySessionMeta`.
 
 mod db;
 mod entry;
@@ -11,15 +12,17 @@ mod proto;
 mod titles;
 mod transcript;
 mod usage;
+mod walk;
 
 use std::path::{Path, PathBuf};
 
-use napi::Result;
 use napi::sys::napi_value;
+use napi::{Error, Result};
 
 use self::entry::{Entry, Job, Parsed};
 use self::parse::Runtime;
-use super::Side;
+use self::walk::Attributions;
+use super::{Kept, Side};
 use crate::exports::js::Js;
 use crate::text::{self, Units};
 
@@ -63,6 +66,28 @@ impl Side for Antigravity {
             }
         };
         Some(answer())
+    }
+
+    /// Every conversation in agy's data root, `roots.antigravityHome`, with what the run's walks read of each
+    fn walk(&self, js: &Js, roots: napi_value, kept: &mut Kept, tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
+        let mut walked = || -> Result<napi_value> {
+            let home = js.string(js.get(roots, "antigravityHome")?)?.ok_or_else(|| Error::from_reason("the scan roots name no antigravityHome"))?;
+            let tree = String::from_utf16_lossy(&js.path_join(&[&home, &text::units(walk::TREE)])?);
+            let tmp = match tmp_parent {
+                Some(t) => PathBuf::from(t),
+                None => PathBuf::from(String::from_utf16_lossy(&js.os_tmpdir()?)),
+            };
+            let sessions = walk::walk(&tree, kept.of::<Attributions>(), &tmp, &JsRuntime(js))?;
+            js.array(sessions.iter().map(|s| {
+                js.object(&[
+                    ("file", js.text(&text::units(&s.file))?),
+                    ("cwd", js.text_or_null(s.cwd.as_ref())?),
+                    ("subagent", js.boolean(s.subagent)?),
+                    ("mtimeMs", js.num(s.mtime_ms)?),
+                ])
+            }))
+        };
+        Some(walked())
     }
 }
 

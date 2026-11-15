@@ -6,5 +6,6 @@ pub(crate) mod js;
 mod loader;
 mod main_process;
 mod parse_workers;
+mod scanner;
 mod tests;
 mod token_engine;

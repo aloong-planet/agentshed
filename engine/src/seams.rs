@@ -2,8 +2,8 @@
 //! them. Their exports are in `exports/tests.rs`, each named `seam_…`, and no export elsewhere is (build.rs fails a
 //! build otherwise), so packaging's refusal of a module exporting a `seam…` name covers each (scripts/build-engine.mjs).
 //!
-//! - The panic seam: a test names a file, and the module panics while it parses that file, so that a test can show
-//!   what a panic in the module does to a read.
+//! - The panic seam: a test names a file, and the module panics while it parses that file or the session walk reads it,
+//!   so that a test can show what a panic in the module does to a read.
 //! - The store-write seam: a test names a number of statements, and the next write to a token store fails once that
 //!   many have run, so that a test can show a write cut short between two of its statements (token-stats C3).
 //! - The store-statement seam: a test runs a statement against a token store on a connection of its own, to read the
@@ -11,8 +11,9 @@
 //!   in the same process, such as Node's `node:sqlite`, does not see this one's locks, and closing its connection to
 //!   the store takes this one's away and deletes the store's log from under it (POSIX locks belong to the process).
 
-/// Called by every function that parses a session file, before it reads the file: in a build made for tests, it
-/// panics when the file is the one the seam names, and otherwise does nothing.
+/// Called by every function that parses a session file, and by the session walk for each entry it reads, before it
+/// reads the file: in a build made for tests, it panics when the file is the one the seam names, and otherwise does
+/// nothing.
 pub(crate) fn before_parse(file: &str) {
     #[cfg(feature = "test-seams")]
     {

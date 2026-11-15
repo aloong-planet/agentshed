@@ -1,21 +1,26 @@
-//! Codex: its rollouts' entries (token-stats Sequence B; session-view's Codex rules). This file is the adapter the side
-//! registers in `sides/mod.rs`: it reads a parse job, the TypeScript `ParseJob` of kind `codex`, and writes the entry as
-//! the TypeScript `ParseResult`. A value the entry only carries over from the job — the file, its project, the session
-//! metadata, a resumed parse's running total — goes back as the job's own JavaScript value.
+//! Codex: its rollouts' entries (token-stats Sequence B; session-view's Codex rules), and its side of the session walk.
+//! This file is the adapter the side registers in `sides/mod.rs`: it reads a parse job, the TypeScript `ParseJob` of kind
+//! `codex`, and writes the entry as the TypeScript `ParseResult`. A value the entry only carries over from the job — the
+//! file, its project, the session metadata, a resumed parse's running total — goes back as the job's own JavaScript
+//! value. The walk's sessions it writes as the TypeScript `CodexSessionMeta`.
 
 mod entry;
+mod head;
 mod line;
 mod parse;
 mod question;
 mod title;
+mod walk;
 
-use napi::Result;
 use napi::sys::napi_value;
+use napi::{Error, Result};
 
 use self::entry::{Earlier, Event, Job, KeptTotal, Parsed};
-use super::Side;
+use self::walk::{Readings, Session};
+use super::{Kept, Side};
 use crate::exports::js::Js;
 use crate::question::Record;
+use crate::text;
 
 pub(crate) struct Codex;
 
@@ -27,6 +32,39 @@ impl Side for Codex {
             None => js.null(),
         }
     }
+
+    /// Every rollout under Codex's data root, `roots.codexHome`, with the run's first-line readings
+    fn walk(&self, js: &Js, roots: napi_value, kept: &mut Kept, _tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
+        let mut walked = || -> Result<napi_value> {
+            let home = js.string(js.get(roots, "codexHome")?)?.ok_or_else(|| Error::from_reason("the scan roots name no codexHome"))?;
+            let trees = walk::TREES.iter().map(|t| Ok(String::from_utf16_lossy(&js.path_join(&[&home, &text::units(t)])?))).collect::<Result<Vec<_>>>()?;
+            let sessions = walk::walk(&trees, kept.of::<Readings>(), &mut |t| js.date_parse(t));
+            js.array(sessions.iter().map(|s| write_session(js, s)))
+        };
+        Some(walked())
+    }
+
+    /// A rollout's session, read off its first line as the walk reads it; null when it gives none
+    fn meta(&self, js: &Js, file: &str) -> Option<Result<napi_value>> {
+        Some(match walk::read_head(file, None, &mut |t| js.date_parse(t)) {
+            Some(session) => write_session(js, &session),
+            None => js.null(),
+        })
+    }
+}
+
+/// A session as the TypeScript `CodexSessionMeta`
+fn write_session(js: &Js, s: &Session) -> Result<napi_value> {
+    js.object(&[
+        ("file", js.text(&text::units(&s.file))?),
+        ("cwd", js.text(&s.cwd)?),
+        ("subagent", js.boolean(s.subagent)?),
+        ("mtimeMs", js.num(s.mtime_ms)?),
+        ("sessionId", js.text_or_null(s.session_id.as_ref())?),
+        ("parentId", js.text_or_null(s.parent_id.as_ref())?),
+        ("forkedAt", js.num_or_null(s.forked_at)?),
+        ("paginated", js.boolean(s.paginated)?),
+    ])
 }
 
 /// The job, and the JavaScript values the entry carries over from it
