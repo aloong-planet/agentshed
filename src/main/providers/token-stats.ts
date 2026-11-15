@@ -1,14 +1,14 @@
 // The token aggregation engine (aligned with ccusage, 2026-07-30; the source-level basis is in ADR-0005):
 // - Claude: recursively scan **the whole tree** under claudeHome/projects (independent of the project
 //   registry; unregistered directories count toward the global total); each session file read and parsed by
-//   the engine module, engine/src/sides/claude/, into the entries combined here:
-//   each usage line becomes an entry, and the aggregation layer deduplicates across files — the exact
+//   the engine module, engine/src/sides/claude/, into the entries it combines by group (engine/src/group/):
+//   each usage line becomes an entry, and the combination deduplicates across files — the exact
 //   key is message.id+requestId, falling back to message.id-only when either side is isSidechain
 //   (a subagent replays its parent's messages under a new requestId); keep the non-sidechain one,
 //   otherwise the one with the larger four-field token sum. The total rule = input+output+cacheRead+cacheWrite;
 //   entries whose model is '<synthetic>' or missing count toward the total but do not enter a model bucket.
-// - Codex (each rollout read and parsed by the engine module, engine/src/sides/codex/, into the entry
-//   combined here): per-turn last_token_usage increment events (payload.type=token_count inside event_msg);
+// - Codex (each rollout read and parsed by the engine module, engine/src/sides/codex/, into the entry it
+//   combines): per-turn last_token_usage increment events (payload.type=token_count inside event_msg);
 //   a fork or subagent session replays its parent's history, stripped by the same rules as ccusage's
 //   replay.rs — take the parent's event sequence before the fork moment and skip entries at the start
 //   of the child that match it by value (if the very first does not match, strip nothing);
@@ -17,10 +17,10 @@
 //   accounting: sanitise input (subtract cached), count cached as cacheRead, total = input + output
 //   (cache creation is not collected on this side or on Grok's — ADR-0023);
 //   the model comes from the last turn_context (an approximation of the session's primary model).
-// - The incremental cache stores entry-level data (deduplication has to happen across files, in the
-//   aggregation layer, so a deduplicated result cannot be what is cached);
-//   keyed by (path, mtime, size), one row per file in the token store the engine module keeps (ADR-0044). The
-//   statistics include stale projects.
+// - The incremental cache stores entry-level data, and each de-duplication group's combined result: deduplication
+//   happens across files, and only among the files a key links, so a group is combined again when its input changes
+//   (token-stats::CON-003); keyed by (path, mtime, size), one row per file in the token store the engine module keeps
+//   (ADR-0044). The statistics include stale projects.
 import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'node:fs'
 import { dirname, join, sep } from 'node:path'
@@ -273,6 +273,11 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  *      change of the cache as a whole**, which the store records as its own version. The per-file aggregate is v19's,
  *      unchanged, which is why the first launch imports a v19 JSON file and no other (JSON_CACHE_VERSION, token-stats
  *      C26). The store's tables are this version's too (engine/src/store/): changing them bumps this number.
+ * v21: the token store gained each entry's de-duplication keys and each group's combined result, with the group's input
+ *      and the combination it came from — the tables `keys` and `results`, and beside each entry its number, the write
+ *      that held it and what the grouping read of it (engine/src/store/) — **a structure change of the store**. The
+ *      per-file aggregate is still v19's, so the first launch still imports a v19 JSON file. Version 20 never shipped (no
+ *      release tag holds it): only a development store of v20 is replaced, and parses every file once.
  *
  * Not bumped, for one computation change and its reasons alone (#427): a Codex rollout's last line is read only once its
  *      line feed is written, where the TypeScript parser read it at once. The change reaches only an entry cached while a
@@ -298,7 +303,7 @@ export const CACHE_VERSION = 21
 
 /**
  * The last structure version kept in the JSON cache file, and the only one a first launch imports (token-stats C26): its
- * per-file aggregate is the store's (CACHE_VERSION, v20). A literal, not `CACHE_VERSION - 1`: a later bump changes what
+ * per-file aggregate is the store's (CACHE_VERSION, v20 and v21). A literal, not `CACHE_VERSION - 1`: a later bump changes what
  * the store holds, never what that file held.
  */
 const JSON_CACHE_VERSION = 19

@@ -450,10 +450,19 @@ pub fn put(tx: &Connection, entry: &Entry<'_>, rev: i64) -> Result<i64, String> 
             )
         })
         .map_err(message)?;
-    seams::before_store_statement()?;
-    tx.prepare_cached("DELETE FROM keys WHERE file = ?1").and_then(|mut s| s.execute(params![id])).map_err(message)?;
+    // Only the keys that changed are written: a key's hash puts it on any page of the key index, so writing every key of
+    // a file that gained one line would write most of that index (token-stats::QR-003/AC-03)
+    let held: std::collections::HashSet<i64> = keys_of(tx, id)?.into_iter().collect();
+    let given: std::collections::HashSet<i64> = entry.keys.iter().copied().collect();
+    let mut gone: Vec<i64> = held.difference(&given).copied().collect();
+    gone.sort_unstable();
+    let mut remove = tx.prepare_cached("DELETE FROM keys WHERE file = ?1 AND key = ?2").map_err(message)?;
+    for key in gone {
+        seams::before_store_statement()?;
+        remove.execute(params![id, key]).map_err(message)?;
+    }
     let mut insert = tx.prepare_cached("INSERT INTO keys (key, file) VALUES (?1, ?2)").map_err(message)?;
-    for key in &entry.keys {
+    for key in entry.keys.iter().filter(|k| !held.contains(k)) {
         seams::before_store_statement()?;
         insert.execute(params![key, id]).map_err(message)?;
     }

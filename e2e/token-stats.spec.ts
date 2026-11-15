@@ -67,7 +67,7 @@ test('the archive retains a past day whose live figure fell under the same stamp
   // is a literal here on purpose: a bump turns this case red (the seeded pair reads as another stamp and
   // the decrease is accepted) instead of silently passing — update it together with CACHE_VERSION.
   const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }
-  const stamp = `${pkg.version}+c20`
+  const stamp = `${pkg.version}+c21`
   const retainedRow = {
     day,
     side: 'claude',
@@ -1119,7 +1119,7 @@ test('global span save failure keeps live views consistent and reopens the last 
 test('global span includes archived and retained older rows in both charts and fourth cards', async () => {
   const f = spanFixture()
   const beta = join(f.home, 'beta')
-  const stamp = `${(JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version}+c20`
+  const stamp = `${(JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version}+c21`
   writeFileSync(join(f.userData, 'usage-archive.json'), JSON.stringify({
     version: 2, rows: [
       { day: day(75), side: 'claude', projectKey: f.project.toLowerCase(), model: 'claude-oldest', input: 90, output: 5, cacheRead: 2, cacheWrite: 3, total: 100 },

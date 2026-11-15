@@ -8,14 +8,16 @@
 //! ## Layout
 //!
 //! - `sides/<side>/`: what differs by agent side — its entry types, the fields its rules read off a line, its parse,
-//!   its question rules and its title. A side's items stay private to its directory, except the one adapter it
+//!   its question rules, its title, and its entry's de-duplication keys and combination. A side's items stay private to its directory, except the one adapter it
 //!   registers in `sides/mod.rs`, which is the one list of the sides, with the trait they implement. The trait gains a
 //!   method only when side-free code calls one.
 //! - Side-free modules, which never branch on a side: what more than one side uses, written once — `read/` (lines over
 //!   a plain or a zstd stream), `json/` (a line read by `JSON.parse`'s grammar and with its results), `text/` (text as
 //!   JavaScript holds it, and the normalisation, noise, title, fingerprint, merge key and `Date.parse` rules over it),
-//!   `question/` (the question indexer the sides share) and `store/` (the token store, ADR-0044, which holds each
-//!   session file's entry under its path without reading it by side).
+//!   `question/` (the question indexer the sides share and the replay strip of a fork's questions), `store/` (the token
+//!   store, ADR-0044, which holds each session file's entry under its path without reading it by side) and `group/`
+//!   (the grouping and the combination, token-stats::CON-003: which files a de-duplication key links, a group's input,
+//!   its stored result and the sum of the stored results; each side's combination is behind the trait).
 //! - `display/`: the display copy's writer, which serialises what the main process hands it and knows nothing of
 //!   what the copy holds.
 //! - `exports/`: every `#[napi]` function, one file per caller, with the conversions between JavaScript's values and
