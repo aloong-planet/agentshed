@@ -1,7 +1,8 @@
 //! The display copy's writer (agents-overview::REQ-008, ADR-0044, ADR-0045): the main process hands over what the copy
-//! holds at the moment it is written, and this module serialises it and writes it to its file. The main process decides
-//! when it is written, and reads it at launch without the module; the copy's name and envelope are its own
-//! (src/main/display-store.ts), so this module knows nothing of what the copy holds. It never branches on a side.
+//! holds at the moment it is written, and this module serialises it by `JSON.stringify`'s rules (`json`) and writes it
+//! to its file. The main process decides when it is written, and reads it at launch without the module; the copy's name
+//! and envelope are its own (src/main/display-store.ts), so this module knows nothing of what the copy holds. It never
+//! branches on a side.
 
 mod json;
 
@@ -9,7 +10,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-pub use json::JsonText;
+pub use json::stringify;
 
 /// Replaces `file` with `text`, atomically: the text goes to a temporary file beside it, which is then renamed over it.
 /// A write cut short leaves the previous copy whole (agents-overview, restart sequence item 6), and one that fails
