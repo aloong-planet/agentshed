@@ -4,6 +4,7 @@ import { DisplayStore, engineWrite } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, recordFileBytes, regularTarget } from './source-identity'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -729,7 +730,11 @@ void app.whenReady().then(() => {
     parseScript: join(__dirname, 'parse-worker.js'),
     cacheDir: app.getPath('userData'),
     poolSize: Math.min(4, Math.max(1, availableParallelism() - 1)),
-    engine
+    engine,
+    // What a stored group result came from (token-stats, Implementation Decisions, Cache): a packaged build's rules are
+    // its version's; an unpackaged run's code can differ from the last run's under the same version, so each run is a
+    // combination of its own
+    combination: app.isPackaged ? app.getVersion() : `run ${randomUUID()}`
   })
   // The listed set as it stands: the snapshot's projects, stale ones included, with each one's listed
   // sessions — the restored ones until the first scan completes (global-search S2)

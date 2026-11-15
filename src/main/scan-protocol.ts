@@ -30,6 +30,9 @@ export interface ScanWorkerData {
   poolSize: number
   /** The engine module the worker and its parse workers load (ADR-0045) */
   engine: EngineSource
+  /** The combination the scans' stored group results come from (token-stats, Implementation Decisions, Cache): the
+   * application version in a packaged build, this run in an unpackaged one */
+  combination: string
 }
 
 /** The part of its port the worker's side uses */

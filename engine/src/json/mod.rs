@@ -424,6 +424,95 @@ impl<'a> Reader<'a> {
     }
 }
 
+/// A value as a rule that asks its type reads it (`typeof v`, `v === null`): an object or an array is checked and skipped
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Value<'a> {
+    Null,
+    Bool(bool),
+    Number(f64),
+    String(Str<'a>),
+    /// An object or an array
+    Container,
+}
+
+impl<'a> Reader<'a> {
+    /// The value here, as `Value` reads it
+    pub(crate) fn value(&mut self) -> Read<Value<'a>> {
+        Ok(match self.kind()? {
+            Kind::Null => {
+                self.literal(b"null")?;
+                Value::Null
+            }
+            Kind::True => {
+                self.literal(b"true")?;
+                Value::Bool(true)
+            }
+            Kind::False => {
+                self.literal(b"false")?;
+                Value::Bool(false)
+            }
+            Kind::Number => Value::Number(self.number()?),
+            Kind::String => Value::String(self.string()?),
+            Kind::Object | Kind::Array => {
+                self.skip()?;
+                Value::Container
+            }
+        })
+    }
+}
+
+/// The list here, when it is a list of rows of one tuple type, each row given to `row`: as many elements as `shape` has
+/// letters, each of the type its letter names — `n` a number, `N` a number or null, `S` a string or null (`isRows` in
+/// `src/main/providers/token-stats.ts`, rule for rule). None when it is not one; the value is read through either way.
+pub(crate) fn rows<'a, T>(r: &mut Reader<'a>, shape: &str, mut row: impl FnMut(&[Value<'a>]) -> T) -> Read<Option<Vec<T>>> {
+    if r.kind()? != Kind::Array {
+        r.skip()?;
+        return Ok(None);
+    }
+    let shape = shape.as_bytes();
+    let mut out = Some(Vec::new());
+    let mut cells = Vec::with_capacity(shape.len());
+    r.elements(|r| {
+        if out.is_none() || r.kind()? != Kind::Array {
+            out = None;
+            return r.skip();
+        }
+        cells.clear();
+        r.elements(|r| {
+            cells.push(r.value()?);
+            Ok(())
+        })?;
+        let fits = cells.len() == shape.len()
+            && cells.iter().zip(shape).all(|(cell, &letter)| match cell {
+                Value::Null => letter != b'n',
+                Value::Number(_) => letter != b'S',
+                Value::String(_) => letter == b'S',
+                Value::Bool(_) | Value::Container => false,
+            });
+        match &mut out {
+            Some(rows) if fits => rows.push(row(&cells)),
+            _ => out = None,
+        }
+        Ok(())
+    })?;
+    Ok(out)
+}
+
+/// A cell `rows` checked as a number
+pub(crate) fn cell_number(cell: &Value<'_>) -> f64 {
+    if let Value::Number(x) = cell { *x } else { f64::NAN }
+}
+
+/// A cell `rows` checked as a number or null
+pub(crate) fn cell_number_or_null(cell: &Value<'_>) -> Option<f64> {
+    if let Value::Number(x) = cell { Some(*x) } else { None }
+}
+
+/// A cell `rows` checked as a string or null
+pub(crate) fn cell_text(cell: &Value<'_>) -> Option<Units> {
+    if let Value::String(s) = cell { Some(s.units()) } else { None }
+}
+
 /// What a line holds, as the parse takes it: `typeof` of the value `JSON.parse` gives
 pub(crate) enum Line<T> {
     /// An object: what the side read off it

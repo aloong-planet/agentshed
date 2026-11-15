@@ -1,7 +1,9 @@
 //! The token store (token-stats, Implementation Decisions, Cache; ADR-0044): a SQLite database in the settings
 //! directory, holding each session file's entry as a row under its path, with its signature and its per-file
-//! aggregate. The store never reads an entry: what one holds, and whether it is well formed, is its caller's to judge,
-//! so nothing here differs by agent side.
+//! aggregate; the de-duplication keys each entry carries; and each group's combined result with the combination it came
+//! from (token-stats::CON-003). The store reads no entry and no result: what one holds is the grouping's (`group/`) to
+//! judge, and what it records beside an entry — its keys, its side, its project, whether it is listed, the id its side's
+//! forks name it by — is handed to it with the entry, so nothing here differs by agent side.
 //!
 //! - **Opening** (token-stats C1, C2): a store of this structure version, with this version's tables, is used as it
 //!   is. Anything else under the store's name — none, a file that is no database or will not open, another version,
@@ -21,7 +23,7 @@
 
 use crate::seams;
 use rusqlite::types::ValueRef;
-use rusqlite::{Connection, ErrorCode, OpenFlags, TransactionBehavior, params};
+use rusqlite::{Connection, ErrorCode, OpenFlags, Transaction, TransactionBehavior, params};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -38,14 +40,35 @@ const BESIDE: [&str; 3] = ["-wal", "-shm", "-journal"];
 /// data (ADR-0044).
 const WAIT: Duration = Duration::from_secs(5);
 
-/// The store's one table, exactly as this structure creates it. A store's own text for it is compared with this, so a
-/// table of another shape is no store of this version.
-const ENTRIES: &str = "CREATE TABLE entries (path TEXT PRIMARY KEY NOT NULL, sig TEXT NOT NULL, agg TEXT NOT NULL, resume TEXT)";
+/// The store's tables and indexes, exactly as this structure creates them. A store's own text for each is compared with
+/// these, so a table of another shape is no store of this version.
+///
+/// - `entries`: one row per file. `id` is the file's number, which its keys and its group name it by; `rev` is the
+///   number of the write that last held an entry there, so a group's input tells one entry from the next. `kind`,
+///   `listed`, `project` and `own` are what the grouping read of the entry when it was written, null for an entry it
+///   could not read: its side, whether it is listed, its project and the id its side's forks name it by. They come
+///   before the aggregate, so reading them never reads the aggregate, which can be large.
+/// - `keys`: each entry's de-duplication keys, each a 64-bit hash of its side and its text. A hash two keys share only
+///   puts their files in one group, and the combination over a group is the same over any set it is closed in.
+/// - `results`: each group's combined result: its members' numbers in scan order, its input, the combination it came
+///   from, and the result.
+const ENTRIES: &str = "CREATE TABLE entries (id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE, rev INTEGER, kind TEXT, \
+listed INTEGER, project TEXT, own TEXT, sig TEXT NOT NULL, agg TEXT NOT NULL, resume TEXT)";
+const KEYS: &str = "CREATE TABLE keys (key INTEGER NOT NULL, file INTEGER NOT NULL)";
+const KEYS_BY_FILE: &str = "CREATE INDEX keys_by_file ON keys (file)";
+const KEYS_BY_KEY: &str = "CREATE INDEX keys_by_key ON keys (key)";
+const RESULTS: &str =
+    "CREATE TABLE results (id INTEGER PRIMARY KEY, members BLOB NOT NULL, input BLOB NOT NULL, combination TEXT NOT NULL, result BLOB NOT NULL)";
 
-/// What a store of this structure holds besides its data, by name: the table, and the index SQLite keeps for its key
+/// What a store of this structure holds besides its data, by name: the tables and indexes, and the index SQLite keeps
+/// for the unique path
 fn schema() -> Vec<(String, String, Option<String>)> {
     vec![
         ("table".into(), "entries".into(), Some(ENTRIES.into())),
+        ("table".into(), "keys".into(), Some(KEYS.into())),
+        ("index".into(), "keys_by_file".into(), Some(KEYS_BY_FILE.into())),
+        ("index".into(), "keys_by_key".into(), Some(KEYS_BY_KEY.into())),
+        ("table".into(), "results".into(), Some(RESULTS.into())),
         ("index".into(), "sqlite_autoindex_entries_1".into(), None),
     ]
 }
@@ -65,6 +88,50 @@ pub struct Put {
     pub sig: String,
     pub agg: String,
     pub resume: Option<String>,
+}
+
+/// What the grouping read of an entry: its side, whether it is listed, its project, and the id its side's forks name it
+/// by
+#[derive(Clone, Debug, PartialEq)]
+pub struct Facts {
+    pub kind: String,
+    pub listed: bool,
+    pub project: String,
+    pub own: Option<String>,
+}
+
+/// An entry to write, with what the grouping read of it: none for an entry it could not read
+pub struct Entry<'a> {
+    pub put: &'a Put,
+    pub facts: Option<Facts>,
+    pub keys: Vec<i64>,
+}
+
+/// A file's row without its entry: its number, its path, its signature, the write that held its entry, and what the
+/// grouping read of the entry
+pub struct Head {
+    pub id: i64,
+    pub path: String,
+    pub sig: Option<String>,
+    pub rev: Option<i64>,
+    pub facts: Option<Facts>,
+}
+
+/// A group's row without its result; a column that is not of its type is none
+pub struct StoredGroup {
+    pub id: i64,
+    pub members: Option<Vec<i64>>,
+    pub input: Option<Vec<u8>>,
+    pub combination: Option<String>,
+}
+
+/// Members' numbers as a group's row keeps them: each a 64-bit integer, little-endian
+fn members_blob(ids: &[i64]) -> Vec<u8> {
+    ids.iter().flat_map(|id| id.to_le_bytes()).collect()
+}
+
+fn members_of(blob: &[u8]) -> Option<Vec<i64>> {
+    (blob.len() % 8 == 0).then(|| blob.chunks_exact(8).map(|b| i64::from_le_bytes(b.try_into().unwrap_or([0; 8]))).collect())
 }
 
 pub struct Store {
@@ -185,7 +252,7 @@ impl Store {
         conn.busy_timeout(WAIT)?;
         conn.query_row("PRAGMA journal_mode = WAL", [], |row| row.get::<_, String>(0))?;
         let tx = conn.transaction()?;
-        tx.execute_batch(&format!("{ENTRIES}; PRAGMA user_version = {version};"))?;
+        tx.execute_batch(&format!("{ENTRIES}; {KEYS}; {KEYS_BY_FILE}; {KEYS_BY_KEY}; {RESULTS}; PRAGMA user_version = {version};"))?;
         tx.commit()?;
         // The store's own file records its version and its table from the start (Store::write says why)
         conn.query_row("PRAGMA wal_checkpoint(PASSIVE)", [], |_| Ok(()))?;
@@ -201,6 +268,11 @@ impl Store {
         Ok(Store { conn, data_version })
     }
 
+    /// Every file's row without its entry
+    pub fn heads(&self) -> Result<Vec<Head>, String> {
+        heads(&self.conn)
+    }
+
     /// The row held under a path, if any
     pub fn get(&self, path: &str) -> Result<Option<Row>, String> {
         let mut statement =
@@ -208,40 +280,48 @@ impl Store {
         Ok(rows_of(&mut statement, params![path]).map_err(message)?.into_iter().next())
     }
 
-    /// Every row held, in the order the rows were first written: a file keeps its place when its entry is replaced
-    pub fn all(&self) -> Result<Vec<Row>, String> {
-        let mut statement = self.conn.prepare_cached("SELECT path, sig, agg, resume FROM entries ORDER BY rowid").map_err(message)?;
-        rows_of(&mut statement, []).map_err(message)
-    }
-
-    /// Removes the rows under `removes` and holds each of `puts`, in one transaction: all of it lands, or none of it
-    pub fn write(&mut self, puts: &[Put], removes: &[String]) -> Result<(), String> {
-        // IMMEDIATE takes the write lock at the start, waiting for another process that holds it
-        let tx = self.conn.transaction_with_behavior(TransactionBehavior::Immediate).map_err(message)?;
-        {
-            let mut remove = tx.prepare_cached("DELETE FROM entries WHERE path = ?1").map_err(message)?;
-            for path in removes {
-                seams::before_store_statement()?;
-                remove.execute(params![path]).map_err(message)?;
-            }
-            let mut put = tx
-                .prepare_cached(
-                    "INSERT INTO entries (path, sig, agg, resume) VALUES (?1, ?2, ?3, ?4) \
-                     ON CONFLICT (path) DO UPDATE SET sig = excluded.sig, agg = excluded.agg, resume = excluded.resume",
-                )
+    /// Removes the rows under `removes` and holds each of `entries`, in one transaction: all of it lands, or none of it.
+    /// A group keeps its row: the next scan finds it without a removed member, or with a member whose entry is another
+    /// write's, and combines it again.
+    pub fn write(&mut self, entries: &[Entry<'_>], removes: &[String]) -> Result<(), String> {
+        let tx = self.write_transaction()?;
+        for path in removes {
+            seams::before_store_statement()?;
+            tx.prepare_cached("DELETE FROM keys WHERE file IN (SELECT id FROM entries WHERE path = ?1)")
+                .and_then(|mut s| s.execute(params![path]))
                 .map_err(message)?;
-            for entry in puts {
-                seams::before_store_statement()?;
-                put.execute(params![entry.path, entry.sig, entry.agg, entry.resume]).map_err(message)?;
-            }
+            seams::before_store_statement()?;
+            tx.prepare_cached("DELETE FROM entries WHERE path = ?1").and_then(|mut s| s.execute(params![path])).map_err(message)?;
+        }
+        let mut rev = max_rev(&tx)?;
+        for entry in entries {
+            rev += 1;
+            put(&tx, entry, rev)?;
         }
         // A transaction dropped before this point rolls back, a panic's unwinding included
         tx.commit().map_err(message)?;
-        // What landed is copied from the log into the store's own file as far as no reader of the other process holds
-        // it back, so that a copy of that file alone, the restore's snapshot, holds it. A checkpoint that cannot run
-        // now runs after a later write; the write has landed either way.
-        let _ = self.conn.query_row("PRAGMA wal_checkpoint(PASSIVE)", [], |_| Ok(()));
+        self.checkpoint();
         Ok(())
+    }
+
+    /// A transaction that holds the store's write lock from its start: IMMEDIATE, waiting for another process that
+    /// holds it
+    pub fn write_transaction(&self) -> Result<Transaction<'_>, String> {
+        // Unchecked: a scan that cannot take the write lock reads in a transaction of its own instead, and this store
+        // never opens one inside another
+        Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate).map_err(message)
+    }
+
+    /// A transaction that only reads: what it reads is the store as one commit left it
+    pub fn read_transaction(&self) -> Result<Transaction<'_>, String> {
+        Transaction::new_unchecked(&self.conn, TransactionBehavior::Deferred).map_err(message)
+    }
+
+    /// After a write's commit: what landed is copied from the log into the store's own file as far as no reader of the
+    /// other process holds it back, so that a copy of that file alone, the restore's snapshot, holds it. A checkpoint
+    /// that cannot run now runs after a later write; the write has landed either way.
+    pub fn checkpoint(&self) {
+        let _ = self.conn.query_row("PRAGMA wal_checkpoint(PASSIVE)", [], |_| Ok(()));
     }
 
     /// Whether another process wrote to the store since this connection last asked (token-stats C27). A failed read
@@ -256,6 +336,153 @@ impl Store {
             Err(_) => true,
         }
     }
+}
+
+/// The number of the last write that held an entry, 0 when none did
+pub fn max_rev(conn: &Connection) -> Result<i64, String> {
+    conn.query_row("SELECT ifnull(max(rev), 0) FROM entries", [], |row| row.get::<_, i64>(0)).map_err(message)
+}
+
+fn integer(value: ValueRef<'_>) -> Option<i64> {
+    if let ValueRef::Integer(n) = value { Some(n) } else { None }
+}
+
+fn blob(value: ValueRef<'_>) -> Option<&[u8]> {
+    if let ValueRef::Blob(b) = value { Some(b) } else { None }
+}
+
+/// Every file's row without its entry; one whose path is not text is none
+pub fn heads(conn: &Connection) -> Result<Vec<Head>, String> {
+    let mut statement = conn.prepare_cached("SELECT id, path, sig, rev, kind, listed, project, own FROM entries").map_err(message)?;
+    let mut rows = statement.query([]).map_err(message)?;
+    let mut out = Vec::new();
+    while let Some(row) = rows.next().map_err(message)? {
+        let cell = |i| row.get_ref(i).map_err(message);
+        let Some(path) = text(cell(1)?) else { continue };
+        let facts = match (text(cell(4)?), integer(cell(5)?), text(cell(6)?)) {
+            (Some(kind), Some(listed), Some(project)) => Some(Facts { kind, listed: listed != 0, project, own: text(cell(7)?) }),
+            _ => None,
+        };
+        out.push(Head { id: row.get(0).map_err(message)?, path, sig: text(cell(2)?), rev: integer(cell(3)?), facts });
+    }
+    Ok(out)
+}
+
+/// Every group's row without its result
+pub fn groups(conn: &Connection) -> Result<Vec<StoredGroup>, String> {
+    let mut statement = conn.prepare_cached("SELECT id, members, input, combination FROM results").map_err(message)?;
+    let mut rows = statement.query([]).map_err(message)?;
+    let mut out = Vec::new();
+    while let Some(row) = rows.next().map_err(message)? {
+        let cell = |i| row.get_ref(i).map_err(message);
+        out.push(StoredGroup {
+            id: row.get(0).map_err(message)?,
+            members: blob(cell(1)?).and_then(members_of),
+            input: blob(cell(2)?).map(<[u8]>::to_vec),
+            combination: text(cell(3)?),
+        });
+    }
+    Ok(out)
+}
+
+/// Each group's stored result, by the group's number, given to `each`; a result that is not a blob is given as none
+pub fn results(conn: &Connection, mut each: impl FnMut(i64, Option<&[u8]>)) -> Result<(), String> {
+    let mut statement = conn.prepare_cached("SELECT id, result FROM results").map_err(message)?;
+    let mut rows = statement.query([]).map_err(message)?;
+    while let Some(row) = rows.next().map_err(message)? {
+        each(row.get(0).map_err(message)?, blob(row.get_ref(1).map_err(message)?));
+    }
+    Ok(())
+}
+
+/// The aggregate held under a file's number, when it is text
+pub fn agg(conn: &Connection, id: i64) -> Result<Option<String>, String> {
+    let mut statement = conn.prepare_cached("SELECT agg FROM entries WHERE id = ?1").map_err(message)?;
+    let mut rows = statement.query(params![id]).map_err(message)?;
+    match rows.next().map_err(message)? {
+        Some(row) => Ok(text(row.get_ref(0).map_err(message)?)),
+        None => Ok(None),
+    }
+}
+
+/// A file's keys, by its number
+pub fn keys_of(conn: &Connection, id: i64) -> Result<Vec<i64>, String> {
+    let mut statement = conn.prepare_cached("SELECT key FROM keys WHERE file = ?1").map_err(message)?;
+    let keys = statement.query_map(params![id], |row| row.get(0)).map_err(message)?;
+    keys.collect::<rusqlite::Result<_>>().map_err(message)
+}
+
+/// The numbers of the files holding a key
+pub fn files_of(conn: &Connection, key: i64) -> Result<Vec<i64>, String> {
+    let mut statement = conn.prepare_cached("SELECT file FROM keys WHERE key = ?1").map_err(message)?;
+    let files = statement.query_map(params![key], |row| row.get(0)).map_err(message)?;
+    files.collect::<rusqlite::Result<_>>().map_err(message)
+}
+
+// The writes below are each a statement of a write transaction the caller holds on `tx`
+
+/// Holds an entry under its path as write `rev`, with its keys; the file's number. A file keeps its number when its
+/// entry is replaced.
+pub fn put(tx: &Connection, entry: &Entry<'_>, rev: i64) -> Result<i64, String> {
+    let p = entry.put;
+    let f = entry.facts.as_ref();
+    seams::before_store_statement()?;
+    let id: i64 = tx
+        .prepare_cached(
+            "INSERT INTO entries (path, sig, agg, resume, rev, kind, listed, project, own) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
+             ON CONFLICT (path) DO UPDATE SET sig = excluded.sig, agg = excluded.agg, resume = excluded.resume, rev = excluded.rev, \
+             kind = excluded.kind, listed = excluded.listed, project = excluded.project, own = excluded.own RETURNING id",
+        )
+        .and_then(|mut s| {
+            s.query_row(
+                params![
+                    p.path,
+                    p.sig,
+                    p.agg,
+                    p.resume,
+                    rev,
+                    f.map(|f| &f.kind),
+                    f.map(|f| f.listed),
+                    f.map(|f| &f.project),
+                    f.and_then(|f| f.own.as_ref())
+                ],
+                |row| row.get(0),
+            )
+        })
+        .map_err(message)?;
+    seams::before_store_statement()?;
+    tx.prepare_cached("DELETE FROM keys WHERE file = ?1").and_then(|mut s| s.execute(params![id])).map_err(message)?;
+    let mut insert = tx.prepare_cached("INSERT INTO keys (key, file) VALUES (?1, ?2)").map_err(message)?;
+    for key in &entry.keys {
+        seams::before_store_statement()?;
+        insert.execute(params![key, id]).map_err(message)?;
+    }
+    Ok(id)
+}
+
+/// Removes a file's entry and its keys, by its number
+pub fn remove(tx: &Connection, id: i64) -> Result<(), String> {
+    seams::before_store_statement()?;
+    tx.prepare_cached("DELETE FROM keys WHERE file = ?1").and_then(|mut s| s.execute(params![id])).map_err(message)?;
+    seams::before_store_statement()?;
+    tx.prepare_cached("DELETE FROM entries WHERE id = ?1").and_then(|mut s| s.execute(params![id])).map_err(message)?;
+    Ok(())
+}
+
+/// Removes a group's row
+pub fn drop_group(tx: &Connection, id: i64) -> Result<(), String> {
+    seams::before_store_statement()?;
+    tx.prepare_cached("DELETE FROM results WHERE id = ?1").and_then(|mut s| s.execute(params![id])).map_err(message)?;
+    Ok(())
+}
+
+/// Holds a group's combined result: its members' numbers in scan order, its input and the combination it came from
+pub fn add_group(tx: &Connection, members: &[i64], input: &[u8], combination: &str, result: &[u8]) -> Result<(), String> {
+    seams::before_store_statement()?;
+    tx.prepare_cached("INSERT INTO results (members, input, combination, result) VALUES (?1, ?2, ?3, ?4)")
+        .and_then(|mut s| s.execute(params![members_blob(members), input, combination, result]))
+        .map_err(message)?;
+    Ok(())
 }
 
 /// What a snapshot holds: the structure version it records, none when it is no store, and its rows when that version is

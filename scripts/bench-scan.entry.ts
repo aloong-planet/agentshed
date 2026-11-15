@@ -35,6 +35,7 @@
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
+import { randomUUID } from 'node:crypto'
 import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { DatabaseSync } from '../src/main/providers/sqlite'
 import { tmpdir } from 'node:os'
@@ -329,9 +330,13 @@ async function timedScan(label: string, scan: () => Promise<ScanOutput>, archive
   console.log(`[rescan] ${label} scan: the scan ${scanned} ${where()}, archive merge and figures ${since(t0)}; total ${since(start)}`)
 }
 
+/** What the rescans' stored group results come from: one for this run, as a packaged build's second launch keeps one
+ * (token-stats, Implementation Decisions, Cache), so a rescan combines only the groups its changes reach */
+const COMBINATION = `bench run ${randomUUID()}`
+
 /** The app's way: the scan on the scan worker */
 function rescanThroughWorker(cacheDir: string, roots: ScanRoots, archive: UsageArchive, scanScript: string, parseScript: string): RescanRun {
-  const scans = startScans({ script: scanScript, parseScript, cacheDir, poolSize: poolSize(), engine: engineSource() })
+  const scans = startScans({ script: scanScript, parseScript, cacheDir, poolSize: poolSize(), engine: engineSource(), combination: COMBINATION })
   const where = (): string => (scans.servedOn === 'worker' ? 'on the scan worker' : 'on the main process, the scan worker having failed')
   return { once: (label) => timedScan(label, () => scans.scan(roots), archive, where), counted: () => '', close: () => scans.close() }
 }
@@ -347,7 +352,7 @@ function rescanOnMain(cacheDir: string, roots: ScanRoots, archive: UsageArchive,
       return pool.run(job)
     },
     close: () => pool.close()
-  })
+  }, COMBINATION)
   return {
     once: (label) => {
       parsed = 0

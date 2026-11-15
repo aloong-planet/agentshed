@@ -3,6 +3,7 @@
 //! writes the entry as the TypeScript `ParseResult`. A value the entry only carries over from the job — the file and its
 //! project — goes back as the job's own JavaScript value.
 
+mod combine;
 mod entry;
 mod line;
 mod parse;
@@ -27,13 +28,26 @@ impl Side for Claude {
             None => js.null(),
         }
     }
+
+    fn decode(&self, agg: &str) -> Option<crate::group::Decoded> {
+        combine::decode(agg)
+    }
+
+    fn combine(
+        &self,
+        dates: &crate::exports::js::LocalDates<'_>,
+        members: &[crate::group::Member<'_>],
+        out: &mut crate::group::Builder,
+    ) -> Result<std::result::Result<(), u32>> {
+        combine::combine(dates, members, out)
+    }
 }
 
 fn write_result(js: &Js, file: napi_value, project_key: napi_value, p: &Parsed) -> Result<napi_value> {
     let dates = js.local_dates()?;
     let entries = js.array(p.usage.iter().map(|u| {
         let day = match u.at {
-            Some(ms) => js.text(&parse::day(dates.of(ms)?))?,
+            Some(ms) => js.text(&crate::text::day(dates.of(ms)?))?,
             None => js.null()?,
         };
         // `[id, requestId, sidechain, input, output, cacheRead, cacheWrite, model, day]`

@@ -95,3 +95,56 @@ impl Indexer {
         (records, first)
     }
 }
+
+/// Two adjacent questions this close are a program writing in one go rather than a person's rhythm (session-view B2).
+/// The same measure as the token side's rewrite burst (ccusage's replay.rs), and computed apart from it: metering is a
+/// de-duplication rule and display is what the conversation looks like, so neither takes the other's conclusion.
+const BURST_GAP_MS: f64 = 1000.0;
+
+/// How many of a fork's leading questions are the replay of its parent's, and the fork's state (session-view B2): the
+/// questions after them are the session's own. Failing safe decides each step: a real question stripped would vanish
+/// unseen, a replayed one kept shows as a duplicate with the uncertain mark to explain it, so a check that does not pass
+/// strips nothing.
+///
+/// `parent` is the parent's index when the parent is in the scan set; `forked_at` the fork's moment. Whether the session
+/// is a fork is given apart (`is_fork`): no parent is both "not a fork" and "a fork whose parent is gone", whose states
+/// differ.
+pub(crate) fn strip_replay_prefix(child: &[Record], parent: Option<&[Record]>, forked_at: Option<f64>, is_fork: bool) -> (usize, crate::group::Fork) {
+    use crate::group::Fork;
+    if !is_fork {
+        return (0, Fork::None);
+    }
+    let Some(parent) = parent else {
+        // The parent is gone: what is left is that a replay is written in one go, the gaps between its lines near zero.
+        // The opening run of such gaps, the first question its own start; out of order is no burst
+        let mut n = usize::from(!child.is_empty());
+        while n < child.len() {
+            let (Some(a), Some(b)) = (child[n - 1].at, child[n].at) else { break };
+            if b - a < 0.0 || b - a > BURST_GAP_MS {
+                break;
+            }
+            n += 1;
+        }
+        // One question with no question at a person's rhythm after it is no burst
+        if n == 1 {
+            n = 0;
+        }
+        // Never stripped empty: a fork that made nothing new shows one question too many, where a misjudged burst would
+        // lose the whole session
+        if n >= child.len() {
+            n = child.len().saturating_sub(1);
+        }
+        return (n, Fork::Uncertain);
+    };
+    // The parent's questions before the fork's moment are the ones it replays, compared by their fingerprints: a replay
+    // rewrites the times
+    let replay = forked_at
+        .and_then(|f| parent.iter().position(|q| q.at.is_some_and(|t| t > f)))
+        .unwrap_or(parent.len());
+    let mut n = 0;
+    while n < replay && n < child.len() && child[n].fingerprint == parent[n].fingerprint {
+        n += 1;
+    }
+    // Only a match of the whole span is certain
+    (n, if n == replay && replay > 0 { Fork::Stripped } else { Fork::Uncertain })
+}

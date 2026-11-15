@@ -21,9 +21,9 @@ import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync,
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
+import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, wholeCombination, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { TEST_ENGINE, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
-import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storePath, storeRows, storeVersion } from '../testing/token-store'
+import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storedGroups, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule } from '../engine-module'
 import { compareScanOrder } from './scan-order'
 import { spawn } from 'node:child_process'
@@ -1973,6 +1973,231 @@ describe('two processes on one store (token-stats C27)', () => {
     }
     expect(await parsedOnRelaunch()).toEqual([])
   }, 20_000)
+})
+
+// Combining by group (token-stats::CON-003): what a scan derives from the token cache is exactly what one combination
+// over every file of the scan set, in scan order, gives from the same entries. Each case builds its scan set, scans it
+// with the engine module's grouped combination, and compares every output field with the whole combination over the
+// entries the scan stored, put in scan order.
+/** What a build derives from the token cache, each list in its order: the usage rows, each project's figures and
+ * sessions, the stripped forks titled by their first question left, and the unreadable conversations */
+function figures(r: TokenBuildResult): unknown {
+  return {
+    global: r.global,
+    perProject: [...r.perProject],
+    rows: r.rows,
+    retitle: r.retitle.map(({ session, file, start, end }) => ({ session, file, start, end })),
+    antigravityUnreadable: r.antigravityUnreadable
+  }
+}
+
+/** One combination over every entry the store holds, in scan order, with agy's titles as `titles` */
+async function oneCombination(titles = new Map<string, string>()): Promise<TokenBuildResult> {
+  const order = compareScanOrder(roots())
+  const entries = [...storedEntries(cacheDir())].sort(([a], [b]) => order(a, b))
+  return wholeCombination(
+    entries.map(([, e]) => e.agg),
+    titles
+  )
+}
+
+/** The scan's figures are one combination's over the scan set */
+async function expectOneCombination(r: TokenBuildResult, titles?: Map<string, string>): Promise<void> {
+  expect(figures(r)).toStrictEqual(figures(await oneCombination(titles)))
+}
+
+/**
+ * A Claude Code assistant line with the keys Claude Code writes (an assistant line on this machine, 2026-11-15): one
+ * content block of a message, under the usage the message had when the block was written, whose output grows as the
+ * message streams. The input, cache read and cache write figures are fixed: 6, 18000 and 1200.
+ */
+function realAssistantLine(o: { uuid: string; parent: string; id: string; requestId: string; at: string; block: 'thinking' | 'text'; output: number; session: string }): string {
+  const cache = { ephemeral_1h_input_tokens: 1200, ephemeral_5m_input_tokens: 0 }
+  return JSON.stringify({
+    parentUuid: o.parent,
+    isSidechain: false,
+    message: {
+      model: 'claude-fable-5',
+      id: o.id,
+      type: 'message',
+      role: 'assistant',
+      content: [o.block === 'thinking' ? { type: 'thinking', thinking: '', signature: 'EsQBCkYIBxgCKkB' } : { type: 'text', text: 'Done.' }],
+      container: null,
+      stop_reason: o.block === 'text' ? 'end_turn' : null,
+      stop_sequence: null,
+      stop_details: null,
+      usage: {
+        input_tokens: 6,
+        cache_creation_input_tokens: 1200,
+        cache_read_input_tokens: 18000,
+        output_tokens: o.output,
+        output_tokens_details: { thinking_tokens: 0 },
+        server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 },
+        service_tier: 'standard',
+        cache_creation: cache,
+        inference_geo: 'not_available',
+        iterations: [{ input_tokens: 6, output_tokens: o.output, cache_read_input_tokens: 18000, cache_creation_input_tokens: 1200, cache_creation: cache, type: 'message' }],
+        speed: 'standard',
+        fallback_credit: null
+      },
+      input_transformations: [],
+      diagnostics: null,
+      context_management: null
+    },
+    requestId: o.requestId,
+    type: 'assistant',
+    uuid: o.uuid,
+    timestamp: o.at,
+    userType: 'external',
+    entrypoint: 'cli',
+    cwd: proj,
+    sessionId: o.session,
+    version: '2.1.140',
+    gitBranch: 'main'
+  })
+}
+
+/** A Claude Code user line with the keys Claude Code writes, beside realAssistantLine */
+function realUserLine(o: { uuid: string; parent: string | null; text: string; at: string; session: string }): string {
+  return JSON.stringify({
+    parentUuid: o.parent,
+    isSidechain: false,
+    userType: 'external',
+    entrypoint: 'cli',
+    cwd: proj,
+    sessionId: o.session,
+    version: '2.1.140',
+    gitBranch: 'main',
+    type: 'user',
+    message: { role: 'user', content: o.text },
+    uuid: o.uuid,
+    timestamp: o.at
+  })
+}
+
+/**
+ * Three Claude sessions of one project, A–B–C, linked by two message ids: B shares one with A and another with C. The
+ * figures differ by file, so which copy of a message is kept shows: B's copy of m1 is the larger, so it replaces A's;
+ * C's copy of m2 is a sidechain's under another request id, so it matches B's by the id alone and B's is kept (A4).
+ */
+function linkedChain(): { a: string; b: string; c: string } {
+  const a = mkClaudeFile('a.jsonl', [userLine('first question', '2026-07-01T09:00:00Z'), usageLine('claude-fable-5', '2026-07-01T10:00:00Z', 100, 10, { id: 'm1', requestId: 'r1' })])
+  const b = mkClaudeFile('b.jsonl', [
+    userLine('second question', '2026-07-01T10:30:00Z'),
+    usageLine('claude-fable-5', '2026-07-01T11:00:00Z', 150, 10, { id: 'm1', requestId: 'r1' }),
+    usageLine('claude-opus-5-5', '2026-07-02T09:00:00Z', 40, 4, { id: 'm2', requestId: 'r2' })
+  ])
+  const c = mkClaudeFile('c.jsonl', [
+    userLine('third question', '2026-07-02T08:00:00Z'),
+    usageLine('claude-opus-5-5', '2026-07-02T09:30:00Z', 400, 40, { id: 'm2', requestId: 'r9', sidechain: true })
+  ])
+  return { a, b, c }
+}
+
+describe('combining by group gives the figures of one combination (token-stats::CON-003)', () => {
+  it('a file that links two otherwise separate groups: the three are combined as one', async () => {
+    const { a, b, c } = linkedChain()
+    const r = await engine().build(roots(), [proj])
+    await expectOneCombination(r)
+    // The control that the link decided something: B kept both messages, A and C none
+    const tokens = new Map(r.perProject.get(mergeKey(proj))?.sessions.map((s) => [s.file, s.tokens]))
+    expect(Object.fromEntries([a, b, c].map((f) => [f, tokens.get(f)]))).toEqual({ [a]: 0, [b]: 204, [c]: 0 })
+  })
+
+  it('a Claude message repeated across files, the more complete usage in the later one (A3; real-shaped lines)', async () => {
+    // A session resumed into a new file carries its history over: the first file holds message m1 as streamed when
+    // it stopped, the resumed one the same message with its usage complete, and a message of its own
+    const first = mkClaudeFile('1f0c-first.jsonl', [
+      realUserLine({ uuid: 'u1', parent: null, text: 'add a retry to the uploader', at: '2026-07-01T09:00:00.000Z', session: 's-1' }),
+      realAssistantLine({ uuid: 'a1', parent: 'u1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:05.000Z', block: 'thinking', output: 8, session: 's-1' }),
+      realAssistantLine({ uuid: 'a2', parent: 'a1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:09.000Z', block: 'text', output: 8, session: 's-1' })
+    ])
+    const resumed = mkClaudeFile('7a2e-resumed.jsonl', [
+      realUserLine({ uuid: 'u1', parent: null, text: 'add a retry to the uploader', at: '2026-07-01T09:00:00.000Z', session: 's-2' }),
+      realAssistantLine({ uuid: 'a1', parent: 'u1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:05.000Z', block: 'thinking', output: 8, session: 's-2' }),
+      realAssistantLine({ uuid: 'a2', parent: 'a1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:40.000Z', block: 'text', output: 412, session: 's-2' }),
+      realUserLine({ uuid: 'u2', parent: 'a2', text: 'and log each attempt', at: '2026-07-02T10:00:00.000Z', session: 's-2' }),
+      realAssistantLine({ uuid: 'a3', parent: 'u2', id: 'msg_01m2', requestId: 'req_01r2', at: '2026-07-02T10:00:30.000Z', block: 'text', output: 90, session: 's-2' })
+    ])
+    const r = await engine().build(roots(), [proj])
+    await expectOneCombination(r)
+    const tokens = new Map(r.perProject.get(mergeKey(proj))?.sessions.map((s) => [s.file, s.tokens]))
+    // m1 once, with the resumed file's complete usage: 6 + 412 + 18000 + 1200, then m2's
+    expect([tokens.get(first), tokens.get(resumed)]).toEqual([0, 19618 + 19296])
+  })
+
+  it('a sidechain replay across files, under a request id other than the original\'s (A4)', async () => {
+    // A subagent's transcript sits in its session's directory, which comes before the session's own file in scan order:
+    // its replay of m1 is met first and the session's own copy replaces it
+    const sub = mkClaudeFile(join('9b1d', 'subagents', 'agent-a1.jsonl'), [
+      usageLine('claude-fable-5', '2026-07-03T08:00:01Z', 300, 30, { id: 'm1', requestId: 'r-sub', sidechain: true }),
+      usageLine('claude-fable-5', '2026-07-03T08:00:02Z', 50, 5, { id: 'm-sub', requestId: 'r-sub', sidechain: true })
+    ])
+    const own = mkClaudeFile('9b1d.jsonl', [userLine('dispatch a reviewer', '2026-07-03T07:59:00Z'), usageLine('claude-fable-5', '2026-07-03T08:00:00Z', 120, 12, { id: 'm1', requestId: 'r-own' })])
+    const r = await engine().build(roots(), [proj])
+    await expectOneCombination(r)
+    expect(r.global.bySide.claude.total, 'm1 counted once, as the session\'s own copy, beside the subagent\'s own message').toBe(132 + 55)
+    expect(r.sessionFiles).toEqual(new Set([own, sub]))
+  })
+
+  it('a legacy Codex fork whose parent sits later in scan order (B10)', async () => {
+    const turns = [
+      { input: 100, cached: 20, output: 10, at: '2026-07-30T01:10:00Z' },
+      { input: 200, cached: 50, output: 20, at: '2026-07-30T01:20:00Z' }
+    ]
+    mkCodexFork('rollout-a-019fd10.jsonl', proj, { id: 'c-10', parentId: 'p-10', forkedAtIso: '2026-07-30T05:00:00Z' }, 'gpt-5.6-sol', [
+      ...turns.map((t) => ({ ...t, at: '2026-07-30T05:00:00Z' })),
+      { input: 300, cached: 0, output: 30, at: '2026-07-30T05:30:00Z' }
+    ])
+    mkCodexRollout('rollout-z-019fd11.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', turns, false, 2000, 'sample question', { id: 'p-10' })
+    const r = await engine().build(roots(), [proj])
+    await expectOneCombination(r)
+    expect(r.global.bySide.codex.total, 'the fork\'s replay of its parent stripped: the parent\'s two turns once, the fork\'s own one').toBe(110 + 220 + 330)
+  })
+
+  it('an Antigravity call recorded in two databases (token-stats::REQ-003/AC-01)', async () => {
+    mkAgyConversation('agy-a', proj, [{ usage: { messageId: 'm-shared', input: 40, output: 4 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    mkAgyConversation('agy-b', proj, [
+      { usage: { messageId: 'm-shared', input: 40, output: 4 }, at: Date.parse('2026-07-30T02:00:00Z') },
+      { usage: { messageId: 'm-own', input: 7, output: 1 }, at: Date.parse('2026-07-31T02:00:00Z') }
+    ])
+    const r = await engine().build(roots(), [proj])
+    await expectOneCombination(r)
+    expect(r.global.bySide.antigravity.total).toBe(44 + 8)
+  })
+
+  it('two sessions of different groups with the same time keep their scan order', async () => {
+    const at = '2026-07-30T03:00:00Z'
+    mkClaudeFile('b.jsonl', [userLine('second', at), usageLine('claude-fable-5', at, 10, 1, { id: 'mb' })])
+    mkClaudeFile('a.jsonl', [userLine('first', at), usageLine('claude-fable-5', at, 20, 2, { id: 'ma' })])
+    mkCodexRollout('rollout-t-019fd12.jsonl', proj, at, 'gpt-5.6-sol', [{ input: 30, cached: 0, output: 3, at }], false, 2000, 'sample question', { id: 't-12' })
+    mkClaudeFile('c.jsonl', [userLine('later', '2026-07-30T04:00:00Z'), usageLine('claude-fable-5', '2026-07-30T04:00:00Z', 5, 1, { id: 'mc' })])
+    const r = await engine().build(roots(), [proj])
+    await expectOneCombination(r)
+    expect(r.perProject.get(mergeKey(proj))?.sessions.map((s) => s.title)).toEqual(['later', 'first', 'second', 'sample question'])
+  })
+
+  it('a file with no key is a group alone', async () => {
+    const keyless = mkClaudeFile('k.jsonl', [userLine('no ids here', '2026-07-30T03:00:00Z'), usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 10, 1)])
+    const keyed = mkClaudeFile('m.jsonl', [userLine('ids here', '2026-07-30T03:30:00Z'), usageLine('claude-fable-5', '2026-07-30T03:30:00Z', 10, 1, { id: 'mk' })])
+    const grok = mkGrokSession(proj, 'gk', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })])
+    const r = await engine().build(roots(), [proj])
+    await expectOneCombination(r)
+    expect(storedGroups(cacheDir()).sort()).toEqual([[keyless], [keyed], [grok]].sort())
+  })
+})
+
+describe('a group (token-stats, Implementation Decisions, Cache)', () => {
+  it('a chain linked by two different keys is one group, and removing the middle file\'s keys splits it', async () => {
+    const { a, b, c } = linkedChain()
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect(storedGroups(cacheDir())).toEqual([[a, b, c]])
+    // B's usage lines lose their message ids: nothing links A, B and C any more
+    mkClaudeFile('b.jsonl', [userLine('second question', '2026-07-01T10:30:00Z'), usageLine('claude-fable-5', '2026-07-01T11:00:00Z', 150, 10), usageLine('claude-opus-5-5', '2026-07-02T09:00:00Z', 40, 4)], 2000)
+    await expectOneCombination(await e.build(roots(), [proj]))
+    expect(storedGroups(cacheDir()).sort()).toEqual([[a], [b], [c]].sort())
+  })
 })
 
 describe('the archive row output (for UsageArchive to persist)', () => {
