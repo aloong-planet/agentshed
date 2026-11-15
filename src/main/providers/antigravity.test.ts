@@ -112,7 +112,7 @@ function roots(): ScanRoots {
 }
 const agyRoot = (): string => join(dir, '.gemini', 'antigravity-cli')
 /** The session walk, by the engine module, with no memory behind it */
-const moduleWalk = (): SessionWalk => threadEngineModule().walkSessions(roots())
+const moduleWalk = (held?: () => string[]): SessionWalk => threadEngineModule().walkSessions(roots(), undefined, undefined, held)
 /** The walk's conversations, through `memory` when given, a copy made under `tmpParent` when given */
 const agySessions = (tmpParent?: string, memory?: SessionMemory): AntigravitySessionMeta[] =>
   threadEngineModule().walkSessions(roots(), memory, tmpParent).antigravity
@@ -672,7 +672,9 @@ const cacheDir = (): string => join(dir, 'cache')
 /** A build by a new engine; with `combination`, one of the builds of a run that combines under it (TokenEngine), and
  * otherwise a run of its own, whose first scan combines every group again */
 function build(runner?: ParseRunner, combination?: string): Promise<TokenBuildResult> {
-  return new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, combination).build(roots(), [], undefined, moduleWalk())
+  const engine = new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, combination)
+  // The walk a scan hands its build, through the store's files (scanner.ts)
+  return engine.build(roots(), [], undefined, moduleWalk(() => engine.heldFiles()))
 }
 const agyRows = (r: TokenBuildResult): TokenBuildResult['rows'] => r.rows.filter((x) => x.side === 'antigravity')
 const agyTotal = (r: TokenBuildResult): number => r.global.bySide.antigravity.total
@@ -1458,14 +1460,19 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
   })
 
   // Only a database that is no longer there is deleted: behind a directory the scan lists but cannot enter, each is
-  // there, and the walk, the planning and the read each find it so
-  it.skipIf(process.getuid?.() === 0)('a conversation the scan lists but cannot look at is one that will not open: counted, never its last result, not read again while it stays so, and read again once it can be (AC-01, QR-002)', async () => {
+  // there, and the walk, the planning and the read each find it so. Behind one the scan can neither list nor enter, each
+  // the store holds stays in the scan (Failure modes and boundaries: the token store), and the planning and the read
+  // find it so.
+  ;(process.getuid?.() === 0 ? it.skip : it).each([
+    { name: 'lists but cannot look at', mode: 0o444 },
+    { name: 'can neither list nor look at, which the store holds', mode: 0o000 }
+  ])('a conversation the scan $name is one that will not open: counted, never its last result, not read again while it stays so, and read again once it can be (AC-01, QR-002)', async ({ mode }) => {
     const p = mkProject('p')
     trust([p])
     usageConversation('one', [p], [{ usage: { messageId: 'm-1', input: 100, output: 10 }, at: oct(26) }])
     usageConversation('two', [p], [{ usage: { messageId: 'm-2', input: 100, output: 10 }, at: oct(26) }])
     expect(agyTotal(await build())).toBe(220)
-    chmodSync(conversations(), 0o444)
+    chmodSync(conversations(), mode)
     let shut: TokenBuildResult
     let still: TokenBuildResult
     const jobs: string[] = []

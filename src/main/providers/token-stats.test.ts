@@ -4106,6 +4106,317 @@ describe('a session file whose parsed entry the store cannot hold', () => {
   })
 })
 
+// token-stats, Failure modes and boundaries: the token store. A directory the session walk lists — a side's data root or
+// one below it — that is there but cannot be listed is not taken as empty: each file below it that the store holds an
+// entry for stays in the scan set. A locked directory is left enterable (0o300) unless a case says otherwise, so what is
+// below it can still be looked at by its path.
+describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot list', () => {
+  const projects = (): string => join(dir, '.claude', 'projects')
+  const claudeDir = (): string => join(projects(), encodeClaudeProjectDir(proj))
+  const codexDay = (): string => join(dir, '.codex', 'sessions', '2026', '07', '30')
+  const grokDir = (): string => join(dir, '.grok', 'sessions', encodeURIComponent(proj))
+  const agyDir = (): string => join(dir, '.gemini', 'antigravity-cli', 'conversations')
+  /** A session in every directory a case locks: a Claude Code session with a subagent's transcript, in a day's directory
+   * a plain Codex rollout and a cold one, an archived rollout, a Grok session and its subagent's, an Antigravity
+   * conversation. The totals: Claude Code 15 + 22, Codex 110 + 220 + 330, Grok 55 + 44, Antigravity 15. */
+  function everySide(): Record<'claude' | 'nested' | 'codex' | 'cold' | 'archived' | 'grok' | 'grokChild' | 'agy', string> {
+    const archived = mkCodexRollout('rollout-2026-07-30T00-30-00-019f5a01.jsonl', proj, '2026-07-30T00:30:00Z', 'gpt-5.6-sol', [{ input: 300, cached: 0, output: 30, record: 'resp_k0' }])
+    mkdirSync(join(dir, '.codex', 'archived_sessions'), { recursive: true })
+    const archivedAt = join(dir, '.codex', 'archived_sessions', basename(archived))
+    renameSync(archived, archivedAt)
+    const warm = mkCodexRollout('rollout-2026-07-30T01-30-00-019f5a03.jsonl', proj, '2026-07-30T01:30:00Z', 'gpt-5.6-sol', [{ input: 200, cached: 0, output: 20, record: 'resp_k2' }])
+    const cold = `${warm}.zst`
+    writeFileSync(cold, zstdCompressSync(readFileSync(warm)))
+    rmSync(warm)
+    return {
+      cold,
+      claude: mkClaudeFile('a.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'mk1', requestId: 'rk1' })]),
+      nested: mkClaudeFile(join('a', 'subagents', 'agent-1.jsonl'), [usageLine('claude-fable-5', '2026-07-30T02:01:00Z', 20, 2, { id: 'mk2', requestId: 'rk2', sidechain: true })]),
+      codex: mkCodexRollout('rollout-2026-07-30T01-00-00-019f5a02.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_k1' }]),
+      archived: archivedAt,
+      grok: mkGrokSession(proj, 'gk1', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })]),
+      grokChild: mkGrokSession(proj, 'gk2', [grokTurn(1785369700, { input: 40, output: 4 })], { subagent: true }),
+      agy: mkAgyConversation('agy-k1', proj, [{ usage: { messageId: 'm-k1', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    }
+  }
+  const BUILT_SIDES = ['claude', 'codex', 'grok', 'antigravity'] as const
+  /** Each directory the walk lists on the sides whose failed read leaves the figures (A10, B12, F6), with what that side
+   * counts of `everySide` without the files below it */
+  const LEFT: Array<{ name: string; locked: () => string; side: (typeof BUILT_SIDES)[number]; left: number }> = [
+    { name: 'Claude Code\'s projects directory', locked: projects, side: 'claude', left: 0 },
+    { name: 'a Claude Code project\'s directory', locked: claudeDir, side: 'claude', left: 0 },
+    { name: 'a Claude Code session\'s directory of transcripts', locked: (): string => join(claudeDir(), 'a'), side: 'claude', left: 15 },
+    { name: 'Codex\'s sessions', locked: (): string => join(dir, '.codex', 'sessions'), side: 'codex', left: 330 },
+    { name: 'a Codex day\'s directory', locked: codexDay, side: 'codex', left: 330 },
+    { name: 'Codex\'s archived sessions', locked: (): string => join(dir, '.codex', 'archived_sessions'), side: 'codex', left: 330 },
+    { name: 'Grok\'s sessions', locked: (): string => join(dir, '.grok', 'sessions'), side: 'grok', left: 0 },
+    { name: 'a Grok project\'s directory', locked: grokDir, side: 'grok', left: 0 }
+  ]
+  const EVERY = [...LEFT, { name: 'Antigravity CLI\'s conversations', locked: agyDir, side: 'antigravity' as const, left: 0 }]
+
+  it.each(EVERY)('below $name, every file the store holds is kept: the same figures and sessions, nothing parsed, nothing written', async ({ locked }) => {
+    everySide()
+    const { runner, jobs } = recording()
+    const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner)
+    const first = await e.build(roots(), [proj])
+    expect(BUILT_SIDES.map((side) => first.global.bySide[side].total > 0), 'the control: every side counted').toEqual(BUILT_SIDES.map(() => true))
+    const stored = storeBytes()
+    jobs.length = 0
+    chmodSync(locked(), 0o300)
+    try {
+      expect(() => readdirSync(locked()), 'the control: the directory cannot be listed').toThrow()
+      const r = await e.build(roots(), [proj])
+      expect(jobs.map((j) => j.file), 'each file kept from the store').toEqual([])
+      expect(scanOutput(r)).toEqual(scanOutput(first))
+      expect([...r.sessionFiles]).toEqual([...first.sessionFiles])
+      expect(storeBytes(), 'a scan with nothing changed writes nothing (token-stats::QR-002/AC-02)').toEqual(stored)
+    } finally {
+      chmodSync(locked(), 0o755)
+    }
+  })
+
+  // One that cannot be looked at either — the directory cannot be entered (0o000) — is that file's failed read, under
+  // its side's rule (A10, B12, F6): out of the figures and the session lists, its entry removed, and parsed again once it
+  // can be read. Antigravity CLI's rule counts it (antigravity.test.ts, REQ-004).
+  it.each(LEFT)('below $name, when the files below it cannot be looked at either, each is its failed read: out of the figures and the lists, and parsed again once it can be', async ({ locked, side, left }) => {
+    const files = Object.values(everySide())
+    const { runner, jobs } = recording()
+    const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner)
+    const first = await e.build(roots(), [proj])
+    const below = files.filter((f) => f.startsWith(`${locked()}/`))
+    expect(below.length, 'the control: files below it').toBeGreaterThan(0)
+    let shut: TokenBuildResult
+    let none: TokenBuildResult
+    chmodSync(locked(), 0o000)
+    try {
+      shut = await e.build(roots(), [proj])
+      // A scan that holds nothing below it
+      none = await new TokenEngine(join(dir, 'cache-none'), TEST_ENGINE).build(roots(), [proj])
+    } finally {
+      chmodSync(locked(), 0o755)
+    }
+    expect(shut.global.bySide[side].total).toBe(left)
+    expect(figures(shut)).toEqual(figures(none))
+    expect([...shut.sessionFiles].filter((f) => below.includes(f))).toEqual([])
+    jobs.length = 0
+    const back = await e.build(roots(), [proj])
+    expect(jobs.map((j) => j.file).sort(), 'nothing was kept for them').toEqual([...below].sort())
+    expect(figures(back)).toEqual(figures(first))
+  })
+
+  it.each([
+    { name: 'Claude Code\'s projects directory', locked: projects, side: 'claude' as const, write: (): string => mkClaudeFile('late.jsonl', [userLine('late'), usageLine('claude-fable-5', '2026-07-30T04:00:00Z', 7, 0, { id: 'mk-late', requestId: 'rk-late' })]) },
+    { name: 'Codex\'s sessions', locked: (): string => join(dir, '.codex', 'sessions'), side: 'codex' as const, write: (): string => mkCodexRollout('rollout-2026-07-30T04-00-00-019f5a09.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [{ input: 7, cached: 0, output: 0, record: 'resp_late' }]) },
+    {
+      name: 'Codex\'s archived sessions',
+      locked: (): string => join(dir, '.codex', 'archived_sessions'),
+      side: 'codex' as const,
+      write: (): string => {
+        const made = mkCodexRollout('rollout-2026-07-30T04-00-00-019f5a0a.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [{ input: 7, cached: 0, output: 0, record: 'resp_late' }])
+        const to = join(dir, '.codex', 'archived_sessions', basename(made))
+        renameSync(made, to)
+        return to
+      }
+    },
+    { name: 'Grok\'s sessions', locked: (): string => join(dir, '.grok', 'sessions'), side: 'grok' as const, write: (): string => mkGrokSession(proj, 'gk-late', [grokTurn(1785380000, { input: 7, output: 0 })]) },
+    { name: 'Antigravity CLI\'s conversations', locked: agyDir, side: 'antigravity' as const, write: (): string => mkAgyConversation('agy-late', proj, [{ usage: { messageId: 'm-late', input: 7, output: 0 }, at: Date.parse('2026-07-30T04:00:00Z') }]) }
+  ])('a file written below $name while it cannot be listed is not seen until it can be', async ({ locked, side, write }) => {
+    everySide()
+    const e = engine()
+    const first = await e.build(roots(), [proj])
+    let shut: TokenBuildResult
+    chmodSync(locked(), 0o300)
+    try {
+      const late = write()
+      expect(late.startsWith(`${locked()}/`), 'the control: written below it').toBe(true)
+      shut = await e.build(roots(), [proj])
+    } finally {
+      chmodSync(locked(), 0o755)
+    }
+    expect(figures(shut)).toEqual(figures(first))
+    const back = await e.build(roots(), [proj])
+    expect(back.global.bySide[side].total).toBe(first.global.bySide[side].total + 7)
+  })
+
+  // Each held file is looked at as a listed one is: one that is no longer there — a part of its path not found — is gone,
+  // its entry removed and no conversation counted unreadable, and its siblings are kept
+  it.each([
+    { name: 'a Claude Code project\'s directory', locked: claudeDir, gone: (f: ReturnType<typeof everySide>): string => f.claude, side: 'claude' as const, left: 22 },
+    { name: 'a Codex day\'s directory', locked: codexDay, gone: (f: ReturnType<typeof everySide>): string => f.codex, side: 'codex' as const, left: 550 },
+    { name: 'Codex\'s sessions, the day\'s directory with it,', locked: (): string => join(dir, '.codex', 'sessions'), gone: (): string => join(dir, '.codex', 'sessions', '2026'), side: 'codex' as const, left: 330 },
+    { name: 'a Grok project\'s directory', locked: grokDir, gone: (f: ReturnType<typeof everySide>): string => dirname(f.grok), side: 'grok' as const, left: 44 },
+    { name: 'Antigravity CLI\'s conversations', locked: agyDir, gone: (f: ReturnType<typeof everySide>): string => f.agy, side: 'antigravity' as const, left: 0 }
+  ])('a file deleted below $name while it cannot be listed is gone: out of the figures and the store, nothing parsed', async ({ locked, gone, side, left }) => {
+    const files = everySide()
+    const { runner, jobs } = recording()
+    const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner)
+    await e.build(roots(), [proj])
+    const goes = gone(files)
+    const lost = Object.values(files).filter((f) => f === goes || f.startsWith(`${goes}/`))
+    expect(lost.length, 'the control: a stored file goes').toBeGreaterThan(0)
+    jobs.length = 0
+    let r: TokenBuildResult
+    chmodSync(locked(), 0o300)
+    try {
+      rmSync(goes, { recursive: true })
+      r = await e.build(roots(), [proj])
+    } finally {
+      chmodSync(locked(), 0o755)
+    }
+    expect([r.global.bySide[side].total, r.antigravityUnreadable, jobs.map((j) => j.file)]).toEqual([left, 0, []])
+    const stored = storedEntries(cacheDir())
+    expect(lost.filter((f) => stored.has(f)), 'their entries removed').toEqual([])
+    expect(Object.values(files).filter((f) => !lost.includes(f) && !stored.has(f)), 'the others\' kept').toEqual([])
+  })
+
+  // One whose signature moved is parsed again, once, and counted as it now is
+  it.each([
+    {
+      name: 'a Claude Code project\'s directory',
+      locked: claudeDir,
+      side: 'claude' as const,
+      change: (): string => mkClaudeFile('a.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'mk1', requestId: 'rk1' }), usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 7, 0, { id: 'mk3', requestId: 'rk3' })], 2000)
+    },
+    {
+      name: 'a Codex day\'s directory',
+      locked: codexDay,
+      side: 'codex' as const,
+      change: (): string => mkCodexRollout('rollout-2026-07-30T01-00-00-019f5a02.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_k1' }, { input: 7, cached: 0, output: 0, record: 'resp_k3' }], false, 3000)
+    },
+    {
+      name: 'a Grok project\'s directory',
+      locked: grokDir,
+      side: 'grok' as const,
+      change: (): string => mkGrokSession(proj, 'gk1', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 }), grokTurn(1785369900, { input: 7, output: 0 })])
+    },
+    {
+      name: 'Antigravity CLI\'s conversations',
+      locked: agyDir,
+      side: 'antigravity' as const,
+      change: (): string => {
+        const staged = join(dir, 'staged')
+        mkdirSync(staged, { recursive: true })
+        const calls = [
+          { usage: { messageId: 'm-k1', input: 10, output: 5 }, at: Date.parse('2026-07-30T02:00:00Z') },
+          { usage: { messageId: 'm-k3', input: 7, output: 0 }, at: Date.parse('2026-07-30T03:00:00Z') }
+        ].map((c, i) => callRecord({ conversationId: 'agy-k1', stepIdx: 1 + i * 2, genIdx: i, usage: c.usage, createdAt: c.at, completedAt: c.at, responseModel: 'gemini-3.6-flash' }))
+        const { file } = writeConversation(staged, 'agy-k1', encodeTrajectoryMetadata({ folders: [proj], conversationId: 'agy-k1' }), { steps: calls.map((r) => r.step), gens: calls.map((r) => r.gen) })
+        const to = join(agyDir(), basename(file))
+        renameSync(file, to)
+        return to
+      }
+    }
+  ])('a file changed below $name while it cannot be listed is parsed again, once, and counted as it now is', async ({ locked, side, change }) => {
+    everySide()
+    const { runner, jobs } = recording()
+    const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner)
+    const first = await e.build(roots(), [proj])
+    jobs.length = 0
+    let r: TokenBuildResult
+    let changed: string
+    chmodSync(locked(), 0o300)
+    try {
+      changed = change()
+      r = await e.build(roots(), [proj])
+    } finally {
+      chmodSync(locked(), 0o755)
+    }
+    expect([jobs.map((j) => j.file), r.global.bySide[side].total]).toEqual([[changed], first.global.bySide[side].total + 7])
+  })
+
+  // With nothing held below it — a first scan, or a build with no store — it gives nothing
+  it.each([
+    // Each side's data root
+    ...EVERY.filter((row) => ['Claude Code\'s projects directory', 'Codex\'s sessions', 'Grok\'s sessions', 'Antigravity CLI\'s conversations'].includes(row.name)).map((row) => ({
+      ...row,
+      store: 'no store, a directory at its path',
+      mode: 0o300,
+      shut: 'listed'
+    })),
+    { name: 'Antigravity CLI\'s conversations', locked: agyDir, side: 'antigravity' as const, left: 0, store: 'an empty store', mode: 0o000, shut: 'listed nor entered' }
+  ])('with $store, $name, which cannot be $shut, gives nothing, and no conversation counts unreadable', async ({ locked, side, left, store, mode }) => {
+    everySide()
+    const none = store !== 'an empty store'
+    if (none) mkdirSync(join(storePath(cacheDir()), 'x'), { recursive: true })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let r: TokenBuildResult
+    chmodSync(locked(), mode)
+    try {
+      r = await engine().build(roots(), [proj])
+      if (none) expect(logged, 'the control: no store').toHaveBeenCalledWith('[token-store] open failed:', expect.anything())
+    } finally {
+      chmodSync(locked(), 0o755)
+      logged.mockRestore()
+    }
+    expect([r.global.bySide[side].total, r.antigravityUnreadable]).toEqual([left, 0])
+    expect([...r.sessionFiles].filter((f) => f.startsWith(`${locked()}/`))).toEqual([])
+  })
+
+  // The order is part of the figures wherever the combination keeps the first of several files sharing a key
+  // (token-stats::CON-003): a kept file goes at its place in scan order, not where the store holds it, nor by whole
+  // paths, which would put `a-b/` before `a/`.
+  it.each([
+    { name: 'Claude Code\'s projects directory', locked: projects },
+    { name: 'the first project\'s directory', locked: (): string => join(projects(), encodeClaudeProjectDir(join(dir, 'work', 'a'))) }
+  ])('a message copied into two projects\' sessions is credited to the first in scan order when $name cannot be listed', async ({ locked }) => {
+    const first = join(dir, 'work', 'a')
+    const second = join(dir, 'work', 'a-b')
+    writeFileSync(join(dir, '.claude.json'), JSON.stringify({ projects: { [first]: {}, [second]: {} } }))
+    const copy = (): string[] => [userLine('the question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'm-copied', requestId: 'r-copied' })]
+    const e = engine()
+    // The second project's session is stored first, so the store holds the two in the other order
+    mkClaudeFile('s2.jsonl', copy(), 1000, encodeClaudeProjectDir(second))
+    await e.build(roots(), [first, second])
+    mkClaudeFile('s1.jsonl', copy(), 1000, encodeClaudeProjectDir(first))
+    const listed = await e.build(roots(), [first, second])
+    expect(listed.rows.map((r) => r.projectKey), 'the control: the first project credited').toEqual([mergeKey(first)])
+    chmodSync(locked(), 0o300)
+    try {
+      const r = await e.build(roots(), [first, second])
+      expect(r.rows.map((x) => x.projectKey)).toEqual([mergeKey(first)])
+      expect(figures(r)).toEqual(figures(listed))
+    } finally {
+      chmodSync(locked(), 0o755)
+    }
+  })
+
+  // The fork's parent is the first file of the parent's id in scan order, one kept below the day's directory or one
+  // listed beside it: the day's holds the whole history, the other copy only its first turn, against which the fork
+  // keeps its second replayed turn
+  it.each([
+    { name: 'the kept one, before a copy archived', copy: (): string => join(dir, '.codex', 'archived_sessions'), total: 330 + 110 + 55 },
+    { name: 'a copy listed in the day before, before the kept one', copy: (): string => join(dir, '.codex', 'sessions', '2026', '07', '29'), total: 330 + 110 + 275 }
+  ])('a Codex session id held by two files is a fork\'s parent in the first in scan order, $name, when a day\'s directory cannot be listed', async ({ copy, total }) => {
+    const PARENT = '019f0000-0000-7000-8000-0000000000ee'
+    const history = [
+      { input: 100, cached: 0, output: 10, at: '2026-07-30T08:00:00Z' },
+      { input: 200, cached: 0, output: 20, at: '2026-07-30T08:01:00Z' }
+    ]
+    mkCodexRollout('rollout-parent-019f5b01.jsonl', proj, '2026-07-30T08:00:00Z', 'gpt-5.6-sol', history, false, 2000, 'sample question', { id: PARENT })
+    const other = mkCodexRollout('rollout-parent-019f5b02.jsonl', proj, '2026-07-30T08:00:00Z', 'gpt-5.6-sol', [history[0]], false, 2000, 'sample question', { id: PARENT })
+    mkdirSync(copy(), { recursive: true })
+    renameSync(other, join(copy(), basename(other)))
+    const fork = mkCodexFork('rollout-fork-019f5b03.jsonl', proj, { id: '019f0000-0000-7000-8000-0000000000ef', parentId: PARENT, forkedAtIso: '2026-07-30T08:02:00Z' }, 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 10, at: '2026-07-30T08:02:00Z' },
+      { input: 200, cached: 0, output: 20, at: '2026-07-30T08:02:00Z' },
+      { input: 50, cached: 0, output: 5, at: '2026-07-30T08:05:00Z' }
+    ])
+    mkdirSync(join(dir, '.codex', 'sessions', '2026', '07', '31'))
+    renameSync(fork, join(dir, '.codex', 'sessions', '2026', '07', '31', basename(fork)))
+    const e = engine()
+    const listed = await e.build(roots(), [proj])
+    expect(listed.global.bySide.codex.total, 'the control: the fork stripped against the first of its parent\'s files').toBe(total)
+    chmodSync(codexDay(), 0o300)
+    try {
+      const r = await e.build(roots(), [proj])
+      expect(r.global.bySide.codex.total).toBe(total)
+      expect(figures(r)).toEqual(figures(listed))
+    } finally {
+      chmodSync(codexDay(), 0o755)
+    }
+  })
+})
+
 // token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
 // U+FFFD, and read by the grammar of ECMAScript's JSON.parse, with its results". One rollout per clause, parsed through
 // the module. Until the TypeScript Codex parser was removed (#427), the cases for the clauses and for timestamps were

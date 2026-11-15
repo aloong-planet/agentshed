@@ -780,6 +780,13 @@ export class TokenEngine {
     return store
   }
 
+  /** The files the store holds an entry for, which the session walk keeps below a directory that is there but that it
+   * cannot list (`EngineModule.walkSessions`, token-stats, Failure modes and boundaries: the token store); none when
+   * there is no store */
+  heldFiles(): string[] {
+    return [...(this.openStore()?.heads().keys() ?? [])]
+  }
+
   /** The files a fork's parent may be in, taken again from the store when another process wrote to it since — the
    * store's rows put in scan order, which the store does not hold them in */
   private parentFilesOf(store: CacheEntries | null, roots: ScanRoots): ParentFiles {
@@ -828,37 +835,48 @@ export class TokenEngine {
     // Encoded directory name → the project's merge key
     const encToProject = new Map<string, string>()
     for (const p of claudeProjectPaths) encToProject.set(encodeClaudeProjectDir(p), mergeKey(p))
+    const order = compareScanOrder(roots)
+    // A directory the walk lists that is there but cannot be listed keeps, in the scan set, the files the store holds
+    // below it, each at its place in scan order and looked at as a listed file is (token-stats, Failure modes and
+    // boundaries: the token store)
+    const below = (dir: string): HeldFile[] => heldBelow(dir, held.keys(), order)
 
     // ── Claude: the whole projects tree ──
+    const claude = (projectKey: string, file: string, nested: boolean): void => {
+      // The allow-list is no wider than what the UI can reach: an unregistered project's sessions
+      // are never displayed (spec A2),
+      // so the read side does not admit them either — the same goes for nested transcripts, whose
+      // parent sessions are all invisible
+      const admit = (agg: Admission): boolean => isRegistered(projectKey) && (nested || agg.listed)
+      slots.push(this.plan(held.get(file), file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
+    }
     const projectsRoot = join(roots.claudeHome, 'projects')
-    if (existsSync(projectsRoot)) {
-      let dirs: string[]
-      try {
-        // In scan order (scan-order.ts)
-        dirs = readdirSync(projectsRoot, { withFileTypes: true })
-          .filter((e) => e.isDirectory())
-          .map((e) => e.name)
-          .sort(compareNames)
-      } catch {
-        dirs = []
-      }
+    let dirs: string[] | null
+    try {
+      // In scan order (scan-order.ts)
+      dirs = readdirSync(projectsRoot, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name)
+        .sort(compareNames)
+    } catch {
+      dirs = null
+    }
+    if (dirs !== null) {
       for (const encName of dirs) {
         const projectKey = encToProject.get(encName) ?? ''
-        for (const { file, nested } of listJsonl(join(projectsRoot, encName))) {
-          // The allow-list is no wider than what the UI can reach: an unregistered project's sessions
-          // are never displayed (spec A2),
-          // so the read side does not admit them either — the same goes for nested transcripts, whose
-          // parent sessions are all invisible
-          const admit = (agg: Admission): boolean => isRegistered(projectKey) && (nested || agg.listed)
-          slots.push(this.plan(held.get(file), file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
-        }
+        for (const { file, nested } of listJsonl(join(projectsRoot, encName), below)) claude(projectKey, file, nested)
+      }
+    } else if (!isAbsent(projectsRoot)) {
+      // A session is a project directory's own transcript, a nested one any deeper
+      for (const { file, parts } of below(projectsRoot)) {
+        if (parts.length >= 2 && file.endsWith('.jsonl')) claude(encToProject.get(parts[0]) ?? '', file, parts.length > 2)
       }
     }
 
     // ── Codex: the whole sessions tree, attributed by the first line's cwd ──
-    const walked = sessions ?? loadEngineModule(this.engine).walkSessions(roots)
+    const walked = sessions ?? loadEngineModule(this.engine).walkSessions(roots, undefined, undefined, () => [...held.keys()])
     const titles = readCodexIndex(roots.codexHome)
-    for (const s of walked.codex) {
+    for (const s of inScanOrder(walked.codex, walked.held.codex, (s) => s.file, order)) {
       const admit = (agg: Admission): boolean => isRegistered(agg.projectKey) && (s.subagent || agg.listed)
       slots.push(this.codexPlan(store, held.get(s.file), s.file, s.cwd, s, titles, admit))
     }
@@ -866,7 +884,7 @@ export class TokenEngine {
     // ── Grok: the session store, attributed by the percent-encoded directory name ──
     // A directory without its update stream never reaches here (the walk skips it), which
     // is F6 discharged at the walk: the siblings' scan is unaffected.
-    for (const s of walked.grok) {
+    for (const s of inScanOrder(walked.grok, walked.held.grok, (s) => s.file, order)) {
       // Listed sessions only: a subagent's stream is never expanded in a parent turn on this side
       // (the dispatch's result comes from the parent's own finished record), so unlike Claude's
       // nested transcripts it stays outside the read allow-list
@@ -878,9 +896,9 @@ export class TokenEngine {
     // Listed conversations only join the read allow-list, by their database's path — the session's identity; the
     // transcript a page reads is derived from it on the main process (session-view::REQ-004/AC-09). A subagent's
     // transcript is never expanded in a parent turn on this side (its return is the parent's own system message).
-    for (const s of walked.antigravity) {
+    for (const file of inScanOrder(walked.antigravity.map((s) => s.file), walked.held.antigravity, (file) => file, order)) {
       const admit = (agg: Admission): boolean => isRegistered(agg.projectKey) && agg.listed
-      slots.push(this.antigravityPlan(held.get(s.file), s.file, admit))
+      slots.push(this.antigravityPlan(held.get(file), file, admit))
     }
 
     await this.parse(slots)
@@ -912,7 +930,7 @@ export class TokenEngine {
     // A scan whose write did not land is logged and costs the next scan the work again, which the store then still
     // lacks (token-stats C3)
     if (combined.failure) console.error('[token-store] write failed:', combined.failure)
-    const parentFiles: ParentFiles = { codex: new Map(), antigravity: new Map(), order: compareScanOrder(roots) }
+    const parentFiles: ParentFiles = { codex: new Map(), antigravity: new Map(), order }
     for (const slot of slots) {
       if (slot.entry) addParentFile(parentFiles, slot.file, slot.entry.agg.kind, ownOf(slot.entry.agg))
       else if (slot.held) addParentFile(parentFiles, slot.file, slot.held.kind, slot.held.ownId)
@@ -1343,14 +1361,17 @@ async function retitleStripped(items: TokenBuildResult['retitle']): Promise<void
 // ── File enumeration and parsing ──
 
 /** Every jsonl under a directory, in scan order (scan-order.ts): top level = a session, nested = a subagent or other
- * transcript */
-function listJsonl(root: string): Array<{ file: string; nested: boolean }> {
+ * transcript. Below a directory there that cannot be listed, those of the files `below` gives for it. */
+function listJsonl(root: string, below: (dir: string) => HeldFile[]): Array<{ file: string; nested: boolean }> {
   const out: Array<{ file: string; nested: boolean }> = []
   const walk = (dir: string, nested: boolean): void => {
     let entries
     try {
       entries = readdirSync(dir, { withFileTypes: true }).sort(byName)
     } catch {
+      if (!isAbsent(dir)) {
+        for (const { file, parts } of below(dir)) if (file.endsWith('.jsonl')) out.push({ file, nested: nested || parts.length > 1 })
+      }
       return
     }
     for (const e of entries) {
@@ -1363,6 +1384,34 @@ function listJsonl(root: string): Array<{ file: string; nested: boolean }> {
     }
   }
   walk(root, false)
+  return out
+}
+
+/** A file the store holds, with its path's components below the directory it was asked for under */
+interface HeldFile {
+  file: string
+  parts: string[]
+}
+
+/** The files of `held` below `dir`, in scan order */
+function heldBelow(dir: string, held: Iterable<string>, order: (a: string, b: string) => number): HeldFile[] {
+  const prefix = dir + sep
+  const out: HeldFile[] = []
+  for (const file of held) if (file.startsWith(prefix)) out.push({ file, parts: file.slice(prefix.length).split(sep) })
+  return out.sort((a, b) => order(a.file, b.file))
+}
+
+/** A side's walked sessions and the ones it kept below a directory it could not list, each list in scan order, merged
+ * into one in scan order */
+function inScanOrder<T>(listed: readonly T[], kept: readonly T[], file: (t: T) => string, order: (a: string, b: string) => number): readonly T[] {
+  if (kept.length === 0) return listed
+  const out: T[] = []
+  let i = 0
+  let j = 0
+  while (i < listed.length || j < kept.length) {
+    if (j === kept.length || (i < listed.length && order(file(listed[i]), file(kept[j])) <= 0)) out.push(listed[i++])
+    else out.push(kept[j++])
+  }
   return out
 }
 

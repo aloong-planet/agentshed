@@ -23,9 +23,10 @@ use napi::{Error, Result};
 use self::entry::{Entry, Job, Parsed};
 use self::parse::Runtime;
 use self::walk::Attributions;
-use super::{Kept, Side};
+use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
 use crate::text::{self, Units};
+use crate::walk::Held;
 
 pub(crate) struct Antigravity;
 
@@ -93,20 +94,21 @@ impl Side for Antigravity {
     }
 
     /// Every conversation in agy's data root, `roots.antigravityHome`, with what the run's walks read of each
-    fn walk(&self, js: &Js, roots: napi_value, kept: &mut Kept, tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
-        let mut walked = || -> Result<napi_value> {
+    fn walk(&self, js: &Js, roots: napi_value, kept: &mut Kept, held: &mut Held, tmp_parent: Option<&str>) -> Option<Result<Walked>> {
+        let mut walked = || -> Result<Walked> {
             let home = js.string(js.get(roots, "antigravityHome")?)?.ok_or_else(|| Error::from_reason("the scan roots name no antigravityHome"))?;
             let tree = String::from_utf16_lossy(&js.path_join(&[&home, &text::units(walk::TREE)])?);
             let tmp = copy_parent(js, tmp_parent)?;
-            let sessions = walk::walk(&tree, kept.of::<Attributions>(), &tmp, &JsRuntime(js))?;
-            js.array(sessions.iter().map(|s| {
+            let (listed, kept_apart) = walk::walk(&tree, kept.of::<Attributions>(), held, &tmp, &JsRuntime(js))?;
+            let listed = js.array(listed.iter().map(|s| {
                 js.object(&[
                     ("file", js.text(&text::units(&s.file))?),
                     ("cwd", js.text_or_null(s.cwd.as_ref())?),
                     ("subagent", js.boolean(s.subagent)?),
                     ("mtimeMs", js.num(s.mtime_ms)?),
                 ])
-            }))
+            }))?;
+            Ok(Walked { listed, held: js.array(kept_apart.iter().map(|file| js.text(&text::units(file))))? })
         };
         Some(walked())
     }

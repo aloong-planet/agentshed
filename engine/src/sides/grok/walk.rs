@@ -10,6 +10,7 @@ use napi::Result;
 
 use crate::json::{self, Line, Read};
 use crate::text::Units;
+use crate::walk::Held;
 use crate::{seams, walk};
 
 /// The tree under Grok's data root the walk takes
@@ -31,36 +32,67 @@ pub(super) struct Session {
     pub(super) mtime_ms: f64,
 }
 
-/// Every session under `tree` (`TREE` under the data root), in scan order. `decode` is JavaScript's
-/// `decodeURIComponent`, None where it throws.
-pub(super) fn walk(tree: &str, decode: &dyn Fn(&str) -> Result<Option<Units>>) -> Result<Vec<Session>> {
+/// Every session under `tree` (`TREE` under the data root), in scan order; and apart, in scan order, the sessions of
+/// the streams `held` names that the walk kept below a directory there that it could not list, each read as a listed
+/// one is (token-stats, Failure modes and boundaries: the token store). `decode` is JavaScript's `decodeURIComponent`,
+/// None where it throws.
+pub(super) fn walk(tree: &str, held: &mut Held, decode: &dyn Fn(&str) -> Result<Option<Units>>) -> Result<(Vec<Session>, Vec<Session>)> {
     let mut out = Vec::new();
-    let Some(cwd_dirs) = walk::entries(tree) else { return Ok(out) };
+    let mut apart = Vec::new();
+    let Some(cwd_dirs) = walk::entries(tree) else {
+        // One no longer there has lost its sessions
+        if !walk::is_absent(tree) {
+            for (_, parts) in held.below(tree) {
+                let [name, id, stream] = parts.as_slice() else { continue };
+                if stream != STREAM {
+                    continue;
+                }
+                let Some(cwd) = decode(name)? else { continue };
+                apart.extend(session(&walk::below(&walk::below(tree, name), id), &cwd));
+            }
+        }
+        return Ok((out, apart));
+    };
     for cwd_dir in cwd_dirs {
         if cwd_dir.kind != walk::Kind::Directory {
             continue;
         }
         // A name that is not valid percent-encoding loses only its own directory, not the scan
         let Some(cwd) = decode(&cwd_dir.name)? else { continue };
-        let Some(session_dirs) = walk::entries(&cwd_dir.path) else { continue };
+        let Some(session_dirs) = walk::entries(&cwd_dir.path) else {
+            if !walk::is_absent(&cwd_dir.path) {
+                for (_, parts) in held.below(&cwd_dir.path) {
+                    let [id, stream] = parts.as_slice() else { continue };
+                    if stream == STREAM {
+                        apart.extend(session(&walk::below(&cwd_dir.path, id), &cwd));
+                    }
+                }
+            }
+            continue;
+        };
         // Loose files at either level (prompt_history.jsonl, session_search.sqlite) are not sessions
         for session_dir in session_dirs {
             if session_dir.kind != walk::Kind::Directory {
                 continue;
             }
-            let stream = walk::below(&session_dir.path, STREAM);
-            // No authoritative stream, no session identity: skipped without abandoning the scan (token-stats F6)
-            let Some(st) = walk::stat(&stream) else { continue };
-            // A read that panics is the summary's failed read, which says nothing (token-stats, Scans and the window)
-            let subagent = catch_unwind(AssertUnwindSafe(|| {
-                seams::before_walk_read(&stream);
-                subagent(&session_dir.path)
-            }))
-            .unwrap_or(false);
-            out.push(Session { file: stream, cwd: cwd.clone(), subagent, mtime_ms: st.mtime_ms });
+            out.extend(session(&session_dir.path, &cwd));
         }
     }
-    Ok(out)
+    Ok((out, apart))
+}
+
+/// The session a session directory holds, credited to `cwd`; None when it has no authoritative stream to look at, no
+/// session identity: skipped without abandoning the scan (token-stats F6)
+fn session(session_dir: &str, cwd: &Units) -> Option<Session> {
+    let stream = walk::below(session_dir, STREAM);
+    let st = walk::stat(&stream)?;
+    // A read that panics is the summary's failed read, which says nothing (token-stats, Scans and the window)
+    let subagent = catch_unwind(AssertUnwindSafe(|| {
+        seams::before_walk_read(&stream);
+        subagent(session_dir)
+    }))
+    .unwrap_or(false);
+    Some(Session { file: stream, cwd: cwd.clone(), subagent, mtime_ms: st.mtime_ms })
 }
 
 /// Whether a session is a subagent's. A child session sits beside its parent, so depth cannot tell the two apart: the

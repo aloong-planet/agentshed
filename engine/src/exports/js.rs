@@ -334,6 +334,14 @@ impl Js {
         self.caught(status, out)
     }
 
+    /// `f()`, called with no receiver; None when it throws
+    pub(crate) fn call(&self, f: napi_value) -> Result<Option<napi_value>> {
+        let receiver = self.undefined()?;
+        let mut out = ptr::null_mut();
+        let status = unsafe { sys::napi_call_function(self.env, receiver, f, 0, ptr::null(), &mut out) };
+        self.caught(status, out)
+    }
+
     /// Node's built-in module `id`, as `process.getBuiltinModule(id)` gives it on any thread
     fn builtin(&self, id: &str) -> Result<napi_value> {
         let mut global = ptr::null_mut();

@@ -18,6 +18,7 @@ use napi::sys::napi_value;
 use crate::exports::js::{Js, LocalDates};
 use crate::group::{Builder, Decoded, Member};
 use crate::text::Units;
+use crate::walk::Held;
 
 /// What side-free code asks of a side
 pub(crate) trait Side: Sync {
@@ -63,11 +64,12 @@ pub(crate) trait Side: Sync {
     /// scan set gives them (token-stats::CON-003); Err with a member whose aggregate is not well formed
     fn combine(&self, dates: &LocalDates<'_>, members: &[Member<'_>], out: &mut Builder) -> Result<std::result::Result<(), u32>>;
 
-    /// The side's list in the session walk: its sessions under its data root, which `roots` (the TypeScript `ScanRoots`)
-    /// names, in scan order, as its list in the TypeScript `SessionWalk`. `kept` holds what the run's walks keep, of which
-    /// the side takes its own; a copy a read needs is made under `tmp_parent` (the system temporary directory when none).
-    /// None when the module does not walk this side.
-    fn walk(&self, _js: &Js, _roots: napi_value, _kept: &mut Kept, _tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
+    /// The side's lists in the session walk: its sessions under its data root, which `roots` (the TypeScript `ScanRoots`)
+    /// names, in scan order, as its list in the TypeScript `SessionWalk`; and, apart, those it kept below a directory
+    /// there that it could not list, of the files `held` names, as its list in `SessionWalk.held`. `kept` holds what the
+    /// run's walks keep, of which the side takes its own; a copy a read needs is made under `tmp_parent` (the system
+    /// temporary directory when none). None when the module does not walk this side.
+    fn walk(&self, _js: &Js, _roots: napi_value, _kept: &mut Kept, _held: &mut Held, _tmp_parent: Option<&str>) -> Option<Result<Walked>> {
         None
     }
 
@@ -93,14 +95,27 @@ pub(crate) fn named(kind: &str) -> Option<&'static dyn Side> {
 /// (token-stats, Implementation Decisions, Scan order)
 const WALKED: [(&str, &dyn Side); 3] = [("codex", &codex::Codex), ("grok", &grok::Grok), ("antigravity", &antigravity::Antigravity)];
 
-/// The session walk: each walked side's list, as the TypeScript `SessionWalk`
-pub(crate) fn walk(js: &Js, roots: napi_value, kept: &mut Kept, tmp_parent: Option<&str>) -> Result<napi_value> {
-    let mut lists = Vec::with_capacity(WALKED.len());
+/// A side's two lists in the session walk, as JavaScript arrays
+pub(crate) struct Walked {
+    /// The sessions the walk listed
+    pub(crate) listed: napi_value,
+    /// The sessions it kept below a directory there that it could not list
+    pub(crate) held: napi_value,
+}
+
+/// The session walk: each walked side's list, and apart, under `held`, each side's sessions kept below a directory there
+/// that the walk could not list, as the TypeScript `SessionWalk`
+pub(crate) fn walk(js: &Js, roots: napi_value, kept: &mut Kept, held: &mut Held, tmp_parent: Option<&str>) -> Result<napi_value> {
+    let mut lists = Vec::with_capacity(WALKED.len() + 1);
+    let mut apart = Vec::with_capacity(WALKED.len());
     for (name, side) in WALKED {
-        if let Some(list) = side.walk(js, roots, kept, tmp_parent) {
-            lists.push((name, list?));
+        if let Some(walked) = side.walk(js, roots, kept, held, tmp_parent) {
+            let walked = walked?;
+            lists.push((name, walked.listed));
+            apart.push((name, walked.held));
         }
     }
+    lists.push(("held", js.object(&apart)?));
     js.object(&lists)
 }
 

@@ -14,6 +14,7 @@ use super::parse::Runtime;
 use super::{db, usage};
 use crate::json::max;
 use crate::text::Units;
+use crate::walk::Held;
 use crate::{seams, walk};
 
 /// The directory under agy's data root the walk lists
@@ -69,13 +70,21 @@ enum Attempt {
 }
 
 /// Every conversation in `tree` (`TREE` under the data root), in scan order, with what `kept` holds from the last walk;
-/// `kept` then holds this walk's. A copy a read needs is made under `tmp_parent`.
-pub(super) fn walk(tree: &str, kept: &mut Attributions, tmp_parent: &Path, rt: &dyn Runtime) -> Result<Vec<Session>> {
+/// `kept` then holds this walk's. A copy a read needs is made under `tmp_parent`. Apart, in scan order, the paths of the
+/// conversations `held` names that the walk kept in `tree` when it is there but cannot be listed: the token build looks
+/// at each itself (token-stats, Failure modes and boundaries: the token store).
+pub(super) fn walk(tree: &str, kept: &mut Attributions, held: &mut Held, tmp_parent: &Path, rt: &dyn Runtime) -> Result<(Vec<Session>, Vec<String>)> {
     let mut out = Vec::new();
     let mut seen = HashMap::new();
     let Some(entries) = walk::entries(tree) else {
         kept.0 = seen;
-        return Ok(out);
+        // One no longer there has lost its conversations
+        let apart = if walk::is_absent(tree) {
+            Vec::new()
+        } else {
+            held.below(tree).into_iter().filter(|(_, parts)| matches!(parts.as_slice(), [name] if name.ends_with(".db"))).map(|(file, _)| file).collect()
+        };
+        return Ok((out, apart));
     };
     for entry in entries {
         if entry.kind != walk::Kind::File || !entry.name.ends_with(".db") {
@@ -108,7 +117,7 @@ pub(super) fn walk(tree: &str, kept: &mut Attributions, tmp_parent: &Path, rt: &
         out.push(Session { file, cwd, subagent, mtime_ms });
     }
     kept.0 = seen;
-    Ok(out)
+    Ok((out, Vec::new()))
 }
 
 /// The conversation's signature and its time; None when the database cannot be looked at, gone or not

@@ -8,6 +8,7 @@ use napi_derive::napi;
 
 use crate::exports::js::Js;
 use crate::sides;
+use crate::walk::Held;
 
 /// What one run's session walks keep from one walk to the next — the Codex rollouts' first-line readings
 /// (token-stats::QR-002/AC-01) and the Antigravity conversations' folders — held by the run's scanner and never saved
@@ -28,14 +29,30 @@ impl SessionMemory {
 /// The session walk over the data roots `roots` (the TypeScript `ScanRoots`): the TypeScript `SessionWalk`. With `memory`,
 /// a walk opens only what changed since the walk before it through that memory; without one, everything is read and
 /// nothing kept. A copy a read needs is made under `tmpParent`, the system temporary directory when it is absent.
+/// `held`, a function giving the paths the token store holds, is called at the first directory that is there but cannot
+/// be listed; one that throws, or gives anything but strings, holds nothing.
 #[napi(catch_unwind)]
-pub fn walk_sessions<'env>(env: &'env Env, roots: Unknown<'env>, memory: Option<&mut SessionMemory>, tmp_parent: Option<String>) -> Result<Unknown<'env>> {
+pub fn walk_sessions<'env>(
+    env: &'env Env,
+    roots: Unknown<'env>,
+    memory: Option<&mut SessionMemory>,
+    tmp_parent: Option<String>,
+    held: Option<Unknown<'env>>,
+) -> Result<Unknown<'env>> {
     let js = Js::new(env);
     let mut none = sides::Kept::default();
     let kept = match memory {
         Some(memory) => &mut memory.kept,
         None => &mut none,
     };
-    let walked = sides::walk(&js, roots.raw(), kept, tmp_parent.as_deref())?;
+    let ask = held.map(|f| {
+        let f = f.raw();
+        let js = &js;
+        Box::new(move || -> Option<Vec<String>> {
+            let paths = js.elements(js.call(f).ok()??).ok()??;
+            paths.into_iter().map(|p| js.string(p).ok().flatten().map(|units| String::from_utf16_lossy(&units))).collect()
+        }) as Box<dyn FnMut() -> Option<Vec<String>> + '_>
+    });
+    let walked = sides::walk(&js, roots.raw(), kept, &mut Held::new(ask), tmp_parent.as_deref())?;
     unsafe { Unknown::from_napi_value(env.raw(), walked) }
 }

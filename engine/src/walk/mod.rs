@@ -1,5 +1,6 @@
 //! What every side's session walk does alike, written once: a directory's entries in scan order, a path below a
-//! directory the walk listed, what `statSync` tells of a file, and whether a path is no longer there.
+//! directory the walk listed, what `statSync` tells of a file, whether a path is no longer there, and the files the
+//! token store holds below a directory that is there but cannot be listed.
 //!
 //! Scan order is a function of paths (token-stats, Implementation Decisions, Scan order): a directory's entries ordered
 //! by the UTF-8 bytes of their names, a directory's files at the directory's own place among its siblings. The
@@ -72,4 +73,38 @@ pub(crate) fn stat(path: &str) -> Option<Stat> {
 /// there but cannot be looked at, which `Path::exists` would answer as not there.
 pub(crate) fn is_absent(path: &str) -> bool {
     fs::metadata(path).is_err_and(|e| matches!(e.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory))
+}
+
+/// The files the token store holds an entry for, which a walk keeps below a directory that is there but cannot be
+/// listed: such a directory is not taken as empty (token-stats, Failure modes and boundaries: the token store). They are
+/// asked for at the first such directory, and once: a walk that lists every directory never reads them, so a rescan
+/// does not read every path the store holds (token-stats::QR-002).
+pub(crate) struct Held<'a> {
+    /// The paths, None when they cannot be read, which holds nothing; taken when first asked
+    ask: Option<Box<dyn FnMut() -> Option<Vec<String>> + 'a>>,
+    paths: Vec<String>,
+}
+
+impl<'a> Held<'a> {
+    /// The files `ask` gives when first needed; with no `ask`, nothing is held
+    pub(crate) fn new(ask: Option<Box<dyn FnMut() -> Option<Vec<String>> + 'a>>) -> Self {
+        Held { ask, paths: Vec::new() }
+    }
+
+    /// The held files below a directory the walk reached, in scan order, each with its path's components below `dir`:
+    /// compared component by component, each name by its UTF-8 bytes, as a listing would have put them (not by whole
+    /// paths, which would put `a-b/x` before `a/y`)
+    pub(crate) fn below(&mut self, dir: &str) -> Vec<(String, Vec<String>)> {
+        if let Some(mut ask) = self.ask.take() {
+            self.paths = ask().unwrap_or_default();
+        }
+        let prefix = if dir.ends_with('/') { dir.to_owned() } else { format!("{dir}/") };
+        let mut out: Vec<(String, Vec<String>)> = self
+            .paths
+            .iter()
+            .filter_map(|path| path.strip_prefix(&prefix).map(|rest| (path.clone(), rest.split('/').map(str::to_owned).collect())))
+            .collect();
+        out.sort_by(|a, b| a.1.cmp(&b.1));
+        out
+    }
 }

@@ -1,8 +1,8 @@
 // The scanner (ADR-0043): what one scan hands the main process, and what the main process makes of it. The
 // aggregation itself is the token engine's and has its own cases (token-stats.test.ts); these cover the steps a
 // scan adds around it, which ran inline in the main process before and had no case below e2e.
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { emptyTokenStats } from '@shared/domain'
@@ -76,6 +76,35 @@ describe('the session walk\'s memory, which a scanner keeps for its run', () => 
       expect((await new Scanner(join(dir, 'cache-new'), TEST_ENGINE).scan(roots)).snapshot.projects.map((e) => e.lastSessionAt)).toEqual([null])
     } finally {
       writer?.close()
+    }
+  })
+})
+
+// token-stats, Failure modes and boundaries: the token store. The scan's one walk is handed the files the store holds,
+// so the build keeps those below a directory the walk cannot list; the walk's own lists, which the projects list reads,
+// keep what it listed. A locked directory is left enterable (0o300) until the last scan, which shuts the conversations'.
+describe('a session directory a scan cannot list', () => {
+  it.skipIf(process.getuid?.() === 0)('a later scan keeps the files the store holds below it: the same rows, sessions and read allow-list; and counts its conversations unreadable once they cannot be looked at either', async () => {
+    const scanner = new Scanner(join(dir, 'cache'), TEST_ENGINE)
+    const shape = (out: Awaited<ReturnType<Scanner['scan']>>): unknown => ({
+      rows: out.rows,
+      sessions: [...out.sessions],
+      sessionFiles: [...out.sessionFiles],
+      sessionCounts: out.snapshot.projects.map((p) => p.sessionCount),
+      unreadable: out.snapshot.sides.antigravity.unreadable
+    })
+    const first = await scanner.scan(home.roots)
+    const codexDay = dirname(home.codex.parent)
+    const conversations = dirname(home.antigravity.listed)
+    chmodSync(codexDay, 0o300)
+    chmodSync(conversations, 0o300)
+    try {
+      expect(shape(await scanner.scan(home.roots))).toEqual(shape(first))
+      chmodSync(conversations, 0o000)
+      expect((await scanner.scan(home.roots)).snapshot.sides.antigravity.unreadable).toBe(2)
+    } finally {
+      chmodSync(codexDay, 0o755)
+      chmodSync(conversations, 0o755)
     }
   })
 })
