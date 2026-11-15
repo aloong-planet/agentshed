@@ -1,66 +1,44 @@
-# ADR-0006: Codex usage accounting (aligned with ccusage)
+# ADR-0006: Codex usage accounting: two data roots, per-turn increments by day, fork replay stripping
 
-- Status: Accepted (2026-07-30). The "sum all four fields as the total" clause was **superseded in
-  part by ADR-0023** (2026-08-18): cache creation is not collected on this side, so the total is
-  input + output. The usage-source clause (per-turn usage from the `token_count` event, aligned with
-  ccusage) was **superseded in part by ADR-0027** (2026-09-10): rollouts carrying usage records read
-  them from the first one on, and ccusage is the alignment basis for legacy rollouts only. The two
-  data roots, fork stripping for legacy children and per-day attribution stand.
+- Status: Accepted (2026-07-30)
 
 ## Context
 
-The first version of the Codex statistics was **always zero**, because two parsing assumptions did
-not match the real data: (1) the first line of a rollout contains embedded `base_instructions` — in
-practice 206 of 208 files have a first line larger than 8 KB (largest 42 KB), so a fixed 8 KB buffer
-truncated it, the JSON parse failed, and the whole session was discarded; (2) the real shape of a
-token event is a top-level `type:"event_msg"` plus `payload.type:"token_count"` plus `payload.info`,
-whereas the implementation matched a top-level `type:"token_count"` with a top-level `info`, which
-**never hits**. On top of that, a whole session's cumulative total was recorded on its first day, so
-sessions spanning midnight were attributed to the wrong day.
+Codex keeps rollouts under two roots, `sessions/` and `archived_sessions/`, and its legacy usage events carry each
+turn's increment beside the session's running cumulative, with no model on the event. A fork or subagent rollout in the
+legacy format begins by replaying its parent's events, and a session can span midnight. The figures must reconcile day
+by day against ccusage.
 
 ## Options
 
-1. **Align with ccusage's codex adapter (at source level)**: two data roots, `sessions/` and
-   `archived_sessions/`; attribute each turn's `last_token_usage` increment to the day of its event
-   timestamp; for fork and subagent sessions find the parent via `forked_from_id` /
-   `source.subagent.thread_spawn.parent_thread_id`, then strip the replay by **matching entry by
-   entry by value** between the parent's event sequence before the fork point and the start of the
-   child session; if the very first entry does not match, fall back to a "rewrite burst" heuristic
-   (if the first two events are ≤1 s apart, skip forward to the first gap > 1 s); accounting-wise,
-   sanitise input (subtract cached), count cached as cacheRead, and sum all four fields as the total
-2. Take the last `total_token_usage` as the session total — rejected: sessions spanning midnight
-   cannot be apportioned, and fork replay double-bills (measured: 2026-07-28 over-counted by 4.6×)
-3. Sum per-turn `last` values but skip fork stripping — rejected: measured 4.6× over-count on
-   2026-07-28 (449M vs 98M)
-4. An official interface — (not documented at the time, excluded during scoping) the Codex CLI has no
-   usage query command; the `token_count` events in the local rollout are the de facto accounting path
+1. **Align with ccusage's Codex adapter: read both roots; attribute each turn's increment to the day of its event; strip
+   a legacy child's replayed prefix by matching it entry by entry, by value, against its parent's events before the
+   fork point, falling back to the rewrite-burst heuristic when the parent is missing or the first entry does not
+   match; count cached reads as cache read and take them out of input**
+2. The last running cumulative as the session's figure — rejected: a session spanning midnight cannot be apportioned
+   to its days, and a fork's replay is billed twice.
+3. Summing the per-turn increments without stripping a fork's replay — rejected: the replayed prefix counts twice.
+4. An official usage interface (not recorded; ruled out when scoping): the Codex CLI has no command that reports
+   usage, which leaves the rollouts the only accounting path.
 
 ## Decision
 
-We choose **option 1**. `archived_sessions` and fork stripping are both indispensable: adding the
-former corrected 2026-07-21 from 38.6M to 127.8M (baseline 127.5M), and the latter corrected
-2026-07-28 from 449M to 98.2M (baseline 97.8M).
+We adopt **option 1**. Where usage events are the source (ADR-0027 says where), each turn's increment counts on the day
+of its event, under the token-stats spec's Sequence B; a legacy fork or subagent rollout has its replayed prefix
+stripped (the session-view spec says how). The model of a session is the one its last `turn_context` names, an
+approximation of the session's primary model that the per-model view says it is.
 
 ## Consequences
 
-- Positive: Codex went from "no data at all" to within ≤1.2% of ccusage day by day; sessions
-  spanning midnight are apportioned correctly; fork and subagent replays no longer double-count
-- Negative: a systematic ≤1.2% over-count remains — ccusage also handles speed/service_tier suffixes,
-  the codex-auto-review fallback table, `response_item` events and other details we have not
-  replicated (see the backlog)
-
-  > **Closed (2026-08-19)**: the residual was one omission, not a long tail — the same turn can be
-  > re-reported, and every occurrence was being summed. Adding the rule that keys on the running
-  > cumulative (spec B7) took the day-by-day disagreement to **zero on all three sides**. The two
-  > details named above turned out not to cost anything: the codex-auto-review fallback is a naming
-  > difference with identical figures, and no record on this machine carries the alternative event
-  > shape. The bound itself had also stopped holding — measured 2026-08-19 before the fix, the worst
-  > day was 2.67%, so the "≤1.2%" above was a stale observation rather than a live guarantee.
-- Neutral: the model name is taken from the last `turn_context` (an approximation of the session's
-  primary model), which is imprecise for multi-model sessions
+- Positive: sessions spanning midnight are apportioned to their days, and a legacy child's replay is not counted twice.
+- Positive: on days without usage records the figures reconcile day by day against ccusage.
+- Negative: a session that switches model, such as one with a sub-thread on another model, has its usage put on one
+  model.
 
 ## Sources
 
-The ccusage source (`rust/adapters/codex/src/{paths,replay,parser}.rs`, `main@2026-07-30`);
-measurement against 208 rollouts on this machine; the day-by-day reconciliation script
-`src/main/providers/ccusage-parity.test.ts` (run with `PARITY=1`).
+The ccusage source at `main` on 2026-07-30: `rust/adapters/codex/src/{paths,replay,parser}.rs`. Measured on 2026-07-30
+against this machine's 208 rollouts and ccusage's figures: adding `archived_sessions/` took 2026-07-21 from 38.6M to
+127.8M tokens (ccusage 127.5M); stripping fork replays took 2026-07-28 from 449M to 98.2M (ccusage 97.8M). On
+2026-08-19, once re-reported turns counted once (spec B7), the day-by-day difference from ccusage was zero on every
+side then onboarded. The day-by-day reconciliation `src/main/providers/ccusage-parity.test.ts`, run with `PARITY=1`.
