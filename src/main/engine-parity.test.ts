@@ -79,7 +79,7 @@ describe('the parity command (ADR-0045)', () => {
       sides: ['grok'],
       files: [never],
       typescript: runParseJob,
-      module: () => Promise.reject(new Error('the engine module does not parse grok files yet')),
+      module: () => Promise.reject(new Error('the module failed on this file')),
       cacheDir: join(dir, 'cache'),
       engine: TEST_ENGINE
     })
@@ -87,7 +87,7 @@ describe('the parity command (ADR-0045)', () => {
     expect(report).toEqual({
       compared: [],
       differing: [],
-      failed: [{ file: home.grok, message: 'the engine module: the engine module does not parse grok files yet' }],
+      failed: [{ file: home.grok, message: 'the engine module: the module failed on this file' }],
       missing: [never]
     })
     expect(parityExitCode(report)).toBe(1)

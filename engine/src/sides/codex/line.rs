@@ -2,7 +2,7 @@
 //! reads as JavaScript's property access on the parsed line reads it — a value of another kind than a rule takes is
 //! undefined to it, and of a repeated key the last value counts, as `JSON.parse` keeps it.
 
-use crate::json::{self, Kind, Read, Reader, Str};
+use crate::json::{self, Kind, Read, Reader, Str, record};
 
 /// One line, read
 #[derive(Default)]
@@ -82,7 +82,7 @@ pub(super) fn read(text: &str) -> Read<json::Line<Line<'_>>> {
 
 fn payload<'a>(r: &mut Reader<'a>) -> Read<Payload<'a>> {
     let mut p = Payload::default();
-    json::record(r, |key, r| {
+    record(r, |key, r| {
         if key.is("type") {
             p.kind = r.string_or_skip()?;
         } else if key.is("model") {
@@ -131,7 +131,7 @@ fn tokens(r: &mut Reader<'_>) -> Read<Tokens> {
 
 fn info<'a>(r: &mut Reader<'a>) -> Read<Info<'a>> {
     let mut i = Info::default();
-    json::record(r, |key, r| {
+    record(r, |key, r| {
         if key.is("last_token_usage") {
             i.last = tokens(r)?;
         } else if key.is("total_token_usage") {
@@ -150,7 +150,7 @@ fn info<'a>(r: &mut Reader<'a>) -> Read<Info<'a>> {
 
 fn item<'a>(r: &mut Reader<'a>) -> Read<Item<'a>> {
     let mut it = Item::default();
-    json::record(r, |key, r| {
+    record(r, |key, r| {
         if key.is("type") {
             it.kind = r.string_or_skip()?;
         } else if key.is("content") {
@@ -159,7 +159,7 @@ fn item<'a>(r: &mut Reader<'a>) -> Read<Item<'a>> {
                 r.elements(|r| {
                     // `asRecord(s)?.['text']`, kept when a string; the last `text` of an element counts
                     let mut text = None;
-                    json::record(r, |key, r| {
+                    record(r, |key, r| {
                         if key.is("text") {
                             text = r.string_or_skip()?;
                         } else {
