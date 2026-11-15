@@ -1,8 +1,9 @@
 // A question's noise, which the question index, the session's title and the question's text on the session page and in
 // both searches strip alike (engine/src/text/mod.rs, `real_user_text` and `clip_title`), for Claude Code and Codex.
 // **The shapes come from real sampling, not from imagining the spec's list** (2026-08-02, 297 real Claude sessions):
-// Warmup 188, [cron:…] 92, caveat 13, slash commands 2. The "Conversation info" on the research-phase list did not
-// appear in the sample, so no rule is written for it.
+// Warmup 188, [cron:…] 92, caveat 13, slash commands 2. The "Conversation info" on the research-phase list is not in
+// the sample but exists (6 files); it has no rule because it occurs only in unregistered projects, which are never
+// listed (session-view A2, A4).
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

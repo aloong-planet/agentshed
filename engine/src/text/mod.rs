@@ -70,8 +70,9 @@ pub(crate) fn find(s: &[u16], needle: &[u16], from: usize) -> Option<usize> {
 /// **The noise shapes come from real sampling, not from imagining a list** (2026-08-02, 297 real Claude Code sessions):
 /// Warmup 188, `[cron:…]` 92, `<local-command-*>` 20, slash commands 2. `<local-command-stdout>` is a second layer of
 /// noise that only surfaces once the earlier layers are stripped: sampling the first message cannot see it, and it was
-/// found only by running the rule over the stripped results. The "Conversation info" the research-phase spec listed did
-/// not appear in the sample, and no rule is written for a shape not seen (postmortem
+/// found only by running the rule over the stripped results. The "Conversation info" the research-phase spec listed is
+/// not in the sample but exists (6 files). It has no rule because it occurs only in unregistered projects, which
+/// session-view A2 never lists, so a rule would be dead code (session-view A4; postmortem
 /// `2026-08-02-noise-list-vs-real-data`). Two places intuition gets wrong, both corrected by real data: what follows
 /// `[cron:…]` is the actual instruction, so only the bracket is stripped; and a slash command's user input is inside
 /// `<command-args>`, not outside the tag.
