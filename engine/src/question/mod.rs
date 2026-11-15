@@ -4,6 +4,7 @@
 //! the questions the index keeps once every line is read; the indexer strips the noise (the same rules as the title,
 //! so a session of noise alone has no question and is not listed) and keeps the records.
 
+use crate::sides::Side;
 use crate::text::{self, Units};
 
 /// One question's index, which the token cache stores as `[start, end, turnEnd, at, tools, subagents, fingerprint]`.
@@ -147,4 +148,12 @@ pub(crate) fn strip_replay_prefix(child: &[Record], parent: Option<&[Record]>, f
     }
     // Only a match of the whole span is certain
     (n, if n == replay && replay > 0 { Fork::Stripped } else { Fork::Uncertain })
+}
+
+/// The title the question a range holds gives its session, as the index's first question gives it: the question's text
+/// as shown, clipped (`text::clip_title`); None when the range holds no question. `range` is the question's range as
+/// the side's index recorded it, read and decoded. A fork whose first questions were stripped as replays takes its title
+/// from its first question left (session-view B2).
+pub(crate) fn title(side: &dyn Side, range: &str) -> Option<Units> {
+    side.question_text(range).map(|t| text::clip_title(&t))
 }

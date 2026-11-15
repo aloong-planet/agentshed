@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CLAUDE_DISPATCH, type QuestionRec } from './question-index'
+import type { QuestionRec } from './question-index'
 import { runParseJob } from './token-stats'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { withIndexedTranscript } from '../testing/agy-transcript-index'
@@ -331,17 +331,14 @@ async function indexFile(file: string): Promise<QuestionRec[]> {
 const uLine = (t: string): string => JSON.stringify({ type: 'user', timestamp: TS, message: { role: 'user', content: t } })
 const aLine = (t: string): string => JSON.stringify(cA([{ type: 'text', text: t }]))
 
-// The question index counts a turn's subagents by the engine module's dispatch names (engine/src/sides/claude/
-// question.rs), and the turn draws a sub block by CLAUDE_DISPATCH: for each tool name below, alone in a turn, the two
-// agree on whether the call dispatched a subagent. The names are CLAUDE_DISPATCH's own and a fixed set of others, so a
-// name added to CLAUDE_DISPATCH alone goes red here; one added to the module's list alone goes red only when it is
-// among the others, as the module's list is not read from here. The two lists become one when the turns read through
-// the module (#432).
+// The question index counts a turn's subagents by the engine module's dispatch names, and the turn draws a sub block by
+// the same names, which it takes from the module: for each tool name below, alone in a turn, the two take the call as
+// the dispatch it is or is not — a name matches as written, its case and its spaces included.
 describe('the question index and the turn take the same tool calls as subagent dispatches', () => {
   test('claude: a call is counted as a subagent exactly when its turn shows it as one', async () => {
-    const NAMES = [...new Set([...CLAUDE_DISPATCH, 'Agent', 'Task', 'Bash', 'TaskCreate', 'agent', 'Agent ', ''])]
+    const NAMES: Array<[string, 'tool' | 'sub']> = [['Agent', 'sub'], ['Task', 'sub'], ['Bash', 'tool'], ['TaskCreate', 'tool'], ['agent', 'tool'], ['Agent ', 'tool'], ['', 'tool']]
     const judged: Array<{ name: string; counted: unknown; shown: unknown }> = []
-    for (const name of NAMES) {
+    for (const [name] of NAMES) {
       const raw = [uLine('a question'), JSON.stringify(cA([{ type: 'tool_use', id: 'tu1', name, input: { prompt: 'p' } }]))].join('\n') + '\n'
       await withFile(raw, async (file) => {
         const [rec] = await indexFile(file)
@@ -350,10 +347,8 @@ describe('the question index and the turn take the same tool calls as subagent d
         judged.push({ name, counted: [rec[4], rec[5]], shown: [kinds.filter((k) => k === 'tool').length, kinds.filter((k) => k === 'sub').length] })
       })
     }
-    expect(judged.filter((j) => JSON.stringify(j.counted) !== JSON.stringify(j.shown))).toEqual([])
-    // Both answers occur among the names, so the agreement is not one answer given throughout
-    expect(judged.map((j) => j.shown)).toContainEqual([0, 1])
-    expect(judged.map((j) => j.shown)).toContainEqual([1, 0])
+    const each = (kind: 'tool' | 'sub'): number[] => (kind === 'sub' ? [0, 1] : [1, 0])
+    expect(judged).toEqual(NAMES.map(([name, kind]) => ({ name, counted: each(kind), shown: each(kind) })))
   })
 })
 
@@ -620,15 +615,21 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
     expect(turnBlocksFromText('antigravity', transcriptText([again]))).toEqual([])
   })
 
-  test('a rewind inside a turn: the undone call and its result are not shown, the redo is (AC-03)', () => {
-    // Derived position of the measured mechanism: the redo reuses the index of a call within the turn
-    const line = (step: number, type: string, extra: Record<string, unknown>): string =>
-      JSON.stringify({ step_index: step, source: 'MODEL', type, status: 'DONE', created_at: '2026-10-28T08:06:23Z', ...extra })
+  // Derived position of the measured mechanism: the redo reuses the index of a call within the turn. The second row
+  // puts a line that will not parse and an empty line before the undone result: which lines are undone is told per
+  // line of the turn's text, so a line without a step must not shift the lines after it
+  const rewound = (step: number, type: string, extra: Record<string, unknown>): string =>
+    JSON.stringify({ step_index: step, source: 'MODEL', type, status: 'DONE', created_at: '2026-10-28T08:06:23Z', ...extra })
+  test.each([
+    { name: 'every line read', between: [] },
+    { name: 'a bad line and an empty line before the undone result', between: ['{"step_index":', ''] }
+  ])('a rewind inside a turn: the undone call and its result are not shown, the redo is, $name (AC-03)', ({ between }) => {
     const bs = turnBlocksFromText('antigravity', transcriptText([
-      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }),
-      line(2, 'GENERIC', { content: 'undone' }),
-      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }),
-      line(2, 'GENERIC', { content: 'redone' })
+      rewound(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }),
+      ...between,
+      rewound(2, 'GENERIC', { content: 'undone' }),
+      rewound(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }),
+      rewound(2, 'GENERIC', { content: 'redone' })
     ]))
     expect(bs.map((b) => b.kind === 'tool' && [b.name, b.output])).toEqual([['run_command', 'redone']])
   })

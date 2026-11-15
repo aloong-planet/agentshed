@@ -15,10 +15,11 @@
 //   pair — not counted, the last result kept, read again — is driven below through a copy that cannot be made.
 // - A conversation deleted between the walk's look at its signature and its read: no seam between the two. The rule it
 //   shares with the usage read (a database gone is no format change) is driven below through the usage read's window.
-// - A read killed half-way leaving its copy behind: killing the process is outside this seam. What the walk's copy is
-//   left in — a directory only the user can read — is asserted while a read runs. The engine module's copy, for the
-//   usage and the titles, is made the same way (`engine/src/sides/antigravity/db.rs`), but no case can look at it while
-//   it exists: the module's read is one call that takes no pause; a seam that kept the copy would close this.
+//   One deleted between the listing and the look at its signature is driven below through a directory the walk can list
+//   but not enter, which leaves the signature as one gone would.
+// - A read killed half-way leaving its copy behind: killing the process is outside this seam. What a copy is left in —
+//   a directory only the user can read — is asserted through the module's copy seam, which notes the directory as it is
+//   made; the walk, the usage read and the titles read make it the same way (`engine/src/sides/antigravity/db.rs`).
 // - The records read one at a time (token-stats failure modes, on prompts): a read holding every record of a
 //   conversation at once gives the same entry and differs only in what it holds in memory, which no case measures.
 // - A panic inside the module's read of a conversation whose log went away during that read: the module judges a
@@ -47,7 +48,6 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
-  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -61,17 +61,16 @@ import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ERR, decodeAppError } from '@shared/errors'
 import { mergeKey } from '@shared/path-key'
-import { scan, walkSessions } from './scan'
-import { agyTranscriptPath, readAntigravitySessions, readConversationDb } from './antigravity'
+import { scan, type SessionWalk } from './scan'
+import { agyTranscriptPath, type AntigravitySessionMeta } from './antigravity'
 import { TokenEngine, runParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
-import { loadEngineModule } from '../engine-module'
-import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
+import { loadEngineModule, threadEngineModule, type SessionMemory } from '../engine-module'
+import { TEST_ENGINE, type CopySeam, type PanicSeam } from '../testing/engine'
 import { onStore, storeFileBytes } from '../testing/token-store'
 import { UsageArchive } from './archive'
 import type { ScanRoots } from './types'
 import { DatabaseSync } from './sqlite'
 import { readRanges } from './range-read'
-import { questionTextOfRange } from './question-index'
 import { sessionReadTarget } from '../security'
 import type { SessionMeta } from '@shared/domain'
 import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTranscript } from '../testing/agy-transcript-fixture'
@@ -111,6 +110,12 @@ function roots(): ScanRoots {
   }
 }
 const agyRoot = (): string => join(dir, '.gemini', 'antigravity-cli')
+/** The session walk, by the engine module, with no memory behind it */
+const moduleWalk = (): SessionWalk => threadEngineModule().walkSessions(roots())
+/** The walk's conversations, through `memory` when given, a copy made under `tmpParent` when given */
+const agySessions = (tmpParent?: string, memory?: SessionMemory): AntigravitySessionMeta[] =>
+  threadEngineModule().walkSessions(roots(), memory, tmpParent).antigravity
+const sessionMemory = (): SessionMemory => new (threadEngineModule().SessionMemory)()
 const conversations = (): string => join(agyRoot(), 'conversations')
 function mkProject(name: string): string {
   const p = join(dir, 'work', name)
@@ -359,8 +364,12 @@ describe("activity: a conversation's folder and time (projects-list::REQ-001/AC-
     conversation('good', [p], 1_793_000_000)
     writeFileSync(join(conversations(), 'zero.db'), '')
     writeFileSync(join(conversations(), 'text.db'), 'not a database')
-    const bad = writeConversation(conversations(), 'cut', measured('mainApiKey').subarray(0, 40)).file
-    for (const f of [join(conversations(), 'zero.db'), join(conversations(), 'text.db'), bad]) utimesSync(f, 1_793_009_000, 1_793_009_000)
+    // Trajectory records cut short: inside the first workspace's length-delimited body (its length says 110, 38 bytes
+    // follow), and inside a varint (the signed-in record's field 15 starts at offset 253, 7a d8 03 …, so cutting at 255
+    // leaves its length's first byte, whose continuation bit is set)
+    const cut = writeConversation(conversations(), 'cut', measured('mainApiKey').subarray(0, 40)).file
+    const cutVarint = writeConversation(conversations(), 'cut-varint', measured('mainSignedIn').subarray(0, 255)).file
+    for (const f of [join(conversations(), 'zero.db'), join(conversations(), 'text.db'), cut, cutVarint]) utimesSync(f, 1_793_009_000, 1_793_009_000)
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.projects[0]).toMatchObject({ sessionCount: 1, lastSessionAt: 1_793_000_000_000 })
     expect(snap.sides.antigravity).toEqual({ detected: true })
@@ -372,13 +381,16 @@ describe("activity: a conversation's folder and time (projects-list::REQ-001/AC-
     trust([before, after])
     // Folder names of one length, so the rewritten record — and the database — keep their size
     const file = conversation('moved', [before], 1_793_000_000)
-    expect((await scan(roots(), { now: () => 1 })).projects.find((e) => e.name === 'alpha1')?.sessionCount).toBe(1)
+    // The two scans walk through one memory, as a run's scans do
+    const memory = sessionMemory()
+    const scanned = (): ReturnType<typeof scan> => scan(roots(), { now: () => 1, sessions: threadEngineModule().walkSessions(roots(), memory) })
+    expect((await scanned()).projects.find((e) => e.name === 'alpha1')?.sessionCount).toBe(1)
     const size = statSync(file).size
     rmSync(file)
     writeConversation(conversations(), 'moved', encodeTrajectoryMetadata({ folders: [after], conversationId: 'moved' }))
     utimesSync(file, 1_793_000_100, 1_793_000_100)
     expect(statSync(file).size).toBe(size)
-    const byName = Object.fromEntries((await scan(roots(), { now: () => 1 })).projects.map((e) => [e.name, e]))
+    const byName = Object.fromEntries((await scanned()).projects.map((e) => [e.name, e]))
     expect(byName['bravo2']).toMatchObject({ sessionCount: 1, lastSessionAt: 1_793_000_100_000 })
     expect(byName['alpha1']).toMatchObject({ sessionCount: 0, lastSessionAt: null })
   })
@@ -388,17 +400,15 @@ describe("reading agy's files writes nothing there (token-stats::CON-002)", () =
   it('a database with no log is read in place: the directory keeps the same files, sizes and times', async () => {
     const p = mkProject('p')
     trust([p])
-    const file = conversation('quiet', [p], 1_793_000_000)
+    conversation('quiet', [p], 1_793_000_000)
     const before = listing(conversations())
     expect(before).toHaveLength(1) // the database alone: its writer closed, so the log was merged and removed
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.projects[0].sessionCount).toBe(1)
     expect(listing(conversations())).toEqual(before)
-    // Its time moved, so the walk reads it again; with no directory to copy into, only a read in place reads it
-    utimesSync(file, 1_793_000_100, 1_793_000_100)
-    const moved = listing(conversations())
-    expect(readAntigravitySessions(agyRoot(), join(dir, 'no-such-dir')).map((s) => s.cwd)).toEqual([p])
-    expect(listing(conversations())).toEqual(moved)
+    // With no directory to copy into, only a read in place reads it
+    expect(agySessions(join(dir, 'no-such-dir')).map((s) => s.cwd)).toEqual([p])
+    expect(listing(conversations())).toEqual(before)
   })
 
   it('a database agy is writing is read through a copy: nothing changes there, and the rows only its log holds are seen', async () => {
@@ -424,7 +434,7 @@ describe("reading agy's files writes nothing there (token-stats::CON-002)", () =
     if (writer) writers.push(writer)
     const tmpParent = join(dir, 'tmp')
     mkdirSync(tmpParent)
-    const sessions = readAntigravitySessions(agyRoot(), tmpParent)
+    const sessions = agySessions(tmpParent)
     expect(sessions.map((s) => [s.cwd, s.subagent])).toEqual([[p, false]])
     expect(readdirSync(tmpParent)).toEqual([])
     expect(existsSync(join(conversations(), 'busy.db-wal'))).toBe(true)
@@ -433,22 +443,28 @@ describe("reading agy's files writes nothing there (token-stats::CON-002)", () =
   it('the copy\'s directory is the user\'s alone while the read runs, so a read killed half-way leaves nothing others can read', () => {
     const p = mkProject('p')
     mkdirSync(conversations(), { recursive: true })
-    const { file, writer } = writeConversation(conversations(), 'busy', encodeTrajectoryMetadata({ folders: [p], conversationId: 'busy' }), { keepOpen: true })
+    const { writer } = writeConversation(conversations(), 'busy', encodeTrajectoryMetadata({ folders: [p], conversationId: 'busy' }), { keepOpen: true })
     if (writer) writers.push(writer)
     const tmpParent = join(dir, 'tmp')
     mkdirSync(tmpParent)
-    const seen = readConversationDb(file, (db) => {
-      const copyDir = dirname(db.location() ?? '')
-      // SQLite reports the path resolved (macOS's /var is a link to /private/var)
-      return { underParent: dirname(copyDir) === realpathSync(tmpParent), mode: statSync(copyDir).mode & 0o777 }
-    }, tmpParent)
-    expect(seen).toEqual({ underParent: true, mode: 0o700 })
+    const seam = threadEngineModule() as CopySeam
+    seam.seamWatchCopiesUnder(tmpParent)
+    try {
+      expect(agySessions(tmpParent).map((s) => s.cwd)).toEqual([p])
+      const made = seam.seamCopiesMade()
+      expect(made.map((c) => [dirname(c.path), basename(c.path).replace(/^agentshed-agy-[A-Za-z0-9]{6}$/, 'agentshed-agy-XXXXXX'), c.mode])).toEqual([
+        [tmpParent, 'agentshed-agy-XXXXXX', 0o700]
+      ])
+    } finally {
+      seam.seamWatchCopiesUnder(null)
+    }
   })
 })
 
 describe('a conversation is read again only when it changed, and a failed read is tried again', () => {
-  // A conversation with a log is read through a copy made under the walk's temporary parent: a parent that does not
-  // exist makes every fresh read fail, which tells a read served from the last one apart from a new read
+  // A conversation with a log is read through a copy made under the walk's temporary parent: the module's copy seam
+  // notes each copy made there, which tells a read served from the last one apart from a new read; a parent that does
+  // not exist makes every fresh read fail
   function busy(): string {
     const p = mkProject('p')
     mkdirSync(conversations(), { recursive: true })
@@ -463,16 +479,138 @@ describe('a conversation is read again only when it changed, and a failed read i
   }
   const unusable = (): string => join(dir, 'no-such-dir')
 
-  it('an unchanged conversation is not read again', () => {
+  it('an unchanged conversation is not read again: the walk after makes no copy of it', () => {
     const p = busy()
-    expect(readAntigravitySessions(agyRoot(), usable()).map((s) => s.cwd)).toEqual([p])
-    expect(readAntigravitySessions(agyRoot(), unusable()).map((s) => s.cwd)).toEqual([p])
+    const memory = sessionMemory()
+    const tmp = usable()
+    const seam = threadEngineModule() as CopySeam
+    try {
+      seam.seamWatchCopiesUnder(tmp)
+      expect(agySessions(tmp, memory).map((s) => s.cwd)).toEqual([p])
+      expect(seam.seamCopiesMade(), 'the first walk reads it through a copy').toHaveLength(1)
+      seam.seamWatchCopiesUnder(tmp)
+      expect(agySessions(tmp, memory).map((s) => s.cwd)).toEqual([p])
+      expect(seam.seamCopiesMade()).toEqual([])
+    } finally {
+      seam.seamWatchCopiesUnder(null)
+    }
   })
 
   it('a read that failed is tried again at the next walk', () => {
     const p = busy()
-    expect(readAntigravitySessions(agyRoot(), unusable()).map((s) => s.cwd)).toEqual([null])
-    expect(readAntigravitySessions(agyRoot(), usable()).map((s) => s.cwd)).toEqual([p])
+    const memory = sessionMemory()
+    expect(agySessions(unusable(), memory).map((s) => s.cwd)).toEqual([null])
+    expect(agySessions(usable(), memory).map((s) => s.cwd)).toEqual([p])
+  })
+})
+
+describe('the walk\'s reads of a conversation, by the engine module: a panic, its memory, and its time', () => {
+  const seam = (): PanicSeam => threadEngineModule() as PanicSeam
+  afterEach(() => {
+    seam().seamPanicWhileWalking(null)
+  })
+  const usable = (): string => {
+    const t = join(dir, 'tmp')
+    mkdirSync(t, { recursive: true })
+    return t
+  }
+
+  // token-stats, Scans and the window, failure modes: a panic while the walk reads an entry is that entry's failed read,
+  // judged as a failed read is, by the log as the panic is caught
+  it('a read that panics with no log beside the database credits it to no folder, its sibling read; the walk after reads it again', () => {
+    const p = mkProject('p')
+    const q = mkProject('q')
+    const named = conversation('panics', [p], 1_793_000_000)
+    conversation('sibling', [q], 1_793_000_000)
+    const memory = sessionMemory()
+    expect(agySessions(undefined, memory).map((s) => s.cwd)).toEqual([p, q])
+    utimesSync(named, 1_793_000_100, 1_793_000_100)
+    seam().seamPanicWhileWalking(named)
+    expect(agySessions(undefined, memory).map((s) => [basename(s.file), s.cwd])).toEqual([['panics.db', null], ['sibling.db', q]])
+    seam().seamPanicWhileWalking(null)
+    expect(agySessions(undefined, memory).map((s) => s.cwd)).toEqual([p, q])
+  })
+
+  it('a read that panics while a log is beside the database keeps the last folder, and the walk after reads it again (token-stats::REQ-004/AC-03)', () => {
+    const first = mkProject('first1')
+    const second = mkProject('second')
+    mkdirSync(conversations(), { recursive: true })
+    const { file, writer } = writeConversation(conversations(), 'busy', encodeTrajectoryMetadata({ folders: [first], conversationId: 'busy' }), { keepOpen: true })
+    if (!writer) throw new Error('no writer')
+    writers.push(writer)
+    const memory = sessionMemory()
+    expect(agySessions(usable(), memory).map((s) => s.cwd)).toEqual([first])
+    // agy rewrites the record, so its log changes, and the read of it panics
+    writer.prepare("UPDATE trajectory_metadata_blob SET data = ? WHERE id = 'main'").run(encodeTrajectoryMetadata({ folders: [second], conversationId: 'busy' }))
+    seam().seamPanicWhileWalking(file)
+    expect(agySessions(usable(), memory).map((s) => s.cwd)).toEqual([first])
+    seam().seamPanicWhileWalking(null)
+    expect(agySessions(usable(), memory).map((s) => s.cwd)).toEqual([second])
+  })
+
+  // The walk keeps a reading only for the conversations the last walk saw and took a signature of. Each case rewrites
+  // the conversation to credit another folder under the signature it was read under, which a walk that kept the reading
+  // would not see.
+  it.each([
+    {
+      name: 'that left the directory and came back',
+      away: (file: string): (() => void) => {
+        const aside = join(dir, 'aside.db')
+        renameSync(file, aside)
+        return () => renameSync(aside, file)
+      }
+    },
+    {
+      name: 'in a directory the walk could not list',
+      away: (): (() => void) => {
+        chmodSync(conversations(), 0o000)
+        return () => chmodSync(conversations(), 0o755)
+      }
+    },
+    {
+      // The listing names the database and its signature cannot be taken, as for one deleted in between (token-stats
+      // failure modes, a conversation deleted between the scan's listing and its read)
+      name: 'whose database the walk listed but could not then look at',
+      away: (): (() => void) => {
+        chmodSync(conversations(), 0o444)
+        return () => chmodSync(conversations(), 0o755)
+      }
+    }
+  ])('a conversation $name is read again, though its signature is the one its reading was kept under', ({ away }) => {
+    const p = mkProject('p')
+    const q = mkProject('q')
+    const file = conversation('comes-back', [p], 1_793_000_000)
+    const memory = sessionMemory()
+    expect(agySessions(undefined, memory).map((s) => s.cwd)).toEqual([p])
+    const staged = join(dir, 'staged')
+    mkdirSync(staged)
+    const { file: rewritten } = writeConversation(staged, 'comes-back', encodeTrajectoryMetadata({ folders: [q], conversationId: 'comes-back' }))
+    utimesSync(rewritten, 1_793_000_000, 1_793_000_000)
+    renameSync(rewritten, file)
+    expect(agySessions(undefined, memory).map((s) => s.cwd), 'unchanged to the walk, so not read again').toEqual([p])
+    const back = away(file)
+    try {
+      expect(agySessions(undefined, memory)).toEqual([])
+    } finally {
+      back()
+    }
+    expect(agySessions(undefined, memory).map((s) => s.cwd)).toEqual([q])
+  })
+
+  it('a conversation\'s time is the later of its database\'s and its log\'s as Node gives them, to the fraction of a millisecond', () => {
+    const p = mkProject('p')
+    const quiet = conversation('quiet', [p], 1_793_000_000)
+    utimesSync(quiet, 1_793_000_000.123457, 1_793_000_000.123457)
+    const { file: busy, writer } = writeConversation(conversations(), 'busy', encodeTrajectoryMetadata({ folders: [p], conversationId: 'busy' }), { keepOpen: true })
+    if (writer) writers.push(writer)
+    utimesSync(busy, 1_793_000_000.5, 1_793_000_000.5)
+    utimesSync(`${busy}-wal`, 1_793_000_100.654321, 1_793_000_100.654321)
+    const times = [statSync(`${busy}-wal`).mtimeMs, statSync(quiet).mtimeMs]
+    expect(times.map((t) => t % 1 !== 0), 'times that are no whole millisecond').toEqual([true, true])
+    expect(agySessions(usable()).map((s) => [basename(s.file), s.mtimeMs])).toEqual([
+      ['busy.db', times[0]],
+      ['quiet.db', times[1]]
+    ])
   })
 })
 
@@ -530,7 +668,7 @@ const cacheDir = (): string => join(dir, 'cache')
 /** A build by a new engine; with `combination`, one of the builds of a run that combines under it (TokenEngine), and
  * otherwise a run of its own, whose first scan combines every group again */
 function build(runner?: ParseRunner, combination?: string): Promise<TokenBuildResult> {
-  return new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, combination).build(roots(), [], undefined, walkSessions(roots()))
+  return new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, combination).build(roots(), [], undefined, moduleWalk())
 }
 const agyRows = (r: TokenBuildResult): TokenBuildResult['rows'] => r.rows.filter((x) => x.side === 'antigravity')
 const agyTotal = (r: TokenBuildResult): number => r.global.bySide.antigravity.total
@@ -1200,7 +1338,7 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
           removed = true
           // Another engine, whose agy data root holds no conversation, removes every Antigravity entry
           const elsewhere = { ...roots(), antigravityHome: join(dir, 'elsewhere') }
-          const other = await new TokenEngine(cacheDir(), TEST_ENGINE).build(elsewhere, [], undefined, walkSessions(elsewhere))
+          const other = await new TokenEngine(cacheDir(), TEST_ENGINE).build(elsewhere, [], undefined, threadEngineModule().walkSessions(elsewhere))
           expect(agyTotal(other)).toBe(0)
         }
         return copyFails.run(job)
@@ -1260,7 +1398,7 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     it('deleted after the walk listed it: it leaves the figures in that scan', async () => {
       const goes = two()
       expect(agyTotal(await build())).toBe(1210)
-      const walked = walkSessions(roots())
+      const walked = moduleWalk()
       rmSync(goes)
       const r = await new TokenEngine(cacheDir(), TEST_ENGINE).build(roots(), [], undefined, walked)
       expect([agyTotal(r), r.antigravityUnreadable]).toEqual([110, 0])
@@ -1314,7 +1452,7 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     })
     usageConversation('no-gen-table', [p], [], { alterSchema: (sql) => (sql.startsWith('CREATE TABLE `gen_metadata`') ? null : sql) })
     usageConversation('fine', [good], [])
-    const byName: Record<string, string | null> = Object.fromEntries(readAntigravitySessions(agyRoot()).map((s) => [basename(s.file), s.cwd]))
+    const byName: Record<string, string | null> = Object.fromEntries(agySessions().map((s) => [basename(s.file), s.cwd]))
     expect(byName).toEqual({ 'version-2.db': null, 'no-metadata-column.db': null, 'no-gen-table.db': null, 'fine.db': good })
   })
 
@@ -1327,11 +1465,12 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     writers.push(writer)
     const usable = join(dir, 'tmp')
     mkdirSync(usable)
-    expect(readAntigravitySessions(agyRoot(), usable).map((s) => s.cwd)).toEqual([first])
+    const memory = sessionMemory()
+    expect(agySessions(usable, memory).map((s) => s.cwd)).toEqual([first])
     // agy rewrites the record (its log changes) while the next read cannot make its copy
     writer.prepare("UPDATE trajectory_metadata_blob SET data = ? WHERE id = 'main'").run(encodeTrajectoryMetadata({ folders: [second], conversationId: 'busy' }))
-    expect(readAntigravitySessions(agyRoot(), join(dir, 'no-such-dir')).map((s) => s.cwd)).toEqual([first])
-    expect(readAntigravitySessions(agyRoot(), usable).map((s) => s.cwd)).toEqual([second])
+    expect(agySessions(join(dir, 'no-such-dir'), memory).map((s) => s.cwd)).toEqual([first])
+    expect(agySessions(usable, memory).map((s) => s.cwd)).toEqual([second])
   })
 })
 
@@ -1548,7 +1687,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
   async function questionTexts(e: TokenEngine, file: string): Promise<Array<string | null>> {
     const q = await e.sessionQuestions(roots(), file)
     const { texts } = await readRanges(q.source, q.questions.map((r) => ({ start: r[0], end: r[1] })))
-    return texts.map((t) => questionTextOfRange(q.side, t))
+    return texts.map((t) => threadEngineModule().questionText(q.side, t))
   }
   /** A step agy records for a user's input: its creation time and no call */
   const inputStep = (conversationId: string, idx: number, at: number): StepRow => ({
@@ -1672,7 +1811,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     const { p } = dispatchHome()
     const tmp = join(dir, 'tmp')
     mkdirSync(tmp)
-    const rebuild = (): Promise<TokenBuildResult> => new TokenEngine(cacheDir(), TEST_ENGINE, undefined, tmp).build(roots(), [], undefined, walkSessions(roots()))
+    const rebuild = (): Promise<TokenBuildResult> => new TokenEngine(cacheDir(), TEST_ENGINE, undefined, tmp).build(roots(), [], undefined, moduleWalk())
     const before = contents(agyRoot())
     await rebuild()
     expect(contents(agyRoot())).toEqual(before)
@@ -1694,7 +1833,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     const { p, main } = dispatchHome()
     // The copy a read makes while a log is beside the summaries cannot be made: a read while agy writes that fails
     const e = new TokenEngine(cacheDir(), TEST_ENGINE, undefined, join(dir, 'no-such-dir'))
-    const rebuild = (): Promise<TokenBuildResult> => e.build(roots(), [], undefined, walkSessions(roots()))
+    const rebuild = (): Promise<TokenBuildResult> => e.build(roots(), [], undefined, moduleWalk())
     expect(sessionsOf(await rebuild(), p).map((s) => s.title)).toEqual(['List Calc.py Function Names'])
     rmSync(join(agyRoot(), 'conversation_summaries.db'))
     const { writer } = writeSummaries(agyRoot(), [], { keepOpen: true })
@@ -1708,7 +1847,7 @@ describe('sessions: the list, the page and forks (session-view::REQ-003, REQ-004
     const fallback = 'Use the invoke_subagent tool to start one subagent of type s…'
     const fresh = (): TokenEngine => new TokenEngine(cacheDir(), TEST_ENGINE, undefined, join(dir, 'no-such-dir'))
     expect((await fresh().sessionQuestions(roots(), main)).title).toBe(fallback)
-    expect(sessionsOf(await fresh().build(roots(), [], undefined, walkSessions(roots())), p).map((s) => s.title)).toEqual([fallback])
+    expect(sessionsOf(await fresh().build(roots(), [], undefined, moduleWalk()), p).map((s) => s.title)).toEqual([fallback])
   })
 
   it('a changed transcript is indexed again for that conversation alone, its database untouched (C4)', async () => {

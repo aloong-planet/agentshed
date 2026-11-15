@@ -6,13 +6,15 @@
 // scanner (scanner.ts), and no case counts the walks; `pnpm bench:scan` prints the walk on its own line in
 // the app's order.
 import { chmodSync, closeSync, mkdtempSync, openSync, renameSync, rmSync, mkdirSync, statSync, writeFileSync, writeSync, utimesSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { scan, walkSessions } from './scan'
+import { threadEngineModule, type SessionMemory } from '../engine-module'
+import type { PanicSeam } from '../testing/engine'
+import { scan, type SessionWalk } from './scan'
 import { encodeClaudeProjectDir } from './claude'
-import { CodexHeads, type CodexSessionMeta } from './codex'
+import type { CodexSessionMeta } from './codex'
 import type { ScanRoots } from './types'
 
 let dir: string
@@ -51,19 +53,22 @@ function writeGrokRegistry(paths: string[]): void {
  * Build a Grok session directory (the real layout measured 2026-08-16):
  * sessions/<percent-encoded cwd>/<session-id>/ with updates.jsonl as the authoritative stream.
  * A real child session carries `"session_kind": "subagent"` in its summary.json and sits beside its
- * parent; a parent has no session_kind key at all.
+ * parent; a top-level session's names no session_kind, or another one (`kind`: "headless", measured
+ * 2026-11-15). The summary is written as Grok writes one (measured 2026-11-15): indented two spaces over
+ * many lines, with no final line feed.
  */
 function mkGrokSession(
   cwd: string,
   id: string,
   atSec: number,
-  opts: { subagent?: boolean } = {}
+  opts: { subagent?: boolean; kind?: string } = {}
 ): string {
   const d = join(dir, '.grok', 'sessions', encodeURIComponent(cwd), id)
   mkdirSync(d, { recursive: true })
   const summary: Record<string, unknown> = { info: { id, cwd } }
-  if (opts.subagent) summary['session_kind'] = 'subagent'
-  writeFileSync(join(d, 'summary.json'), JSON.stringify(summary))
+  const kind = opts.subagent ? 'subagent' : opts.kind
+  if (kind !== undefined) summary['session_kind'] = kind
+  writeFileSync(join(d, 'summary.json'), JSON.stringify(summary, null, 2))
   const f = join(d, 'updates.jsonl')
   writeFileSync(f, '{"type":"x"}\n')
   utimesSync(f, atSec, atSec)
@@ -206,12 +211,14 @@ describe('activity', () => {
     const p = mkProject('gk-sub')
     writeGrokRegistry([p])
     mkGrokSession(p, '019f-parent', 3000)
+    // A top-level session whose record names a kind other than subagent counts like one that names none
+    mkGrokSession(p, '019f-headless', 5000, { kind: 'headless' })
     // The child is a **sibling** at the same directory level — depth cannot tell the two apart, only
     // the record's own session_kind can; it must not count and must not push the time up
     mkGrokSession(p, '019f-child', 9000, { subagent: true })
     const snap = await scan(roots(), { now: () => 1 })
-    expect(snap.projects[0].sessionCount).toBe(1)
-    expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
+    expect(snap.projects[0].sessionCount).toBe(2)
+    expect(snap.projects[0].lastSessionAt).toBe(5000 * 1000)
   })
 
   it('B9: activity counts a side that did not register the directory, while the side count stays at one (A8)', async () => {
@@ -263,11 +270,19 @@ describe('activity', () => {
     expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
   })
 
-  it('an unreadable summary.json says nothing, and a record that says nothing is not a subagent — the session counts', async () => {
+  it.each([
+    { name: 'that does not parse', spoil: (summary: string): void => writeFileSync(summary, '{not json') },
+    { name: 'that is not there', spoil: (summary: string): void => rmSync(summary) },
+    {
+      // Holding what a child's record says, so a reading that looks for those words anywhere would take it
+      name: 'that is no object',
+      spoil: (summary: string): void => writeFileSync(summary, JSON.stringify([{ session_kind: 'subagent' }], null, 2))
+    }
+  ])('a summary.json $name says nothing, and a record that says nothing is not a subagent — the session counts (B8)', async ({ spoil }) => {
     const p = mkProject('gk-broken-summary')
     writeGrokRegistry([p])
     const d = mkGrokSession(p, '019f-nosummary', 3000)
-    writeFileSync(join(d, 'summary.json'), '{not json')
+    spoil(join(d, 'summary.json'))
     const snap = await scan(roots(), { now: () => 1 })
     // Miscounting one extra session is visible; silently dropping a real one is not — the
     // degradation errs in the visible direction
@@ -321,7 +336,7 @@ describe('the shared session walk', () => {
     writeGrokRegistry([p])
     mkCodexRollout(p, 'rollout-1.jsonl', 3000)
     mkGrokSession(p, 'g1', 3500)
-    const walked = walkSessions(roots())
+    const walked = threadEngineModule().walkSessions(roots())
     mkCodexRollout(p, 'rollout-2.jsonl', 4000)
     mkGrokSession(p, 'g2', 5000)
     const snap = await scan(roots(), { now: () => 1, sessions: walked })
@@ -331,8 +346,8 @@ describe('the shared session walk', () => {
 })
 
 // A rescan keeps the first-line reading of a rollout that did not change (token-stats::QR-002/AC-01). The
-// readings belong to a CodexHeads, which the scanner keeps for the run (scanner.ts); whether a rollout was
-// opened again is told by what the walk returns after its first line was rewritten.
+// readings belong to the engine module's SessionMemory, which the scanner keeps for the run (scanner.ts);
+// whether a rollout was opened again is told by what the walk returns after its first line was rewritten.
 //
 // The first lines are built after real ones: all 3048 rollouts of one machine were enumerated on
 // 2026-11-11 by key shape (59 shapes). Every first line carries an ordinal, a payload with cwd, id,
@@ -418,7 +433,8 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     return { mtimeMs: st.mtimeMs, size: st.size, ino: st.ino }
   }
   const byFile = (list: CodexSessionMeta[]): CodexSessionMeta[] => [...list].sort((a, b) => a.file.localeCompare(b.file))
-  const walk = (heads?: CodexHeads): CodexSessionMeta[] => byFile(walkSessions(roots(), heads).codex)
+  const walk = (memory?: SessionMemory): CodexSessionMeta[] => byFile(threadEngineModule().walkSessions(roots(), memory).codex)
+  const memory = (): SessionMemory => new (threadEngineModule().SessionMemory)()
 
   const T1 = Date.UTC(2026, 6, 30, 1, 0, 0)
   const T2 = Date.UTC(2026, 7, 2, 3, 4, 5)
@@ -441,7 +457,7 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
       { file: cold, cwd: a, subagent: false, mtimeMs: 4000_000, sessionId: '019f0a01-0000-7000-8000-000000000001', parentId: null, forkedAt: T1, paginated: true },
       { file: plain, cwd: a, subagent: false, mtimeMs: 3000_000, sessionId: '019f0a01-0000-7000-8000-000000000001', parentId: null, forkedAt: T1, paginated: true }
     ]
-    const heads = new CodexHeads()
+    const heads = memory()
     expect(walk(heads)).toEqual(read)
 
     const before = [signature(plain), signature(cold)]
@@ -484,7 +500,7 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     const a = mkProject('changed-a')
     const b = mkProject('changed-b')
     const f = put('rollout-2026-07-30T01-00-00-changes.jsonl', plainBytes(first(a)), 3000)
-    const heads = new CodexHeads()
+    const heads = memory()
     expect(walk(heads).map((s) => s.cwd)).toEqual([a])
 
     const before = signature(f)
@@ -513,7 +529,7 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     const a = mkProject('gone-a')
     const good = plainBytes(first(a))
     const f = put('rollout-2026-07-30T01-00-00-gone.jsonl', good, 3000)
-    const heads = new CodexHeads()
+    const heads = memory()
     expect(walk(heads).map((s) => s.cwd)).toEqual([a])
     try {
       spoil(f, good)
@@ -528,12 +544,12 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     const a = mkProject('run-a')
     const b = mkProject('run-b')
     const f = put('rollout-2026-07-30T01-00-00-run.jsonl', plainBytes(first(a)), 3000)
-    const earlier = new CodexHeads()
+    const earlier = memory()
     expect(walk(earlier).map((s) => s.cwd)).toEqual([a])
     overwrite(f, plainBytes(other(b)), 3000)
     expect(walk(earlier).map((s) => s.cwd), 'the earlier run still holds its reading').toEqual([a])
 
-    expect(walk(new CodexHeads()).map((s) => s.cwd)).toEqual([b])
+    expect(walk(memory()).map((s) => s.cwd)).toEqual([b])
     expect(walk().map((s) => s.cwd)).toEqual([b])
   })
 
@@ -543,7 +559,7 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     const sub = put('rollout-2026-07-30T01-00-01-sub.jsonl', plainBytes({ cwd: a, id: 'sub-1', at: '2026-07-30T01:00:01.000Z', subagentOf: '019f0a01-0000-7000-8000-000000000001' }), 3100)
     const fork = put('rollout-2026-07-30T01-00-02-fork.jsonl', plainBytes({ cwd: a, id: 'fork-1', at: '2026-07-30T01:00:02.000Z', forkOf: '019f0a01-0000-7000-8000-000000000001' }), 3200)
     const cold = put('rollout-2026-07-30T01-00-03-cold.jsonl.zst', zstdCompressSync(plainBytes({ cwd: a, id: 'cold-1', at: '2026-07-30T01:00:03.000Z' })), 3300)
-    const heads = new CodexHeads()
+    const heads = memory()
     const one = walk(heads)
     expect(one.map((s) => [s.file, s.subagent, s.parentId])).toEqual([
       [main, false, null],
@@ -575,13 +591,19 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
       name: 'that could not be opened and can be again',
       breakIt: (f: string): void => chmodSync(f, 0o000),
       mend: (f: string): void => chmodSync(f, 0o644)
+    },
+    {
+      // A first line of the same size, padded alike, whose cwd is empty (projects-list B4)
+      name: 'whose first line named no project and is rewritten under the same signature',
+      breakIt: (f: string): void => overwrite(f, plainBytes(first('')), 3000),
+      mend: (f: string, good: Buffer): void => overwrite(f, good, 3000)
     }
   ])('a rollout that gave no reading is read again at the next walk: one $name', ({ breakIt, mend }) => {
     const a = mkProject('failed-a')
     const good = plainBytes(first(a))
     const f = put('rollout-2026-07-30T01-00-00-failed.jsonl', good, 3000)
     breakIt(f, good)
-    const heads = new CodexHeads()
+    const heads = memory()
     try {
       expect(walk(heads)).toEqual([])
       const before = signature(f)
@@ -591,5 +613,135 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
       chmodSync(f, 0o644)
     }
     expect(walk(heads).map((s) => s.cwd)).toEqual([a])
+  })
+})
+
+// The session walk as the engine module reads it (#431), each rule as the TypeScript walk had it, the laxities included.
+describe('the session walk, read by the engine module', () => {
+  const module = (): PanicSeam => threadEngineModule() as PanicSeam
+  const walked = (memory?: SessionMemory): SessionWalk => module().walkSessions(roots(), memory)
+  const memory = (): SessionMemory => new (module().SessionMemory)()
+  const day = (d: string): string => join(dir, '.codex', 'sessions', '2026', '07', d)
+  /** A rollout whose first line credits it to `cwd`, written at `file` */
+  function rolloutAt(file: string, cwd: string, atSec = 3000): string {
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, `${JSON.stringify({ timestamp: '2026-07-30T00:00:00Z', type: 'session_meta', payload: { cwd } })}\n{"type":"other"}\n`)
+    utimesSync(file, atSec, atSec)
+    return file
+  }
+  afterEach(() => {
+    module().seamPanicWhileWalking(null)
+  })
+
+  // token-stats, Scans and the window, failure modes: a panic while the walk reads an entry is that entry's failed read,
+  // under its side's rule, and the walk goes on
+  it('a rollout whose read panics gives no session, its sibling stays, and nothing is kept for it: the walk after reads it afresh', () => {
+    const a = mkProject('panic-a')
+    const b = mkProject('panic-b')
+    const named = rolloutAt(join(day('30'), 'rollout-1.jsonl'), a)
+    const sibling = rolloutAt(join(day('30'), 'rollout-2.jsonl'), a)
+    const kept = memory()
+    expect(walked(kept).codex.map((s) => [s.file, s.cwd])).toEqual([[named, a], [sibling, a]])
+    // Rewritten, its time moved, and read while the seam names it
+    rolloutAt(named, b, 3001)
+    module().seamPanicWhileWalking(named)
+    expect(walked(kept).codex.map((s) => [s.file, s.cwd])).toEqual([[sibling, a]])
+    module().seamPanicWhileWalking(null)
+    expect(walked(kept).codex.map((s) => [s.file, s.cwd])).toEqual([[named, b], [sibling, a]])
+  })
+
+  it('a Grok session whose summary read panics is no subagent\'s: it counts, and its sibling is read', () => {
+    const p = mkProject('gk-panic')
+    const child = join(mkGrokSession(p, '019f-child', 3000, { subagent: true }), 'updates.jsonl')
+    const parent = join(mkGrokSession(p, '019f-parent', 3100), 'updates.jsonl')
+    expect(walked().grok.map((s) => [s.file, s.subagent])).toEqual([[child, true], [parent, false]])
+    module().seamPanicWhileWalking(child)
+    expect(walked().grok.map((s) => [s.file, s.subagent])).toEqual([[child, false], [parent, false]])
+  })
+
+  it('a Codex directory the walk cannot list loses its own rollouts only: the next day\'s and the archived ones are walked', () => {
+    const p = mkProject('cx-unlistable')
+    rolloutAt(join(day('30'), 'rollout-locked.jsonl'), p)
+    const next = rolloutAt(join(day('31'), 'rollout-next.jsonl'), p)
+    const archived = rolloutAt(join(dir, '.codex', 'archived_sessions', 'rollout-archived.jsonl'), p)
+    chmodSync(day('30'), 0o000)
+    try {
+      expect(walked().codex.map((s) => s.file)).toEqual([next, archived])
+    } finally {
+      chmodSync(day('30'), 0o755)
+    }
+  })
+
+  it('a Grok project directory the walk cannot list loses its own sessions only', () => {
+    const locked = mkProject('gk-locked')
+    const open = mkProject('gk-open')
+    const lockedDir = dirname(mkGrokSession(locked, '019f-l', 3000))
+    mkGrokSession(open, '019f-o', 3000)
+    chmodSync(lockedDir, 0o000)
+    try {
+      expect(walked().grok.map((s) => s.cwd)).toEqual([open])
+    } finally {
+      chmodSync(lockedDir, 0o755)
+    }
+  })
+
+  it('a Grok directory whose name is not valid percent-encoding is skipped, its sibling counted, and its stream read alone gives nothing', () => {
+    const p = mkProject('gk-good')
+    const good = join(mkGrokSession(p, '019f-good', 3000), 'updates.jsonl')
+    const lost = join(dir, '.grok', 'sessions', 'bad%zz', '019f-lost')
+    mkdirSync(lost, { recursive: true })
+    writeFileSync(join(lost, 'updates.jsonl'), '{"type":"x"}\n')
+    expect(walked().grok.map((s) => s.file)).toEqual([good])
+    expect(module().sessionMeta('grok', join(lost, 'updates.jsonl'))).toBeNull()
+    expect(module().sessionMeta('grok', good)).toEqual({ cwd: p, subagent: false })
+  })
+
+  it('a session\'s time is the one Node gives its file, to the fraction of a millisecond', () => {
+    const p = mkProject('exact')
+    const rollout = rolloutAt(join(day('30'), 'rollout-exact.jsonl'), p)
+    const stream = join(mkGrokSession(p, '019f-exact', 3000), 'updates.jsonl')
+    for (const f of [rollout, stream]) utimesSync(f, 1_786_088_600.123457, 1_786_088_600.123457)
+    const times = [statSync(rollout).mtimeMs, statSync(stream).mtimeMs]
+    expect(times.map((t) => t % 1 !== 0), 'times that are no whole millisecond').toEqual([true, true])
+    const w = walked()
+    expect([w.codex.map((s) => s.mtimeMs), w.grok.map((s) => s.mtimeMs)]).toEqual([[times[0]], [times[1]]])
+  })
+
+  // A first line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of ECMAScript's
+  // JSON.parse, each field as JavaScript's property access on the parsed line reads it. The values expected are worked
+  // out from that reading by hand, and the TypeScript walk gave each of them too until it was removed (#431).
+  it.each<{ name: string; line: string | Buffer; read: Partial<CodexSessionMeta> | null }>([
+    { name: 'repeating a key: the last one counts', line: '{"payload":{"cwd":"/first","cwd":"/a"}}', read: {} },
+    { name: 'whose cwd is no string', line: '{"payload":{"cwd":5}}', read: null },
+    { name: 'whose cwd is empty: it names no project', line: '{"payload":{"cwd":""}}', read: null },
+    { name: 'whose payload is an array', line: '{"payload":["/a"]}', read: null },
+    { name: 'that is an array', line: '[{"payload":{"cwd":"/a"}}]', read: null },
+    { name: 'that begins with a byte order mark', line: `${String.fromCharCode(0xfeff)}{"payload":{"cwd":"/a"}}`, read: null },
+    { name: 'with text after its value', line: '{"payload":{"cwd":"/a"}} x', read: null },
+    { name: 'whose id is empty: kept as it is', line: '{"payload":{"cwd":"/a","id":""}}', read: { sessionId: '' } },
+    {
+      name: 'whose fork id is empty: the spawning thread is the parent',
+      line: '{"payload":{"cwd":"/a","forked_from_id":"","source":{"subagent":{"thread_spawn":{"parent_thread_id":"p-1"}}}}}',
+      read: { parentId: 'p-1' }
+    },
+    { name: 'whose source is a string: no spawning thread, and the payload\'s own parent id is none', line: '{"payload":{"cwd":"/a","source":"cli","parent_thread_id":"p-1"}}', read: {} },
+    { name: 'whose ordinal is a number: paginated', line: '{"ordinal":0,"payload":{"cwd":"/a"}}', read: { paginated: true } },
+    { name: 'whose ordinal is a string: not paginated', line: '{"ordinal":"0","payload":{"cwd":"/a"}}', read: {} },
+    { name: 'whose timestamp is a number: no fork time', line: '{"timestamp":5,"payload":{"cwd":"/a"}}', read: {} },
+    { name: 'whose timestamp is in a form only JavaScript reads', line: '{"timestamp":"July 30, 2026 01:00:00 GMT","payload":{"cwd":"/a"}}', read: { forkedAt: Date.UTC(2026, 6, 30, 1, 0, 0) } },
+    { name: 'whose thread source repeats: the last one counts', line: '{"payload":{"cwd":"/a","thread_source":"subagent","thread_source":"user"}}', read: {} },
+    { name: 'with a lone surrogate escaped in its cwd: kept as that unit', line: '{"payload":{"cwd":"/a\\ud800"}}', read: { cwd: `/a${String.fromCharCode(0xd800)}` } },
+    {
+      name: 'with a byte that is no UTF-8 in its cwd: read as U+FFFD',
+      line: Buffer.concat([Buffer.from('{"payload":{"cwd":"/a'), Buffer.from([0xff]), Buffer.from('"}}')]),
+      read: { cwd: `/a${String.fromCharCode(0xfffd)}` }
+    }
+  ])('a first line $name', ({ line, read }) => {
+    const file = join(day('30'), 'rollout-line.jsonl')
+    mkdirSync(day('30'), { recursive: true })
+    writeFileSync(file, Buffer.concat([Buffer.from(line), Buffer.from('\n{"type":"other"}\n')]))
+    utimesSync(file, 3000, 3000)
+    const want = read === null ? [] : [{ file, cwd: '/a', subagent: false, mtimeMs: 3000_000, sessionId: null, parentId: null, forkedAt: null, paginated: false, ...read }]
+    expect(walked().codex).toEqual(want)
   })
 })

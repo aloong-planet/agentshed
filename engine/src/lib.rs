@@ -8,20 +8,24 @@
 //! ## Layout
 //!
 //! - `sides/<side>/`: what differs by agent side — its entry types, the fields its rules read off a line, its parse,
-//!   its question rules, its title, and its entry's de-duplication keys and combination. A side's items stay private to its directory, except the one adapter it
-//!   registers in `sides/mod.rs`, which is the one list of the sides, with the trait they implement. The trait gains a
-//!   method only when side-free code calls one.
+//!   its question rules, its title, its side of the session walk, and its entry's de-duplication keys and combination.
+//!   A side's items stay private to its directory, except the one adapter it registers in `sides/mod.rs`, which is the
+//!   one list of the sides, with the trait they implement. The trait gains a method only when side-free code calls one.
 //! - Side-free modules, which never branch on a side: what more than one side uses, written once — `read/` (lines over
-//!   a plain or a zstd stream), `json/` (a line read by `JSON.parse`'s grammar and with its results), `text/` (text as
-//!   JavaScript holds it, and the normalisation, noise, title, fingerprint, merge key and `Date.parse` rules over it),
-//!   `question/` (the question indexer the sides share and the replay strip of a fork's questions), `store/` (the token
-//!   store, ADR-0044, which holds each session file's entry under its path without reading it by side) and `group/`
-//!   (the grouping and the combination, token-stats::CON-003: which files a de-duplication key links, a group's input,
-//!   its stored result and the sum of the stored results; each side's combination is behind the trait).
-//! - `display/`: the display copy's writer, which serialises what the main process hands it and knows nothing of
-//!   what the copy holds.
+//!   a plain or a zstd stream, or a first line alone), `walk/` (a directory's entries in scan order, and what the
+//!   session walk takes of a file's status), `json/` (a line read by `JSON.parse`'s grammar and with its results),
+//!   `text/` (text as JavaScript holds it, and the normalisation, noise, title, fingerprint, merge key and `Date.parse`
+//!   rules over it), `question/` (the question indexer the sides share and the replay strip of a fork's questions),
+//!   `store/` (the token store, ADR-0044, which holds each session file's entry under its path without reading it by
+//!   side) and `group/` (the grouping and the combination, token-stats::CON-003: which files a de-duplication key
+//!   links, a group's input, its stored result and the sum of the stored results; each side's combination is behind
+//!   the trait).
+//! - `display/`: the display copy's writer, which serialises what the main process hands it by `JSON.stringify`'s
+//!   rules and knows nothing of what the copy holds.
 //! - `exports/`: every `#[napi]` function, one file per caller, with the conversions between JavaScript's values and
-//!   the module's. An export converts and dispatches, and holds no rule.
+//!   the module's (`exports/js.rs`), which the sides and `display/` read JavaScript values through as the exports do:
+//!   no other file reads one, but for the arguments napi-rs converts at the call. An export converts and dispatches,
+//!   and holds no rule.
 //! - `seams.rs`: the test seams, in builds made for tests only.
 //!
 //! Nothing is laid down ahead of the change that needs it: no file, module or trait method waits for later work.
@@ -41,3 +45,4 @@ mod seams;
 mod sides;
 mod store;
 mod text;
+mod walk;

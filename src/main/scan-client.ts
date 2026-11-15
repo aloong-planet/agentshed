@@ -4,6 +4,7 @@
 // process, which opens the token store as the worker left it. It is logged once, and no worker is
 // started again in that run.
 import { Worker } from 'node:worker_threads'
+import { loadEngineModule } from './engine-module'
 import { ParsePool } from './parse-pool'
 import { Scanner, type ScanOutput } from './providers/scanner'
 import type { ScanRoots } from './providers/types'
@@ -23,6 +24,12 @@ export interface ScanClientOptions {
   spawn: () => ScanWorker
   /** The scanner on the main process, made when the worker fails and kept for the run; `close` stops what it holds */
   fallback: () => Scans & { close?: () => void }
+  /**
+   * Confirms the engine module on this thread before a question index is asked for: what an index is read for — a
+   * question's text, a turn's contents — is read here by the module's line rules (ADR-0045). A throw fails that read,
+   * as an index that cannot be read fails it.
+   */
+  confirm: () => void
 }
 
 interface Pending {
@@ -52,9 +59,10 @@ export class ScanClient {
     return this.ask({ op: 'scan', roots, holdMs }) as Promise<ScanOutput>
   }
 
-  /** A session's question index (TokenEngine.sessionQuestions) */
-  sessionQuestions(roots: ScanRoots, file: string): Promise<SessionIndex> {
-    return this.ask({ op: 'questions', roots, file }) as Promise<SessionIndex>
+  /** A session's question index (TokenEngine.sessionQuestions), asked for once the engine module is confirmed here */
+  async sessionQuestions(roots: ScanRoots, file: string): Promise<SessionIndex> {
+    this.opts.confirm()
+    return (await this.ask({ op: 'questions', roots, file })) as SessionIndex
   }
 
   /** Whether a session file's index still matches disk (TokenEngine.isFresh) */
@@ -144,12 +152,14 @@ export class ScanClient {
 
 /**
  * The app's arrangement: the scan worker started from its built script, with the parse pool it starts itself,
- * and behind it a scanner on the calling thread with a parse pool of its own.
+ * and behind it a scanner on the calling thread with a parse pool of its own. The calling thread confirms the engine
+ * module the worker loads.
  */
 export function startScans(o: ScanWorkerData & { script: string }): ScanClient {
   const data: ScanWorkerData = { cacheDir: o.cacheDir, parseScript: o.parseScript, poolSize: o.poolSize, engine: o.engine, combination: o.combination }
   return new ScanClient({
     spawn: () => new Worker(o.script, { workerData: data }),
-    fallback: () => new Scanner(o.cacheDir, o.engine, new ParsePool(o.parseScript, o.poolSize, o.engine), o.combination)
+    fallback: () => new Scanner(o.cacheDir, o.engine, new ParsePool(o.parseScript, o.poolSize, o.engine), o.combination),
+    confirm: () => loadEngineModule(o.engine)
   })
 }

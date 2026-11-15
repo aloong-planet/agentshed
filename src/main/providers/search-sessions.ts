@@ -20,7 +20,8 @@
 //   parsing everything" cost structure.
 import { readRolloutWhole } from './cold-rollout'
 import type { SearchHit, SearchResult, SessionMeta } from '@shared/domain'
-import { questionTextOfRange, type QuestionRec } from './question-index'
+import type { QuestionRec } from './question-index'
+import { threadEngineModule } from '../engine-module'
 import { readRangeBuffers } from './range-read'
 import { searchBytes } from './search-bytes'
 import type { TokenEngine } from './token-stats'
@@ -127,7 +128,7 @@ export async function searchProjectSessions(
     const parseQ = (idx: number): { text: string; at: number | null } | null => {
       const cached = qText.get(idx)
       if (cached) return cached
-      const text = questionTextOfRange(q.side, bufs[idx].toString('utf8'))
+      const text = threadEngineModule().questionText(q.side, bufs[idx].toString('utf8'))
       if (text === null) return null
       const v = { text, at: recs[idx][3] }
       qText.set(idx, v)

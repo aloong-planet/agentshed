@@ -1,5 +1,6 @@
 //! A session file read as lines, each with its byte range: the file itself, or for a cold rollout (`.jsonl.zst`) its
 //! zstd stream decompressed as it is read (token-stats B12), its offsets then offsets in that stream (session-view C2).
+//! Or its first line alone, read no further than its line feed.
 //!
 //! A line ends at a line feed, which never occurs inside a UTF-8 character, so the bytes are split there and a line is
 //! decoded only once it is whole. A line's range runs from its first byte to after its line feed, or to the stream's end
@@ -8,8 +9,20 @@
 
 use std::fs::File;
 use std::io::{ErrorKind, Read, Seek, SeekFrom};
+use std::os::unix::fs::FileExt;
 
-/// How much of the file one read takes
+/// How much of the file one read takes: 1 MB, the size the TypeScript line reader this one replaced settled on
+/// (`eachJsonlLine`, through `fs.ReadStream`, #157), kept as it was. Its figures were taken on that reader, under
+/// Electron, on 2026-09-09. Each 64 KB stream chunk, the stream's default, cost about 3 ms more under Electron than
+/// under Node: an 839 MB Codex session already in the page cache read in 44.6 s in the Electron main process against
+/// 3.5 s under Node, and a worker thread in the same process paid the same (the mechanism was not profiled). The size
+/// was chosen on the whole cold scan, not on that file, because `fs.ReadStream` allocated a chunk-sized buffer for every
+/// read, so a scan over thousands of small files paid for a large chunk on each: the big file alone kept getting faster
+/// up to 8 MB (2.0 s at 1 MB, 1.4 s at 8 MB), while the whole set (3.3 GB in 3947 files) read in 15.5 s at 256 KB,
+/// 12.5 s at 512 KB, 11.3 s at 1 MB, 12.5 s at 2 MB, 17.6 s at 4 MB and 49.8 s at 16 MB, against 90.5 s at the default.
+/// This reader holds one buffer per file and reads into it directly, so those per-read costs were not measured on it: a
+/// figure for a size of its own is taken under Electron with `pnpm bench:scan` (the AGENTS.md invariant on such
+/// figures), its `file` mode reading through this function.
 const CHUNK: usize = 1024 * 1024;
 
 /// How a file's bytes are stored
@@ -85,4 +98,90 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
         line(&buf, base, base + len, false);
     }
     Ok(last)
+}
+
+/// The stream's first line, its line feed left off: the file read `step` bytes at a time up to its first line feed and
+/// no further, a cold rollout's bytes decompressed after each step as far as they go. The whole stream when it holds no
+/// line feed; None when it is empty, or when `max` bytes of it hold no line feed — given up rather than eating memory.
+/// Failed when the file cannot be opened or read, or its stream cannot be decompressed.
+pub(crate) fn first_line(path: &str, stored: Stored, step: usize, max: usize) -> Result<Option<Vec<u8>>, Failed> {
+    let file = File::open(path).map_err(|_| Failed)?;
+    let mut buf = vec![0u8; step];
+    let mut offset: u64 = 0;
+    match stored {
+        Stored::Plain => {
+            let mut held: Vec<u8> = Vec::new();
+            loop {
+                let n = read_at(&file, &mut buf, offset)?;
+                if n == 0 {
+                    return Ok(if held.is_empty() { None } else { Some(held) });
+                }
+                let got = &buf[..n];
+                if let Some(nl) = memchr::memchr(b'\n', got) {
+                    held.extend_from_slice(&got[..nl]);
+                    return Ok(Some(held));
+                }
+                held.extend_from_slice(got);
+                offset += n as u64;
+                if offset >= max as u64 {
+                    return Ok(None);
+                }
+            }
+        }
+        Stored::Zstd => {
+            let mut decoder = zstd::stream::raw::Decoder::new().map_err(|_| Failed)?;
+            let mut out: Vec<u8> = Vec::new();
+            loop {
+                let n = read_at(&file, &mut buf, offset)?;
+                if n > 0 {
+                    decompress(&mut decoder, &buf[..n], &mut out)?;
+                    offset += n as u64;
+                }
+                if let Some(nl) = memchr::memchr(b'\n', &out) {
+                    out.truncate(nl);
+                    return Ok(Some(out));
+                }
+                // A stream that stops inside a frame gives what it decoded, as its last line does to `each_line`
+                if n == 0 {
+                    return Ok(if out.is_empty() { None } else { Some(out) });
+                }
+                if out.len() >= max {
+                    return Ok(None);
+                }
+            }
+        }
+    }
+}
+
+/// Reads at `offset` as `readSync` with a position does, a read interrupted by a signal taken again
+fn read_at(file: &File, buf: &mut [u8], offset: u64) -> Result<usize, Failed> {
+    loop {
+        match file.read_at(buf, offset) {
+            Ok(n) => return Ok(n),
+            Err(e) if e.kind() == ErrorKind::Interrupted => {}
+            Err(_) => return Err(Failed),
+        }
+    }
+}
+
+/// Decompresses all of `input` onto `out`, as far as the stream it continues can be decoded; a frame that ends is
+/// followed by the next, a skippable one passed over
+fn decompress(decoder: &mut zstd::stream::raw::Decoder<'_>, input: &[u8], out: &mut Vec<u8>) -> Result<(), Failed> {
+    use zstd::stream::raw::{InBuffer, Operation, OutBuffer};
+    let mut input = InBuffer::around(input);
+    let mut chunk = vec![0u8; 128 * 1024];
+    loop {
+        let before = input.pos();
+        let mut output = OutBuffer::around(&mut chunk[..]);
+        decoder.run(&mut input, &mut output).map_err(|_| Failed)?;
+        let produced = output.pos();
+        out.extend_from_slice(&chunk[..produced]);
+        // Done once every byte is taken and the output had room to spare; libzstd always moves while it has room
+        if input.pos() == input.src.len() && produced < chunk.len() {
+            return Ok(());
+        }
+        if input.pos() == before && produced == 0 {
+            return Err(Failed);
+        }
+    }
 }

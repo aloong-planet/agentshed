@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The session page's branches on less common data, which nothing else checks (ADR-0040). A real component tree over a
+// The session page's branches on less common data, which nothing else checks (ADR-0038). A real component tree over a
 // fake of the renderer's one boundary to the main process; every payload passes the contract the preload applies, and
 // a method the page was not expected to call throws.
 //

@@ -12,8 +12,20 @@ export const TEST_ENGINE: EngineSource = {
 export interface PanicSeam extends EngineModule {
   /** Names the file the module panics while parsing, or none; one for the whole process */
   seamPanicWhileParsing(file: string | null): void
+  /** Names the entry the module panics while the session walk reads it — a rollout, a Grok update stream, an agy
+   * database — or none; one for the whole process */
+  seamPanicWhileWalking(file: string | null): void
   /** A stand-in for a function that parses a session file: answers with the file once the seam lets it through */
   seamParse(file: string): string
+}
+
+/** The copy seam a build made for tests exports (engine/src/seams.rs) */
+export interface CopySeam extends EngineModule {
+  /** Watches the directories the module makes in `parent` to copy agy's databases into, or none; one for the whole
+   * process */
+  seamWatchCopiesUnder(parent: string | null): void
+  /** Each directory made in the watched one since it was named, with its mode as made */
+  seamCopiesMade(): Array<{ path: string; mode: number }>
 }
 
 /** The store-write seam a build made for tests exports (engine/src/seams.rs) */

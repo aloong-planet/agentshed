@@ -1,6 +1,106 @@
-//! JSON text exactly as ECMAScript's `JSON.stringify` writes it, byte for byte, for a value handed over a piece at a
-//! time: strings as their UTF-16 code units, numbers as doubles. The display copy written through it is the file a
-//! build that serialised in JavaScript would have written, so any build reads it back as its own.
+//! JSON text exactly as ECMAScript's `JSON.stringify` writes it, byte for byte, of a JavaScript value read through the
+//! module's one reader of them (crate::exports::js): `JSON.stringify`'s rules for what JSON holds no form of
+//! (`stringify`), then the text itself (`JsonText`), with strings as their UTF-16 code units and numbers as doubles.
+//! The display copy written through it is the file a build that serialised in JavaScript would have written, so any
+//! build reads it back as its own.
+
+use napi::sys::napi_value;
+use napi::{Error, Result, Status};
+
+use crate::exports::js::{Js, Kind};
+
+/// How deep a value may nest: far deeper than any display copy, so that a cycle fails the write, as `JSON.stringify`
+/// throws on one, rather than overflowing the stack
+const DEPTH: u32 = 1000;
+
+/// The text `JSON.stringify(value)` gives, read off the value as it stands now, for what JSON holds — objects, arrays,
+/// strings, numbers, booleans and null. An object member that is `undefined`, a function or a symbol is left out, and
+/// such an array element is `null`; an object's members are its own enumerable string keys, in the engine's order
+/// (`Object.keys`). A BigInt fails, and so does a value nesting deeper than `DEPTH`, which stands for a cycle: both
+/// make `JSON.stringify` throw. A `toJSON` method is not called: none is in what the display copy holds
+/// (src/shared/display-data.ts).
+pub fn stringify(js: &Js, value: napi_value) -> Result<Vec<u8>> {
+    let mut reader = Reader { js, text: JsonText::new(), units: Vec::new() };
+    let kind = js.kind(value)?;
+    reader.typed(value, kind, 0)?;
+    Ok(reader.text.into_bytes())
+}
+
+struct Reader<'j> {
+    js: &'j Js,
+    text: JsonText,
+    /// One buffer for every string read
+    units: Vec<u16>,
+}
+
+impl Reader<'_> {
+    fn typed(&mut self, value: napi_value, kind: Kind, depth: u32) -> Result<()> {
+        match kind {
+            Kind::Null => self.text.null(),
+            Kind::Boolean => {
+                let b = self.js.boolean_value(value)?;
+                self.text.bool(b);
+            }
+            Kind::Number => {
+                let n = self.js.number_value(value)?;
+                self.text.number(n);
+            }
+            Kind::String => {
+                self.js.units_into(value, &mut self.units)?;
+                self.text.string(&self.units);
+            }
+            Kind::Object => {
+                if depth >= DEPTH {
+                    return Err(Error::new(Status::InvalidArg, format!("the display copy nests deeper than {DEPTH} levels, as a cycle would")));
+                }
+                // Each container's handles are let go once it is read, so a large copy holds only one path's worth
+                let js = self.js;
+                js.scoped(|| self.container(value, depth))?;
+            }
+            Kind::BigInt => return Err(Error::new(Status::BigintExpected, "the display copy holds a BigInt, which JSON cannot")),
+            other => return Err(Error::new(Status::InvalidArg, format!("the display copy holds a value JSON cannot ({other:?})"))),
+        }
+        Ok(())
+    }
+
+    fn container(&mut self, value: napi_value, depth: u32) -> Result<()> {
+        let js = self.js;
+        if js.is_array(value)? {
+            self.text.begin_array();
+            for i in 0..js.length(value)? {
+                let element = js.element(value, i)?;
+                let kind = js.kind(element)?;
+                if left_out(kind) {
+                    self.text.null();
+                } else {
+                    self.typed(element, kind, depth + 1)?;
+                }
+            }
+            self.text.end_array();
+            return Ok(());
+        }
+        let keys = js.keys(value)?;
+        self.text.begin_object();
+        for i in 0..js.length(keys)? {
+            let key = js.element(keys, i)?;
+            let member = js.property(value, key)?;
+            let kind = js.kind(member)?;
+            if left_out(kind) {
+                continue;
+            }
+            js.units_into(key, &mut self.units)?;
+            self.text.key(&self.units);
+            self.typed(member, kind, depth + 1)?;
+        }
+        self.text.end_object();
+        Ok(())
+    }
+}
+
+/// What `JSON.stringify` leaves out of an object, and writes as `null` in an array
+fn left_out(kind: Kind) -> bool {
+    matches!(kind, Kind::Undefined | Kind::Function | Kind::Symbol)
+}
 
 /// JSON text being written. A container's members are written between its `begin_` and `end_` calls, an object's
 /// each after its key; separators are the writer's.

@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
 test-seams = []
 
 [dependencies]
-# napi6: an object's own keys, as JSON.stringify reads them (src/exports/main_process.rs)
+# napi6: telling a BigInt from other values, and an object's own keys as JSON.stringify reads them (src/exports/js.rs)
 napi = { version = "3.16.2", features = ["napi6"] }
 napi-derive = "3.7.1"
 # Line splitting over each read chunk

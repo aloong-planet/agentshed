@@ -16,6 +16,7 @@ use napi::sys::napi_value;
 use self::entry::{Job, Parsed};
 use super::Side;
 use crate::exports::js::Js;
+use crate::text::Units;
 
 pub(crate) struct Claude;
 
@@ -40,6 +41,14 @@ impl Side for Claude {
         out: &mut crate::group::Builder,
     ) -> Result<std::result::Result<(), u32>> {
         combine::combine(dates, members, out)
+    }
+
+    fn question_text(&self, range: &str) -> Option<Units> {
+        question::shown(range)
+    }
+
+    fn dispatches(&self) -> &'static [&'static str] {
+        &question::DISPATCH
     }
 }
 

@@ -21,7 +21,6 @@ import {
 import type { CappedText, ProjectFigures, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import { AGENT_SIDES, assertSnapshot, assertProjectFigures, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
-import { questionTextOfRange } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
 import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
@@ -31,7 +30,7 @@ import { CACHE_VERSION, sessionReadSource } from './providers/token-stats'
 import { settleScan } from './providers/scanner'
 import { startScans, type ScanClient } from './scan-client'
 import { scanCombination } from './scan-protocol'
-import { ENGINE_BUILD, engineModulePath } from './engine-module'
+import { ENGINE_BUILD, engineModulePath, threadEngineModule } from './engine-module'
 import { settleForQuit } from './quit'
 import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
@@ -338,7 +337,7 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   const questions = q.questions.map((rec, idx) => {
     // A single bad line only hurts itself: that entry shows a placeholder without affecting the other
     // questions or dragging down the page
-    const text = questionTextOfRange(q.side, texts[idx])
+    const text = threadEngineModule().questionText(q.side, texts[idx])
     // Unreadable means passing null: the wording belongs to the renderer (ticket 07), and the main
     // process emits no user-facing natural language
     return { revision: questionRevision(identity, file, rec[0], rec[1], texts[idx]), i: idx + 1, text, at: rec[3], tools: rec[4], subagents: rec[5] }

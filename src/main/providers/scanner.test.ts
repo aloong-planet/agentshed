@@ -1,7 +1,7 @@
 // The scanner (ADR-0043): what one scan hands the main process, and what the main process makes of it. The
 // aggregation itself is the token engine's and has its own cases (token-stats.test.ts); these cover the steps a
 // scan adds around it, which ran inline in the main process before and had no case below e2e.
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -10,8 +10,10 @@ import { mergeKey } from '@shared/path-key'
 import { UsageArchive } from './archive'
 import { Scanner, settleScan } from './scanner'
 import { runParseJob } from './token-stats'
-import { TEST_ENGINE } from '../testing/engine'
-import { FORK_TITLE, mkScanHome, type ScanHome } from '../testing/scan-home'
+import { loadEngineModule } from '../engine-module'
+import { encodeTrajectoryMetadata, settingsJson, writeConversation } from '../testing/agy-fixture'
+import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
+import { FORK_TITLE, mkScanHome, scanRoots, type ScanHome } from '../testing/scan-home'
 
 let dir: string
 let home: ScanHome
@@ -43,6 +45,38 @@ describe('what a scan hands the main process (token-stats, "Where a scan runs")'
     expect([...out.sessionFiles].sort()).toEqual([...listed].sort())
     // 15 and the undated 9 on Claude, 42 on Codex, 33 on Grok, 110 on Antigravity
     expect(out.rows.reduce((sum, r) => sum + r.total, 0)).toBe(209)
+  })
+})
+
+describe('the session walk\'s memory, which a scanner keeps for its run', () => {
+  const seam = (): PanicSeam => loadEngineModule(TEST_ENGINE) as PanicSeam
+  afterEach(() => {
+    seam().seamPanicWhileWalking(null)
+  })
+
+  // A read of a conversation that fails while agy writes it keeps the folder the last read found
+  // (token-stats::REQ-004/AC-03): only a scan through the memory of the scans before it has one to keep
+  it('a later scan keeps a conversation\'s folder through a read that fails while agy writes it; a new scanner holds no folder to keep', async () => {
+    const roots = scanRoots(join(dir, 'agy-home'))
+    const p = join(dir, 'work', 'p')
+    mkdirSync(p, { recursive: true })
+    const conversations = join(roots.antigravityHome, 'conversations')
+    mkdirSync(conversations, { recursive: true })
+    writeFileSync(join(roots.antigravityHome, 'settings.json'), settingsJson([p]))
+    const { file, writer } = writeConversation(conversations, 'busy', encodeTrajectoryMetadata({ folders: [p], conversationId: 'busy' }), { keepOpen: true })
+    try {
+      utimesSync(file, 1_793_000_000, 1_793_000_000)
+      utimesSync(`${file}-wal`, 1_793_000_000, 1_793_000_000)
+      const scanner = new Scanner(join(dir, 'cache'), TEST_ENGINE)
+      expect((await scanner.scan(roots)).snapshot.projects.map((e) => e.lastSessionAt)).toEqual([1_793_000_000_000])
+      // agy writes on, so the next scan reads the conversation again, and that read fails
+      utimesSync(`${file}-wal`, 1_793_000_100, 1_793_000_100)
+      seam().seamPanicWhileWalking(file)
+      expect((await scanner.scan(roots)).snapshot.projects.map((e) => e.lastSessionAt)).toEqual([1_793_000_100_000])
+      expect((await new Scanner(join(dir, 'cache-new'), TEST_ENGINE).scan(roots)).snapshot.projects.map((e) => e.lastSessionAt)).toEqual([null])
+    } finally {
+      writer?.close()
+    }
   })
 })
 

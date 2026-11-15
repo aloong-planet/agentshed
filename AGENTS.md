@@ -86,7 +86,7 @@ a retried "does not appear" check cannot prove absence.
 - Non-printing characters are written as escapes in source, never as raw bytes; `pnpm check:nul`
   enforces the NUL case.
 - A figure about reading files from the main process, its worker threads included, counts only when measured
-  under Electron with `pnpm bench:scan` (the chunk-size reasoning is in `src/main/providers/jsonl.ts`).
+  under Electron with `pnpm bench:scan` (the chunk-size reasoning is at `CHUNK` in `engine/src/read/mod.rs`).
 - Application code reads a token cache entry only through `CacheEntries` (`src/main/providers/token-stats.ts`), which hands
   out a well-formed entry or none, and never opens the token store or the JSON cache it replaced itself; `pnpm lint` fails
   when a file under `src/` other than the engine, the tests and the test helpers in `src/main/testing/` names

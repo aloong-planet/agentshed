@@ -21,8 +21,7 @@ import type { AppearanceMode } from '@shared/appearance'
  * nativeTheme's minimal contract: this module uses only the one writable property, themeSource.
  *
  * Narrowed to an interface rather than using `nativeTheme` directly so that this assignment can be
- * driven by unit tests **without pulling in Electron**
- * (ADR-0038: main process logic stands on an injectable seam). The import above is **type-only**,
+ * driven by unit tests **without pulling in Electron**. The import above is **type-only**,
  * fully erased after compilation, so tests never actually load electron.
  *
  * The property type is deliberately taken from `NativeTheme['themeSource']` and **not** written as
