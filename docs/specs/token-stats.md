@@ -669,7 +669,8 @@ Applies to: every conversation database of the side, forks and subagent conversa
   conversation that changed is read twice in one scan — once for its folder (the session walk) and
   once for its usage — so one agy is writing is copied twice. A conversation whose database time and
   log did not change since its last read is not read again, and a conversation found unreadable keeps
-  that verdict, counted at every scan, until its database or its log changes. The session walk keeps
+  that verdict, counted at every scan, until its database or its log changes — one the scan could not
+  look at, until it can. The session walk keeps
   only successful reads, so it opens an unreadable conversation again at every scan — in place, or
   through a copy while a log is beside it — and finds it unreadable again.
 - A read cut short by the application being killed leaves its copy in a temporary directory only the
