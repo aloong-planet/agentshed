@@ -1,56 +1,114 @@
 # ADR index
 
-ADR conventions for this repository: MADR minimal, five sections (Context / Options / Decision /
-Consequences / Sources), all mandatory. "Options" is mandatory so the elimination process is
-preserved. Three states (Proposed | Accepted | Superseded); once accepted, an ADR is only appended
-to, never rewritten — to reverse one, open a new entry. Only this project's architectural decisions
-belong here (process conventions do not). An entry is written only when all three thresholds are met:
-hard to reverse, baffling without context, and a real trade-off.
+ADR conventions for this repository:
+
+- **What is written here**: a decision that is hard to reverse, baffling without context, and the product of a real
+  trade-off, all three, when it is one of this project's architectural decisions, the trade-off behind a product
+  behaviour or a way of computing a figure, or this project's choice on a process question (the choice and its reason,
+  not the rules of the practice chosen). A rule for whoever changes the code goes in the invariants of `AGENTS.md`, a
+  product behaviour or a computation in its spec, an incident in a postmortem, and how code implements a decision in
+  that code's comments.
+- **Five sections, all mandatory**: Context (the problem and the constraints on it, at most 3 sentences); Options (the
+  chosen one first, then each rejected or deferred one with its reason, at most 2 sentences each, and an option whose
+  comparison was never recorded marked "not recorded"); Decision (the rule in force); Consequences (the positive,
+  negative and neutral ones still true, at most 2 sentences each); Sources (pointers to the evidence, and the key
+  figures with their premises).
+- **Never in an entry**: how a rule came about; how it was verified or landed; one-off costs already paid; how code
+  implements it, or interface detail; how a measurement was taken; line numbers or lists of positions; a restatement
+  of another ADR, a spec or a skill (point to it instead); options about how to record the decision.
+- **Length**: at most 5,000 characters, the title and the status line excluded. An entry over it first moves out what
+  is never in an entry, and one still over is split by decision.
+- **Status**: Proposed (the direction is set, the evidence is not yet in) or Accepted (with the date the decision in
+  force was confirmed by the owner).
+- **Edited in place**: an entry states only the decision in force, and a decision that changes edits its entry rather
+  than opening a new one. A change to what an entry chose, rejected or accepts as a consequence is confirmed by the
+  owner before it is written: the abandoned approach becomes a rejected option with its reason, and the date moves to
+  that confirmation. A rewrite that changes no decision (compressing, merging entries, correcting a stale fact) is
+  listed in the pull request that makes it. A new decision edits every entry whose Decision it makes untrue or
+  incomplete, and opens a new entry only where there is none.
+- **Retired numbers**: an entry merged into another, or withdrawn, gives up its number in the same change: its file
+  is deleted, every reference in the repository moves to the entry it joined (or is removed, for a withdrawn one), and
+  the number is listed under Retired numbers below. Numbers are never reused.
+
+## General
 
 | # | Decision | Status |
 |---|---|---|
 | [0001](0001-ipc-contract-single-source.md) | Single type source for the IPC contract, with runtime validation on both sides | Accepted |
-| [0002](0002-dual-seam-testing.md) | Dual-seam testing strategy (data-layer injection + IPC contract) | Superseded by 0038 |
-| [0003](0003-token-accounting.md) | Token accounting rules | Superseded by 0005 |
+| [0015](0015-structured-ipc-errors.md) | Failures cross IPC as an error code plus parameters; wording is left to the renderer | Accepted |
+| [0016](0016-no-natural-language-across-ipc.md) | The main process emits no user-facing natural language (not just failure text) | Accepted |
+| [0017](0017-repo-working-language-english.md) | Repository working language is English (comments, docs, test names, terminal output) | Accepted (scope extended by 0030) |
+| [0030](0030-message-language.md) | Commit messages and pull-request text follow the working language (hook + PR workflow; skipped when Chinese) | Accepted |
+| [0038](0038-test-layers.md) | Test layers: the data layer, the contract, e2e for what only the assembled app can show, and component tests for the rendering branches nothing else checks | Accepted |
+| [0041](0041-e2e-case-placement.md) | An e2e case goes in its feature's file, placed by the spec that holds the rule, and a shared helper in `e2e/support/`; no limit on file size | Accepted |
+| [0042](0042-packaged-build-refuses-launch-inputs.md) | A packaged build refuses every launch input outside an allow-list, and the packaging proves it | Accepted (the argument rule amended 2026-11-06) |
+
+## Projects and sides
+
+| # | Decision | Status |
+|---|---|---|
+| [0019](0019-grok-as-third-agent-side.md) | Onboarding Grok as the third agent side (registry, compatibility rule, no cost, session identity) | Accepted |
+| [0021](0021-side-colour-follows-provider.md) | One colour per agent side, taken from that side's provider colour | Accepted |
+| [0022](0022-remove-manual-hiding.md) | Manual project hiding is removed | Accepted |
+| [0037](0037-antigravity-cli-as-fourth-agent-side.md) | Antigravity CLI as the fourth agent side: its trust ledger as registry, usage from its conversation databases counted once per call, a four-field total, `.agents/skills` shared with Codex | Accepted |
+
+## Components
+
+| # | Decision | Status |
+|---|---|---|
 | [0004](0004-skill-install-by-copy.md) | Skills install by copy (symlinks rejected) | Accepted |
+| [0010](0010-plugin-skills-in-effective-view.md) | Plugin-bundled skills join the effective view (namespace-isolated, filtered by enablement) | Accepted |
+| [0012](0012-plugin-skill-preview-decoupled-from-enablement.md) | Plugin skill preview decoupled from enablement; Codex does not join the effective view | Accepted |
+
+## Sessions and search
+
+| # | Decision | Status |
+|---|---|---|
+| [0011](0011-question-index-in-token-cache.md) | The question index rides on the token metering cache (one cache, two readings) | Accepted |
+| [0034](0034-global-search-question-corpus-in-memory.md) | Global search reads every project's question texts from main-process memory, warmed when its page opens | Accepted |
+| [0036](0036-injected-text-stays-a-question.md) | Text the agent tools write into a session as the user (compaction summaries, messages between agents, Codex's ambient state) stays a question | Accepted |
+
+## Usage and the archive
+
+| # | Decision | Status |
+|---|---|---|
+| [0003](0003-token-accounting.md) | Token accounting rules | Superseded by 0005 |
 | [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage (whole tree + dedup + four-field rule) | Accepted (cache-write clause superseded in part by 0023) |
 | [0006](0006-codex-usage-accounting.md) | Codex usage accounting (two data roots + fork replay stripping) | Accepted (four-field clause superseded in part by 0023; usage-source clause by 0027) |
 | [0007](0007-usage-archive.md) | Usage history archive (resilient to the agent's own cleanup) | Accepted (conflict rule superseded by 0026) |
 | [0008](0008-trend-by-provider.md) | Trend bars segmented by provider | Accepted |
 | [0009](0009-trend-xaxis-data-days.md) | Trend x axis labels data days only, with hierarchical date labels | Accepted |
-| [0010](0010-plugin-skills-in-effective-view.md) | Plugin-bundled skills join the effective view (namespace-isolated, filtered by enablement) | Accepted |
-| [0011](0011-question-index-in-token-cache.md) | The question index rides on the token metering cache (one cache, two readings) | Accepted |
-| [0012](0012-plugin-skill-preview-decoupled-from-enablement.md) | Plugin skill preview decoupled from enablement; Codex does not join the effective view | Accepted |
-| [0013](0013-ui-language-set-and-i18n-scope.md) | UI language set and i18n scope boundary (six languages, all LTR, no RTL commitment) | Accepted (language set superseded by 0035) |
-| [0014](0014-self-built-typed-i18n-layer.md) | Self-built typed i18n layer (general-purpose i18n frameworks rejected) | Accepted |
-| [0015](0015-structured-ipc-errors.md) | Failures cross IPC as an error code plus parameters; wording is left to the renderer | Accepted |
-| [0016](0016-no-natural-language-across-ipc.md) | The main process emits no user-facing natural language (not just failure text) | Accepted |
-| [0017](0017-repo-working-language-english.md) | Repository working language is English (comments, docs, test names, terminal output) | Accepted (scope extended by 0030) |
-| [0018](0018-icons-are-inline-svg-from-one-source.md) | Icons are inline SVG from a single source; the prototypes derive theirs from it | Accepted (prototype half superseded by 0033) |
-| [0019](0019-grok-as-third-agent-side.md) | Onboarding Grok as the third agent side (registry, compatibility rule, no cost, session identity) | Accepted |
 | [0020](0020-day-usage-keyed-by-side.md) | Daily usage is keyed by agent side, not by a field per side | Accepted |
-| [0021](0021-side-colour-follows-provider.md) | One colour per agent side, taken from that side's provider colour | Accepted |
-| [0022](0022-remove-manual-hiding.md) | Manual project hiding is removed | Accepted |
 | [0023](0023-no-cache-write-on-codex-and-grok.md) | Cache creation is not collected on the Codex and Grok sides | Accepted |
 | [0024](0024-composition-colours-overlap-the-provider-palette.md) | The composition bar uses blue / yellow / green, overlapping the provider palette | Accepted |
 | [0025](0025-usage-rows-are-the-renderer-contract.md) | Usage rows are the one source every token figure derives from | Accepted |
 | [0026](0026-archive-retention-by-accounting-stamp.md) | Archive retention by accounting stamp, liveness per (day, side) | Accepted |
 | [0027](0027-codex-usage-records.md) | Codex usage from usage records; ccusage no longer the basis for rollouts carrying them | Accepted |
-| [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer; page switches run as Transitions | Accepted |
-| [0029](0029-startup-display-persistence.md) | Separate startup display persistence, including previously viewed pages | Accepted |
-| [0030](0030-message-language.md) | Commit messages and pull-request text follow the working language (hook + PR workflow; skipped when Chinese) | Accepted |
-| [0031](0031-macos-release-line.md) | A notarized macOS release line: CI on release tags, R2 mirror for formal releases, a Chinese and English landing page | Accepted |
-| [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted (download behaviour amended the same day) |
-| [0033](0033-prototypes-are-the-baseline.md) | The prototypes keep their own icons, tokens, styles and copy; the app follows them | Accepted |
-| [0034](0034-global-search-question-corpus-in-memory.md) | Global search reads every project's question texts from main-process memory, warmed when its page opens | Accepted |
-| [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Chinese and English; French, Spanish, Russian and Japanese are dropped before the first release | Accepted |
-| [0036](0036-injected-text-stays-a-question.md) | Text the agent tools write into a session as the user (compaction summaries, messages between agents, Codex's ambient state) stays a question | Accepted |
-| [0037](0037-antigravity-cli-as-fourth-agent-side.md) | Antigravity CLI as the fourth agent side: its trust ledger as registry, usage from its conversation databases counted once per call, a four-field total, `.agents/skills` shared with Codex | Accepted |
-| [0038](0038-test-layers.md) | Test layers: the data layer, the contract, and e2e as the UI's automated layer, admitting only what the assembled app alone can show | Accepted (the rule on component tests amended 2026-11-05) |
 | [0039](0039-archive-file-failure-stops-no-scan.md) | An archive file that cannot be written or read stops no scan: memory carries the figures, the disk keeps the last good file, and the user is told once per run | Accepted (the launch consequence amended 2026-11-05) |
-| [0040](0040-rendering-branch-tests.md) | Component tests hold only the rendering branches nothing else checks, chosen by the shape of the data; no e2e case moves | Accepted |
-| [0041](0041-e2e-case-placement.md) | An e2e case goes in its feature's file, placed by the spec that holds the rule, and a shared helper in `e2e/support/`; no limit on file size | Accepted (the directory a slug names amended 2026-11-10) |
-| [0042](0042-packaged-build-refuses-launch-inputs.md) | A packaged build refuses every launch input outside an allow-list, and the packaging proves it | Accepted (the argument rule amended 2026-11-06) |
 | [0043](0043-scan-on-a-worker-thread.md) | A scan runs on one worker thread that owns the token cache; the main process only starts it and takes its result | Accepted (the display-copy consequence amended 2026-11-15) |
 | [0044](0044-token-cache-in-sqlite-by-deduplication-group.md) | The token cache lives in a SQLite store and is aggregated by de-duplication group; the display copy is written while the window has no focus | Proposed |
 | [0045](0045-token-engine-as-a-rust-module.md) | The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module loaded in the app's process | Proposed |
+
+## Interface
+
+| # | Decision | Status |
+|---|---|---|
+| [0013](0013-ui-language-set-and-i18n-scope.md) | UI language set and i18n scope boundary (six languages, all LTR, no RTL commitment) | Accepted (language set superseded by 0035) |
+| [0014](0014-self-built-typed-i18n-layer.md) | Self-built typed i18n layer (general-purpose i18n frameworks rejected) | Accepted |
+| [0018](0018-icons-are-inline-svg-from-one-source.md) | Icons are inline SVG from a single source; the prototypes derive theirs from it | Accepted (prototype half superseded by 0033) |
+| [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer; page switches run as Transitions | Accepted |
+| [0029](0029-startup-display-persistence.md) | Separate startup display persistence, including previously viewed pages | Accepted |
+| [0033](0033-prototypes-are-the-baseline.md) | The prototypes keep their own icons, tokens, styles and copy; the app follows them | Accepted |
+| [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Chinese and English; French, Spanish, Russian and Japanese are dropped before the first release | Accepted |
+
+## Updates
+
+| # | Decision | Status |
+|---|---|---|
+| [0031](0031-macos-release-line.md) | A notarized macOS release line: CI on release tags, R2 mirror for formal releases, a Chinese and English landing page | Accepted |
+| [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted (download behaviour amended the same day) |
+
+## Retired numbers
+
+- 0002: merged into 0038
+- 0040: merged into 0038

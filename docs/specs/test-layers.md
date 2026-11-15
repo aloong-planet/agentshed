@@ -1,6 +1,6 @@
 # Test layers
 
-> Related: ADR-0038 (test layers) · ADR-0040 (rendering branch tests) · ADR-0041 (which e2e file a case goes in)
+> Related: ADR-0038 (test layers, rendering branch tests) · ADR-0041 (which e2e file a case goes in)
 
 ## Problem Statement
 
@@ -12,8 +12,8 @@ goes elsewhere brings its own copy of the helpers.
 ## Solution
 
 ADR-0038 decides what e2e is for and what it admits. A layer below e2e is not adopted for renderer
-behaviour (see Out of Scope). ADR-0040 admits component tests for one narrow case, the rendering
-branches nothing else checks. ADR-0041 decides which e2e file a case goes in and where a helper
+behaviour (see Out of Scope). ADR-0038 also admits component tests for one narrow case, the
+rendering branches nothing else checks. ADR-0041 decides which e2e file a case goes in and where a helper
 lives.
 
 ## User Stories
@@ -25,10 +25,9 @@ do not default to appending to the largest e2e file.
 
 - test-layers::US-001/AC-01: ADR-0038 names the seams and says what e2e admits: wiring, the application's
   lifecycle, reacting to files, real layout and paint, and one case per page through the real chain.
-- test-layers::US-001/AC-02: ADR-0002 reads as superseded by ADR-0038, in its own status line and in the
-  ADR index.
-- test-layers::US-001/AC-03: No spec and no source comment cites ADR-0002 as the rule in force; only
-  ADR-0002's own file, the ADR index and ADR-0038 name it.
+- test-layers::US-001/AC-02: The two-seam decision ADR-0038 replaced is one of its rejected options, and its
+  old number is listed under the ADR index's Retired numbers.
+- test-layers::US-001/AC-03: No spec and no source comment cites a number retired into ADR-0038.
 
 ### test-layers::US-002 A rendering branch fails a test when broken
 
@@ -85,7 +84,7 @@ on the main process's errors do not depend on what I copied.
 
 ### test-layers::QR-002 The cost of the gap tests
 
-Scope: the component tests ADR-0040 admits, measured on one machine.
+Scope: the component tests ADR-0038 admits, measured on one machine.
 
 - test-layers::QR-002/AC-01: Each behaviour in test-layers::US-002, broken on purpose, fails the test naming it and
   no other, with the suite green before and after.
@@ -110,7 +109,7 @@ sites too.
 ## Failure modes and boundaries
 
 - **A behaviour needs only the DOM and no pure function can be extracted from it.** A branch in what a component
-  renders, chosen by the shape of the data, goes to a component test under ADR-0040. Anything else is written at
+  renders, chosen by the shape of the data, goes to a component test under ADR-0038. Anything else is written at
   e2e, as ADR-0038's consequences say. Extracting a pure function comes first where one exists.
 - **A shape no provider produces.** Not tested, though the validators accept it: a sub block with inner steps, and
   a Codex page marked stripped with no parent file.
@@ -152,7 +151,7 @@ sites too.
 ## Testing Decisions
 
 Seams are ADR-0038's: the data layer, the contract, and e2e, with pure functions of the renderer unit tested.
-ADR-0040 adds the renderer's boundary to the main process, for rendering branches only. A case's figures there are
+ADR-0038 also adds the renderer's boundary to the main process, for rendering branches only. A case's figures there are
 chosen to differ from anything that could stand in for them: an index, a position, another count.
 
 ## Out of Scope
@@ -164,8 +163,8 @@ chosen to differ from anything that could stand in for them: an index, a positio
   lines of tests and harness than the e2e replaced; the pilot ran over both limits.
 
   Reopened by a decision that sets new criteria, because most of the time and much of the lines are
-  one-time costs (the jsdom start and the harness) rather than per case. ADR-0040's tests do not
-  reopen it: they move no e2e case.
+  one-time costs (the jsdom start and the harness) rather than per case. The rendering-branch tests
+  ADR-0038 admits do not reopen it: they move no e2e case.
 - Moving existing e2e cases to meet ADR-0038.
 - A cap or budget on the size of test files: rejected under ADR-0041.
 - Real-browser component tests.
