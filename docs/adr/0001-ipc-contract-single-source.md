@@ -24,8 +24,8 @@ sentence breaks silently when its wording changes.
    failures, and code would still branch on the wording.
 6. A renderer map from main-process sentences to their wording — rejected: a whole sentence as a key breaks on any
    rewording, and it cannot carry parameters such as a turn index.
-7. The main process reading the dictionaries for the copy it sends over IPC — rejected: it would have to hold the
-   interface language, which is renderer state, and follow every switch.
+7. The main process reading the dictionaries for the copy it sends over IPC — rejected: it would have to follow every
+   language switch for everything it had sent, moving a renderer concern into the main process.
 8. Structuring the failure-shaped data fields only — rejected: placeholders and the truncation marker are the most
    frequent copy on screen.
 
@@ -50,8 +50,8 @@ We adopt **option 1**.
 
 - Positive: a broken contract fails at the boundary at the first opportunity, and says where; there is one copy of
   the types, so drift has nowhere to hide.
-- Positive: every word a payload stands for is translated in the renderer, and the main process needs the interface
-  language only for the surfaces it draws itself.
+- Positive: every word a payload stands for is translated in the renderer, in whichever language is in effect when it
+  is drawn.
 - Positive: error codes are a stable contract, so a branch on them does not drift with the wording. The enum makes
   "should the user see this, and what is it called" a question every new failure path has to answer.
 - Negative: every payload extension needs a matching validator change, and every new failure needs a code and its
