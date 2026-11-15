@@ -537,8 +537,7 @@ test('the item sits directly below "About" and reports up to date, a failure, an
     await expect.poll(toasts).toEqual([`ok: Agentshed is up to date (${version})`, 'err: Couldn’t check for updates'])
     script(f, { check: 'found', version: 'v9.9.0', steps: [0], download: 'hold' })
     await clickMenuCheck(app)
-    await expect.poll(async () => (await toasts()).at(-1)).toBe('err: Couldn’t check for updates')
-    expect(await toasts()).toHaveLength(3)
+    await expect.poll(toasts).toEqual([`ok: Agentshed is up to date (${version})`, 'err: Couldn’t check for updates', 'err: Couldn’t check for updates'])
     expect(requests(f)).toEqual(['check', 'check', 'check', 'check'])
     await expect(win.getByTestId('update-slot')).toHaveCount(0)
   } finally {
