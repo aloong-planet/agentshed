@@ -95,7 +95,7 @@ We adopt **option 1**.
   > focus. The main process no longer clones and serialises the display copy at every scan and every page
   > read. It keeps each change as it arrives, and the engine module serialises and writes the copy only
   > while the window has no focus, and at quit (ADR-0044, ADR-0045). The cost is not gone: handing the copy
-  > to the module holds the main thread for one stretch per write, measured in ADR-0045's Consequences.
+  > to the module holds the main thread for one stretch per write, measured in ADR-0046's Consequences.
 
 - Neutral: the triggers and their intervals do not change, and the archive stays where it was.
 
