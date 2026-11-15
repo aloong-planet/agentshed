@@ -32,12 +32,12 @@ used.
 ## Consequences
 
 - Positive: figures that must agree agree by construction rather than by two code paths computing the same thing: a
-  side's total and the windowed figures come from one row set (token-stats G7).
+  side's total and the windowed figures come from one row set (token-stats G7). An entry with no timestamp, for one,
+  can no longer join a total while joining no day.
 - Positive: the rows are built where the per-turn figures still exist, so a day's Codex four-field split is measured
   rather than apportioned by ratio (token-stats B8), and the three buckets sum to the total.
-- Negative: the renderer holds aggregation logic that used to live in the main process, and aggregation is where
-  accounting mistakes hide; it is a pure function over rows, and the identities it must keep are asserted over every
-  fixture.
+- Negative: the renderer holds aggregation logic, and aggregation is where accounting mistakes hide; it is a pure
+  function over rows, and the identities it must keep are asserted over every fixture.
 - Negative: the payload grows with the history rather than staying bounded by the window, without bound in principle;
   the size at which this needs revisiting is not picked.
 - Neutral: the archive's row grain (day × side × project × model) is the shape the whole feature rests on, carrying
@@ -48,4 +48,5 @@ used.
 Measured on this machine's real data, 2026-08-21: 378 rows, 67 KB serialised, 57 days covered, at most 20 rows on the
 busiest day; at that rate about 2,500 rows and under half a megabyte a year. Before the rows: no entry without a
 timestamp, each side's total equal to the sum of its days on all three sides, and the Codex apportionment 4 tokens
-off over 12.7B. ADR-0007; token-stats G7, B8.
+off over 12.7B. ADR-0007; token-stats G7, B8. The `TokenStats` definition in `src/shared/domain.ts` and the
+derivations in `src/shared/usage.ts`.

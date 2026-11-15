@@ -296,7 +296,7 @@ export interface GlobalLayer {
 }
 
 /**
- * Token counts. The total rule (ADR-0005, aligned with ccusage; amended by ADR-0023):
+ * Token counts. The total rule (ADR-0005 for Claude, aligned with ccusage; ADR-0023 for Codex and Grok):
  * Claude: total = input + output + cacheRead + cacheWrite (all four summed);
  * Codex and Grok: total = input + output — their reported input already includes cached reads, so
  * adding those would count them twice, and cache creation is not collected on either side at all

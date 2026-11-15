@@ -9,9 +9,10 @@
 //   entries whose model is '<synthetic>' or missing count toward the total but do not enter a model bucket.
 // - Codex (each rollout read and parsed by the engine module, engine/src/sides/codex/, into the entry it
 //   combines): per-turn last_token_usage increment events (payload.type=token_count inside event_msg);
-//   a fork or subagent session replays its parent's history, stripped by the same rules as ccusage's
+//   a legacy fork or subagent rollout replays its parent's history, stripped by the same rules as ccusage's
 //   replay.rs — take the parent's event sequence before the fork moment and skip entries at the start
-//   of the child that match it by value (if the very first does not match, strip nothing);
+//   of the child that match it by value (if the parent is not in the scan set, or not even the first entry
+//   matches, the start is ccusage's rewrite burst instead);
 //   the same turn can be re-reported, so a record whose running cumulative has not advanced
 //   contributes nothing and one with no per-turn figure contributes the difference of the cumulatives;
 //   accounting: sanitise input (subtract cached), count cached as cacheRead, total = input + output

@@ -69,9 +69,8 @@ ADR conventions for this repository:
 
 | # | Decision | Status |
 |---|---|---|
-| [0003](0003-token-accounting.md) | Token accounting rules | Superseded by 0005 |
-| [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage (whole tree + dedup + four-field rule) | Accepted (cache-write clause superseded in part by 0023) |
-| [0006](0006-codex-usage-accounting.md) | Codex usage accounting (two data roots + fork replay stripping) | Accepted (four-field clause superseded in part by 0023; usage-source clause by 0027) |
+| [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage: the whole tree, deduplicated entries, all four fields in the total | Accepted |
+| [0006](0006-codex-usage-accounting.md) | Codex usage accounting: two data roots, per-turn increments by day, fork replay stripping | Accepted |
 | [0007](0007-usage-archive.md) | Usage history archive (resilient to the agent's own cleanup) | Accepted (conflict rule superseded by 0026) |
 | [0008](0008-trend-by-provider.md) | Trend bars segmented by provider | Accepted |
 | [0009](0009-trend-xaxis-data-days.md) | Trend x axis labels data days only, with hierarchical date labels | Accepted |
@@ -80,7 +79,7 @@ ADR conventions for this repository:
 | [0024](0024-composition-colours-overlap-the-provider-palette.md) | The composition bar uses blue / yellow / green, overlapping the provider palette | Accepted |
 | [0025](0025-usage-rows-are-the-renderer-contract.md) | Usage rows are the one source every token figure derives from | Accepted |
 | [0026](0026-archive-retention-by-accounting-stamp.md) | Archive retention by accounting stamp, liveness per (day, side) | Accepted |
-| [0027](0027-codex-usage-records.md) | Codex usage from usage records; ccusage no longer the basis for rollouts carrying them | Accepted |
+| [0027](0027-codex-usage-records.md) | Codex usage comes from usage records; ccusage is the alignment basis only for rollouts without them | Accepted |
 | [0039](0039-archive-file-failure-stops-no-scan.md) | An archive file that cannot be written or read stops no scan: memory carries the figures, the disk keeps the last good file, and the user is told once per run | Accepted (the launch consequence amended 2026-11-05) |
 | [0043](0043-scan-on-a-worker-thread.md) | A scan runs on one worker thread that owns the token cache; the main process only starts it and takes its result | Accepted (the display-copy consequence amended 2026-11-15) |
 | [0044](0044-token-cache-in-sqlite-by-deduplication-group.md) | The token cache lives in a SQLite store and is aggregated by de-duplication group; the display copy is written while the window has no focus | Proposed |
@@ -108,6 +107,7 @@ ADR conventions for this repository:
 ## Retired numbers
 
 - 0002: merged into 0038
+- 0003: merged into 0005
 - 0015: merged into 0001
 - 0016: merged into 0001
 - 0030: merged into 0017
