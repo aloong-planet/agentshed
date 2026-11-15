@@ -40,6 +40,8 @@ a retried "does not appear" check cannot prove absence.
   single-side (ADR-0019, ADR-0023).
 - A past (day, side) figure lower than the archive's is accepted only under a new accounting stamp,
   keeping what it replaces as a superseded value; increases and the scan's own day are exempt (ADR-0026).
+- A figure a side puts in a usage row is an integer, and neither it nor any sum of such figures reaches
+  2^53 (the reason is in the header of `engine/src/group/result.rs`).
 
 ### Product boundaries
 

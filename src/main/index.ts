@@ -29,6 +29,7 @@ import { savedInstructionPaths } from './providers/global'
 import { CACHE_VERSION, sessionReadSource } from './providers/token-stats'
 import { settleScan } from './providers/scanner'
 import { startScans, type ScanClient } from './scan-client'
+import { scanCombination } from './scan-protocol'
 import { ENGINE_BUILD, engineModulePath, threadEngineModule } from './engine-module'
 import { settleForQuit } from './quit'
 import { availableParallelism } from 'node:os'
@@ -728,7 +729,9 @@ void app.whenReady().then(() => {
     parseScript: join(__dirname, 'parse-worker.js'),
     cacheDir: app.getPath('userData'),
     poolSize: Math.min(4, Math.max(1, availableParallelism() - 1)),
-    engine
+    engine,
+    // What a stored group result came from (token-stats, Implementation Decisions, Cache)
+    combination: scanCombination(app.isPackaged, app.getVersion())
   })
   // The listed set as it stands: the snapshot's projects, stale ones included, with each one's listed
   // sessions — the restored ones until the first scan completes (global-search S2)
