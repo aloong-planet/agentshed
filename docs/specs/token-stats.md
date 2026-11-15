@@ -74,12 +74,16 @@ all of them.
   5m+1h rather than the flat field.
 - A8 Bad lines are skipped; one corrupt line does not discard the whole file.
 - A9 A line counts its own usage's four figures, its `cache_creation` breakdown included (A7), and never
-  reads the `iterations` that usage also lists, whose elements repeat those figures' names: ccusage reads
-  a line the same way (ADR-0005). So a reply whose own four figures are zero while its iterations carry
-  figures, and that has no copy elsewhere with figures of its own (A3), is under-counted. Such replies
-  exist; the under-count is known and accepted while the figures match ccusage's, because reading the
-  iterations would part from the meter the figures are reconciled against, which ADR-0005 defers until
-  the two differ perceptibly.
+  reads the `iterations` that usage also lists, whose elements repeat those figures' names. ccusage takes a
+  line's figures the same way, and reads its iterations only to split those of type `advisor_message` into
+  entries of their own, a detail ADR-0005 (option 3) defers. So a reply whose own input, output and
+  cache-read figures are zero while its iterations carry them, and that has no copy elsewhere with figures
+  of its own (A3), is under-counted. Such replies exist; the under-count is known and accepted until the
+  figures differ from ccusage's perceptibly (ADR-0005's restart condition), as taking a reply's figures
+  from its iterations would part from the meter the figures are reconciled against.
+- A10 A file that cannot be read to its end (it will not open, or a read of it fails) gives no entry and is
+  skipped, hurting only itself: nothing of it is counted or listed in that scan, and the scan of the other
+  files goes on. A panic while the file is parsed is such a failure (Scans and the window, below).
 
 **Sequence B: Codex-side aggregation**
 - B1 Sum per-response usage: in a paginated rollout from the usage boundary on, each usage record's
@@ -833,7 +837,7 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   every read of a question index or of a question's text fails as that read (session-view C4), and the
   display copy is not written ([agents-overview::REQ-008/AC-05](agents-overview.md)). The failure is logged.
 - A panic in the engine module is caught where it crosses into the application. One raised while a file
-  is parsed is that file's failed read, under the rule its side has for a read that fails (B12, F6,
+  is parsed is that file's failed read, under the rule its side has for a read that fails (A10, B12, F6,
   token-stats::REQ-004), and the scan goes on (the AGENTS.md invariant on reading agent data); one
   raised elsewhere in a scan fails that scan (E3), and one raised in a read fails that read
   (session-view C4).
@@ -948,8 +952,8 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
-  and holds the reading and parsing of Codex rollouts, Claude Code sessions and Grok sessions, the entries and the store. A
-  value in a line is built only where a rule reads it; every other value is scanned past. A line is
+  and holds the reading and parsing of Codex rollouts, Claude Code sessions and Grok sessions, the entries and
+  the store. A value in a line is built only where a rule reads it; every other value is scanned past. A line is
   decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of ECMAScript's
   `JSON.parse`, with its results: a repeated key keeps its last value, a number beyond the double range
   is infinite and so no finite count, a lone surrogate escape stays that code unit, and a line
