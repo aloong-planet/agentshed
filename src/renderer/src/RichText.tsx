@@ -6,8 +6,8 @@
 // stored"), not decoration. Two existing constraints rule out the usual approaches:
 //   (1) this feature's convention that "rich text must not be assembled from fragment keys" — word order
 //       differs per language, so concatenation is bound to be wrong;
-//   (2) ADR-0014 settled that the copy layer is pure data plus pure functions and **does not depend on
-//       React**, so a dictionary entry cannot return a ReactNode.
+//   (2) the copy layer is pure data plus pure functions and **does not depend on React** (the i18n
+//       spec, Implementation Decisions; ADR-0014), so a dictionary entry cannot return a ReactNode.
 //
 // The solution is for the dictionary to still hold **one complete plain string**, carrying emphasis in
 // two lightweight markers that this component parses at render time:

@@ -2,10 +2,10 @@
 
 > Related: [ADR-0034](../adr/0034-global-search-question-corpus-in-memory.md)
 > (question texts held in memory) · [ADR-0028](../adr/0028-tanstack-query-as-the-renderer-query-layer.md)
-> (query layer, page switches as Transitions) · [ADR-0015](../adr/0015-structured-ipc-errors.md) /
-> [ADR-0016](../adr/0016-no-natural-language-across-ipc.md) · [session-view](session-view.md) (the session
-> page a hit opens, and a project's own session search) · CONTEXT: **Global search**, **Session**,
-> **Project**, **Stale project**, **Transfusion**
+> (query layer, page switches as Transitions) · [ADR-0001](../adr/0001-ipc-contract-single-source.md)
+> (the IPC contract, structured errors) · [session-view](session-view.md) (the session page a hit opens, and a
+> project's own session search) · CONTEXT: **Global search**, **Session**, **Project**, **Stale project**,
+> **Transfusion**
 
 ## Problem Statement
 
@@ -181,7 +181,7 @@ choice, and the Sessions tab does not read global search's.
 ### global-search::CON-003 No natural language from the main process (direct acceptance)
 
 Applies to: everything global search sends across IPC. Results carry data only; failures cross as
-structured errors (ADR-0015, ADR-0016); every sentence on the page and in the menu comes from the
+structured errors (ADR-0001); every sentence on the page and in the menu comes from the
 renderer's dictionaries.
 
 ### global-search::CON-004 Copy in every supported language (direct acceptance)

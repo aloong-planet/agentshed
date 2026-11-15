@@ -11,7 +11,8 @@
 //   **Un-extracted copy** is caught by this gate: copy still written inside a component or the main
 //   process, never having entered the dictionaries, is invisible to the type system —
 //   to TS it is just an ordinary string. It governs "has everything that belongs in the dictionaries got
-//   there".
+//   there", for Chinese only: its pattern is Han characters, so copy written in English outside the
+//   dictionaries passes it.
 //
 // ── Scanning rule ──
 // Only Chinese that **flows to the UI** counts: string literals and JSX text. Comments do not (they are

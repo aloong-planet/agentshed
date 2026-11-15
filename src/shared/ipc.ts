@@ -122,7 +122,7 @@ export interface SkillOpArgs {
 
 export type SkillOpResult =
   | { ok: true }
-  // A failure carries only **a code plus parameters**, never a whole-sentence message (ADR-0015): the
+  // A failure carries only **a code plus parameters**, never a whole-sentence message (ADR-0001): the
   // renderer produces the wording in the current language.
   | { ok: false; reason: ErrorCode; params?: ErrorParams }
 

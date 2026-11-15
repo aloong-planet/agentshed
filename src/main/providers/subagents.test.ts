@@ -111,7 +111,7 @@ describe('global subagents', () => {
     const snap = await scan(roots(), { now: () => 1 })
     const s = snap.global.subagents.find((x) => x.name === '(noname.toml)')
     // Assert the error code rather than the wording: the wording is produced by the renderer per language
-    // (ADR-0015, extended to data fields by ticket 07)
+    // (ADR-0001)
     expect(s?.codex?.error?.code).toBe(ERR.subagentMissingName)
   })
 

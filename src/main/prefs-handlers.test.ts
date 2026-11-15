@@ -19,7 +19,7 @@ import { createPrefsHandlers } from './prefs-handlers'
 /**
  * Take the thrown error's structured code. Codes are asserted rather than wording: the wording is now
  * produced by the renderer per language,
- * and asserting on it would pin UI copy into a main-process test (exactly the coupling ADR-0015 exists to
+ * and asserting on it would pin UI copy into a main-process test (exactly the coupling ADR-0001 exists to
  * eliminate).
  */
 function codeOf(fn: () => unknown): string | null {

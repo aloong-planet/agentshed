@@ -1,6 +1,6 @@
 name: Message language
 
-# A pull request's title, body and commit messages are written in the working language (ADR-0030).
+# A pull request's title, body and commit messages are written in the working language (ADR-0017).
 # A separate workflow from CI because it also runs on `edited` — editing a title must re-check it, and that
 # should not re-run the whole test suite.
 on:

@@ -1,81 +1,53 @@
-# ADR-0013: UI language set and i18n scope boundary
+# ADR-0013: The i18n scope is the app's copy, its menu and the README, every language left to right, with no RTL commitment
 
-- Status: Accepted (2026-08-08). The "`docs/` stays Chinese-only" clause was **superseded by
-  ADR-0017** on 2026-08-09, and the language set by **ADR-0035** on 2026-10-21; the rest of the scope
-  boundary remains in force.
+- Status: Accepted (2026-08-08)
 
 ## Context
 
-The product was previously hard-coded in Chinese throughout (about 370 pieces of copy in the
-renderer, about 40 error strings in main/preload/shared) with no i18n infrastructure at all. The
-requirement as originally stated was "support the six official UN languages", but that set includes
-Arabic, and Arabic demands a fully mirrored RTL layout: this repository's CSS uses physical
-properties 100% of the time (about 40 directional declarations in `theme.css`, zero logical
-properties), and the trend chart's axis labels are positioned in pixels computed in JS
-(`TokenViz.tsx:157`) with e2e assertions pinning those pixel values. The engineering and verification
-cost of RTL exceeds that of the other five languages combined, so the language set and the scope have
-to be ruled on before a design has a definite target.
+A design for translating the product needs a defined reach: which texts are translated, and whether a
+right-to-left language is among the languages. A right-to-left language demands a fully mirrored layout, while
+the stylesheet uses physical properties throughout and the trend chart positions its axis labels in pixels
+computed in JS. That cost exceeds the cost of all the left-to-right languages together.
 
 ## Options
 
-1. **Take the six as Simplified Chinese / English / French / Russian / Spanish / Japanese, all LTR;
-   scope covers the app's UI copy, the custom Electron menu, and the README; `docs/` stays
-   Chinese-only**
-2. Take the six official UN languages literally (including Arabic) — rejected: RTL would require
-   converting the CSS wholesale to logical properties and mirroring the chart's pixel positioning
-   logic, and the target user base does not justify that investment; substituting Japanese keeps the
-   count at six with everything left-to-right and reduces the RTL work to zero
-3. Include Arabic but translate text only, without RTL — rejected: Arabic text stuffed into an LTR
-   layout is an obviously broken experience, and "supports Arabic" would not be true; listing it
-   would be worse than not listing it
-4. Translate all of `docs/` into six languages — rejected: 1925 lines of engineering artifacts × 6,
-   and step 8 of the eight-step process requires spec ↔ implementation ↔ features ↔ ADR to stay
-   strictly in sync, so six copies would multiply the cross-regression cost by six and create a new
-   failure mode where a lagging translation makes the docs lie. The README is only 5 lines and is a
-   public-facing front door, so its cost is negligible and it is included separately
-5. Localise the application name / window title — deferred: Agentshed stays the same in every
-   language as a brand name; this can be revisited if the product positioning or distribution
-   channels change
+1. **Every UI language left to right, with no RTL commitment; the scope is the app's user-visible copy, the
+   application menu and the README**
+2. The six official UN languages taken literally, Arabic included — rejected: RTL would mean converting the
+   stylesheet to logical properties and mirroring the chart's pixel positioning, an investment the target users do
+   not justify.
+3. Arabic translated without RTL — rejected: Arabic text in a left-to-right layout is visibly broken, so claiming
+   to support it would be untrue.
+4. Translating the engineering documents under `docs/` into every UI language — rejected: they are kept strictly in
+   step with the implementation, so each copy multiplies that cross-checking, and a lagging translation makes the
+   documents lie. The README is a short public front door, so its cost is small and it is included.
+5. Localising the application name — deferred: Agentshed is a brand name and stays the same in every language.
+   Reopen if the product's positioning or its distribution channels change.
 
 ## Decision
 
-We choose **option 1**: we support Simplified Chinese, English, French, Russian, Spanish and
-Japanese, all left-to-right, and this product makes no RTL commitment. The i18n scope is all
-user-visible copy inside the app (including failure information arriving across processes), the
-Electron application menu, and the README; the specs / ADRs / features / postmortems / ops under
-`docs/` are developer-facing engineering artifacts and stay Chinese-only. When the user has not
-chosen manually, the system language maps to one of the six, falling back to English if it maps to
-none.
-
-> **Superseded in part (2026-08-09, ADR-0017)**: `docs/` no longer stays Chinese-only — the
-> repository's working language is now English, covering `docs/`, source comments, test names and
-> terminal output. The reasoning above (option 4) was aimed at translating into *six* languages and
-> does not apply to a single-language switch. Everything else in this ADR stands.
-
-> **Superseded in part (2026-10-21, ADR-0035)**: the UI languages are now Simplified Chinese and
-> English, and so are the READMEs. The scope boundary, the absence of an RTL commitment and the English
-> fallback stand.
+We adopt **option 1**: every UI language is left to right, and the product makes no RTL commitment. The i18n scope
+is the app's user-visible copy, failure information arriving across processes included, the application menu and
+the README. The engineering documents under `docs/` are not translated, and the name Agentshed is the same in every
+language. When the user has not chosen a language, the system's preferred languages resolve to a supported one,
+falling back to English.
 
 ## Consequences
 
-- Positive: all six languages are LTR, so the CSS needs no conversion to logical properties and the
-  chart's pixel positioning logic and its e2e assertions survive untouched
-- Positive: the scope boundary is nailed down, so later scope creep of the "might as well translate
-  the docs too" variety can be refused with a citation
-- Negative: Arabic users are explicitly excluded, and adding them later would be a whole round of
-  independent engineering rather than incremental translation
-- Negative: with the README in six languages, every adjustment to the product positioning has to be
-  made six times (acceptable: 5 lines, changed rarely)
-- Neutral: the default language follows the system rather than being fixed to Chinese, so a Chinese
-  user on an English system sees English on first launch and has to switch once
-- Neutral: `docs/` being single-language means non-Chinese contributors cannot read the engineering
-  artifacts; with this project being solo-developed that is not an actual obstacle
-  (**this consequence was the trigger for ADR-0017**)
+- Positive: with every language left to right, the stylesheet needs no logical properties, and the chart's pixel
+  positioning stands as it is.
+- Positive: the scope is fixed, so a request to translate the engineering documents as well can be refused with a
+  citation.
+- Negative: users of right-to-left languages, Arabic among them, are excluded, and adding one would be a round of
+  independent engineering rather than a translation.
+- Negative: the README has a copy in each UI language, so every change to the product's positioning is made in each.
+- Neutral: the default language follows the system rather than Chinese, so a Chinese reader on an English system
+  sees English on first launch and switches once.
 
 ## Sources
 
-The requirements alignment session of 2026-08-08 (the language set went through two revisions:
-remove Arabic, add Japanese). Research evidence: a count of directional properties in `theme.css`
-(margin-left ×6, border-left ×5, border-right ×3, text-align:left ×15, text-align:right ×6, logical
-properties ×0), the JS pixel positioning at `TokenViz.tsx:157`, the corresponding pixel assertion at
-`e2e/app.spec.ts:1554`, 1925 lines of markdown in `docs/`, and 5 lines in `README.md`.
+The requirements session of 2026-08-08. Which languages the UI has is ADR-0035's; the language the engineering
+documents are written in is ADR-0017's. `src/renderer/src/theme.css` at commit `64d12a4`: 51 lines with a
+directional physical property (`margin-left`, `border-left`, `border-right`, `text-align: left`, `left:` and the
+like) and none with a logical one; `src/renderer/src/TokenViz.tsx` positions each axis label with a computed
+`left` in pixels.

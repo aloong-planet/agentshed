@@ -280,7 +280,7 @@ test('the IPC surface: a path outside the allow-list is refused over the real ch
   // parameters since ticket 05,
   // with the renderer producing the wording in the current language. What is guarded is unchanged (refused,
   // and no file content echoed back),
-  // and only the assertion target moved — asserting on wording is exactly the coupling ADR-0015 exists to
+  // and only the assertion target moved — asserting on wording is exactly the coupling ADR-0001 exists to
   // eliminate
   expect(r1).toContain(ERR.sessionNotWhitelisted)
   // The error message echoes no file content (hosts usually contains a localhost line)

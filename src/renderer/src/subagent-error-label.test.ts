@@ -1,6 +1,6 @@
 // Ticket 05: the subagent failure label branches on **category**, not on wording.
 //
-// These cases guard the hazard ADR-0015 named: it used to read `error.includes('不可读')`,
+// These cases guard the hazard ADR-0001 names: it used to read `error.includes('不可读')`,
 // so a wording change would make the branch fail silently with no test going red. What is asserted now is
 // "category → label",
 // and no wording change should affect which branch is taken — so this deliberately does **not** assert a

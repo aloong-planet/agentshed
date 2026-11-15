@@ -20,7 +20,7 @@ export interface InstallArgs {
 export type OpResult =
   | { ok: true }
   // A failure carries only **a code plus parameters**, never a whole-sentence message: the renderer
-  // produces the wording in the current language (ADR-0015).
+  // produces the wording in the current language (ADR-0001).
   // `reason` was already a language-independent enum; this change removed the Chinese message alongside it.
   | { ok: false; reason: ErrorCode; params?: ErrorParams }
 

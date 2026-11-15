@@ -110,7 +110,7 @@ export const zh = {
   },
 
   /**
-   * The wording for cross-process failures (see ADR-0015). The keys correspond one to one with the error
+   * The wording for cross-process failures (see ADR-0001). The keys correspond one to one with the error
    * codes in shared/errors.ts.
    * Parameters carry only language-independent things (channel names, field names, paths, numbers); the
    * sentence is assembled here.
