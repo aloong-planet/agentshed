@@ -32,6 +32,14 @@ impl Side for Grok {
         }
     }
 
+    fn question_text(&self, range: &str) -> Option<Units> {
+        question::shown(range)
+    }
+
+    fn dispatches(&self) -> &'static [&'static str] {
+        std::slice::from_ref(&question::DISPATCH)
+    }
+
     /// Every session under Grok's data root, `roots.grokHome`
     fn walk(&self, js: &Js, roots: napi_value, _kept: &mut Kept, _tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
         let walked = || -> Result<napi_value> {

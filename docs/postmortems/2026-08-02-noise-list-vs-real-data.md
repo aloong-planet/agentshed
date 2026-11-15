@@ -75,7 +75,8 @@ sampling, such as a whole-repository grep.
 
 - The stripping rules were extracted into a pure function (`session-title.ts`), whose file header
   records each rule's **measured share** and its source rather than just the rule — so whoever
-  changes it later can see how strong the evidence is.
+  changes it later can see how strong the evidence is. (The function is now `real_user_text` in
+  `engine/src/text/mod.rs`, whose documentation carries the same record, #432.)
 - A shape seen only once **gets no rule**: `[Image #N] <real question>` appeared once in the sample
   and was readable as a whole, so no stripping was added for it.
 - **The reason for not writing a rule has to be the right reason**: `Conversation info` was

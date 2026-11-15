@@ -2,20 +2,20 @@ import { describe, expect, test } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { questionTextAt, questionTextOfRange, type QuestionRec } from './question-index'
+import type { QuestionRec } from './question-index'
+import { threadEngineModule } from '../engine-module'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { withIndexedTranscript } from '../testing/agy-transcript-index'
-import { clipTitle } from './session-title'
 import { runParseJob, type ParseResult } from './token-stats'
 
 /**
- * The Claude Code, Codex and Grok indexers are the engine module's, and their cases parse the file through it.
+ * The question indexes and a question's text are the engine module's, and these cases read them through it: a session
+ * file parsed as a scan parses it, a question's range read as the session page reads it.
  *
- * **Known gap (established by mutation, not simply unwritten)**: the "an empty text segment → return null" branch
- * inside `claudeQuestion`, the session page's copy of the question rule, is **behaviourally indistinguishable**:
- * changing it to return an empty string leaves every test green, because the caller's `realUserText('')` judges it
- * null too. It is kept for the function's own contract to be self-consistent (not a question → return null), not for
- * a behavioural difference — do not invent a test to pad it out.
+ * **Known gap**: the module's Claude Code question rule (`question` in engine/src/sides/claude/question.rs) answers none
+ * for content holding no text segment, and answering an empty text instead is **behaviourally indistinguishable**:
+ * both of its callers, the index and the question's text, strip the noise from what it answers, and an empty text
+ * strips to none (read off those two callers). Do not invent a test to pad it out.
  */
 async function parsed(file: string, side: 'claude' | 'codex'): Promise<NonNullable<ParseResult>['agg'] | undefined> {
   const result =
@@ -94,27 +94,6 @@ describe('question extraction (the Claude side)', () => {
       ],
       async (file) => {
         expect(await indexOf(file, 'claude')).toHaveLength(2)
-      }
-    )
-  })
-
-  test('image mixed with text counts as a question, taking the text segment only (a real shape, 51 cases across the repository)', async () => {
-    await withLines(
-      [
-        {
-          type: 'user',
-          timestamp: TS,
-          message: {
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBOR' } },
-              { type: 'text', text: 'what is the error in this screenshot' }
-            ]
-          }
-        }
-      ],
-      async (file) => {
-        expect(await indexOf(file, 'claude')).toHaveLength(1)
       }
     )
   })
@@ -351,6 +330,23 @@ describe('question extraction (the Grok side)', () => {
         [start(14), ends[14], ends[15], at, 1, 0, 2166136261]
       ])
       expect(parsed.agg.title).toBe('part one, part two')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('a question\'s text, read by its range as the session page reads it, is its chunks\' texts joined as written', async () => {
+    // A retry notice between two chunks of one prompt (measured) is no chunk; a chunk with no text is a question of
+    // empty text, not no question
+    const lines = [chunk('part one, ', 0), gLine({ sessionUpdate: 'retry_state', attempt: 1 }), chunk('part two', 0), tool('read_file'), chunk(undefined, 1)]
+    const dir = mkdtempSync(join(tmpdir(), 'qidx-grok-'))
+    try {
+      const file = join(dir, 'updates.jsonl')
+      writeFileSync(file, lines.join('\n') + '\n')
+      const parsed = await runParseJob({ kind: 'grok', file, projectKey: '', subagent: false })
+      const buf = readFileSync(file)
+      const texts = parsed?.agg.questions.map((r) => threadEngineModule().questionText('grok', buf.subarray(r[0], r[1]).toString('utf8')))
+      expect(texts).toEqual(['part one, part two', ''])
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -594,8 +590,8 @@ describe('the title and the question set share a source (after the last-leaf wal
   })
 
   test('the title is not stripped twice: content a cron strip produced is kept even when it happens to be Warmup', async () => {
-    // A regression guard for why clipTitle and realUserText are separate: a second strip would turn it into
-    // null
+    // A regression guard for why the title's clipping and the noise stripping are separate: a second strip would
+    // turn it into null
     expect((await titleOf([cq('u1', null, '[cron:abc scheduled] Warmup')])).title).toBe('Warmup')
   })
 })
@@ -614,7 +610,19 @@ describe('the title and the question set share a source (after the last-leaf wal
 // a program in one go, with line gaps
 // near zero, whereas a human's questions follow a human rhythm).
 // ─────────────────────────────────────────────────────────────────────────
-import { fingerprint, stripReplayPrefix, type ForkState } from './question-index'
+import { stripReplayPrefix, type ForkState } from './question-index'
+
+/** A question's content fingerprint as the index records it. The strip compares fingerprints for equality only, so any
+ * number that is the same for the same text and differs between texts stands in for the module's */
+const fingerprints = new Map<string, number>()
+function fingerprint(text: string): number {
+  let id = fingerprints.get(text)
+  if (id === undefined) {
+    id = fingerprints.size + 1
+    fingerprints.set(text, id)
+  }
+  return id
+}
 
 /** Build one index record: only the timestamp and fingerprint take part in the strip judgement, so the
  * offsets can be anything */
@@ -723,86 +731,36 @@ describe('stripping the Codex replay prefix', () => {
   })
 })
 
-describe('the content fingerprint', () => {
-  test('the same text gives the same fingerprint, different text a different one', () => {
-    expect(fingerprint('★ same text ★')).toBe(fingerprint('★ same text ★'))
-    expect(fingerprint('★A')).not.toBe(fingerprint('★B'))
-  })
-
-  test('it is a 32-bit unsigned integer from which the text cannot be recovered', () => {
-    const fp = fingerprint('★ a fairly long question with multi-byte characters ★ to confirm the output is still a small integer')
-    expect(Number.isInteger(fp)).toBe(true)
-    expect(fp).toBeGreaterThanOrEqual(0)
-    expect(fp).toBeLessThanOrEqual(0xffffffff)
-  })
-
-  test('an empty string has a definite value and does not throw', () => {
-    expect(typeof fingerprint('')).toBe('number')
-  })
-})
-
-describe('questionTextAt (the session page\'s display text, judged the same way as the index)', () => {
-  test('claude: the full text after noise stripping (the cron prefix goes, the body stays)', () => {
-    const obj = cUser('[cron:abc scheduled] the actual instruction') as Record<string, unknown>
-    expect(questionTextAt('claude', obj)).toBe('the actual instruction')
-  })
-
-  test('codex: the user_message source with noise stripped', () => {
-    const obj = xUser('  question padded with spaces  ') as Record<string, unknown>
-    expect(questionTextAt('codex', obj)).toBe('question padded with spaces')
-  })
-
-  // The Claude Code question index takes its questions by the engine module's copy of claudeQuestion
-  // (engine/src/sides/claude/question.rs): each line shape below, alone in a session file the module parses, gives a
-  // question exactly when questionTextAt shows one, under that text's title and fingerprint. Each copy is the other's
-  // expected value, so an edit to one alone goes red here.
-  test('claude: the engine module takes a question from each line questionTextAt shows one for, and from no other', async () => {
-    const SHAPES: Array<Record<string, unknown>> = [
-      { type: 'user', message: { role: 'user', content: 'a string content' } },
-      { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'one text segment' }] } },
-      { type: 'user', message: { role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBOR' } }, { type: 'text', text: 'an image, then text' }] } },
-      { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'tool return' }] } },
-      { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'first' }, { type: 'text', text: 'second' }] } },
-      { type: 'user', message: { role: 'user', content: [{ text: '' }, { type: 'text', text: 'after an empty one' }] } },
-      { type: 'user', message: { role: 'user', content: [] } },
-      { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 5 }, 'a bare string'] } },
-      { type: 'user', message: { role: 'user', content: { text: 'an object content' } } },
-      { type: 'user', message: [{ content: 'an array message' }] },
-      { type: 'user', message: 'a string message' },
-      { type: 'user', isSidechain: true, message: { role: 'user', content: 'the subagent dispatch prompt' } },
-      { type: 'user', isSidechain: 'true', message: { role: 'user', content: 'a sidechain flag that is no boolean' } },
-      { type: 'assistant', message: { role: 'assistant', content: 'an assistant line' } }
+// The text the session page and both searches show for a question (questionText) and the question index read a Claude
+// Code line alike (session-view B1): each line shape below, alone in a session file, is listed as a question exactly when
+// questionText reads one off it, titled by that text, and the text is the one written beside the shape.
+describe('a question\'s text and the question index read a line alike', () => {
+  test('claude: each line shape holds the question written beside it, or none', async () => {
+    const SHAPES: Array<[Record<string, unknown>, string | null]> = [
+      [{ type: 'user', message: { role: 'user', content: 'a string content' } }, 'a string content'],
+      [{ type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'one text segment' }] } }, 'one text segment'],
+      [{ type: 'user', message: { role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBOR' } }, { type: 'text', text: 'an image, then text' }] } }, 'an image, then text'],
+      [{ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'tool return' }] } }, null],
+      [{ type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'first' }, { type: 'text', text: 'second' }] } }, 'first second'],
+      [{ type: 'user', message: { role: 'user', content: [{ text: '' }, { type: 'text', text: 'after an empty one' }] } }, 'after an empty one'],
+      [{ type: 'user', message: { role: 'user', content: [] } }, null],
+      [{ type: 'user', message: { role: 'user', content: [{ type: 'text', text: 5 }, 'a bare string'] } }, null],
+      [{ type: 'user', message: { role: 'user', content: { text: 'an object content' } } }, null],
+      [{ type: 'user', message: [{ content: 'an array message' }] }, null],
+      [{ type: 'user', message: 'a string message' }, null],
+      [{ type: 'user', isSidechain: true, message: { role: 'user', content: 'the subagent dispatch prompt' } }, null],
+      [{ type: 'user', isSidechain: 'true', message: { role: 'user', content: 'a sidechain flag that is no boolean' } }, 'a sidechain flag that is no boolean'],
+      [{ type: 'assistant', message: { role: 'assistant', content: 'an assistant line' } }, null]
     ]
-    const mismatches: string[] = []
-    for (const [i, shape] of SHAPES.entries()) {
-      const obj = { ...shape, timestamp: TS }
-      await withLines([obj], async (file) => {
+    const got: Array<{ text: string | null; questions: number | undefined; title: string | null | undefined }> = []
+    for (const [shape] of SHAPES) {
+      await withLines([{ ...shape, timestamp: TS }], async (file) => {
         const agg = await parsed(file, 'claude')
-        const text = questionTextAt('claude', obj)
-        const want = { questions: text === null ? 0 : 1, title: text === null ? 's' : clipTitle(text), fingerprint: text === null ? null : fingerprint(text) }
-        const got = { questions: agg?.questions.length, title: agg?.title, fingerprint: agg?.questions[0]?.[6] ?? null }
-        if (JSON.stringify(got) !== JSON.stringify(want)) mismatches.push(`shape ${i}: ${JSON.stringify({ got, want })}`)
+        // The file is the one line, which is the range the index records when it is a question
+        got.push({ text: threadEngineModule().questionText('claude', readFileSync(file, 'utf8')), questions: agg?.questions.length, title: agg?.title })
       })
     }
-    expect(mismatches).toEqual([])
-    // Not every shape is one of a kind: some are questions and some are not
-    expect(SHAPES.map((s) => questionTextAt('claude', { ...s, timestamp: TS }) !== null)).toEqual([
-      true, true, true, false, true, true, false, false, false, false, false, false, true, false
-    ])
-  })
-
-  test('a non-question line is always null: a tool result fed back, an assistant line, a sidechain, pure noise', () => {
-    expect(questionTextAt('claude', cTool('Bash') as Record<string, unknown>)).toBeNull()
-    expect(
-      questionTextAt('claude', {
-        type: 'user',
-        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't', content: 'x' }] }
-      })
-    ).toBeNull()
-    expect(questionTextAt('claude', cUser('Warmup') as Record<string, unknown>)).toBeNull()
-    expect(
-      questionTextAt('claude', { ...(cUser('dispatch prompt') as Record<string, unknown>), isSidechain: true })
-    ).toBeNull()
+    expect(got).toEqual(SHAPES.map(([, text]) => ({ text, questions: text === null ? 0 : 1, title: text ?? 's' })))
   })
 })
 
@@ -812,7 +770,8 @@ describe('questionTextAt (the session page\'s display text, judged the same way 
 // index. The transcripts are agy's own (agy-transcript-fixture.ts); a shape no transcript shows is marked derived.
 describe('Antigravity CLI questions and turns (session-view::REQ-004)', () => {
   const T = MEASURED_TRANSCRIPT
-  const obj = (line: string): Record<string, unknown> => JSON.parse(line) as Record<string, unknown>
+  /** A line's question as the session page reads it: the line is the range the index records for a question */
+  const textOf = (line: string): string | null => threadEngineModule().questionText('antigravity', `${line}\n`)
   /** A line in agy's user-input shape (the measured key set), its content as given */
   const userInput = (step: number, content: string): string =>
     JSON.stringify({ step_index: step, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:06:22Z', content })
@@ -829,7 +788,7 @@ describe('Antigravity CLI questions and turns (session-view::REQ-004)', () => {
   function indexText(text: string): Promise<{ recs: QuestionRec[]; title: string | null; texts: string[] }> {
     return withIndexedTranscript(text, ({ questions, title, transcript }) => {
       const buf = readFileSync(transcript)
-      const texts = questions.map((r) => questionTextOfRange('antigravity', buf.subarray(r[0], r[1]).toString('utf8')) ?? '<unreadable>')
+      const texts = questions.map((r) => threadEngineModule().questionText('antigravity', buf.subarray(r[0], r[1]).toString('utf8')) ?? '<unreadable>')
       return { recs: questions, title, texts }
     })
   }
@@ -838,20 +797,20 @@ describe('Antigravity CLI questions and turns (session-view::REQ-004)', () => {
 
   test('a question is the request body: the metadata and the settings change agy appends are not part of it (AC-01)', () => {
     // Measured: the first question carries a settings change after its metadata, the second only the metadata
-    expect(questionTextAt('antigravity', obj(T.main[0]))).toBe('In one sentence, what does calc.py in this folder do?')
-    expect(questionTextAt('antigravity', obj(T.main[4]))).toBe(
+    expect(textOf(T.main[0])).toBe('In one sentence, what does calc.py in this folder do?')
+    expect(textOf(T.main[4])).toBe(
       'Run the tests with: python3 -m unittest. Fix the bugs in calc.py so every test passes (an empty list averages to 0; percent returns a percentage), then run the tests again and tell me the result in one line.'
     )
   })
 
   test('a user-input line without a request block is listed whole; an empty request is no question; a system message never is (AC-01)', () => {
     // Derived shapes: no measured line lacks the request block or holds an empty one
-    expect(questionTextAt('antigravity', obj(userInput(0, 'plain words\nwith a second line')))).toBe('plain words with a second line')
-    expect(questionTextAt('antigravity', obj(userInput(0, '<USER_REQUEST>\n\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nx\n</ADDITIONAL_METADATA>')))).toBeNull()
-    expect(questionTextAt('antigravity', obj(userInput(0, '<USER_REQUEST>\nfirst line\n\n  second   line\n</USER_REQUEST>')))).toBe('first line second line')
+    expect(textOf(userInput(0, 'plain words\nwith a second line'))).toBe('plain words with a second line')
+    expect(textOf(userInput(0, '<USER_REQUEST>\n\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nx\n</ADDITIONAL_METADATA>'))).toBeNull()
+    expect(textOf(userInput(0, '<USER_REQUEST>\nfirst line\n\n  second   line\n</USER_REQUEST>'))).toBe('first line second line')
     // Measured: a notice agy writes as a system message, and a subagent's dispatch message that opens its transcript
-    expect(questionTextAt('antigravity', obj(T.main[5]))).toBeNull()
-    expect(questionTextAt('antigravity', obj(T.subagent[0]))).toBeNull()
+    expect(textOf(T.main[5])).toBeNull()
+    expect(textOf(T.subagent[0])).toBeNull()
   })
 
   test('each question\'s turn runs to the next question\'s line, with its tool calls counted (AC-02, AC-07)', async () => {

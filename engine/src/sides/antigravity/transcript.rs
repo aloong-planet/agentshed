@@ -3,9 +3,8 @@
 //! — measured over every transcript of 2026-10-28 (15 transcripts, 104 lines): USER_INPUT 24, PLANNER_RESPONSE 44,
 //! GENERIC 24 (a tool call's result), SYSTEM_MESSAGE 11, ERROR_MESSAGE 1.
 //!
-//! The session page and both searches still read a question's text by `questionTextAt` in
-//! `src/main/providers/question-index.ts`, and a turn by `src/main/providers/turn-content.ts`, which apply the same
-//! question and rewind rules (until #432): a change to those rules here is made there too.
+//! The question index, a question's text on the session page and in both searches, and which of a turn's lines the
+//! session page shows all take the question, rewind and dispatch rules from here.
 
 use crate::json::{self, Kind, Read, Reader, Str};
 use crate::question::Record;
@@ -13,7 +12,7 @@ use crate::read::{self, Stored};
 use crate::text::{self, Units};
 
 /// The tool call that dispatches a subagent (2 of the 24 measured calls); its result only echoes the creation
-const DISPATCH: &str = "invoke_subagent";
+pub(super) const DISPATCH: &str = "invoke_subagent";
 
 /// The fields the rules read off a line, as JavaScript's property access on the parsed line reads them: a value of
 /// another kind than a rule takes is none to it, and of a repeated key the last value counts
@@ -21,7 +20,8 @@ const DISPATCH: &str = "invoke_subagent";
 struct Line<'a> {
     kind: Option<Str<'a>>,
     content: Option<Str<'a>>,
-    /// `step_index` when it is a number: a finite one is the line's step
+    /// `step_index` when it is a finite number: the line's step. None when it carries none (never measured), and then
+    /// the line is neither a redo nor undone.
     step: Option<f64>,
     created_at: Option<Str<'a>>,
     /// `tool_calls` when it is an array: how many of its calls dispatch a subagent, and how many do not
@@ -50,7 +50,7 @@ fn read_line(text: &str) -> Read<Parsed<'_>> {
                 } else if key.is("content") {
                     line.content = r.string_or_skip()?;
                 } else if key.is("step_index") {
-                    line.step = if r.kind()? == Kind::Number { Some(r.number()?) } else { r.skip().map(|_| None)? };
+                    line.step = if r.kind()? == Kind::Number { Some(r.number()?).filter(|s| s.is_finite()) } else { r.skip().map(|_| None)? };
                 } else if key.is("created_at") {
                     line.created_at = r.string_or_skip()?;
                 } else if key.is("tool_calls") {
@@ -120,11 +120,17 @@ fn question(line: &Line<'_>) -> Option<Units> {
     if t.is_empty() { None } else { Some(t) }
 }
 
+/// The question a range the index recorded holds, as the session page and both searches show it
+/// (session-view::REQ-004/AC-01): the range is the question's line; None when the line holds no question
+pub(super) fn shown(range: &str) -> Option<Units> {
+    let Ok(Parsed::Object(l)) = read_line(range) else { return None };
+    question(&l)
+}
+
 /// One line that parsed, kept until the end, as a rewind is known only once its redo arrives
 struct Kept {
     start: f64,
     end: f64,
-    /// Its step index; None when it carries none (never measured), and then it is neither a redo nor undone
     step: Option<f64>,
     question: Option<Units>,
     at: Option<f64>,
@@ -132,21 +138,35 @@ struct Kept {
     subagents: f64,
 }
 
-/// Which lines a rewind left behind (session-view::REQ-004/AC-03). agy's rewind keeps the undone lines in the transcript
-/// and writes the redo under the same step indices (measured): a line whose step index is not greater than an earlier
-/// line's starts a redo, and every line from the first one carrying that index up to the redo is undone. Equivalently,
-/// a line is undone exactly when a later line's step index is not greater than its own — which is what this reads, from
-/// the end.
-fn kept_lines(lines: &[Kept]) -> Vec<bool> {
-    let mut kept = vec![false; lines.len()];
+/// Which lines a rewind left behind (session-view::REQ-004/AC-03), of lines whose steps are `steps`. agy's rewind keeps
+/// the undone lines in the transcript and writes the redo under the same step indices (measured): a line whose step
+/// index is not greater than an earlier line's starts a redo, and every line from the first one carrying that index up
+/// to the redo is undone. Equivalently, a line is undone exactly when a later line's step index is not greater than its
+/// own — which is what this reads, from the end. A line with no step is kept and undoes nothing.
+fn kept(steps: &[Option<f64>]) -> Vec<bool> {
+    let mut kept = vec![false; steps.len()];
     let mut later_min = f64::INFINITY;
-    for (i, l) in lines.iter().enumerate().rev() {
-        kept[i] = l.step.is_none_or(|s| s < later_min);
-        if let Some(s) = l.step.filter(|&s| s < later_min) {
+    for (i, step) in steps.iter().enumerate().rev() {
+        kept[i] = step.is_none_or(|s| s < later_min);
+        if let Some(s) = step.filter(|&s| s < later_min) {
             later_min = s;
         }
     }
     kept
+}
+
+/// Which lines of a turn's range a rewind left behind, one flag per line as the range's text splits at its line feeds:
+/// the index ends a turn before a rewind back to the next question, so what is left is a rewind to a step within the
+/// turn, whose undone lines stay in its range (session-view::REQ-004/AC-03). A line that will not parse has no step.
+pub(super) fn kept_in(range: &str) -> Vec<bool> {
+    let steps: Vec<Option<f64>> = range
+        .split('\n')
+        .map(|text| match read_line(text) {
+            Ok(Parsed::Object(l)) => l.step,
+            _ => None,
+        })
+        .collect();
+    kept(&steps)
 }
 
 /// The transcript's question index and its first question's text, None when it has none. A transcript not there — the
@@ -173,7 +193,7 @@ pub(super) fn index(path: &str, date_parse: &dyn Fn(&[u16]) -> f64) -> (Vec<Reco
             Ok(Parsed::Object(l)) => Kept {
                 start,
                 end,
-                step: l.step.filter(|s| s.is_finite()),
+                step: l.step,
                 question: question(&l),
                 at: l.created_at.and_then(|t| {
                     let units = t.units();
@@ -192,7 +212,7 @@ pub(super) fn index(path: &str, date_parse: &dyn Fn(&[u16]) -> f64) -> (Vec<Reco
     if read.is_err() {
         return (Vec::new(), None);
     }
-    let kept = kept_lines(&lines);
+    let kept = kept(&lines.iter().map(|l| l.step).collect::<Vec<_>>());
     let qs: Vec<usize> = (0..lines.len()).filter(|&i| kept[i] && lines[i].question.is_some()).collect();
     let first = qs.first().and_then(|&i| lines[i].question.clone());
     let records = qs

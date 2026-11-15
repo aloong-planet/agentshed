@@ -15,6 +15,9 @@
 //!   store or to change it as a disk or a hand would. It goes through the module's own SQLite: a second copy of SQLite
 //!   in the same process, such as Node's `node:sqlite`, does not see this one's locks, and closing its connection to
 //!   the store takes this one's away and deletes the store's log from under it (POSIX locks belong to the process).
+//! - The line-reader seam: the benchmark reads a file through the line reader every parse reads a session file by,
+//!   and counts its lines, so that a figure about reading files is taken through the reader the app uses
+//!   (`pnpm bench:scan file`, the AGENTS.md invariant on such figures).
 
 /// Called by every function that parses a session file, before it reads the file: in a build made for tests, it panics
 /// when the file is the one the panic seam names, and otherwise does nothing.
@@ -174,5 +177,18 @@ pub(crate) mod store_statement_seam {
             out.push(values);
         }
         Ok(out)
+    }
+}
+
+#[cfg(feature = "test-seams")]
+pub(crate) mod line_reader_seam {
+    use crate::read::{self, Stored};
+
+    /// How many lines `file` gives the line reader, read through its zstd stream when it is `cold`, as a cold rollout is
+    pub(crate) fn count(file: &str, cold: bool) -> Result<u32, String> {
+        let mut lines = 0;
+        read::each_line(file, if cold { Stored::Zstd } else { Stored::Plain }, 0, |_, _, _, _| lines += 1)
+            .map_err(|_| format!("{file} could not be read to its end"))?;
+        Ok(lines)
     }
 }

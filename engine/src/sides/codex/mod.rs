@@ -20,7 +20,7 @@ use self::walk::{Readings, Session};
 use super::{Kept, Side};
 use crate::exports::js::Js;
 use crate::question::Record;
-use crate::text;
+use crate::text::{self, Units};
 
 pub(crate) struct Codex;
 
@@ -31,6 +31,14 @@ impl Side for Codex {
             Some(parsed) => write_result(js, &given, &parsed),
             None => js.null(),
         }
+    }
+
+    fn question_text(&self, range: &str) -> Option<Units> {
+        question::shown(range)
+    }
+
+    fn dispatches(&self) -> &'static [&'static str] {
+        std::slice::from_ref(&question::DISPATCH)
     }
 
     /// Every rollout under Codex's data root, `roots.codexHome`, with the run's first-line readings

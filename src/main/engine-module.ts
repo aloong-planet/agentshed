@@ -1,9 +1,11 @@
 // The engine module (ADR-0045) as the application's threads load it: the scan worker, every parse worker and the
 // main process each load it once, through Node-API, from the path the main process works out. No other engine exists:
 // a module that will not load, or that is another build's, fails every scan and every question-index read that asks
-// for it, and every write of the display copy (token-stats, Scans and the window). Nothing here imports electron, which
-// a worker thread cannot load.
+// for it — the reads the session page and both searches make included, whose question texts and turns the module's
+// line rules read — and every write of the display copy (token-stats, Scans and the window). Nothing here imports
+// electron, which a worker thread cannot load.
 import { join } from 'node:path'
+import type { AgentSide } from '@shared/domain'
 import type { CodexSessionMeta } from './providers/codex'
 import type { GrokSessionMeta } from './providers/grok'
 import type { SessionWalk } from './providers/scan'
@@ -54,6 +56,28 @@ export interface EngineModule {
    * temporary directory when it is absent.
    */
   sessionTitles(kind: 'antigravity', home: string, tmpParent?: string): Array<[string, string]> | null
+  /**
+   * The question `text` holds, as the session page and both searches show it: `text` is a question's range in a
+   * session file of the side `kind`, as the question index recorded it, read (session-view C2); null when it holds no
+   * question
+   */
+  questionText(kind: AgentSide, text: string): string | null
+  /**
+   * The title the question `text` holds gives its session, as the question index's first question gives it: `text` is a
+   * question's range in a session file of the side `kind`, as the index recorded it, read; null when it holds no
+   * question. A fork whose first questions were stripped as replays takes its title from its first question left
+   * (session-view B2).
+   */
+  questionTitle(kind: AgentSide, text: string): string | null
+  /** The tool names whose call dispatches a subagent on the side `kind`, which a turn draws as a sub block: the names
+   * its question index counts a turn's subagents by (session-view C3) */
+  dispatches(kind: AgentSide): string[]
+  /**
+   * Which lines of `text` the turn holds, one flag per line as `text.split('\n')` cuts it: `text` is a turn's range in a
+   * session file of the side `kind`, as the question index recorded it, read. A line agy's rewind undid inside the turn
+   * is not held (session-view::REQ-004/AC-03); every other side's turn holds every line.
+   */
+  keptLines(kind: AgentSide, text: string): boolean[]
   /**
    * The Codex, Grok and Antigravity session lists under `roots`, each in scan order, read without writing under agy's
    * directories (token-stats::CON-002). Given `memory`, a walk opens only what changed since the last walk that was
@@ -153,8 +177,10 @@ export function loadEngineModule(source: EngineSource): EngineModule {
 }
 
 /**
- * The engine module this thread loaded, for a parse on this thread. Every thread that parses loads it first: a parse
- * worker as it starts, the thread that runs a scan before each scan and each question-index read (scanner.ts).
+ * The engine module this thread loaded, for a parse or a line rule on this thread. Every thread that calls one loads it
+ * first: a parse worker as it starts, the thread that runs a scan before each scan and each question-index read
+ * (scanner.ts), and the main process before each question-index read it asks for, whose question texts and turns it
+ * reads (scan-client.ts).
  */
 export function threadEngineModule(): EngineModule {
   if (!confirmed) throw new Error('the engine module has not been loaded on this thread')

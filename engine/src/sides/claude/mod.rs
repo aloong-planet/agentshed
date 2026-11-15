@@ -15,6 +15,7 @@ use napi::sys::napi_value;
 use self::entry::{Job, Parsed};
 use super::Side;
 use crate::exports::js::Js;
+use crate::text::Units;
 
 pub(crate) struct Claude;
 
@@ -26,6 +27,14 @@ impl Side for Claude {
             Some(parsed) => write_result(js, file, js.get(job, "projectKey")?, &parsed),
             None => js.null(),
         }
+    }
+
+    fn question_text(&self, range: &str) -> Option<Units> {
+        question::shown(range)
+    }
+
+    fn dispatches(&self) -> &'static [&'static str] {
+        &question::DISPATCH
     }
 }
 

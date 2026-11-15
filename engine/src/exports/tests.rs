@@ -58,4 +58,11 @@ mod seam {
     pub fn seam_store_statement(dir: String, sql: String, params: Vec<Option<String>>) -> napi::Result<Vec<Vec<Option<String>>>> {
         seams::store_statement_seam::run(&dir, &sql, &params).map_err(napi::Error::from_reason)
     }
+
+    /// Reads `file` through the line reader every parse reads a session file by, through its zstd stream when it is
+    /// `cold`, and answers with how many lines it gave; throws when it cannot be read to its end (`seams.rs`)
+    #[napi(catch_unwind)]
+    pub fn seam_each_line(file: String, cold: bool) -> napi::Result<u32> {
+        seams::line_reader_seam::count(&file, cold).map_err(napi::Error::from_reason)
+    }
 }
