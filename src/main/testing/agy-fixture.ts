@@ -11,7 +11,9 @@
 //
 // `encodeTrajectoryMetadata` writes the same layout for folders and markers a case needs: the real field order (1, 2,
 // 3, 5, 6, 7, 8, 17, 18) and each workspace's four sub-fields. A unit case pins it to reproduce the API-key record byte
-// for byte, which is what lets the encoded fixtures stand for real ones.
+// for byte, which is what lets the encoded fixtures stand for real ones. A read field in another wire type and a field
+// no reader reads are derived, for the cases of a record agy's format has drifted from: no measured record carries
+// either.
 //
 // The schema is the one dumped from a real conversation database: seven tables, two indexes, `user_version = 1`, a
 // 32 KB page and the WAL journal. A database kept open by a writer (`keepOpen`) is agy's own state while it runs: the
@@ -182,7 +184,16 @@ export interface TrajectoryFixture {
   /** The workspaces' folder URIs (1.1) when they are not the workspace URIs (7): every measured record writes the two
    * alike, so a case that tells them apart writes them apart */
   workspaceFolderUris?: string[]
+  /** One field the reader reads, written in a wire type agy does not write it in: the workspaces (1), their folder URIs
+   * (1.1), the parent conversation (5, written even when `parentConversationId` is not given), the workspace URIs (7) or
+   * the subagent spec (8) as a varint, the nesting depth (17) length-delimited */
+  wrongWireType?: 'workspaces' | 'workspaceFolders' | 'parentConversation' | 'workspaceUris' | 'subagentSpec' | 'nestingDepth'
+  /** A field no reader reads (99), in this wire type, at the top level and inside each workspace */
+  unreadField?: UnreadWireType
 }
+
+/** The wire types a reader skips a field in by its own framing: varint, fixed64, length-delimited and fixed32 */
+export type UnreadWireType = 0 | 1 | 2 | 5
 
 function varint(n: number): number[] {
   const out: number[] = []
@@ -198,22 +209,43 @@ const key = (field: number, wire: number): number[] => varint(field * 8 + wire)
 const lenField = (field: number, body: number[]): number[] => [...key(field, 2), ...varint(body.length), ...body]
 const strField = (field: number, s: string): number[] => lenField(field, [...Buffer.from(s, 'utf8')])
 const varField = (field: number, n: number): number[] => [...key(field, 0), ...varint(n)]
+function unread(wire: UnreadWireType | undefined): number[] {
+  switch (wire) {
+    case undefined:
+      return []
+    case 0:
+      return varField(99, 1)
+    case 1:
+      return [...key(99, 1), 1, 0, 0, 0, 0, 0, 0, 0]
+    case 2:
+      return strField(99, 'unread')
+    case 5:
+      return [...key(99, 5), 1, 0, 0, 0]
+  }
+}
 
 export function encodeTrajectoryMetadata(f: TrajectoryFixture): Uint8Array {
   const uris = f.rawUris ?? f.folders.map((p) => pathToFileURL(p).href)
   const out: number[] = []
+  const wrong = f.wrongWireType
   for (const uri of f.workspaceFolderUris ?? uris) {
-    out.push(...lenField(1, [...strField(1, uri), ...strField(2, uri), ...lenField(3, []), ...strField(4, 'main')]))
+    const folder = wrong === 'workspaceFolders' ? varField(1, 1) : strField(1, uri)
+    const workspace = [...folder, ...strField(2, uri), ...lenField(3, []), ...strField(4, 'main'), ...unread(f.unreadField)]
+    out.push(...(wrong === 'workspaces' ? varField(1, 1) : lenField(1, workspace)))
   }
   const at = f.createdAt ?? { seconds: 1793174782, nanos: 117495000 }
   out.push(...lenField(2, [...varField(1, at.seconds), ...varField(2, at.nanos)]))
   out.push(...strField(3, f.initializationStateId ?? '2cc09734-de77-497c-9422-8ae78cd9b5a2'))
-  if (f.parentConversationId !== undefined) out.push(...strField(5, f.parentConversationId))
+  if (wrong === 'parentConversation') out.push(...varField(5, 1))
+  else if (f.parentConversationId !== undefined) out.push(...strField(5, f.parentConversationId))
   out.push(...strField(6, f.parentConversationId ?? f.conversationId))
-  if (!f.omitWorkspaceUris) for (const uri of uris) out.push(...strField(7, uri))
-  if (f.subagentSpec) out.push(...lenField(8, strField(1, 'self')))
-  if (f.nestingDepth !== undefined) out.push(...varField(17, f.nestingDepth))
+  if (!f.omitWorkspaceUris) for (const uri of uris) out.push(...(wrong === 'workspaceUris' ? varField(7, 1) : strField(7, uri)))
+  if (wrong === 'subagentSpec') out.push(...varField(8, 1))
+  else if (f.subagentSpec) out.push(...lenField(8, strField(1, 'self')))
+  if (wrong === 'nestingDepth') out.push(...lenField(17, [1]))
+  else if (f.nestingDepth !== undefined) out.push(...varField(17, f.nestingDepth))
   out.push(...strField(18, 'default-cli-project'))
+  out.push(...unread(f.unreadField))
   return Uint8Array.from(out)
 }
 

@@ -1089,6 +1089,13 @@ describe('the trajectory record, read by the engine module (token-stats::REQ-003
     })
     expect((await entryOf(file))?.projectKey).toBe(key)
   })
+
+  // Derived: a field no descriptor of agy 1.4.9 declares, as a later agy may add one, at the top level and inside each
+  // workspace; groups and wire types 6 and 7 stay malformed, whatever the field (proto.rs, `each_field`)
+  it.each([0, 1, 2, 5] as const)('a record carrying a field the reader does not read, in wire type %i, still decodes (token-stats::REQ-004/AC-01)', async (unreadField) => {
+    const e = await entryOf(asked('conv-u', encodeTrajectoryMetadata({ folders: ['/work/p'], conversationId: 'conv-u', unreadField })))
+    expect(e).toMatchObject({ unreadable: false, projectKey: '/work/p', subagent: false, calls: [['m-conv-u', oct(26), 10, 1, 0, 0, 'gemini-3.6-flash']] })
+  })
 })
 
 // token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
@@ -1253,6 +1260,29 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     const r = await build()
     expect(r.antigravityUnreadable).toBe(9)
     expect(agyTotal(r)).toBe(110)
+  })
+
+  // Derived: no measured record carries a field in another wire type. Read as absent, each would still credit the
+  // conversation to a folder — 7 and 1 each name it when the other cannot — and as a main one
+  it.each([
+    ['its workspaces', 'workspaces'],
+    ['a workspace\'s folder URI', 'workspaceFolders'],
+    ['its parent conversation', 'parentConversation'],
+    ['its workspace URIs', 'workspaceUris'],
+    ['its subagent spec', 'subagentSpec'],
+    ['its nesting depth', 'nestingDepth']
+  ] as const)('a trajectory record carrying %s in another wire type will not decode: left out of every figure and every list, and counted (AC-01)', async (_field, wrongWireType) => {
+    const p = mkProject('p')
+    trust([p])
+    usageConversation('good', [p], [{ usage: { messageId: 'm-good', input: 100, output: 10 }, at: oct(26) }])
+    writeTranscript(agyRoot(), 'good', [MEASURED_TRANSCRIPT.main[0]])
+    usageConversation('drifted', [p], [{ usage: { messageId: 'm-drifted', input: 5000 }, at: oct(26) }], {
+      record: encodeTrajectoryMetadata({ folders: [p], conversationId: 'drifted', wrongWireType })
+    })
+    writeTranscript(agyRoot(), 'drifted', [MEASURED_TRANSCRIPT.main[0]])
+    const r = await build()
+    const listed = (r.perProject.get(mergeKey(p))?.sessions ?? []).map((s) => basename(s.file))
+    expect([agyTotal(r), r.antigravityUnreadable, listed]).toEqual([110, 1, ['good.db']])
   })
 
   it('a read that fails while a log is beside the database is not counted, keeps the last result, and is read again (AC-03)', async () => {
