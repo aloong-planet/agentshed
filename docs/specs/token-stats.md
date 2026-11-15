@@ -671,7 +671,8 @@ Applies to: every conversation database of the side, forks and subagent conversa
   conversation that changed is read twice in one scan — once for its folder (the session walk) and
   once for its usage — so one agy is writing is copied twice. A conversation whose database time and
   log did not change since its last read is not read again, and a conversation found unreadable keeps
-  that verdict, counted at every scan, until its database or its log changes. The session walk keeps
+  that verdict, counted at every scan, until its database or its log changes — one the scan could not
+  look at, until it can. The session walk keeps
   only successful reads, so it opens an unreadable conversation again at every scan — in place, or
   through a copy while a log is beside it — and finds it unreadable again.
 - A read cut short by the application being killed leaves its copy in a temporary directory only the
@@ -1097,7 +1098,11 @@ read with macOS `footprint`.
   token-stats::CON-002. The records are decoded by field
   number against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and
   skipping the prompt fields by their length prefix; a field the reader reads arriving in another
-  wire type than its descriptor declares is a record that will not decode. The extraction script and
+  wire type than its descriptor declares is a record that will not decode. An entry an earlier version
+  of the app cached from a record already in that state stands whole — its figures, its project and
+  its place in the session lists, a drifted subagent marker leaving it listed as a main conversation —
+  and is not counted, until the conversation's signature changes, while the session walk credits it to
+  no folder (the `CACHE_VERSION` comment in `src/main/providers/token-stats.ts` says why). The extraction script and
   the descriptor set stay with the research record so a drift can be re-checked. Within a database a
   call's three records are joined by identity — the step brings the time, the generator record the
   model; calls are de-duplicated across databases after the per-file results are combined, since
