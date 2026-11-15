@@ -18,10 +18,10 @@
 // (no read permission). The list's fallback is driven through a parse runner that removes the file. A case is
 // due if the session's own call stops sharing that expression.
 import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, wholeCombination, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
+import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { TEST_ENGINE, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
 import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storedGroups, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule } from '../engine-module'
@@ -1612,7 +1612,7 @@ describe('upgrading from the JSON cache (token-stats C26)', () => {
     const first = await relaunch()
     expect(first.parsed).toEqual([])
     expect(storedGroups(cacheDir())).toEqual([[chain.a, chain.b, chain.c]])
-    await expectOneCombination(first.result)
+    await expectFromScratch(first.result)
   })
 
   it.each([
@@ -2012,9 +2012,9 @@ describe('two processes on one store (token-stats C27)', () => {
 })
 
 // Combining by group (token-stats::CON-003): what a scan derives from the token cache is exactly what one combination
-// over every file of the scan set, in scan order, gives from the same entries. Each case builds its scan set, scans it
-// with the engine module's grouped combination, and compares every output field with the whole combination over the
-// entries the scan stored, put in scan order.
+// over every file of the scan set, in scan order, gives from the same entries. The cases for each way files share a key
+// compare with what they recorded while the whole TypeScript combination still ran beside them and gave the same
+// (#420); the cases that change a scan set compare each scan with the store's every group combined again from scratch.
 /** What a build derives from the token cache, each list in its order: the usage rows, each project's figures and
  * sessions, the stripped forks titled by their first question left, and the unreadable conversations */
 function figures(r: TokenBuildResult): unknown {
@@ -2027,19 +2027,35 @@ function figures(r: TokenBuildResult): unknown {
   }
 }
 
-/** One combination over every entry the store holds, in scan order, with agy's titles as `titles` */
-async function oneCombination(titles = new Map<string, string>()): Promise<TokenBuildResult> {
-  const order = compareScanOrder(roots())
-  const entries = [...storedEntries(cacheDir())].sort(([a], [b]) => order(a, b))
-  return wholeCombination(
-    entries.map(([, e]) => e.agg),
-    titles
-  )
+/** What a build gives that the combination decides, compactly: each usage row, each project's sessions in their order,
+ * and the count of unreadable conversations; every other figure is derived from the rows (`deriveStats`) */
+function scanOutput(r: TokenBuildResult): unknown {
+  const p = (key: string): string => (key === mergeKey(proj) ? '<proj>' : key)
+  return {
+    rows: r.rows.map((x) => [x.day, x.side, p(x.projectKey), x.model, x.input, x.output, x.cacheRead, x.cacheWrite, x.total]),
+    sessions: [...r.perProject].map(([key, s]) => [p(key), s.sessions.map((x) => [basename(x.file), x.title, x.tokens, x.questionCount, x.forkState])]),
+    unreadable: r.antigravityUnreadable
+  }
 }
 
-/** The scan's figures are one combination's over the scan set */
-async function expectOneCombination(r: TokenBuildResult, titles?: Map<string, string>): Promise<void> {
-  expect(figures(r)).toStrictEqual(figures(await oneCombination(titles)))
+let copies = 0
+
+/**
+ * The scan's figures are one combination's over the scan set, from scratch: a copy of the store, scanned by an engine of
+ * a combination of its own, combines every group again from the stored entries, with nothing parsed and the scan's own
+ * store left as it was. `build` is the scan's own call, made again by that engine.
+ */
+async function expectFromScratch(r: TokenBuildResult, build: (e: TokenEngine) => Promise<TokenBuildResult> = (e) => e.build(roots(), [proj])): Promise<void> {
+  const copy = join(dir, `store-copy-${copies++}`)
+  mkdirSync(copy)
+  for (const suffix of ['', '-wal']) {
+    const from = storePath(cacheDir()) + suffix
+    if (existsSync(from)) copyFileSync(from, join(copy, STORE_FILE + suffix))
+  }
+  const { runner, jobs } = recording()
+  const again = await build(new TokenEngine(copy, TEST_ENGINE, runner))
+  expect(jobs.map((j) => j.file), 'every entry of the copy is current').toEqual([])
+  expect(figures(r)).toStrictEqual(figures(again))
 }
 
 /**
@@ -2134,7 +2150,20 @@ describe('combining by group gives the figures of one combination (token-stats::
   it('a file that links two otherwise separate groups: the three are combined as one', async () => {
     const { a, b, c } = linkedChain()
     const r = await engine().build(roots(), [proj])
-    await expectOneCombination(r)
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-01', 'claude', '<proj>', 'claude-fable-5', 150, 10, 0, 0, 160],
+        ['2026-07-02', 'claude', '<proj>', 'claude-opus-5-5', 40, 4, 0, 0, 44]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['c.jsonl', 'third question', 0, 1, 'none'],
+          ['b.jsonl', 'second question', 204, 1, 'none'],
+          ['a.jsonl', 'first question', 0, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
     // The control that the link decided something: B kept both messages, A and C none
     const tokens = new Map(r.perProject.get(mergeKey(proj))?.sessions.map((s) => [s.file, s.tokens]))
     expect(Object.fromEntries([a, b, c].map((f) => [f, tokens.get(f)]))).toEqual({ [a]: 0, [b]: 204, [c]: 0 })
@@ -2156,7 +2185,19 @@ describe('combining by group gives the figures of one combination (token-stats::
       realAssistantLine({ uuid: 'a3', parent: 'u2', id: 'msg_01m2', requestId: 'req_01r2', at: '2026-07-02T10:00:30.000Z', block: 'text', output: 90, session: 's-2' })
     ])
     const r = await engine().build(roots(), [proj])
-    await expectOneCombination(r)
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-01', 'claude', '<proj>', 'claude-fable-5', 6, 412, 18000, 1200, 19618],
+        ['2026-07-02', 'claude', '<proj>', 'claude-fable-5', 6, 90, 18000, 1200, 19296]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['7a2e-resumed.jsonl', 'add a retry to the uploader', 38914, 2, 'none'],
+          ['1f0c-first.jsonl', 'add a retry to the uploader', 0, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
     const tokens = new Map(r.perProject.get(mergeKey(proj))?.sessions.map((s) => [s.file, s.tokens]))
     // m1 once, with the resumed file's complete usage: 6 + 412 + 18000 + 1200, then m2's
     expect([tokens.get(first), tokens.get(resumed)]).toEqual([0, 19618 + 19296])
@@ -2171,7 +2212,17 @@ describe('combining by group gives the figures of one combination (token-stats::
     ])
     const own = mkClaudeFile('9b1d.jsonl', [userLine('dispatch a reviewer', '2026-07-03T07:59:00Z'), usageLine('claude-fable-5', '2026-07-03T08:00:00Z', 120, 12, { id: 'm1', requestId: 'r-own' })])
     const r = await engine().build(roots(), [proj])
-    await expectOneCombination(r)
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-03', 'claude', '<proj>', 'claude-fable-5', 170, 17, 0, 0, 187]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['9b1d.jsonl', 'dispatch a reviewer', 132, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
     expect(r.global.bySide.claude.total, 'm1 counted once, as the session\'s own copy, beside the subagent\'s own message').toBe(132 + 55)
     expect(r.sessionFiles).toEqual(new Set([own, sub]))
   })
@@ -2187,7 +2238,18 @@ describe('combining by group gives the figures of one combination (token-stats::
     ])
     mkCodexRollout('rollout-z-019fd11.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', turns, false, 2000, 'sample question', { id: 'p-10' })
     const r = await engine().build(roots(), [proj])
-    await expectOneCombination(r)
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-30', 'codex', '<proj>', 'gpt-5.6-sol', 530, 60, 70, 0, 660]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['rollout-a-019fd10.jsonl', 'question after the fork', 330, 1, 'uncertain'],
+          ['rollout-z-019fd11.jsonl', 'sample question', 330, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
     expect(r.global.bySide.codex.total, 'the fork\'s replay of its parent stripped: the parent\'s two turns once, the fork\'s own one').toBe(110 + 220 + 330)
   })
 
@@ -2198,7 +2260,16 @@ describe('combining by group gives the figures of one combination (token-stats::
       { usage: { messageId: 'm-own', input: 7, output: 1 }, at: Date.parse('2026-07-31T02:00:00Z') }
     ])
     const r = await engine().build(roots(), [proj])
-    await expectOneCombination(r)
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-30', 'antigravity', '<proj>', 'gemini-3.6-flash', 40, 4, 0, 0, 44],
+        ['2026-07-31', 'antigravity', '<proj>', 'gemini-3.6-flash', 7, 1, 0, 0, 8]
+      ],
+      sessions: [
+        ['<proj>', []]
+      ],
+      unreadable: 0
+    })
     expect(r.global.bySide.antigravity.total).toBe(44 + 8)
   })
 
@@ -2209,7 +2280,21 @@ describe('combining by group gives the figures of one combination (token-stats::
     mkCodexRollout('rollout-t-019fd12.jsonl', proj, at, 'gpt-5.6-sol', [{ input: 30, cached: 0, output: 3, at }], false, 2000, 'sample question', { id: 't-12' })
     mkClaudeFile('c.jsonl', [userLine('later', '2026-07-30T04:00:00Z'), usageLine('claude-fable-5', '2026-07-30T04:00:00Z', 5, 1, { id: 'mc' })])
     const r = await engine().build(roots(), [proj])
-    await expectOneCombination(r)
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-30', 'claude', '<proj>', 'claude-fable-5', 35, 4, 0, 0, 39],
+        ['2026-07-30', 'codex', '<proj>', 'gpt-5.6-sol', 30, 3, 0, 0, 33]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['c.jsonl', 'later', 6, 1, 'none'],
+          ['a.jsonl', 'first', 22, 1, 'none'],
+          ['b.jsonl', 'second', 11, 1, 'none'],
+          ['rollout-t-019fd12.jsonl', 'sample question', 33, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
     expect(r.perProject.get(mergeKey(proj))?.sessions.map((s) => s.title)).toEqual(['later', 'first', 'second', 'sample question'])
   })
 
@@ -2218,13 +2303,26 @@ describe('combining by group gives the figures of one combination (token-stats::
     const keyed = mkClaudeFile('m.jsonl', [userLine('ids here', '2026-07-30T03:30:00Z'), usageLine('claude-fable-5', '2026-07-30T03:30:00Z', 10, 1, { id: 'mk' })])
     const grok = mkGrokSession(proj, 'gk', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })])
     const r = await engine().build(roots(), [proj])
-    await expectOneCombination(r)
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-30', 'claude', '<proj>', 'claude-fable-5', 20, 2, 0, 0, 22],
+        ['2026-07-30', 'grok', '<proj>', 'grok-4.5-build', 50, 5, 0, 0, 55]
+      ],
+      sessions: [
+        ['<proj>', [
+          ['m.jsonl', 'ids here', 11, 1, 'none'],
+          ['k.jsonl', 'no ids here', 11, 1, 'none'],
+          ['updates.jsonl', 'a grok question', 55, 1, 'none']
+        ]]
+      ],
+      unreadable: 0
+    })
     expect(storedGroups(cacheDir()).sort()).toEqual([[keyless], [keyed], [grok]].sort())
   })
 
   it('a sequence of scans over one home: after each, the summed stored results are one combination over the scan set', async () => {
     const e = engine()
-    const scan = async (): Promise<void> => expectOneCombination(await e.build(roots(), [proj]))
+    const scan = async (): Promise<void> => expectFromScratch(await e.build(roots(), [proj]))
     const day = (d: number, h = 10): string => `2026-07-${String(d).padStart(2, '0')}T${String(h).padStart(2, '0')}:00:00Z`
     const aLines = [userLine('a question', day(1)), usageLine('claude-fable-5', day(1), 10, 1, { id: 'm1' })]
     const a = mkClaudeFile('a.jsonl', aLines)
@@ -2271,7 +2369,7 @@ describe('a group (token-stats, Implementation Decisions, Cache)', () => {
     expect(storedGroups(cacheDir())).toEqual([[a, b, c]])
     // B's usage lines lose their message ids: nothing links A, B and C any more
     mkClaudeFile('b.jsonl', [userLine('second question', '2026-07-01T10:30:00Z'), usageLine('claude-fable-5', '2026-07-01T11:00:00Z', 150, 10), usageLine('claude-opus-5-5', '2026-07-02T09:00:00Z', 40, 4)], 2000)
-    await expectOneCombination(await e.build(roots(), [proj]))
+    await expectFromScratch(await e.build(roots(), [proj]))
     expect(storedGroups(cacheDir()).sort()).toEqual([[a], [b], [c]].sort())
   })
 })
@@ -2300,7 +2398,7 @@ describe('a group whose input differs is combined again (token-stats, Implementa
     const moved = join(dirname(first), 'd.jsonl')
     renameSync(first, moved)
     const r = await e.build(roots(), [proj])
-    await expectOneCombination(r)
+    await expectFromScratch(r)
     expect(tokens(r)).toEqual({ 'b question': 0, 'c question': 11 })
     expect(parsed(), 'the moved file alone is new to the store').toEqual([moved])
     expect(other).toBeTruthy()
@@ -2314,7 +2412,7 @@ describe('a group whose input differs is combined again (token-stats, Implementa
     const r = await e.build(roots(), [], new Set([mergeKey(proj)]))
     expect(r.sessionFiles.has(rollout)).toBe(true)
     expect(parsed()).toEqual([])
-    await expectOneCombination(r)
+    await expectFromScratch(r, (e) => e.build(roots(), [], new Set([mergeKey(proj)])))
   })
 
   it('a Claude project registered admits its subagent\'s transcript to the read allow-list', async () => {
@@ -2326,7 +2424,7 @@ describe('a group whose input differs is combined again (token-stats, Implementa
     const r = await e.build(roots(), [proj], new Set([mergeKey(proj)]))
     expect(r.sessionFiles).toEqual(new Set([own, sub]))
     expect(parsed()).toEqual([])
-    await expectOneCombination(r)
+    await expectFromScratch(r, (e) => e.build(roots(), [proj], new Set([mergeKey(proj)])))
   })
 
   it('an Antigravity title changed in agy\'s titles database titles the session', async () => {
@@ -2346,7 +2444,7 @@ describe('a group whose input differs is combined again (token-stats, Implementa
     const r = await e.build(roots(), [proj])
     expect(titleOf(r)).toEqual(['Calc.py, renamed'])
     expect(parsed()).toEqual([])
-    await expectOneCombination(r, new Map([['agy-t', 'Calc.py, renamed']]))
+    await expectFromScratch(r)
   })
 
   // A Codex session's name is read from the session index when its rollout is parsed (session-view B4): renamed there
@@ -2366,7 +2464,7 @@ describe('a group whose input differs is combined again (token-stats, Implementa
     const unchanged = await e.build(roots(), [proj])
     expect(titleOf(unchanged)).toEqual(['first name'])
     expect(parsed()).toEqual([])
-    await expectOneCombination(unchanged)
+    await expectFromScratch(unchanged)
     mkCodexRollout(file, proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }, { input: 50, cached: 0, output: 5 }], false, 3000, 'sample question', { id })
     expect(titleOf(await e.build(roots(), [proj]))).toEqual(['renamed'])
   })
@@ -2404,7 +2502,7 @@ describe('a group\'s stored result', () => {
     onStore(cacheDir(), sql, chainGroup[0])
     const again = await launch('1.0.0')
     expect(again.parsed).toEqual([])
-    await expectOneCombination(again.result)
+    await expectFromScratch(again.result)
     expect(storedGroups(cacheDir()).find((g) => g.includes(chain.a))).toEqual([chain.a, chain.b, chain.c])
   })
 
@@ -2416,7 +2514,7 @@ describe('a group\'s stored result', () => {
     mkClaudeFile('d.jsonl', [userLine('a lone question', '2026-07-03T09:00:00Z'), usageLine('claude-fable-5', '2026-07-03T09:00:00Z', 7, 1, { id: 'md' }), usageLine('claude-fable-5', '2026-07-03T10:00:00Z', 9, 1, { id: 'md2' })], 3000)
     const after = await launch('1.0.0')
     expect(after.parsed).toEqual([lone])
-    await expectOneCombination(after.result)
+    await expectFromScratch(after.result)
     const entries = storeRows(cacheDir())
     expect(entries.filter((r) => r.path !== lone)).toEqual(before.entries.filter((r) => r.path !== lone))
     expect(entries.find((r) => r.path === lone)).not.toEqual(before.entries.find((r) => r.path === lone))
@@ -2435,7 +2533,7 @@ describe('a group\'s stored result', () => {
     const before = resultRows()
     const again = await launch(next)
     expect(again.parsed).toEqual([])
-    await expectOneCombination(again.result)
+    await expectFromScratch(again.result)
     // Each row records the combination it came from (a row's number is reused once every row is gone)
     const earlier = new Set(before.map((r) => r[3]))
     expect(resultRows().filter((r) => earlier.has(r[3])), 'no row is one the earlier combination wrote').toEqual([])
@@ -2462,7 +2560,7 @@ describe('a group\'s stored result', () => {
       const tokyo = await launch('1.0.0')
       expect(tokyo.parsed).toEqual([])
       expect(days(tokyo.result)).toEqual({ claude: '2026-07-30', codex: '2026-07-31', grok: '2026-07-31', antigravity: '2026-07-31' })
-      await expectOneCombination(tokyo.result)
+      await expectFromScratch(tokyo.result)
       const earlier = new Set(before.map((r) => r[3]))
       expect(resultRows().filter((r) => earlier.has(r[3])), 'no row is one the earlier zone\'s combination wrote').toEqual([])
     } finally {
@@ -2482,7 +2580,7 @@ describe('a group\'s stored result', () => {
     const r = await e.build(roots(), [proj])
     expect(jobs, 'the scan finds the page\'s entry current').toEqual([])
     expect(r.global.bySide.claude.total).toBe(11 + 110)
-    await expectOneCombination(r)
+    await expectFromScratch(r)
   })
 })
 

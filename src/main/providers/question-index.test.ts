@@ -614,7 +614,10 @@ describe('the title and the question set share a source (after the last-leaf wal
 // a program in one go, with line gaps
 // near zero, whereas a human's questions follow a human rhythm).
 // ─────────────────────────────────────────────────────────────────────────
-import { fingerprint, stripReplayPrefix, type ForkState } from './question-index'
+import { fingerprint } from './question-index'
+import type { ForkState } from '@shared/domain'
+import { loadEngineModule } from '../engine-module'
+import { TEST_ENGINE } from '../testing/engine'
 
 /** Build one index record: only the timestamp and fingerprint take part in the strip judgement, so the
  * offsets can be anything */
@@ -626,8 +629,10 @@ function strip(
   forkedAt: number | null,
   isFork = true
 ): { n: number; state: ForkState } {
-  const r = stripReplayPrefix(child, parent, forkedAt, isFork)
-  return { n: r.questions.length, state: r.state }
+  // The rule is the engine module's (engine/src/question/), which the scan's combination and the session page both
+  // take: how many leading questions are stripped, and the fork's state
+  const r = loadEngineModule(TEST_ENGINE).stripReplayPrefix(child, parent, forkedAt, isFork)
+  return { n: child.length - r.stripped, state: r.state }
 }
 
 describe('stripping the Codex replay prefix', () => {
@@ -693,8 +698,8 @@ describe('stripping the Codex replay prefix', () => {
 
   test('the parent is missing and the opening timestamps are out of order (a negative difference) → not a burst, nothing is stripped', () => {
     // A negative difference is not evidence of "written by a program in one go" (a single write has
-    // monotonic timestamps); the same rule as the token side's
-    // skipRewrittenBurst: stop at a negative difference. The direction of failure is stripping too much →
+    // monotonic timestamps); the same rule as the token side's rewrite burst
+    // (engine/src/sides/codex/combine.rs): stop at a negative difference. The direction of failure is stripping too much →
     // a real question silently disappears.
     const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
     const c = [rec(ms(1000), 'A'), rec(ms(400), 'B'), rec(ms(500), 'C')]
@@ -713,13 +718,6 @@ describe('stripping the Codex replay prefix', () => {
     const p = [rec(T(1), 'A'), rec(T(2), 'B')]
     const c = [rec(T(5), 'A')]
     expect(strip(c, p, T(5))).toEqual({ n: 0, state: 'uncertain' })
-  })
-
-  test('stripping does not alter the offsets of the records it keeps', () => {
-    const p = [rec(T(1), 'A')]
-    const c: QuestionRec[] = [rec(T(5), 'A'), [111, 222, 333, T(6), 2, 1, fingerprint('B')]]
-    const r = stripReplayPrefix(c, p, T(5), true)
-    expect(r.questions[0]).toEqual([111, 222, 333, T(6), 2, 1, fingerprint('B')])
   })
 })
 
