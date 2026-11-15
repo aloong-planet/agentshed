@@ -103,15 +103,3 @@ fn modified_ms(file: &str) -> Option<f64> {
     let m = std::fs::metadata(file).ok()?;
     Some(m.mtime() as f64 * 1000.0 + m.mtime_nsec() as f64 / 1_000_000.0)
 }
-
-/// The day a usage line is filed under: its local date in the time zone the process runs in, `YYYY-MM-DD` as
-/// `localDay` in `src/shared/format.ts` writes it, from `[getFullYear(), getMonth(), getDate()]`. The date is asked of
-/// JavaScript's `Date` (`Js::local_dates`) rather than worked out here, so the time zone, its rules and their data are
-/// the ones every other day in the app is cut by, and no time-zone rule exists twice.
-pub(super) fn day([year, month, date]: [f64; 3]) -> Units {
-    let two = |n: f64| {
-        let s = text::number_string(n);
-        if s.len() < 2 { format!("0{s}") } else { s }
-    };
-    text::units(&format!("{}-{}-{}", text::number_string(year), two(month + 1.0), two(date)))
-}

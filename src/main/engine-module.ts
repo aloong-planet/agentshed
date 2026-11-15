@@ -5,9 +5,11 @@
 // line rules read — and every write of the display copy (token-stats, Scans and the window). Nothing here imports
 // electron, which a worker thread cannot load.
 import { join } from 'node:path'
-import type { AgentSide } from '@shared/domain'
+import type { AgentSide, ForkState, SessionMeta } from '@shared/domain'
+import type { UsageRow } from './providers/archive'
 import type { CodexSessionMeta } from './providers/codex'
 import type { GrokSessionMeta } from './providers/grok'
+import type { QuestionRec } from './providers/question-index'
 import type { SessionWalk } from './providers/scan'
 import type { ParseJob, ParseResult } from './providers/token-stats'
 import type { ScanRoots } from './providers/types'
@@ -21,6 +23,43 @@ export interface TokenStoreRow {
   resume?: string | null
 }
 
+/** A file's row without its entry (engine/src/exports/cache_entries.rs): its signature, and what the module read of its
+ * entry when it was written — its side, whether it is listed, its project, and the id its side's forks name it by (a
+ * Codex session id, a readable Antigravity conversation's own id) — absent for an entry the module could not read */
+export interface TokenStoreHead {
+  path: string
+  sig?: string | null
+  kind?: string | null
+  listed?: boolean | null
+  projectKey?: string | null
+  ownId?: string | null
+}
+
+/** One file of a scan, in scan order: its new entry when a parse gave it one, otherwise the one the store holds; its
+ * admission to the read allow-list; a title read beside it (agy's own, for an Antigravity conversation) */
+export interface ScanFile {
+  path: string
+  put?: { sig: string; agg: string; resume?: string }
+  admitted: boolean
+  title: string | null
+}
+
+/** What a scan derives from the token cache (token-stats::CON-003): the usage rows, each project's sessions newest first,
+ * the read allow-list, the count of unreadable Antigravity conversations, and `[project, session, start, end]` for each
+ * stripped Codex fork titled by its first question left, whose live text titles it */
+export interface CombinedScan {
+  rows: UsageRow[]
+  projects: Array<[string, SessionMeta[]]>
+  sessionFiles: string[]
+  antigravityUnreadable: number
+  retitle: Array<[number, number, number, number]>
+  /** Why the store could not be read or written, or null */
+  failure: string | null
+  /** The files left out of the scan's figures: those a last scan could not combine, and those whose new entry the store
+   * cannot hold (a figure past the range of a double), each that file's failed read */
+  leftOut: string[]
+}
+
 /** One thread's token store (ADR-0044). A failure of the store is a returned message; only a panic throws. */
 export interface TokenStore {
   /** Whether opening made the store: none was there, or what was there was replaced (token-stats C1, C2) */
@@ -28,7 +67,14 @@ export interface TokenStore {
   /** Why the store could not be opened, or null; a store that has one holds nothing and takes no write */
   readonly failure: string | null
   get(path: string): { rows: TokenStoreRow[]; failure?: string | null }
-  all(): { rows: TokenStoreRow[]; failure?: string | null }
+  heads(): { rows: TokenStoreHead[]; failure?: string | null }
+  /**
+   * A scan by group (token-stats::CON-003) under `combination`, the store left holding its entries and results: its
+   * figures, or the files whose stored entry the combination cannot read, which are parsed again before a scan of them
+   * again, nothing having been written. A `last` scan gives its figures, leaving out what it cannot combine. A new entry
+   * that is not well formed throws.
+   */
+  scan(combination: string, files: ScanFile[], last: boolean): CombinedScan | { bad: string[]; failure: string | null }
   /** Holds `puts` and removes `removes` in one transaction: null when it landed, otherwise why it did not */
   write(puts: Array<{ path: string; sig: string; agg: string; resume?: string }>, removes: string[]): string | null
   /** Whether another process wrote to the store since this thread last asked (token-stats C27) */
@@ -105,6 +151,12 @@ export interface EngineModule {
   /** A copy of a token store, read without writing to it or beside it (token-stats C16): the version it records,
    * absent when it is no store, and its rows when that is the version asked */
   readTokenStoreSnapshot(file: string, version: number): { version?: number | null; rows?: TokenStoreRow[] | null }
+  /** Combines entries held in memory, in scan order, as one combination over them gives; an entry it cannot read is left
+   * out of the figures and named in `leftOut` */
+  combineEntries(entries: Array<{ path: string; agg: string; admitted: boolean; title: string | null }>): CombinedScan
+  /** How many of a Codex fork's leading questions replay its parent's, and its fork state (session-view B2); `parent` is
+   * null when the parent is not in the scan set */
+  stripReplayPrefix(child: QuestionRec[], parent: QuestionRec[] | null, forkedAt: number | null, isFork: boolean): { stripped: number; state: ForkState }
 }
 
 /** Where a thread loads the engine module from, and the build it must report; plain data, so it crosses to a worker */

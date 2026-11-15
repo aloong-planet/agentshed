@@ -4,6 +4,7 @@
 //! file, its project, the session metadata, a resumed parse's running total — goes back as the job's own JavaScript
 //! value. The walk's sessions it writes as the TypeScript `CodexSessionMeta`.
 
+mod combine;
 mod entry;
 mod head;
 mod line;
@@ -31,6 +32,19 @@ impl Side for Codex {
             Some(parsed) => write_result(js, &given, &parsed),
             None => js.null(),
         }
+    }
+
+    fn decode(&self, agg: &str) -> Option<crate::group::Decoded> {
+        combine::decode(agg)
+    }
+
+    fn combine(
+        &self,
+        dates: &crate::exports::js::LocalDates<'_>,
+        members: &[crate::group::Member<'_>],
+        out: &mut crate::group::Builder,
+    ) -> Result<std::result::Result<(), u32>> {
+        combine::combine(dates, members, out)
     }
 
     fn question_text(&self, range: &str) -> Option<Units> {

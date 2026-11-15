@@ -156,10 +156,10 @@ export class ScanClient {
  * module the worker loads.
  */
 export function startScans(o: ScanWorkerData & { script: string }): ScanClient {
-  const data: ScanWorkerData = { cacheDir: o.cacheDir, parseScript: o.parseScript, poolSize: o.poolSize, engine: o.engine }
+  const data: ScanWorkerData = { cacheDir: o.cacheDir, parseScript: o.parseScript, poolSize: o.poolSize, engine: o.engine, combination: o.combination }
   return new ScanClient({
     spawn: () => new Worker(o.script, { workerData: data }),
-    fallback: () => new Scanner(o.cacheDir, o.engine, new ParsePool(o.parseScript, o.poolSize, o.engine)),
+    fallback: () => new Scanner(o.cacheDir, o.engine, new ParsePool(o.parseScript, o.poolSize, o.engine), o.combination),
     confirm: () => loadEngineModule(o.engine)
   })
 }
