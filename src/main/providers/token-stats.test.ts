@@ -4116,10 +4116,11 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
   const codexDay = (): string => join(dir, '.codex', 'sessions', '2026', '07', '30')
   const grokDir = (): string => join(dir, '.grok', 'sessions', encodeURIComponent(proj))
   const agyDir = (): string => join(dir, '.gemini', 'antigravity-cli', 'conversations')
-  /** A session in every directory a case locks: a Claude Code session with a subagent's transcript, in a day's directory
-   * a plain Codex rollout and a cold one, an archived rollout, a Grok session and its subagent's, an Antigravity
-   * conversation. The totals: Claude Code 15 + 22, Codex 110 + 220 + 330, Grok 55 + 44, Antigravity 15. */
-  function everySide(): Record<'claude' | 'nested' | 'codex' | 'cold' | 'archived' | 'grok' | 'grokChild' | 'agy', string> {
+  /** A session in every directory a case locks: a Claude Code session with a subagent's transcript and a session of a
+   * project nobody registered (its tokens count globally, A2), in a day's directory a plain Codex rollout and a cold one,
+   * an archived rollout, a Grok session and its subagent's, an Antigravity conversation. The totals: Claude Code 15 + 22
+   * + 101, Codex 110 + 220 + 330, Grok 55 + 44, Antigravity 15. */
+  function everySide(): Record<'claude' | 'nested' | 'unregistered' | 'codex' | 'cold' | 'archived' | 'grok' | 'grokChild' | 'agy', string> {
     const archived = mkCodexRollout('rollout-2026-07-30T00-30-00-019f5a01.jsonl', proj, '2026-07-30T00:30:00Z', 'gpt-5.6-sol', [{ input: 300, cached: 0, output: 30, record: 'resp_k0' }])
     mkdirSync(join(dir, '.codex', 'archived_sessions'), { recursive: true })
     const archivedAt = join(dir, '.codex', 'archived_sessions', basename(archived))
@@ -4132,6 +4133,7 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
       cold,
       claude: mkClaudeFile('a.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'mk1', requestId: 'rk1' })]),
       nested: mkClaudeFile(join('a', 'subagents', 'agent-1.jsonl'), [usageLine('claude-fable-5', '2026-07-30T02:01:00Z', 20, 2, { id: 'mk2', requestId: 'rk2', sidechain: true })]),
+      unregistered: mkClaudeFile('u.jsonl', [userLine('elsewhere'), usageLine('claude-fable-5', '2026-07-30T02:30:00Z', 100, 1, { id: 'mk-u', requestId: 'rk-u' })], 1000, encodeClaudeProjectDir(join(dir, 'work', 'unregistered'))),
       codex: mkCodexRollout('rollout-2026-07-30T01-00-00-019f5a02.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10, record: 'resp_k1' }]),
       archived: archivedAt,
       grok: mkGrokSession(proj, 'gk1', [grokUser(1785369500, 'a grok question', 0), grokTurn(1785369600, { input: 50, output: 5 })]),
@@ -4144,8 +4146,8 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
    * counts of `everySide` without the files below it */
   const LEFT: Array<{ name: string; locked: () => string; side: (typeof BUILT_SIDES)[number]; left: number }> = [
     { name: 'Claude Code\'s projects directory', locked: projects, side: 'claude', left: 0 },
-    { name: 'a Claude Code project\'s directory', locked: claudeDir, side: 'claude', left: 0 },
-    { name: 'a Claude Code session\'s directory of transcripts', locked: (): string => join(claudeDir(), 'a'), side: 'claude', left: 15 },
+    { name: 'a Claude Code project\'s directory', locked: claudeDir, side: 'claude', left: 101 },
+    { name: 'a Claude Code session\'s subagents', locked: (): string => join(claudeDir(), 'a', 'subagents'), side: 'claude', left: 116 },
     { name: 'Codex\'s sessions', locked: (): string => join(dir, '.codex', 'sessions'), side: 'codex', left: 330 },
     { name: 'a Codex day\'s directory', locked: codexDay, side: 'codex', left: 330 },
     { name: 'Codex\'s archived sessions', locked: (): string => join(dir, '.codex', 'archived_sessions'), side: 'codex', left: 330 },
@@ -4232,7 +4234,7 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
   // Each held file is looked at as a listed one is: one that is no longer there — a part of its path not found — is gone,
   // its entry removed and no conversation counted unreadable, and its siblings are kept
   it.each([
-    { name: 'a Claude Code project\'s directory', locked: claudeDir, gone: (f: ReturnType<typeof everySide>): string => f.claude, side: 'claude' as const, left: 22 },
+    { name: 'a Claude Code project\'s directory', locked: claudeDir, gone: (f: ReturnType<typeof everySide>): string => f.claude, side: 'claude' as const, left: 123 },
     { name: 'a Codex day\'s directory', locked: codexDay, gone: (f: ReturnType<typeof everySide>): string => f.codex, side: 'codex' as const, left: 550 },
     { name: 'Codex\'s sessions, the day\'s directory with it,', locked: (): string => join(dir, '.codex', 'sessions'), gone: (): string => join(dir, '.codex', 'sessions', '2026'), side: 'codex' as const, left: 330 },
     { name: 'a Grok project\'s directory', locked: grokDir, gone: (f: ReturnType<typeof everySide>): string => dirname(f.grok), side: 'grok' as const, left: 44 },

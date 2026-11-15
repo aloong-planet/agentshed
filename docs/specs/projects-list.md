@@ -117,6 +117,13 @@ and are never written back to any agent configuration.
   most-recent time drawn partly from another side, while its side count stays at one. The two answer
   different questions — "how many sides claim this project" versus "when was this directory last
   worked in" — and are deliberately not reconciled; A8 is where they visibly diverge.
+- B10 A session directory the scan finds there but cannot list ([token-stats](token-stats.md), Failure modes
+  and boundaries: the token store) fails only its own listing. The sessions below it that the scan keeps from
+  the token store still count toward the session count, which the backfill takes from the sessions tab. The
+  most recent session time comes from the activity's own listing and takes only the sessions that listing
+  reaches. On the Claude Code side that listing is each project's encoded directory, listed by its own path
+  (B1): one that cannot be listed gives that side no session time, and Claude Code's projects directory is not
+  listed for it, so one that cannot be listed but can be entered leaves the time as it is.
 
 **Sequence C: filtering**
 - C1 Search, side filtering and stale filtering all **stack**, never overriding one another.
