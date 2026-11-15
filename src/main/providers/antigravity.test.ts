@@ -58,7 +58,7 @@ import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ERR, decodeAppError } from '@shared/errors'
 import { mergeKey } from '@shared/path-key'
 import { scan, walkSessions } from './scan'
@@ -527,8 +527,10 @@ function usageConversation(
 }
 
 const cacheDir = (): string => join(dir, 'cache')
-function build(runner?: ParseRunner): Promise<TokenBuildResult> {
-  return new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [], undefined, walkSessions(roots()))
+/** A build by a new engine; with `combination`, one of the builds of a run that combines under it (TokenEngine), and
+ * otherwise a run of its own, whose first scan combines every group again */
+function build(runner?: ParseRunner, combination?: string): Promise<TokenBuildResult> {
+  return new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, combination).build(roots(), [], undefined, walkSessions(roots()))
 }
 const agyRows = (r: TokenBuildResult): TokenBuildResult['rows'] => r.rows.filter((x) => x.side === 'antigravity')
 const agyTotal = (r: TokenBuildResult): number => r.global.bySide.antigravity.total
@@ -1121,25 +1123,29 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     const p = mkProject('p')
     trust([p])
     usageConversation('busy', [p], [{ usage: { messageId: 'm-b1', input: 100, output: 10 }, at: oct(26) }], { keepOpen: true })
-    expect(agyTotal(await build())).toBe(110)
+    // One run's builds: a run of its own combines every group again, and writes each result
+    const run = 'one run'
+    expect(agyTotal(await build(undefined, run))).toBe(110)
     // agy writes on: a second call lands in the log, and a conversation never read before appears, also being written
     const more = callRows('busy', [{ usage: { messageId: 'm-b2', input: 200, output: 20 }, at: oct(26) }], 3, 1)
     insertSteps(writers[0], more.steps)
     insertGens(writers[0], more.gens)
     usageConversation('fresh', [p], [{ usage: { messageId: 'm-f', input: 1000, output: 100 }, at: oct(26) }], { keepOpen: true })
     const stored = storeFileBytes(cacheDir())
-    const failed = await build(copyFails)
+    const failed = await build(copyFails, run)
     expect([agyTotal(failed), failed.antigravityUnreadable]).toEqual([110, 0])
     // The result kept is the one the store holds, and a read that gave nothing changed nothing: the build writes
     // nothing (token-stats::QR-002/AC-02)
     expect(storeFileBytes(cacheDir())).toEqual(stored)
-    expect(agyTotal(await build())).toBe(330 + 1100)
+    expect(agyTotal(await build(undefined, run))).toBe(330 + 1100)
   })
 
-  // The result kept is the entry the store held when this build read it. SQLite leaves a row rewritten with the content
-  // it holds as it was, so writing it back shows only where the store moved meanwhile: another engine landed the
-  // conversation's newer entry, and this build would put its older one back over it (token-stats C27, QR-002/AC-02).
-  it('a kept result is not written back: the entry another engine landed while this build\'s read failed stays (AC-03, token-stats C27)', async () => {
+  // The result kept is the entry the store holds as this build combines, its last successful read: the build takes the
+  // store as it is and never combines from what it held in memory (token-stats C27). Another engine landed the
+  // conversation's newer entry after this build planned its read, so that entry is the one kept. SQLite leaves a row
+  // rewritten with the content it holds as it was, so writing the older entry back would show only here, where the store
+  // moved meanwhile; the build writes none (QR-002/AC-02).
+  it('a kept result is not written back: the entry another engine landed while this build\'s read failed stays, and is the one kept (AC-03, token-stats C27)', async () => {
     const p = mkProject('p')
     trust([p])
     usageConversation('busy', [p], [{ usage: { messageId: 'm-b1', input: 100, output: 10 }, at: oct(26) }], { keepOpen: true })
@@ -1160,7 +1166,7 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
         return copyFails.run(job)
       }
     }
-    expect(agyTotal(await build(failsAfterTheOther))).toBe(110)
+    expect(agyTotal(await build(failsAfterTheOther))).toBe(330)
     expect(landed).toBe(true)
     const parsed: string[] = []
     const counting: ParseRunner = {
@@ -1172,6 +1178,75 @@ describe('conversations that cannot be read (token-stats::REQ-004)', () => {
     }
     expect(agyTotal(await build(counting)), 'the store holds the other engine\'s entry').toBe(330)
     expect(parsed).toEqual([])
+  })
+
+  // The other engine's scan found the conversation outside its scan set and removed its entry after this build planned
+  // to keep it: nothing is left to keep, so the conversation is read again within this build, as a miss, and a read
+  // that fails while agy writes leaves it out of the figures, not counted as unreadable. The failure of one entry fails
+  // no scan (the AGENTS.md invariant on reading agent data).
+  it('a kept result another engine removed while this build\'s read failed: the build completes without it (AC-03, token-stats C27)', async () => {
+    const p = mkProject('p')
+    trust([p])
+    usageConversation('busy', [p], [{ usage: { messageId: 'm-b1', input: 100, output: 10 }, at: oct(26) }], { keepOpen: true })
+    expect(agyTotal(await build())).toBe(110)
+    const more = callRows('busy', [{ usage: { messageId: 'm-b2', input: 200, output: 20 }, at: oct(26) }], 3, 1)
+    insertSteps(writers[0], more.steps)
+    insertGens(writers[0], more.gens)
+    let removed = false
+    const failsAfterTheOther: ParseRunner = {
+      concurrency: 1,
+      run: async (job) => {
+        if (!removed) {
+          removed = true
+          // Another engine, whose agy data root holds no conversation, removes every Antigravity entry
+          const elsewhere = { ...roots(), antigravityHome: join(dir, 'elsewhere') }
+          const other = await new TokenEngine(cacheDir(), TEST_ENGINE).build(elsewhere, [], undefined, walkSessions(elsewhere))
+          expect(agyTotal(other)).toBe(0)
+        }
+        return copyFails.run(job)
+      }
+    }
+    const kept = await build(failsAfterTheOther)
+    expect(removed).toBe(true)
+    expect([agyTotal(kept), kept.antigravityUnreadable]).toEqual([0, 0])
+    expect(agyTotal(await build()), 'and the next scan reads it again').toBe(330)
+  })
+
+  // Another process removes one kept entry before this build's first round and another before the round after it,
+  // which is the build's last: what the store still cannot give then is left out of this scan's figures, uncounted, and
+  // read again at the next, so a build takes two rounds at most however the store moves under it
+  it('kept results removed one after the other while this build\'s reads fail: the build completes in two rounds without them', async () => {
+    const p = mkProject('p')
+    trust([p])
+    const one = usageConversation('busy-1', [p], [{ usage: { messageId: 'm-1', input: 100, output: 10 }, at: oct(26) }], { keepOpen: true })
+    const two = usageConversation('busy-2', [p], [{ usage: { messageId: 'm-2', input: 200, output: 20 }, at: oct(26) }], { keepOpen: true })
+    expect(agyTotal(await build())).toBe(330)
+    for (const [i, [id, input]] of ([['busy-1', 300], ['busy-2', 400]] as const).entries()) {
+      const more = callRows(id, [{ usage: { messageId: `${id}-more`, input, output: input / 10 }, at: oct(26) }], 3, 1)
+      insertSteps(writers[i], more.steps)
+      insertGens(writers[i], more.gens)
+    }
+    let reads = 0
+    const removing: ParseRunner = {
+      concurrency: 1,
+      run: (job) => {
+        reads++
+        // The two planned reads come first, then the read again of the entry removed before the first round
+        if (reads === 1) onStore(cacheDir(), 'DELETE FROM entries WHERE path = ?', one)
+        if (reads === 3) onStore(cacheDir(), 'DELETE FROM entries WHERE path = ?', two)
+        return copyFails.run(job)
+      }
+    }
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const kept = await build(removing)
+      expect(reads).toBe(3)
+      expect([agyTotal(kept), kept.antigravityUnreadable]).toEqual([0, 0])
+      expect(warned).toHaveBeenCalledWith('[token-store] left out of this scan and read again at the next:', two)
+    } finally {
+      warned.mockRestore()
+    }
+    expect(agyTotal(await build()), 'and the next scan reads both again').toBe(440 + 660)
   })
 
   describe('a conversation deleted between the scan\'s listing and its read is not unreadable', () => {
@@ -1379,10 +1454,14 @@ describe('a corrupt cache entry for a conversation', () => {
     expect(agyTotal(await build())).toBe(110)
     // The control: a well-formed entry under the row's signature is reused, so the signature is the one the engine matches
     storeAgg(file, { kind: 'antigravity', file, ...wellFormed })
+    expect(new TokenEngine(cacheDir(), TEST_ENGINE).isFresh(file)).toBe(true)
     expect(agyTotal(await build())).toBe(999_000)
     const partial: Record<string, unknown> = { ...wellFormed }
     delete partial[missing]
     storeAgg(file, { kind: 'antigravity', file, ...partial })
+    // Both reads turn it away: TypeScript's (the session page's freshness check) and the engine module's, as a new
+    // engine's build combines every group again
+    expect(new TokenEngine(cacheDir(), TEST_ENGINE).isFresh(file)).toBe(false)
     expect(agyTotal(await build())).toBe(110)
   })
 
@@ -1396,6 +1475,7 @@ describe('a corrupt cache entry for a conversation', () => {
     const file = usageConversation('conv-g', [p], [{ usage: { messageId: 'm-g', input: 100, output: 10 }, at: oct(26) }])
     expect(agyTotal(await build())).toBe(110)
     storeAgg(file, { kind: 'antigravity', file, ...wellFormed, ...change })
+    expect(new TokenEngine(cacheDir(), TEST_ENGINE).isFresh(file)).toBe(false)
     expect(agyTotal(await build())).toBe(110)
   })
 })

@@ -168,9 +168,10 @@ impl TokenStore {
 
     /// Scans `files` (`{ path, put?: { sig, agg, resume? }, admitted, title }`, in scan order) by group under the
     /// combination `combination`: `{ bad, failure }` naming the files whose stored entry the combination cannot read,
-    /// with nothing written, or the scan's figures (`summed`) with why the store could not be read or written, or null
+    /// with nothing written, or the scan's figures (`summed`) with why the store could not be read or written, or null.
+    /// A `last` scan names no file: what it cannot combine it leaves out of its figures, and names in `leftOut`.
     #[napi(catch_unwind)]
-    pub fn scan<'env>(&self, env: &'env Env, combination: String, files: Unknown<'env>) -> Result<Unknown<'env>> {
+    pub fn scan<'env>(&self, env: &'env Env, combination: String, files: Unknown<'env>, last: bool) -> Result<Unknown<'env>> {
         let js = Js::new(env);
         let files = scan_files(&js, files.value().value)?;
         let Some(store) = &self.store else {
@@ -179,8 +180,10 @@ impl TokenStore {
             return answer(env, if files.iter().all(|f| f.put.is_some()) { in_memory(&js, &files, failure)? } else { bad(&js, &files, failure)? });
         };
         let dates = js.local_dates()?;
-        let answer_value = match group::scan(store, &dates, &combination, &files)? {
-            Scanned::Summed { summed: s, failure } => summed(&js, &s, &files.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(), failure)?,
+        let answer_value = match group::scan(store, &dates, &combination, &files, last)? {
+            Scanned::Summed { summed: s, failure, left_out } => {
+                summed(&js, &s, &files.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(), failure, &left_out)?
+            }
             Scanned::Bad { files: paths, failure } => {
                 let list = js.array(paths.iter().map(|p| js.text(&text::units(p))))?;
                 let failure = match failure {
@@ -251,7 +254,7 @@ fn in_memory(js: &Js, files: &[ScanFile], failure: Option<String>) -> Result<nap
     let entries: Vec<_> = files.iter().map(|f| (f.put.as_ref().map_or("", |p| p.agg.as_str()), f.admitted, f.title.as_deref())).collect();
     let dates = js.local_dates()?;
     match group::combine_entries(&dates, &entries)? {
-        Ok(s) => summed(js, &s, &files.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(), failure),
+        Ok(s) => summed(js, &s, &files.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(), failure, &[]),
         Err(bad) => Err(Error::from_reason(format!("the entry parsed for {} is not well formed", files[bad[0]].path))),
     }
 }
@@ -267,9 +270,10 @@ fn bad(js: &Js, files: &[ScanFile], failure: Option<String>) -> Result<napi_valu
 }
 
 /// The figures a scan derives from the token cache, as `TokenEngine` takes them: `{ rows, projects, sessionFiles,
-/// antigravityUnreadable, retitle, failure }`. `projects` holds `[key, sessions]` pairs; `retitle` holds `[project,
-/// session, start, end]` for each session titled by its first question left; `paths` are the scan's files by place.
-pub(super) fn summed(js: &Js, s: &Summed, paths: &[&str], failure: Option<String>) -> Result<napi_value> {
+/// antigravityUnreadable, retitle, failure, leftOut }`. `projects` holds `[key, sessions]` pairs; `retitle` holds
+/// `[project, session, start, end]` for each session titled by its first question left; `leftOut` the files a last scan
+/// could not combine; `paths` are the scan's files by place.
+pub(super) fn summed(js: &Js, s: &Summed, paths: &[&str], failure: Option<String>, left_out: &[String]) -> Result<napi_value> {
     let rows = js.array(s.rows.iter().map(|r| {
         let [input, output, read, write, total] = r.figures;
         js.object(&[
@@ -315,5 +319,6 @@ pub(super) fn summed(js: &Js, s: &Summed, paths: &[&str], failure: Option<String
         ("antigravityUnreadable", js.num(s.unreadable)?),
         ("retitle", retitle),
         ("failure", failure),
+        ("leftOut", js.array(left_out.iter().map(|p| js.text(&text::units(p))))?),
     ])
 }

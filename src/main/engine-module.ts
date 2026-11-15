@@ -50,6 +50,8 @@ export interface CombinedScan {
   retitle: Array<[number, number, number, number]>
   /** Why the store could not be read or written, or null */
   failure: string | null
+  /** The files a last scan could not combine, left out of its figures */
+  leftOut: string[]
 }
 
 /** One thread's token store (ADR-0044). A failure of the store is a returned message; only a panic throws. */
@@ -63,9 +65,10 @@ export interface TokenStore {
   /**
    * A scan by group (token-stats::CON-003) under `combination`, the store left holding its entries and results: its
    * figures, or the files whose stored entry the combination cannot read, which are parsed again before a scan of them
-   * again, nothing having been written. A new entry that is not well formed throws.
+   * again, nothing having been written. A `last` scan gives its figures, leaving out what it cannot combine. A new entry
+   * that is not well formed throws.
    */
-  scan(combination: string, files: ScanFile[]): CombinedScan | { bad: string[]; failure: string | null }
+  scan(combination: string, files: ScanFile[], last: boolean): CombinedScan | { bad: string[]; failure: string | null }
   /** Holds `puts` and removes `removes` in one transaction: null when it landed, otherwise why it did not */
   write(puts: Array<{ path: string; sig: string; agg: string; resume?: string }>, removes: string[]): string | null
   /** Whether another process wrote to the store since this thread last asked (token-stats C27) */

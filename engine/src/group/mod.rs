@@ -14,7 +14,9 @@
 //!   from its first read to its commit, so another process's write lands before it or after it (token-stats C27); one
 //!   that cannot take the lock combines from what it reads, writes nothing, and says why.
 //! - An entry the scan finds not well formed while combining is the caller's to parse again: the scan writes nothing
-//!   and names those files.
+//!   and names those files. The caller's scan after it is its last: a file whose entry the store still cannot give then
+//!   (another process removed or rewrote it meanwhile) is left out of that scan's figures and read again at the next,
+//!   so a scan takes two rounds at most.
 
 mod entry;
 mod result;
@@ -59,8 +61,8 @@ pub(crate) struct ScanFile {
 /// What a scan gives
 pub(crate) enum Scanned {
     /// The scan's figures, and why the store could not be read or written, when it could not; what could not be written
-    /// costs the next scan the work again
-    Summed { summed: Summed, failure: Option<String> },
+    /// costs the next scan the work again. `left_out` are the files a last scan could not combine.
+    Summed { summed: Summed, failure: Option<String>, left_out: Vec<String> },
     /// Files whose stored entry is not one the combination can read, which the caller parses again; nothing was
     /// written. `failure` says why the store could not be read, when that is the reason.
     Bad { files: Vec<String>, failure: Option<String> },
@@ -382,8 +384,9 @@ fn stored_results(conn: &Connection, plan: &mut Plan) -> Result<Vec<(usize, Grou
 
 /// Scans `files`, in scan order: the store's entries and the new ones combined by group, each group combined again only
 /// when it differs from what its stored result came from, the store left holding this scan's entries and results, and
-/// the results summed. A new entry that is not well formed throws: the module's own parse made it.
-pub(crate) fn scan(store: &Store, dates: &LocalDates<'_>, combination: &str, files: &[ScanFile]) -> napi::Result<Scanned> {
+/// the results summed. A new entry that is not well formed throws: the module's own parse made it. A `last` scan names
+/// no file to parse again: what it cannot combine it leaves out.
+pub(crate) fn scan(store: &Store, dates: &LocalDates<'_>, combination: &str, files: &[ScanFile], last: bool) -> napi::Result<Scanned> {
     let mut decoded = Vec::with_capacity(files.len());
     for f in files {
         decoded.push(match &f.put {
@@ -401,7 +404,7 @@ pub(crate) fn scan(store: &Store, dates: &LocalDates<'_>, combination: &str, fil
                         for (g, result) in &stored {
                             sum.add(result, &places(plan.groups[*g].members.as_deref().unwrap_or_default()));
                         }
-                        return Ok(Scanned::Summed { summed: sum.finish(), failure: None });
+                        return Ok(Scanned::Summed { summed: sum.finish(), failure: None, left_out: Vec::new() });
                     }
                 }
             }
@@ -413,14 +416,14 @@ pub(crate) fn scan(store: &Store, dates: &LocalDates<'_>, combination: &str, fil
         Ok(tx) => (tx, true, None),
         Err(why) => match store.read_transaction() {
             Ok(tx) => (tx, false, Some(why)),
-            Err(_) => return unread(dates, files, Some(why)),
+            Err(_) => return unread(dates, files, Some(why), last),
         },
     };
-    let combined = match combine_planned(&tx, dates, combination, files, &decoded)? {
+    let combined = match combine_planned(&tx, dates, combination, files, &decoded, last)? {
         Ok(combined) => combined,
         Err(Unread::Store(why)) => {
             drop(tx);
-            return unread(dates, files, Some(why));
+            return unread(dates, files, Some(why), last);
         }
         Err(Unread::Bad(bad)) => return Ok(Scanned::Bad { files: bad, failure: None }),
     };
@@ -441,7 +444,7 @@ pub(crate) fn scan(store: &Store, dates: &LocalDates<'_>, combination: &str, fil
             Err(why) => failure = Some(why),
         }
     }
-    Ok(Scanned::Summed { summed: sum.finish(), failure })
+    Ok(Scanned::Summed { summed: sum.finish(), failure, left_out: combined.left_out })
 }
 
 fn places(members: &[usize]) -> Vec<u32> {
@@ -460,6 +463,8 @@ struct Combined {
     plan: Plan,
     stored: Vec<(usize, GroupResult)>,
     new: Vec<(GroupResult, Vec<usize>, Vec<u8>)>,
+    /// The files a last scan left out
+    left_out: Vec<String>,
 }
 
 fn combine_planned(
@@ -468,15 +473,22 @@ fn combine_planned(
     combination: &str,
     files: &[ScanFile],
     decoded: &[Option<(Facts, Vec<i64>)>],
+    last: bool,
 ) -> napi::Result<Result<Combined, Unread>> {
     let store_failed = |why: String| Ok(Err(Unread::Store(why)));
     let mut plan = match plan(conn, combination, files) {
         Ok(plan) => plan,
         Err(why) => return store_failed(why),
     };
-    if !plan.bad.is_empty() {
+    if !plan.bad.is_empty() && !last {
         return Ok(Err(Unread::Bad(std::mem::take(&mut plan.bad))));
     }
+    // A last scan leaves out a file the store gives no entry for: it is in no group this scan combines
+    let mut left_out = std::mem::take(&mut plan.bad);
+    let mut taken = vec![false; files.len()];
+    let out: HashMap<&str, ()> = left_out.iter().map(|p| (p.as_str(), ())).collect();
+    let skipped: Vec<bool> = files.iter().map(|f| out.contains_key(f.path.as_str())).collect();
+    plan.seeds.retain(|&p| !skipped[p]);
     let mut stored = match stored_results(conn, &mut plan) {
         Ok(stored) => stored,
         Err(why) => return store_failed(why),
@@ -503,7 +515,7 @@ fn combine_planned(
         Ok(keys)
     };
     // The files combined again, with every group their keys now reach: a new entry's key can join groups that were apart
-    let mut taken = vec![false; files.len()];
+    skipped.iter().enumerate().for_each(|(p, &s)| taken[p] = s);
     let mut queue: Vec<usize> = plan.seeds.clone();
     queue.iter().for_each(|&p| taken[p] = true);
     // With every group combined again there is no group left to reach
@@ -541,14 +553,14 @@ fn combine_planned(
         }
     }
     stored.retain(|(g, _)| !plan.groups[*g].dirty);
-    let again: Vec<usize> = (0..files.len()).filter(|&p| taken[p]).collect();
+    let again: Vec<usize> = (0..files.len()).filter(|&p| taken[p] && !skipped[p]).collect();
     let groups = match components(&again, files.len(), |p| keys_of(p, &mut cache)) {
         Ok(groups) => groups,
         Err(why) => return store_failed(why),
     };
     let mut new = Vec::with_capacity(groups.len());
     let mut bad = Vec::new();
-    for group in groups {
+    for mut group in groups {
         // One group's entries at a time
         let mut aggs = Vec::with_capacity(group.len());
         for &p in &group {
@@ -561,24 +573,43 @@ fn combine_planned(
                 (None, None) => None,
             });
         }
-        if let Some(i) = aggs.iter().position(Option::is_none) {
-            bad.push(files[group[i]].path.clone());
-            continue;
-        }
-        let members: Vec<_> =
-            group.iter().zip(&aggs).map(|(&p, agg)| (agg.as_deref().unwrap_or(""), files[p].admitted, files[p].title.as_deref())).collect();
-        match combine_group(dates, &members)? {
-            Ok(result) => {
-                let input = input(group.iter().map(|&p| (plan.revs[p], files[p].admitted, files[p].title.clone())));
-                new.push((result, group, input));
+        loop {
+            let unreadable: Vec<usize> = (0..group.len()).filter(|&i| aggs[i].is_none()).collect();
+            let found = if unreadable.is_empty() {
+                let members: Vec<_> =
+                    group.iter().zip(&aggs).map(|(&p, agg)| (agg.as_deref().unwrap_or(""), files[p].admitted, files[p].title.as_deref())).collect();
+                match combine_group(dates, &members)? {
+                    Ok(result) => {
+                        let input = input(group.iter().map(|&p| (plan.revs[p], files[p].admitted, files[p].title.clone())));
+                        new.push((result, group, input));
+                        break;
+                    }
+                    Err(members) => members,
+                }
+            } else {
+                unreadable
+            };
+            let paths = found.iter().map(|&i| files[group[i]].path.clone());
+            if !last {
+                bad.extend(paths);
+                break;
             }
-            Err(members) => bad.extend(members.into_iter().map(|m| files[group[m]].path.clone())),
+            // A last scan combines the group's other files, as one group: a set its keys close, which is all the
+            // combination asks of a group
+            left_out.extend(paths);
+            for &i in found.iter().rev() {
+                group.remove(i);
+                aggs.remove(i);
+            }
+            if group.is_empty() {
+                break;
+            }
         }
     }
     if !bad.is_empty() {
         return Ok(Err(Unread::Bad(bad)));
     }
-    Ok(Ok(Combined { plan, stored, new }))
+    Ok(Ok(Combined { plan, stored, new, left_out }))
 }
 
 /// Writes what a scan changed, in its write transaction `tx`: the removals, the new entries with their keys, and the
@@ -605,15 +636,22 @@ fn write(tx: &Connection, combination: &str, files: &[ScanFile], decoded: &[Opti
     Ok(())
 }
 
-/// A scan whose store could not be read: files with new entries alone can be combined, from memory; otherwise the files
-/// the store was to give are the caller's to parse again
-fn unread(dates: &LocalDates<'_>, files: &[ScanFile], failure: Option<String>) -> napi::Result<Scanned> {
-    if files.iter().any(|f| f.put.is_none()) {
-        return Ok(Scanned::Bad { files: files.iter().filter(|f| f.put.is_none()).map(|f| f.path.clone()).collect(), failure });
+/// A scan whose store could not be read: the files with new entries are combined from memory; the files the store was
+/// to give are the caller's to parse again, or, in a last scan, left out
+fn unread(dates: &LocalDates<'_>, files: &[ScanFile], failure: Option<String>, last: bool) -> napi::Result<Scanned> {
+    let held: Vec<String> = files.iter().filter(|f| f.put.is_none()).map(|f| f.path.clone()).collect();
+    if !held.is_empty() && !last {
+        return Ok(Scanned::Bad { files: held, failure });
     }
-    let entries: Vec<_> = files.iter().map(|f| (f.put.as_ref().map_or("", |p| p.agg.as_str()), f.admitted, f.title.as_deref())).collect();
+    let given: Vec<&ScanFile> = files.iter().filter(|f| f.put.is_some()).collect();
+    let entries: Vec<_> = given.iter().map(|f| (f.put.as_ref().map_or("", |p| p.agg.as_str()), f.admitted, f.title.as_deref())).collect();
     match combine_entries(dates, &entries)? {
-        Ok(summed) => Ok(Scanned::Summed { summed, failure }),
-        Err(bad) => Err(Error::from_reason(format!("the entry parsed for {} is not well formed", files[bad[0]].path))),
+        // Places are the scan's: the files given entries are put back where they are in it
+        Ok(mut summed) => {
+            let place: Vec<u32> = files.iter().enumerate().filter(|(_, f)| f.put.is_some()).map(|(p, _)| p as u32).collect();
+            summed.allow = summed.allow.iter().map(|&i| place[i as usize]).collect();
+            Ok(Scanned::Summed { summed, failure, left_out: held })
+        }
+        Err(bad) => Err(Error::from_reason(format!("the entry parsed for {} is not well formed", given[bad[0]].path))),
     }
 }

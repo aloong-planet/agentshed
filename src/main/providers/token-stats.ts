@@ -475,8 +475,8 @@ class CacheEntries {
 
   /** A scan by group (token-stats::CON-003): the module reads a held entry, and judges it, as its group is combined
    * again; the store's failures come back as a value, which the caller logs */
-  scan(combination: string, files: ScanFile[]): CombinedScan | { bad: string[]; failure: string | null } {
-    return this.#store.scan(combination, files)
+  scan(combination: string, files: ScanFile[], last: boolean): CombinedScan | { bad: string[]; failure: string | null } {
+    return this.#store.scan(combination, files, last)
   }
 
   /** Holds `puts` and removes `removes`, all of it or none (token-stats C3); whether it landed */
@@ -878,10 +878,11 @@ export class TokenEngine {
     // The time zone the scan runs in is part of the combination: Codex, Grok and Antigravity usage is filed under its
     // day as the groups are combined
     const combination = `${this.combination} ${Intl.DateTimeFormat().resolvedOptions().timeZone}`
-    let combined = this.combine(store, combination, slots)
-    // A stored entry the combination cannot read is parsed again, its file a miss, and the scan run again; each round
-    // leaves fewer entries to read, as a parsed one is new to the scan
-    while ('bad' in combined) {
+    let combined = this.combine(store, combination, slots, false)
+    // A stored entry the combination cannot read is parsed again, its file a miss, and the scan run again, once: that
+    // round is the last, and what the store still cannot give then — another process removed or rewrote it meanwhile —
+    // is left out of this scan's figures and read again at the next (token-stats C27)
+    if ('bad' in combined) {
       if (combined.failure) console.error('[token-store] read failed:', combined.failure)
       const bad = new Set(combined.bad)
       const again: Slot[] = []
@@ -890,10 +891,11 @@ export class TokenEngine {
         slots[i] = slot.miss()
         again.push(slots[i])
       })
-      if (again.length === 0) throw new Error(`the token store named entries this scan did not give it: ${[...bad].join(', ')}`)
       await this.parse(again)
-      combined = this.combine(store, combination, slots)
+      combined = this.combine(store, combination, slots, true)
+      if ('bad' in combined) throw new Error('the token store named entries to parse again in a scan\'s last round')
     }
+    if (combined.leftOut.length > 0) console.warn('[token-store] left out of this scan and read again at the next:', combined.leftOut.join(', '))
     // A scan whose write did not land is logged and costs the next scan the work again, which the store then still
     // lacks (token-stats C3)
     if (combined.failure) console.error('[token-store] write failed:', combined.failure)
@@ -927,7 +929,7 @@ export class TokenEngine {
    * otherwise held in the store; a file with neither has no entry, and its held one, if any, is removed. With no store,
    * every file was parsed, and the entries are combined in memory.
    */
-  private combine(store: CacheEntries | null, combination: string, slots: Slot[]): CombinedScan | { bad: string[]; failure: string | null } {
+  private combine(store: CacheEntries | null, combination: string, slots: Slot[], last: boolean): CombinedScan | { bad: string[]; failure: string | null } {
     const files: ScanFile[] = []
     for (const slot of slots) {
       if (slot.entry) {
@@ -938,7 +940,7 @@ export class TokenEngine {
         files.push({ path: slot.file, admitted: slot.admit({ projectKey: h.projectKey ?? '', listed: h.listed === true }), title: this.titleBeside(h.kind, h.ownId) })
       }
     }
-    if (store) return store.scan(combination, files)
+    if (store) return store.scan(combination, files, last)
     return loadEngineModule(this.engine).combineEntries(
       files.map((f) => ({ path: f.path, agg: f.put?.agg ?? '', admitted: f.admitted, title: f.title }))
     )

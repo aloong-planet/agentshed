@@ -39,7 +39,7 @@ pub fn combine_entries<'env>(env: &'env Env, entries: Unknown<'env>) -> Result<U
     let given: Vec<_> = held.iter().map(|(_, agg, admitted, title)| (agg.as_str(), *admitted, title.as_deref())).collect();
     let dates = js.local_dates()?;
     let answer = match crate::group::combine_entries(&dates, &given)? {
-        Ok(s) => summed(&js, &s, &held.iter().map(|(path, ..)| path.as_str()).collect::<Vec<_>>(), None)?,
+        Ok(s) => summed(&js, &s, &held.iter().map(|(path, ..)| path.as_str()).collect::<Vec<_>>(), None, &[])?,
         Err(bad) => return Err(Error::from_reason(format!("the entry for {} is not well formed", held[bad[0]].0))),
     };
     unsafe { Unknown::from_napi_value(env.raw(), answer) }
