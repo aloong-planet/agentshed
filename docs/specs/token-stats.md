@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module)
+> Related: ADR-0005 (aligned with ccusage) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module)
 
 > Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0029).
@@ -63,7 +63,9 @@ all of them.
 - A1 The total sums all four fields (input/output/cacheRead/cacheWrite), with cache displayed
   separately; model buckets use the same rule.
 - A2 Whole-tree scan: an unregistered project's encoded directory also counts toward the global total
-  (independent of the registry) but is not listed as its own project.
+  (independent of the registry) but is not listed as its own project. Subagent transcripts under a
+  session's `subagents/` directory are scanned like any other file: their usage counts, and they give
+  no session entry (as B3 and F5 say of the Codex and Grok sides).
 - A3 Duplicate lines with the same `message.id + requestId` count once, keeping the one with the more
   complete usage.
 - A4 Sidechain replays (same message.id, new requestId) are deduplicated across files, keeping the
@@ -76,7 +78,7 @@ all of them.
 - A9 A line counts its own usage's four figures, its `cache_creation` breakdown included (A7), and never
   reads the `iterations` that usage also lists, whose elements repeat those figures' names. ccusage takes a
   line's figures the same way, and reads its iterations only to split those of type `advisor_message` into
-  entries of their own, a detail ADR-0005 (option 3) defers. So a reply whose own input, output and
+  entries of their own, a detail ADR-0005 (option 4) defers. So a reply whose own input, output and
   cache-read figures are zero while its iterations carry them, and that has no copy elsewhere with figures
   of its own (A3), is under-counted. Such replies exist; the under-count is known and accepted until the
   figures differ from ccusage's perceptibly (ADR-0005's restart condition), as taking a reply's figures
@@ -957,8 +959,8 @@ read with macOS `footprint`.
   in the preferences alone, not in cached usage or archive structures; the accounting stamp and
   parser rules do not depend on it.
 
-- **Accounting**: see ADR-0005/0006 (the sides' total formulas differ and must not be copied from
-  one another) and ADR-0019 for the third side's onboarding rules. ccusage reads the Claude Code,
+- **Accounting**: see ADR-0005, ADR-0006 and ADR-0023 (the sides' total formulas differ and must not
+  be copied from one another) and ADR-0019 for the third side's onboarding rules. ccusage reads the Claude Code,
   Codex and Grok sides and has no Antigravity CLI reader; for Codex its figures match only on days
   whose rollouts carry no usage records.
 - **Day usage shape**: a day's per-side figures are keyed by side (ADR-0020). The provider breakdown
