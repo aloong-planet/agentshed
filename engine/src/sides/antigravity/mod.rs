@@ -117,17 +117,7 @@ fn write_entry(js: &Js, file: napi_value, e: &Entry) -> Result<napi_value> {
             text_or_null(js, c.model.as_ref()),
         ])
     }))?;
-    let questions = js.array(e.questions.iter().map(|q| {
-        js.array([
-            js.num(q.start),
-            js.num(q.end),
-            js.num(q.turn_end),
-            js.num_or_null(q.at),
-            js.num(q.tools),
-            js.num(q.subagents),
-            js.num(q.fingerprint),
-        ])
-    }))?;
+    let questions = js.records(&e.questions)?;
     let agg = js.object(&[
         ("kind", js.text(&text::units("antigravity"))?),
         ("file", file),

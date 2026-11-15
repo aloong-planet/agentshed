@@ -7,7 +7,7 @@
 //! `src/main/providers/question-index.ts`, and a turn by `src/main/providers/turn-content.ts`, which apply the same
 //! question and rewind rules (until #432): a change to those rules here is made there too.
 
-use crate::json::{Kind, Read, Reader, Str};
+use crate::json::{self, Kind, Read, Reader, Str};
 use crate::question::Record;
 use crate::read::{self, Stored};
 use crate::text::{self, Units};
@@ -81,18 +81,14 @@ fn calls(r: &mut Reader<'_>) -> Read<(u32, u32)> {
     let (mut dispatches, mut others) = (0, 0);
     r.elements(|r| {
         let mut name = None;
-        if r.kind()? == Kind::Object {
-            r.members(|key, r| {
-                if key.is("name") {
-                    name = r.string_or_skip()?;
-                } else {
-                    r.skip()?;
-                }
-                Ok(())
-            })?;
-        } else {
-            r.skip()?;
-        }
+        json::record(r, |key, r| {
+            if key.is("name") {
+                name = r.string_or_skip()?;
+            } else {
+                r.skip()?;
+            }
+            Ok(())
+        })?;
         if name.is_some_and(|n| n.is(DISPATCH)) {
             dispatches += 1;
         } else {
