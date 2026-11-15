@@ -65,8 +65,9 @@ pub(super) fn walk(tree: &str, decode: &dyn Fn(&str) -> Result<Option<Units>>) -
 
 /// Whether a session is a subagent's. A child session sits beside its parent, so depth cannot tell the two apart: the
 /// judgement reads what the record says about itself, `summary.json`'s `"session_kind": "subagent"` (measured
-/// 2026-08-16; a parent session has no `session_kind` at all). A summary that cannot be read says nothing, and a record
-/// that says nothing is not a subagent — miscounting one extra session is visible, silently dropping a real one is not.
+/// 2026-08-16; a top-level session's names none, or another kind: `headless`, measured 2026-11-15, projects-list B8).
+/// A summary that cannot be read says nothing, and a record that says nothing is not a subagent — miscounting one extra
+/// session is visible, silently dropping a real one is not.
 pub(super) fn subagent(session_dir: &str) -> bool {
     let Ok(bytes) = fs::read(walk::below(session_dir, "summary.json")) else { return false };
     says_subagent(&String::from_utf8_lossy(&bytes)).unwrap_or(false)

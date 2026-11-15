@@ -53,19 +53,21 @@ function writeGrokRegistry(paths: string[]): void {
  * Build a Grok session directory (the real layout measured 2026-08-16):
  * sessions/<percent-encoded cwd>/<session-id>/ with updates.jsonl as the authoritative stream.
  * A real child session carries `"session_kind": "subagent"` in its summary.json and sits beside its
- * parent; a parent has no session_kind key at all. The summary is written as Grok writes one (measured
- * 2026-11-15): indented two spaces over many lines, with no final line feed.
+ * parent; a top-level session's names no session_kind, or another one (`kind`: "headless", measured
+ * 2026-11-15). The summary is written as Grok writes one (measured 2026-11-15): indented two spaces over
+ * many lines, with no final line feed.
  */
 function mkGrokSession(
   cwd: string,
   id: string,
   atSec: number,
-  opts: { subagent?: boolean } = {}
+  opts: { subagent?: boolean; kind?: string } = {}
 ): string {
   const d = join(dir, '.grok', 'sessions', encodeURIComponent(cwd), id)
   mkdirSync(d, { recursive: true })
   const summary: Record<string, unknown> = { info: { id, cwd } }
-  if (opts.subagent) summary['session_kind'] = 'subagent'
+  const kind = opts.subagent ? 'subagent' : opts.kind
+  if (kind !== undefined) summary['session_kind'] = kind
   writeFileSync(join(d, 'summary.json'), JSON.stringify(summary, null, 2))
   const f = join(d, 'updates.jsonl')
   writeFileSync(f, '{"type":"x"}\n')
@@ -209,12 +211,14 @@ describe('activity', () => {
     const p = mkProject('gk-sub')
     writeGrokRegistry([p])
     mkGrokSession(p, '019f-parent', 3000)
+    // A top-level session whose record names a kind other than subagent counts like one that names none
+    mkGrokSession(p, '019f-headless', 5000, { kind: 'headless' })
     // The child is a **sibling** at the same directory level — depth cannot tell the two apart, only
     // the record's own session_kind can; it must not count and must not push the time up
     mkGrokSession(p, '019f-child', 9000, { subagent: true })
     const snap = await scan(roots(), { now: () => 1 })
-    expect(snap.projects[0].sessionCount).toBe(1)
-    expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
+    expect(snap.projects[0].sessionCount).toBe(2)
+    expect(snap.projects[0].lastSessionAt).toBe(5000 * 1000)
   })
 
   it('B9: activity counts a side that did not register the directory, while the side count stays at one (A8)', async () => {
@@ -266,11 +270,19 @@ describe('activity', () => {
     expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
   })
 
-  it('an unreadable summary.json says nothing, and a record that says nothing is not a subagent — the session counts', async () => {
+  it.each([
+    { name: 'that does not parse', spoil: (summary: string): void => writeFileSync(summary, '{not json') },
+    { name: 'that is not there', spoil: (summary: string): void => rmSync(summary) },
+    {
+      // Holding what a child's record says, so a reading that looks for those words anywhere would take it
+      name: 'that is no object',
+      spoil: (summary: string): void => writeFileSync(summary, JSON.stringify([{ session_kind: 'subagent' }], null, 2))
+    }
+  ])('a summary.json $name says nothing, and a record that says nothing is not a subagent — the session counts (B8)', async ({ spoil }) => {
     const p = mkProject('gk-broken-summary')
     writeGrokRegistry([p])
     const d = mkGrokSession(p, '019f-nosummary', 3000)
-    writeFileSync(join(d, 'summary.json'), '{not json')
+    spoil(join(d, 'summary.json'))
     const snap = await scan(roots(), { now: () => 1 })
     // Miscounting one extra session is visible; silently dropping a real one is not — the
     // degradation errs in the visible direction
@@ -579,6 +591,12 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
       name: 'that could not be opened and can be again',
       breakIt: (f: string): void => chmodSync(f, 0o000),
       mend: (f: string): void => chmodSync(f, 0o644)
+    },
+    {
+      // A first line of the same size, padded alike, whose cwd is empty (projects-list B4)
+      name: 'whose first line named no project and is rewritten under the same signature',
+      breakIt: (f: string): void => overwrite(f, plainBytes(first('')), 3000),
+      mend: (f: string, good: Buffer): void => overwrite(f, good, 3000)
     }
   ])('a rollout that gave no reading is read again at the next walk: one $name', ({ breakIt, mend }) => {
     const a = mkProject('failed-a')

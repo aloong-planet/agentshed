@@ -111,13 +111,10 @@ fn path_text(js: &Js, value: napi_value) -> Result<String> {
     Ok(String::from_utf16_lossy(&js.string(value)?.unwrap_or_default()))
 }
 
-/// Where a copy is made: the job's directory, else the system temporary directory
+/// Where a copy is made for a parse job: the job's directory, else the system temporary directory
 fn tmp_parent(js: &Js, value: napi_value) -> Result<PathBuf> {
-    let dir = match js.string(value)? {
-        Some(dir) => dir,
-        None => js.os_tmpdir()?,
-    };
-    Ok(PathBuf::from(String::from_utf16_lossy(&dir)))
+    let given = js.string(value)?.map(|dir| String::from_utf16_lossy(&dir));
+    copy_parent(js, given.as_deref())
 }
 
 /// Where a copy is made for a call that names its directory or none: that directory, else the system temporary
