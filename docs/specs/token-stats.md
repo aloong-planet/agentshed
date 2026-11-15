@@ -122,7 +122,8 @@ all of them.
 - B2 Sessions spanning midnight are apportioned to their respective dates by event timestamp (not
   piled onto the first day).
 - B3 Subagent sessions' tokens count toward the statistics but do not enter the session list.
-- B4 Titles come from `session_index`.
+- B4 Titles come from `session_index`, read when the rollout is parsed: a rename shows once the rollout is
+  next written.
 - B9 **The usage boundary is by line order.** The first usage record line in a rollout is the
   boundary: usage events after it are ignored whatever their timestamps, usage events before it
   count under B7. Measured on every dual-source rollout, line order and timestamp select the same
@@ -838,11 +839,11 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   process, and the failure is logged once. The figures are the same. token-stats::QR-001 does not hold
   for the rest of that run. A scan or a read that fails on a worker still running is that scan (E3) or
   that read (session-view C4) failed, not a failed worker.
-- The engine module (ADR-0045) will not load — missing, damaged or built for another architecture: no
-  other engine exists, so every scan fails (E3, [agents-overview::REQ-002/AC-03](agents-overview.md)) on
-  the scan worker and on the main process alike, every read of a question index or of a question's text
-  fails as that read (session-view C4), and the display copy is not written
-  ([agents-overview::REQ-008/AC-05](agents-overview.md)). The failure is logged.
+- The engine module (ADR-0045) will not load — missing, damaged or built for another architecture — or
+  reports another build than the application's code: no other engine exists, so every scan fails (E3,
+  [agents-overview::REQ-002/AC-03](agents-overview.md)) on the scan worker and on the main process alike,
+  every read of a question index or of a question's text fails as that read (session-view C4), and the
+  display copy is not written ([agents-overview::REQ-008/AC-05](agents-overview.md)). The failure is logged.
 - A panic in the engine module is caught where it crosses into the application. One raised while a file
   is parsed, or read by the session walk, is that file's failed read, under the rule its side has for a
   read that fails (A10, B12, F6, projects-list B4 and B8, token-stats::REQ-004), and the scan goes on (the
@@ -920,6 +921,18 @@ read with macOS `footprint`.
 
 - An entry the session page rebuilt between two scans (session-view C4) is a changed file for the next
   scan: its group was combined from the entry it replaced.
+- A scan takes the store as it is when it combines (C27): a file it keeps from the store is combined
+  from the entry the store holds then, which another process may have written after the scan planned
+  its reads. An entry another process removed or rewrote so that it no longer reads back is parsed
+  again in that scan, once; what the store still cannot give after that is left out of the scan's
+  figures, counted nowhere, and read again at the next scan.
+- A file whose parsed entry the store cannot hold — a line's figures, each a finite count, summing past
+  the range of a double, which the entry's text writes as null — is that file's failed read for that
+  scan, as A10, B12 and F6 have a read that fails: nothing of it is counted or listed, the entry held
+  for it is removed, it is parsed again at the next scan, and the scan goes on. A build with no store
+  leaves such a file out of the figures it combines in memory in the same way. An Antigravity
+  conversation left out this way is not counted as unreadable (unlike token-stats::REQ-004/AC-01); its
+  figures are decoded from varints of at most ten bytes, which stay far inside that range.
 - Interface: unchanged (the prototype exemption, declared); G14 holds.
 
 ## Implementation Decisions
@@ -1001,8 +1014,9 @@ read with macOS `footprint`.
   line reader; the byte offsets the question index records for it are offsets in the decompressed
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
-- **The engine module** (ADR-0045) holds the session walk, the reading and parsing of every session
-  file, the question index and the titles, the entries, the store, the grouping and the combination,
+- **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
+  and holds the session walk, the reading and parsing of every session file, the question index and the
+  titles, the entries, the store, the grouping and the combination,
   and the line rules that a question's text and a turn's contents are read by on the session page and
   in both searches. A value in a line is built only where a rule reads it; every other value is scanned
   past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of
@@ -1018,12 +1032,15 @@ read with macOS `footprint`.
   request id: a sidechain replay carries the same id under a new one, A4), a Codex session id or the
   parent id a fork names, an Antigravity call's identity; a file with none
   is a group alone. A group's input is, file by file in scan order, its entry and what the scan adds to
-  it — the project it is credited to, its admission to the read allow-list, a title read beside it — and
+  it — its admission to the read allow-list and a title read beside it — and
   a group whose input differs from the one its stored result came from is combined again; the scan's
   figures are the stored results summed (token-stats::CON-003). The combination a result came from is
-  the application version in a packaged build; every run of an unpackaged build is a combination of its
-  own, so its first scan combines every group again. Combining every group again reads the entries of one
-  group at a time. **A structure change must bump the version number at the same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
+  the application version in a packaged build, with the time zone the scan runs in; every run of an
+  unpackaged build is a combination of its own, so its first scan combines every group again. A Claude
+  Code entry's days are cut when its file is parsed, so after a time zone change they stay in the zone of
+  that parse until the file is parsed again. Combining every group again reads the entries of one
+  group at a time. **A structure change must bump the version number at the same
+  time**, and within one version a shape check treats corrupt or drifted entries as a miss and
   recomputes. An entry is well formed when its signature is a string and its per-file aggregate has
   every field its side requires, each of the type it requires, every row of each of its lists
   included: as many elements as the row's type has, each a number, a string or `null` where that
@@ -1038,8 +1055,14 @@ read with macOS `footprint`.
   larger size resumes there. Codex's writer only appends to a rollout or replaces it by renaming a
   copy over the path, so a new inode, a size that did not grow, a cold rollout, or fifty resumes in
   a row (bounding an in-place edit nothing cheap can see) mean a whole parse. A resumed parse equals
-  a whole parse. Claude and Grok files are parsed whole when they change: Claude's question filter
-  needs the whole parent graph, and Grok's streams are small.
+  a whole parse. A rollout line counts once its newline is written: Codex ends every line with one
+  (B12), so a last line without one is still being written, and a parse stops before it and reads it
+  whole at the next scan. A rollout that ends for good without its last newline — its writer
+  stopped between the line and the newline — never counts that line, unless an earlier version of
+  the app cached an entry that already counted it: that entry stands while the file stays unchanged
+  (the `CACHE_VERSION` comment in `src/main/providers/token-stats.ts` says why). Claude and Grok
+  files are parsed whole when they change: Claude's question filter needs the whole parent graph,
+  and Grok's streams are small.
 - **Where parsing runs**: the scan is planned on the thread that runs it (the next paragraph) — cache
   hits, resumes, whole parses — and the files that need parsing are parsed on a pool of worker
   threads (cores minus one, at most four), several at once; the results are then taken in scan order,
@@ -1049,6 +1072,15 @@ read with macOS `footprint`.
   never a file. The largest file alone bounds the time, so workers past four mostly cost memory. The
   pooled cache is identical, file by file, to one parsed without the pool. The session page's
   single-file rebuild parses on the thread that runs the scan.
+- **Scan order**: the order a scan takes session files in, which the combination makes part of the
+  figures wherever it keeps the first of several files sharing a key — a message's copies, the files of
+  one Codex session id as a fork's parent, the conversations holding one Antigravity call. A scan walks
+  the data roots in a fixed order — Claude Code's projects, Codex's sessions, Codex's archived sessions,
+  Grok's sessions, Antigravity CLI's conversations — and each depth-first, a directory's entries ordered
+  by the UTF-8 bytes of their names and a directory's files coming at that directory's own place among
+  its siblings. Scan order is thus a function of the paths. What takes the store's entries outside a
+  scan — the restore (C16), a fork's parent lookup on the session page — puts them in it, because the store
+  holds its rows in the order it first held them.
 - **Where a scan runs** (ADR-0043): on the scan worker, one worker thread kept for the run that owns
   the token store: the session walk, the registry and component reads, the planning, the pool of
   parse workers it starts, the aggregation, the store's writes and the single-file rebuild. The main
