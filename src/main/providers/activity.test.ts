@@ -10,9 +10,10 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { scan, walkSessions } from './scan'
+import { threadEngineModule, type SessionMemory } from '../engine-module'
+import { scan } from './scan'
 import { encodeClaudeProjectDir } from './claude'
-import { CodexHeads, type CodexSessionMeta } from './codex'
+import type { CodexSessionMeta } from './codex'
 import type { ScanRoots } from './types'
 
 let dir: string
@@ -321,7 +322,7 @@ describe('the shared session walk', () => {
     writeGrokRegistry([p])
     mkCodexRollout(p, 'rollout-1.jsonl', 3000)
     mkGrokSession(p, 'g1', 3500)
-    const walked = walkSessions(roots())
+    const walked = threadEngineModule().walkSessions(roots())
     mkCodexRollout(p, 'rollout-2.jsonl', 4000)
     mkGrokSession(p, 'g2', 5000)
     const snap = await scan(roots(), { now: () => 1, sessions: walked })
@@ -331,8 +332,8 @@ describe('the shared session walk', () => {
 })
 
 // A rescan keeps the first-line reading of a rollout that did not change (token-stats::QR-002/AC-01). The
-// readings belong to a CodexHeads, which the scanner keeps for the run (scanner.ts); whether a rollout was
-// opened again is told by what the walk returns after its first line was rewritten.
+// readings belong to the engine module's SessionMemory, which the scanner keeps for the run (scanner.ts);
+// whether a rollout was opened again is told by what the walk returns after its first line was rewritten.
 //
 // The first lines are built after real ones: all 3048 rollouts of one machine were enumerated on
 // 2026-11-11 by key shape (59 shapes). Every first line carries an ordinal, a payload with cwd, id,
@@ -418,7 +419,8 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     return { mtimeMs: st.mtimeMs, size: st.size, ino: st.ino }
   }
   const byFile = (list: CodexSessionMeta[]): CodexSessionMeta[] => [...list].sort((a, b) => a.file.localeCompare(b.file))
-  const walk = (heads?: CodexHeads): CodexSessionMeta[] => byFile(walkSessions(roots(), heads).codex)
+  const walk = (memory?: SessionMemory): CodexSessionMeta[] => byFile(threadEngineModule().walkSessions(roots(), memory).codex)
+  const memory = (): SessionMemory => new (threadEngineModule().SessionMemory)()
 
   const T1 = Date.UTC(2026, 6, 30, 1, 0, 0)
   const T2 = Date.UTC(2026, 7, 2, 3, 4, 5)
@@ -441,7 +443,7 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
       { file: cold, cwd: a, subagent: false, mtimeMs: 4000_000, sessionId: '019f0a01-0000-7000-8000-000000000001', parentId: null, forkedAt: T1, paginated: true },
       { file: plain, cwd: a, subagent: false, mtimeMs: 3000_000, sessionId: '019f0a01-0000-7000-8000-000000000001', parentId: null, forkedAt: T1, paginated: true }
     ]
-    const heads = new CodexHeads()
+    const heads = memory()
     expect(walk(heads)).toEqual(read)
 
     const before = [signature(plain), signature(cold)]
@@ -484,7 +486,7 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     const a = mkProject('changed-a')
     const b = mkProject('changed-b')
     const f = put('rollout-2026-07-30T01-00-00-changes.jsonl', plainBytes(first(a)), 3000)
-    const heads = new CodexHeads()
+    const heads = memory()
     expect(walk(heads).map((s) => s.cwd)).toEqual([a])
 
     const before = signature(f)
@@ -513,7 +515,7 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     const a = mkProject('gone-a')
     const good = plainBytes(first(a))
     const f = put('rollout-2026-07-30T01-00-00-gone.jsonl', good, 3000)
-    const heads = new CodexHeads()
+    const heads = memory()
     expect(walk(heads).map((s) => s.cwd)).toEqual([a])
     try {
       spoil(f, good)
@@ -528,12 +530,12 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     const a = mkProject('run-a')
     const b = mkProject('run-b')
     const f = put('rollout-2026-07-30T01-00-00-run.jsonl', plainBytes(first(a)), 3000)
-    const earlier = new CodexHeads()
+    const earlier = memory()
     expect(walk(earlier).map((s) => s.cwd)).toEqual([a])
     overwrite(f, plainBytes(other(b)), 3000)
     expect(walk(earlier).map((s) => s.cwd), 'the earlier run still holds its reading').toEqual([a])
 
-    expect(walk(new CodexHeads()).map((s) => s.cwd)).toEqual([b])
+    expect(walk(memory()).map((s) => s.cwd)).toEqual([b])
     expect(walk().map((s) => s.cwd)).toEqual([b])
   })
 
@@ -543,7 +545,7 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     const sub = put('rollout-2026-07-30T01-00-01-sub.jsonl', plainBytes({ cwd: a, id: 'sub-1', at: '2026-07-30T01:00:01.000Z', subagentOf: '019f0a01-0000-7000-8000-000000000001' }), 3100)
     const fork = put('rollout-2026-07-30T01-00-02-fork.jsonl', plainBytes({ cwd: a, id: 'fork-1', at: '2026-07-30T01:00:02.000Z', forkOf: '019f0a01-0000-7000-8000-000000000001' }), 3200)
     const cold = put('rollout-2026-07-30T01-00-03-cold.jsonl.zst', zstdCompressSync(plainBytes({ cwd: a, id: 'cold-1', at: '2026-07-30T01:00:03.000Z' })), 3300)
-    const heads = new CodexHeads()
+    const heads = memory()
     const one = walk(heads)
     expect(one.map((s) => [s.file, s.subagent, s.parentId])).toEqual([
       [main, false, null],
@@ -581,7 +583,7 @@ describe('the first-line readings a run keeps (token-stats::QR-002/AC-01)', () =
     const good = plainBytes(first(a))
     const f = put('rollout-2026-07-30T01-00-00-failed.jsonl', good, 3000)
     breakIt(f, good)
-    const heads = new CodexHeads()
+    const heads = memory()
     try {
       expect(walk(heads)).toEqual([])
       const before = signature(f)

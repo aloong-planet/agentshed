@@ -23,6 +23,8 @@ use std::path::{Path, PathBuf};
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, OpenFlags, Row};
 
+use crate::seams;
+
 /// The read failed: the database would not open or read in the shape asked for, a record would not decode, or the copy
 /// could not be made. What the read gave is then not used.
 #[derive(Debug)]
@@ -79,7 +81,10 @@ impl CopyDir {
                 .collect();
             let dir = parent.join(format!("agentshed-agy-{suffix}"));
             match DirBuilder::new().mode(0o700).create(&dir) {
-                Ok(()) => return Ok(CopyDir(dir)),
+                Ok(()) => {
+                    seams::copy_dir_made(&dir);
+                    return Ok(CopyDir(dir));
+                }
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
                 Err(_) => return Err(Failed),
             }

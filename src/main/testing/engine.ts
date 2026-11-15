@@ -16,6 +16,15 @@ export interface PanicSeam extends EngineModule {
   seamParse(file: string): string
 }
 
+/** The copy seam a build made for tests exports (engine/src/seams.rs) */
+export interface CopySeam extends EngineModule {
+  /** Watches the directories the module makes in `parent` to copy agy's databases into, or none; one for the whole
+   * process */
+  seamWatchCopiesUnder(parent: string | null): void
+  /** Each directory made in the watched one since it was named, with its mode as made */
+  seamCopiesMade(): Array<{ path: string; mode: number }>
+}
+
 /** The store-write seam a build made for tests exports (engine/src/seams.rs) */
 export interface StoreWriteSeam extends EngineModule {
   /** Makes the next write to a token store fail after this many of its statements, or none fail; one for the whole

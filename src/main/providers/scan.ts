@@ -5,6 +5,7 @@ import { basename } from 'node:path'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import { emptySnapshot } from '@shared/domain'
 import { mergeKey, normalizePath } from '@shared/path-key'
+import { threadEngineModule } from '../engine-module'
 import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
 import { readCodexRegistry, readCodexSessions, type CodexHeads, type CodexSessionMeta } from './codex'
@@ -17,7 +18,8 @@ import { isAbsent } from './read-utils'
 export interface ScanDeps {
   /** An injected clock, controllable in tests */
   now: () => number
-  /** The scan's one session walk, shared with TokenEngine.build; walked here when absent */
+  /** The scan's one session walk, shared with TokenEngine.build; walked here, by the engine module this thread loaded,
+   * when absent */
   sessions?: SessionWalk
 }
 
@@ -92,7 +94,7 @@ export function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
   // count from every side that has them, including one that did not register the directory — the
   // enrichment loop below touches registered entries only, which is also what keeps A7 true
   // (sessions alone never create an entry or raise the side count).
-  const walked = deps.sessions ?? walkSessions(roots)
+  const walked = deps.sessions ?? threadEngineModule().walkSessions(roots)
   const codexSessions = walked.codex
   const byKeyAgg = (sessions: Array<{ cwd: string; subagent: boolean; mtimeMs: number }>): Map<string, { count: number; last: number | null }> => {
     const m = new Map<string, { count: number; last: number | null }>()

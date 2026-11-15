@@ -37,8 +37,6 @@ import { localDay } from '@shared/format'
 import { sessionIdFromPath } from '@shared/session-resume'
 import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
-import { readCodexSessionMeta } from './codex'
-import { readGrokSessionMeta } from './grok'
 import { isColdRollout } from './cold-rollout'
 import { mapLimit, readRanges } from './range-read'
 import { eachJsonlLine } from './jsonl'
@@ -50,7 +48,7 @@ import {
 } from './question-index'
 import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
-import { walkSessions, type SessionWalk } from './scan'
+import type { SessionWalk } from './scan'
 import { byName, compareNames, compareScanOrder } from './scan-order'
 import { agySessionSignature, agyTranscriptPath } from './antigravity'
 import type { UsageRow } from './archive'
@@ -727,7 +725,7 @@ export class TokenEngine {
      * and the app's scan must pass the real set.
      */
     registeredKeys?: ReadonlySet<string>,
-    /** The scan's one session walk, shared with scan() (#160); walked here when absent */
+    /** The scan's one session walk, shared with scan() (#160); walked here, by the engine module, when absent */
     sessions?: SessionWalk
   ): Promise<TokenBuildResult> {
     const isRegistered = (key: string): boolean =>
@@ -775,7 +773,7 @@ export class TokenEngine {
     }
 
     // ── Codex: the whole sessions tree, attributed by the first line's cwd ──
-    const walked = sessions ?? walkSessions(roots)
+    const walked = sessions ?? loadEngineModule(this.engine).walkSessions(roots)
     const titles = readCodexIndex(roots.codexHome)
     for (const s of walked.codex) {
       const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && (s.subagent || listedOf(agg))
@@ -783,7 +781,7 @@ export class TokenEngine {
     }
 
     // ── Grok: the session store, attributed by the percent-encoded directory name ──
-    // A directory without its update stream never reaches here (readGrokSessions skips it), which
+    // A directory without its update stream never reaches here (the walk skips it), which
     // is F6 discharged at the walk: the siblings' scan is unaffected.
     for (const s of walked.grok) {
       // Listed sessions only: a subagent's stream is never expanded in a parent turn on this side
@@ -1004,11 +1002,11 @@ export class TokenEngine {
       } else if (file.startsWith(join(roots.grokHome, 'sessions') + sep)) {
         // A Grok stream rebuilds through the Grok parse, its meta read the way the walk reads it; it
         // used to fall through to the Codex branch below, whose meta reader cannot read a Grok stream
-        const meta = readGrokSessionMeta(file)
+        const meta = threadEngineModule().sessionMeta('grok', file)
         if (!meta) throw appError(ERR.sessionMetaUnreadable)
         fresh = (await runParseJob({ kind: 'grok', file, projectKey: mergeKey(meta.cwd), subagent: meta.subagent }))?.agg ?? null
       } else {
-        const meta = readCodexSessionMeta(file)
+        const meta = threadEngineModule().sessionMeta('codex', file)
         // No metadata out of a file that cannot be read is the file's failure, not its first line's (session-view P6)
         if (!meta) throw appError(isReadable(file) ? ERR.sessionMetaUnreadable : ERR.sessionFileUnreadable)
         const entry = await this.codexEntry(cached, file, meta.cwd, meta, readCodexIndex(roots.codexHome))

@@ -27,6 +27,25 @@ mod seam {
         seams::store_write_seam::cut_after(statements);
     }
 
+    /// A directory the module made to copy one of agy's databases into, as the copy seam noted it
+    #[napi(object)]
+    pub struct SeamCopyDir {
+        pub path: String,
+        pub mode: u32,
+    }
+
+    /// Watches the directories the module makes in `parent` to copy agy's databases into, or none
+    #[napi(catch_unwind)]
+    pub fn seam_watch_copies_under(parent: Option<String>) {
+        seams::copy_seam::watch(parent);
+    }
+
+    /// Each directory made in the watched one since it was named (`seams.rs`)
+    #[napi(catch_unwind)]
+    pub fn seam_copies_made() -> Vec<SeamCopyDir> {
+        seams::copy_seam::made().into_iter().map(|(path, mode)| SeamCopyDir { path, mode }).collect()
+    }
+
     /// Runs one statement against the token store in `dir`, bound to `params` (text or null), on a connection of its
     /// own, and answers with the rows it gives (`seams.rs`)
     #[napi(catch_unwind)]
