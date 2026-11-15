@@ -128,8 +128,8 @@ export interface SubagentSideDetail {
    * Failure information for when that side's file exists but will not parse or has no valid name;
    * null when normal.
    *
-   * **A code plus parameters, containing no natural language** (ticket 07 widened ADR-0015's rule to
-   * data fields): both the wording and the branch decision are made by the renderer from the code.
+   * **A code plus parameters, containing no natural language** (ADR-0001): both the wording and the branch
+   * decision are made by the renderer from the code.
    * Ticket 05 used a parallel `errorKind` field as a transition, which this ticket removed — one
    * structured field carries both "for people to read" and "for the program to judge on", and two
    * sources of truth are not needed.

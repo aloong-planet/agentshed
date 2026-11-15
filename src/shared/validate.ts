@@ -7,8 +7,7 @@ import { ERR, appError } from './errors'
 import { ARTIFACT_ORDER } from './domain'
 
 /**
- * A validation failure is returned in **structured** form with no natural language (ADR-0015 extended to
- * the contract layer).
+ * A validation failure is returned in **structured** form with no natural language (ADR-0001).
  * The renderer produces the wording in the current language — a validation reason bubbles to the UI
  * through the error message,
  * so keeping the source-language text would expose it to non-Chinese users at exactly the moment of

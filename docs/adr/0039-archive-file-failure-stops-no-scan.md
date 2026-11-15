@@ -60,7 +60,7 @@ We adopt **option 1**.
   so it clears nothing.
 - **The user is told once per run**, in one toast in the current UI language: usage history cannot be
   saved right now, because its file in the settings directory cannot be read or written. The sentence
-  states no system error, and no sentence crosses IPC (ADR-0016): the main process answers a command true
+  states no system error, and no sentence crosses IPC (ADR-0001): the main process answers a command true
   once in a run, and the window asks at mount, with each snapshot and on focus. With the window unfocused
   it does not ask, so the toast waits for focus. A failure that clears before then is not reported.
 
@@ -93,5 +93,5 @@ We adopt **option 1**.
 Issue #362 and the readings behind it, made during #359 and #362: a later scan with the directory
 read-only, a first scan with the rename blocked, the unreadable file, and `document.hasFocus()` in a real
 shown window (true at start, false after a blur, true after a focus, with the window's focus event).
-ADR-0007, ADR-0016, ADR-0026; token-stats C3, C4, C8, C10, C18, C22, C23, C25; agents-overview A4d and the
+ADR-0001, ADR-0007, ADR-0026; token-stats C3, C4, C8, C10, C18, C22, C23, C25; agents-overview A4d and the
 restart sequence.

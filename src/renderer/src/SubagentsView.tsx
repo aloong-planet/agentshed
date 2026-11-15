@@ -137,8 +137,8 @@ function toDrawerEntry(p: ProjectSubagentEntry): SubagentEntry {
  * A failure category → its display label.
  *
  * **Judged by category, not by wording**: this used to read `error.includes('不可读')`,
- * so a wording change would make the branch fail silently with no test going red (the hazard ADR-0015
- * named).
+ * so a wording change would make the branch fail silently with no test going red (the hazard ADR-0001
+ * names).
  * The category is now a language-independent enum, so no wording change affects the branch.
  */
 export function errLabel(err: SubagentSideDetail['error'], t: Locale): string {

@@ -18,7 +18,7 @@ export type ScanAsk =
 
 export type ScanRequest = (ScanAsk & { id: number }) | { op: 'stop' }
 
-/** A failure carries its message alone: an application error's code and parameters are encoded in it (ADR-0015) */
+/** A failure carries its message alone: an application error's code and parameters are encoded in it (ADR-0001) */
 export type ScanReply = { id: number; ok: true; value: unknown } | { id: number; ok: false; message: string }
 
 /** What the scan worker is started with */

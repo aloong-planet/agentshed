@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The message-language gate (ADR-0030): commit messages and pull-request text are written in the
+// The message-language gate (ADR-0017): commit messages and pull-request text are written in the
 // repository's working language, like everything else ADR-0017 covers. It applies the same prose rule as
 // scripts/check-lang.mjs — Chinese may be **cited** (inside a quoting span: backticks, quotes, corner
 // brackets, or a closed fenced code block), never **written** — through the shared module, so the two
@@ -22,7 +22,7 @@
 //
 // ── What it cannot do ──
 // It cannot stop `git commit --no-verify`; that is why CI checks the same text again. Issues are not
-// checked at all: GitHub cannot block an issue from being opened, and ADR-0030 records that they rely on
+// checked at all: GitHub cannot block an issue from being opened, and ADR-0017 records that they rely on
 // the writing rule alone.
 //
 // Comment lines are recognised by `core.commentChar` only. With `core.commentChar = auto` git picks the
@@ -124,7 +124,7 @@ if (problems.length) {
     `✗ Message language: Chinese written outside a quote (${problems.length} line(s))\n`,
     ...problems.map((p) => `    ${p}`),
     '',
-    `The working language is "${lang}" (capabilities.toml; ADR-0030). Write the message in it. Chinese may`,
+    `The working language is "${lang}" (capabilities.toml; ADR-0017). Write the message in it. Chinese may`,
     'appear only when cited — inside backticks, quotes, corner brackets or a fenced code block — e.g. a UI',
     'string or a log line under discussion.'
   ])

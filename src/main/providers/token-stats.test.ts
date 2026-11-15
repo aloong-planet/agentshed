@@ -2518,7 +2518,7 @@ describe('sessionQuestions (the session page service)', () => {
     await e.build(roots(), [proj])
     rmSync(cl)
     // Assert the **error code** rather than wording: the wording is produced by the renderer per language
-    // (ADR-0015)
+    // (ADR-0001)
     await expect(e.sessionQuestions(roots(), cl)).rejects.toSatisfy(
       (err: unknown) => decodeAppError(err)?.code === ERR.sessionFileUnreadable
     )

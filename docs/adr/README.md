@@ -34,11 +34,8 @@ ADR conventions for this repository:
 
 | # | Decision | Status |
 |---|---|---|
-| [0001](0001-ipc-contract-single-source.md) | Single type source for the IPC contract, with runtime validation on both sides | Accepted |
-| [0015](0015-structured-ipc-errors.md) | Failures cross IPC as an error code plus parameters; wording is left to the renderer | Accepted |
-| [0016](0016-no-natural-language-across-ipc.md) | The main process emits no user-facing natural language (not just failure text) | Accepted |
-| [0017](0017-repo-working-language-english.md) | Repository working language is English (comments, docs, test names, terminal output) | Accepted (scope extended by 0030) |
-| [0030](0030-message-language.md) | Commit messages and pull-request text follow the working language (hook + PR workflow; skipped when Chinese) | Accepted |
+| [0001](0001-ipc-contract-single-source.md) | The IPC contract has one type source in `src/shared/`, is validated on both sides, and carries structured signals only | Accepted |
+| [0017](0017-repo-working-language-english.md) | The repository's working language is English, for its files and for the text beside them, checked at commit and in the pull request | Accepted |
 | [0038](0038-test-layers.md) | Test layers: the data layer, the contract, e2e for what only the assembled app can show, and component tests for the rendering branches nothing else checks | Accepted |
 | [0041](0041-e2e-case-placement.md) | An e2e case goes in its feature's file, placed by the spec that holds the rule, and a shared helper in `e2e/support/`; no limit on file size | Accepted |
 | [0042](0042-packaged-build-refuses-launch-inputs.md) | A packaged build refuses every launch input outside an allow-list, and the packaging proves it | Accepted (the argument rule amended 2026-11-06) |
@@ -93,13 +90,13 @@ ADR conventions for this repository:
 
 | # | Decision | Status |
 |---|---|---|
-| [0013](0013-ui-language-set-and-i18n-scope.md) | UI language set and i18n scope boundary (six languages, all LTR, no RTL commitment) | Accepted (language set superseded by 0035) |
-| [0014](0014-self-built-typed-i18n-layer.md) | Self-built typed i18n layer (general-purpose i18n frameworks rejected) | Accepted |
+| [0013](0013-ui-language-set-and-i18n-scope.md) | The i18n scope is the app's copy, its menu and the README, every language left to right, with no RTL commitment | Accepted |
+| [0014](0014-self-built-typed-i18n-layer.md) | A self-built typed i18n layer; general-purpose i18n frameworks rejected | Accepted |
 | [0018](0018-icons-are-inline-svg-from-one-source.md) | Icons are inline SVG from a single source; the prototypes derive theirs from it | Accepted (prototype half superseded by 0033) |
 | [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer; page switches run as Transitions | Accepted |
 | [0029](0029-startup-display-persistence.md) | Separate startup display persistence, including previously viewed pages | Accepted |
 | [0033](0033-prototypes-are-the-baseline.md) | The prototypes keep their own icons, tokens, styles and copy; the app follows them | Accepted |
-| [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Chinese and English; French, Spanish, Russian and Japanese are dropped before the first release | Accepted |
+| [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Simplified Chinese and English, and the READMEs follow them | Accepted |
 
 ## Updates
 
@@ -111,4 +108,7 @@ ADR conventions for this repository:
 ## Retired numbers
 
 - 0002: merged into 0038
+- 0015: merged into 0001
+- 0016: merged into 0001
+- 0030: merged into 0017
 - 0040: merged into 0038

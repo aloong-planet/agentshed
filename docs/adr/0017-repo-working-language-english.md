@@ -1,86 +1,73 @@
-# ADR-0017: Repository working language is English
+# ADR-0017: The repository's working language is English, for its files and for the text beside them, checked at commit and in the pull request
 
-- Status: Accepted (2026-08-09)
-- Relation: **partially supersedes ADR-0013**, specifically its clause "`docs/` stays Chinese-only". ADR-0013's language set and i18n scope boundary remain in force.
+- Status: Accepted (2026-10-08)
 
 ## Context
 
-The product UI is now available in six languages, but **the repository itself is
-entirely Chinese**: roughly 5100 lines — 2167 comment lines, 623 test case names, 49 markdown
-files under `docs/`, and `CONTEXT.md`.
-
-ADR-0013 decided that `docs/` would stay Chinese-only, reasoning that "1925 lines of engineering
-artifacts × 6, cross-regression cost × 6, and a new failure mode where lagging translations make
-the docs lie". **That reasoning targeted translating into six languages.** It does not hold for
-switching to a single language: there is no ×6, and no drift between copies.
-
-The actual problem is a different one: the product opened up to non-Chinese users while
-**the repository stayed closed to non-Chinese contributors**. The comments carry a large amount of
-hard-won causal knowledge ("measurement refuted this", "we hit this in practice") — precisely what
-an outside contributor needs most and can least reconstruct from the code itself.
+Comments, documents and tests carry reasons a contributor who reads no Chinese cannot rebuild from the code, and a
+squash merge commit carries the pull request's title and every commit message on the branch. The working language
+is declared in `capabilities.toml` (`working-language`), so a check follows the declaration.
 
 ## Options
 
-1. **Unify the repository working language as English**: comments, `docs/`, test case names and
-   terminal output all in English. The six README translations and the i18n dictionaries are
-   unaffected (the former is a public-facing front door; the latter's source language stays
-   Chinese per ADR-0014)
-2. Change terminal output only, leave the rest Chinese — rejected: this was actually implemented on
-   2026-08-09 and immediately exposed the risk of a half-converted state ("English test names,
-   Chinese comments"). A language boundary abandoned halfway is harder to maintain than either
-   single language
-3. Change `docs/` only, leave comments Chinese — rejected: comments carry **causes**, docs carry
-   **conclusions**. A contributor who can read the conclusions but not the reasons will walk
-   straight into the traps the comments warned about
-4. Keep both languages side by side — rejected for exactly the reason ADR-0013 rejected six
-   languages: two copies also drift, and "which one is the truth" immediately becomes a new dispute
+1. **English for the files and the text beside them, held by a writing rule, a gate over the tracked files, a
+   `commit-msg` hook and a pull-request check, each following the declared working language**
+2. `docs/` kept in Chinese — rejected: its reason weighed translating into every UI language, which one working
+   language does not involve, and it shuts out contributors who read no Chinese.
+3. Terminal output only — rejected: a half-converted repository is harder to maintain than either single language.
+4. `docs/` only — rejected: comments carry the causes, so a reader of the conclusions alone walks into the traps
+   the comments warn of.
+5. Both languages side by side — rejected: two copies drift, and which is the truth becomes a dispute.
+6. Developer logs left in Chinese — rejected: it puts one Chinese-reading developer's debugging above contributors
+   reading the repository at all.
+7. A writing rule alone — rejected: Chinese commit subjects kept landing with nothing to stop them.
+8. A hook alone — rejected: `git commit --no-verify` bypasses any local hook unnoticed.
+9. CI alone — rejected: feedback comes only after the push, from the layer most easily unavailable.
+10. A hook through `core.hooksPath` with no dependency — rejected: it is skipped with one hint when it loses its
+    executable bit, and has no recovery point where `node` is not on `PATH` (nvm, GUI clients).
+11. simple-git-hooks — rejected: git ignores `.git/hooks` once any `core.hooksPath` is set, so the hook can go
+    inert without a message.
+12. lefthook — deferred: parallel and staged-file runs are not needed for one hook. Reopen with a second hook,
+    above all one on staged files.
+13. A workflow on `issues` events — rejected: GitHub cannot stop an issue from being opened, so it could only
+    comment afterwards, and agents writing issues follow the writing rule.
+14. A Japanese working language skipped as Chinese is — rejected: the check tells Chinese by code point and Japanese
+    uses Han characters too, so a skip would check nothing while looking checked.
 
 ## Decision
 
-We choose **option 1**: the repository's working language is English. This covers source comments,
-all engineering artifacts under `docs/` (specs / ADRs / features / postmortems / ops), `CONTEXT.md`,
-test case names and descriptions, and everything a program prints to the terminal.
+We adopt **option 1**.
 
-**Not covered**: the six README translations (public-facing, already settled by ADR-0013) and
-`src/shared/i18n/` (its source language stays Simplified Chinese per ADR-0014 — it is the single
-source of truth for product copy, which is a separate concern from the repository's working
-language).
-
-> **Extended (2026-10-08, ADR-0030)**: the working language also governs commit messages, pull-request
-> titles and bodies, and issues — checked by a `commit-msg` hook and a pull-request workflow, issues by
-> the writing rule alone.
+- **Scope**: source comments, the engineering documents under `docs/`, test names and descriptions, terminal
+  output, commit messages, pull-request titles and bodies, and issues and their comments.
+  Outside it are release notes and the copy written for the product's readers in their own language: the app's
+  source dictionary (ADR-0014), the landing page, the prototypes' mockups and the Chinese README.
+- **The rule**: Chinese may be cited, inside backticks, quotes, corner brackets or a closed fenced code block, and
+  never written.
+- **By declaration**: a Chinese `working-language` turns the checks off, and they say so; a Japanese one, or none
+  declared, fails them; any other language is checked.
+- **Layers**: the writing rule; `scripts/check-lang.mjs` over every tracked file, whose exemptions are shapes, never
+  counts; a husky `commit-msg` hook; and the `Message language` workflow over a pull request's title, body and every
+  commit, a required check ([the CI runbook](../ops/ci.md)). Issues have the writing rule alone.
 
 ## Consequences
 
-- Positive: non-Chinese contributors can read **why**, not just **what** — the causal knowledge in
-  the comments is this repository's least replaceable asset
-- Positive: the language boundary becomes decidable ("everything in the repo except the READMEs and
-  the i18n dictionaries is English") instead of the current rule, memorised case by case per file type
-- Positive: the boundary is enforced by a gate rather than by vigilance — `scripts/check-lang.mjs` reads
-  `git ls-files` and fails on any Chinese outside an allow-list whose every entry carries an exact line
-  count. It was added after the conversion produced two defect classes no behavioural test could catch:
-  blanket string replacement splattering into neighbouring context (the fixture and its assertion break
-  together, so the tests stay green), and a hand-picked search scope silently excluding whole file types.
-
-  > **Amended (2026-10-04)**: since 2026-08-10 the allow-list carries no line counts; each entry is a
-  > shape predicate stating what form of Chinese is permitted and why (Chinese may be quoted in a
-  > literal, never written as prose). A count fired on every legitimate change to a growing file,
-  > training one reflex — raise the number — and was blind to substitution: delete a legitimate line,
-  > add an illegal one, and the total holds. The rationale lives in the header of
-  > `scripts/check-lang.mjs`.
-- Negative: **the one-off cost is large** (~5100 lines), and translation quality cannot be verified
-  by any automation — the same disease as the six-language product copy: a gate can prove
-  "not empty", never "translated correctly"
-- Negative: the author now reads and writes their own engineering docs in a second language, which
-  costs precision — especially for the invariants and criteria whose wording was arrived at by
-  repeated refinement
-- Neutral: the repository will pass through a mixed-language state during the conversion.
-  Batches **switch whole files at a time**; no file is left half-English — half a file in each
-  language is harder to read than all Chinese
+- Positive: a contributor who reads no Chinese can read why, not only what, and the boundary is decidable:
+  everything but the product's copy is English.
+- Positive: gates hold the boundary rather than vigilance, sharing one definition of Chinese and of a citation, and
+  what reaches `main` is checked twice: before the commit exists, and in the pull request.
+- Negative: no gate can tell whether the English is correct.
+- Negative: the owner writes their own engineering documents in a second language, at some cost in precision.
+- Negative: `--no-verify` bypasses the hook, and a worktree that predates `.husky/` or has not run `pnpm install`
+  has none; the required pull-request check catches both before merge.
+- Negative: issues are not checked mechanically.
+- Negative: the hook knows comment lines by `core.commentChar` alone, falling back to `#` under `auto` or a
+  multi-character `core.commentString`, so a git template commented otherwise can reject that one commit.
+- Neutral: Chinese commit subjects already in history stay as they are.
 
 ## Sources
 
-Decided by the user on 2026-08-09. Scale measured with `grep -rn "[一-鿿]"` over `src/`,
-`e2e/`, `scripts/`, `docs/` and `CONTEXT.md` (excluding `src/shared/i18n/`): 5100 lines.
-ADR-0013's `docs/`-stays-Chinese clause lapses as of this ADR; its language set (six languages,
-no Arabic, no RTL commitment) and i18n scope boundary continue to apply.
+The owner's decisions of 2026-08-09 (the working language) and 2026-10-08 (the text beside the files). The squash
+composition, from the repository settings: `squash_merge_commit_title: COMMIT_OR_PR_TITLE`,
+`squash_merge_commit_message: COMMIT_MESSAGES`. husky 9.1.7's source: the `sh -e` wrapper and
+`~/.config/husky/init.sh`. Why the exemptions are shapes and not counts is in the header of `scripts/check-lang.mjs`.
