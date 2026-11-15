@@ -48,6 +48,8 @@ We adopt **option 1**, in the rules of the token-stats spec, Sequence A.
 - Negative: the incremental cache grows, since it holds entries rather than per-file sums.
 - Negative: the sides' totals are not alike: where reported input already includes cached reads, a four-field sum
   would count them twice, so those sides take another rule (ADR-0023).
+- Neutral: the model breakdown can add up to less than the total, by the tokens of entries with the `<synthetic>` model
+  or none, which count in the total and in no model's figure.
 
 ## Sources
 

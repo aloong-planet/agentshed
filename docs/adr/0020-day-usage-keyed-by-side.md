@@ -30,6 +30,8 @@ its absence is meaningful; the asymmetry is deliberate, not one to tidy away.
 ## Consequences
 
 - Positive: adding a side is mechanical, and no producer can silently leave one out.
+- Negative: a side's zero in a day row reads the same whether that side had no usage that day or has no agent on this
+  machine, so a view that must tell the two apart has to ask elsewhere.
 - Neutral: producers write zeros they do not otherwise mean, the price of letting the compiler enforce completeness.
 
 ## Sources

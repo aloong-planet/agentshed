@@ -40,6 +40,8 @@ quantity.
 - Negative: if written tokens turn out to sit beside reported input, this reading under-counts by exactly the discarded
   quantity. Restart condition: the first side to emit a non-zero value makes the question testable, and it is tested
   then.
+- Neutral: while the field stays zero, as it was in every record scanned (Sources), this total and one with the
+  cache-write term are the same figure, so the choice shows in no figure until a side reports writes.
 
 ## Sources
 

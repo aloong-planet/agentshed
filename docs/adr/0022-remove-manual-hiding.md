@@ -31,6 +31,8 @@ demonstrated demand should not survive as a smaller version of itself.
 - Negative: "the directory still exists and I do not want to see it" has no outlet at all, while the constraint that
   creates the need, registries read-only to this app, is unchanged. If such lists grow on someone's machine, the answer
   has to be found again.
+- Neutral: a project whose directory is gone can still be filtered out of view by the stale filter, so what has no
+  outlet is only a directory that still exists.
 
 ## Sources
 

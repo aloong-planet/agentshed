@@ -25,7 +25,7 @@ by day against ccusage.
 
 We adopt **option 1**. Where usage events are the source (ADR-0027 says where), each turn's increment counts on the day
 of its event, under the token-stats spec's Sequence B; a legacy fork or subagent rollout has its replayed prefix
-stripped (the session-view spec says how). The model of a session is the one its last `turn_context` names, an
+stripped as option 1 says. The model of a session is the one its last `turn_context` names, an
 approximation of the session's primary model that the per-model view says it is.
 
 ## Consequences
@@ -34,6 +34,7 @@ approximation of the session's primary model that the per-model view says it is.
 - Positive: on days without usage records the figures reconcile day by day against ccusage.
 - Negative: a session that switches model, such as one with a sub-thread on another model, has its usage put on one
   model.
+- Neutral: a session Codex has archived counts as a live one does, its rollout read from `archived_sessions/`.
 
 ## Sources
 
