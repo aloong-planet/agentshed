@@ -1,13 +1,12 @@
-// One run's scanner (ADR-0043): the token engine with its store, and the Codex rollouts' first-line readings.
+// One run's scanner (ADR-0043): the token engine with its store, and the session walk's memory.
 // It lives on the scan worker; after a worker failure the main process holds one of its own, so a scan is
 // this same code wherever it runs. Nothing here imports electron, which a worker thread cannot load.
 import type { ProjectStats, SessionMeta, Snapshot } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
 import { deriveStats } from '@shared/usage'
-import { loadEngineModule, type EngineSource } from '../engine-module'
+import { loadEngineModule, type EngineModule, type EngineSource, type SessionMemory } from '../engine-module'
 import type { UsageArchive, UsageRow } from './archive'
-import { CodexHeads } from './codex'
-import { scan, walkSessions } from './scan'
+import { scan } from './scan'
 import { TokenEngine, projectStatsFromRows, type ParseRunner } from './token-stats'
 import type { ScanRoots } from './types'
 
@@ -31,9 +30,9 @@ const betweenSteps = (): Promise<void> => new Promise((resolve) => setImmediate(
 
 export class Scanner {
   private readonly engine: TokenEngine
-  /** The run's first-line readings: every scan walks through them, so a rescan opens only the rollouts that
-   * changed (token-stats::QR-002/AC-01) */
-  private readonly heads = new CodexHeads()
+  /** The run's memory of what the session walk read: every scan walks through it, so a rescan opens only the rollouts
+   * and conversations that changed (token-stats::QR-002/AC-01). Made by the module at the first scan, which loads it. */
+  private memory: SessionMemory | null = null
 
   /**
    * `module`: the engine module this thread loads (ADR-0045); `runner`: where the builds' parses run, a parse pool in
@@ -47,8 +46,8 @@ export class Scanner {
    * The engine module, confirmed as this build's own before anything is read: no other engine exists, so one that will
    * not load, or is another build's, fails the scan or the read that asked (token-stats, Scans and the window)
    */
-  private confirmModule(): void {
-    loadEngineModule(this.module)
+  private confirmModule(): EngineModule {
+    return loadEngineModule(this.module)
   }
 
   /** Stops the parse workers the runner holds idle, when it is a pool */
@@ -62,9 +61,10 @@ export class Scanner {
    */
   async scan(roots: ScanRoots, holdMs = 0): Promise<ScanOutput> {
     if (holdMs > 0) await new Promise((resolve) => setTimeout(resolve, holdMs))
-    this.confirmModule()
+    const module = this.confirmModule()
+    this.memory ??= new module.SessionMemory()
     // One walk of the Codex, Grok and Antigravity session lists, read by both scan() and the token build (#160)
-    const walked = walkSessions(roots, this.heads)
+    const walked = module.walkSessions(roots, this.memory)
     await betweenSteps()
     const snapshot = await scan(roots, { now: () => Date.now(), sessions: walked })
     await betweenSteps()

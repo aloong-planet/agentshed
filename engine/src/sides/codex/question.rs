@@ -1,8 +1,9 @@
 //! Which Codex line holds a human question, and what a line called (session-view B1, C3).
 
-use super::line::Line;
+use super::line::{self, Line};
+use crate::json;
 use crate::question::Calls;
-use crate::text::Units;
+use crate::text::{self, Units};
 
 /// A human question's raw text (session-view B1): the legacy `event_msg/user_message`, or its paginated replacement, the
 /// completed-item event whose item is a user message, its text the `content` elements' `text` joined by a space.
@@ -34,6 +35,14 @@ pub(super) fn question(line: &Line<'_>) -> Option<Units> {
     Some(joined)
 }
 
+/// The question a range the index recorded holds, as the session page and both searches show it (session-view B1,
+/// REQ-002): the range is the question's line, and its text the one the index took from that line, its noise stripped;
+/// None when the line holds no question
+pub(super) fn shown(range: &str) -> Option<Units> {
+    let Ok(json::Line::Object(l)) = line::read(range) else { return None };
+    question(&l).and_then(|raw| text::real_user_text(&raw))
+}
+
 /// The call records a turn's tools are counted from. Codex records a call on `response_item`; the `event_msg` side is
 /// the interface's mirror of the same calls, with only their `*_end` events and no counterpart of `function_call`, so
 /// reading one side alone counts each call once.
@@ -45,7 +54,7 @@ pub(super) fn question(line: &Line<'_>) -> Option<Units> {
 const CALL_TYPES: [&str; 3] = ["custom_tool_call", "function_call", "tool_search_call"];
 
 /// The `function_call` name that dispatches a subagent (the real sample's namespace is `collaboration`)
-const DISPATCH: &str = "spawn_agent";
+pub(super) const DISPATCH: &str = "spawn_agent";
 
 /// What the line called: a call record is a tool, or a subagent when it dispatches one
 pub(super) fn calls(line: &Line<'_>) -> Calls {

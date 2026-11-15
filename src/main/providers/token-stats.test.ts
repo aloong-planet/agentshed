@@ -24,7 +24,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { TEST_ENGINE, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
 import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storePath, storeRows, storeVersion } from '../testing/token-store'
-import { loadEngineModule } from '../engine-module'
+import { loadEngineModule, threadEngineModule } from '../engine-module'
 import { compareScanOrder } from './scan-order'
 import { spawn } from 'node:child_process'
 import { constants as zstdConstants, zstdCompressSync } from 'node:zlib'
@@ -33,7 +33,6 @@ import { sessionReadTarget } from '../security'
 import { ERR, decodeAppError } from '@shared/errors'
 import { mergeKey } from '@shared/path-key'
 import type { ScanRoots } from './types'
-import { walkSessions } from './scan'
 import { AGENT_SIDES } from '@shared/validate'
 import type { AgentSide } from '@shared/domain'
 import { callRecord, encodeTrajectoryMetadata, writeConversation, type UsageFixture } from '../testing/agy-fixture'
@@ -813,7 +812,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
     rmSync(trailed)
     writeFileSync(`${badSum}.zst`, checked)
     writeFileSync(`${trailed}.zst`, withTrail)
-    expect(walkSessions(roots()).codex.map((s) => s.file)).toEqual(expect.arrayContaining([`${badSum}.zst`, `${trailed}.zst`]))
+    expect(threadEngineModule().walkSessions(roots()).codex.map((s) => s.file)).toEqual(expect.arrayContaining([`${badSum}.zst`, `${trailed}.zst`]))
     const r = await engine().build(roots(), [proj])
     const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'codex') ?? []
     expect(sessions.map((s) => s.file).sort()).toEqual([plain, `${shorter}.zst`].sort())
@@ -2121,7 +2120,29 @@ describe('session titles and the listing rules', () => {
   // Ticket 03's retrospective review R1: a retitle should only happen when the original title came from
   // the first question;
   // thread_name's priority (spec A4) is not invalidated by stripping.
-  it('Codex: a prefix-stripped legacy fork with no thread_name is retitled to its first surviving question (the replayed first question must not title it)', async () => {
+  // The surviving question can be either shape the index reads as a question (spec B1), and the retitle reads it by the
+  // same rule. A completed-item user message in a legacy fork was not seen in the rollouts read on 2026-11-15 (3,047 of
+  // the 3,053 on this machine): that row's shape is the two measured ones put together.
+  it.each<[string, (ts: string, m: string) => string]>([
+    ['a user message event', (ts, m) => JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })],
+    [
+      'a completed-item user message',
+      (ts, m) =>
+        JSON.stringify({
+          timestamp: ts,
+          type: 'event_msg',
+          ordinal: 9,
+          payload: {
+            type: 'item_completed',
+            thread_id: '019f0000-0000-7000-8000-000000000001',
+            turn_id: '019f0000-0000-7000-8000-000000000002',
+            item: { type: 'UserMessage', id: '019f0000-0000-7000-8000-000000000003', content: [{ type: 'text', text: m, text_elements: [] }] },
+            started_at_ms: 1,
+            completed_at_ms: 1
+          }
+        })
+    ]
+  ])('Codex: a prefix-stripped legacy fork with no thread_name is retitled to its first surviving question, %s (the replayed first question must not title it)', async (_shape, survivor) => {
     const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
     mkdirSync(d, { recursive: true })
     const q = (ts: string, m: string): string =>
@@ -2132,7 +2153,7 @@ describe('session titles and the listing rules', () => {
     const CHILD = '019f0000-bbbb-7000-8000-000000000032'
     writeFileSync(join(d, `rollout-${PARENT}.jsonl`), [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n')
     const childFile = join(d, `rollout-${CHILD}.jsonl`)
-    writeFileSync(childFile, [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', 'parent question one'), q('2026-07-30T02:00:05Z', 'child new question')].join('\n') + '\n')
+    writeFileSync(childFile, [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', 'parent question one'), survivor('2026-07-30T02:00:05Z', 'child new question')].join('\n') + '\n')
     const e = engine()
     const r = await e.build(roots(), [proj])
     const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === childFile)
@@ -2955,7 +2976,7 @@ describe('the shared session walk', () => {
   it('build() aggregates the sessions of the supplied walk, not ones that appeared after it', async () => {
     mkCodexRollout('rollout-a-019f100.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }])
     mkGrokSession(proj, 'g1', [grokTurn(1785369600, { input: 50, output: 5 })])
-    const walked = walkSessions(roots())
+    const walked = threadEngineModule().walkSessions(roots())
     mkCodexRollout('rollout-b-019f101.jsonl', proj, '2026-07-30T02:00:00Z', 'gpt-5.6-sol', [{ input: 1000, cached: 0, output: 100 }])
     mkGrokSession(proj, 'g2', [grokTurn(1785373200, { input: 500, output: 50 })])
     const r = await engine().build(roots(), [proj], undefined, walked)

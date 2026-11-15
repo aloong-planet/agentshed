@@ -5,11 +5,12 @@ import { basename } from 'node:path'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import { emptySnapshot } from '@shared/domain'
 import { mergeKey, normalizePath } from '@shared/path-key'
+import { threadEngineModule } from '../engine-module'
 import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
-import { readCodexRegistry, readCodexSessions, type CodexHeads, type CodexSessionMeta } from './codex'
-import { readGrokRegistry, readGrokSessions, type GrokSessionMeta } from './grok'
-import { readAntigravityRegistry, readAntigravitySessions, type AntigravitySessionMeta } from './antigravity'
+import { readCodexRegistry, type CodexSessionMeta } from './codex'
+import { readGrokRegistry, type GrokSessionMeta } from './grok'
+import { readAntigravityRegistry, type AntigravitySessionMeta } from './antigravity'
 import { readGlobalLayer } from './global'
 import { readMemorySummary } from './memory'
 import { isAbsent } from './read-utils'
@@ -17,32 +18,21 @@ import { isAbsent } from './read-utils'
 export interface ScanDeps {
   /** An injected clock, controllable in tests */
   now: () => number
-  /** The scan's one session walk, shared with TokenEngine.build; walked here when absent */
+  /** The scan's one session walk, shared with TokenEngine.build; walked here, by the engine module this thread loaded,
+   * when absent */
   sessions?: SessionWalk
 }
 
 /**
- * The Codex, Grok and Antigravity session lists. Walking them reads every Codex rollout's first line, every Grok
- * session's summary and every Antigravity conversation's trajectory metadata, so a scan walks once and hands the
- * result to both scan() and TokenEngine.build (#160) — which also gives the two one shared set of sessions instead of
- * two walks a moment apart.
+ * The Codex, Grok and Antigravity session lists, as the engine module walks them (EngineModule.walkSessions). Walking
+ * them reads every Codex rollout's first line, every Grok session's summary and every Antigravity conversation's
+ * trajectory metadata, so a scan walks once and hands the result to both scan() and TokenEngine.build (#160) — which
+ * also gives the two one shared set of sessions instead of two walks a moment apart.
  */
 export interface SessionWalk {
   codex: CodexSessionMeta[]
   grok: GrokSessionMeta[]
   antigravity: AntigravitySessionMeta[]
-}
-
-/**
- * `heads` holds the run's first-line readings: given it, a walk opens only the rollouts that changed since
- * its last walk (token-stats::QR-002/AC-01); without it every first line is read.
- */
-export function walkSessions(roots: ScanRoots, heads?: CodexHeads): SessionWalk {
-  return {
-    codex: heads ? heads.walk(roots.codexHome) : readCodexSessions(roots.codexHome),
-    grok: readGrokSessions(roots.grokHome),
-    antigravity: readAntigravitySessions(roots.antigravityHome)
-  }
 }
 
 // Every reader below is synchronous; the Promise is the seam's shape, which both callers await.
@@ -92,7 +82,7 @@ export function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
   // count from every side that has them, including one that did not register the directory — the
   // enrichment loop below touches registered entries only, which is also what keeps A7 true
   // (sessions alone never create an entry or raise the side count).
-  const walked = deps.sessions ?? walkSessions(roots)
+  const walked = deps.sessions ?? threadEngineModule().walkSessions(roots)
   const codexSessions = walked.codex
   const byKeyAgg = (sessions: Array<{ cwd: string; subagent: boolean; mtimeMs: number }>): Map<string, { count: number; last: number | null }> => {
     const m = new Map<string, { count: number; last: number | null }>()

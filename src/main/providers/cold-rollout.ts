@@ -5,19 +5,14 @@
 // every range read is one streaming decompression that stops at the last range (range-read.ts).
 // Decompressing a whole file into memory was rejected on measurement (the 921 MB active rollout would
 // hold about 1.4 GB); memory here follows the bytes served.
-import { createReadStream, openSync, readSync, closeSync } from 'node:fs'
+import { createReadStream } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { constants, createZstdDecompress, zstdDecompressSync } from 'node:zlib'
+import { createZstdDecompress } from 'node:zlib'
 
 const COLD_SUFFIX = '.jsonl.zst'
 
 export function isColdRollout(file: string): boolean {
   return file.endsWith(COLD_SUFFIX)
-}
-
-/** Whether a directory entry is a rollout at all: plain or cold */
-export function isRolloutName(name: string): boolean {
-  return name.endsWith('.jsonl') || name.endsWith(COLD_SUFFIX)
 }
 
 /**
@@ -75,36 +70,3 @@ export async function readRolloutWhole(file: string): Promise<Buffer> {
 export const COLD_CHUNK_BYTES = 1024 * 1024
 const WHOLE_CHUNK = COLD_CHUNK_BYTES
 
-/** The compressed bytes read per step while looking for the first newline */
-const HEAD_STEP = 64 * 1024
-
-/**
- * A cold rollout's first line, decoded synchronously from a growing compressed prefix: zstd decodes a
- * truncated stream up to what it holds when asked to flush rather than finish (measured 2026-09-11: 4 KB
- * of compressed bytes yield the 40 KB first line). `maxBytes` caps the decompressed prefix, as the plain
- * reader caps its own. Returns null when no newline is found within the cap, or when the file is not zstd.
- */
-export function readFirstLineCold(file: string, maxBytes: number): string | null {
-  const fd = openSync(file, 'r')
-  try {
-    const chunks: Buffer[] = []
-    let offset = 0
-    for (;;) {
-      const buf = Buffer.alloc(HEAD_STEP)
-      const n = readSync(fd, buf, 0, HEAD_STEP, offset)
-      if (n > 0) {
-        chunks.push(buf.subarray(0, n))
-        offset += n
-      }
-      const out = zstdDecompressSync(Buffer.concat(chunks), { finishFlush: constants.ZSTD_e_flush })
-      const nl = out.indexOf(0x0a)
-      if (nl !== -1) return out.subarray(0, nl).toString('utf8')
-      if (n === 0) return out.length > 0 ? out.toString('utf8') : null
-      if (out.length >= maxBytes) return null
-    }
-  } catch {
-    return null
-  } finally {
-    closeSync(fd)
-  }
-}

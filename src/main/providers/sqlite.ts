@@ -1,5 +1,7 @@
-// The runtime's built-in SQLite module (Node's `node:sqlite`, present in Electron 43), used to read Antigravity CLI's
-// conversation databases (token-stats::CON-002).
+// The runtime's built-in SQLite module (Node's `node:sqlite`, present in Electron 43). The application reads no
+// database through it: the engine module reads agy's and keeps the token store. Its users are `pnpm bench:scan`, which
+// copies the app's token store with `VACUUM INTO` and reads copies of a store, and the test fixtures, which write agy's
+// conversation databases.
 //
 // Fetched with `process.getBuiltinModule` rather than a static import: Vite 5's import analysis does not know
 // `node:sqlite` as a built-in — it strips the `node:` prefix and goes looking for a package called `sqlite` — so a

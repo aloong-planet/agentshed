@@ -1,6 +1,6 @@
 # Session view
 
-> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread)
+> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module)
 
 > Successful display payloads persist independently of the accounting index (ADR-0029).
 
@@ -352,7 +352,8 @@ hands the command over; it never runs it.
   Corollary: the ellipsis on a list row is **display-layer truncation** (CSS), not data-layer — the
   full text can be laid out when it expands.
 - D2b **File reads go through bounded concurrency, defaulting to 4.** The range-read paths (question
-  list, search, on-demand fetch) all go through it; the existing token scan stays serial.
+  list, search, on-demand fetch) all go through it; the token scan is not bound by it, its files being parsed
+  on a pool of worker threads ([token-stats](token-stats.md), Implementation Decisions, Where parsing runs).
   🔬 **4 is a provisional value, not a conclusion.** It equals Node's default libuv thread pool size,
   and going beyond 4 requires raising `UV_THREADPOOL_SIZE` at the same time to be realised; raising
   it to 16 measured **no faster and slightly slower** on a warm cache (the bottleneck is memory
