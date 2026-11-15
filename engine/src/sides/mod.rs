@@ -6,6 +6,7 @@
 //! The trait gains a method only when side-free code calls one.
 
 mod antigravity;
+mod claude;
 mod codex;
 mod grok;
 
@@ -54,6 +55,7 @@ pub(crate) trait Side: Sync {
 pub(crate) fn named(kind: &str) -> Option<&'static dyn Side> {
     match kind {
         "antigravity" => Some(&antigravity::Antigravity),
+        "claude" => Some(&claude::Claude),
         "codex" => Some(&codex::Codex),
         "grok" => Some(&grok::Grok),
         _ => None,

@@ -60,47 +60,24 @@ pub(super) struct Item<'a> {
     pub(super) texts: Option<Vec<Str<'a>>>,
 }
 
-/// What a line holds, for the parse
-pub(super) enum Parsed<'a> {
-    /// An object: the fields read off it
-    Object(Line<'a>),
-    /// An array, which is an object to `typeof`: the line counts as one that parsed, and has none of the fields
-    Array,
-    /// A string, a number, a boolean or null: not a line the parse is given
-    Other,
-}
-
 /// The line, read; Bad when `JSON.parse` would refuse it
-pub(super) fn read(text: &str) -> Read<Parsed<'_>> {
-    let mut r = Reader::new(text);
-    let parsed = match r.kind()? {
-        Kind::Object => {
-            let mut line = Line::default();
-            r.members(|key, r| {
-                if key.is("timestamp") {
-                    line.timestamp = r.string_or_skip()?;
-                } else if key.is("type") {
-                    line.kind = r.string_or_skip()?;
-                } else if key.is("payload") {
-                    line.payload = payload(r)?;
-                } else {
-                    r.skip()?;
-                }
-                Ok(())
-            })?;
-            Parsed::Object(line)
-        }
-        Kind::Array => {
-            r.skip()?;
-            Parsed::Array
-        }
-        _ => {
-            r.skip()?;
-            Parsed::Other
-        }
-    };
-    r.end()?;
-    Ok(parsed)
+pub(super) fn read(text: &str) -> Read<json::Line<Line<'_>>> {
+    json::line(text, |r| {
+        let mut line = Line::default();
+        r.members(|key, r| {
+            if key.is("timestamp") {
+                line.timestamp = r.string_or_skip()?;
+            } else if key.is("type") {
+                line.kind = r.string_or_skip()?;
+            } else if key.is("payload") {
+                line.payload = payload(r)?;
+            } else {
+                r.skip()?;
+            }
+            Ok(())
+        })?;
+        Ok(line)
+    })
 }
 
 fn payload<'a>(r: &mut Reader<'a>) -> Read<Payload<'a>> {

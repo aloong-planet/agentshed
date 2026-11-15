@@ -109,12 +109,13 @@ describe('clipTitle (a noise-stripped question → a title)', () => {
   })
 })
 
-// Codex's question index and title apply these same rules in the engine module (engine/src/text/mod.rs), while this
-// file still serves Claude's index and every side's question text on the session page and in both searches. One
-// message per shape above, and the text-level edges, go through both: a Codex rollout of that one question parsed by
-// the module lists the question exactly when realUserText keeps it, under clipTitle's title and fingerprint's value.
-// Each copy is the other's expected value: what is held is that they agree, so an edit to one alone goes red here.
-describe('the engine module applies these rules to a Codex question', () => {
+// Claude Code's and Codex's question indexes and titles apply these same rules in the engine module
+// (engine/src/text/mod.rs), while this file still serves every side's question text on the session page and in both
+// searches. One message per shape above, and the text-level edges, go through both: a session file of that one
+// question parsed by the module lists the question exactly when realUserText keeps it, under clipTitle's title and
+// fingerprint's value. Each copy is the other's expected value: what is held is that they agree, so an edit to one
+// alone goes red here.
+describe('the engine module applies these rules to a question', () => {
   const ch = (...codes: number[]): string => String.fromCodePoint(...codes)
   const MESSAGES = [
     '  fix a   layout bug\n\nthanks  ',
@@ -146,21 +147,30 @@ describe('the engine module applies these rules to a Codex question', () => {
     `${'b'.repeat(59)}${String.fromCharCode(0xd800)}after a lone surrogate`
   ]
 
-  it('lists, titles and fingerprints each as these rules do', async () => {
+  it.each(['claude', 'codex'] as const)('lists, titles and fingerprints each %s question as these rules do', async (side) => {
     const dir = mkdtempSync(join(tmpdir(), 'agentshed-title-'))
     try {
       const mismatches: string[] = []
       for (const [i, message] of MESSAGES.entries()) {
         const file = join(dir, `rollout-title-${i}.jsonl`)
-        writeFileSync(file, `${JSON.stringify({ timestamp: '2026-07-30T10:00:00.000Z', type: 'event_msg', payload: { type: 'user_message', message } })}\n`)
-        const parsed = await runParseJob({
-          kind: 'codex',
-          file,
-          projectKey: '',
-          meta: { subagent: false, sessionId: null, parentId: null, forkedAt: null, paginated: false },
-          threadName: undefined
-        })
-        if (parsed?.agg.kind !== 'codex') throw new Error(`no Codex entry for message ${i}`)
+        const timestamp = '2026-07-30T10:00:00.000Z'
+        const line =
+          side === 'claude'
+            ? { type: 'user', timestamp, message: { role: 'user', content: message } }
+            : { timestamp, type: 'event_msg', payload: { type: 'user_message', message } }
+        writeFileSync(file, `${JSON.stringify(line)}\n`)
+        const parsed = await runParseJob(
+          side === 'claude'
+            ? { kind: 'claude', file, projectKey: '', listed: true }
+            : {
+                kind: 'codex',
+                file,
+                projectKey: '',
+                meta: { subagent: false, sessionId: null, parentId: null, forkedAt: null, paginated: false },
+                threadName: undefined
+              }
+        )
+        if (parsed?.agg.kind !== side) throw new Error(`no ${side} entry for message ${i}`)
         const kept = realUserText(message)
         const want = {
           questions: kept === null ? 0 : 1,

@@ -160,6 +160,13 @@ pub(crate) fn number_string(x: f64) -> String {
     buffer.format_finite(x).to_owned()
 }
 
+/// `Date.parse(s)`, None for NaN: the forms `date_parse` reads here, any other by `fallback`, JavaScript's own
+/// `Date.parse`
+pub(crate) fn time_value(s: &[u16], fallback: &mut dyn FnMut(&[u16]) -> f64) -> Option<f64> {
+    let ms = date_parse(s).unwrap_or_else(|| fallback(s));
+    (!ms.is_nan()).then_some(ms)
+}
+
 /// `Date.parse(s)` for the forms read here; None for any other, which the caller hands to JavaScript's own `Date.parse`.
 ///
 /// Read here: `YYYY-MM-DDTHH:mm:ssZ` and `YYYY-MM-DDTHH:mm:ss.sssZ`, the form Codex writes every timestamp in, with

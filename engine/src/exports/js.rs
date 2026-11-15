@@ -302,4 +302,36 @@ impl Js {
             None => Ok(None),
         }
     }
+
+    /// The local dates of time values, as JavaScript's `Date` reads them in the time zone the process runs in
+    pub(crate) fn local_dates(&self) -> Result<LocalDates<'_>> {
+        let mut global = ptr::null_mut();
+        check(unsafe { sys::napi_get_global(self.env, &mut global) })?;
+        let prototype = self.get(self.get(global, "Date")?, "prototype")?;
+        Ok(LocalDates {
+            js: self,
+            getters: [self.get(prototype, "getFullYear")?, self.get(prototype, "getMonth")?, self.get(prototype, "getDate")?],
+        })
+    }
+}
+
+/// `Date.prototype`'s local-date getters, taken once for every time value they are asked about
+pub(crate) struct LocalDates<'j> {
+    js: &'j Js,
+    getters: [napi_value; 3],
+}
+
+impl LocalDates<'_> {
+    /// `[getFullYear(), getMonth(), getDate()]` of `new Date(ms)`
+    pub(crate) fn of(&self, ms: f64) -> Result<[f64; 3]> {
+        let mut date = ptr::null_mut();
+        check(unsafe { sys::napi_create_date(self.js.env, ms, &mut date) })?;
+        let mut out = [f64::NAN; 3];
+        for (field, getter) in out.iter_mut().zip(self.getters) {
+            let mut v = ptr::null_mut();
+            check(unsafe { sys::napi_call_function(self.js.env, date, getter, 0, ptr::null(), &mut v) })?;
+            *field = self.js.number(v)?.unwrap_or(f64::NAN);
+        }
+        Ok(out)
+    }
 }
