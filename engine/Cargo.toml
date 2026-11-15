@@ -1,6 +1,6 @@
 # The engine module (ADR-0045, ADR-0046): one Node-API module, loaded by the scan worker, the parse workers and the main
 # process. Built only through scripts/build-engine.mjs, which passes the build it belongs to; a module built any
-# other way reports none, so no build of the app takes it for its own.
+# other way reports none, so no build of the app takes it for its own (ADR-0047).
 [package]
 name = "agentshed-engine"
 version = "0.0.0"

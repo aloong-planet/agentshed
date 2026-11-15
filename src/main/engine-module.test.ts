@@ -1,5 +1,5 @@
 // The engine module as a thread loads it (ADR-0046), against the development build the global setup made: where it
-// is, what a thread does with a module that will not load or is another build's, and a panic caught at the module's
+// is, what a thread does with a module that will not load or is another build's (ADR-0047), and a panic caught at the module's
 // boundary. These run under Node, in vitest.
 //
 // Elsewhere, and the gaps:
