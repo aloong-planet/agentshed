@@ -1,5 +1,6 @@
-// Project path normalisation and the merge key: the single source (shared by scan and the
-// token engine).
+// Project path normalisation and the merge key, shared by scan and the token engine. The engine module makes an
+// Antigravity conversation's key by the same rule (`merge_key` in engine/src/text/mod.rs): a change here is made there
+// too.
 // The merge key = trailing slash removed + lowercased (the macOS filesystem is case-insensitive);
 // display keeps the original spelling.
 

@@ -203,4 +203,69 @@ impl Js {
         let parsed = self.text(text).and_then(|s| self.call_global("Date", "parse", s)).and_then(|v| self.number(v));
         parsed.ok().flatten().unwrap_or(f64::NAN)
     }
+
+    /// What a call that may throw gives: None when it threw, the exception then cleared so the call into the module
+    /// goes on
+    fn caught(&self, status: sys::napi_status, out: napi_value) -> Result<Option<napi_value>> {
+        if status == sys::Status::napi_pending_exception {
+            let mut exception = ptr::null_mut();
+            check(unsafe { sys::napi_get_and_clear_last_exception(self.env, &mut exception) })?;
+            return Ok(None);
+        }
+        check(status)?;
+        Ok(Some(out))
+    }
+
+    /// `receiver[method](...arguments)`; None when it throws
+    fn call_method(&self, receiver: napi_value, method: &str, arguments: &[napi_value]) -> Result<Option<napi_value>> {
+        let name = CString::new(method).map_err(|e| Error::from_reason(e.to_string()))?;
+        let mut f = ptr::null_mut();
+        check(unsafe { sys::napi_get_named_property(self.env, receiver, name.as_ptr(), &mut f) })?;
+        let mut out = ptr::null_mut();
+        let status = unsafe { sys::napi_call_function(self.env, receiver, f, arguments.len(), arguments.as_ptr(), &mut out) };
+        self.caught(status, out)
+    }
+
+    /// Node's built-in module `id`, as `process.getBuiltinModule(id)` gives it on any thread
+    fn builtin(&self, id: &str) -> Result<napi_value> {
+        let mut global = ptr::null_mut();
+        check(unsafe { sys::napi_get_global(self.env, &mut global) })?;
+        let process = self.get(global, "process")?;
+        let id = self.text(&crate::text::units(id))?;
+        self.call_method(process, "getBuiltinModule", &[id])?.ok_or_else(|| Error::from_reason("process.getBuiltinModule threw"))
+    }
+
+    /// `text.toLowerCase()`
+    pub(crate) fn lower_case(&self, text: &[u16]) -> Result<Units> {
+        let s = self.text(text)?;
+        let lower = self.call_method(s, "toLowerCase", &[])?.ok_or_else(|| Error::from_reason("toLowerCase threw"))?;
+        self.string(lower)?.ok_or_else(|| Error::from_reason("toLowerCase gave no string"))
+    }
+
+    /// `os.tmpdir()`: the system temporary directory, as the application's own code finds it
+    pub(crate) fn os_tmpdir(&self) -> Result<Units> {
+        let os = self.builtin("node:os")?;
+        let dir = self.call_method(os, "tmpdir", &[])?.ok_or_else(|| Error::from_reason("os.tmpdir threw"))?;
+        self.string(dir)?.ok_or_else(|| Error::from_reason("os.tmpdir gave no string"))
+    }
+
+    /// `new URL(text)`; None when it throws, as it does for text that does not parse as a URL
+    pub(crate) fn new_url(&self, text: &[u16]) -> Result<Option<napi_value>> {
+        let mut global = ptr::null_mut();
+        check(unsafe { sys::napi_get_global(self.env, &mut global) })?;
+        let constructor = self.get(global, "URL")?;
+        let s = self.text(text)?;
+        let mut out = ptr::null_mut();
+        let status = unsafe { sys::napi_new_instance(self.env, constructor, 1, &s, &mut out) };
+        self.caught(status, out)
+    }
+
+    /// `fileURLToPath(url)` of Node's `url` module; None when it throws, as it does for a URL naming no local path
+    pub(crate) fn file_url_to_path(&self, url: napi_value) -> Result<Option<Units>> {
+        let module = self.builtin("node:url")?;
+        match self.call_method(module, "fileURLToPath", &[url])? {
+            Some(path) => self.string(path),
+            None => Ok(None),
+        }
+    }
 }

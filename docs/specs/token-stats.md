@@ -650,14 +650,15 @@ Applies to: every conversation database of the side, forks and subagent conversa
   before the database, so agy exiting between the two copies also leaves a database copy that holds
   everything; a checkpoint agy runs while it keeps writing could still split the pair (not observed),
   and a read of it that fails is retried at the next scan.
-- While a conversation has a log, every scan that reads it copies the database and the log in full:
-  no copy-on-write clone is made through the runtime on macOS. A conversation that changed is read
-  twice in one scan — once for its folder (the activity walk) and once for its usage — so one agy is
-  writing is copied twice. A conversation whose database time and log did not change since its last
-  read is not read again, and a conversation found unreadable keeps that verdict, counted at every
-  scan, until its database or its log changes. The activity walk keeps only successful reads, so it
-  opens an unreadable conversation again at every scan — in place, or through a copy while a log is
-  beside it — and finds it unreadable again.
+- While a conversation has a log, every scan that reads it copies the database and the log: on macOS
+  the usage read's copy is a copy-on-write clone when agy's data and the temporary directory are on
+  one APFS volume and a full copy otherwise, while the activity walk copies both in full. A
+  conversation that changed is read twice in one scan — once for its folder (the activity walk) and
+  once for its usage — so one agy is writing is copied twice. A conversation whose database time and
+  log did not change since its last read is not read again, and a conversation found unreadable keeps
+  that verdict, counted at every scan, until its database or its log changes. The activity walk keeps
+  only successful reads, so it opens an unreadable conversation again at every scan — in place, or
+  through a copy while a log is beside it — and finds it unreadable again.
 - A read cut short by the application being killed leaves its copy in a temporary directory only the
   user can read; nothing is left under agy's directories.
 - A conversation is credited to the first of its trajectory metadata's workspace URIs or, in a record
@@ -685,9 +686,9 @@ Applies to: every conversation database of the side, forks and subagent conversa
 - Usage agy never writes to a database — the `/btw` side question (deleted once answered) and the
   Auto mode's command reviewer — is not counted; this under-count is not signalled in the interface.
 - The generator metadata holds each call's full prompt and can reach hundreds of megabytes in one
-  database: decoding skips those fields by their length prefix and never decodes them. The runtime's
-  SQLite module returns a record whole, so one record's bytes are in memory while it is read; the
-  records are read one at a time.
+  database: decoding skips those fields by their length prefix and never decodes them. A record is
+  read whole, so one record's bytes are in memory while it is read; the records are read one at a
+  time.
 - A zero-byte or non-SQLite `.db` file fails to open in the supported format and is counted as
   unreadable (token-stats::REQ-004/AC-01).
 - The settings file or the data root is missing or corrupt: projects-list A1–A3 and A9 apply to this
@@ -941,12 +942,12 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
-  and holds the reading and parsing of Codex rollouts and Grok sessions, the entries and the store. A
-  value in a line is built only where a rule reads it; every other value is scanned past. A line is
-  decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of ECMAScript's
-  `JSON.parse`, with its results: a repeated key keeps its last value, a number beyond the double range
-  is infinite and so no finite count, a lone surrogate escape stays that code unit, and a line
-  `JSON.parse` refuses is a bad line (A8).
+  and holds the reading and parsing of Codex rollouts, Grok sessions and Antigravity CLI conversations,
+  the entries and the store. A value in a line is built only where a rule reads it; every other value is
+  scanned past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar
+  of ECMAScript's `JSON.parse`, with its results: a repeated key keeps its last value, a number beyond
+  the double range is infinite and so no finite count, a lone surrogate escape stays that code unit, and
+  a line `JSON.parse` refuses is a bad line (A8).
 - **Cache**: incremental by file signature, kept in a SQLite store in the settings directory, opened
   by the engine module in whichever thread runs the scan (Where a scan runs, below) and recording its
   own structure version (ADR-0044). It holds each file's entry under its path — its
@@ -1004,8 +1005,8 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   starts from the store as the worker last left it.
 - **Automatic refresh**: the triggers (focus + timer) run in the main process, and the scan they
   start on the scan worker; the cost of a rescan is absorbed by the incremental cache.
-- **Antigravity usage** (ADR-0037): the databases are opened through the runtime's built-in SQLite
-  module (available in Electron 43), under token-stats::CON-002. The records are decoded by field
+- **Antigravity usage** (ADR-0037): the databases are opened by the engine module, under
+  token-stats::CON-002. The records are decoded by field
   number against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and
   skipping the prompt fields by their length prefix; a field the reader reads arriving in another
   wire type than its descriptor declares is a record that will not decode. The extraction script and

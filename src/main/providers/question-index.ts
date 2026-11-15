@@ -441,7 +441,10 @@ export function makeQuestionIndexer(): QuestionIndexer {
 //
 // agy writes a conversation's full transcript as a JSON line per step (`transcript_full.jsonl`), every line carrying
 // its step index and one of five types — measured over every transcript of 2026-10-28 (15 transcripts, 104 lines):
-// USER_INPUT 24, PLANNER_RESPONSE 44, GENERIC 24 (a tool call's result), SYSTEM_MESSAGE 11, ERROR_MESSAGE 1.
+// USER_INPUT 24, PLANNER_RESPONSE 44, GENERIC 24 (a tool call's result), SYSTEM_MESSAGE 11, ERROR_MESSAGE 1. The
+// question index is the engine module's (engine/src/sides/antigravity/transcript.rs), which applies the same question
+// and rewind rules as these, the ones the session page, both searches and the turn reader use: a change here is made
+// there too.
 
 /** The tool call that dispatches a subagent (2 of the 24 measured calls); its result only echoes the creation */
 export const AGY_DISPATCH = 'invoke_subagent'
@@ -484,74 +487,4 @@ export function agyKeptLines(steps: ReadonlyArray<number | null>): boolean[] {
     if (s !== null && s < laterMin) laterMin = s
   }
   return kept
-}
-
-/** A response line's calls: subagent dispatches apart from the other tools (session-view::REQ-004/AC-07) */
-function agyCounts(obj: Record<string, unknown>): { tools: number; subagents: number } {
-  if (obj['type'] !== 'PLANNER_RESPONSE' || !Array.isArray(obj['tool_calls'])) return { tools: 0, subagents: 0 }
-  let tools = 0
-  let subagents = 0
-  for (const c of obj['tool_calls']) {
-    if (asRecord(c)?.['name'] === AGY_DISPATCH) subagents++
-    else tools++
-  }
-  return { tools, subagents }
-}
-
-/**
- * The Antigravity question indexer. A rewind is known only once its redo arrives, so the lines are kept as they come
- * — their offsets, step index, question and calls, never their text beyond a question's — and the index is decided at
- * the end: the kept questions, each turn running from its question's line to the next kept question's line (C1), less
- * any run of undone lines at its end — a rewind back to the next question leaves the turn before it ending where the
- * undone lines begin. Undone lines inside a turn (a rewind to a step within it) stay in its range and are dropped when
- * the turn is read (turn-content's assembler applies the same rule to the range). Calls count on kept lines only.
- */
-export function makeAntigravityQuestionIndexer(): {
-  line(obj: Record<string, unknown>, start: number, end: number): void
-  firstQuestionText(): string | null
-  done(fileEnd: number): QuestionRec[]
-} {
-  interface Line {
-    start: number
-    end: number
-    step: number | null
-    question: string | null
-    at: number | null
-    tools: number
-    subagents: number
-  }
-  const lines: Line[] = []
-  let first: string | null = null
-  return {
-    line(obj, start, end) {
-      const question = antigravityQuestion(obj)
-      const ts = typeof obj['created_at'] === 'string' ? Date.parse(obj['created_at']) : NaN
-      lines.push({ start, end, step: agyStepIndex(obj), question, at: Number.isNaN(ts) ? null : ts, ...agyCounts(obj) })
-    },
-    firstQuestionText() {
-      return first
-    },
-    done(fileEnd) {
-      const kept = agyKeptLines(lines.map((l) => l.step))
-      const qs = lines.flatMap((l, i) => (kept[i] && l.question !== null ? [i] : []))
-      first = qs.length > 0 ? lines[qs[0]].question : null
-      return qs.map((qi, k): QuestionRec => {
-        const next = k + 1 < qs.length ? qs[k + 1] : lines.length
-        // The turn's last kept line: the undone run after it, if any, belongs to no turn
-        let last = next - 1
-        while (last > qi && !kept[last]) last--
-        const end = last + 1 < lines.length ? lines[last + 1].start : fileEnd
-        let tools = 0
-        let subagents = 0
-        for (let i = qi + 1; i <= last; i++) {
-          if (!kept[i]) continue
-          tools += lines[i].tools
-          subagents += lines[i].subagents
-        }
-        const l = lines[qi]
-        const text = l.question as string
-        return [l.start, l.end, end, l.at, tools, subagents, fingerprint(text)]
-      })
-    }
-  }
 }

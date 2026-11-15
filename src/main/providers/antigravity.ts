@@ -1,5 +1,8 @@
-// Reading the Antigravity CLI side (ADR-0037): its registry — the trust ledger in agy's settings — and its
-// conversations, each a SQLite database directly in agy's conversations directory.
+// Reading the Antigravity CLI side (ADR-0037): its registry — the trust ledger in agy's settings — and the activity
+// walk's reading of its conversations, each a SQLite database directly in agy's conversations directory. A
+// conversation's usage, its transcript's question index and agy's conversation titles are read by the engine module
+// (engine/src/sides/antigravity/), whose reading without writing follows the rules below: a change to them here is made
+// there too, until the walk moves into the module.
 //
 // Only agy's own data root is read (`~/.gemini/antigravity-cli`, token-stats::CON-001); the desktop app's and the
 // IDE's roots never are, and neither are agy's own project records (`~/.gemini/config/projects`, shared with the
@@ -22,16 +25,7 @@ import type { RegistryResult } from './claude'
 import { isAbsent } from './read-utils'
 import { DatabaseSync } from './sqlite'
 import { byName } from './scan-order'
-import {
-  decodeGeneratorMetadata,
-  decodeStepMetadata,
-  decodeTrajectoryMetadata,
-  firstFolder,
-  hasTokens,
-  isSubagent,
-  type ModelUsage,
-  type TrajectoryMetadata
-} from './agy-proto'
+import { decodeTrajectoryMetadata, firstFolder, isSubagent, type TrajectoryMetadata } from './agy-proto'
 
 /**
  * Open one conversation database without writing under agy's directories and hand it to `read`; the connection is
@@ -248,163 +242,6 @@ export function readAntigravitySessions(home: string, tmpParent: string = tmpdir
   return out
 }
 
-// ── Usage (token-stats::REQ-003) ──
-
-/**
- * One model call of a conversation, as the token cache keeps it: [identity, time (epoch ms), input, output, cache read,
- * cache write, model]. The identity is the call's response id, else its provider-assigned id, else its message id;
- * null when it carries none, and then it is never matched across databases. The time is the call's step's completion,
- * else its creation (token-stats::REQ-003/AC-05); null for a call recorded by a generator record alone. The model is the
- * generator record's response model as agy recorded it; null without one (token-stats::REQ-003/AC-04).
- */
-export type AgyCall = [string | null, number | null, number, number, number, number, string | null]
-
-/** What a conversation's database says about it as a session (session-view::REQ-003, REQ-005) */
-export interface AgyConversation {
-  /** Its own id, as its trajectory table records it (token-stats::REQ-003/AC-06): the key agy's summaries and a fork's
-   * copied steps name it by */
-  id: string
-  /** Whether its own metadata says it is a subagent (token-stats::REQ-003/AC-07): it gets no row */
-  subagent: boolean
-  /** The largest step timestamp in the database (session-view::REQ-003/AC-04); null when no step carries one */
-  at: number | null
-  /** For a fork, the conversation its last copied step came from (session-view::REQ-005/AC-02); null otherwise */
-  forkOf: string | null
-}
-
-/** A conversation's usage read: its credited folder, calls and session facts; unreadable in the supported format; or
- * failed while agy was writing it (not counted, its last result kept) */
-export type AgyUsageRead =
-  | { kind: 'read'; folder: string | null; calls: AgyCall[]; conversation: AgyConversation }
-  | { kind: 'unreadable' }
-  | { kind: 'failed' }
-
-/**
- * A conversation's own id, as its database records it: the trajectory table's cascade id (one row in every measured
- * database, its id equal to the database's name — 19 of 19, forks and subagents included). Read from the database rather
- * than taken from its file's name, so that a renamed file cannot make every step look copied and its calls vanish
- * without a trace; a trajectory table with no row is a shape never measured, and unreadable.
- */
-function ownConversationIds(db: DatabaseSync): Set<string> {
-  const ids = new Set<string>()
-  for (const row of db.prepare('SELECT cascade_id FROM trajectory_meta').all() as Array<{ cascade_id?: unknown }>) {
-    if (typeof row.cascade_id === 'string' && row.cascade_id !== '') ids.add(row.cascade_id)
-  }
-  if (ids.size === 0) throw new Error('agy conversation: no trajectory row')
-  return ids
-}
-
-/**
- * Read a conversation's model calls, each once (token-stats::REQ-003). agy records a call three times in one database —
- * the step's usage, the generator record's usage and the first entry of that record's retry list — so calls are
- * matched by identity within the database, and the step's time and the generator record's model are joined onto one
- * call. A retry entry is a call of its own only with token counts and an identity of its own (AC-02). A step whose
- * recorded-in conversation is another one — a fork's copy of its parent's history — and a generator record attached
- * only to such steps, or attached to no step here and naming another conversation as its maker, are that
- * conversation's usage, never this one's (AC-06). The steps are read first and kept small
- * (time, copied, the call they carry); the generator records, which hold each call's whole prompt, are decoded one row
- * at a time.
- */
-function conversationCalls(self: Set<string>, db: DatabaseSync): { calls: AgyCall[]; at: number | null; forkOf: string | null } {
-  interface Call {
-    usage: ModelUsage
-    at: number | null
-    model: string | null
-  }
-  interface StepInfo {
-    at: number | null
-    copied: boolean
-    call: Call | null
-  }
-  const calls: Call[] = []
-  const byIdentity = new Map<string, Call>()
-  const add = (usage: ModelUsage, at: number | null, model: string | null): Call => {
-    const seen = usage.identity === null ? undefined : byIdentity.get(usage.identity)
-    if (seen) {
-      // The same call recorded again: the step's time stays, the generator record brings the model
-      if (seen.model === null) seen.model = model
-      return seen
-    }
-    const call: Call = { usage, at, model }
-    calls.push(call)
-    if (usage.identity !== null) byIdentity.set(usage.identity, call)
-    return call
-  }
-  const addRetries = (own: ModelUsage | null, retries: Array<ModelUsage | null>, at: number | null, model: string | null): void => {
-    for (const r of retries) {
-      if (r && hasTokens(r) && r.identity !== null && r.identity !== own?.identity) add(r, at, model)
-    }
-  }
-  const steps = new Map<number, StepInfo>()
-  // The session facts the steps give (session-view::REQ-003/AC-04, REQ-005/AC-02): the largest step time — copied
-  // steps included, theirs being older — and the source of the last copied step, the conversation the nearest copied
-  // content came from
-  let lastStepAt: number | null = null
-  let forkOf: string | null = null
-  for (const row of db.prepare('SELECT idx, metadata FROM steps WHERE metadata IS NOT NULL ORDER BY idx').iterate()) {
-    const { idx, metadata } = row as { idx: number; metadata: unknown }
-    if (!(metadata instanceof Uint8Array)) throw new Error('agy conversation: step metadata is not a blob')
-    const m = decodeStepMetadata(metadata)
-    const info: StepInfo = {
-      at: m.completedAt ?? m.createdAt,
-      copied: m.sourceConversationId !== null && !self.has(m.sourceConversationId),
-      call: null
-    }
-    steps.set(idx, info)
-    for (const t of [m.createdAt, m.completedAt]) if (t !== null && (lastStepAt === null || t > lastStepAt)) lastStepAt = t
-    if (info.copied) forkOf = m.sourceConversationId
-    if (info.copied) continue
-    if (m.usage && hasTokens(m.usage)) info.call = add(m.usage, info.at, null)
-    addRetries(m.usage, m.retries, info.at, null)
-  }
-  for (const row of db.prepare('SELECT idx, data FROM gen_metadata WHERE data IS NOT NULL ORDER BY idx').iterate()) {
-    const { data } = row as { data: unknown }
-    if (!(data instanceof Uint8Array)) throw new Error('agy conversation: generator record is not a blob')
-    const g = decodeGeneratorMetadata(data)
-    const named = g.stepIndices.flatMap((i) => steps.get(i) ?? [])
-    // Copied: every step it names was copied; or, naming no step here, its own record names another conversation as
-    // the one that made the call — a fork copies such a record too, and with the parent gone nothing else tells
-    if (named.length > 0 ? named.every((s) => s.copied) : g.conversationId !== null && !self.has(g.conversationId)) continue
-    const own = named.filter((s) => !s.copied)
-    const at = own.length > 0 ? own[0].at : null
-    if (g.usage && hasTokens(g.usage)) {
-      // A call with no identity is matched to the step it names that carries an unidentified call — the only link
-      // between the two copies when there is no id to match
-      const stepCall = g.usage.identity === null ? own.find((s) => s.call?.usage.identity === null)?.call : undefined
-      if (stepCall) {
-        if (stepCall.model === null) stepCall.model = g.responseModel
-      } else add(g.usage, at, g.responseModel)
-    }
-    addRetries(g.usage, g.retries, at, g.responseModel)
-  }
-  return { calls: calls.map((c) => [c.usage.identity, c.at, c.usage.input, c.usage.output, c.usage.cacheRead, c.usage.cacheWrite, c.model]), at: lastStepAt, forkOf }
-}
-
-/**
- * Read a conversation's usage without writing under agy's directories (token-stats::CON-002): its format checked
- * (token-stats::CON-001), its credited folder (token-stats::REQ-003/AC-08), its calls, and what its database says about
- * it as a session (AgyConversation). `tmpParent` is where a copy is made when a log is beside the database.
- */
-export function readAntigravityUsage(file: string, tmpParent: string = tmpdir()): AgyUsageRead {
-  const logBefore = existsSync(`${file}-wal`)
-  try {
-    return readConversationDb(
-      file,
-      (db): AgyUsageRead => {
-        checkFormat(db)
-        const m = trajectoryRecord(db)
-        if (m === null) throw new Error('agy conversation: no trajectory record')
-        const self = ownConversationIds(db)
-        const { calls, at, forkOf } = conversationCalls(self, db)
-        return { kind: 'read', folder: firstFolder(m), calls, conversation: { id: [...self][0], subagent: isSubagent(m), at, forkOf } }
-      },
-      tmpParent
-    )
-  } catch {
-    return failedWhileWritten(file, logBefore) ? { kind: 'failed' } : { kind: 'unreadable' }
-  }
-}
-
 // ── Sessions (session-view::REQ-003, REQ-004) ──
 
 /**
@@ -432,34 +269,4 @@ export function agySessionSignature(file: string): string | null {
     transcript = '-'
   }
   return `${db.sig}|${transcript}`
-}
-
-/**
- * agy's own conversation titles, from its summaries database (`<data root>/conversation_summaries.db`, the index its
- * `/resume` list reads), by conversation id; a conversation agy left untitled — its row's title empty, as for a fork or
- * a subagent (measured) — is left out (session-view::REQ-003/AC-03). Read without writing there (token-stats::CON-002), as a conversation is. Empty when the
- * database is not there or will not read in the shape titles are read from (its table with `conversation_id` and
- * `title`) — the titles then fall back to the first question; null when the read failed while agy was writing it, so
- * the caller keeps the titles it last read.
- */
-export function readAgySummaryTitles(home: string, tmpParent: string = tmpdir()): Map<string, string> | null {
-  const file = join(home, 'conversation_summaries.db')
-  if (!existsSync(file)) return new Map()
-  const logBefore = existsSync(`${file}-wal`)
-  try {
-    return readConversationDb(
-      file,
-      (db) => {
-        const titles = new Map<string, string>()
-        for (const row of db.prepare('SELECT conversation_id, title FROM conversation_summaries').iterate()) {
-          const { conversation_id: id, title } = row as { conversation_id?: unknown; title?: unknown }
-          if (typeof id === 'string' && id !== '' && typeof title === 'string' && title.trim() !== '') titles.set(id, title)
-        }
-        return titles
-      },
-      tmpParent
-    )
-  } catch {
-    return failedWhileWritten(file, logBefore) ? null : new Map()
-  }
 }
