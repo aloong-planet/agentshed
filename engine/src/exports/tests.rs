@@ -13,6 +13,12 @@ mod seam {
         seams::name_panic_file(file);
     }
 
+    /// Names the entry the module panics while the session walk reads it, or none
+    #[napi(catch_unwind)]
+    pub fn seam_panic_while_walking(file: Option<String>) {
+        seams::name_walk_panic_file(file);
+    }
+
     /// A stand-in for a function that parses a session file, for the seam's own tests: it parses nothing, and answers
     /// with the file once the seam has let it through
     #[napi(catch_unwind)]
@@ -25,6 +31,25 @@ mod seam {
     #[napi(catch_unwind)]
     pub fn seam_cut_store_write_after(statements: Option<u32>) {
         seams::store_write_seam::cut_after(statements);
+    }
+
+    /// A directory the module made to copy one of agy's databases into, as the copy seam noted it
+    #[napi(object)]
+    pub struct SeamCopyDir {
+        pub path: String,
+        pub mode: u32,
+    }
+
+    /// Watches the directories the module makes in `parent` to copy agy's databases into, or none
+    #[napi(catch_unwind)]
+    pub fn seam_watch_copies_under(parent: Option<String>) {
+        seams::copy_seam::watch(parent);
+    }
+
+    /// Each directory made in the watched one since it was named (`seams.rs`)
+    #[napi(catch_unwind)]
+    pub fn seam_copies_made() -> Vec<SeamCopyDir> {
+        seams::copy_seam::made().into_iter().map(|(path, mode)| SeamCopyDir { path, mode }).collect()
     }
 
     /// Runs one statement against the token store in `dir`, bound to `params` (text or null), on a connection of its

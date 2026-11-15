@@ -1,70 +1,18 @@
-// Reading the Antigravity CLI side (ADR-0037): its registry — the trust ledger in agy's settings — and the activity
-// walk's reading of its conversations, each a SQLite database directly in agy's conversations directory. A
-// conversation's usage, its transcript's question index and agy's conversation titles are read by the engine module
-// (engine/src/sides/antigravity/), whose reading without writing follows the rules below: a change to them here is made
-// there too, until the walk moves into the module.
+// Reading the Antigravity CLI side (ADR-0037): its registry — the trust ledger in agy's settings — and what the token
+// cache and the session page key a conversation by, its signature and its transcript's path. Each conversation is a
+// SQLite database directly in agy's conversations directory, which the engine module reads
+// (engine/src/sides/antigravity/): the session walk's folder and subagent markers, the usage, the transcript's question
+// index and agy's conversation titles, all without writing under agy's directories (token-stats::CON-002; the rules are
+// in that directory's db.rs).
 //
 // Only agy's own data root is read (`~/.gemini/antigravity-cli`, token-stats::CON-001); the desktop app's and the
 // IDE's roots never are, and neither are agy's own project records (`~/.gemini/config/projects`, shared with the
 // desktop app and created automatically) nor its folder cache (projects-list::REQ-001/AC-03).
-//
-// **Reading writes nothing under agy's directories** (token-stats::CON-002). An ordinary read-only SQLite open of a
-// database in WAL mode leaves `-shm` and `-wal` files behind (measured 2026-10-28), so a database with no log beside
-// it is opened in place as immutable — SQLite then takes no lock and creates nothing (measured 2026-10-29) — and one
-// with a log (agy has it open) is copied, log first, into a temporary directory of this application's own, read
-// there, and the copy removed. The log goes first for agy exiting between the two copies: its last connection merges
-// the log into the database before deleting it, so a log already gone means the database copied after it holds
-// everything. A checkpoint agy runs while it keeps writing could still land between the two copies (not observed; the
-// mechanism allows it): a read of such a pair that fails contributes nothing, and the next scan reads it again.
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync, statSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { ERR } from '@shared/errors'
 import type { RegistryResult } from './claude'
 import { isAbsent } from './read-utils'
-import { DatabaseSync } from './sqlite'
-import { byName } from './scan-order'
-import { decodeTrajectoryMetadata, firstFolder, isSubagent, type TrajectoryMetadata } from './agy-proto'
-
-/**
- * Open one conversation database without writing under agy's directories and hand it to `read`; the connection is
- * closed, and a copy removed, before this returns or throws. `tmpParent` is where the copy's directory is made
- * (the system temporary directory in production; injected by tests to see that it is removed).
- */
-export function readConversationDb<T>(file: string, read: (db: DatabaseSync) => T, tmpParent: string = tmpdir()): T {
-  if (!existsSync(`${file}-wal`)) {
-    const url = pathToFileURL(file)
-    url.searchParams.set('immutable', '1')
-    const db = new DatabaseSync(url, { readOnly: true })
-    try {
-      return read(db)
-    } finally {
-      db.close()
-    }
-  }
-  const dir = mkdtempSync(join(tmpParent, 'agentshed-agy-'))
-  try {
-    const copy = join(dir, 'conversation.db')
-    try {
-      copyFileSync(`${file}-wal`, `${copy}-wal`)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
-    }
-    copyFileSync(file, copy)
-    // The copy is this application's own, so it is opened like any database. agy's `-shm` — the index its running
-    // connection keeps over the log — is not copied; SQLite builds the copy's own from the copied log (measured: a row
-    // only the log holds reads back)
-    const db = new DatabaseSync(copy)
-    try {
-      return read(db)
-    } finally {
-      db.close()
-    }
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-}
 
 /** The registry: `trustedWorkspaces` in agy's settings — the folders the user agreed to trust when agy asked, which agy
  * writes itself (projects-list::REQ-001/AC-01, measured 2026-10-28) */
@@ -93,6 +41,7 @@ export function readAntigravityRegistry(home: string): RegistryResult {
   return { detected: true, paths: ledger.filter((p): p is string => typeof p === 'string' && p !== '') }
 }
 
+/** A conversation, as the engine module's session walk reads it (engine/src/sides/antigravity/walk.rs) */
 export interface AntigravitySessionMeta {
   /** The conversation database's absolute path — the session's identity */
   file: string
@@ -106,59 +55,13 @@ export interface AntigravitySessionMeta {
   mtimeMs: number
 }
 
-interface Attribution {
-  cwd: string | null
-  subagent: boolean
-}
-
-/**
- * The format this reader supports (token-stats::CON-001): user version 1, with the tables and columns usage is read
- * from — the steps' index and metadata, the generator metadata's index and data, the trajectory metadata, and the
- * trajectory table's cascade id (the conversation's own id). A database of any other shape is unreadable
- * (token-stats::REQ-004): it throws here, before a record is decoded, so a drift shows as a counted conversation rather
- * than as figures that quietly shrank.
- */
-const SUPPORTED_USER_VERSION = 1
-const REQUIRED_COLUMNS: Record<string, string[]> = {
-  steps: ['idx', 'metadata'],
-  gen_metadata: ['idx', 'data'],
-  trajectory_metadata_blob: ['id', 'data'],
-  trajectory_meta: ['cascade_id']
-}
-
-function checkFormat(db: DatabaseSync): void {
-  const v = db.prepare('PRAGMA user_version').get() as { user_version?: unknown } | undefined
-  if (v?.user_version !== SUPPORTED_USER_VERSION) throw new Error(`agy conversation: user version ${String(v?.user_version)}`)
-  for (const [table, columns] of Object.entries(REQUIRED_COLUMNS)) {
-    // A missing table has no columns, so it fails the same check
-    const have = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name))
-    for (const c of columns) if (!have.has(c)) throw new Error(`agy conversation: no ${table}.${c}`)
-  }
-}
-
-/** The conversation's trajectory record (the `main` row; the table's default id and the only row in every measured
- * database); null when there is none */
-function trajectoryRecord(db: DatabaseSync): TrajectoryMetadata | null {
-  const row = db.prepare("SELECT data FROM trajectory_metadata_blob WHERE id = 'main'").get() as { data?: unknown } | undefined
-  return row && row.data instanceof Uint8Array ? decodeTrajectoryMetadata(row.data) : null
-}
-
-/**
- * Whether a failed read is agy writing the conversation rather than a format it cannot be read in
- * (token-stats::REQ-004/AC-03): a log was beside the database before the read or is after it — agy had it open, and a
- * torn copy or a database mid-write is not a format change — or the database is gone (deleted since the listing).
- */
-function failedWhileWritten(file: string, logBefore: boolean): boolean {
-  return logBefore || existsSync(`${file}-wal`) || !existsSync(file)
-}
-
 /**
  * A conversation's signature: the database's modification time and the log's presence, time and size — never the
- * database's size, which a checkpoint leaves unchanged (measured; token-stats Implementation Decisions). The walk's
- * memo and the token cache both key a conversation by it. `mtimeMs` is the later of the two times: while agy writes,
- * only the log changes (projects-list::REQ-001/AC-04, measured). Null when the database is gone.
+ * database's size, which a checkpoint leaves unchanged (measured; token-stats Implementation Decisions). The token cache
+ * keys a conversation by it, and the session walk's memory by the same parts (engine/src/sides/antigravity/walk.rs).
+ * Null when the database is gone.
  */
-export function conversationSignature(file: string): { sig: string; mtimeMs: number } | null {
+function conversationSignature(file: string): string | null {
   let dbMtime: number
   try {
     dbMtime = statSync(file).mtimeMs
@@ -171,75 +74,7 @@ export function conversationSignature(file: string): { sig: string; mtimeMs: num
   } catch {
     wal = null
   }
-  return wal
-    ? { sig: `${dbMtime}:${wal.mtimeMs}:${wal.size}`, mtimeMs: Math.max(dbMtime, wal.mtimeMs) }
-    : { sig: `${dbMtime}:-`, mtimeMs: dbMtime }
-}
-
-/**
- * What each conversation's metadata said, keyed by path, with the signature it was read under. An unchanged
- * conversation is not opened again, which keeps a rescan from opening, or copying, every database each time. Only
- * successful reads are kept, and only for the conversations the last walk saw.
- */
-let attributions = new Map<string, { sig: string; value: Attribution }>()
-
-/** A conversation's folder and subagent markers; null when it cannot be read, 'failed' when the read failed while agy
- * was writing it */
-function readAttribution(file: string, tmpParent: string): Attribution | null | 'failed' {
-  const logBefore = existsSync(`${file}-wal`)
-  try {
-    return readConversationDb(
-      file,
-      (db) => {
-        checkFormat(db)
-        const m = trajectoryRecord(db)
-        return m ? { cwd: firstFolder(m), subagent: isSubagent(m) } : null
-      },
-      tmpParent
-    )
-  } catch {
-    // Will not open, is in another format, or its record will not decode: it contributes nothing — unless agy was
-    // writing it
-    return failedWhileWritten(file, logBefore) ? 'failed' : null
-  }
-}
-
-/**
- * Every conversation of the side: the `.db` files directly in `<home>/conversations` (subagents sit there too,
- * measured), never their `-wal` and `-shm` companions nor anything one level down (token-stats::CON-001).
- */
-export function readAntigravitySessions(home: string, tmpParent: string = tmpdir()): AntigravitySessionMeta[] {
-  const out: AntigravitySessionMeta[] = []
-  const seen = new Map<string, { sig: string; value: Attribution }>()
-  let entries
-  try {
-    // In scan order (scan-order.ts)
-    entries = readdirSync(join(home, 'conversations'), { withFileTypes: true }).sort(byName)
-  } catch {
-    attributions = seen
-    return out
-  }
-  for (const e of entries) {
-    if (!e.isFile() || !e.name.endsWith('.db')) continue
-    const file = join(home, 'conversations', e.name)
-    const signature = conversationSignature(file)
-    if (signature === null) continue // Deleted since the listing
-    const { sig, mtimeMs } = signature
-    const cached = attributions.get(file)
-    let entry = cached?.sig === sig ? cached : null
-    if (entry === null) {
-      const read = readAttribution(file, tmpParent)
-      // A read that failed while agy was writing keeps the last successful one (token-stats::REQ-004/AC-03), under its
-      // old signature, so the next walk reads the conversation again
-      if (read === 'failed') entry = cached ?? null
-      else if (read !== null) entry = { sig, value: read }
-    }
-    if (entry) seen.set(file, entry)
-    const value = entry?.value ?? { cwd: null, subagent: false }
-    out.push({ file, cwd: value.cwd, subagent: value.subagent, mtimeMs })
-  }
-  attributions = seen
-  return out
+  return wal ? `${dbMtime}:${wal.mtimeMs}:${wal.size}` : `${dbMtime}:-`
 }
 
 // ── Sessions (session-view::REQ-003, REQ-004) ──
@@ -268,5 +103,5 @@ export function agySessionSignature(file: string): string | null {
   } catch {
     transcript = '-'
   }
-  return `${db.sig}|${transcript}`
+  return `${db}|${transcript}`
 }

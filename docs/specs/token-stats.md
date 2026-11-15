@@ -662,12 +662,12 @@ Applies to: every conversation database of the side, forks and subagent conversa
   everything; a checkpoint agy runs while it keeps writing could still split the pair (not observed),
   and a read of it that fails is retried at the next scan.
 - While a conversation has a log, every scan that reads it copies the database and the log: on macOS
-  the usage read's copy is a copy-on-write clone when agy's data and the temporary directory are on
-  one APFS volume and a full copy otherwise, while the activity walk copies both in full. A
-  conversation that changed is read twice in one scan — once for its folder (the activity walk) and
+  each copy, the usage read's and the session walk's alike, is a copy-on-write clone when agy's data
+  and the temporary directory are on one APFS volume and a full copy otherwise. A
+  conversation that changed is read twice in one scan — once for its folder (the session walk) and
   once for its usage — so one agy is writing is copied twice. A conversation whose database time and
   log did not change since its last read is not read again, and a conversation found unreadable keeps
-  that verdict, counted at every scan, until its database or its log changes. The activity walk keeps
+  that verdict, counted at every scan, until its database or its log changes. The session walk keeps
   only successful reads, so it opens an unreadable conversation again at every scan — in place, or
   through a copy while a log is beside it — and finds it unreadable again.
 - A read cut short by the application being killed leaves its copy in a temporary directory only the
@@ -704,7 +704,7 @@ Applies to: every conversation database of the side, forks and subagent conversa
   unreadable (token-stats::REQ-004/AC-01).
 - The settings file or the data root is missing or corrupt: projects-list A1–A3 and A9 apply to this
   side as to the others.
-- A conversation in another format gives its folder no activity either: the activity walk applies the
+- A conversation in another format gives its folder no activity either: the session walk applies the
   same format check. One whose format and trajectory record read but one of whose usage records will
   not decode is left out of the figures and counted, while its folder still takes the database's time —
   activity is the file's time, a separate pipeline (projects-list). A read that fails while agy writes
@@ -838,10 +838,10 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   every read of a question index or of a question's text fails as that read (session-view C4), and the
   display copy is not written ([agents-overview::REQ-008/AC-05](agents-overview.md)). The failure is logged.
 - A panic in the engine module is caught where it crosses into the application. One raised while a file
-  is parsed is that file's failed read, under the rule its side has for a read that fails (A10, B12, F6,
-  token-stats::REQ-004), and the scan goes on (the AGENTS.md invariant on reading agent data); one
-  raised elsewhere in a scan fails that scan (E3), and one raised in a read fails that read
-  (session-view C4).
+  is parsed, or read by the session walk, is that file's failed read, under the rule its side has for a
+  read that fails (A10, B12, F6, projects-list B4 and B8, token-stats::REQ-004), and the scan goes on (the
+  AGENTS.md invariant on reading agent data); one raised elsewhere in a scan fails that scan (E3), and one
+  raised in a read fails that read (session-view C4).
 - A rollout replaced under its path, appended to or edited in place differs in its inode, its size or
   its modification time, and its first line is read again (token-stats::QR-002/AC-01). An edit that
   moves none of the three is not seen until the file next changes — the limit the token cache's own
@@ -953,12 +953,12 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
-  and holds the reading and parsing of Codex rollouts, Claude Code sessions, Grok sessions and Antigravity
-  CLI conversations, the entries and the store. A value in a line is built only where a rule reads it; every
-  other value is scanned past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by
-  the grammar of ECMAScript's `JSON.parse`, with its results: a repeated key keeps its last value, a number
-  beyond the double range is infinite and so no finite count, a lone surrogate escape stays that code unit,
-  and a line `JSON.parse` refuses is a bad line (A8).
+  and holds the session walk, the reading and parsing of Codex rollouts, Claude Code sessions, Grok
+  sessions and Antigravity CLI conversations, the entries and the store. A value in a line is built only
+  where a rule reads it; every other value is scanned past. A line is decoded as UTF-8, an invalid
+  sequence becoming U+FFFD, and read by the grammar of ECMAScript's `JSON.parse`, with its results: a
+  repeated key keeps its last value, a number beyond the double range is infinite and so no finite count,
+  a lone surrogate escape stays that code unit, and a line `JSON.parse` refuses is a bad line (A8).
 - **Cache**: incremental by file signature, kept in a SQLite store in the settings directory, opened
   by the engine module in whichever thread runs the scan (Where a scan runs, below) and recording its
   own structure version (ADR-0044). It holds each file's entry under its path — its

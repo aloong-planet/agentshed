@@ -41,7 +41,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
 import { availableParallelism } from 'node:os'
-import { scan, walkSessions } from '../src/main/providers/scan'
+import { scan, type SessionWalk } from '../src/main/providers/scan'
 import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
 import { ParsePool } from '../src/main/parse-pool'
 import { ENGINE_BUILD, loadEngineModule, type EngineSource } from '../src/main/engine-module'
@@ -219,6 +219,11 @@ async function longestStall(work: () => Promise<void>): Promise<{ max: string; p
   await tick()
   lag.disable()
   return { max: (lag.max / 1e6).toFixed(0), p99: (lag.percentile(99) / 1e6).toFixed(0) }
+}
+
+/** The session walk, by the engine module, with no memory behind it */
+function walkSessions(roots: ScanRoots): SessionWalk {
+  return loadEngineModule(engineSource()).walkSessions(roots)
 }
 
 /** The engine module (ADR-0045) every scanner and parse worker here loads: the development build the runner made */

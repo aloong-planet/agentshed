@@ -107,8 +107,11 @@ and are never written back to any agent configuration.
   the one file inside it that is the authoritative stream (ADR-0019), so "the session file's mtime"
   keeps one meaning across all sides.
 - B8 A Grok child session sits **beside** its parent rather than beneath it, and is identified as a
-  subagent by what its own record says it is — never by directory depth. It does not count toward the
-  session count and does not push the most recent time up (the same rule as B3).
+  subagent by what its own record says it is — never by directory depth: a child's record names its kind
+  as `subagent`, while a top-level session's names none or another kind (`headless`, measured 2026-11-15).
+  A child does not count toward the session count and does not push the most recent time up (the same
+  rule as B3). A record that cannot be read, does not parse or is no object says nothing, so its session
+  is no subagent's and counts: an extra session shows, while a real one dropped would not.
 - B9 Activity counts sessions from **every** side that has them, including a side that did not
   register the directory. So a project registered on one side only can show a session count and a
   most-recent time drawn partly from another side, while its side count stays at one. The two answer

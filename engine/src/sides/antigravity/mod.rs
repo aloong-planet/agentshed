@@ -2,7 +2,8 @@
 //! conversations directory, read without writing there (token-stats::CON-001, CON-002, REQ-003, REQ-004; session-view's
 //! Antigravity rules) — and agy's own conversation titles. This file is the adapter the side registers in
 //! `sides/mod.rs`: it reads a parse job, the TypeScript `ParseJob` of kind `antigravity`, and writes the entry as the
-//! TypeScript `ParseResult`. The file goes back as the job's own JavaScript value.
+//! TypeScript `ParseResult`. The file goes back as the job's own JavaScript value. Its side of the session walk it writes
+//! as the TypeScript `AntigravitySessionMeta`.
 
 mod db;
 mod entry;
@@ -11,15 +12,17 @@ mod proto;
 mod titles;
 mod transcript;
 mod usage;
+mod walk;
 
 use std::path::{Path, PathBuf};
 
-use napi::Result;
 use napi::sys::napi_value;
+use napi::{Error, Result};
 
 use self::entry::{Entry, Job, Parsed};
 use self::parse::Runtime;
-use super::Side;
+use self::walk::Attributions;
+use super::{Kept, Side};
 use crate::exports::js::Js;
 use crate::text::{self, Units};
 
@@ -53,16 +56,32 @@ impl Side for Antigravity {
     /// failed while agy was writing them
     fn titles(&self, js: &Js, home: &str, tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
         let answer = || -> Result<napi_value> {
-            let tmp = match tmp_parent {
-                Some(t) => PathBuf::from(t),
-                None => PathBuf::from(String::from_utf16_lossy(&js.os_tmpdir()?)),
-            };
+            let tmp = copy_parent(js, tmp_parent)?;
             match titles::read(Path::new(home), &tmp) {
                 Some(pairs) => js.array(pairs.iter().map(|(id, title)| js.array([js.text(&text::units(id)), js.text(&text::units(title))]))),
                 None => js.null(),
             }
         };
         Some(answer())
+    }
+
+    /// Every conversation in agy's data root, `roots.antigravityHome`, with what the run's walks read of each
+    fn walk(&self, js: &Js, roots: napi_value, kept: &mut Kept, tmp_parent: Option<&str>) -> Option<Result<napi_value>> {
+        let mut walked = || -> Result<napi_value> {
+            let home = js.string(js.get(roots, "antigravityHome")?)?.ok_or_else(|| Error::from_reason("the scan roots name no antigravityHome"))?;
+            let tree = String::from_utf16_lossy(&js.path_join(&[&home, &text::units(walk::TREE)])?);
+            let tmp = copy_parent(js, tmp_parent)?;
+            let sessions = walk::walk(&tree, kept.of::<Attributions>(), &tmp, &JsRuntime(js))?;
+            js.array(sessions.iter().map(|s| {
+                js.object(&[
+                    ("file", js.text(&text::units(&s.file))?),
+                    ("cwd", js.text_or_null(s.cwd.as_ref())?),
+                    ("subagent", js.boolean(s.subagent)?),
+                    ("mtimeMs", js.num(s.mtime_ms)?),
+                ])
+            }))
+        };
+        Some(walked())
     }
 }
 
@@ -92,13 +111,19 @@ fn path_text(js: &Js, value: napi_value) -> Result<String> {
     Ok(String::from_utf16_lossy(&js.string(value)?.unwrap_or_default()))
 }
 
-/// Where a copy is made: the job's directory, else the system temporary directory
+/// Where a copy is made for a parse job: the job's directory, else the system temporary directory
 fn tmp_parent(js: &Js, value: napi_value) -> Result<PathBuf> {
-    let dir = match js.string(value)? {
-        Some(dir) => dir,
-        None => js.os_tmpdir()?,
-    };
-    Ok(PathBuf::from(String::from_utf16_lossy(&dir)))
+    let given = js.string(value)?.map(|dir| String::from_utf16_lossy(&dir));
+    copy_parent(js, given.as_deref())
+}
+
+/// Where a copy is made for a call that names its directory or none: that directory, else the system temporary
+/// directory
+fn copy_parent(js: &Js, given: Option<&str>) -> Result<PathBuf> {
+    Ok(match given {
+        Some(t) => PathBuf::from(t),
+        None => PathBuf::from(String::from_utf16_lossy(&js.os_tmpdir()?)),
+    })
 }
 
 fn text_or_null(js: &Js, s: Option<&String>) -> Result<napi_value> {

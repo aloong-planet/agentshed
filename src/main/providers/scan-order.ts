@@ -3,8 +3,9 @@
 // the files of one session id, an Antigravity call held by two conversations — make the order part of the figures, so
 // whatever takes the store's entries outside a scan (the restore, a fork's parent lookup) takes them in this order.
 //
-// One comparator decides it, in this file: every walk orders a directory's entries by it, and the store's entries are
-// put in scan order by it. A scan visits the data roots in a fixed order and each root depth-first, a directory's
+// One definition decides it, written here as a comparator: every listing here orders a directory's entries by it, the
+// store's entries are put in scan order by it, and the engine module's session walk sorts by the same definition
+// (engine/src/walk/). A scan visits the data roots in a fixed order and each root depth-first, a directory's
 // children at the directory's own place among its siblings; so two files compare by the root each lies under, then
 // by their paths below it, component by component, each name by its UTF-8 bytes. Not by whole paths: `a-b/x` would come
 // before `a/y`, as `-` is below `/`, where the walk takes directory `a` first. Not by JavaScript's string order either:
