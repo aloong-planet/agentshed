@@ -28,8 +28,8 @@ export interface ScanOutput {
 /**
  * What a scan's token build takes from its snapshot (TokenEngine.build): the Claude Code projects' paths, none when
  * Claude Code's registry could not be read, so that the build keeps each stored session's project; and every
- * registered project's merge key, which the read allow-list admits sessions by. The bench and the question-corpus
- * cases take them from here too, so they build what a scan builds.
+ * registered project's merge key, which the read allow-list admits sessions by. The bench modes that build from a
+ * scan's snapshot and the question-corpus cases take them from here too, so they pass the inputs a scan passes.
  */
 export function tokenBuildInputs(snapshot: Snapshot): { claudeProjectPaths: string[] | null; registeredKeys: Set<string> } {
   return {
