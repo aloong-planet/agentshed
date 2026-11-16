@@ -1,6 +1,6 @@
 # ADR-0044: The token cache lives in a SQLite store and is aggregated by de-duplication group; the display copy is written while the window has no focus
 
-- Status: Proposed (2026-11-12)
+- Status: Accepted (2026-11-16)
 
 ## Context
 
@@ -67,3 +67,4 @@ peak about 605 MB; one changed entry 45 MB written; a display copy save about 70
 `2026-11-12-how-comparable-apps-keep-memory-low.md` (option 2: 73 MB to 33–54 MB; 4,171 Claude files in 4,149 groups);
 `2026-11-12-sqlite-prototype.md` (the prototype under Electron as Node: the engine's peak 85–110 MB, a rescan 277–322
 ms to 142–156 ms, a few changed files 2–6 MB written, the store 64 MB, the import 1.3–1.9 s at a peak of 340–351 MB).
+#424, 2026-11-16, packaged 29856af, 7,421 session files: token-stats::QR-003's peak 138 MB, 110 MB after five rescans.

@@ -1,6 +1,6 @@
 # ADR-0046: The engine module is loaded through Node-API by the app's own threads, rather than written in Go or run as a separate process
 
-- Status: Proposed
+- Status: Accepted (2026-11-16)
 
 ## Context
 

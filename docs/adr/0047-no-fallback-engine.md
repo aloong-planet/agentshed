@@ -1,6 +1,6 @@
 # ADR-0047: No fallback engine: a module that will not load, or is another build, fails what needs it
 
-- Status: Proposed
+- Status: Accepted (2026-11-16)
 
 ## Context
 
@@ -12,8 +12,9 @@ app shows, comes from it.
 
 1. **No fallback engine: such a module fails the scans and reads that need it** — chosen.
 2. A TypeScript fallback for when the module will not load — rejected: every accounting rule would exist
-   twice, held together by a parity check that never ends, and a module that will not load is a build or
-   install defect the tests and smoke runs on every shipped target catch.
+   twice, held together by a parity check that never ends. A module that will not load is a build or install
+   defect, and every build loads the module it built and checks the build it reports, the packaged build's
+   included, though no automated check sees whether the signed package's module loads (Sources).
 
 ## Decision
 
@@ -32,4 +33,4 @@ application's code was made with, fails as token-stats' failure modes for scans 
 
 `scripts/build-engine.mjs`, run by every build of the module, packaging's included (`build/engine-before-pack.cjs`):
 it loads the library it built and refuses one that reports another build. `e2e/lifecycle.spec.ts`: the case for a
-module that will not load, on the built app.
+module that will not load, on the built app. `src/main/engine-module.test.ts` names the signed package's load as a gap.

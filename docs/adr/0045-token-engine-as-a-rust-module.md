@@ -70,3 +70,5 @@ workers; all 3,052 Codex rollouts) took 9.0–9.3 s against 42.0–42.5 s, peake
 1,561–1,786 MB and spent 2.4 s of system CPU against 31 s. Both under the Electron 43.2.0 binary, 2026-11-13.
 `2026-11-12-sqlite-prototype.md` (ADR-0044): those layers held 7–8 MB of live data, and summing the groups took
 14–18 ms of a 142–156 ms rescan.
+#424, 2026-11-16, packaged 29856af on an empty settings directory over this machine's 7,421 files: first figures at
+18.33–18.97 s, peak 467 MB.

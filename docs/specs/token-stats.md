@@ -979,9 +979,12 @@ read with macOS `footprint`.
   row set is also what makes G7 hold by construction.
 - **Cache version bumps**: the store keeps per-file parse output, and each group's combined result
   with the combination it came from (Cache, below). A *structure* change to what is stored must bump the
-  version, and a change to the combination must not: the results it would make stale are combined again
-  from the stored entries with nothing parsed, while a bump makes every file parse again, so a bump for a
-  combination change would force a full rescan for nothing.
+  version, and so must a change to how a per-file aggregate is computed: an unchanged file's entry is read
+  back as stored, so a new computation would never reach it. A computation change goes without a bump only
+  where the reason for not bumping is recorded beside the version. A change to the combination must not
+  bump: the results it would make stale are combined again from the stored entries with nothing parsed,
+  while a bump makes every file parse again, so a bump for a combination change would force a full rescan
+  for nothing.
 - **Archive**: see ADR-0007 for its existence and grain, ADR-0026 for the conflict rule. The archive
   is the sole owner of the effective row set: each scan hands it the live rows and the scan anchor,
   and it returns the rows every figure derives from together with the archived-only days — no caller
@@ -1024,7 +1027,7 @@ read with macOS `footprint`.
 - **Codex usage sources**: see ADR-0027. The parser reads both sources in one pass and applies the
   usage boundary as it goes; the per-file aggregate keeps its list of per-event increments and the
   boundary index beside it, so that the replay stripping can stop at the legacy span — a shape change
-  and a computation change, both of which bump the cache structure version under the rule below,
+  and a computation change, both of which bump the cache structure version (Cache version bumps, above),
   and the version is part of the accounting stamp (C21). Reading a cold rollout puts a zstd decompression stream in front of the
   line reader; the byte offsets the question index records for it are offsets in the decompressed
   stream.
