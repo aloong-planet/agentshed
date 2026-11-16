@@ -3,7 +3,7 @@
 //
 //   node scripts/build-engine.mjs             the build for development and tests, with the panic seam, at
 //                                             engine/dist/agentshed_engine.node: what an unpackaged run, the tests, the
-//                                             scan benchmark and the parity command load
+//                                             scan benchmark and the archive restore load
 //   node scripts/build-engine.mjs --packaged  the build packaging ships (build/engine-before-pack.cjs), without the
 //                                             seam, refused when it exports one or reports another build
 //

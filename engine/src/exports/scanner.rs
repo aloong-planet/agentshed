@@ -1,5 +1,5 @@
 //! Called by the scanner (src/main/providers/scanner.ts), on the thread that runs the scan, and wherever else a scan's
-//! steps run on their own (`scan()` and `TokenEngine.build` given no walk, the parity command, the scan benchmark): the
+//! steps run on their own (`scan()` and `TokenEngine.build` given no walk, the scan benchmark): the
 //! session walk, and the memory of one run's walks.
 
 use napi::bindgen_prelude::FromNapiValue;

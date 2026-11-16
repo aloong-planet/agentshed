@@ -1,6 +1,5 @@
-//! Called by the parse workers (`src/main/parse-worker.ts`, through `runParseJob`), by every other parse a thread runs
-//! itself through the same function, and by the parity command (`pnpm engine:parity`): the module's one parse entry, for
-//! every side it parses.
+//! Called by the parse workers (`src/main/parse-worker.ts`, through `runParseJob`) and by every other parse a thread
+//! runs itself through the same function: the module's one parse entry, for every side it parses.
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 

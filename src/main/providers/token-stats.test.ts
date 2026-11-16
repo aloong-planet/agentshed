@@ -4983,7 +4983,7 @@ describe('how a Claude Code session line is read', () => {
 // token-stats Sequence F and session-view G1–G2 through the engine module, and the clauses of token-stats,
 // Implementation Decisions, The engine module ("read by the grammar of ECMAScript's JSON.parse, with its results"), one
 // Grok stream per clause. Until the TypeScript Grok parser was removed (#429), each entry was also held, field for field,
-// to the one it gave for the same file (`firstDifference`), and the values every case expects are the ones both gave.
+// to the one it gave for the same file, and the values every case expects are the ones both gave.
 describe('how a Grok stream line is read', () => {
   /** A session directory holding `lines`, each a line's text or its raw bytes, joined by line feeds and ended by `end` */
   function stream(id: string, lines: Array<string | Buffer>, o: { end?: string; summary?: string | Buffer } = {}): string {
