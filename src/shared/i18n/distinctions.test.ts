@@ -165,27 +165,4 @@ describe('one concept, one word', () => {
       ).toContain(stale)
     }
   })
-
-  it('the artifacts tab, the empty state and the error all use the same root word', () => {
-    // CONTEXT.md fixes the term as “artifact” — the five kinds of document a project accumulates. Rendering
-    // it as “product” reads as a commercial product, and rendering it two ways within one language leaves
-    // the tab and its own error message looking unrelated.
-    //
-    // **Scope of this check:** it compares the three strings against each other, so it catches a language
-    // that is internally inconsistent. It cannot tell whether the word chosen is the right one — a language
-    // that says “product” in all three places passes. Choosing the term is a CONTEXT.md decision and is
-    // enforced by review, not here.
-    for (const l of LANGUAGES) {
-      const d = dictOf(l)
-      const root = d.detail.tabArts.toLocaleLowerCase().slice(0, 5)
-      expect(
-        d.detail.noArtifactsOfType.toLocaleLowerCase(),
-        `${l}: the “${d.detail.tabArts}” tab’s empty state does not use the same word`
-      ).toContain(root)
-      expect(
-        d.errors.artifactNotWhitelisted.toLocaleLowerCase(),
-        `${l}: the “${d.detail.tabArts}” tab’s allow-list error does not use the same word`
-      ).toContain(root)
-    }
-  })
 })

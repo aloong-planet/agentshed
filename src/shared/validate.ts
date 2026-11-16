@@ -4,7 +4,6 @@
 // validation, zero dependencies.
 import type { AgentSide, ProjectFigures, Snapshot } from './domain'
 import { ERR, appError } from './errors'
-import { ARTIFACT_ORDER } from './domain'
 
 /**
  * A validation failure is returned in **structured** form with no natural language (ADR-0001).
@@ -442,7 +441,6 @@ const SKILL_LEVELS = new Set(['project', 'global', 'plugin'])
 const SUBAGENT_LEVELS = new Set(['project', 'global'])
 const ORIGINS = new Set(['disk', 'plugin'])
 const ENABLED_FROM = new Set(['local', 'project', 'user'])
-const ARTIFACT_TYPES: ReadonlySet<string> = new Set(ARTIFACT_ORDER)
 
 function str(v: unknown): boolean {
   return typeof v === 'string'
@@ -567,15 +565,6 @@ export function validateProjectDetail(v: unknown): ValidateResult {
       if (r) return r
     }
   }
-
-  const artifacts = eachOf(v['artifacts'], 'detail.artifacts', (a, at) => {
-    if (!ARTIFACT_TYPES.has(a['type'] as string)) return failEnum(`${at}.type`, a['type'])
-    if (!str(a['title'])) return failType(`${at}.title`, 'string')
-    if (typeof a['file'] !== 'string' || a['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
-    if (typeof a['mtimeMs'] !== 'number') return failType(`${at}.mtimeMs`, 'number')
-    return null
-  })
-  if (artifacts) return artifacts
 
   // `stats` reuses the existing validator rather than starting a second set of session rules
   if (v['stats'] !== null) {

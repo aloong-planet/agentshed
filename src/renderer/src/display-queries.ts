@@ -33,7 +33,7 @@ export function hydrateDisplayQueries(client: QueryClient, reads: SavedRead[]): 
       case 'projectDetail': key = [r.kind, r.path]; result = { ok: true, detail: r.data } as Result; break
       case 'sessionPage': key = [r.kind, r.file]; result = { ok: true, page: r.data } as Result; break
       case 'turnContent': key = [r.kind, r.file, r.i, r.revision]; result = { ok: true, turn: r.data, ms: r.ms } as Result; break
-      case 'artifactContent': case 'skillContent': key = [r.kind, r.file]; result = { ok: true, text: r.data } as Result; break
+      case 'memoryContent': case 'skillContent': key = [r.kind, r.file]; result = { ok: true, text: r.data } as Result; break
       case 'skillFiles': key = [r.kind, r.args]; result = { ok: true, listing: r.data } as Result; break
     }
     // A live query may have completed while bootstrap was in flight; it owns the newer copy.

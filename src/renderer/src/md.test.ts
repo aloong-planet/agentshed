@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Markdown render sanitising: scripts, event attributes and javascript: links are stripped; file:// images
-// (what an artifact's relative image rewrites to) are admitted.
+// Markdown render sanitising: scripts, event attributes and javascript: links are stripped; file:// images are
+// admitted as written.
 import { describe, it, expect } from 'vitest'
 import { renderMarkdown } from './md'
 
@@ -27,7 +27,7 @@ describe('renderMarkdown', () => {
     expect(html).not.toContain('javascript:')
   })
 
-  it('admits file:// images (the form an artifact\'s relative path rewrites to)', () => {
+  it('admits file:// images as written', () => {
     const html = renderMarkdown('![img](file:///Users/x/docs/adr/img.png)')
     expect(html).toContain('src="file:///Users/x/docs/adr/img.png"')
   })

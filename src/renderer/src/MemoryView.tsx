@@ -1,5 +1,5 @@
 import { useDisplayClock } from './DisplayClock'
-import { useArtifactContentQuery } from './artifact-content-query'
+import { useMemoryContentQuery } from './memory-content-query'
 // The Memory section (spec: subagents-memory-plugin, sequences C/D).
 // The global summary: a row expands its file list inline and clicking a file opens a drawer; contents do
 // not enter the snapshot and are read on demand through the allow-listed channel (C8).
@@ -224,7 +224,7 @@ export function MemoryFileDrawer({
 }): JSX.Element {
   const lang = useLanguage()
   const t = useDict()
-  const { data } = useArtifactContentQuery(file.file)
+  const { data } = useMemoryContentQuery(file.file)
   const text = data?.ok ? (data.text.truncated ? `${data.text.text}\n${t.placeholder.truncated}` : data.text.text) : null
   const err = data?.ok === false ? t.memory.unreadable(errorText(lang, data.error)) : null
   return (

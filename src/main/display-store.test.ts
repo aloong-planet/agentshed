@@ -12,6 +12,7 @@ import { ERR, appError } from '@shared/errors'
 import { loadEngineModule } from './engine-module'
 import { TEST_ENGINE } from './testing/engine'
 import { DisplayStore, engineWrite, type DisplayWrite } from './display-store'
+import { ReadRegistry } from './read-registrations'
 const dirs: string[] = []
 afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }) })
 function dir(): string { const d = mkdtempSync(join(tmpdir(), 'agentshed-display-')); dirs.push(d); return d }
@@ -288,7 +289,7 @@ it('with an engine module that will not load, the copy restores without it, and 
 it('drops a corrupt snapshot leaf without losing an independently valid preview', async () => {
   const root = dir(), store = writing(root), data = emptyDisplayData()
   data.snapshot = emptySnapshot(100)
-  data.reads = [{ kind: 'artifactContent', file: '/viewed.md', data: { text: 'kept preview', truncated: false } }]
+  data.reads = [{ kind: 'memoryContent', file: '/viewed.md', data: { text: 'kept preview', truncated: false } }]
   store.record(data)
   await store.flush()
   // Corruption enters at the filesystem boundary, not through a fabricated private state.
@@ -298,7 +299,7 @@ it('drops a corrupt snapshot leaf without losing an independently valid preview'
   writeFileSync(file, JSON.stringify(raw))
   const restored = new DisplayStore(root).get()
   expect(restored.snapshot).toBeNull()
-  expect(restored.reads).toEqual([{ kind: 'artifactContent', file: '/viewed.md', data: { text: 'kept preview', truncated: false } }])
+  expect(restored.reads).toEqual([{ kind: 'memoryContent', file: '/viewed.md', data: { text: 'kept preview', truncated: false } }])
 })
 
 // agents-overview A3. Corruption's route in, the file: this is what a build from before the error named its file left there
@@ -356,10 +357,10 @@ it('isolates a saved page whose numeric data overflowed JSON without discarding 
         tokens: 'OVERFLOW', bytes: 100, forkState: 'none', forkPoints: 0,
         forkParentTitle: null, forkParentFile: null, questions: []
       } },
-      { kind: 'artifactContent', file: '/good.md', data: { text: 'Good body', truncated: false } }
+      { kind: 'memoryContent', file: '/good.md', data: { text: 'Good body', truncated: false } }
     ]
   } }).replace('"OVERFLOW"', '1e400'))
-  expect(new DisplayStore(root).get().reads.map(r => r.kind)).toEqual(['artifactContent'])
+  expect(new DisplayStore(root).get().reads.map(r => r.kind)).toEqual(['memoryContent'])
 })
 
 // A project detail saved by a version whose memory had no main-file entry (the installed app's own cache holds
@@ -423,6 +424,77 @@ it('restores a project detail saved before instruction entries carried their pat
     { claudeMd: null, agentsMd: { file: '/w/r/AGENTS.md', content: { text: '# Only agent notes', truncated: false } } },
     { claudeMd: { file: '/w/s/CLAUDE.md', content: { text: '# Only conventions', truncated: false } }, agentsMd: null }
   ])
+})
+
+// The read path across the retirement of the project's document list: a display cache saved before it — the shape of
+// this machine's on 2026-11-14 — registers memory files and documents under one key, `artifacts`, and saves a read of
+// either as `artifactContent`. The scan's registration held only the memory files the snapshot lists (Codex's outside
+// a memory directory among them); a project page's held its documents, its memory topics and its main file — the main
+// file and one topic written since the scan only there; a skill package's held none. Only a path the restored snapshot or a restored project page lists as a memory file stays
+// readable, or keeps its saved read: a document a page listed, and one no page lists any more, are not.
+it('restores the memory files a display cache saved before the document list went had registered and read, and none of its documents', () => {
+  const root = dir()
+  const memory = '/h/.claude/projects/-w-p/memory', main = `${memory}/MEMORY.md`, topic = `${memory}/topic.md`, fresh = `${memory}/fresh.md`
+  const codexMain = '/h/.codex/memories/MEMORY.md', codexSummary = '/h/.codex/memories/memory_summary.md'
+  const spec = '/w/p/docs/specs/s.md', context = '/w/p/docs/CONTEXT.md', page = '/w/p/docs/prototypes/m/page.html'
+  const memoryFile = (file: string) => ({ name: file.slice(file.lastIndexOf('/') + 1), file, mtimeMs: 1 })
+  const snapshot = emptySnapshot(100)
+  snapshot.global.memory = [
+    { side: 'claude', projectPath: '/w/p', projectName: 'p', hasMain: false, files: [memoryFile(topic)], lastModified: 1, stale: false },
+    { side: 'codex', projectPath: null, projectName: null, hasMain: false, files: [memoryFile(codexMain), memoryFile(codexSummary)], lastModified: 1, stale: false }
+  ]
+  const text = (t: string) => ({ text: t, truncated: false })
+  const skillOwner = JSON.stringify(['skillFiles', 'claude', 's', 'global', null, null])
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
+    ...emptyDisplayData(), snapshot,
+    registrations: [
+      { owner: 'scan', artifacts: [topic, codexMain, codexSummary], pluginRoots: ['/plug'], projects: [], skillFiles: [] },
+      { owner: 'project:/w/p', artifacts: [page, spec, context, fresh, topic, main], projects: ['/w/p'], pluginRoots: ['/plug'], skillFiles: [] },
+      { owner: skillOwner, skillFiles: ['/s/SKILL.md'], artifacts: [], projects: [], pluginRoots: [] }
+    ],
+    reads: [
+      { kind: 'projectDetail', path: '/w/p', data: {
+        path: '/w/p', skills: [], subagents: [], plugins: [], mcp: [], configs: { claudeMd: null, agentsMd: null }, stats: null,
+        memory: { main: text('# Index'), mainFile: memoryFile(main), topics: [memoryFile(fresh), memoryFile(topic)] },
+        artifacts: [{ type: 'specs', title: 's', file: spec, mtimeMs: 2 }, { type: 'context', title: 'CONTEXT.md', file: context, mtimeMs: 2 },
+          { type: 'prototypes', title: 'page', file: page, mtimeMs: 2 }]
+      } },
+      { kind: 'artifactContent', file: topic, data: text('Saved topic') },
+      { kind: 'artifactContent', file: fresh, data: text('Saved fresh topic') },
+      { kind: 'artifactContent', file: codexSummary, data: text('Saved summary') },
+      { kind: 'artifactContent', file: spec, data: text('Saved spec') },
+      { kind: 'artifactContent', file: '/w/q/docs/features/gone.md', data: text('Saved feature') }
+    ]
+  } }))
+  const restored = new DisplayStore(root).get()
+  expect(restored.reads).toEqual([
+    { kind: 'projectDetail', path: '/w/p', data: {
+      path: '/w/p', skills: [], subagents: [], plugins: [], mcp: [], configs: { claudeMd: null, agentsMd: null }, stats: null,
+      memory: { main: text('# Index'), mainFile: memoryFile(main), topics: [memoryFile(fresh), memoryFile(topic)] }
+    } },
+    { kind: 'memoryContent', file: topic, data: text('Saved topic') },
+    { kind: 'memoryContent', file: fresh, data: text('Saved fresh topic') },
+    { kind: 'memoryContent', file: codexSummary, data: text('Saved summary') }
+  ])
+  expect(restored.registrations).toEqual([
+    { owner: 'scan', memoryFiles: [topic, codexMain, codexSummary], pluginRoots: ['/plug'], projects: [], skillFiles: [] },
+    { owner: 'project:/w/p', memoryFiles: [fresh, topic, main], projects: ['/w/p'], pluginRoots: ['/plug'], skillFiles: [] },
+    { owner: skillOwner, memoryFiles: [], skillFiles: ['/s/SKILL.md'], projects: [], pluginRoots: [] }
+  ])
+  const registry = new ReadRegistry(restored.registrations)
+  expect([main, topic, fresh, codexSummary, spec, context, page].map((f) => registry.admission('memoryFiles', f)))
+    .toEqual(['restored', 'restored', 'restored', 'restored', null, null, null])
+  expect(registry.admission('skillFiles', '/s/SKILL.md')).toBe('restored')
+})
+
+it('restores a registration this build saved as it was saved, whether or not a restored page lists its memory files', async () => {
+  const root = dir(), store = writing(root), data = emptyDisplayData()
+  data.registrations = [{ owner: 'project:/w/p', memoryFiles: ['/h/.claude/projects/-w-p/memory/topic.md'], skillFiles: [], projects: ['/w/p'],
+    pluginRoots: ['/plug'] }]
+  store.record(data)
+  await store.flush()
+  expect(new DisplayStore(root).get().registrations).toEqual([{ owner: 'project:/w/p', memoryFiles: ['/h/.claude/projects/-w-p/memory/topic.md'],
+    skillFiles: [], projects: ['/w/p'], pluginRoots: ['/plug'] }])
 })
 
 // agents-overview::REQ-004 across an update: the snapshot in this machine's display cache on 2026-10-29 holds
@@ -631,7 +703,7 @@ function stats(rows: UsageRow[]): ProjectStats {
 function detail(path: string, side: AgentSide | null, s: ProjectStats | null): ProjectDetail {
   return {
     path, subagents: [], memory: { main: null, mainFile: null, topics: [] }, plugins: [], mcp: [],
-    configs: { claudeMd: null, agentsMd: null }, stats: s, artifacts: [],
+    configs: { claudeMd: null, agentsMd: null }, stats: s,
     skills: side === null ? [] : [{ name: 's', description: null, level: 'project', side, symlink: false, pkg: null,
       origin: 'disk', pluginName: null, pluginRoot: null, pluginSkillName: null }]
   }
@@ -671,7 +743,7 @@ it('agents-overview::REQ-005: restores what a newer build saved without the side
       ...sessionReads('/s/other.jsonl', RENAMED),
       { kind: 'skillFiles', args: { side: 'claude', name: 's', scope: 'global' }, data: { files: [] } },
       { kind: 'skillFiles', args: { side: RENAMED, name: 's', scope: 'global' }, data: { files: [] } },
-      { kind: 'artifactContent', file: '/w/p/a.md', data: { text: 'kept', truncated: false } }
+      { kind: 'memoryContent', file: '/w/p/a.md', data: { text: 'kept', truncated: false } }
     ]
   })
   expect(mentions(saved, NEWER)).toBeGreaterThan(0)
@@ -683,7 +755,7 @@ it('agents-overview::REQ-005: restores what a newer build saved without the side
   expect(restored.stats.map(([p]) => p)).toEqual(['/w/p'])
   expect(restored.reads.map((r) => [r.kind, 'path' in r ? r.path : 'file' in r ? r.file : r.args.side])).toEqual([
     ['projectDetail', '/w/p'], ['sessionPage', '/s/claude.jsonl'], ['turnContent', '/s/claude.jsonl'], ['skillFiles', 'claude'],
-    ['artifactContent', '/w/p/a.md']
+    ['memoryContent', '/w/p/a.md']
   ])
 })
 
@@ -713,10 +785,10 @@ it.each(snapshotPositions)('agents-overview::REQ-005: a saved snapshot naming th
   const saved = savedByANewerBuild({
     ...emptyDisplayData(),
     snapshot,
-    reads: [{ kind: 'artifactContent', file: '/w/p/a.md', data: { text: 'kept', truncated: false } }]
+    reads: [{ kind: 'memoryContent', file: '/w/p/a.md', data: { text: 'kept', truncated: false } }]
   })
   writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: saved }))
   const restored = new DisplayStore(root).get()
   expect(restored.snapshot).toBeNull()
-  expect(restored.reads.map((r) => r.kind)).toEqual(['artifactContent'])
+  expect(restored.reads.map((r) => r.kind)).toEqual(['memoryContent'])
 })

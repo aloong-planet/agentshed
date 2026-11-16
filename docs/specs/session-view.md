@@ -450,8 +450,8 @@ below are archived as a decision record and are no longer requirements)**
   results, the real times in a Codex replayed span).
 
 **Cross-cutting regression points**
-- R1 Session file paths must enter the on-demand read allow-list (the same invariant as artifacts
-  and memory). The application's own scan produces **an exact path set**, which the main process
+- R1 Session file paths must enter the on-demand read allow-list (the same invariant as memory files
+  and skill files). The application's own scan produces **an exact path set**, which the main process
   takes from the scan's result and holds (ADR-0043), and the allow-list check is the first thing done
   on a read, before any file-system call. **The rule = listed
   sessions + subagent and nested transcripts** — the latter are not in the list (A3/A3a) but
@@ -716,7 +716,7 @@ subagents included.
   toast; the page itself follows C4/P7 on its next refresh.
 - A path that is not a listed session file is refused before it is touched (session-view::R1's
   allow-list); a restored allow-list entry is shown only while it is a regular file, as a restored
-  artifact is opened.
+  memory file is read.
 
 **Pasting the command — the agent side's own behaviour, which the product does not check**
 - The tool is not installed or not on the path: the shell says so. On this machine the Codex command

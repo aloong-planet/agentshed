@@ -194,7 +194,7 @@ const ARCHIVE_FORCE_ACCEPT = process.env['AGENTSHED_ARCHIVE_FORCE_ACCEPT'] === '
 /** Test seam (the same injection family as the rescan intervals and the scan delay): an artificial
  * delay before a project-detail or session-page fetch resolves, letting e2e assert that a switch
  * holds the previous page instead of blanking it (project-detail T1, session-view P1, ADR-0028); the
- * same knob also covers listSkillFiles and readArtifact, letting e2e assert the widget-level query
+ * same knob also covers listSkillFiles and readMemoryFile, letting e2e assert the widget-level query
  * layer's reopen-is-cached behaviour (issue #177), and holds each reading of global search's question
  * texts, letting e2e assert the reading state (global-search REQ-002/AC-02). 0 in production. */
 const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'], 0)
@@ -235,7 +235,7 @@ async function doScan(): Promise<Snapshot> {
       sessionTokens = tokensByFile
       lastScanAt = Date.now() // The baseline for focus throttling (token-stats E1)
       readRegistry.replace({ owner: 'scan',
-        artifacts: snap.global.memory.flatMap(m => m.files.map(f => f.file)),
+        memoryFiles: snap.global.memory.flatMap(m => m.files.map(f => f.file)),
         pluginRoots: [...snap.global.plugins.flatMap(p => p.installPath ? [p.installPath] : []),
           ...snap.global.codexPlugins.flatMap(p => p.root ? [p.root] : []),
           ...snap.global.antigravityPlugins.map(p => p.root)], projects: [], skillFiles: [] })
@@ -306,7 +306,7 @@ handle(CMD.getProjectDetail, async (_e, path: unknown) => {
   // It covers the whole detail payload including the stats.sessions block (validateProjectDetail reuses
   // that validator internally).
   assertProjectDetail(detail)
-  readRegistry.replace({ owner: `project:${path}`, artifacts: [...detail.artifacts.map(a => a.file), ...detail.memory.topics.map(t => t.file),
+  readRegistry.replace({ owner: `project:${path}`, memoryFiles: [...detail.memory.topics.map(t => t.file),
     ...(detail.memory.mainFile !== null ? [detail.memory.mainFile.file] : [])],
     // The package roots this page's plugin skill rows preview from: Claude's plugins as this project sees them, and
     // Antigravity's, which are global and read again for the page (a plugin installed since the last scan included)
@@ -429,23 +429,23 @@ handle(CMD.globalSearch, async (_e, needle: unknown) => {
   assertGlobalSearchResult(r)
   return r
 })
-handle(CMD.readArtifact, async (_e, file: unknown) => {
-  if (typeof file !== 'string' || !readRegistry.admission('artifacts', file)) throw appError(ERR.artifactNotWhitelisted)
+handle(CMD.readMemoryFile, async (_e, file: unknown) => {
+  if (typeof file !== 'string' || !readRegistry.admission('memoryFiles', file)) throw appError(ERR.memoryFileNotWhitelisted)
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
-  if (!readRegistry.admission('artifacts', file)) throw appError(ERR.artifactNotWhitelisted)
-  if (readRegistry.admission('artifacts', file) === 'restored' && !regularTarget(file)) throw appError(ERR.artifactNotWhitelisted)
+  if (!readRegistry.admission('memoryFiles', file)) throw appError(ERR.memoryFileNotWhitelisted)
+  if (readRegistry.admission('memoryFiles', file) === 'restored' && !regularTarget(file)) throw appError(ERR.memoryFileNotWhitelisted)
   let raw: string
   try {
     raw = readFileSync(file, 'utf8')
   } catch {
-    throw appError(ERR.artifactUnreadable)
+    throw appError(ERR.memoryFileUnreadable)
   }
   // Only report whether it was truncated; the renderer appends the marker in the current language
   // (ticket 07)
   const text = raw.length > 500_000
     ? { text: raw.slice(0, 500_000), truncated: true }
     : { text: raw, truncated: false }
-  remember({ kind: 'artifactContent', file, data: text })
+  remember({ kind: 'memoryContent', file, data: text })
   return text
 })
 handle(CMD.copyText, (_e, text: unknown) => {
@@ -461,11 +461,6 @@ handle(CMD.revealSessionFile, (_e, raw: unknown) => {
   shell.showItemInFolder(r.file)
 })
 
-handle(CMD.openArtifact, async (_e, file: unknown) => {
-  if (typeof file !== 'string' || !readRegistry.admission('artifacts', file)) throw appError(ERR.artifactNotWhitelisted)
-  if (readRegistry.admission('artifacts', file) === 'restored' && !regularTarget(file)) throw appError(ERR.artifactNotWhitelisted)
-  await shell.openPath(file)
-})
 function checkSkillOpArgs(args: unknown): SkillOpArgs {
   const a = args as SkillOpArgs
   if (
@@ -548,7 +543,7 @@ handle(CMD.listSkillFiles, async (_e, args: unknown): Promise<ListSkillFilesResu
   const listing = listSkillPackageFiles(root)
   const result = { files: listing.files }
   const read: SavedRead = { kind: 'skillFiles', args: a, data: result }
-  readRegistry.replace({ owner: savedReadKey(read), skillFiles: listing.files.map(f => f.absPath), artifacts: [], projects: [], pluginRoots: [] })
+  readRegistry.replace({ owner: savedReadKey(read), skillFiles: listing.files.map(f => f.absPath), memoryFiles: [], projects: [], pluginRoots: [] })
   remember(read)
   return result
 })

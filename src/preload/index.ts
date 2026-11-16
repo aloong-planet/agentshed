@@ -194,9 +194,8 @@ const api = {
     if (!v.ok) throw contractError('globalSearchResult', v.failure)
     return r as GlobalSearchResult
   },
-  readArtifact: (file: string): Promise<CappedText> =>
-    ipcRenderer.invoke(CMD.readArtifact, file) as Promise<CappedText>,
-  openArtifact: (file: string): Promise<void> => ipcRenderer.invoke(CMD.openArtifact, file),
+  readMemoryFile: (file: string): Promise<CappedText> =>
+    ipcRenderer.invoke(CMD.readMemoryFile, file) as Promise<CappedText>,
   copyText: (text: string): Promise<void> => ipcRenderer.invoke(CMD.copyText, text),
   revealSessionFile: (file: string): Promise<void> => ipcRenderer.invoke(CMD.revealSessionFile, file),
   installSkill: (args: SkillInstallArgs): Promise<SkillLandingResult[]> =>

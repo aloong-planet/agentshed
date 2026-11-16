@@ -1,8 +1,8 @@
 // The single exit from markdown to sanitised HTML: every dangerouslySetInnerHTML must come through here.
-// DOMPurify's default URI allow-list excludes file:, while the artifact reader rewrites relative images to
-// file:// (which the packaged build can load),
-// so ALLOWED_URI_REGEXP is extended explicitly; scripts, event attributes and javascript: are still
-// stripped by default.
+// DOMPurify's default URI allow-list excludes file:. ALLOWED_URI_REGEXP admits it explicitly, so that a file://
+// link in rendered content keeps its href and reaches the link layer, which answers it with a notice rather than
+// leaving a dead link (md-links.ts), and a file:// image stays as written; scripts, event attributes and
+// javascript: are still stripped by default.
 // skills-view: YAML frontmatter is split into a key-value card before the body is rendered.
 // memory-view::CON-002: text an agent writes stays text — a [[…]] reference with whatever follows it, and a
 // tag-like <name> whose name is not an HTML element (a placeholder such as <slug>), which the sanitiser would

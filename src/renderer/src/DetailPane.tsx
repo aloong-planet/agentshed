@@ -4,10 +4,9 @@ import { StartupHint } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { MarkdownBody } from './MarkdownBody'
 import { InstructionsSection } from './InstructionsSection'
-import type { AgentSide, ArtifactEntry, ArtifactType, CappedText, ProjectDetail, ProjectEntry, ProjectSkillEntry, Snapshot } from '@shared/domain'
-import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
+import type { AgentSide, ProjectDetail, ProjectEntry, ProjectSkillEntry, Snapshot } from '@shared/domain'
+import { PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
 import { skillsDirLoaders } from '@shared/skill-landing'
 import { projectDetailQueryKey, useProjectDetailQuery } from './project-detail-query'
 import { figuresFor, type WindowFigures } from './project-figures'
@@ -17,7 +16,6 @@ import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './To
 import { sliceUsage, type UsageWindow } from '@shared/usage'
 import { ProjectSubagentsTab } from './SubagentsView'
 import { ProjectMemoryTab } from './MemoryView'
-import { dirOf } from './md-links'
 import { ProjectPluginsTab } from './PluginsView'
 import { AntigravityMcpGroup } from './McpServers'
 import { fmtAgo } from './ProjectsPane'
@@ -31,9 +29,8 @@ import { useLanguage, useDict } from './language'
 import { GitFork } from './icons'
 import { useSessionSearchQuery } from './session-search-query'
 import { SessionHitCard } from './SessionHits'
-import { artifactContentQuery, useArtifactContentQuery } from './artifact-content-query'
 
-type Tab = 'ov' | 'instructions' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'arts'
+type Tab = 'ov' | 'instructions' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions'
 
 export function DetailPane({
   snap,
@@ -151,8 +148,7 @@ function DetailPaneBody({
               ['plugins', 'Plugins'],
               ['mcp', 'MCP'],
               ['memory', 'Memory'],
-              ['sessions', t.detail.tabSessions],
-              ['arts', t.detail.tabArts]
+              ['sessions', t.detail.tabSessions]
             ] as const
           ).map(([t, label]) => (
             <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => onTab(t)}>
@@ -202,7 +198,6 @@ function DetailPaneBody({
               <SessionsTab detail={detail} onOpenSession={onOpenSession} />
             )}
             {tab === 'instructions' && <InstructionsTab detail={detail} />}
-            {tab === 'arts' && <ArtifactsTab detail={detail} />}
           </Fragment>
         ) : null // T10: a fetch failure resolves in-band; the body stays empty under the new header, as
         // it always did while the detail was loading — no error card is invented.
@@ -717,158 +712,25 @@ function McpTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JS
   )
 }
 
-/** The chips' order comes from ARTIFACT_ORDER as the single source; the labels only map display names */
-const ART_LABELS: Record<ArtifactType, string> = {
-  context: 'CONTEXT.md',
-  adr: 'ADR',
-  specs: 'specs',
-  prototypes: 'prototypes',
-  features: 'features',
-  postmortems: 'postmortems'
-}
-
-/**
- * The artifact reader overlay as a reusable pair (open + overlay element): the Artifacts tab and
- * the Instructions tab both open artifacts in it, each with its own instance (the overlay closes with
- * its tab). Prototypes keep their "open in the browser" route.
- */
-/** The truncation marker (ticket 07) and the relative-image rewrite: image paths resolve against
- * the artifact's own directory (they load under the packaged build's file://; in dev, mixed-content
- * restrictions may prevent them showing). */
-function renderArtifactMarkdown(cap: CappedText, item: ArtifactEntry, truncatedNote: string): string {
-  const md = cap.truncated ? `${cap.text}\n${truncatedNote}` : cap.text
-  const baseDir = item.file.slice(0, item.file.lastIndexOf('/'))
-  return md.replace(
-    /!\[([^\]]*)\]\((?!https?:\/\/|file:\/\/|data:|\/)([^)]+)\)/g,
-    (_m, alt: string, rel: string) => `![${alt}](file://${baseDir}/${rel})`
-  )
-}
-
-function useArtifactReader(detail: ProjectDetail): {
-  openArtifact: (item: ArtifactEntry) => Promise<void>
-  readerOverlay: JSX.Element | null
-} {
-  const t = useDict()
-  const lang = useLanguage()
-  const client = useQueryClient()
-  const [openItem, setOpenItem] = useState<ArtifactEntry | null>(null)
-  const { data: readResult } = useArtifactContentQuery(openItem ? openItem.file : null)
-
-  async function openArtifact(item: ArtifactEntry): Promise<void> {
-    if (item.type === 'prototypes') {
-      await window.agentshed.openArtifact(item.file)
-      return
-    }
-    setOpenItem(item)
-    // The click's own answer (B9): the read it started rather than what the query holds, so each click on a file that
-    // cannot be read adds one toast, a file that has come back opens with none, and a scan's revalidation adds none. A
-    // failed read lets go of the file, or the reader would open by itself on the scan that finds it back
-    const result = await client.fetchQuery(artifactContentQuery(client, item.file))
-    if (result.ok) return
-    toast('err', errorText(lang, result.error))
-    setOpenItem((open) => (open?.file === item.file ? null : open))
-  }
-
-  // The truncation marker and the relative-image rewrite are derived at render time from the cached
-  // raw text, not baked into the cache: a language switch while the reader is open still picks up
-  // the marker's new wording (ticket 07), and reopening a cached file recomputes them for free.
-  const reader =
-    openItem && readResult?.ok
-      ? { item: openItem, text: renderArtifactMarkdown(readResult.text, openItem, t.placeholder.truncated) }
-      : null
-
-  const readerOverlay = reader ? (
-    <>
-      <div className="mask" onClick={() => setOpenItem(null)} />
-      <div className="reader">
-        <h2>{reader.item.title}</h2>
-        <div className="meta mono">{reader.item.file}</div>
-        <MarkdownBody
-          className="md"
-          text={reader.text}
-          links={{
-            baseDir: dirOf(reader.item.file),
-            readable: detail.artifacts.map((a) => a.file),
-            // Cross-references between artifacts (spec ↔ features, say) navigate inside the
-            // reader, never the whole window
-            onInternal: (file) => {
-              const a = detail.artifacts.find((x) => x.file === file)
-              if (a) void openArtifact(a)
-            },
-            onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
-          }}
-        />
-      </div>
-    </>
-  ) : null
-
-  return { openArtifact, readerOverlay }
-}
-
-function ArtifactsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
-  const now = useDisplayClock()
-  const t = useDict()
-  const lang = useLanguage()
-  const [filter, setFilter] = useState<'all' | ArtifactType>('all')
-  const { openArtifact, readerOverlay } = useArtifactReader(detail)
-  const list = detail.artifacts.filter((a) => filter === 'all' || a.type === filter)
-
-  return (
-    <div>
-      <div className="chips">
-        {(['all', ...ARTIFACT_ORDER] as const).map((f) => (
-          <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>
-            {f === 'all' ? t.detail.filterAll : ART_LABELS[f]}
-          </button>
-        ))}
-      </div>
-      {detail.artifacts.length === 0 ? (
-        <div className="none">{t.detail.noArtifacts}</div>
-      ) : list.length === 0 ? (
-        <div className="none">{t.detail.noArtifactsOfType}</div>
-      ) : (
-        <div className="card">
-          {list.map((a) => (
-            <button className="it ai" key={a.file} onClick={() => void openArtifact(a)} title={a.file}>
-              <span className="t">{a.title}</span>
-              {a.type === 'prototypes' && <span className="pill ln">{t.detail.openInBrowser}</span>}
-              <span className="pill glb">{ART_LABELS[a.type]}</span>
-              <span className="src mono">{fmtAgo(lang, a.mtimeMs, now)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {readerOverlay}
-    </div>
-  )
-}
-
 /**
  * The Instructions section (project-detail::REQ-002/AC-02): the project's own CLAUDE.md and AGENTS.md, each
  * headed by its path; no settings summary.
  */
 function InstructionsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   const lang = useLanguage()
-  const { openArtifact, readerOverlay } = useArtifactReader(detail)
   const { claudeMd, agentsMd } = detail.configs
   return (
-    <div>
-      <InstructionsSection
-        claudeMd={claudeMd === null ? [] : [claudeMd]}
-        agentsMd={agentsMd === null ? [] : [agentsMd]}
-        links={{
-          baseDir: detail.path,
-          // A relative link to a listed project document opens the same reader overlay as the
-          // Artifacts tab; anything else keeps the explicit out-of-scope notice
-          readable: detail.artifacts.map((a) => a.file),
-          onInternal: (target) => {
-            const a = detail.artifacts.find((x) => x.file === target)
-            if (a) void openArtifact(a)
-          },
-          onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
-        }}
-      />
-      {readerOverlay}
-    </div>
+    <InstructionsSection
+      claudeMd={claudeMd === null ? [] : [claudeMd]}
+      agentsMd={agentsMd === null ? [] : [agentsMd]}
+      links={{
+        // No in-app targets are wired, so every relative link gets the explicit out-of-scope notice
+        // (the invariant's fallback) — onInternal is unreachable
+        baseDir: detail.path,
+        readable: [],
+        onInternal: () => {},
+        onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+      }}
+    />
   )
 }

@@ -183,8 +183,9 @@ const FILES = {
   'docs/.workings/notes/notes.md': 'See ticket 12.\n',
   // A component in a new subdirectory: a provider colour, and a <TrendChart> without its required prop
   'src/renderer/src/panes/Planted.tsx': "const PLANTED = '#10a37f'\nexport const Planted = ({ days }) => <TrendChart days={days} />\n",
-  // UI prototype pages and their notes files (prototype-pages::REQ-005), each head in the real pages' form. Without a
-  // notes file: a prototype page, a candidates page, and a page whose same-name notes file is in another directory
+  // UI prototype pages and their notes files (the prototype skill's notes-file rule), each head in the real pages'
+  // form. Without a notes file: a prototype page, a candidates page, and a page whose same-name notes file is in
+  // another directory
   'docs/prototypes/planted/prototype-lone.html': page('<!-- Notes: prototype-lone.md -->\n'),
   'docs/prototypes/planted/candidates-lone.html': page('<!-- Notes: candidates-lone.md -->\n'),
   'docs/prototypes/planted-b/prototype-moved.html': page('<!-- Notes: prototype-moved.md -->\n'),
@@ -323,7 +324,7 @@ test('the planted run fails, and only on what was planted', () => {
   for (const p of problems) assert.ok(planted.some((path) => p.startsWith(`${path}:`)) || CAUSED_ELSEWHERE.includes(p), p)
 })
 
-/** The lines the two prototype-pages::REQ-005 rules report about one page */
+/** The lines the two notes-file rules report about one page */
 const shapeLines = (path) => problems.filter((p) => p.startsWith(`${path}: has no notes file`) || p.startsWith(`${path}: its header`))
 
 test('a UI prototype page without its notes file is reported', () => {

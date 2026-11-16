@@ -1745,48 +1745,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── The artifacts tab ── */
+/* ── A row of chips (a plugin's components), and the centred overlay a confirmation dialog opens in ── */
 .chips {
   display: flex;
   gap: 4px;
   margin-bottom: 10px;
   flex-wrap: wrap;
-}
-.chips button {
-  font: inherit;
-  font-size: 11px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  padding: 2px 10px;
-  cursor: pointer;
-  color: var(--text-2);
-  background: transparent;
-}
-.chips button.on {
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-.it.ai {
-  width: 100%;
-  text-align: left;
-  border-left: 0;
-  border-right: 0;
-  border-top: 0;
-  background: transparent;
-  font: inherit;
-  color: var(--text);
-  cursor: pointer;
-}
-.it.ai:hover {
-  background: var(--accent-soft);
-}
-.it.ai .t {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .mask {
   position: fixed;
@@ -1809,17 +1773,10 @@ body {
   z-index: 11;
   line-height: 1.8;
 }
-/* The overlay's own title only — the child combinator keeps this off the h2s inside the rendered
-   .md body, which take the shared heading ladder (same specificity, and this rule comes later) */
+/* The overlay's own title only — the child combinator keeps this off any h2 inside the dialog's body */
 .reader > h2 {
   font-size: 15px;
   margin-bottom: 4px;
-}
-.reader .meta {
-  font-size: 10.5px;
-  color: var(--text-2);
-  margin-bottom: 12px;
-  word-break: break-all;
 }
 .reader .md {
   border: 0;

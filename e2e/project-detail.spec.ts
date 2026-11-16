@@ -1,15 +1,17 @@
 // Also not driven: the tab row over a failed detail fetch on a page drawn after a stale project's note (project-detail T10).
 // The row draws before that branch and reads no fetch result. Add a case when a seam can make the project detail read fail:
 // select a normal project from a note page on a tab other than Overview, and read that tab over an empty body.
-import { mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, type Page } from '@playwright/test'
 import { localDayOffset } from './support/dates'
 import { mkUsageHome } from './support/homes'
 import { closeApp } from './close-app'
-import { launch, launchWindow, close, makeUserData, type WindowLaunched } from './support/launch'
-import { scansLanded, errorToastsAdded } from './support/waits'
+import { launch, launchWindow, close, makeUserData, startApp, failOnMainErrors, type WindowLaunched } from './support/launch'
+import { scansLanded } from './support/waits'
+
+const mainErrors = failOnMainErrors()
 
 // A project only Grok registered still opens a working detail page: every section reads
 // Claude/Codex-shaped locations that simply do not exist there, and each degrades to its empty
@@ -554,172 +556,45 @@ test('leaving a project for a session page and coming back (query layer closeout
   await close(l)
 })
 
-test('opening an artifact whose file was removed after the scan (query layer): one toast for each click, no overlay, no crash', async () => {
-  // The file that goes is a link's target. A plain file removed leaves the list at the next read of the list, which is the next
-  // scan or a revalidation (project-detail T2), so a click on its row would race them. `collectMd` lists a link by name, and
-  // its read fails whatever lands
-  const mkHome = (): { home: string; target: string; link: string } => {
-    const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
-    const proj = join(home, 'demo-proj')
-    mkdirSync(join(proj, 'docs', 'specs'), { recursive: true })
-    writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-    const target = join(proj, 'moved.md')
-    const link = join(proj, 'docs', 'specs', 'doomed.md')
-    writeFileSync(target, '# Doomed\n\nGone before it opens.\n')
-    symlinkSync(target, link)
-    writeFileSync(join(proj, 'docs', 'specs', 'fine.md'), '# Fine\n\nThis one reads.\n')
-    return { home, target, link }
-  }
-  const { home, target: doomedTarget, link: doomedLink } = mkHome()
-  const openTheArtifacts = async (w: Page): Promise<void> => {
-    await w.locator('.rail .ri').nth(1).click()
-    await w.locator('.side .row').first().click()
-    await w.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
-  }
-  const l = await launch(undefined, home)
-  const win = await l.app.firstWindow()
-  const added = await errorToastsAdded(win)
-  await openTheArtifacts(win)
-  // By its path: its name falls back from the heading to the file name once the target is gone
-  const doomed = win.locator(`.it.ai[title="${doomedLink}"]`)
-  await expect(doomed).toBeVisible()
-
-  rmSync(doomedTarget, { force: true })
-  await doomed.click()
-  await expect(win.locator('.toast.err')).toHaveText('This file can no longer be read (moved or deleted?)')
-  await expect(win.locator('.reader')).toHaveCount(0)
-  expect(await added()).toBe(1)
-
-  // Each click on it is a new attempt: one toast, not silence (B9), and not two from the cached failure and the new one
-  await doomed.click()
-  expect(await added()).toBe(1)
-  await win.locator('.it.ai', { hasText: 'Fine' }).click()
-  await expect(win.locator('.reader')).toBeVisible()
-  await win.locator('.mask').click()
-  await expect(win.locator('.reader')).toHaveCount(0)
-  expect(await added()).toBe(0)
-  await doomed.click()
-  expect(await added()).toBe(1)
-  await expect(win.locator('.reader')).toHaveCount(0)
-
-  // The toast states the failure in the current UI language
-  await win.locator('.rail .ri.set').click()
-  await win.locator('[data-testid="language-trigger"]').click()
-  await win.locator('.lang-opt[data-lang="zh"]').click()
-  await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
-  await win.locator('.rail .ri').nth(1).click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '产物' }).click()
-  await doomed.click()
-  await expect(win.locator('.toast.err').last()).toHaveText('该文件已不可读(被移动或删除?)')
-  expect(await added()).toBe(1)
-
-  // The file back: the click reads it again and opens it, with no toast from the failure it remembers
-  writeFileSync(doomedTarget, '# Doomed\n\nBack again.\n')
-  await doomed.click()
-  await expect(win.locator('.reader')).toContainText('Back again.')
-  expect(await added()).toBe(0)
-
-  // Removed again, now that it has been read: the click shows what was kept, with no toast (ADR-0028)
-  await win.locator('.mask').click()
-  await expect(win.locator('.reader')).toHaveCount(0)
-  rmSync(doomedTarget, { force: true })
-  await doomed.click()
-  await expect(win.locator('.reader')).toContainText('Back again.')
-  expect(await added()).toBe(0)
-  await expect(win.locator('.reader')).toContainText('Back again.')
-  await close(l)
-
-  // A failing read overtaken by a click on another file: its toast, and the other file opens and stays
-  const third = mkHome()
-  const l3 = await launch(undefined, third.home, { AGENTSHED_FETCH_DELAY_MS: '500' })
-  const win3 = await l3.app.firstWindow()
-  const added3 = await errorToastsAdded(win3)
-  await openTheArtifacts(win3)
-  const doomed3 = win3.locator(`.it.ai[title="${third.link}"]`)
-  await expect(doomed3).toBeVisible()
-  rmSync(third.target, { force: true })
-  await doomed3.click()
-  await win3.locator('.it.ai', { hasText: 'Fine' }).click()
-  await expect(win3.locator('.reader')).toContainText('This one reads.')
-  expect(await added3()).toBe(1)
-  await expect(win3.locator('.reader')).toContainText('This one reads.')
-  await close(l3)
-
-  // A read that fails through scans, with scans landing
-  const home2 = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
-  const proj2 = join(home2, 'demo-proj')
-  mkdirSync(join(proj2, 'docs', 'specs'), { recursive: true })
-  writeFileSync(join(home2, '.claude.json'), JSON.stringify({ projects: { [proj2]: {} } }))
-  const target = join(proj2, 'moved.md')
-  const link = join(proj2, 'docs', 'specs', 'dangling.md')
-  symlinkSync(target, link)
-  const l2 = await launch(undefined, home2, { AGENTSHED_RESCAN_MS: '250' })
-  const win2 = await l2.app.firstWindow()
-  const added2 = await errorToastsAdded(win2)
-  await openTheArtifacts(win2)
-  const dangling = win2.locator(`.it.ai[title="${link}"]`)
-  await expect(dangling).toBeVisible()
-  await dangling.click()
-  expect(await added2()).toBe(1)
-  await scansLanded(win2, 2)
-  await expect(dangling).toBeVisible()
-  expect(await added2()).toBe(0)
-  await dangling.click()
-  expect(await added2()).toBe(1)
-  await scansLanded(win2, 2)
-  expect(await added2()).toBe(0)
-
-  // The target arriving opens nothing by itself: nothing is open any more. The next click opens it
-  writeFileSync(target, '# Arrived\n\nThe link reads now.\n')
-  await scansLanded(win2, 2)
-  await expect(win2.locator('.reader')).toHaveCount(0)
-  await dangling.click()
-  await expect(win2.locator('.reader')).toContainText('The link reads now.')
-  expect(await added2()).toBe(0)
-  await close(l2)
-})
-
-test('reopening an artifact (query layer): first open is slow, reopening it is instant', async () => {
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifactcache-'))
+// project-detail R1 and R3 (#402): a project's documents are neither listed nor read. A relative link to one in the
+// project's instructions shows the out-of-scope notice and does not navigate the window; a read of it over the real
+// channel is refused once the page has registered what it reads, while a memory topic the same page lists still reads.
+test('a project document is not readable: its link in the instructions shows the notice, and a read of it is refused while a memory topic reads', async () => {
+  mainErrors.allow(/memory-file-not-whitelisted/)
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-docs-'))
   const proj = join(home, 'demo-proj')
-  mkdirSync(proj, { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
   mkdirSync(join(proj, 'docs'), { recursive: true })
-  writeFileSync(join(proj, 'docs', 'CONTEXT.md'), '# Cached artifact\n\nbody\n')
-  // A memory topic read through the same delayed channel (memory-view::US-001/AC-07, the loading state)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const context = join(proj, 'docs', 'CONTEXT.md')
+  writeFileSync(context, '# Glossary\n\nGlossary body\n')
+  writeFileSync(join(proj, 'CLAUDE.md'), '# Demo instructions\n\nSee [the glossary](./docs/CONTEXT.md).\n')
   const memDir = join(home, '.claude', 'projects', proj.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
   mkdirSync(memDir, { recursive: true })
-  writeFileSync(join(memDir, 'slow.md'), '---\nname: slow\n---\n\nSlow topic body\n')
-  const l = await launch(undefined, home, { AGENTSHED_FETCH_DELAY_MS: '600' })
-  const win = await l.app.firstWindow()
-  await win.locator('.rail .ri').nth(1).click()
-  await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
-  await expect(win.locator('.it.ai', { hasText: 'Cached artifact' })).toBeVisible()
+  const topic = join(memDir, 'topic.md')
+  writeFileSync(topic, 'Topic body\n')
+  const userData = makeUserData()
+  const { app } = await startApp({ userData, home, errors: mainErrors.errors })
+  try {
+    const win = await app.firstWindow()
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
+    const urlBefore = win.url()
+    await win.locator('.pane-body .md a', { hasText: 'the glossary' }).click()
+    await expect(win.locator('.toast.err')).toHaveText('The link target is outside the readable scope')
+    await expect(win.locator('.reader, .file-drawer')).toHaveCount(0)
+    expect(win.url(), 'a link to a project document must not navigate').toBe(urlBefore)
 
-  await win.locator('.it.ai', { hasText: 'Cached artifact' }).click()
-  // Sampled inside the 600ms delay window, immediately after the click: no overlay yet
-  await expect(win.locator('.reader')).toHaveCount(0)
-  await expect(win.locator('.reader .md')).toContainText('body')
-
-  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
-  await win.locator('.it.ai', { hasText: 'Cached artifact' }).click() // reopen — a cached visit
-  await expect(win.locator('.reader .md')).toContainText('body', { timeout: 200 })
-  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
-
-  // The memory file drawer while its file is read: "Loading…" inside the frame, the bar and switch already in
-  // place, then the preview (memory-view::US-001/AC-07)
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
-  await win.locator('.it.row-btn', { hasText: 'slow.md' }).click()
-  const fd = win.locator('.file-drawer')
-  await expect(fd.locator('.md-preview-body')).toHaveText('Loading…', { timeout: 300 })
-  await expect(fd.locator('.md-preview-name')).toHaveText('slow.md')
-  await expect(fd.locator('.md-preview-seg')).toBeVisible()
-  await expect(fd.locator('.md-preview-body')).toContainText('Slow topic body')
-  await expect(fd.locator('.md-fm')).toContainText('slow')
-
-  expect(l.errors).toEqual([])
-  await close(l)
+    const read = (file: string) => win.evaluate(async (f) => {
+      try { return (await window.agentshed.readMemoryFile(f)).text } catch (e) { return `refused: ${(e as Error).message}` }
+    }, file)
+    expect(await read(topic), 'the page registered its memory topic').toBe('Topic body\n')
+    expect(await read(context)).toContain('memory-file-not-whitelisted')
+  } finally {
+    await closeApp(app)
+    rmSync(userData, { recursive: true, force: true })
+    rmSync(home, { recursive: true, force: true })
+  }
 })
 
 // ── A page drawn from its copy shows the latest scan's figures (project-detail::REQ-005) ──
@@ -805,16 +680,15 @@ async function recordPaneTotals(win: Page): Promise<() => Promise<string[]>> {
 
 test('a cached visit shows the latest scan\'s total and sessions from its first frame, the copy\'s other sections until its refetch, and a session listed that way opens', async () => {
   const { home, projA, sessionsA } = mkFiguresHome()
-  mkdirSync(join(projA, 'docs', 'specs'), { recursive: true })
-  writeFileSync(join(projA, 'docs', 'specs', 'old.md'), '# Old spec\n')
+  writeFileSync(join(projA, 'CLAUDE.md'), '# Old conventions\n')
   const l = await launch(undefined, home, FIGURES_ENV)
   const win = await l.app.firstWindow()
   await visitAThenB(win)
 
-  // With proj-b on screen, proj-a gains a session with usage and an artifact. A scan feeds the first to the window;
-  // the second is only in the page's own detail
+  // With proj-b on screen, proj-a gains a session with usage and its CLAUDE.md changes. A scan feeds the first to the
+  // window; the second is only in the page's own detail
   writeFileSync(join(sessionsA, 'second.jsonl'), figuresSession('Second question in A', 350, 1))
-  writeFileSync(join(projA, 'docs', 'specs', 'new.md'), '# New spec\n')
+  writeFileSync(join(projA, 'CLAUDE.md'), '# New conventions\n')
   await scansLanded(win, 2)
 
   const totals = await recordPaneTotals(win)
@@ -823,10 +697,11 @@ test('a cached visit shows the latest scan\'s total and sessions from its first 
   await expect(paneTotal(win)).toHaveText('470', AT_ONCE)
   const added = win.locator('.pane-body .card .se', { hasText: 'Second question in A' })
   await expect(added).toBeVisible(AT_ONCE)
-  // The Artifacts section is still the copy's: the file the scan does not feed is not listed yet
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
-  await expect(win.locator('.it.ai', { hasText: 'Old spec' })).toBeVisible(AT_ONCE)
-  await expect(win.locator('.it.ai', { hasText: 'New spec' })).toHaveCount(0)
+  // The Instructions section is still the copy's: the change the scan does not feed is not shown yet
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
+  const instructions = win.locator('.pane-body .instructions-files')
+  await expect(instructions).toContainText('Old conventions', AT_ONCE)
+  await expect(instructions).not.toContainText('New conventions')
   await win.locator('.pane-head .tabs .tab', { hasText: 'Overview' }).click()
   // From the click on, proj-a's page never showed the total its copy was saved with
   const seen = await totals()
@@ -837,10 +712,10 @@ test('a cached visit shows the latest scan\'s total and sessions from its first 
   // The session the scan listed opens: the main process admits sessions from the same scan
   await added.click()
   await expect(win.locator('.pane-head .stitle')).toHaveText('Second question in A')
-  // And the refetch does bring the artifact, so its absence above was the copy's
+  // And the refetch does bring the change, so its absence above was the copy's
   await win.locator('.sback').click()
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
-  await expect(win.locator('.it.ai', { hasText: 'New spec' })).toBeVisible()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
+  await expect(instructions).toContainText('New conventions')
 
   expect(l.errors).toEqual([])
   await close(l)

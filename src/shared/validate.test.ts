@@ -275,8 +275,7 @@ function okDetail(): Record<string, unknown> {
     ],
     mcp: [{ name: 'figma', enabled: null }],
     configs: { claudeMd: null, agentsMd: null },
-    stats: null,
-    artifacts: [{ type: 'adr', title: 'ADR-0001', file: '/Users/x/adr.md', mtimeMs: 2 }]
+    stats: null
   }
 }
 
@@ -286,7 +285,7 @@ describe('validateProjectDetail — admitting (a false refusal stops the whole d
   })
 
   it('admits the base state with every array empty (the norm for a new project or one with no components)', () => {
-    const d = { ...okDetail(), skills: [], subagents: [], plugins: [], mcp: [], artifacts: [],
+    const d = { ...okDetail(), skills: [], subagents: [], plugins: [], mcp: [],
       memory: { main: null, mainFile: null, topics: [] } }
     expect(validateProjectDetail(d).ok).toBe(true)
   })
@@ -321,7 +320,7 @@ describe('validateProjectDetail — refusing, and pointing at the field path', (
   })
 
   it('a missing top-level array — forgetting to sync a new section surfaces at the boundary', () => {
-    for (const k of ['skills', 'subagents', 'plugins', 'mcp', 'artifacts']) {
+    for (const k of ['skills', 'subagents', 'plugins', 'mcp']) {
       const r = bad((d) => { delete d[k] })
       expect(r.ok, `a missing ${k} should be refused`).toBe(false)
       expect(errOf(r)).toContain(k)
@@ -337,7 +336,6 @@ describe('validateProjectDetail — refusing, and pointing at the field path', (
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].pkg = { files: '1', bytes: 2 } }))).toContain('skills[0].pkg')
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].origin = 'net' }))).toContain('skills[0].origin')
     expect(errOf(bad((d) => { (d.plugins as Array<Record<string, unknown>>)[0].enabledFrom = 'team' }))).toContain('plugins[0].enabledFrom')
-    expect(errOf(bad((d) => { (d.artifacts as Array<Record<string, unknown>>)[0].type = 'essay' }))).toContain('artifacts[0].type')
   })
 
   it('an invalid enum value is reported as received: a string as is, anything else as its JSON', () => {
@@ -347,7 +345,7 @@ describe('validateProjectDetail — refusing, and pointing at the field path', (
     expect(valueOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].side = 7 }))).toBe('7')
     expect(valueOf(bad((d) => { (d.plugins as Array<Record<string, unknown>>)[0].enabledFrom = { scope: 'team' } })))
       .toBe('{"scope":"team"}')
-    expect(valueOf(bad((d) => { (d.artifacts as Array<Record<string, unknown>>)[0].type = ['essay'] }))).toBe('["essay"]')
+    expect(valueOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].origin = ['net'] }))).toBe('["net"]')
     expect(valueOf(bad((d) => { delete (d.skills as Array<Record<string, unknown>>)[0].side }))).toBe('undefined')
   })
 

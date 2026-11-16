@@ -61,9 +61,9 @@ test('all seven Agents page tabs render as they are switched through, with no er
  * The skeleton's locator is scoped to `.sk-page`, which goes when the page loads: unscoped, the retried read would wait
  * for the loaded page and pass on its row, whatever the skeleton had shown.
  */
-for (const [system, instructions, overview, sessions, artifacts] of [
-  ['en-US', 'Instructions', 'Overview', 'Sessions', 'Artifacts'],
-  ['zh-Hans-CN', '指令', '概览', '会话', '产物']
+for (const [system, instructions, overview, sessions] of [
+  ['en-US', 'Instructions', 'Overview', 'Sessions'],
+  ['zh-Hans-CN', '指令', '概览', '会话']
 ]) {
   test(`the tabs' labels and order in ${system}, on the skeleton, the agents page and a project's page (agents-overview::REQ-006, project-detail::REQ-004, i18n::QR-001/AC-01)`, async () => {
     const l = await launch(undefined, mkUsageHome(), { AGENTSHED_SYSTEM_LANGUAGES: system, AGENTSHED_SCAN_DELAY_MS: '4000' })
@@ -80,7 +80,7 @@ for (const [system, instructions, overview, sessions, artifacts] of [
 
     await win.locator('.rail .ri').nth(1).click()
     await win.locator('.side .row').first().click()
-    await expect(tabs).toHaveText([overview, instructions, 'Skills', 'Subagents', 'Plugins', 'MCP', 'Memory', sessions, artifacts])
+    await expect(tabs).toHaveText([overview, instructions, 'Skills', 'Subagents', 'Plugins', 'MCP', 'Memory', sessions])
     await expect(selected).toHaveText(overview)
     // The row fits the default window. It does not wrap and the page clips what runs past it, so a pointer could not
     // reach a tab past the row's end

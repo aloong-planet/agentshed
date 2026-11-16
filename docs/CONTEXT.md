@@ -1,16 +1,15 @@
 # Agentshed
 
 A desktop overview and management tool for Claude Code, Codex, Grok and Antigravity CLI: see what each
-project has installed, how many tokens it has burned and which artifacts it has accumulated, and install
-or remove skills from the global library. This file is the domain glossary; the invariants are in
-`AGENTS.md`.
+project has installed and how many tokens it has burned, and install or remove skills from the global
+library. This file is the domain glossary; the invariants are in `AGENTS.md`.
 
 ## Contents
 
 - **Language**
   - Projects and sides: Project, Stale project, Agent side, Side colour, Application icon
   - Components: Global library, Compatibility-borrowed component, Shared skills directory,
-    Project install, Effective view, Subagent, Instructions, Memory, Effective enabled plugins, Artifact
+    Project install, Effective view, Subagent, Instructions, Memory, Effective enabled plugins
   - Sessions and search: Activity, Session, Question, Session ID, Turn, Filtering and searching,
     Global search
   - Codex data: Paginated rollout, Usage record, Usage boundary, Compacted window, Cold rollout
@@ -105,11 +104,6 @@ _Avoid_: notes (too general); `CLAUDE.md` (that is Instructions)
 The plugins in effect from one project's point of view: those resolving to true once `enabledPlugins` is
 merged across the local, project and user layers, the global page using the user layer.
 _Avoid_: installed (installed ≠ enabled)
-
-**Artifact**:
-One of the five kinds of document a project accumulates under the eight-step process: ADRs,
-`CONTEXT.md`, the feature catalogue, postmortems and prototypes. Working documents are not artifacts.
-_Avoid_: docs (too general)
 
 ### Sessions and search
 
@@ -309,8 +303,6 @@ _Avoid_: refresh, sync, polling
   Agentshed, positioned as an overview, not a catalogue.
 - **"Six languages" and "the six official UN languages" are retired**: the supported set is Simplified
   Chinese and English (ADR-0035); text written before 2026-10-19 uses the old sets.
-- **Cross-project artifact aggregation is retired**: artifacts are shown only within project detail;
-  cross-project retrieval belongs to global search, which searches session questions only.
 - **Codex same-name semantics differ per component**: two same-name skills across layers coexist, while
   two same-name subagents shadow at the project level. Those are runtime semantics; how each list
   presents a same-name pair is that view's own rule (skills-view, subagents-view).

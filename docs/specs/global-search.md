@@ -317,7 +317,7 @@ with plural forms; no string enumerates the agent sides as a set.
   (global-search::REQ-001).
 - Sessions in directories that are not projects.
 - Persisting the keyword, the results or the page state across restarts.
-- Artifacts, memories, instructions and components in global search.
+- Memories, instructions and components in global search.
 - A side filter on the results.
 - A project heading that opens the project; the way into the project is the session page's exit.
 - Moving a project's own session search onto the in-memory texts (global-search::CON-002).

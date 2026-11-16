@@ -20,7 +20,6 @@ import { PROJECT_SKILLS_DIR } from '@shared/domain'
 import { skillsDirLoaders } from '@shared/skill-landing'
 import { globalSkillsRoots, type ScanRoots } from './types'
 import { readSkillLibrary } from './global'
-import { readArtifacts } from './artifacts'
 import { readEffectiveSubagents } from './subagents'
 import { readProjectMemory } from './memory'
 import { readAntigravityPlugins, readProjectPlugins } from './plugins'
@@ -77,8 +76,7 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
       claudeMd: readInstructionFile(join(projectPath, 'CLAUDE.md')),
       agentsMd: readInstructionFile(join(projectPath, 'AGENTS.md'))
     },
-    stats: null,
-    artifacts: readArtifacts(projectPath)
+    stats: null
   }
 }
 

@@ -48,6 +48,7 @@ ADR conventions for this repository:
 | [0021](0021-side-colour-follows-provider.md) | One colour per agent side, taken from that side's provider colour | Accepted |
 | [0022](0022-remove-manual-hiding.md) | Manual project hiding is removed | Accepted |
 | [0037](0037-antigravity-cli-as-fourth-agent-side.md) | Onboarding Antigravity CLI as the fourth agent side | Accepted |
+| [0051](0051-project-documents-are-not-listed-or-read.md) | A project's documents are neither listed nor read, and the read path they shared is memory files' alone | Accepted |
 
 ## Components
 

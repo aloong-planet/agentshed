@@ -30,7 +30,7 @@ async function withApp(steps: (win: Page, app: ElectronApplication) => Promise<v
 const provoke = async (win: Page): Promise<void> => {
   const answer = await win.evaluate(async () => {
     try {
-      await window.agentshed.readArtifact('/nowhere/listed.md')
+      await window.agentshed.readMemoryFile('/nowhere/listed.md')
       return 'read'
     } catch {
       return 'refused'
@@ -46,7 +46,7 @@ test('an error the case did not allow fails it', async () => {
 })
 
 test('an error the case allowed does not', async () => {
-  main.allow(/artifact-not-whitelisted/)
+  main.allow(/memory-file-not-whitelisted/)
   await withApp(provoke)
 })
 
@@ -59,8 +59,8 @@ test('an allowance nothing matched fails the case', async () => {
 })
 
 for (const [position, allowances] of [
-  ['last', [/artifact-not-whitelisted/, /an error no case provokes/]],
-  ['first', [/an error no case provokes/, /artifact-not-whitelisted/]]
+  ['last', [/memory-file-not-whitelisted/, /an error no case provokes/]],
+  ['first', [/an error no case provokes/, /memory-file-not-whitelisted/]]
 ] as const) {
   test(`an allowance nothing matched fails the case even when another did match, with the stale one ${position}`, async () => {
     test.fail()

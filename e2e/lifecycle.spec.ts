@@ -491,7 +491,7 @@ test('a rescan keeps the first-line reading of an unchanged rollout: its project
 
 test('restart restores viewed project, questions and read answer before a new scan finishes', async () => {
   // Its refused reads, and the skill file it deletes and recreates
-  mainErrors.allow(/artifact-not-whitelisted/)
+  mainErrors.allow(/memory-file-not-whitelisted/)
   mainErrors.allow(/session-not-whitelisted/)
   mainErrors.allow(/session-not-indexed/)
   mainErrors.allow(/skill-file-unreadable/)
@@ -514,17 +514,11 @@ test('restart restores viewed project, questions and read answer before a new sc
   const skill = join(proj, '.claude', 'skills', 'restore-skill')
   mkdirSync(skill, { recursive: true })
   writeFileSync(join(skill, 'SKILL.md'), '---\ndescription: Restore fixture\n---\nSaved skill body')
-  mkdirSync(join(proj, 'docs'), { recursive: true })
-  writeFileSync(join(proj, 'docs', 'CONTEXT.md'), '# Saved artifact\nSaved artifact body')
   async function previews(win: Page, timeout = 5000): Promise<void> {
     await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
     await win.locator('.it.row-btn', { hasText: 'topic.md' }).click()
     // A restored body opens in the memory file drawer's preview like a fresh read (memory-view E1)
     await expect(win.locator('.file-drawer .md-preview-body.preview')).toContainText('Saved memory body', { timeout })
-    await win.locator('.mask').click({ position: { x: 10, y: 10 } })
-    await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
-    await win.locator('.it.ai', { hasText: 'Saved artifact' }).click()
-    await expect(win.locator('.reader .md')).toContainText('Saved artifact body', { timeout })
     await win.locator('.mask').click({ position: { x: 10, y: 10 } })
     await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
     const row = win.locator('.sk', { hasText: 'restore-skill' })
@@ -602,18 +596,19 @@ test('restart restores viewed project, questions and read answer before a new sc
     expect(reads.filter(r => r.kind === 'turnContent')).toHaveLength(1)
     await win.screenshot({ path: 'docs/.workings/startup-restore/session-restored.png' })
     // A restored registration never authorizes an arbitrary path or a substituted symlink.
-    const artifact = join(proj, 'docs', 'CONTEXT.md'), outside = join(home, 'outside.md')
+    const topic = join(cdir, 'memory', 'topic.md'), outside = join(home, 'outside.md')
     writeFileSync(outside, 'Unregistered secret')
     const denied = (file: string) => win.evaluate(async f => {
-      try { await window.agentshed.readArtifact(f); return false } catch { return true }
+      try { await window.agentshed.readMemoryFile(f); return false } catch { return true }
     }, file)
     expect(await denied(outside)).toBe(true)
-    const original = readFileSync(artifact, 'utf8')
-    unlinkSync(artifact)
-    symlinkSync(outside, artifact)
-    expect(await denied(artifact)).toBe(true)
-    unlinkSync(artifact)
-    writeFileSync(artifact, original)
+    expect(await denied(topic), 'the restored registration admits the memory topic itself').toBe(false)
+    const original = readFileSync(topic, 'utf8')
+    unlinkSync(topic)
+    symlinkSync(outside, topic)
+    expect(await denied(topic)).toBe(true)
+    unlinkSync(topic)
+    writeFileSync(topic, original)
     // Showing a session's record file in Finder before the first scan (session-view::US-001/AC-07): the allow-list is
     // still the restored one, whose entries are shown only while they are regular files. Finder's call is recorded
     // at the process boundary, so the run opens no Finder; the startup state, read before and after, proves the scan
@@ -705,63 +700,6 @@ test('restart restores viewed project, questions and read answer before a new sc
     await expect.poll(() => win.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)).toBe(true)
     await win.screenshot({ path: 'docs/.workings/startup-restore/session-dark.png' })
 
-  } finally {
-    if (app) await closeApp(app).catch(() => {})
-    rmSync(home, { recursive: true, force: true })
-    rmSync(userData, { recursive: true, force: true })
-  }
-})
-
-// project-detail::REQ-003 across the update: a display cache written before CONTEXT.md moved under docs/ lists and
-// registers the project's root CONTEXT.md. The cache here is the one this build writes, with that one path put back where
-// the previous build wrote it, and the project in the layout of a repository not yet moved. The detail channel waits for
-// the first live scan, so the current listing always comes after it; after that scan, with no project opened, the
-// registration restored from the saved page still admits the root file. The current detail no longer lists it, and its
-// listing retires that admission while the file is still on disk (R1; a restore authorizes no read the current rules
-// would refuse).
-test('a root CONTEXT.md registered by a page saved before it moved under docs/ is refused after the current detail', async () => {
-  mainErrors.allow(/artifact-not-whitelisted/)
-  const home = mkdtempSync(join(tmpdir(), 'agentshed-ctx-move-home-'))
-  const userData = mkdtempSync(join(tmpdir(), 'agentshed-ctx-move-data-'))
-  const proj = join(home, 'moved-project')
-  mkdirSync(join(proj, 'docs', 'adr'), { recursive: true })
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
-  const adr = join(proj, 'docs', 'adr', '0001-first.md')
-  writeFileSync(adr, '# ADR-0001 settle the architecture\n')
-  const docsContext = join(proj, 'docs', 'CONTEXT.md'), rootContext = join(proj, 'CONTEXT.md')
-  writeFileSync(docsContext, '# Glossary\nGlossary body')
-  let app: ElectronApplication | undefined
-  const launch = () => startApp({ userData, home, errors: mainErrors.errors }).then((started) => started.app)
-  try {
-    app = await launch()
-    let win = await app.firstWindow()
-    await win.locator('.rail .ri').nth(1).click()
-    await win.locator('.side .row', { hasText: 'moved-project' }).click()
-    await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
-    await expect(win.locator('.it.ai', { hasText: 'Glossary' })).toBeVisible()
-    // Leave the detail before closing, so the restart mounts no detail query before the first read
-    await win.locator('.rail .ri').nth(0).click()
-    await closeApp(app)
-    app = undefined
-    const cacheFile = join(userData, 'display-cache.json')
-    const written = readFileSync(cacheFile, 'utf8')
-    const inJson = (p: string): string => JSON.stringify(p).slice(1, -1)
-    expect(written.split(inJson(docsContext)).length - 1, 'the saved detail lists and registers docs/CONTEXT.md').toBeGreaterThanOrEqual(2)
-    writeFileSync(cacheFile, written.split(inJson(docsContext)).join(inJson(rootContext)))
-    renameSync(docsContext, rootContext)
-
-    app = await launch()
-    win = await app.firstWindow()
-    await expect(win.locator('.pane-head h1')).toHaveText('Agents', { timeout: 5000 })
-    await expect.poll(() => win.evaluate(() => window.agentshed.getStartup().then(r => r.status)), { timeout: 15000 }).toBe('ready')
-    const read = (file: string) => win.evaluate(async f => {
-      try { return (await window.agentshed.readArtifact(f)).text } catch (e) { return `refused: ${(e as Error).message}` }
-    }, file)
-    expect(await read(rootContext), 'the registration restored from the saved page survives the scan').toContain('Glossary body')
-    const detail = await win.evaluate(p => window.agentshed.getProjectDetail(p), proj)
-    expect(detail.artifacts.map(a => a.file)).toEqual([adr])
-    expect(await read(rootContext)).toContain('artifact-not-whitelisted')
-    expect(statSync(rootContext).isFile(), 'the refused file is still on disk').toBe(true)
   } finally {
     if (app) await closeApp(app).catch(() => {})
     rmSync(home, { recursive: true, force: true })

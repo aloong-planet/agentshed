@@ -861,8 +861,8 @@ const GLOBAL_RULES = [
   },
   {
     // A UI prototype page's reviewer notes live in the notes file beside it, named after the page
-    // (prototype-pages::REQ-002): a page without one has its notes back in its comments, or none at all
-    name: 'every UI prototype page has its same-name notes file beside it (prototype-pages::REQ-005/AC-01)',
+    // (the prototype skill's notes-file rule): a page without one has its notes back in its comments, or none at all
+    name: "every UI prototype page has its same-name notes file beside it (the prototype skill's notes-file rule)",
     check() {
       return uiPrototypePages()
         .filter((f) => !existsSync(join(ROOT, notesFileOf(f))))
@@ -871,8 +871,8 @@ const GLOBAL_RULES = [
   },
   {
     // The header, before the root element, is at most one comment on one line pointing to the notes file
-    // (prototype-pages::REQ-001/AC-01): a longer header is where the notes and the rulings grew back
-    name: "a UI prototype page's header is at most one comment, on one line, naming its notes file (prototype-pages::REQ-005/AC-02)",
+    // (the prototype skill's notes-file rule): a longer header is where the notes and the rulings grew back
+    name: "a UI prototype page's header is at most one comment, on one line, naming its notes file (the prototype skill's notes-file rule)",
     check() {
       const bad = []
       for (const f of uiPrototypePages()) {
@@ -987,7 +987,7 @@ function uiPrototypePages() {
   return prototypeHtmls().filter((f) => /^(?:prototype|candidates)-.+\.html$/.test(basename(f)))
 }
 
-/** A UI prototype page's notes file: the same name with .md, in the same directory (prototype-pages::REQ-002) */
+/** A UI prototype page's notes file: the same name with .md, in the same directory (the prototype skill's notes-file rule) */
 function notesFileOf(f) {
   return f.replace(/\.html$/, '.md')
 }

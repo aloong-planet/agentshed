@@ -55,10 +55,10 @@ export function errorText(lang: Language, raw: unknown): string {
       return t.engineNotReady
     case ERR.turnOutOfRange:
       return t.turnOutOfRange(n(p, 'i'), n(p, 'total'))
-    case ERR.artifactNotWhitelisted:
-      return t.artifactNotWhitelisted
-    case ERR.artifactUnreadable:
-      return t.artifactUnreadable
+    case ERR.memoryFileNotWhitelisted:
+      return t.memoryFileNotWhitelisted
+    case ERR.memoryFileUnreadable:
+      return t.memoryFileUnreadable
     case ERR.pluginRootNotRegistered:
       return t.pluginRootNotRegistered
     case ERR.projectNotOpened:

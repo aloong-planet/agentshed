@@ -1,26 +1,26 @@
 # Project detail
 
 > Related: ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0028 (query layer) ·
-> ADR-0037 (Antigravity CLI side) · ADR-0049 (Antigravity CLI's components)
+> ADR-0037 (Antigravity CLI side) · ADR-0049 (Antigravity CLI's components) · ADR-0051 (a project's
+> documents are neither listed nor read)
 > Each section's component-level requirements and boundaries live in its own spec (subagents-view /
 > memory-view / plugins-view / skill-install / token-stats); this document covers **page-level**
-> rules and the **artifacts section** (artifacts being a capability unique to this page).
+> rules.
 
 > Successful display payloads persist independently of the accounting index (ADR-0028).
 
 ## Problem Statement
 
-"What capabilities does this project have installed, what conventions does it follow, and what has it
-accumulated" is the product's founding question. The answers are scattered across three places — the
+"What capabilities does this project have installed, and what conventions does it follow" is the
+product's founding question. The answers are scattered across three places — the
 project directory, both sides' global configuration, and the agent data directories — and when a
 project-level and a global-level entry share a name, which one applies is not obvious.
 
 ## Solution
 
-Answer it with sections: Overview (the default landing spot, see token-stats), each component's
+Answer it with sections: Overview (the default landing spot, see token-stats) and each component's
 **effective view** (project-level and global-layer side by side with the shadowing relationship
-labelled), and the **artifacts** the project has accumulated under the eight-step process. Everything
-is read-only; the one write operation is uninstalling a project-level skill.
+labelled). Everything is read-only; the one write operation is uninstalling a project-level skill.
 
 ## User Stories
 
@@ -29,16 +29,10 @@ is read-only; the one write operation is uninstalling a project-level skill.
 2. As a user, I want each component section presented as an effective view (project-level /
    global-layer, with shadowing labelled), so that I know which definition actually applies in this
    project.
-3. As a user, I want to see all the project's accumulated artifacts in one place, filterable by type,
-   so that I do not have to dig through the subdirectories of `docs/`.
-4. As a user, I want markdown artifacts readable in place and prototypes opened by the system, so
-   that reading does not take me out of the app while prototypes can actually run.
-5. As a user, I want a stale project's detail page to tell me why it is stale and hand me a
+3. As a user, I want a stale project's detail page to tell me why it is stale and hand me a
    ready-made line to send to each agent that still records it, so that the agents clean their own
    registries and I never hand-edit their config files.
-6. As a user, I want a neutral empty state in the artifacts section for a project not following the
-   eight-step process, so that I do not mistake "not done this way" for an error.
-7. As a user, I want switching between projects to feel like turning a page — the page I am on stays
+4. As a user, I want switching between projects to feel like turning a page — the page I am on stays
    until the next one is ready, and a project I opened earlier comes back at once — so that browsing
    projects is not punctuated by blank frames and rebuilt content.
 
@@ -46,7 +40,7 @@ is read-only; the one write operation is uninstalling a project-level skill.
 
 **Sequence A: page composition**
 - A1 The sections, in this order = Overview / Instructions / Skills / Subagents / Plugins / MCP / Memory /
-  Sessions / Artifacts (project-detail::REQ-004); a new component type extends this list.
+  Sessions (project-detail::REQ-004); a new component type extends this list.
 - A2 A stale project opens as the **stale note page**: the shell — struck-through name, stale tag,
   path — plus a single note card, with **no section tabs and no data areas** and no back control,
   the project list being beside it. The project's own token history is not reachable from its page;
@@ -152,51 +146,16 @@ never writes to any agent's registry; it tells the user what happened and hands 
   at the window's body text size — not as a secondary-grey footnote; the stale tag keeps its warning
   colour and the prompt its monospace pill.
 
-**Sequence B: artifacts section**
-- B1 **Six artifact types**, displayed in a fixed order following the top-down derivation chain:
-  **CONTEXT.md → ADR → specs → prototypes → features → postmortems** (terminology →
-  architectural decisions → requirements and boundaries → UI form → current capabilities →
-  after-the-fact lessons). The filter chips follow the same order, with "All" first.
-- B2 Where each type comes from: project-detail::REQ-003.
-- B3 Index files are not artifacts: each directory's `README.md` does not count.
-- B4 Prototypes: exclude the gallery shell (the root `index.html`) and `vendor/`; an `index.html`
-  inside a module is named by its directory path, everything else by its filename.
-- B5 The title comes from the markdown's first `#` heading, falling back to the filename.
-- B6 The list is in **reverse chronological order globally** (across types) by modification time; the
-  type chips filter without changing the order.
-- B7 A project with no `docs/` directory → an empty array → neutral empty-state copy ("nothing
-  accumulated by convention", not treated as an error).
-- B8 A type with no artifacts while others have some → filtering by that chip shows "no artifacts of
-  this type".
-- B9 Markdown opens for reading in place (relative-path images resolve against the artifact's own
-  directory); prototypes' HTML is handed to the system default application (it needs to actually run).
-  A read that fails (the file was removed after the scan listed it) shows a toast and no overlay,
-  rather than the click doing nothing.
-  Each click on a file whose read fails reads it again and shows one toast, the answer to that read,
-  so a file that has come back opens with none. The toast states the failure in a sentence in the
-  current UI language, never the raw IPC error. A scan landing afterwards adds no toast, and does not
-  open the reader when the file comes back: a failed read leaves nothing open. A file already read
-  successfully does not fail this way: with the file gone, the click opens its kept copy with no toast
-  (ADR-0028).
-  Reopening an already-read file is a cached, instant revisit.
-- B10 `.scratch/` is not under `docs/` by construction and does not count as an artifact (tickets are
-  working documents — see the division of labour in specs/README).
-
 **Cross-cutting**
-- R1 Reading and externally opening artifact files goes through an allow-list (only files this detail
-  page has listed can be read), closing the arbitrary-path read hole.
+- R1 A file the page shows is read on demand only through an allow-list, which closes the
+  arbitrary-path read hole: on this page it holds the memory files the page lists (memory-view), and
+  the page opens nothing in another application.
 - R3 **A rendered markdown link must never navigate the whole window** (in dev, falling back to
   index.html looks like "returning to the home page"; in the packaged build it leaves a blank screen;
-  both lose all app state). Cross-references between artifacts (spec ↔ features, say) navigate inside
-  the reader, and a target outside the allow-list gets a notice; external http(s) links go to the
-  system browser. The main process's `will-navigate` backstop covers every render site, including
-  ones added in future. The Instructions section's CLAUDE.md / AGENTS.md previews use the same
-  allow-list: a relative link resolving to a listed project document opens the
-  reader overlay — the very one the Artifacts section uses — and anything else relative gets the
-  notice; a prototype target keeps its open-in-browser route.
-- R2 When adding an artifact type, update four places together: the type enum, the read source, the
-  display order, and the chip labels (missing one produces either "scanned but not shown" or "shown
-  but cannot be opened").
+  both lose all app state). External http(s) links go to the system browser, and the main process's
+  `will-navigate` backstop covers every render site, including ones added in future. In the
+  Instructions section's CLAUDE.md / AGENTS.md previews every relative link gets the out-of-scope
+  notice, whatever it points at, and opens nothing.
 
 ## The Antigravity CLI side and the Instructions section
 
@@ -236,7 +195,7 @@ Applies to: the tab row of a project's page. A stale project's note page has no 
 - project-detail::REQ-004/AC-01: The section's tab has the agents page's label
   ([agents-overview::REQ-006/AC-01](agents-overview.md)).
 - project-detail::REQ-004/AC-02: The tabs run Overview / Instructions / Skills / Subagents / Plugins
-  / MCP / Memory / Sessions / Artifacts. The selected tab carries to the next project: selecting
+  / MCP / Memory / Sessions. The selected tab carries to the next project: selecting
   another project keeps it, and the next project shows it. A stale project's note page and the
   not-in-snapshot state have no tabs, and neither change nor use what the next page starts on: the
   next project selected, or the same project when a scan brings its page back, opens on the tab from
@@ -255,38 +214,19 @@ Applies to: the tab row of a project's page. A stale project's note page has no 
 Failure modes and boundaries, a narrow window: the row keeps its one form at every window width, and
 no narrow form is designed. It does not move onto a second row, a sideways wheel over it does not
 move it, and the pane clips it, so the pointer cannot reach a tab past the right edge until the
-window is widened. The default 1100px window shows every tab in both languages. Measured on macOS:
-in English the row shows whole from about 1040px; narrower, the pane cuts Artifacts first, and at
-the 800px minimum window Memory, Sessions and Artifacts lie past the edge. In Chinese the row is
-shorter and shows whole from about 870px, but below about 940px its two-character labels wrap inside
-their tabs and the row grows taller; at 800px Sessions is cut and Artifacts lies past the edge. The
-agents page's seven tabs fit at the minimum window in both languages. This is the one exception to
-[i18n::QR-001](i18n.md).
+window is widened. The default 1100px window shows every tab in both languages. In English a narrower
+window cuts Sessions first, and at the 800px minimum window MCP is cut and Memory and Sessions lie past
+the edge. In Chinese the row is shorter, but in a narrower window its two-character labels wrap inside
+their tabs and the row grows taller; at the minimum window Sessions is cut and no tab lies wholly past
+the edge. The agents page's seven tabs fit at the minimum window in both languages. This is the one
+exception to [i18n::QR-001](i18n.md).
 
-The keyboard does reach those tabs, and that is accepted as it is, with no product change. Measured on macOS at 800px: Tab
-moves along the row to a tab past the edge, Enter opens it, and the pane shifts sideways to bring the focused tab into view,
-its header and body together, by about 240px in English and 68px in Chinese. That cuts off the start of the project's name
-and path, and in English a short name goes whole. The shift stays through a pointer click on another project. It ends when
-Shift+Tab brings focus back to the first tab, on opening a session or on leaving for the agents page; widening the window
-shrinks it, and the default window ends it.
-
-## Where artifacts come from
-
-### project-detail::REQ-003 Each artifact type is read from one place
-
-Applies to: the Artifacts section.
-
-- project-detail::REQ-003/AC-01: CONTEXT.md is the file of that name in the project's `docs/` directory; a
-  `CONTEXT.md` at the project root is not an artifact.
-- project-detail::REQ-003/AC-02: ADR, specs, features and postmortems come from `docs/<type>/*.md`;
-  prototypes are collected recursively from `docs/prototypes/**/*.html` (B3 and B4 apply).
-
-Failure modes and boundaries: a project whose CONTEXT.md is still at its root lists no CONTEXT.md artifact
-and its other artifacts as before; one with both files lists only `docs/CONTEXT.md`; a project with no
-`docs/` directory has no artifacts at all (B7), a root `CONTEXT.md` included. A relative link in a
-rendered document reaches CONTEXT.md as a listed artifact only through `docs/CONTEXT.md`, so a link to a
-root `CONTEXT.md` gets R3's notice. A page saved before this change lists a root CONTEXT.md until its
-background revalidation replaces the list (project-detail::REQ-001/AC-03).
+The keyboard does reach those tabs, and that is accepted as it is, with no product change: Tab moves along the row, Enter
+opens the focused tab, and focus on a tab wholly past the edge shifts the pane sideways to bring it into view, its header and
+body together. That cuts off the start of the project's name and path, a short name whole; a tab the edge only cuts takes
+focus with no shift. The shift stays through a pointer click on another project. It ends when Shift+Tab brings focus back to
+the first tab, on opening a session or on leaving for the agents page; widening the window shrinks it, and the default window
+ends it.
 
 ## Cross-restart page restoration
 
@@ -303,7 +243,7 @@ background revalidation replaces the list (project-detail::REQ-001/AC-03).
   a failed background request must not overwrite the last successful payload with an error result.
 - project-detail::REQ-001/AC-04: A successful snapshot declaring the selected project stale or
   absent takes precedence over its saved page and follows S6/S7.
-- project-detail::REQ-001/AC-05: Already-read artifact, memory and skill-package preview content
+- project-detail::REQ-001/AC-05: Already-read memory and skill-package preview content
   belonging to the project is eligible for restoration as previously viewed content; unread
   bodies are not eagerly fetched to populate the saved copy.
 
@@ -351,8 +291,14 @@ and no scan completed yet.
   Skills filter rule) and survives a transfusion of the same project (A3).
 - **The selected window** ([token-stats](token-stats.md) G11) is held while the Projects dimension
   is shown, across the session page and the project pane; leaving the dimension clears it.
-- **Allow-list**: when detail is returned, the artifact and memory file paths are registered in the
-  allow-list, and both reading and external opening validate against it.
+- **Allow-list**: when detail is returned, the memory files it lists — its topics and its main file — are
+  registered in the allow-list, and a read validates against it (R1).
+- **A display copy saved while a page listed the project's documents** (ADR-0051): a saved project page
+  restores without that list. A read or a read registration saved under the kind and key that memory
+  files and documents then shared survives, as a memory file's, only for a path the restored snapshot or
+  a restored project page lists as a memory file; every other one is dropped, so no document becomes
+  readable through it. An earlier build that reads a copy this build wrote restores none of its read
+  registrations and none of its memory reads.
 - **Each scan's project figures reach the window beside the snapshot** (project-detail::REQ-005):
   every project's token figures and session list, keyed the way the project list merges paths, and
   checked on both sides of the boundary like every payload (ADR-0001). They are not part of the
@@ -361,8 +307,7 @@ and no scan completed yet.
   over them whenever the window holds them: a scan replaces the figures the main process reads a
   detail from and sends them to the window in the same turn, so the window's are never the older.
 - **Copying goes through the main process** (an IPC channel writing the OS clipboard): the renderer
-  clipboard API rejects under automation — measured, not assumed — and the OS clipboard is
-  main-process territory anyway. The channel validates its sender and input like every other.
+  clipboard API rejects under automation, and the OS clipboard is main-process territory anyway. The channel validates its sender and input like every other.
 - **The `{sides}` slot**: every language's cause and send sentences carry exactly one slot, and the
   prompt embeds its path.
 - **Instruction entries carry their paths** (project-detail::REQ-002/AC-02): the detail sends each
@@ -373,19 +318,12 @@ and no scan completed yet.
 
 ## Out of Scope
 
-- ~~Rendering session contents (metadata only)~~ (2026-08-06: fully shipped by
-  `docs/specs/session-view.md`, moved out of this spec's boundary).
-- Editing or creating artifacts (read-only viewing).
 - Removing a stale project's registry records from inside the app (the hint-only stance: the
   registries are the agents' own live files and Agentshed never writes to them).
 - Per-agent removal commands or registry file paths on the stale note card (the prompt line is
   agent-agnostic).
 - A token-history view for stale projects (the note-only page; the global
   totals still include them).
-- Cross-project artifact aggregation (see CONTEXT.md's flagged
-  ambiguities). Global search ([global-search](global-search.md)) covers session questions only, not
-  artifacts.
-- Full-text search of artifact contents.
 - Persisting session search results or search state across restarts. Search already uses the query
   layer under ADR-0028, but is not a saved display-page or preview payload.
 - An error card for a failed detail fetch: the body stays empty as before (T10); a card is a new
@@ -396,27 +334,3 @@ and no scan completed yet.
 - A narrow form of a project's tab row (wrapping onto a second row, scrolling, an overflow menu): a
   tab past the window's edge stays out of the pointer's reach until the window is widened, and the
   keyboard's sideways shift of the pane stays, both accepted (project-detail::REQ-004).
-
-## Further Notes
-
-- **Prototype gate (2026-11-11)**: a page drawn from its copy showing the latest scan's figures
-  (project-detail::REQ-005) adds no page, control, state or form: the Overview and the session list
-  keep theirs, and which scan a figure comes from has no form to draw; declared here as the exemption
-  rather than assumed.
-- **Prototype gate for project-detail::REQ-003**: the change moves where one artifact type is read from
-  and adds no visible state or form; declared here as a data-source exemption.
-- **Prototype gate (2026-11-04)**: which tab a page drawn on leaving a session or after it starts on (REQ-004/AC-02), how
-  many toasts a failed read or listing shows (B9, [skills-view](skills-view.md) A11,
-  [plugins-view](plugins-view.md) H10), and the reader no longer opening by itself on a scan add no visible
-  state or form: the tab row, the toast and the reader keep theirs, and a count or a moment has no form to
-  draw; declared here as the exemption rather than assumed. The sentence a failed read's toast states (B9)
-  changes wording only, and is declared as copy.
-- **Prototype gate (2026-11-04), a page with no tabs**: a stale project's note page and the not-in-snapshot state keeping
-  the tab (REQ-004/AC-02) and the selected window ([token-stats](token-stats.md) G11) for the next page, and the window held
-  across a session page, add no page, control, state, colour or spacing: the tab row, the totals cards and the pages keep
-  their forms, and which one is selected at a moment has no form to draw. The behaviour does change visibly, which puts it
-  outside the gate's named exceptions; the owner confirmed on 2026-11-04 that it needs no prototype, the session page was
-  added on the owner's delegation on 2026-11-05, and it is declared here rather than assumed.
-- **Prototype gate (2026-09-12)**: the atomic switch adds no visible state — the list highlight
-  keeps its existing form, and the end state is the absence of an intermediate frame, which has no
-  form to draw; declared here as the exemption rather than assumed.
