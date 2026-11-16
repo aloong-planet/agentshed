@@ -38,6 +38,9 @@ or to how it is computed is a change to the per-file aggregate, so it bumps the 
 - Negative: the two readings' fields share one structure, so reading the code requires keeping in mind that
   "metering deduplicates, display strips" and that neither one's conclusions transfer to the other.
 - Negative: a change to how a stored field is computed has nothing automated to notice a missed version bump.
+- Neutral: the index holds no question text (session-view D2a), so the session page and both searches read a question's
+  text from its session file; only a page restored at launch shows question texts from the display copy
+  (session-view::REQ-001).
 
 ## Sources
 
