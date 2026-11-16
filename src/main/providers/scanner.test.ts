@@ -5,11 +5,11 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, u
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { emptyTokenStats } from '@shared/domain'
+import { emptySnapshot, emptyTokenStats, type AgentSide, type ProjectEntry } from '@shared/domain'
 import { ERR } from '@shared/errors'
 import { mergeKey } from '@shared/path-key'
 import { UsageArchive } from './archive'
-import { Scanner, settleScan } from './scanner'
+import { Scanner, settleScan, tokenBuildInputs } from './scanner'
 import { runParseJob, type ParseRunner } from './token-stats'
 import { loadEngineModule } from '../engine-module'
 import { encodeTrajectoryMetadata, settingsJson, writeConversation } from '../testing/agy-fixture'
@@ -119,6 +119,27 @@ describe('a session directory a scan cannot list', () => {
     }
     const back = await scanner.scan(home.roots)
     expect([shape(back), row(back)]).toEqual([shape(first), row(first)])
+  })
+})
+
+// What the token build credits Claude Code sessions through and admits sessions by (A2; TokenEngine.build). A registry
+// that cannot be read, which takes no project paths at all, is the next block's (A11)
+describe('what a scan builds its token figures from', () => {
+  it('Claude Code\'s projects as they are spelled, a stale one included, and every registered project\'s merge key', () => {
+    const entry = (path: string, sides: AgentSide[], stale = false): ProjectEntry =>
+      ({ path, name: path.split('/').pop() ?? '', sides, stale, lastSessionAt: null, sessionCount: 0 })
+    const snapshot = emptySnapshot(0)
+    snapshot.sides.claude = { detected: true }
+    snapshot.projects = [
+      entry('/Users/Me/Work/Alpha', ['claude', 'codex']),
+      entry('/Users/Me/Work/Beta', ['codex']),
+      entry('/Users/Me/Work/Gone', ['claude'], true)
+    ]
+
+    expect(tokenBuildInputs(snapshot)).toEqual({
+      claudeProjectPaths: ['/Users/Me/Work/Alpha', '/Users/Me/Work/Gone'],
+      registeredKeys: new Set(['/users/me/work/alpha', '/users/me/work/beta', '/users/me/work/gone'])
+    })
   })
 })
 

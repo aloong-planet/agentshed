@@ -54,13 +54,12 @@ import { TokenEngine, runParseJob, type ParseRunner } from '../src/main/provider
 import { readSessionRanges } from '../src/main/source-identity'
 import { ParsePool } from '../src/main/parse-pool'
 import { ENGINE_BUILD, loadEngineModule, threadEngineModule, type EngineModule, type EngineSource } from '../src/main/engine-module'
-import { Scanner, settleScan, type ScanOutput } from '../src/main/providers/scanner'
+import { Scanner, settleScan, tokenBuildInputs, type ScanOutput } from '../src/main/providers/scanner'
 import { startScans } from '../src/main/scan-client'
 import { UsageArchive } from '../src/main/providers/archive'
 import type { ScanRoots } from '../src/main/providers/types'
 import { isColdRollout } from '../src/main/providers/cold-rollout'
 import { realRoots } from '../src/main/roots'
-import { mergeKey } from '../src/shared/path-key'
 
 const isElectron = typeof process.versions['electron'] === 'string'
 
@@ -157,11 +156,10 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
 
   // The stamp only matters for the archive's conflict rule, which a benchmark never exercises twice
   const archive = new UsageArchive(cacheDir, { stamp: 'bench' })
-  // As the app's scan passes them (scanner.ts): none when Claude Code's registry could not be read
-  const claudePaths = snap.sides.claude.error ? null : snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
-  const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
+  // As the app's scan passes them
+  const { claudeProjectPaths, registeredKeys } = tokenBuildInputs(snap)
   t0 = performance.now()
-  const built = await engine.build(roots, claudePaths, registered, sessions)
+  const built = await engine.build(roots, claudeProjectPaths, registeredKeys, sessions)
   console.log(
     `[TokenEngine.build] store reads, parses, combine, store writes: ${since(t0)} (rows=${built.rows.length}, sessionFiles=${built.sessionFiles.size})`
   )
@@ -288,14 +286,13 @@ async function workersScan(): Promise<void> {
   const roots = realRoots()
   const sessions = walkSessions(roots)
   const snap = await scan(roots, { now: () => Date.now(), sessions })
-  const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
-  const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
+  const { claudeProjectPaths, registeredKeys } = tokenBuildInputs(snap)
   const run = async (label: string, runner?: ParseRunner): Promise<string> => {
     const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-'))
     let took = ''
     const stall = await longestStall(async () => {
       const t0 = performance.now()
-      await new TokenEngine(cacheDir, engineSource(), runner).build(roots, claudePaths, registered, sessions)
+      await new TokenEngine(cacheDir, engineSource(), runner).build(roots, claudeProjectPaths, registeredKeys, sessions)
       took = since(t0)
     })
     console.log(`[workers] ${label}: ${took}; main-thread event-loop stall max ${stall.max} ms, p99 ${stall.p99} ms`)
