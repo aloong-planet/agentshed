@@ -961,8 +961,8 @@ read with macOS `footprint`.
   failed read, under the rule its side has for a read that fails (A10, B12, F6, token-stats::REQ-004). A
   file written below it since it was last listed is not seen until it can be listed again, and with
   nothing held below it — a first scan, or a build with no store — it gives nothing. The session walk's
-  own lists, which the projects list reads ([projects-list](projects-list.md)), keep only what it can
-  list.
+  own lists keep only what it can list; of them, the projects list reads Codex's, Grok's and Antigravity
+  CLI's ([projects-list](projects-list.md)).
 - Interface: unchanged (the prototype exemption, declared); G14 holds.
 
 ## Implementation Decisions
