@@ -9,6 +9,9 @@
 //   pnpm bench:scan warm               against a copy of the app's cache
 //   pnpm bench:scan file <path>…       time the line reader over specific files
 //   pnpm bench:scan --node cold        the same bundle under plain Node, for the comparison
+//   pnpm bench:scan grow <rollout>     a Codex rollout copied into a scratch home, scanned whole, then grown by about
+//                                      1 MB of its own last lines and scanned again: the rescan a live session costs,
+//                                      checked against a cold scan of the same file
 //   pnpm bench:scan workers            a cold scan on the main thread, then one on the parse pool
 //   pnpm bench:scan rescan             two scans in one process, through the scan worker: what the second
 //                                      one costs, and how long it holds the main process
@@ -16,6 +19,10 @@
 //   pnpm bench:scan rescan --grow      with a session file grown between the two (a copy of a home only)
 //   pnpm bench:scan page <rollout>     the read the session page makes as it opens a Codex rollout, and how
 //                                      long it holds the main process
+//   pnpm bench:scan search-index       a scan through the scan worker, keeping the sessions the app searches by
+//   pnpm bench:scan search <index dir> <project path> <needle> [--full-text]
+//                                      one project's session search over those sessions: what it found, how long it
+//                                      took, and the main process's footprint before it and at its peak (macOS)
 //
 // AGENTSHED_HOME_OVERRIDE points the scan at a fixture home, exactly as it does for the app.
 import { build } from 'esbuild'
