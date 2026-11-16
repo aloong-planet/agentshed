@@ -17,7 +17,10 @@
 //                 grown scan is checked against a cold scan of the same file.
 //   workers       a cold scan parsed on the main thread, then one parsed on the parse pool (#159): the
 //                 time of each, the main thread's longest event-loop stall during each (how long an IPC
-//                 call could wait), and whether the two token stores agree entry by entry.
+//                 call could wait), and whether the two token stores agree entry by entry: an entry the two
+//                 hold under one signature with different contents, or that only one of them holds, fails
+//                 the run; one whose signature differs is a file that changed between the two builds,
+//                 counted apart (scripts/lib/bench-store-compare.mjs).
 //                 `workers --pool-only` runs the pool's scan alone, for a peak-memory figure that is
 //                 not stacked on the main-thread run's.
 //   rescan        two scans in one process against a copy of the app's cache, as the app runs them: on
@@ -40,6 +43,8 @@
 //                 took, the bytes it went through, and the main process's longest event-loop stall during it
 //                 (session-view C2: a cold rollout's read must not hold the main process).
 //
+// A check that fails, and a mode that throws, exit the run non-zero, under Electron as under Node.
+//
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
 import { randomUUID } from 'node:crypto'
@@ -60,6 +65,7 @@ import { UsageArchive } from '../src/main/providers/archive'
 import type { ScanRoots } from '../src/main/providers/types'
 import { isColdRollout } from '../src/main/providers/cold-rollout'
 import { realRoots } from '../src/main/roots'
+import { compareStores, type StoreRow } from './lib/bench-store-compare.mjs'
 
 const isElectron = typeof process.versions['electron'] === 'string'
 
@@ -308,28 +314,34 @@ async function workersScan(): Promise<void> {
   const pool = new ParsePool(script, poolSize(), engineSource())
   const poolDir = await run(`parse pool of ${pool.concurrency}`, pool)
   pool.close()
-  const a = storeRows(inlineDir)
-  const b = storeRows(poolDir)
-  const keys = new Set([...a.keys(), ...b.keys()])
-  let differ = 0
-  for (const k of keys) if (a.get(k) !== b.get(k)) differ++
-  console.log(`[workers] store entries: ${keys.size}, differing between the two: ${differ}`)
-  if (differ > 0) process.exitCode = 1
+  const verdict = compareStores(storeRows(inlineDir), storeRows(poolDir))
+  console.log(
+    `[workers] store entries: ${verdict.entries}; disagreeing, under one signature: ${verdict.disagreeing.length}; in one store only: ${verdict.onlyInMainThread.length + verdict.onlyInPool.length}`
+  )
+  for (const path of verdict.onlyInMainThread) console.log(`[workers] only in the main thread's store: ${path}`)
+  for (const path of verdict.onlyInPool) console.log(`[workers] only in the parse pool's store: ${path}`)
+  console.log(`[workers] files changed between the two builds, not a disagreement: ${verdict.changed.length}`)
+  if (verdict.fails) process.exitCode = 1
 }
 
 /**
- * Every row of a token store, as text by path. Read from a copy of the store's file: the engine that wrote it is in this
- * process and has it open, and a second SQLite here would take its locks away (engine/src/store/mod.rs). Each write
- * the engine makes ends with a checkpoint into that file, so with no other process reading the store the copy holds
- * every write that landed.
+ * Every entry of a token store: its path, signature, aggregate and resume point. Read from a copy of the store's file:
+ * the engine that wrote it is in this process and has it open, and a second SQLite here would take its locks away
+ * (engine/src/store/mod.rs). Each write the engine makes ends with a checkpoint into that file, so with no other process
+ * reading the store the copy holds every write that landed.
  */
-function storeRows(cacheDir: string): Map<string, string> {
+function storeRows(cacheDir: string): StoreRow[] {
   const copy = join(mkdtempSync(join(tmpdir(), 'agentshed-bench-store-')), STORE_FILE)
   copyFileSync(join(cacheDir, STORE_FILE), copy)
   const db = new DatabaseSync(copy, { readOnly: true })
   try {
     const rows = db.prepare('SELECT path, sig, agg, resume FROM entries').all() as Array<Record<string, unknown>>
-    return new Map(rows.map((r) => [String(r['path']), JSON.stringify([r['sig'], r['agg'], r['resume']])]))
+    return rows.map((r) => ({
+      path: String(r['path']),
+      sig: String(r['sig']),
+      agg: String(r['agg']),
+      resume: typeof r['resume'] === 'string' ? r['resume'] : null
+    }))
   } finally {
     db.close()
     rmSync(dirname(copy), { recursive: true, force: true })
@@ -514,15 +526,22 @@ async function start(): Promise<void> {
     app.dock?.hide()
   }
   await app.whenReady()
+  // app.exit ends the process with the code it is given, whatever process.exitCode holds, so it is given that code: 1
+  // once a check has failed or the mode has thrown
   try {
     await main()
-  } finally {
-    app.exit(0)
+  } catch (e) {
+    fail(e)
   }
+  app.exit(Number(process.exitCode ?? 0))
+}
+
+function fail(e: unknown): void {
+  console.error(e instanceof Error ? e.message : e)
+  process.exitCode = 1
 }
 
 start().catch((e: unknown) => {
-  console.error(e instanceof Error ? e.message : e)
-  process.exitCode = 1
+  fail(e)
   if (isElectron) void import('electron').then(({ app }) => app.exit(1))
 })
