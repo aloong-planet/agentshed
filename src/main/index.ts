@@ -715,9 +715,10 @@ void app.whenReady().then(() => {
   // once (the spec's implementation decision)
   applyAppearanceMode(nativeTheme, prefsStore.get().mode)
   // Scans run on the scan worker (ADR-0043), which starts the parse workers itself (#159): every core but
-  // one, up to four. Measured on a cold scan of 4954 files (pnpm bench:scan workers --pool-only): 4 workers
-  // 8.5 s at a 1.48 GB peak, 8 workers 7.4 s at 2.20 GB — the largest file alone bounds the time, so more
-  // workers mostly cost memory
+  // one, up to four, the four set by the project owner on 2026-11-16 (#453). The files go to them largest first.
+  // Measured on an instrumented packaged cold scan of 7,454 files, 21.0 GB of lines once decompressed (#453): the
+  // four finished within 1 ms of each other, 8.9 s of parsing for 34.6 s of parse work, while the largest file alone
+  // took 4.9 s, so the work over the workers bounds the time, not the largest file.
   // The engine module (ADR-0046): the scan worker, its parse workers and, after a worker failure, this process load it;
   // this process also writes the display copy through it
   const engine = {
