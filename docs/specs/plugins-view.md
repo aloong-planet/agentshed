@@ -1,6 +1,6 @@
 # Plugins view
 
-> Related: [skills-view](skills-view.md) (preview infrastructure) · ADR-0012 (preview decoupled from enablement) · ADR-0010 (plugin skills join the effective view) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0037 (Antigravity CLI side)
+> Related: [skills-view](skills-view.md) (preview infrastructure) · ADR-0010 (plugin skills join the effective view; preview decoupled from enablement) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0037 (Antigravity CLI side)
 
 ## Problem Statement
 
@@ -20,10 +20,10 @@ local > project > user and states which layer the judgement came from). Enableme
 records appear inline on the plugin row; clicking a row expands into **category tabs**
 (Skills/Subagents/Hooks/MCP; empty categories get no tab). **The Skills tab is a row list** (name +
 description + file count · size): clicking a row expands the package's file table and clicking a
-file opens a drawer to read it — **readability is independent of enablement** (ADR-0012, review
+file opens a drawer to read it — **readability is independent of enablement** (ADR-0010, review
 before enabling). The Codex group is probe-style, with only the Skills category expandable for
 preview, and it **does not join the Skills section** (there are no enablement semantics, and we do
-not manufacture false signals — ADR-0012). The skills bundled with effectively enabled plugins join
+not manufacture false signals — ADR-0010). The skills bundled with effectively enabled plugins join
 the Skills section as namespaced entries (ADR-0010). Everything is read-only.
 
 ## User Stories
@@ -37,7 +37,7 @@ the Skills section as namespaced entries (ADR-0010). Everything is read-only.
    (skills/subagents/hooks/MCP), so that I know what it injects both before and after enabling, one
    category at a time rather than all at once.
 4. As a user, I want to open a plugin's skill package and read `SKILL.md` and its referenced documents
-   in full, so that I know what it instructs the agent to do **before enabling it** (ADR-0012).
+   in full, so that I know what it instructs the agent to do **before enabling it** (ADR-0010).
 5. As a user, I want Codex plugins' bundled skills to be enumerable and previewable too, so that both
    sides' plugins can be reviewed equally.
 6. As a user, I want effectively enabled plugins' skills to appear in the Skills section as
@@ -104,7 +104,7 @@ the Skills section as namespaced entries (ADR-0010). Everything is read-only.
   package root rule).
 
 **Sequence G: plugin entries joining the Skills section** (ADR-0010; the inclusion rule is
-**unchanged by preview**, ADR-0012)
+**unchanged by preview**)
 - G1 Only effectively enabled plugins' skills appear (by the page's own rule: the global page uses the
   user layer, the detail page uses that project's effective enabled set); a plugin disabled since the
   last scan → the next scan takes the entry out (visible only in the Plugins expansion).
@@ -117,7 +117,7 @@ the Skills section as namespaced entries (ADR-0010). Everything is read-only.
   spec).
 - G4 They do not take part in cross-side merging (each side's plugin ecosystem is independent), and
   `sides` is always the plugin's own side: Claude's and Antigravity's plugin skills join
-  (plugins-view::REQ-001/AC-04), Codex plugin skills **do not join** (ADR-0012).
+  (plugins-view::REQ-001/AC-04), Codex plugin skills **do not join** (ADR-0010).
 
 **Sequence H: plugin skill package preview** (inside the Plugins expansion's Skills tab; identical on
 both pages and on every side whose plugins expand)
@@ -132,7 +132,7 @@ both pages and on every side whose plugins expand)
   follows the artifact channel — the same rules as skills-view sequences C/D, including the
   **capability dimension of imported content** (a single sanitising exit, links never navigating the
   whole window, image paths confined to the package).
-- H4 **Readability is independent of enablement** (ADR-0012): a disabled plugin's rows are clickable
+- H4 **Readability is independent of enablement** (ADR-0010): a disabled plugin's rows are clickable
   and readable as usual; reading changes no enablement state.
 - H5 The package root rule = the `installPath` that is the **same source as the bundled component
   summary scan** (Claude; with several installation records, no further guessing) or the highest
@@ -231,10 +231,10 @@ Further rules:
 
 - All write operations: installing, uninstalling, enabling or disabling plugins.
 - Codex plugins' enablement semantics, marketplace index parsing, and expanding bundled components
-  other than skills (ADR-0012's restart condition: the enablement semantics being wired up
+  other than skills (ADR-0010's restart condition: the enablement semantics being wired up
   officially).
 - Click-through or detail preview for subagent / hook / MCP entries (each its own ticket).
-- Navigation or locate-and-highlight between the Plugins and Skills sections (ADR-0012).
+- Navigation or locate-and-highlight between the Plugins and Skills sections (ADR-0010).
 - A dedicated hooks section (a merged view of the five sources) — the hooks summary inside a plugin's
   expansion does not count; that is a separate future item.
 - Installation forms other than the cache, such as `plugins/repos`; interpreting local scope's

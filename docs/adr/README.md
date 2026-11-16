@@ -53,9 +53,8 @@ ADR conventions for this repository:
 
 | # | Decision | Status |
 |---|---|---|
-| [0004](0004-skill-install-by-copy.md) | Skills install by copy (symlinks rejected) | Accepted |
-| [0010](0010-plugin-skills-in-effective-view.md) | Plugin-bundled skills join the effective view (namespace-isolated, filtered by enablement) | Accepted |
-| [0012](0012-plugin-skill-preview-decoupled-from-enablement.md) | Plugin skill preview decoupled from enablement; Codex does not join the effective view | Accepted |
+| [0004](0004-skill-install-by-copy.md) | Skills install by a dereferencing copy; symlinks rejected | Accepted |
+| [0010](0010-plugin-skills-in-effective-view.md) | An enabled plugin's skills join the effective view under a namespace, and every plugin skill can be read, enabled or not | Accepted |
 
 ## Sessions and search
 
@@ -72,11 +71,11 @@ ADR conventions for this repository:
 | [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage: the whole tree, deduplicated entries, all four fields in the total | Accepted |
 | [0006](0006-codex-usage-accounting.md) | Codex usage accounting: two data roots, per-turn increments by day, fork replay stripping | Accepted |
 | [0007](0007-usage-archive.md) | Usage history archive | Accepted |
-| [0008](0008-trend-by-provider.md) | Trend bars segmented by provider | Accepted |
-| [0009](0009-trend-xaxis-data-days.md) | Trend x axis labels data days only, with hierarchical date labels | Accepted |
+| [0008](0008-trend-by-provider.md) | Trend bars are segmented by provider, the model vendor inferred from the model name | Accepted |
+| [0009](0009-trend-xaxis-data-days.md) | The trend x axis labels data days only, with the month shown where it is new | Accepted |
 | [0020](0020-day-usage-keyed-by-side.md) | Daily usage is keyed by agent side, not by a field per side | Accepted |
 | [0023](0023-no-cache-write-on-codex-and-grok.md) | Cache creation is not collected on the Codex and Grok sides | Accepted |
-| [0024](0024-composition-colours-overlap-the-provider-palette.md) | The composition bar uses blue / yellow / green, overlapping the provider palette | Accepted |
+| [0024](0024-composition-colours-overlap-the-provider-palette.md) | The composition bar colours cache reads blue, uncached input yellow and output green, overlapping the provider palette | Accepted |
 | [0025](0025-usage-rows-are-the-renderer-contract.md) | Usage rows are the one source every token figure derives from | Accepted |
 | [0026](0026-archive-retention-by-accounting-stamp.md) | Archive retention by accounting stamp, liveness per (day, side) | Accepted |
 | [0027](0027-codex-usage-records.md) | Codex usage comes from usage records; ccusage is the alignment basis only for rollouts without them | Accepted |
@@ -107,6 +106,7 @@ ADR conventions for this repository:
 
 - 0002: merged into 0038
 - 0003: merged into 0005
+- 0012: merged into 0010
 - 0015: merged into 0001
 - 0016: merged into 0001
 - 0029: merged into 0028
