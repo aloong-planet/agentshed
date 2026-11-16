@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: ADR-0005 (aligned with ccusage) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module) · ADR-0046 (the engine module in the app's own threads) · ADR-0047 (no fallback engine)
+> Related: ADR-0005 (aligned with ccusage) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0048 (Antigravity CLI usage) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module) · ADR-0046 (the engine module in the app's own threads) · ADR-0047 (no fallback engine)
 
 > Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0028).
@@ -613,7 +613,7 @@ Applies to: every conversation database of the side, forks and subagent conversa
   inside output and is never added again; input already excludes cache reads and nothing is subtracted
   from it. The total is the four fields summed, so it is higher than agy's own total (input + output) by
   the cache reads — exactly so on every measured call, none of which reported a cache write — and by the
-  cache writes of a call that reports any (ADR-0037); the composition buckets keep G8's meanings.
+  cache writes of a call that reports any (ADR-0048); the composition buckets keep G8's meanings.
 - token-stats::REQ-003/AC-04: The model is the generator metadata's `response_model` as agy records it,
   never normalised (`gemini-3.8-flash-n` stays `gemini-3.8-flash-n`). A call without one counts toward
   the total and enters no model bucket (the rule A6 and F3 apply on the other sides).
@@ -699,7 +699,7 @@ Applies to: every conversation database of the side, forks and subagent conversa
 - A model id with a routing suffix (`-n`): kept as recorded (token-stats::REQ-003/AC-04), so the per-model
   list can show names no other tool shows; accepted.
 - A model call agy runs on a Claude model reports cache writes; the four-field total includes them, and
-  ADR-0037 counts cache writes among the figures the Claude Code and
+  ADR-0048 counts cache writes among the figures the Claude Code and
   Antigravity CLI sides report.
 - Usage agy never writes to a database — the `/btw` side question (deleted once answered) and the
   Auto mode's command reviewer — is not counted; this under-count is not signalled in the interface.
@@ -1113,7 +1113,7 @@ read with macOS `footprint`.
   starts from the store as the worker last left it.
 - **Automatic refresh**: the triggers (focus + timer) run in the main process, and the scan they
   start on the scan worker; the cost of a rescan is absorbed by the incremental cache.
-- **Antigravity usage** (ADR-0037): the databases are opened by the engine module, under
+- **Antigravity usage** (ADR-0048): the databases are opened by the engine module, under
   token-stats::CON-002. The records are decoded by field
   number against the descriptors embedded in agy 1.4.9, reading only the fields the side needs and
   skipping the prompt fields by their length prefix; a field the reader reads arriving in another
@@ -1178,7 +1178,7 @@ read with macOS `footprint`.
   and IDE's data roots (ADR-0037 option 3).
 - agy's own cost and credit figures: not read, for the reason F4 gives.
 - Normalising Antigravity model names, or mapping agy's opaque model enumeration to names
-  (ADR-0037 option 7).
+  (ADR-0048 option 4).
 - Recovering usage that a rewind deleted before any scan saw it: the database no longer holds it, and
   the transcript's token fields carry no model and no call identity.
 - Refreshing more often than E1's triggers, or watching the agents' data directories for changes

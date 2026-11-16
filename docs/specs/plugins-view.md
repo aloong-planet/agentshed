@@ -1,6 +1,6 @@
 # Plugins view
 
-> Related: [skills-view](skills-view.md) (preview infrastructure) · ADR-0010 (plugin skills join the effective view; preview decoupled from enablement) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0037 (Antigravity CLI side)
+> Related: [skills-view](skills-view.md) (preview infrastructure) · ADR-0010 (plugin skills join the effective view; preview decoupled from enablement) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0037 (Antigravity CLI side) · ADR-0049 (Antigravity CLI's components)
 
 ## Problem Statement
 
@@ -173,7 +173,7 @@ both pages and on every side whose plugins expand)
 ### plugins-view::REQ-001 Antigravity CLI plugins
 
 Applies to: the Plugins section of the agents page and of project detail, and the Skills join
-(ADR-0037; shapes measured 2026-10-28 with agy's official `flutter` plugin).
+(ADR-0049; shapes measured 2026-10-28 with agy's official `flutter` plugin).
 
 - plugins-view::REQ-001/AC-01: An Antigravity group lists the plugins installed under
   `~/.gemini/config/plugins/<name>/`, each read from its `plugin.json`, with its version and the
@@ -187,7 +187,7 @@ Applies to: the Plugins section of the agents page and of project detail, and th
   Skills (its `skills/` packages, previewable under sequence H with the plugin's directory as the
   package root), Subagents (its `agents/` definitions) and MCP (the servers in its `mcp_config.json`,
   named as agy names them, `<plugin>_<server>`). Rules bundled in a plugin are not shown (agy's rules
-  are shown nowhere, ADR-0037) and hooks are not shown (no sample).
+  are shown nowhere, ADR-0049) and hooks are not shown (no sample).
 - plugins-view::REQ-001/AC-04: The skills of an effectively enabled Antigravity plugin join the Skills
   section as namespaced entries — `<plugin>:<skill>`, as agy names them (measured) — with the AG badge,
   following sequence G's other rules (G1–G3).

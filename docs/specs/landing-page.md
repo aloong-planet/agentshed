@@ -1,6 +1,6 @@
 # Landing page
 
-> Related: [ADR-0031](../adr/0031-macos-release-line.md) ·
+> Related: [ADR-0050](../adr/0050-landing-page-in-this-repository.md) · [ADR-0031](../adr/0031-macos-release-line.md) ·
 > [mac-distribution](mac-distribution.md) (the releases and the pointer it reads) ·
 > [app-update](app-update.md) (the update button its install steps mention)
 
@@ -203,13 +203,13 @@ Applies to: the whole page, in both languages, both appearances and all four dow
 ### landing-page::CON-001 Where the site lives (direct acceptance)
 
 Applies to: the landing page. A `site/` project in this repository, built with Astro and deployed by
-Cloudflare Pages at `agentshed.aloongplanet.com` (ADR-0031). It is not a single static file and not a
-separate repository (ADR-0031 option 7).
+Cloudflare Pages at `agentshed.aloongplanet.com` (ADR-0050). It is not a single static file and not a
+separate repository (ADR-0050 option 3).
 
 ### landing-page::CON-002 Two languages (direct acceptance)
 
 Applies to: every page and string of the site. Chinese and English only, by choice and not by omission:
-the landing page is a front door outside ADR-0013's scope (ADR-0031 option 6). The app speaks the same
+the landing page is a front door outside ADR-0013's scope (ADR-0050 option 2). The app speaks the same
 two languages (ADR-0035).
 
 ### landing-page::CON-003 What the page reads (direct acceptance)
@@ -351,9 +351,9 @@ since they never reach it (mac-distribution::CON-004).
 ## Out of Scope
 
 - Retaking the screenshots only because the Instructions section changed its name and place (E2).
-- Download statistics (deferred, ADR-0031 option 10).
-- More than two languages (ADR-0031 option 6).
-- A copy of the page in mainland China (ADR-0031 option 8).
+- Download statistics (deferred, ADR-0050 option 5).
+- More than two languages (ADR-0050 option 2).
+- A copy of the page in mainland China (ADR-0050 option 4).
 - A version constant built into the site (rejected in favour of reading at run time).
 - Clicking or keying between the feature steps: the showcase shows one step at a time and turns with the
   scroll (landing-page::REQ-004/AC-08).

@@ -38,16 +38,16 @@ ADR conventions for this repository:
 | [0017](0017-repo-working-language-english.md) | The repository's working language is English, for its files and for the text beside them, checked at commit and in the pull request | Accepted |
 | [0038](0038-test-layers.md) | Test layers: the data layer, the contract, e2e for what only the assembled app can show, and component tests for the rendering branches nothing else checks | Accepted |
 | [0041](0041-e2e-case-placement.md) | An e2e case goes in its feature's file, placed by the spec that holds the rule, and a shared helper in `e2e/support/`; no limit on file size | Accepted |
-| [0042](0042-packaged-build-refuses-launch-inputs.md) | A packaged build refuses every launch input outside an allow-list, and the packaging proves it | Accepted (the argument rule amended 2026-11-06) |
+| [0042](0042-packaged-build-refuses-launch-inputs.md) | A packaged build refuses every launch input outside an allow-list, and the packaging proves it | Accepted |
 
 ## Projects and sides
 
 | # | Decision | Status |
 |---|---|---|
-| [0019](0019-grok-as-third-agent-side.md) | Onboarding Grok as the third agent side (registry, compatibility rule, no cost, session identity) | Accepted |
+| [0019](0019-grok-as-third-agent-side.md) | Onboarding Grok as the third agent side | Accepted |
 | [0021](0021-side-colour-follows-provider.md) | One colour per agent side, taken from that side's provider colour | Accepted |
 | [0022](0022-remove-manual-hiding.md) | Manual project hiding is removed | Accepted |
-| [0037](0037-antigravity-cli-as-fourth-agent-side.md) | Antigravity CLI as the fourth agent side: its trust ledger as registry, usage from its conversation databases counted once per call, a four-field total, `.agents/skills` shared with Codex | Accepted |
+| [0037](0037-antigravity-cli-as-fourth-agent-side.md) | Onboarding Antigravity CLI as the fourth agent side | Accepted |
 
 ## Components
 
@@ -55,6 +55,7 @@ ADR conventions for this repository:
 |---|---|---|
 | [0004](0004-skill-install-by-copy.md) | Skills install by a dereferencing copy; symlinks rejected | Accepted |
 | [0010](0010-plugin-skills-in-effective-view.md) | An enabled plugin's skills join the effective view under a namespace, and every plugin skill can be read, enabled or not | Accepted |
+| [0049](0049-antigravity-components-and-shared-skills-directory.md) | Antigravity CLI's components are shown where agy was seen to load them, `.agents/skills` is shared with Codex, and Instructions shows CLAUDE.md and AGENTS.md | Accepted |
 
 ## Sessions and search
 
@@ -62,7 +63,7 @@ ADR conventions for this repository:
 |---|---|---|
 | [0011](0011-question-index-in-token-cache.md) | The question index rides on the token metering cache (one cache, two readings) | Accepted |
 | [0034](0034-global-search-question-corpus-in-memory.md) | Global search reads every project's question texts from main-process memory, warmed when its page opens | Accepted |
-| [0036](0036-injected-text-stays-a-question.md) | Text the agent tools write into a session as the user (compaction summaries, messages between agents, Codex's ambient state) stays a question | Accepted |
+| [0036](0036-injected-text-stays-a-question.md) | Text the agent tools write into a session as the user stays a question | Accepted |
 
 ## Usage and the archive
 
@@ -85,6 +86,7 @@ ADR conventions for this repository:
 | [0045](0045-token-engine-as-a-rust-module.md) | The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module that builds only the values a rule reads | Proposed |
 | [0046](0046-engine-module-in-the-apps-own-threads.md) | The engine module is loaded through Node-API by the app's own threads, rather than written in Go or run as a separate process | Accepted |
 | [0047](0047-no-fallback-engine.md) | No fallback engine: a module that will not load, or is another build, fails what needs it | Accepted |
+| [0048](0048-antigravity-usage-counted-once-per-call.md) | Antigravity CLI usage: each call counted once across its conversation databases, a four-field total, model names as recorded | Accepted |
 
 ## Interface
 
@@ -101,8 +103,9 @@ ADR conventions for this repository:
 
 | # | Decision | Status |
 |---|---|---|
-| [0031](0031-macos-release-line.md) | A notarized macOS release line: CI on release tags, R2 mirror for formal releases, a Chinese and English landing page | Accepted |
-| [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted (download behaviour amended the same day) |
+| [0031](0031-macos-release-line.md) | A notarized macOS release line, built in CI and mirrored to R2 | Accepted |
+| [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted |
+| [0050](0050-landing-page-in-this-repository.md) | The landing page is a `site/` project in this repository, in Chinese and English | Accepted |
 
 ## Retired numbers
 

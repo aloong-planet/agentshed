@@ -1,6 +1,6 @@
 # Skills view
 
-> Related: [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0038 · ADR-0004 · ADR-0010 · ADR-0037  
+> Related: [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0038 · ADR-0004 · ADR-0010 · ADR-0049  
 > Status: **delivered**
 
 ## Problem Statement
@@ -342,7 +342,7 @@ Applies to: the agents page's Skills section, and the global library every insta
   skills directory of CONTEXT.md). A name present in more than one is listed once, as the copy agy
   uses: the first directory over the second over the third. Measured 2026-10-28 with agy's own skill
   listing, which shows one copy of a same-name pair, in that order. The row's preview opens that copy.
-- skills-view::REQ-001/AC-02: agy's built-in skills are not listed (ADR-0037).
+- skills-view::REQ-001/AC-02: agy's built-in skills are not listed (ADR-0049).
 - skills-view::REQ-001/AC-03: Its rows carry the AG badge in the side slots (R5); a name that other
   sides' libraries hold too is one row with every such side's badge, and the drawer's side switcher
   includes Antigravity (A2).
@@ -360,7 +360,7 @@ Applies to: the project detail page's Skills section.
 
 - skills-view::REQ-002/AC-01: The project's `.agents/skills` is one group, the shared skills
   directory (CONTEXT.md), headed "Shared · .agents/skills" with the CX and AG badges. It sits
-  between the Codex groups and the Antigravity groups (ADR-0037). The badges name both sides that
+  between the Codex groups and the Antigravity groups (ADR-0049). The badges name both sides that
   load the directory, whatever the project is registered on.
 - skills-view::REQ-002/AC-02: Its entries are project-level: each is previewable (B5) and uninstallable
   ([skill-install::REQ-002](skill-install.md)).

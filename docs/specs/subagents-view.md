@@ -1,6 +1,6 @@
 # Subagents view
 
-> Related: ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
+> Related: ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0049 (Antigravity CLI's components)
 
 ## Problem Statement
 
@@ -82,7 +82,7 @@ Everything is read-only.
 
 ### subagents-view::REQ-001 Antigravity CLI subagents
 
-Applies to: the Subagents section of the agents page and of project detail (ADR-0037; shapes measured 2026-10-28
+Applies to: the Subagents section of the agents page and of project detail (ADR-0049; shapes measured 2026-10-28
 with samples agy confirmed loading).
 
 - subagents-view::REQ-001/AC-01: Global definitions are read from `~/.gemini/config/agents/`, in both
