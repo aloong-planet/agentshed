@@ -18,7 +18,7 @@
 ### 所有项目一张列表
 
 - 任一 agent 侧登记过的项目都在一张列表里，一个目录算一个项目，按活跃时间排序。可以按名称或路径搜索，只看某一个 agent 侧，也可以显示或隐藏目录已不存在的项目。
-- 项目页列出这个项目实际生效的 skills、subagents、plugins、MCP 服务、记忆与指令，以及 agent 在项目里产出的文档和项目的会话。
+- 项目页列出这个项目实际生效的 skills、subagents、plugins、MCP 服务、记忆与指令，以及项目的会话。
 
 ### Skills、subagents、plugins 与记忆
 

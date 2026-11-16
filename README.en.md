@@ -25,7 +25,7 @@ Website: [agentshed.aloongplanet.com](https://agentshed.aloongplanet.com)
 - Every project any agent side has registered, one directory to one project, sorted by activity. Search by
   name or path, narrow the list to one agent side, and show or hide projects whose directory is gone.
 - A project's page shows what that project has as it actually takes effect there — skills, subagents,
-  plugins, MCP servers, memory and instructions — the documents its agents produced, and its sessions.
+  plugins, MCP servers, memory and instructions — and its sessions.
 
 ### Skills, subagents, plugins and memory
 

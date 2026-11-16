@@ -244,13 +244,13 @@ test('i18n: key layouts do not overflow horizontally in either language', async 
 test('i18n: no label in the project-detail tab row or the skills rows wraps to a second line', async () => {
   // The pre-existing overflow test covers the **settings page** only (`.settings`, `.field`,
   // `.settings-foot`). Two of the tightest rows were unguarded, and both hold copy that varies a lot in
-  // width: the nine-tab row in project detail, and the `.sk-head` rows whose `.pill`s are `flex: none`.
+  // width: the eight-tab row in project detail, and the `.sk-head` rows whose `.pill`s are `flex: none`.
   //
   // **What the failure actually looks like, measured rather than assumed.** The obvious guess — the row
   // bursts its container and the page scrolls sideways — is wrong here, and every check built on it is
   // vacuous:
   //   - `.tabs` is width-auto, so its `scrollWidth` equals its `clientWidth` while its tabs can shrink to fit, which an
-  //     over-long label lets them do by wrapping. At the minimum window a project's nine tabs cannot, and the row runs
+  //     over-long label lets them do by wrapping. At the minimum window a project's eight tabs cannot, and the row runs
   //     past the pane (project-detail::REQ-004); this case runs at the default window.
   //   - `body` is `overflow-x: hidden`, so `documentElement.scrollWidth > clientWidth` never fires.
   //   - `.tab` is `white-space: normal` with `flex: 0 1 auto`, so an over-long label does not clip or
