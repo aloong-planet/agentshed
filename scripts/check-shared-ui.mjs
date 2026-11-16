@@ -17,8 +17,8 @@
 //
 // It also carries checks on the app's own code: the copy rules, hard-coded colours, the side chips, and the
 // app side of the shared blocks' style invariants and required props. Every check runs every time. None
-// compares the prototypes with the app: the prototypes are the baseline the app is built from (ADR-0033),
-// so a page that differs from the app is not wrong on that account.
+// compares the prototypes with the app (ADR-0033): the app is the interface's baseline, and a prototype that
+// awaits its change, or that the app has moved past, differs from it as a matter of course.
 //
 // What a check mirrors from the product — the colours, the themes, the sides, the languages, the READMEs, the
 // rail items, the documents the ticket-number rule reads — is read from where its members are defined (the

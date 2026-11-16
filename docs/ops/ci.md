@@ -74,8 +74,8 @@ file inside that reach still wait for approval, because the owner asks to see a 
 either before it merges (the line under Engineering in `AGENTS.md`):
 
 - `AGENTS.md` and `CLAUDE.md`: every session loads them, so a change binds all the work that follows.
-- Anything under `docs/prototypes/`, its scripts and styles included: the interface follows the prototypes
-  (ADR-0033).
+- Anything under `docs/prototypes/`, its scripts and styles included: a change inside the prototype gate is
+  built to its confirmed prototype (ADR-0033).
 
 A pull request that changes one of those files together with other documents waits as a whole. The rest
 of that reach merges without approval: among it the specs, the ADRs, the glossary, the postmortems, the
