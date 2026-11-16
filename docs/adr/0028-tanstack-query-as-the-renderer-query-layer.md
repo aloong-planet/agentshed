@@ -1,109 +1,69 @@
-# ADR-0028: TanStack Query is the renderer's on-demand read layer
+# ADR-0028: TanStack Query is the renderer's on-demand read layer, and a display copy kept apart from the accounting cache restores it after a restart
 
-- Status: Accepted (2026-09-13)
+- Status: Accepted (2026-09-14)
 
-## Context and problem
+## Context
 
-Project detail and the session page are fetched on demand over IPC. Each pane holds its payload in
-local state and clears it when its key (the project path, the session file) changes; the clear
-unmounts the pane body, so every switch draws an empty frame and rebuilds the subtree, and every
-revisit fetches again. The user ruled on 2026-09-12 that a switch must be atomic and a revisit
-instant (the CONTEXT.md invariant of that date). React's documented mechanism for keeping the old
-UI until the new one is ready is a Transition over a Suspense-enabled data source. This repository
-runs React 18.3.1, where data read inside an effect never activates Suspense and `use()` does not
-exist, so the official route needs either a Suspense-enabled query library or React 19 with a
-hand-built cache. Nineteen renderer call sites go over IPC today — eight of them on-demand reads (the two this
-decision moves, a turn's contents, the freshness check, the session search, skill package files at
-two sites, artifact contents) — and the user intends to move the on-demand reads onto one layer
-over time.
+The renderer reads project detail, session pages and other data on demand over IPC, and a page switch must be atomic
+and a revisit instant. React holds the old interface until the new one is ready with a Transition over a
+Suspense-enabled source; on React 18, which this repository runs, data read in an effect never activates Suspense. A
+restart must show the previous run's data and the pages viewed before while the first scan runs, also after an update
+invalidated the accounting cache and with it the question index that opens sessions (ADR-0011).
 
 ## Options
 
-1. **@tanstack/react-query 5.102.8**: `useSuspenseQuery` for the page payloads, the selection change
-   that alters a key wrapped in `startTransition`, revalidation on mount, `invalidateQueries` on
-   every snapshot. Its peer range covers React 18 and 19; 13.8 kB gzip including query-core
-   (bundlephobia, 2026-09-12); one provider at the root.
-2. Upgrade to React 19.3.0 and hand-build the cache on `use(promise)` + `startTransition` —
-   rejected: the upgrade is its own blast radius (the 19 types drop the global `JSX` namespace —
-   89 uses across 25 files here — plus a full gate re-run) bundled into a feature that does not need
-   it; and the cache would have to grow invalidation, deduplication and collection as the other read
-   sites migrate — the "our own code, our own bugs" consequence ADR-0014 accepted for i18n, without
-   the type-level reason that justified it there.
-3. swr 2.5.1 (Vercel) — not chosen: it has a `keepPreviousData` option and a `suspense` switch, but
-   invalidation and collection are coarser (a global `mutate`), and its Suspense mode is documented
-   as experimental.
-4. Keep the previous payload in state and key the subtree by path, without Suspense — rejected: not
-   the documented mechanism; the header would switch while the body still shows the previous
-   project, and nothing can hold the whole pane.
+1. **@tanstack/react-query for on-demand reads, refilled at a restart from a display copy apart from the accounting
+   cache** — chosen.
+2. React 19 with a hand-built cache on `use(promise)` — rejected: the upgrade is its own blast radius, and the cache
+   would grow invalidation, deduplication and collection of our own, the cost ADR-0014 took only for a type-level gain.
+3. swr — rejected: coarser invalidation and collection (a global `mutate`), and a Suspense mode documented as
+   experimental.
+4. Keep the previous payload in state and key the subtree by path, without Suspense — rejected: the header would switch
+   while the body still shows the previous project, and nothing can hold the whole pane.
+5. Restore only the snapshot and the main process's derived state — rejected: an invalid accounting cache has no
+   question index, so a session cannot be opened.
+6. Derive everything from the accounting cache at startup — rejected: the upgrade case invalidates that cache.
+7. Tie the saved display data to the accounting stamp — rejected: it removes the previous data exactly when a full
+   rescan makes it most useful.
 
 ## Decision
 
-We adopt **option 1**: @tanstack/react-query is the renderer's query layer for on-demand reads. A
-page whose key follows the selection reads through `useSuspenseQuery`; the selection change that
-alters the key runs inside a Transition; one Suspense boundary above the switching pane holds the
-previous page; a new snapshot invalidates every query. This round moves project detail and the
-session page; the remaining on-demand reads keep their effects until they are migrated (tracked as
-an issue). React stays at 18 — the 19 upgrade is a separate decision. Errors stay in-band: a query
-function resolves to a result value and never throws, so no error boundary is added and the pages'
-own error states are unchanged.
+We adopt **option 1**.
+
+- **On-demand reads go through the query layer.** A page whose content depends wholly on the fetch reads through
+  `useSuspenseQuery`, the selection change that alters its key runs in a Transition, and one Suspense boundary above
+  the switching pane holds the previous page; a widget that owns its loading state uses `useQuery`. A new snapshot
+  invalidates every query, and a query function returns a result value and never throws. React stays at 18.
+- **The main process keeps a display copy**, versioned on its own, of successful scan and read outputs, each with its
+  identity and observation; the renderer fills the query layer from its validated entries before it presents a saved
+  page. A failed refresh keeps the last successful copy, authoritative absence retires an obsolete
+  session, and query collection alone discards nothing. The renderer cannot write a path or a blob to it.
+- **A saved page answers a read-only presentation without the live index**; new source contents are still fetched
+  through current registration and source validation. A restored exact-path registration takes extra target checks,
+  never replaces the admission rules, and gives way to a current authoritative scan or enumeration.
+- **The display copy is never a scan observation** and never rewrites history. A saved answer is tied to its page by
+  the source question's identity, never by an ordinal; its text is neither ADR-0011's index nor a searchable corpus,
+  and navigation and expansion state are not saved.
 
 ## Consequences
 
-- Positive: switching and revisiting follow React's documented mechanism rather than a hand-rolled
-  cache, and invalidation, deduplication and collection exist on day one for the sites migrated later.
-- Positive: returning from a session page to its project no longer refetches the detail — the cache
-  answers it.
-- Negative: one runtime dependency and a provider at the root; a component test that mounts a page
-  needs the provider (none does today — the eight renderer unit tests mount nothing).
-- Negative: until the remaining reads migrate, two fetching idioms coexist in the renderer.
-  **Resolved 2026-09-13** (issue #177): all six named sites (a turn's contents, the session freshness
-  check, the session search, skill package files at two call sites, artifact contents) now go through
-  the query layer too; `rg` over `src/renderer` confirms none of the six IPC methods are called
-  outside their `*-query.ts` module. The one sibling `readArtifact` call in `MemoryView.tsx` was never
-  one of the six and stays on its own effect.
-- Neutral, clarified 2026-09-13 (issue #177): the two page-level migrations (#174, #175) used
-  `useSuspenseQuery`, since the whole page's content depended on the fetch and nothing else was worth
-  showing meanwhile. The six widget-level sites migrated in #177 use plain `useQuery` instead — each
-  already had its own in-place loading/error UI (a file table's own spinner, a turn's own "fetching"
-  note), and forcing those under a Suspense boundary would have meant a fallback per widget for no
-  benefit. ADR-0028's mechanism is "the query layer", not "Suspense everywhere"; which of the two a
-  site uses follows from whether the page or the widget owns the loading state.
-- Neutral: on React 18 the library's Suspense support rides the thrown-promise protocol; React 19
-  changes nothing for it.
-- Neutral, measured rather than assumed (2026-09-13, project-detail ticket): React 18's `createRoot`
-  already holds an already-revealed Suspense boundary's content and preempts a stale in-flight
-  render for a plain `setState`, not only one wrapped in `startTransition` — a mutation removing the
-  Transition around the project selection change was rebuilt and run against the hold e2e case, and
-  it stayed green. The Transition is kept for the documented pattern (React's own guidance recommends
-  wrapping navigation-like updates in it) and as the seam that would matter against a competing
-  high-priority update, which nothing here currently exercises; its necessity for the hold behaviour
-  itself is not demonstrated by an e2e mutation, and the spec sections say so rather than repeating
-  the original (assumed, wrong) claim.
+- Positive: switching and revisiting follow React's documented mechanism, and invalidation, deduplication and
+  collection come from the library; returning from a session page to its project refetches nothing.
+- Positive: a full restart shows the previous data and the pages read before, ahead of the first scan and across an
+  accounting or index version bump; the source-read and accounting rules keep one owner each.
+- Negative: one runtime dependency and a provider at the root, which a component test mounting a page supplies too.
+- Negative: read content takes disk space and startup time, with no numeric retention limit, and its store needs
+  atomic, ordered writes and schema validation.
+- Negative: the display copy may be stale, so its startup status and later replacement must stay visible and coherent.
+- Neutral: React 18's concurrent root holds a revealed boundary for a plain state update too; the Transition stays as
+  the documented navigation pattern and against a competing urgent update.
+- Neutral: the next successful scan or read follows the source; the saved copy recovers nothing never read and grants
+  no access to a deleted or replaced target.
 
 ## Sources
 
-The design round of 2026-09-12. React reference documentation for useTransition (page navigations
-as Transitions), Suspense (data fetched in an effect or event handler does not activate it) and
-useDeferredValue (stale content while fresh content loads); the TanStack Query v5 Suspense guide
-(`placeholderData` is absent on suspense queries; key changes go inside `startTransition`); the
-React 19 upgrade guide (the global `JSX` namespace removal and its codemod). Measurements taken
-2026-09-12: `rg` over `src` for global `JSX` uses (89 in 25 files) and for APIs removed in React 19
-(none); npm versions react 19.3.0, @tanstack/react-query 5.102.8, swr 2.5.1; bundlephobia for
-@tanstack/react-query@5.102.8: 50.7 kB minified, 13.8 kB gzip, one dependency (query-core).
-
-**Evidence closed (promoted from Proposed to Accepted on 2026-09-13)**: all three tickets landed —
-project detail (#174, PR #179), the session page (#175, PR #180) and the closeout (#176), which adds
-the one case neither half could verify alone (leaving a project for a session page and coming back:
-a cached visit landing on Sessions, then a transfusion refresh). 73 e2e cases and 673 unit tests pass
-locally on the closeout's tree, including every hold, cached-revisit and rescan-refresh case across
-both pages, run and re-run after two rounds of mutation testing (each mutation reverted by hand, not
-`git checkout`). **CI itself did not confirm this**: GitHub Actions on this repository has been
-blocked by an account billing issue since PR #173 (2026-09-11), unrelated to this feature's code, and
-every PR in this feature (#178, #179, #180, and this closeout) was merged on the user's explicit
-instruction to proceed without waiting on it. The promotion rests on the local gate, not on CI.
-
-**Lifetime extension accepted 2026-09-14 (ADR-0029)**: independently persisted successful display
-payloads hydrate this query layer after a full restart. The query mechanism remains this decision's;
-cross-restart storage and validation belong to ADR-0029. Memory and skill-file drawers now also use
-the query layer. A failed revalidation retains its last successful display copy; authoritative
-absence retires an obsolete session. Query collection alone does not discard that display copy.
+The design round of 2026-09-12 and the restoration discussion of 2026-09-13. React's useTransition and Suspense
+reference, TanStack Query v5's Suspense guide, React 19's upgrade guide. On 2026-09-12: 89 uses of the global `JSX`
+namespace, which React 19 removes, in 25 files under `src`; @tanstack/react-query 5.102.8 peers React 18 and 19,
+13.8 kB gzip (bundlephobia). On 2026-09-13 an accounting cache of another version loaded no files. Restoration: the
+agents-overview, project-detail, session-view and token-stats specs.

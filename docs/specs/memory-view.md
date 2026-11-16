@@ -132,7 +132,7 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
   clicked (a first-read failure → "file cannot be read" inside the drawer, no crash —
   memory-view::US-001/AC-07). An already-read successful
   body is saved separately and restored immediately on reopening, including after a restart; a
-  failed refresh retains it (project-detail::REQ-001/AC-05, ADR-0029). This does not
+  failed refresh retains it (project-detail::REQ-001/AC-05, ADR-0028). This does not
   restore the open drawer or authorize a new source read.
 - C9 The expansion state is keyed by project path rather than list index — so an expanded row does not
   shift when a snapshot refresh reorders the list.

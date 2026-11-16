@@ -1,7 +1,7 @@
 // Shared: the interface copy two or more prototype pages show, in the languages those pages are drawn in
 // (Chinese and English; demo-dimensions.js shows any other choice as English, with a note). It is the
-// prototypes' own copy, the baseline the app's dictionary follows. A page spreads a language's entries into
-// its own table and keeps there only the copy no other page shows:
+// prototypes' own copy, kept by hand and not checked against the app's dictionary. A page spreads a
+// language's entries into its own table and keeps there only the copy no other page shows:
 //   <script src="../_shared/copy.js"></script>
 //   const T = { zh: { ...SharedCopy.zh, mine: '…' }, en: { ...SharedCopy.en, mine: '…' } }
 // An entry joins this table when a second page shows the same copy, and leaves it when only one page does.

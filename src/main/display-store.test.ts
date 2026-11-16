@@ -364,7 +364,7 @@ it('isolates a saved page whose numeric data overflowed JSON without discarding 
 
 // A project detail saved by a version whose memory had no main-file entry (the installed app's own cache holds
 // `memory: { main, topics }`): it still restores, its main file not yet listed, until the live read replaces it
-// (ADR-0029's upgrade case; memory-view, Implementation Decisions). A malformed entry is still dropped.
+// (ADR-0028's upgrade case; memory-view, Implementation Decisions). A malformed entry is still dropped.
 it('restores a project detail saved before its memory carried the main file entry', () => {
   const root = dir()
   const detail = (memory: Record<string, unknown>) => ({
@@ -577,7 +577,7 @@ it('still drops a saved snapshot whose entry for the side is present but malform
 })
 
 // The count of Antigravity conversations a scan could not read is part of the saved snapshot, so the side card's
-// notice is back at the next launch before its first scan (token-stats::REQ-004/AC-02, ADR-0029); a malformed count is
+// notice is back at the next launch before its first scan (token-stats::REQ-004/AC-02, ADR-0028); a malformed count is
 // a corrupt leaf and drops the snapshot
 it('restores a saved snapshot carrying the count of unreadable Antigravity conversations, and drops one whose count is malformed', () => {
   const root = dir()

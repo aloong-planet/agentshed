@@ -71,7 +71,7 @@ ADR conventions for this repository:
 |---|---|---|
 | [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage: the whole tree, deduplicated entries, all four fields in the total | Accepted |
 | [0006](0006-codex-usage-accounting.md) | Codex usage accounting: two data roots, per-turn increments by day, fork replay stripping | Accepted |
-| [0007](0007-usage-archive.md) | Usage history archive (resilient to the agent's own cleanup) | Accepted (conflict rule superseded by 0026) |
+| [0007](0007-usage-archive.md) | Usage history archive | Accepted |
 | [0008](0008-trend-by-provider.md) | Trend bars segmented by provider | Accepted |
 | [0009](0009-trend-xaxis-data-days.md) | Trend x axis labels data days only, with hierarchical date labels | Accepted |
 | [0020](0020-day-usage-keyed-by-side.md) | Daily usage is keyed by agent side, not by a field per side | Accepted |
@@ -80,7 +80,7 @@ ADR conventions for this repository:
 | [0025](0025-usage-rows-are-the-renderer-contract.md) | Usage rows are the one source every token figure derives from | Accepted |
 | [0026](0026-archive-retention-by-accounting-stamp.md) | Archive retention by accounting stamp, liveness per (day, side) | Accepted |
 | [0027](0027-codex-usage-records.md) | Codex usage comes from usage records; ccusage is the alignment basis only for rollouts without them | Accepted |
-| [0039](0039-archive-file-failure-stops-no-scan.md) | An archive file that cannot be written or read stops no scan: memory carries the figures, the disk keeps the last good file, and the user is told once per run | Accepted (the launch consequence amended 2026-11-05) |
+| [0039](0039-archive-file-failure-stops-no-scan.md) | An archive file that cannot be written or read stops no scan | Accepted |
 | [0043](0043-scan-on-a-worker-thread.md) | A scan runs on one worker thread that owns the token cache; the main process only starts it and takes its result | Accepted (the display-copy consequence amended 2026-11-15) |
 | [0044](0044-token-cache-in-sqlite-by-deduplication-group.md) | The token cache lives in a SQLite store and is aggregated by de-duplication group; the display copy is written while the window has no focus | Accepted |
 | [0045](0045-token-engine-as-a-rust-module.md) | The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module that builds only the values a rule reads | Proposed |
@@ -93,10 +93,9 @@ ADR conventions for this repository:
 |---|---|---|
 | [0013](0013-ui-language-set-and-i18n-scope.md) | The i18n scope is the app's copy, its menu and the README, every language left to right, with no RTL commitment | Accepted |
 | [0014](0014-self-built-typed-i18n-layer.md) | A self-built typed i18n layer; general-purpose i18n frameworks rejected | Accepted |
-| [0018](0018-icons-are-inline-svg-from-one-source.md) | Icons are inline SVG from a single source; the prototypes derive theirs from it | Accepted (prototype half superseded by 0033) |
-| [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer; page switches run as Transitions | Accepted |
-| [0029](0029-startup-display-persistence.md) | Separate startup display persistence, including previously viewed pages | Accepted |
-| [0033](0033-prototypes-are-the-baseline.md) | The prototypes keep their own icons, tokens, styles and copy; the app follows them | Accepted |
+| [0018](0018-icons-are-inline-svg-from-one-source.md) | Icons are inline SVG from one icon module, Lucide first and a library drawn the same way where Lucide lacks the meaning | Accepted |
+| [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer, and a display copy kept apart from the accounting cache restores it after a restart | Accepted |
+| [0033](0033-app-is-the-interface-baseline.md) | The app is the interface's baseline; the prototypes are kept by hand, never generated from the app or compared with it | Accepted |
 | [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Simplified Chinese and English, and the READMEs follow them | Accepted |
 
 ## Updates
@@ -112,5 +111,6 @@ ADR conventions for this repository:
 - 0003: merged into 0005
 - 0015: merged into 0001
 - 0016: merged into 0001
+- 0029: merged into 0028
 - 0030: merged into 0017
 - 0040: merged into 0038

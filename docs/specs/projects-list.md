@@ -2,7 +2,7 @@
 
 > Related: ADR-0038 (test layers) · ADR-0019 (what a registry is, per side) · ADR-0021 (side colour) · ADR-0022 (manual hiding removed) · ADR-0037 (Antigravity CLI side)
 
-> Successful display payloads persist independently of the accounting index (ADR-0029).
+> Successful display payloads persist independently of the accounting index (ADR-0028).
 
 ## Problem Statement
 

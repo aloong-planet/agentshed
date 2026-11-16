@@ -1,5 +1,5 @@
-/* The prototypes' colour tokens, kept by hand: the baseline the app's colours follow, not generated from
-   the app's theme and not checked against it.
+/* The prototypes' colour tokens, kept by hand: not generated from the app's theme and not checked against
+   it.
 
    Every theme × light/dark state, keyed on the attributes demo-dimensions.js sets on a page that follows
    the theme and the mode:

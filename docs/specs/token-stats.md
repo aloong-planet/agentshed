@@ -3,7 +3,7 @@
 > Related: ADR-0005 (aligned with ccusage) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module) · ADR-0046 (the engine module in the app's own threads) · ADR-0047 (no fallback engine)
 
 > Startup restoration uses the original page prototypes.
-> Successful display payloads persist independently of the accounting index (ADR-0029).
+> Successful display payloads persist independently of the accounting index (ADR-0028).
 
 ## Problem Statement
 

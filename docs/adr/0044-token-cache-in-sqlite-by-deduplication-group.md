@@ -8,7 +8,7 @@ A token cache kept as one JSON file was read whole at launch, held in memory, co
 written whole when one entry changed (ADR-0043): its memory, scan time and writes grew with the history, not with what
 changed. The combination needs more than one file only where files share a de-duplication key (a Claude message id,
 ADR-0005; a Codex session or parent id; an Antigravity call's identity), and on real data such groups are almost all
-one file. Saving the display copy (ADR-0029) after every scan and page read cloned and serialised it while the user was
+one file. Saving the display copy (ADR-0028) after every scan and page read cloned and serialised it while the user was
 in the window.
 
 ## Options
