@@ -1,17 +1,18 @@
 //! What the main process calls: the display copy's write (crate::display), the read of a session file's ranges the
-//! session page and both searches make (each side's), and the line rules a question's text and a turn's contents are
-//! read by there (each side's).
+//! session page and both searches make (each side's), the full-text search of a session file (each side's, over
+//! crate::search), and the line rules a question's text and a turn's contents are read by there (each side's).
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::PathBuf;
 
-use napi::bindgen_prelude::{AsyncTask, Buffer, FromNapiValue, Object, Unknown};
+use napi::bindgen_prelude::{AsyncTask, Buffer, FromNapiValue, Object, Unknown, Utf16String};
 use napi::{Env, Error, JsValue, Result, Status, Task};
 use napi_derive::napi;
 
 use super::side;
 use crate::display::{stringify, write_atomically};
 use crate::exports::js::Js;
+use crate::search::Turn;
 
 /// The question `text` holds, as the session page and both searches show it: `text` is a question's range in a session
 /// file of the side `kind`, as the question index recorded it, read; null when it holds no question
@@ -82,6 +83,58 @@ pub fn read_ranges<'env>(env: &'env Env, kind: String, file: String, ranges: Vec
             Err(_) => deferred.reject(Error::from_reason(format!("reading {file} panicked"))),
         })
         .map_err(|e| Error::from_reason(format!("no thread could be started to read {named}: {e}")))?;
+    Ok(promise)
+}
+
+/// A turn of a session file as its question index records it, in the offsets of the file's stream: its question's
+/// range `[start, questionEnd)`, and the turn's `[start, end)`
+#[napi(object)]
+pub struct TurnRange {
+    pub start: f64,
+    pub question_end: f64,
+    pub end: f64,
+}
+
+/// A turn with a hit in its body, by its index among the turns asked about, and the snippet of its first such hit
+#[napi(object)]
+pub struct BodyHit {
+    pub turn: u32,
+    pub snippet: Option<Utf16String>,
+}
+
+/// What the full-text search of a session file found: how many hits fall in no turn, and each turn with a hit in its
+/// body, by index, ascending
+#[napi(object)]
+pub struct FullTextFound {
+    pub folded: f64,
+    pub body: Vec<BodyHit>,
+}
+
+type SettleFound = Box<dyn FnOnce(Env) -> Result<FullTextFound> + Send>;
+
+/// Searches the session file `file`, of the side `kind`, for `needle` against its `turns` (session-view D2, D3), on a
+/// thread of its own, as `read_ranges` reads (and for its reason): the stream is read line by line and never held
+/// whole. The promise settles with what the search found, or rejects when the file cannot be read to its end, what it
+/// read is not whole, or the search panicked; nothing found is then given. A thread that cannot be started throws,
+/// before any promise is handed out.
+#[napi(catch_unwind)]
+pub fn search_full_text<'env>(env: &'env Env, kind: String, file: String, needle: Utf16String, turns: Vec<TurnRange>) -> Result<Object<'env>> {
+    let side = side(&kind)?;
+    let turns: Vec<Turn> = turns.iter().map(|t| Turn { start: t.start as u64, question_end: t.question_end as u64, end: t.end as u64 }).collect();
+    let (deferred, promise) = env.create_deferred::<FullTextFound, SettleFound>()?;
+    let named = file.clone();
+    std::thread::Builder::new()
+        .name("agentshed-search".to_owned())
+        .spawn(move || match catch_unwind(AssertUnwindSafe(|| side.full_text(&file, &needle, &turns))) {
+            Ok(Ok(found)) => {
+                let body = found.body.into_iter().map(|(turn, snippet)| BodyHit { turn, snippet: snippet.map(Utf16String::from) }).collect();
+                let found = FullTextFound { folded: found.folded as f64, body };
+                deferred.resolve(Box::new(move |_| Ok(found)));
+            }
+            Ok(Err(_)) => deferred.reject(Error::from_reason(format!("{file} could not be searched to its end"))),
+            Err(_) => deferred.reject(Error::from_reason(format!("searching {file} panicked"))),
+        })
+        .map_err(|e| Error::from_reason(format!("no thread could be started to search {named}: {e}")))?;
     Ok(promise)
 }
 

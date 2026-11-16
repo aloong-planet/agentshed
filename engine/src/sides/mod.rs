@@ -17,7 +17,8 @@ use napi::sys::napi_value;
 
 use crate::exports::js::{Js, LocalDates};
 use crate::group::{Builder, Decoded, Member};
-use crate::read::{Failed, Served};
+use crate::read::{Failed, Served, Stored};
+use crate::search::{Found, Turn};
 use crate::text::Units;
 use crate::walk::Held;
 
@@ -86,6 +87,13 @@ pub(crate) trait Side: Sync {
     /// files by range.
     fn read_ranges(&self, _file: &str, _ranges: &[(u64, u64)]) -> Option<std::result::Result<Served, Failed>> {
         None
+    }
+
+    /// The full-text search of the session file `file` for `needle` against its `turns` (session-view D2, D3), its
+    /// stream read line by line: Failed when the file cannot be read to its end, or what it read is not whole by the
+    /// side's rules. By default the file read as it is stored, plain, for a side whose agent writes no other kind.
+    fn full_text(&self, file: &str, needle: &[u16], turns: &[Turn]) -> std::result::Result<Found, Failed> {
+        crate::search::full_text(file, Stored::Plain, needle, turns).map(|(found, _)| found)
     }
 }
 

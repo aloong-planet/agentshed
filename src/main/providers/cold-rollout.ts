@@ -42,11 +42,19 @@ const waiting: Array<() => void> = []
  * B12), as does a file that cannot be read or decompressed as far as the read goes. It starts once fewer than
  * `COLD_READS_AT_ONCE` are running.
  */
-export async function readColdRanges(file: string, ranges: readonly ByteRange[]): Promise<{ bufs: Buffer[]; bytesRead: number }> {
+export function readColdRanges(file: string, ranges: readonly ByteRange[]): Promise<{ bufs: Buffer[]; bytesRead: number }> {
+  return inColdPlace(() => threadEngineModule().readRanges('codex', file, ranges))
+}
+
+/**
+ * Runs `read`, a read through a cold rollout's stream on a thread of the engine module's own, once fewer than
+ * `COLD_READS_AT_ONCE` are running: a range read, or a full-text search of a cold rollout (full-text.ts)
+ */
+export async function inColdPlace<T>(read: () => Promise<T>): Promise<T> {
   if (reading < COLD_READS_AT_ONCE) reading++
   else await new Promise<void>((go) => waiting.push(go))
   try {
-    return await threadEngineModule().readRanges('codex', file, ranges)
+    return await read()
   } finally {
     // A read that settles, or throws before it starts, hands its place to the first one waiting, or gives it up
     const next = waiting.shift()

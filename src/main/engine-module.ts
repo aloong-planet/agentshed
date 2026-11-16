@@ -125,6 +125,20 @@ export interface EngineModule {
    * range rejects too.
    */
   readRanges(kind: 'codex', file: string, ranges: ReadonlyArray<{ start: number; end: number }>): Promise<{ bufs: Buffer[]; bytesRead: number }>
+  /**
+   * The full-text search of the session file `file`, of the side `kind`, for `needle` against its `turns`, each turn's
+   * question `[start, questionEnd)` and the turn `[start, end)` in the offsets its question index records (session-view
+   * D2, D3), on a thread of its own: the file's stream is read line by line, a cold rollout's decompressed as it is
+   * read, and never held whole. Settles with how many hits fall in no turn, and each turn with a hit in its body, by its
+   * index among `turns`, ascending, with the snippet of its first such hit. Rejects when the file cannot be read to its
+   * end, when its stream turns out cut short (token-stats B12), or when the search panics; nothing found is then given.
+   */
+  searchFullText(
+    kind: AgentSide,
+    file: string,
+    needle: string,
+    turns: ReadonlyArray<{ start: number; questionEnd: number; end: number }>
+  ): Promise<{ folded: number; body: Array<{ turn: number; snippet: string | null }> }>
   /** The tool names whose call dispatches a subagent on the side `kind`, which a turn draws as a sub block: the names
    * its question index counts a turn's subagents by (session-view C3) */
   dispatches(kind: AgentSide): string[]

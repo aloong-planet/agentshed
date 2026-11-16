@@ -447,6 +447,108 @@ impl<'a> Reader<'a> {
     }
 }
 
+/// What `events` meets in a value, in the order the text writes it
+pub(crate) enum Event<'a> {
+    /// An object opens; its members follow, each a `Key` and the key's value, then `Close`
+    Object,
+    /// An array opens; its elements follow, then `Close`
+    Array,
+    Key(Str<'a>),
+    /// The innermost open object or array closes
+    Close,
+    String(Str<'a>),
+    /// A number, `true`, `false` or `null`
+    Scalar,
+}
+
+impl<'a> Reader<'a> {
+    /// Checks the value that starts here and moves past it, as `skip` does, handing `on` each thing it meets: a
+    /// value of any depth is read with no stack but `open`'s, as `skip` reads one
+    pub(crate) fn events(&mut self, mut on: impl FnMut(Event<'a>)) -> Read<()> {
+        let base = self.open.len();
+        loop {
+            // A value
+            match self.kind()? {
+                Kind::Object => {
+                    self.at += 1;
+                    on(Event::Object);
+                    self.space();
+                    if self.text.get(self.at) == Some(&b'}') {
+                        self.at += 1;
+                        on(Event::Close);
+                    } else {
+                        self.open.push(b'{');
+                        let key = self.string()?;
+                        self.expect(b':')?;
+                        on(Event::Key(key));
+                        continue;
+                    }
+                }
+                Kind::Array => {
+                    self.at += 1;
+                    on(Event::Array);
+                    self.space();
+                    if self.text.get(self.at) == Some(&b']') {
+                        self.at += 1;
+                        on(Event::Close);
+                    } else {
+                        self.open.push(b'[');
+                        continue;
+                    }
+                }
+                Kind::String => on(Event::String(self.string()?)),
+                Kind::Number => {
+                    self.number_text()?;
+                    on(Event::Scalar);
+                }
+                Kind::True => {
+                    self.literal(b"true")?;
+                    on(Event::Scalar);
+                }
+                Kind::False => {
+                    self.literal(b"false")?;
+                    on(Event::Scalar);
+                }
+                Kind::Null => {
+                    self.literal(b"null")?;
+                    on(Event::Scalar);
+                }
+            }
+            // After a value: close what it ends, or move to the next member or element
+            loop {
+                if self.open.len() == base {
+                    return Ok(());
+                }
+                let top = self.open[self.open.len() - 1];
+                self.space();
+                match (self.text.get(self.at), top) {
+                    (Some(b','), b'{') => {
+                        self.at += 1;
+                        self.space();
+                        let key = self.string()?;
+                        self.expect(b':')?;
+                        on(Event::Key(key));
+                        break;
+                    }
+                    (Some(b','), _) => {
+                        self.at += 1;
+                        break;
+                    }
+                    (Some(b'}'), b'{') | (Some(b']'), b'[') => {
+                        self.at += 1;
+                        self.open.pop();
+                        on(Event::Close);
+                    }
+                    _ => {
+                        self.open.truncate(base);
+                        return Err(Bad);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// A value as a rule that asks its type reads it (`typeof v`, `v === null`): an object or an array is checked and skipped
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Value<'a> {
