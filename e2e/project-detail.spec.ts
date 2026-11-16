@@ -619,7 +619,7 @@ test('opening an artifact whose file was removed after the scan (query layer): o
   await expect(win.locator('.reader')).toContainText('Back again.')
   expect(await added()).toBe(0)
 
-  // Removed again, now that it has been read: the click shows what was kept, with no toast (ADR-0029)
+  // Removed again, now that it has been read: the click shows what was kept, with no toast (ADR-0028)
   await win.locator('.mask').click()
   await expect(win.locator('.reader')).toHaveCount(0)
   rmSync(doomedTarget, { force: true })

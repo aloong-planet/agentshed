@@ -1,5 +1,5 @@
 import { displaySnapshotValid, displayDetailValid, displayStatsValid } from './display-shape'
-// Successful presentation payloads only (ADR-0029). No renderer-to-disk write channel.
+// Successful presentation payloads only (ADR-0028). No renderer-to-disk write channel.
 import type { CappedText, ProjectDetail, ProjectStats, SessionPage, SessionTurn, Snapshot } from './domain'
 import type { ListSkillFilesArgs, ListSkillFilesResult } from './ipc'
 import { validateProjectDetail, validateProjectStats, validateSessionPage, validateSessionTurn, validateSnapshot, AGENT_SIDES } from './validate'
@@ -75,7 +75,7 @@ export function validSavedRead(v: unknown): v is SavedRead {
 const pathed = (file: string, saved: unknown): unknown => (saved === null ? null : { file, content: saved })
 
 /** A project detail saved before its memory carried the main file's entry restores with none listed; the live
- * read replaces it (ADR-0029's upgrade case; spec memory-view, Implementation Decisions). One saved before its
+ * read replaces it (ADR-0028's upgrade case; spec memory-view, Implementation Decisions). One saved before its
  * instruction entries carried their paths — `configs` held the two files' contents and a settings summary —
  * restores with each file at its place in the project, the only place the project's own two files live, and
  * without the summary (project-detail::REQ-002/AC-02). A session page saved

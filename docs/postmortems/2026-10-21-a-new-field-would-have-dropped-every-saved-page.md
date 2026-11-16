@@ -1,6 +1,6 @@
 # A new field would have dropped every saved project page
 
-**Date**: 2026-10-21 · **Surface**: the display cache's saved project details (ADR-0029), after an update
+**Date**: 2026-10-21 · **Surface**: the display cache's saved project details (ADR-0028), after an update
 
 ## What happened
 
@@ -9,7 +9,7 @@ field: the main file's entry. The live contract was extended to require it. The 
 saved by an earlier version, without the field, "degrades to not listed until the live read replaces it". It did not:
 restoring a saved read runs the same live contract, so every saved project detail would have failed it and been
 dropped. After the update, each project the user had viewed would have opened with a wait instead of its last page —
-the upgrade case ADR-0029 exists for. Found in code review before it shipped; nothing reached a user.
+the upgrade case ADR-0028 exists for. Found in code review before it shipped; nothing reached a user.
 
 ## Why no test caught it
 

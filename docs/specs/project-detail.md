@@ -6,7 +6,7 @@
 > memory-view / plugins-view / skill-install / token-stats); this document covers **page-level**
 > rules and the **artifacts section** (artifacts being a capability unique to this page).
 
-> Successful display payloads persist independently of the accounting index (ADR-0029).
+> Successful display payloads persist independently of the accounting index (ADR-0028).
 
 ## Problem Statement
 
@@ -177,7 +177,7 @@ never writes to any agent's registry; it tells the user what happened and hands 
   current UI language, never the raw IPC error. A scan landing afterwards adds no toast, and does not
   open the reader when the file comes back: a failed read leaves nothing open. A file already read
   successfully does not fail this way: with the file gone, the click opens its kept copy with no toast
-  (ADR-0029).
+  (ADR-0028).
   Reopening an already-read file is a cached, instant revisit.
 - B10 `.scratch/` is not under `docs/` by construction and does not count as an artifact (tickets are
   working documents — see the division of labour in specs/README).
@@ -356,7 +356,7 @@ and no scan completed yet.
 - **Each scan's project figures reach the window beside the snapshot** (project-detail::REQ-005):
   every project's token figures and session list, keyed the way the project list merges paths, and
   checked on both sides of the boundary like every payload (ADR-0001). They are not part of the
-  snapshot (A3), and the display copy saves them beside it (ADR-0029). The detail a page fetches still
+  snapshot (A3), and the display copy saves them beside it (ADR-0028). The detail a page fetches still
   carries that project's figures as of the fetch, and the page draws the window's for that project
   over them whenever the window holds them: a scan replaces the figures the main process reads a
   detail from and sends them to the window in the same turn, so the window's are never the older.
@@ -387,7 +387,7 @@ and no scan completed yet.
   artifacts.
 - Full-text search of artifact contents.
 - Persisting session search results or search state across restarts. Search already uses the query
-  layer under ADR-0028, but is not a saved display-page or preview payload under ADR-0029.
+  layer under ADR-0028, but is not a saved display-page or preview payload.
 - An error card for a failed detail fetch: the body stays empty as before (T10); a card is a new
   visible state and needs a prototype.
 - A pending indicator while a first visit is in flight (dimming the clicked row, a progress bar):
