@@ -1,8 +1,8 @@
 # Session view
 
-> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0029 (saved display pages) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module)
+> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer and saved display pages) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module)
 
-> Successful display payloads persist independently of the accounting index (ADR-0029).
+> Successful display payloads persist independently of the accounting index (ADR-0028).
 
 ## Problem Statement
 
@@ -427,7 +427,7 @@ as a cached visit under session-view::REQ-001)
 - P8 Opening a session and going back before its page has arrived: the pending switch is
   interrupted, the project page stays, and the session page is kept when it arrives (a later open
   is P4).
-- P9 Turn contents and their freshness check use the query layer (ADR-0028/0029), retaining the
+- P9 Turn contents and their freshness check use the query layer (ADR-0028), retaining the
   existing in-turn states. Session search also uses the query layer, but its results are not
   persisted across restarts.
 - P10 A session opened directly from a global search hit has the two exits global-search::US-003
@@ -462,13 +462,9 @@ below are archived as a decision record and are no longer requirements)**
 - R2 The existing token statistics parsing and caching **must not be broken** — this feature rides the
   same scan pass, but the rules are independent (token deduplication is a metering rule and means
   something different from display deduplication).
-  The four component fields of a Codex archive row (input/output/cacheRead/cacheWrite) are
-  apportioned by the ratio `that day's volume / that session's total` and then rounded, so a session
-  **still being appended to today** enlarges the denominator and makes its **historical days'**
-  components drift — while that day's `total` does not change. Excluding the current day does not
-  stop this, because the row belongs to a past day while the denominator includes today; the
-  component fields are therefore not a stable quantity to compare, whereas `byDay` and
-  `day | side | project | model | total` are.
+  The four component fields of a Codex archive row (input/output/cacheRead/cacheWrite) are each
+  day's own measured buckets, not apportioned from the session's totals (token-stats B8), so a
+  session **still being appended to today** leaves its **historical days'** components unchanged.
 - R3 The IPC contract (`validate`) is extended along with the new fields.
 
 ## UI decisions (prototype confirmed, 2026-08-02)
@@ -678,7 +674,7 @@ characters the path or the agent's record holds.
 
 ### session-view::CON-003 Pages saved before the session ID restore with it filled in (direct acceptance)
 
-Applies to: session pages in the saved display copy (session-view::REQ-001, ADR-0029). A page saved by
+Applies to: session pages in the saved display copy (session-view::REQ-001, ADR-0028). A page saved by
 a version that did not keep the session ID restores rather than being dropped: a Claude Code or Grok
 page gets its ID from its file path by the same rule as a live page, and a Codex page gets none, so it
 shows session-view::US-001/AC-09's form until the live page replaces it.
@@ -909,7 +905,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   one is laid out — and from the beginning again when the row's width, text or keyword changes. The
   ellipsis's width is measured on a hidden probe in the row, once per font: the computed `font`
   shorthand cannot serve, since the row's tabular figures leave it empty.
-- **Restored answer identity** (ADR-0029): each displayed question carries a fingerprint of its
+- **Restored answer identity** (ADR-0028): each displayed question carries a fingerprint of its
   source file identity, byte position and raw question record. Turn queries key by that fingerprint
   as well as path and ordinal. A read validates the selected question and its answer in one range
   operation (one streaming pass for compressed files), checks that the source stayed unchanged,

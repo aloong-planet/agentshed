@@ -1,14 +1,14 @@
 # ADR-0044: The token cache lives in a SQLite store and is aggregated by de-duplication group; the display copy is written while the window has no focus
 
-- Status: Proposed (2026-11-12)
+- Status: Accepted (2026-11-16)
 
 ## Context
 
-A token cache kept as one JSON file is read whole at launch, held in memory, combined in full at every scan and
-written whole when one entry changes (ADR-0043): its memory, scan time and writes grow with the history, not with what
+A token cache kept as one JSON file was read whole at launch, held in memory, combined in full at every scan and
+written whole when one entry changed (ADR-0043): its memory, scan time and writes grew with the history, not with what
 changed. The combination needs more than one file only where files share a de-duplication key (a Claude message id,
 ADR-0005; a Codex session or parent id; an Antigravity call's identity), and on real data such groups are almost all
-one file. Saving the display copy (ADR-0029) after every scan and page read clones and serialises it while the user is
+one file. Saving the display copy (ADR-0028) after every scan and page read cloned and serialised it while the user was
 in the window.
 
 ## Options
@@ -36,8 +36,7 @@ We adopt **option 1**.
 - **A group** is a set of files connected by shared de-duplication keys, combined alone in scan order; its result
   (usage rows, sessions and what a scan reads from them) is stored. A scan combines again only the groups whose files,
   order, input or combination differ from their stored result's (token-stats, Implementation Decisions, Cache), with
-  every group a changed file now shares a key with, and sums the stored results, which equal one combination over
-  every file in scan order (token-stats::CON-003).
+  every group a changed file now shares a key with, and sums the stored results (token-stats::CON-003).
 - **Upgrading** imports the previous structure version's JSON cache once and deletes it, its only reader;
   **restoring** (token-stats C16) reads a copy of the store, never a JSON file.
 - **The display copy**, when it holds a change, is written as the window loses focus, when a change arrives while it
@@ -58,7 +57,7 @@ We adopt **option 1**.
   combined again from scratch.
 - Neutral: a development run and the installed copy share one store (token-stats C27), each noticing the other's
   writes before it scans.
-- Neutral: the main process's footprint with both halves in place is not measured; it is held to token-stats::QR-003.
+- Neutral: the main process's footprint with both halves in place is held to token-stats::QR-003.
 
 ## Sources
 
@@ -68,4 +67,4 @@ peak about 605 MB; one changed entry 45 MB written; a display copy save about 70
 `2026-11-12-how-comparable-apps-keep-memory-low.md` (option 2: 73 MB to 33–54 MB; 4,171 Claude files in 4,149 groups);
 `2026-11-12-sqlite-prototype.md` (the prototype under Electron as Node: the engine's peak 85–110 MB, a rescan 277–322
 ms to 142–156 ms, a few changed files 2–6 MB written, the store 64 MB, the import 1.3–1.9 s at a peak of 340–351 MB).
-ADR-0011, ADR-0026; token-stats::QR-002.
+#424, 2026-11-16, packaged 29856af, 7,421 session files: token-stats::QR-003's peak 138 MB, 110 MB after five rescans.
