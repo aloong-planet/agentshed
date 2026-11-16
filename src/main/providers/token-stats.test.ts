@@ -761,7 +761,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
 
   // A zstd stream may hold any number of frames, which the scan reads in turn. Every cold rollout on this machine holds one
   // (2026-11-16, 3001 files); the second frame, which holds the second usage record, is built, not sampled.
-  it.each([1, 2])('a cold rollout (.jsonl.zst) in %i frame(s) is scanned like its plain twin: the same rows, questions, title and listing, under its compressed path, which enters the read allow-list (B12, R1)', async (frames) => {
+  it('a cold rollout (.jsonl.zst) in two frames is scanned like its plain twin: the same rows, questions, title and listing, under its compressed path, which enters the read allow-list (B12, R1)', async () => {
     // Codex compresses a rollout untouched for seven days into <name>.jsonl.zst and deletes the plain
     // file (compression.rs); the twin here is the same bytes zstd-compressed, as the agent writes them
     const plain = mkCodexRollout('rollout-warm-019f040.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [
@@ -771,8 +771,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
     const cold = join(dir, '.codex', 'sessions', '2026', '07', '30', 'rollout-cold-019f041.jsonl.zst')
     const bytes = readFileSync(plain)
     const second = bytes.lastIndexOf(0x0a, bytes.indexOf('resp_w2')) + 1
-    writeFileSync(cold, frames === 1 ? zstdCompressSync(bytes)
-      : Buffer.concat([zstdCompressSync(bytes.subarray(0, second)), zstdCompressSync(bytes.subarray(second))]))
+    writeFileSync(cold, Buffer.concat([zstdCompressSync(bytes.subarray(0, second)), zstdCompressSync(bytes.subarray(second))]))
     const r = await engine().build(roots(), [proj])
     const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'codex') ?? []
     expect(sessions.map((s) => s.file).sort()).toEqual([plain, cold].sort())

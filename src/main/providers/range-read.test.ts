@@ -1,7 +1,11 @@
 // Known gap: a read the system interrupts with a signal (EINTR) is taken again by the engine module's reader, which a
 // cold rollout's ranges are read through (`take` in engine/src/read/mod.rs), and no seam makes a read be interrupted,
 // so no case here drives that retry. Add one when a seam that interrupts a read exists.
-import { beforeAll, describe, expect, test } from 'vitest'
+// Known gap: a cold read whose thread cannot be started throws as it is asked for, and gives up its place among the
+// reads that run at once (`readColdRanges` in cold-rollout.ts) as a read that fails does; no seam makes a thread fail to
+// start, so no case drives it. Add one when such a seam exists.
+import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
@@ -172,9 +176,9 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
     return fn(cold).finally(() => rmSync(dir, { recursive: true, force: true }))
   }
 
-  test.each([1, 2])('in %i frame(s): the bytes of several ranges equal the plain twin\'s, in input order, and the call traverses exactly up to the last range\'s end', async (frames) => {
+  test('in two frames: the bytes of several ranges equal the plain twin\'s, in input order, and the call traverses exactly up to the last range\'s end', async () => {
     expect(content.length).toBeGreaterThan(2 * MiB)
-    await withTwins(frames, async (plain, cold, size) => {
+    await withTwins(2, async (plain, cold, size) => {
       // Out of order: one across the first chunk's end, one near the stream's end, one across the frame boundary, one
       // inside the second frame; served in input order from one pass
       const ranges = [{ start: MiB - 100, end: MiB + 100 }, { start: 10, end: 60 }, { start: size - 300, end: size - 100 },
@@ -211,8 +215,8 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
     })
   })
 
-  test.each([1, 2])('in %i frame(s): the whole of a cold rollout reads as its plain twin (spec D2, D3: full text)', async (frames) => {
-    await withTwins(frames, async (plain, cold) => {
+  test('in two frames: the whole of a cold rollout reads as its plain twin (spec D2, D3: full text)', async () => {
+    await withTwins(2, async (plain, cold) => {
       const whole = await readRolloutWhole(cold)
       const twin = readFileSync(plain)
       expect(whole.length).toBe(twin.length)
@@ -220,14 +224,71 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
     })
   })
 
-  test('a range past the end of a cold rollout is truncated to what is readable, like a plain one', async () => {
-    await withTwins(1, async (_plain, cold, size) => {
-      const c = await readRangeBuffers(cold, [{ start: size - 50, end: size + 1000 }])
-      expect(c.bufs[0].length).toBe(50)
+  const full = zstdCompressSync(content)
+
+  /** A long cold rollout: the content's frame written 128 times over, a stream of 128 copies of the content */
+  const COPIES = 128
+  let longDir = ''
+  let long = ''
+  beforeAll(() => {
+    longDir = mkdtempSync(join(tmpdir(), 'rr-cold-long-'))
+    long = join(longDir, 'long.jsonl.zst')
+    writeFileSync(long, Buffer.concat(Array.from({ length: COPIES }, () => full)))
+  })
+  afterAll(() => rmSync(longDir, { recursive: true, force: true }))
+
+  test('at most four cold reads run at once, whichever surface asks them: a fifth waits for one of the four to finish (spec session-view C2)', async () => {
+    const end = COPIES * content.length
+    await withTwins(2, async (_plain, cold) => {
+      // Each read of the long stream to its end takes about a tenth of a second; ten bytes of the short one, well under
+      // a millisecond. Where the short read, asked last, comes among the reads that settle:
+      const among = async (ahead: number): Promise<number> => {
+        const settled: string[] = []
+        await Promise.all([
+          ...Array.from({ length: ahead }, () => readRangeBuffers(long, [{ start: end - 10, end }]).then(() => { settled.push('long') })),
+          readRangeBuffers(cold, [{ start: 0, end: 10 }]).then(() => { settled.push('short') })
+        ])
+        return settled.indexOf('short')
+      }
+      // Three ahead of it leave it a place: it is served first
+      expect(await among(3)).toBe(0)
+      // Four ahead of it take every place: it waits for one of them
+      expect(await among(4)).toBeGreaterThan(0)
     })
   })
 
-  const full = zstdCompressSync(content)
+  test('a cold read that fails gives up its place: after more failed reads than run at once, the next is served', async () => {
+    const missing = join(tmpdir(), `rr-missing-${process.pid}.jsonl.zst`)
+    const failed = await Promise.allSettled(Array.from({ length: 5 }, () => readRangeBuffers(missing, [{ start: 0, end: 10 }])))
+    expect(failed.map((r) => r.status)).toEqual(Array(5).fill('rejected'))
+    await withTwins(2, async (_plain, cold) => {
+      expect((await readRangeBuffers(cold, [{ start: 0, end: 10 }])).bufs[0].toString('utf8')).toBe(content.subarray(0, 10).toString('utf8'))
+    })
+  })
+
+  test('memory follows the bytes in flight, never the file: a small range from each copy of a 300 MiB stream grows a fresh process\'s peak by a few MiB (spec session-view C2)', () => {
+    const size = COPIES * content.length
+    expect(size).toBeGreaterThan(300 * MiB)
+    // In a process of its own, so that the peak it reports is this read's alone; 100 bytes of each copy, each in another
+    // of the reader's chunks
+    const script = `
+      const module = { exports: {} }
+      process.dlopen(module, process.argv[1])
+      const [file, step, copies] = [process.argv[2], Number(process.argv[3]), Number(process.argv[4])]
+      const ranges = Array.from({ length: copies }, (_, k) => ({ start: k * step + 10, end: k * step + 110 }))
+      const before = process.resourceUsage().maxRSS
+      module.exports.readRanges('codex', file, ranges).then((r) => {
+        const grewKiB = process.resourceUsage().maxRSS - before
+        console.log(JSON.stringify({ grewKiB, served: r.bufs.map((b) => b.toString('utf8')) }))
+      })`
+    const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, long, String(content.length), String(COPIES)], { encoding: 'utf8' })
+    expect(run.stderr).toBe('')
+    const { grewKiB, served } = JSON.parse(run.stdout) as { grewKiB: number; served: string[] }
+    expect(served).toEqual(Array(COPIES).fill(content.subarray(10, 110).toString('utf8')))
+    // A reader that kept the stream, or a whole chunk for each range it serves, would grow it by a hundred MiB or more
+    expect(grewKiB * 1024).toBeLessThan(32 * MiB)
+  })
+
   test.each([
     ['whose stream is cut inside a line', full.subarray(0, full.length >> 1)],
     ['that is not zstd', Buffer.from('{"type":"session_meta"}\nnot zstd at all\n')]

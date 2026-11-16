@@ -1056,10 +1056,11 @@ read with macOS `footprint`.
   session page and both searches read a plain file's bytes themselves, take a cold rollout's from the
   module, and hand them to those line rules. The module reads a cold rollout for them by the reader and the
   cut-short rule a scan reads it with (B12), each read on a thread of its own, so neither the thread that
-  asked nor the thread pool its file reads share waits on the decompression; the callers bound how many run
-  at once. A value in a line is built only where a rule reads it; every other value is scanned
-  past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of
-  ECMAScript's `JSON.parse`, with its results: a repeated key keeps its last value, a number beyond the
+  asked nor the thread pool its file reads share waits on the decompression; four at most run at once,
+  whichever surface asks them, and the others wait their turn in the order asked (session-view C2). A value
+  in a line is built only where a rule reads it; every other value is scanned past. A line is decoded as
+  UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of ECMAScript's `JSON.parse`, with
+  its results: a repeated key keeps its last value, a number beyond the
   double range is infinite and so no finite count, a lone surrogate escape stays that code unit, and a
   line `JSON.parse` refuses is a bad line (A8).
 - **Cache**: incremental by file signature, kept in a SQLite store in the settings directory, opened
