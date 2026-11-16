@@ -364,7 +364,8 @@ hands the command over; it never runs it.
   list, search, on-demand fetch) all go through it; the token scan is not bound by it, its files being parsed
   on a pool of worker threads ([token-stats](token-stats.md), Implementation Decisions, Where parsing runs).
   🔬 **4 is a provisional value, not a conclusion.** It equals Node's default libuv thread pool size,
-  and going beyond 4 requires raising `UV_THREADPOOL_SIZE` at the same time to be realised; raising
+  and going beyond 4 requires raising `UV_THREADPOOL_SIZE` at the same time to be realised, for the
+  reads of plain files (a cold rollout's decompression runs on threads of its own, C2); raising
   it to 16 measured **no faster and slightly slower** on a warm cache (the bottleneck is memory
   bandwidth, not the thread pool).
   ⚠️ The real benefit lies in **cold-disk queue depth**, which has not been measured. Do not touch
