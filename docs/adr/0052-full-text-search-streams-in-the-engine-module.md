@@ -7,7 +7,7 @@
 A project's full-text search read each session file whole into the main process, a cold rollout decompressed whole
 by the engine module (ADR-0045), and matched it, mapped its hits to turns and cut its snippets on the main thread. A
 cold rollout whose stream exceeds 2 GiB ended the main process, and a large file held the main thread for seconds and
-raised the footprint by about twice its size (Sources); what the search shows had to stay as it was.
+raised the footprint by two to three times its size (Sources); what the search shows had to stay as it was.
 
 ## Options
 
@@ -48,8 +48,9 @@ We adopt **option 1**.
 
 #480, the whole-file search under Electron 43.2.0 on this machine's data: a cold rollout's 3,344,334,555-byte stream
 ended the main process. #479, 2026-11-17, the same binary and data, warm page cache, three runs each, before against
-after: project B (2.19 GB read by full text), `error`, 15.3 s, a 4.3 s stall and the footprint 2,503 MB up against
-4.9 s, 21–23 ms and 77 MB; project C (0.61 GB), `error`, 4.9 s, 1.95–1.97 s and 667 MB against 0.9 s, 12–13 ms and
-33 MB; project A (5.61 GB, the 3.34 GB stream among it), after only, 15.2–15.3 s, 12–13 ms and 208 MB. In A's largest
-stream, whose longest line is 67.7 MB, the lines holding `error` came to 1,926 MB. Over 554 of the 555 projects (A left out), the two searches gave
-equal results in every one whose files did not change between the runs (553), for `error` and for a Han needle.
+after: project B (2.19 GB read by full text, its largest stream 0.84 GB), `error`, 15.3 s, a 4.3 s stall and the
+footprint 2,503 MB up against 4.9 s, 21–23 ms and 77 MB; project C (0.61 GB, its largest stream 0.26 GB), `error`,
+4.9 s, 1.95–1.97 s and 667 MB against 0.9 s, 12–13 ms and 33 MB; project A (5.61 GB, the 3.34 GB stream among it),
+after only, 15.2–15.3 s, 12–13 ms and 208 MB. In A's largest stream, whose longest line is 67.7 MB, the lines holding `error`
+came to 1,926 MB. Over 554 of the 555 projects (A left out), the two searches gave equal results in every one whose
+files did not change between the runs (553), for `error` and for a Han needle.
