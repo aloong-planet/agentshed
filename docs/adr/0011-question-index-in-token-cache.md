@@ -41,7 +41,7 @@ or to how it is computed is a change to the per-file aggregate, so it bumps the 
 
 ## Sources
 
-Measured on this machine on 2026-08-03, as session-view ticket 03a was implemented, over 1,823 files and 287.8 MB: the
-index added 207 KB (4.3%) to the cache; a scan that found every file in the cache took 99 ms, and a full cold scan,
-which a version bump brings, 2,916 ms. When the entry was written, on 2026-08-06, scanning every session file again
-meant about 2,000 files and 700 MB. All of this was before the token store (ADR-0044) and the engine module (ADR-0045).
+Measured on this machine on 2026-08-03, over 1,823 files and 287.8 MB: the index added 207 KB (4.3%) to the cache; a
+scan that found every file in the cache took 99 ms, and a full cold scan, which a version bump brings, 2,916 ms. When
+the entry was written, on 2026-08-06, scanning every session file again meant about 2,000 files and 700 MB. All of this
+was before the token store (ADR-0044) and the engine module (ADR-0045).
