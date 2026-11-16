@@ -3596,8 +3596,8 @@ describe('the archive restore path (spec C16) and project figures from the effec
 })
 
 // Scan order (token-stats, Implementation Decisions, Scan order): the order the build takes every side's files in, as
-// its parses are handed out one at a time, is the files sorted by the one comparator (scan-order.ts) — over names that
-// JavaScript's string order and a whole-path order each get wrong, nested directories, and Codex's archived sessions
+// the store first holds them, is the files sorted by the one comparator (scan-order.ts) — over names that JavaScript's
+// string order and a whole-path order each get wrong, nested directories, and Codex's archived sessions
 describe('scan order', () => {
   it('every side\'s walk gives its files in scan order', async () => {
     const names = ['Mike', '_x', 'a', 'a-b', 'a.d', '9', '10', '\u00e9']
@@ -3615,10 +3615,32 @@ describe('scan order', () => {
     for (const name of ['Mike', '_x', 'a', 'a-b', 'a.d', '\u00e9']) mkAgyConversation(name, proj, [{ usage: { messageId: `m-${name}`, input: 1, output: 1 }, at: Date.parse('2026-07-30T02:00:00Z') }])
     const { runner, jobs } = recording()
     await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
-    const walked = jobs.map((j) => j.file)
-    expect(walked, 'every file of every side was handed out').toHaveLength(names.length * 2 + 5 + 6 + 6)
+    expect(jobs, 'every file of every side was handed out').toHaveLength(names.length * 2 + 5 + 6 + 6)
     expect(new Set(jobs.map((j) => j.kind))).toEqual(new Set(['claude', 'codex', 'grok', 'antigravity']))
-    expect(walked).toEqual([...walked].sort(compareScanOrder(roots())))
+    const held = storeRows(cacheDir()).map((r) => String(r.path))
+    expect(new Set(held)).toEqual(new Set(jobs.map((j) => j.file)))
+    expect(held).toEqual([...held].sort(compareScanOrder(roots())))
+  })
+})
+
+// Where parsing runs (token-stats, Implementation Decisions): the files that need parsing are handed out largest first,
+// so that the largest file does not start last and run on alone after every other has finished; files of one size go
+// in scan order
+describe('the order parses are handed out in', () => {
+  it('is the largest file first, files of one size in scan order', async () => {
+    const rollout = mkCodexRollout('rollout-2026-07-30T01-00-00-019f0000-0000-7000-8000-000000000001.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 1, cached: 0, output: 1 }])
+    const mid = statSync(rollout).size
+    /** A Claude session of `size` bytes */
+    const sized = (name: string, size: number): string => {
+      const line = (n: number): string => userLine('q'.repeat(n))
+      return mkClaudeFile(name, [line(size - Buffer.byteLength(line(0)) - 1)])
+    }
+    // Claude files whose scan order (a, b, c, d) is not their size order, a and d of one size, the rollout between
+    const [a, b, c, d] = [sized('a.jsonl', mid - 100), sized('b.jsonl', mid - 300), sized('c.jsonl', mid + 500), sized('d.jsonl', mid - 100)]
+    expect([a, b, c, d].map((f) => statSync(f).size)).toEqual([mid - 100, mid - 300, mid + 500, mid - 100])
+    const { runner, jobs } = recording()
+    await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
+    expect(jobs.map((j) => j.file)).toEqual([c, rollout, a, d, b])
   })
 })
 
@@ -3834,18 +3856,23 @@ describe('a parse runner that finishes out of order', () => {
     mkdirSync(proj2, { recursive: true })
     // The same message (id and request id) in a session of each project
     const shared = usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 100, 10, { id: 'msg-shared', requestId: 'req-shared' })
-    mkClaudeFile('a.jsonl', [userLine('first project question'), shared])
-    mkClaudeFile('b.jsonl', [userLine('second project question'), shared], 1000, encodeClaudeProjectDir(proj2))
-    mkClaudeFile('c.jsonl', [userLine('third'), usageLine('claude-opus-5', '2026-07-30T03:00:00Z', 7, 3)])
-    mkCodexRollout('rollout-order-019f400.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 50, cached: 0, output: 5 }])
-    mkGrokSession(proj, 'g-order', [grokTurn(1785369600, { input: 30, output: 3 })])
-    // The first job started finishes last, the next one second to last, and so on
-    let started = 0
+    // In scan order a.jsonl (project p1) comes before b.jsonl (p2), and b.jsonl is the larger, so it is handed out first
+    const files = [
+      mkClaudeFile('a.jsonl', [userLine('first project question'), shared]),
+      mkClaudeFile('b.jsonl', [userLine('second project question'), shared], 1000, encodeClaudeProjectDir(proj2)),
+      mkClaudeFile('c.jsonl', [userLine('third'), usageLine('claude-opus-5', '2026-07-30T03:00:00Z', 7, 3)]),
+      mkCodexRollout('rollout-order-019f400.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 50, cached: 0, output: 5 }]),
+      mkGrokSession(proj, 'g-order', [grokTurn(1785369600, { input: 30, output: 3 })])
+    ]
+    expect(statSync(files[1]).size).toBeGreaterThan(statSync(files[0]).size)
+    // Every job runs at once, and the results come back in reverse scan order, whatever order they were handed out in
+    const inScanOrder = [...files].sort(compareScanOrder(roots()))
+    const handed: string[] = []
     const reversing: ParseRunner = {
-      concurrency: 4,
+      concurrency: files.length,
       run: async (job) => {
-        const k = started++
-        await new Promise((r) => setTimeout(r, (10 - k) * 15))
+        handed.push(job.file)
+        await new Promise((r) => setTimeout(r, (files.length - inScanOrder.indexOf(job.file)) * 15))
         return runParseJob(job)
       }
     }
@@ -3857,8 +3884,11 @@ describe('a parse runner that finishes out of order', () => {
     })
     const pooled = await new TokenEngine(join(dir, 'cache-pooled'), TEST_ENGINE, reversing).build(roots(), [proj, proj2])
     const inline = await new TokenEngine(join(dir, 'cache-inline'), TEST_ENGINE).build(roots(), [proj, proj2])
-    expect(started).toBe(5)
+    expect([...handed].sort()).toEqual([...files].sort())
     expect(shape(pooled)).toEqual(shape(inline))
+    // The shared message counts toward the project of the first file in scan order, the smaller one
+    const claudeOf = (p: string): number | undefined => pooled.perProject.get(p.toLowerCase())?.tokens.bySide.claude.total
+    expect([claudeOf(proj), claudeOf(proj2)]).toEqual([120, 0])
     // And the pooled store is the inline store, entry by entry
     const cacheOf = (d: string): unknown => Object.fromEntries([...storedEntries(join(dir, d))].sort(([a], [b]) => a.localeCompare(b)))
     expect(cacheOf('cache-pooled')).toEqual(cacheOf('cache-inline'))
