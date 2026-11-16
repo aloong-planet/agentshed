@@ -430,8 +430,9 @@ it('restores a project detail saved before instruction entries carried their pat
 // this machine's on 2026-11-14 — registers memory files and documents under one key, `artifacts`, and saves a read of
 // either as `artifactContent`. The scan's registration held only the memory files the snapshot lists (Codex's outside
 // a memory directory among them); a project page's held its documents, its memory topics and its main file — the main
-// file and one topic written since the scan only there; a skill package's held none. Only a path the restored snapshot or a restored project page lists as a memory file stays
-// readable, or keeps its saved read: a document a page listed, and one no page lists any more, are not.
+// file and one topic written since the scan only there; a skill package's held none. Only a path the restored
+// snapshot, a restored project page or the scan's own saved registration lists as a memory file stays readable, or
+// keeps its saved read: a document a page listed, and one no page lists any more, are not.
 it('restores the memory files a display cache saved before the document list went had registered and read, and none of its documents', () => {
   const root = dir()
   const memory = '/h/.claude/projects/-w-p/memory', main = `${memory}/MEMORY.md`, topic = `${memory}/topic.md`, fresh = `${memory}/fresh.md`
