@@ -1,7 +1,7 @@
 # Project detail
 
 > Related: ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0038 · ADR-0028 (query layer) ·
-> ADR-0037 (Antigravity CLI side)
+> ADR-0037 (Antigravity CLI side) · ADR-0049 (Antigravity CLI's components)
 > Each section's component-level requirements and boundaries live in its own spec (subagents-view /
 > memory-view / plugins-view / skill-install / token-stats); this document covers **page-level**
 > rules and the **artifacts section** (artifacts being a capability unique to this page).
@@ -210,7 +210,7 @@ Applies to: the project detail page.
 - project-detail::REQ-002/AC-02: The Instructions section has two entries, CLAUDE.md and AGENTS.md —
   the project's own files, each headed by its path, "None" when absent (A4). The project's AGENTS.md is
   read by Codex and Antigravity alike and is shown once. The Claude project settings summary is removed,
-  and no settings summary is shown for any side (ADR-0037).
+  and no settings summary is shown for any side (ADR-0049).
 - project-detail::REQ-002/AC-03: The MCP section's Antigravity group lists agy's global servers and its
   effectively enabled plugins' servers ([agents-overview::REQ-003/AC-04](agents-overview.md)); the
   project's own `.agents/mcp_config.json` is not shown.

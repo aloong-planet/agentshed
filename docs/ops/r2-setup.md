@@ -16,7 +16,7 @@ apply.
 |---|---|
 | Bucket | `agentshed-releases`, standard storage, kept apart from Transfer's (ADR-0031 option 5) |
 | Download host | `https://dl.agentshed.aloongplanet.com`, the bucket's custom domain, TLS 1.2 or later |
-| Certificate | Checked from outside Cloudflare on 2026-10-17: issued by Google Trust Services, valid until 2027-01-15, the host in its SAN, hostname verification passing; ADR-0031's fallback host is not used |
+| Certificate | Checked from outside Cloudflare on 2026-10-17: issued by Google Trust Services, valid until 2027-01-15, the host in its SAN, hostname verification passing, so no second host is needed |
 | CORS | `GET` only, from `https://agentshed.aloongplanet.com` only, preflight cached 3600 s |
 | Writer token | `agentshed-releases-writer`: object read, write and list in this bucket, nothing else |
 | Repository secrets | `R2_ACCOUNT_ID`; `R2_ACCESS_KEY_ID` (the token's ID); `R2_SECRET_ACCESS_KEY` (the lowercase hex SHA-256 of the token's value); `R2_BUCKET`. Written by Terraform; the S3 endpoint is `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`, region `auto` |

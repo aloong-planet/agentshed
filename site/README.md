@@ -2,7 +2,7 @@
 
 An Astro static site in two languages: English at `/`, Chinese at `/zh/`. What it must do is in
 [the landing-page spec](../docs/specs/landing-page.md); why it is a `site/` project in this repository is
-ADR-0031. It is a package of its own, with its own lockfile, outside the app's dependencies.
+ADR-0050. It is a package of its own, with its own lockfile, outside the app's dependencies.
 
 ## Commands
 

@@ -1,6 +1,6 @@
 # Skills view
 
-> Related: [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0038 · ADR-0004 · ADR-0010 · ADR-0037  
+> Related: [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0038 · ADR-0004 · ADR-0010 · ADR-0049  
 > Status: **delivered**
 
 ## Problem Statement
@@ -33,7 +33,7 @@ not rewrite the documentation of either side's runtime loading semantics (Codex 
 runtime on a same-name pair — see CONTEXT; this UI simply chooses not to display that global copy
 alongside).
 
-Plugin-sourced entries **expand and preview on equal footing with on-disk skills** (ADR-0012; the
+Plugin-sourced entries **expand and preview on equal footing with on-disk skills** (ADR-0010; the
 package root and security rules are in the plugins-view spec, sequence H); still with no install or
 uninstall. Install/uninstall behaviour is unchanged, see skill-install.
 
@@ -65,7 +65,7 @@ already legible is noise.
 7. As a user, I want clicking "Install to…" / "Uninstall" not to open the preview by accident, so that
    installing and reading do not interfere with each other.
 8. As a user, I want plugin namespace entries to expand and preview too, so that a capability in the
-   effective view can be reviewed without detouring to the Plugins section (ADR-0012).
+   effective view can be reviewed without detouring to the Plugins section (ADR-0010).
 9. As a user, I want a package's text files listed however deeply they nest, so that I can read the
    whole package rather than restructure it or suspect the app of losing files (skills-view::REQ-003).
 10. As a user, I want no more "the two sides differ" badges, so that the product does not pretend it
@@ -95,7 +95,7 @@ already legible is noise.
   side's package while the row stays expanded.
 - A3 Only one side has a definition → no side switcher; that side's files are listed directly.
 - A4 A plugin source (`origin=plugin`) → **expandable and previewable, on equal footing with on-disk
-  skills** (file table / inline stats / drawer; ADR-0012; the package root rule and security
+  skills** (file table / inline stats / drawer; ADR-0010; the package root rule and security
   registration are in the plugins-view spec, sequence H); the "plugin" badge remains (list rows do
   not show the description, see the UI decisions); no install or uninstall (the existing G3 /
   ADR-0004).
@@ -301,9 +301,9 @@ name" reads as if the filesystem had already constrained it.
 
 - R1 Install/uninstall (skill-install): preview changes none of its semantics, paths or confirmation
   dialog; it only adds hit-area discipline (A7/B5).
-- R2 The plugin skills join (ADR-0010): joined entries preview on equal footing with on-disk ones (A4,
-  ADR-0012); the package root and security rules belong to the plugins-view spec (H5/H8); the
-  inclusion rule itself is unchanged by preview (effectively enabled only, G1).
+- R2 The plugin skills join (ADR-0010): joined entries preview on equal footing with on-disk ones (A4);
+  the package root and security rules belong to the plugins-view spec (H5/H8); the inclusion rule itself
+  is unchanged by preview (effectively enabled only, G1).
 - R3 The IPC contract: `differs` removed; the fields and validation for "open a skill package / list
   files / read a file" added in step with ADR-0001.
 - R4 Snapshot size: a skill's **contents and package file list do not enter** the global snapshot (the
@@ -342,7 +342,7 @@ Applies to: the agents page's Skills section, and the global library every insta
   skills directory of CONTEXT.md). A name present in more than one is listed once, as the copy agy
   uses: the first directory over the second over the third. Measured 2026-10-28 with agy's own skill
   listing, which shows one copy of a same-name pair, in that order. The row's preview opens that copy.
-- skills-view::REQ-001/AC-02: agy's built-in skills are not listed (ADR-0037).
+- skills-view::REQ-001/AC-02: agy's built-in skills are not listed (ADR-0049).
 - skills-view::REQ-001/AC-03: Its rows carry the AG badge in the side slots (R5); a name that other
   sides' libraries hold too is one row with every such side's badge, and the drawer's side switcher
   includes Antigravity (A2).
@@ -360,7 +360,7 @@ Applies to: the project detail page's Skills section.
 
 - skills-view::REQ-002/AC-01: The project's `.agents/skills` is one group, the shared skills
   directory (CONTEXT.md), headed "Shared · .agents/skills" with the CX and AG badges. It sits
-  between the Codex groups and the Antigravity groups (ADR-0037). The badges name both sides that
+  between the Codex groups and the Antigravity groups (ADR-0049). The badges name both sides that
   load the directory, whatever the project is registered on.
 - skills-view::REQ-002/AC-02: Its entries are project-level: each is previewable (B5) and uninstallable
   ([skill-install::REQ-002](skill-install.md)).
@@ -450,7 +450,7 @@ Matching the current behaviour of
   whatever the label, markdown in the accent's tint, shell scripts in the success colour's, every
   other type neutral); a marker on the `SKILL.md` entry point; an **N-side segmented control**
   inside the expanded area when there are several sides; plugin rows expand on equal footing with
-  on-disk rows (ADR-0012). **Flat**: zero indentation, no inner card, no summary bar, with the
+  on-disk rows (ADR-0010). **Flat**: zero indentation, no inner card, no summary bar, with the
   header and file rows sharing a 14px baseline.
 - **Drawer**: the title = the skill name; the subtitle = level · side · path; the body full width. Its
   form is shared with the memory file drawer ([memory-view::CON-001](memory-view.md)): a change to

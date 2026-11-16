@@ -71,7 +71,7 @@ _Avoid_: shared component (nothing is shared — one side reads the other's file
 
 **Shared skills directory**:
 A project-level skills directory that more than one side loads as its own — `.agents/skills`, loaded by
-Codex and Antigravity CLI — and so belongs to no single side (ADR-0037). It is always project-level: the global directory agy labels
+Codex and Antigravity CLI — and so belongs to no single side (ADR-0049). It is always project-level: the global directory agy labels
 "Shared skills" is one of Antigravity CLI's global libraries.
 _Avoid_: compatibility-borrowed (each side loads it natively); Codex skills, Antigravity skills (each
 names only one of its owners)

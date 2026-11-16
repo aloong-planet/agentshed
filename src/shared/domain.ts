@@ -221,7 +221,7 @@ export interface CodexPluginEntry {
   marketplace: string
   /** The highest version's cache directory (the summary-source package root, H5); null when unobtainable */
   root: string | null
-  /** Bundled skills (this category only, ADR-0012; the directory convention is the same as Claude's) */
+  /** Bundled skills (this category only, ADR-0010; the directory convention is the same as Claude's) */
   skills: PluginSkillSummary[]
   /** The highest version in the cache */
   version: string | null

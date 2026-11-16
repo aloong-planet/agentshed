@@ -353,7 +353,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   const nsSkill = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
   await expect(nsSkill).toBeVisible()
   await expect(nsSkill.locator('.ins')).toHaveCount(0) // G3: a plugin entry has no install or uninstall button
-  // A4/ADR-0012: a namespace row expands and previews on equal footing with an on-disk one
+  // A4/ADR-0010: a namespace row expands and previews on equal footing with an on-disk one
   await nsSkill.locator('.sk-head').click()
   await expect(nsSkill.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
   // (5) Detail Memory: MEMORY.md's body is rendered directly, with the shared heading ladder

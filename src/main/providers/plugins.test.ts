@@ -281,7 +281,7 @@ describe('the G series: a plugin\'s bundled skills joining the Skills effective 
     expect(pluginSkills[0].sides).toEqual(['claude'])
     expect(pluginSkills[0].pluginName).toBe('pkg@mp')
     // G3 equal-footing preview: a joined entry carries package stats and the summary-source package root
-    // (ADR-0012)
+    // (ADR-0010)
     expect(pluginSkills[0].pkg.claude?.files).toBeGreaterThanOrEqual(1)
     expect(pluginSkills[0].pluginRoot).toBe(pkg)
     // The bare skill name is sent down with the entry (the UI no longer parses it back from the colon)
@@ -323,7 +323,7 @@ describe('the G series: a plugin\'s bundled skills joining the Skills effective 
     expect(ps.map((s) => s.name).sort()).toEqual(['pkg:broken-skill', 'pkg:good-skill'])
     expect(ps[0].level).toBe('plugin')
     // G3 equal-footing preview: a detail plugin entry carries package stats and the summary-source package
-    // root (ADR-0012)
+    // root (ADR-0010)
     expect(ps[0].pkg?.files).toBeGreaterThanOrEqual(1)
     expect(ps[0].pluginRoot).toBeTruthy()
     expect(ps[0].pluginSkillName).toBe('broken-skill')

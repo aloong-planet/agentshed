@@ -40,7 +40,7 @@ function pluginSkillEntries(plugins: ProjectPluginEntry[], antigravityPlugins: A
       level: 'plugin',
       side,
       symlink: false,
-      // G3 equal-footing preview (ADR-0012): the stats and the package root come from the same scan as
+      // G3 equal-footing preview (ADR-0010): the stats and the package root come from the same scan as
       // the bundled component summary (H5)
       pkg: s.pkg,
       origin: 'plugin',

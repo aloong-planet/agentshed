@@ -150,7 +150,7 @@ interface GrokFileAgg {
 }
 
 /**
- * One Antigravity CLI conversation (ADR-0037): its model calls, each once within the database, with the calls a fork
+ * One Antigravity CLI conversation (ADR-0048): its model calls, each once within the database, with the calls a fork
  * copied from its parent already left out; and the conversation as a session — what its database says (its own id,
  * whether it is a subagent, its last activity, the conversation a fork came from) and its transcript's question index.
  * Calls are matched across databases only in the combine stage, since a call's identity spans databases
@@ -244,10 +244,9 @@ type AgyCall = [string | null, number | null, number, number, number, number, st
  *      everything the parser carries from line to line, so a rollout that only grew is parsed from where
  *      the last parse stopped. **A shape change** of the cache entry; an entry from v16 has no state to
  *      resume from, and the version check is what keeps it from being read as if it had.
- * v18: FileAgg gained the antigravity variant (ADR-0037's stated consequence, the per-file aggregate gains a fourth
- *      variant). Its entries are keyed by the conversation's signature — the database's modification time and the
- *      log's presence, time and size, never the database's size (token-stats Implementation Decisions) — rather than
- *      by (mtime, size).
+ * v18: FileAgg gained the antigravity variant (ADR-0048). Its entries are keyed by the conversation's signature —
+ *      the database's modification time and the log's presence, time and size, never the database's size
+ *      (token-stats Implementation Decisions) — rather than by (mtime, size).
  * v19: AntigravityFileAgg gained the conversation as a session (#324): its own id, the subagent flag, listed, its last
  *      activity, the conversation a fork came from, the title fallback and the question index over its transcript —
  *      **a shape change**, bumped with it as this comment's rule asks (the shape guard below, which now requires the new

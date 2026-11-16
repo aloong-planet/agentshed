@@ -1,6 +1,6 @@
 // plugins-view sequence H: the row list in a plugin expansion's Skills tab —
 // each row is name + description + package stats, clicking a row expands the file table, and clicking a
-// file opens a drawer; readability is independent of enablement (ADR-0012).
+// file opens a drawer; readability is independent of enablement (ADR-0010).
 // An unreadable row (missing package root / null stats) is greyed out and unclickable (H6, failing
 // before the click); a native disabled attribute shows no
 // title, so a class name is used to grey it out while keeping the tooltip.

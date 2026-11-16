@@ -128,7 +128,7 @@ function readGlobalSkills(
       description: s.description,
       sides: [side],
       symlink: everySide(false),
-      // G3 equal-footing preview (ADR-0012): the stats and the package root come from the same scan as
+      // G3 equal-footing preview (ADR-0010): the stats and the package root come from the same scan as
       // the bundled component summary (H5)
       pkg: { ...everySide<SkillPkgStats | null>(null), [side]: s.pkg },
       origin: 'plugin',
@@ -199,7 +199,7 @@ function readGlobalMcp(
   }
   // Antigravity CLI (agents-overview::REQ-003/AC-04): its global file — a missing, empty or unparsable one lists none,
   // the plugin servers and the other sides unaffected — then its effectively enabled plugins' servers under the name
-  // agy gives them. A project's own .agents/mcp_config.json is read nowhere: agy was not observed to load it (ADR-0037)
+  // agy gives them. A project's own .agents/mcp_config.json is read nowhere: agy was not observed to load it (ADR-0049)
   for (const s of readMcpConfigServers(join(antigravityConfigDir(roots), 'mcp_config.json')))
     out.push({ name: s.name, side: 'antigravity', source: 'mcp_config.json', disabled: s.disabled, plugin: null })
   for (const p of antigravityPlugins) {
@@ -219,7 +219,7 @@ const codexAgentsMdPath = (roots: ScanRoots): string => join(roots.codexHome, 'A
 /**
  * The global AGENTS.md files the Instructions section's AGENTS.md entry shows, in the order shown
  * (agents-overview::REQ-004/AC-03): Codex's, then the two agy loads together, the root one first (measured with
- * agy, ADR-0037). Only the ones a side was observed to load: Grok's is not read, there being no sample of it, and
+ * agy, ADR-0049). Only the ones a side was observed to load: Grok's is not read, there being no sample of it, and
  * agy's GEMINI.md files and rules are read nowhere (AC-05) — the exclusion is by construction, as this is the only
  * list.
  */

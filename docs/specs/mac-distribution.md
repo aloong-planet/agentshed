@@ -252,7 +252,7 @@ not a packaged build.
   cannot replace it there (app-update B3). The README and the landing page say to drag it to
   Applications.
 - D3 An Intel Mac: the arm64 build does not run there. The README and the landing page say "Apple
-  Silicon". An x64 build is deferred (ADR-0031 option 9).
+  Silicon". An x64 build is deferred (ADR-0031 option 6).
 - D4 macOS 11 or older: the app does not open there (mac-distribution::REQ-001/AC-04). The README and
   the landing page say "macOS 12 or later".
 
@@ -345,11 +345,11 @@ not a packaged build.
 
 ## Out of Scope
 
-- x64 and universal builds (deferred, ADR-0031 option 9); Windows and Linux.
+- x64 and universal builds (deferred, ADR-0031 option 6); Windows and Linux.
 - The Mac App Store line (the second app ID is only kept on file in the packaging configuration).
-- A mainland-China mirror or a second copy of the landing page (ADR-0031 options 3 and 8).
+- A mainland-China mirror or a second copy of the landing page (ADR-0031 option 3, ADR-0050 option 4).
 - Pre-releases on R2, and a pre-release pointer (ADR-0031 option 4).
-- Download statistics (deferred, ADR-0031 option 10).
+- Download statistics (deferred, ADR-0050 option 5).
 - The in-app updater itself ([app-update](app-update.md)), and the landing page
   ([landing-page](landing-page.md)).
 

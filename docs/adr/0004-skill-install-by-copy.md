@@ -1,40 +1,38 @@
-# ADR-0004: Skills install by copy (symlinks rejected)
+# ADR-0004: Skills install by a dereferencing copy; symlinks rejected
 
-- Status: Accepted (2026-07-29, decided by the user during requirements analysis)
+- Status: Accepted (2026-07-29)
 
 ## Context
 
-A project install has to land a skill from the global library into the project's directory. How it
-lands determines the project's dependency on the global library, whether it can be committed to git,
-and the blast radius of editing it.
+Installing lands a skill from a side's global library in a project's own skills directory. How it lands decides
+whether the project depends on the library staying in place, whether the project's git holds the skill's content, and
+how far an edit to the landed skill reaches.
 
 ## Options
 
-1. **Dereferencing deep copy: copy to a temporary name in the same directory first, then rename,
-   cleaning up on failure; symlinks in the source land as real files**
-2. Land as symlinks — rejected: editing follows the symlink through into the global library or the
-   other end (measured while preparing this project); what lands in the project's git is a link, not
-   content; and Windows permissions are awkward
-3. `cpSync` straight to the target name — rejected: an interrupted copy leaves a half-finished
-   directory, and the next scan takes that broken directory for an installed skill
+1. **A dereferencing deep copy, written under a temporary name in the same directory, renamed into place and removed
+   on failure** — chosen.
+2. A symlink — rejected: an edit follows the link into the global library, the project's git holds a link rather than
+   content, and Windows permissions make links awkward.
+3. A recursive copy straight to the target name — rejected: an interrupted copy leaves a half-written directory, which
+   the next scan takes for an installed skill.
 
 ## Decision
 
-We choose **option 1**: installs are dereferencing deep copies, so the project's copy is
-self-contained and does not depend on the global library continuing to exist. Uninstalling deletes
-the project's copy. No divergence detection between copies (phase two). The global library is
-permanently read-only as far as this product is concerned.
+We adopt **option 1**. A symlink in the source lands as a real file, so the project's copy stands without the global
+library. Uninstalling deletes the project's copy without comparing it with the library, and this app never writes to
+a global library.
 
 ## Consequences
 
-- Positive: no risk of edits following through; the project can be committed as a whole; an
-  interruption at any moment never produces a broken directory
-- Negative: a project's copy does not follow along when the global library is updated (a
-  version-drift notice is left to phase two)
-- Neutral: name collisions are always refused rather than overwritten — the user uninstalls first,
-  then installs
+- Positive: no edit reaches the global library, the project commits the skill whole, and an interruption at any moment
+  leaves no broken directory.
+- Negative: a project's copy does not follow an update of the global library, and nothing tells the user it has
+  drifted.
+- Neutral: a name already in the project is refused rather than overwritten, so replacing a skill takes an uninstall
+  first.
 
 ## Sources
 
-The spec's install/uninstall clause (the user chose "land by copy"); the symlink pass-through
-measurement during grilling (2026-07-29).
+The owner's choice of landing by copy, 2026-07-29 (the skill-install spec); the symlink pass-through measured while the
+project was being prepared, 2026-07-29. `src/main/providers/install.ts`.

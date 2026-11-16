@@ -35,7 +35,7 @@ a retried "does not appear" check cannot prove absence.
 
 - `TokenTotals.input` and `cacheWrite` are never summed across sides, because their meaning differs per
   side; the cross-side comparable buckets are input + cache writes, output and cache reads (ADR-0023,
-  ADR-0037).
+  ADR-0048).
 - A metric not every side reports does not join `TokenTotals` unless the view showing it is explicitly
   single-side (ADR-0019, ADR-0023).
 - A past (day, side) figure lower than the archive's is accepted only under a new accounting stamp,

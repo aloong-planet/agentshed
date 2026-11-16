@@ -154,7 +154,7 @@
     <h2 class="page-h">Skills 包预览</h2>
     <div class="sub">
       磁盘 skill 行内右侧直接给<strong>文件数 / 大小</strong>；<b>点行折叠/展开</b>文件表，
-      包内任意深度的文本文件都平铺列出；<b>点文件</b>开抽屉读详情（md 默认可预览）。<b>插件行与磁盘行平等展开预览</b>（ADR-0012），
+      包内任意深度的文本文件都平铺列出；<b>点文件</b>开抽屉读详情（md 默认可预览）。<b>插件行与磁盘行平等展开预览</b>（ADR-0010），
       但仍没有装卸按钮；查不到包的行（插件包根为空时）不可展开，箭头处显示 · 。行不展示 description。
       展开区为平铺：不缩进，表格满宽分段。
     </div>
@@ -543,7 +543,7 @@
     { name: 'deep-demo', description: '多层目录的文件全部平铺列出（展开后可见）', sides: ['claude', 'codex'], origin: 'disk', symlink: false },
     { name: 'tdd', description: 'Test-driven development…', sides: ['claude'], origin: 'disk', symlink: false },
     { name: 'release-notes', description: 'Antigravity 全局库 · 从 git log 起草发布说明', sides: ['antigravity'], origin: 'disk', symlink: false },
-    { name: 'superpowers:brainstorming', description: '插件 · 与磁盘行平等展开预览(ADR-0012)', sides: ['claude'], origin: 'plugin', symlink: false },
+    { name: 'superpowers:brainstorming', description: '插件 · 与磁盘行平等展开预览(ADR-0010)', sides: ['claude'], origin: 'plugin', symlink: false },
     // 名字列固定 200px,这条 41 字符的名字必然被截断 —— hover 全名的形态要有被截断的行才演示得出来
     { name: 'chrome-devtools-mcp:memory-leak-debugging', description: '插件 · 长名字,演示 hover 全名;同样可展开', sides: ['claude'], origin: 'plugin', symlink: false },
     // 极端长度:留着它才看得出提示限宽换行的效果

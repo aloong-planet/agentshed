@@ -1028,7 +1028,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
 ## Out of Scope
 
 - agy's truncated transcript (`transcript.jsonl`) and the step payloads in its databases as sources of
-  turn contents (ADR-0037 option 10).
+  turn contents (ADR-0037 option 7).
 - Rendering a subagent's own steps inside the dispatching turn: its transcript is not read
   (session-view::REQ-004/AC-05).
 - Searching across projects — that is global search, a feature of its own ([global-search](global-search.md));
