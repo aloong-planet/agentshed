@@ -1024,7 +1024,9 @@ export class TokenEngine {
     const holds = looked !== null || !readable
     if (usable && cached.sig === sig && holds) return { file, held: cached, admit, miss }
     const fallback = readable ? cached : undefined
-    return { file, admit, fallback, miss, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st: { sig, ino: 0, size: 0 } } }
+    // The database's size on disk, no part of the signature, places the read among the others (parse)
+    const size = statOf(file)?.size ?? 0
+    return { file, admit, fallback, miss, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st: { sig, ino: 0, size } } }
   }
 
   /**

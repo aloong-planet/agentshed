@@ -3625,22 +3625,27 @@ describe('scan order', () => {
 
 // Where parsing runs (token-stats, Implementation Decisions): the files that need parsing are handed out largest first,
 // so that the largest file does not start last and run on alone after every other has finished; files of one size go
-// in scan order
+// in scan order. An Antigravity conversation's file is its database: its signature leaves the database's size out, but
+// that size on disk places it among the others as any file's does.
 describe('the order parses are handed out in', () => {
   it('is the largest file first, files of one size in scan order', async () => {
     const rollout = mkCodexRollout('rollout-2026-07-30T01-00-00-019f0000-0000-7000-8000-000000000001.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 1, cached: 0, output: 1 }])
     const mid = statSync(rollout).size
+    const agy = mkAgyConversation('conv-order', proj, [{ usage: { messageId: 'm-order', input: 1, output: 1 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    const big = statSync(agy).size
     /** A Claude session of `size` bytes */
     const sized = (name: string, size: number): string => {
       const line = (n: number): string => userLine('q'.repeat(n))
       return mkClaudeFile(name, [line(size - Buffer.byteLength(line(0)) - 1)])
     }
-    // Claude files whose scan order (a, b, c, d) is not their size order, a and d of one size, the rollout between
-    const [a, b, c, d] = [sized('a.jsonl', mid - 100), sized('b.jsonl', mid - 300), sized('c.jsonl', mid + 500), sized('d.jsonl', mid - 100)]
-    expect([a, b, c, d].map((f) => statSync(f).size)).toEqual([mid - 100, mid - 300, mid + 500, mid - 100])
+    // Claude files whose scan order (a, b, c, d) is not their size order, a and d of one size, the rollout below the
+    // conversation's database and the database below c, so that neither end of the order is the conversation's
+    const [a, b, c, d] = [sized('a.jsonl', mid - 100), sized('b.jsonl', mid - 300), sized('c.jsonl', big + 500), sized('d.jsonl', mid - 100)]
+    expect([a, b, c, d].map((f) => statSync(f).size)).toEqual([mid - 100, mid - 300, big + 500, mid - 100])
+    expect(big, 'the database is larger than the rollout').toBeGreaterThan(mid)
     const { runner, jobs } = recording()
     await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
-    expect(jobs.map((j) => j.file)).toEqual([c, rollout, a, d, b])
+    expect(jobs.map((j) => j.file)).toEqual([c, agy, rollout, a, d, b])
   })
 })
 
