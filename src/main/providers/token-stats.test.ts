@@ -3861,12 +3861,15 @@ describe('the order parses are handed out in', () => {
 // again, so a session written after the walk is outside this build — the same set scan() saw.
 describe('the shared session walk', () => {
   it('build() aggregates the sessions of the supplied walk, not ones that appeared after it', async () => {
+    mkClaudeFile('c1.jsonl', [usageLine('claude-fable-5', '2026-07-30T01:00:00Z', 20, 2)])
     mkCodexRollout('rollout-a-019f100.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }])
     mkGrokSession(proj, 'g1', [grokTurn(1785369600, { input: 50, output: 5 })])
     const walked = threadEngineModule().walkSessions(roots())
+    mkClaudeFile('c2.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 200, 20)])
     mkCodexRollout('rollout-b-019f101.jsonl', proj, '2026-07-30T02:00:00Z', 'gpt-5.6-sol', [{ input: 1000, cached: 0, output: 100 }])
     mkGrokSession(proj, 'g2', [grokTurn(1785373200, { input: 500, output: 50 })])
     const r = await engine().build(roots(), [proj], undefined, walked)
+    expect(r.global.bySide.claude.total).toBe(22)
     expect(r.global.bySide.codex.total).toBe(110)
     expect(r.global.bySide.grok.total).toBe(55)
   })

@@ -23,7 +23,7 @@
 //   (token-stats::CON-003); keyed by (path, mtime, size), one row per file in the token store the engine module keeps
 //   (ADR-0044). The statistics include stale projects.
 import { randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, unlinkSync } from 'node:fs'
 import { dirname, join, sep } from 'node:path'
 import type { AgentSide, ForkState, ProjectStats, SessionMeta, TokenStats } from '@shared/domain'
 import { deriveStats } from '@shared/usage'
@@ -37,7 +37,7 @@ import { isAbsent, isReadable } from './read-utils'
 import type { QuestionRec } from './question-index'
 import type { ScanRoots } from './types'
 import type { SessionWalk } from './scan'
-import { byName, compareNames, compareScanOrder } from './scan-order'
+import { compareScanOrder } from './scan-order'
 import { agySessionSignature, agyTranscriptPath } from './antigravity'
 import type { UsageRow } from './archive'
 import {
@@ -837,52 +837,28 @@ export class TokenEngine {
     const encToProject = new Map<string, string>()
     for (const p of claudeProjectPaths ?? []) encToProject.set(encodeClaudeProjectDir(p), mergeKey(p))
     const order = compareScanOrder(roots)
-    // A directory the walk lists that is there but cannot be listed keeps, in the scan set, the files the store holds
-    // below it, each at its place in scan order and looked at as a listed file is (token-stats, Failure modes and
-    // boundaries: the token store)
-    const below = (dir: string): HeldFile[] => heldBelow(dir, held.keys(), order)
+    // The session walk's lists. A directory the walk lists that is there but cannot be listed keeps, in the scan set, the
+    // files the store holds below it, each at its place in scan order and looked at as a listed file is (token-stats,
+    // Failure modes and boundaries: the token store)
+    const walked = sessions ?? loadEngineModule(this.engine).walkSessions(roots, undefined, undefined, () => [...held.keys()])
 
     // ── Claude: the whole projects tree ──
-    const claude = (projectKey: string, file: string, nested: boolean): void => {
+    for (const t of inScanOrder(walked.claude, walked.held.claude, (t) => t.file, order)) {
+      const projectKey = encToProject.get(t.dir) ?? ''
       // The allow-list is no wider than what the UI can reach: an unregistered project's sessions
       // are never displayed (spec A2),
       // so the read side does not admit them either — the same goes for nested transcripts, whose
       // parent sessions are all invisible
-      const admit = (agg: Admission): boolean => isRegistered(agg.projectKey) && (nested || agg.listed)
+      const admit = (agg: Admission): boolean => isRegistered(agg.projectKey) && (t.nested || agg.listed)
       // A session is credited to the project its directory maps to at this scan (spec A2): an entry parsed under
       // another is not held, and the file is parsed again under this one. With the registry unknown, a stored entry
       // keeps the project it holds (spec A11)
-      const cached = held.get(file)
+      const cached = held.get(t.file)
       const current = claudeProjectPaths === null || (cached?.projectKey ?? '') === projectKey ? cached : undefined
-      slots.push(this.plan(current, file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
-    }
-    const projectsRoot = join(roots.claudeHome, 'projects')
-    let dirs: string[] | null
-    try {
-      // In scan order (scan-order.ts)
-      dirs = readdirSync(projectsRoot, { withFileTypes: true })
-        .filter((e) => e.isDirectory())
-        .map((e) => e.name)
-        .sort(compareNames)
-    } catch {
-      dirs = null
-    }
-    if (dirs !== null) {
-      for (const encName of dirs) {
-        const projectKey = encToProject.get(encName) ?? ''
-        for (const { file, nested } of listJsonl(join(projectsRoot, encName), below)) claude(projectKey, file, nested)
-      }
-    } else if (!isAbsent(projectsRoot)) {
-      // Each in a project's directory, taken as listJsonl takes one held there; one directly in the root is no
-      // project's, as the listing above takes only directories
-      for (const { file, parts: [encName, ...rest] } of below(projectsRoot)) {
-        const t = rest.length > 0 ? heldTranscript({ file, parts: rest }, false) : null
-        if (t) claude(encToProject.get(encName) ?? '', t.file, t.nested)
-      }
+      slots.push(this.plan(current, t.file, admit, { kind: 'claude', file: t.file, projectKey, listed: !t.nested }))
     }
 
     // ── Codex: the whole sessions tree, attributed by the first line's cwd ──
-    const walked = sessions ?? loadEngineModule(this.engine).walkSessions(roots, undefined, undefined, () => [...held.keys()])
     const titles = readCodexIndex(roots.codexHome)
     for (const s of inScanOrder(walked.codex, walked.held.codex, (s) => s.file, order)) {
       const admit = (agg: Admission): boolean => isRegistered(agg.projectKey) && (s.subagent || agg.listed)
@@ -1155,7 +1131,7 @@ export class TokenEngine {
         fresh = (await runParseJob({ kind: 'antigravity', file, transcript: agyTranscriptPath(file) }))?.agg ?? null
       } else if (file.startsWith(claudeRoot)) {
         // Top level = a session (listable), deeper = a subagent or other nested transcript — the same
-        // rule as listJsonl.
+        // rule as the session walk's (engine/src/sides/claude/walk.rs).
         // projectKey keeps the value the entry held: the project a Claude session is credited to comes from the
         // registry, which only a build reads (token-stats A2, A11). With no well-formed entry to take the key from,
         // the index serves this page and is not kept (session-view C4); the next build parses the file.
@@ -1369,61 +1345,6 @@ async function retitleStripped(items: TokenBuildResult['retitle']): Promise<void
 }
 
 // ── File enumeration and parsing ──
-
-/** Every jsonl under a directory, in scan order (scan-order.ts): top level = a session, nested = a subagent or other
- * transcript. Below a directory there that cannot be listed, those of the files `below` gives for it. */
-function listJsonl(root: string, below: (dir: string) => HeldFile[]): Array<{ file: string; nested: boolean }> {
-  const out: Array<{ file: string; nested: boolean }> = []
-  const walk = (dir: string, nested: boolean): void => {
-    let entries
-    try {
-      entries = readdirSync(dir, { withFileTypes: true }).sort(byName)
-    } catch {
-      if (!isAbsent(dir)) {
-        for (const held of below(dir)) {
-          const t = heldTranscript(held, nested)
-          if (t) out.push(t)
-        }
-      }
-      return
-    }
-    for (const e of entries) {
-      const p = join(dir, e.name)
-      if (e.isDirectory()) {
-        walk(p, true)
-        continue
-      }
-      if (isTranscript(e.name)) out.push({ file: p, nested })
-    }
-  }
-  walk(root, false)
-  return out
-}
-
-/** Whether a file of this name in Claude Code's projects tree is a transcript */
-function isTranscript(file: string): boolean {
-  return file.endsWith('.jsonl')
-}
-
-/** A file the store holds below a directory listJsonl walks at `nested`, as the listing gives it: one directly in it
- * keeps the directory's `nested`, one any deeper is nested; null when it is no transcript */
-function heldTranscript({ file, parts }: HeldFile, nested: boolean): { file: string; nested: boolean } | null {
-  return isTranscript(file) ? { file, nested: nested || parts.length > 1 } : null
-}
-
-/** A file the store holds, with its path's components below the directory it was asked for under */
-interface HeldFile {
-  file: string
-  parts: string[]
-}
-
-/** The files of `held` below `dir`, in scan order */
-function heldBelow(dir: string, held: Iterable<string>, order: (a: string, b: string) => number): HeldFile[] {
-  const prefix = dir + sep
-  const out: HeldFile[] = []
-  for (const file of held) if (file.startsWith(prefix)) out.push({ file, parts: file.slice(prefix.length).split(sep) })
-  return out.sort((a, b) => order(a.file, b.file))
-}
 
 /** A side's walked sessions and the ones it kept below a directory it could not list, each list in scan order, merged
  * into one in scan order */

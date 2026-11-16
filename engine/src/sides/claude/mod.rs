@@ -1,7 +1,8 @@
-//! Claude Code: its session files' entries (token-stats Sequence A; session-view's Claude rules). This file is the
-//! adapter the side registers in `sides/mod.rs`: it reads a parse job, the TypeScript `ParseJob` of kind `claude`, and
-//! writes the entry as the TypeScript `ParseResult`. A value the entry only carries over from the job — the file and its
-//! project — goes back as the job's own JavaScript value.
+//! Claude Code: its session files' entries (token-stats Sequence A; session-view's Claude rules), and its side of the
+//! session walk. This file is the adapter the side registers in `sides/mod.rs`: it reads a parse job, the TypeScript
+//! `ParseJob` of kind `claude`, and writes the entry as the TypeScript `ParseResult`. A value the entry only carries over
+//! from the job — the file and its project — goes back as the job's own JavaScript value. The walk's transcripts it
+//! writes as the TypeScript `ClaudeTranscript`.
 
 mod combine;
 mod entry;
@@ -9,14 +10,16 @@ mod line;
 mod parse;
 mod question;
 mod title;
+mod walk;
 
-use napi::Result;
 use napi::sys::napi_value;
+use napi::{Error, Result};
 
 use self::entry::{Job, Parsed};
-use super::Side;
+use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
-use crate::text::Units;
+use crate::text::{self, Units};
+use crate::walk::Held;
 
 pub(crate) struct Claude;
 
@@ -49,6 +52,21 @@ impl Side for Claude {
 
     fn dispatches(&self) -> &'static [&'static str] {
         &question::DISPATCH
+    }
+
+    fn walk(&self, js: &Js, roots: napi_value, _kept: &mut Kept, held: &mut Held, _tmp_parent: Option<&str>) -> Option<Result<Walked>> {
+        let mut walked = || -> Result<Walked> {
+            let home = js.string(js.get(roots, "claudeHome")?)?.ok_or_else(|| Error::from_reason("the scan roots name no claudeHome"))?;
+            let tree = String::from_utf16_lossy(&js.path_join(&[&home, &text::units(walk::TREE)])?);
+            let (listed, kept_apart) = walk::walk(&tree, held);
+            let list = |transcripts: &[walk::Session]| {
+                js.array(transcripts.iter().map(|t| {
+                    js.object(&[("file", js.text(&text::units(&t.file))?), ("dir", js.text(&text::units(&t.dir))?), ("nested", js.boolean(t.nested)?)])
+                }))
+            };
+            Ok(Walked { listed: list(&listed)?, held: list(&kept_apart)? })
+        };
+        Some(walked())
     }
 }
 

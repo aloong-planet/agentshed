@@ -3,11 +3,11 @@
 // the files of one session id, an Antigravity call held by two conversations — make the order part of the figures, so
 // whatever takes the store's entries outside a scan (the restore, a fork's parent lookup) takes them in this order.
 //
-// One definition decides it, written here as a comparator: every listing here orders a directory's entries by it, the
-// store's entries are put in scan order by it, and the engine module's session walk sorts by the same definition
-// (engine/src/walk/). A scan visits the data roots in a fixed order and each root depth-first, a directory's
-// children at the directory's own place among its siblings; so two files compare by the root each lies under, then
-// by their paths below it, component by component, each name by its UTF-8 bytes. Not by whole paths: `a-b/x` would come
+// One definition decides it, written here as a comparator: the store's entries are put in scan order by it, and the
+// engine module's session walk, which lists every side's session files, sorts by the same definition (engine/src/walk/).
+// A scan visits the data roots in a fixed order and each root depth-first, a directory's children at the directory's
+// own place among its siblings; so two files compare by the root each lies under, then by their paths below it,
+// component by component, each name by its UTF-8 bytes. Not by whole paths: `a-b/x` would come
 // before `a/y`, as `-` is below `/`, where the walk takes directory `a` first. Not by JavaScript's string order either:
 // it compares UTF-16 code units, which put a character beyond U+FFFF before one in U+E000–U+FFFF.
 import { join, sep } from 'node:path'
@@ -16,11 +16,6 @@ import type { ScanRoots } from './types'
 /** Two names in byte order of their UTF-8 encoding: how every walk orders a directory's entries */
 export function compareNames(a: string, b: string): number {
   return Buffer.compare(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'))
-}
-
-/** A directory's entries by their names, in that order */
-export function byName<T extends { name: string }>(a: T, b: T): number {
-  return compareNames(a.name, b.name)
 }
 
 /**

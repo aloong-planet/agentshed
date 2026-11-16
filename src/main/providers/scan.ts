@@ -7,7 +7,7 @@ import { emptySnapshot } from '@shared/domain'
 import { mergeKey, normalizePath } from '@shared/path-key'
 import { threadEngineModule } from '../engine-module'
 import type { ScanRoots } from './types'
-import { readClaudeRegistry, readClaudeActivity } from './claude'
+import { readClaudeRegistry, readClaudeActivity, type ClaudeTranscript } from './claude'
 import { readCodexRegistry, type CodexSessionMeta } from './codex'
 import { readGrokRegistry, type GrokSessionMeta } from './grok'
 import { readAntigravityRegistry, type AntigravitySessionMeta } from './antigravity'
@@ -24,23 +24,25 @@ export interface ScanDeps {
 }
 
 /**
- * The Codex, Grok and Antigravity session lists, as the engine module walks them (EngineModule.walkSessions). Walking
- * them reads every Codex rollout's first line, every Grok session's summary and every Antigravity conversation's
- * trajectory metadata, so a scan walks once and hands the result to both scan() and TokenEngine.build (#160) — which
- * also gives the two one shared set of sessions instead of two walks a moment apart.
+ * Every side's session list, as the engine module walks them (EngineModule.walkSessions). Walking them reads
+ * every Codex rollout's first line, every Grok session's summary and every Antigravity conversation's trajectory
+ * metadata, so a scan walks once and hands the result to both scan() and TokenEngine.build (#160) — which also gives the
+ * two one shared set of sessions instead of two walks a moment apart. Claude Code's list, which reads no file, only the
+ * token build takes.
  */
 export interface SessionWalk {
+  claude: ClaudeTranscript[]
   codex: CodexSessionMeta[]
   grok: GrokSessionMeta[]
   antigravity: AntigravitySessionMeta[]
   /**
    * The sessions the walk kept below a directory that is there but that it could not list, each side's in scan order:
-   * the files the token store holds there, looked at as a listed file is — a Codex rollout's and a Grok stream's
-   * session as the side's list has it, an Antigravity conversation by its path alone, which the token build looks at
-   * itself (token-stats, Failure modes and boundaries: the token store). Not in the lists above, which keep only what
-   * the walk listed, and which the projects list reads.
+   * the files the token store holds there, looked at as a listed file is — a Claude Code transcript, a Codex rollout's
+   * and a Grok stream's session as the side's list has it, an Antigravity conversation by its path alone, which the token
+   * build looks at itself (token-stats, Failure modes and boundaries: the token store). Not in the lists above, which
+   * keep only what the walk listed, and of which the projects list reads Codex's, Grok's and Antigravity's.
    */
-  held: { codex: CodexSessionMeta[]; grok: GrokSessionMeta[]; antigravity: string[] }
+  held: { claude: ClaudeTranscript[]; codex: CodexSessionMeta[]; grok: GrokSessionMeta[]; antigravity: string[] }
 }
 
 // Every reader below is synchronous; the Promise is the seam's shape, which both callers await.

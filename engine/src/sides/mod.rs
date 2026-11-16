@@ -110,7 +110,8 @@ pub(crate) fn named(kind: &str) -> Option<&'static dyn Side> {
 
 /// The sides the session walk lists, under the names its result gives them, in the order a scan walks their data roots
 /// (token-stats, Implementation Decisions, Scan order)
-const WALKED: [(&str, &dyn Side); 3] = [("codex", &codex::Codex), ("grok", &grok::Grok), ("antigravity", &antigravity::Antigravity)];
+const WALKED: [(&str, &dyn Side); 4] =
+    [("claude", &claude::Claude), ("codex", &codex::Codex), ("grok", &grok::Grok), ("antigravity", &antigravity::Antigravity)];
 
 /// A side's two lists in the session walk, as JavaScript arrays
 pub(crate) struct Walked {

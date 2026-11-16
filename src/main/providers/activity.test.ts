@@ -749,11 +749,11 @@ describe('the session walk, read by the engine module', () => {
       expect(w.held.grok, 'read as the listed walk reads them').toEqual(open.grok)
       expect(w.held.antigravity).toEqual([c1, c2])
       expect([w.codex.map((s) => s.file), w.grok, w.antigravity], 'the walk\'s own lists keep what it listed').toEqual([[archived], [], []])
-      expect(open.held, 'a walk that lists every directory keeps nothing apart').toEqual({ codex: [], grok: [], antigravity: [] })
+      expect(open.held, 'a walk that lists every directory keeps nothing apart').toEqual({ claude: [], codex: [], grok: [], antigravity: [] })
 
       // The store's files cannot be read: nothing is held
       const unread = locked([codex, grok, agy], () => walkHolding(() => { throw new Error('the store cannot be read') }))
-      expect([unread.held, unread.codex.map((s) => s.file)]).toEqual([{ codex: [], grok: [], antigravity: [] }, [archived]])
+      expect([unread.held, unread.codex.map((s) => s.file)]).toEqual([{ claude: [], codex: [], grok: [], antigravity: [] }, [archived]])
     })
 
     it('a directory inside a data root it cannot list keeps the files held below it; its siblings are listed', () => {
