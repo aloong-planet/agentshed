@@ -42,7 +42,7 @@ We adopt **option 1**.
   - serialising and writing the display copy, at the moments ADR-0044 sets.
 - **Reading**: a value in a line is built only where a rule reads it, and every other value is scanned past.
   Where `JSON.parse` and the module's parser would disagree on a line, the module gives JavaScript's result.
-- **Its figures are the TypeScript engine's**, entry for entry and field for field on the same files.
+- **Its figures are what the TypeScript engine gave**, entry for entry and field for field on the same files.
 - **The cold full parse** is held to token-stats::QR-004.
 
 ## Consequences
@@ -53,7 +53,7 @@ We adopt **option 1**.
 - Negative: a second language and toolchain on every target it is built for, and a library shipped outside the
   asar archive, among the app's resources, signed and notarised with the app.
 - Negative: every accounting, question-index and title rule exists only as rewritten in Rust, so a mistake there
-  is a wrong figure nobody notices; the tests hold it to the TypeScript engine's figures on the same fixtures.
+  is a wrong figure nobody notices; the tests expect what the TypeScript engine gave on the same fixtures.
 - Negative: token-stats::QR-004's 600 MB leaves the module little room: the prototype alone peaked at 516–561 MB,
   and the packaged app's cold scan peaks at 470 MB (Sources), so a change that keeps more of a scan in memory at
   once can break it.
