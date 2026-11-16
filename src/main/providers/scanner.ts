@@ -25,6 +25,19 @@ export interface ScanOutput {
   sessionFiles: Set<string>
 }
 
+/**
+ * What a scan's token build takes from its snapshot (TokenEngine.build): the Claude Code projects' paths, none when
+ * Claude Code's registry could not be read, so that the build keeps each stored session's project; and every
+ * registered project's merge key, which the read allow-list admits sessions by. The bench and the question-corpus
+ * cases take them from here too, so they build what a scan builds.
+ */
+export function tokenBuildInputs(snapshot: Snapshot): { claudeProjectPaths: string[] | null; registeredKeys: Set<string> } {
+  return {
+    claudeProjectPaths: snapshot.sides.claude.error ? null : snapshot.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path),
+    registeredKeys: new Set(snapshot.projects.map((p) => mergeKey(p.path)))
+  }
+}
+
 /** Lets the thread's event loop run what is waiting — a question-index read, a request to stop — before the next step */
 const betweenSteps = (): Promise<void> => new Promise((resolve) => setImmediate(resolve))
 
@@ -76,10 +89,8 @@ export class Scanner {
     await betweenSteps()
     const snapshot = await scan(roots, { now: () => Date.now(), sessions: walked })
     await betweenSteps()
-    // None when Claude Code's registry could not be read: the build then keeps each stored session's project
-    const claudePaths = snapshot.sides.claude.error ? null : snapshot.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
-    const registered = new Set(snapshot.projects.map((p) => mergeKey(p.path)))
-    const built = await this.engine.build(roots, claudePaths, registered, walked)
+    const { claudeProjectPaths, registeredKeys } = tokenBuildInputs(snapshot)
+    const built = await this.engine.build(roots, claudeProjectPaths, registeredKeys, walked)
     // Antigravity CLI conversations the scan could not read reach the side's card (token-stats::REQ-004/AC-02)
     if (built.antigravityUnreadable > 0) snapshot.sides.antigravity.unreadable = built.antigravityUnreadable
     // The session count shares its source with the sessions section. scan() gives a file count, warmups and

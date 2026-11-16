@@ -5,8 +5,8 @@ import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import type { GlobalSearchResult } from '@shared/domain'
-import { mergeKey } from '@shared/path-key'
 import { scan } from './scan'
+import { tokenBuildInputs } from './scanner'
 import { TokenEngine } from './token-stats'
 import { TEST_ENGINE } from '../testing/engine'
 import { QuestionCorpus, corpusProjects, type CorpusProject, type CorpusOptions } from './question-corpus'
@@ -170,8 +170,8 @@ afterEach(() => {
  * for both, and the corpus's listed set from both */
 async function index(engine: TokenEngine): Promise<CorpusProject[]> {
   const snap = await scan(roots(), { now: () => Date.now() })
-  const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
-  const t = await engine.build(roots(), claudePaths, new Set(snap.projects.map((p) => mergeKey(p.path))))
+  const { claudeProjectPaths, registeredKeys } = tokenBuildInputs(snap)
+  const t = await engine.build(roots(), claudeProjectPaths, registeredKeys)
   return corpusProjects(snap.projects, t.perProject)
 }
 
