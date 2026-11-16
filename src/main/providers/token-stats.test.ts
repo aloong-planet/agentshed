@@ -34,7 +34,7 @@ import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
-import { TEST_ENGINE, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
+import { TEST_ENGINE, type JsonStringSeam, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
 import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storedGroups, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule, threadEngineModule } from '../engine-module'
 import { compareScanOrder } from './scan-order'
@@ -4441,6 +4441,54 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
     } finally {
       chmodSync(codexDay(), 0o755)
     }
+  })
+})
+
+// token-stats, Implementation Decisions, The engine module: a line is "read by the grammar of ECMAScript's JSON.parse,
+// with its results". A string is read through the reader every line is read by (the JSON string seam), which looks at
+// plain text eight bytes at a time and at the bytes short of eight one by one: each character a string can hold — every
+// one below U+0080, the quote, the backslash and the control characters among them, characters of two, three and four
+// bytes, and escapes, bad ones included — is put at every byte of three such steps and of the bytes short of one, and
+// the reader is held to what JSON.parse makes of the same text.
+describe('how a line\'s string is read', () => {
+  it('as JSON.parse reads it, wherever a quote, a backslash, a control character or a byte of a multibyte character falls', () => {
+    const seam = loadEngineModule(TEST_ENGINE) as JsonStringSeam
+    const BS = String.fromCharCode(0x5c)
+    const parsed = (text: string): string | null => {
+      try {
+        const value: unknown = JSON.parse(text)
+        return typeof value === 'string' ? value : null
+      } catch {
+        return null
+      }
+    }
+    const marks = [
+      ...Array.from({ length: 0x80 }, (_, c) => String.fromCharCode(c)),
+      ...[0xe9, 0x7ff, 0x800, 0x2028, 0x4e2d, 0xfffd, 0xffff].map((c) => String.fromCharCode(c)),
+      String.fromCodePoint(0x1f600),
+      String.fromCodePoint(0x10ffff),
+      ...['n', '"', BS, '/', 'b', 'f', 'r', 't', 'u0041', 'u00e9', `uD83D${BS}uDE00`, 'x', 'u12', 'u12G4', 'U0041'].map((e) => `${BS}${e}`)
+    ]
+    // Plain text of one, two, three and four bytes a character
+    const fillers = ['a', ' ', String.fromCharCode(0x7f), String.fromCharCode(0xe9), String.fromCharCode(0x4e2d), String.fromCodePoint(0x1f600)]
+    const outcomes = { taken: 0, refused: 0 }
+    const differ: string[] = []
+    const check = (text: string): void => {
+      const expected = parsed(text)
+      outcomes[expected === null ? 'refused' : 'taken']++
+      if ((seam.seamReadJsonString(text) ?? null) !== expected) differ.push(JSON.stringify(text))
+    }
+    for (const f of fillers) {
+      for (const m of marks) for (let before = 0; before <= 16; before++) for (let after = 0; after <= 8; after++) check(`"${f.repeat(before)}${m}${f.repeat(after)}"`)
+      // A text that ends inside its string
+      for (let before = 0; before <= 16; before++) check(`"${f.repeat(before)}`)
+    }
+    // Whitespace before the string moves the byte its scan starts at
+    for (let space = 1; space < 8; space++) for (const m of marks) for (let before = 0; before <= 16; before++) check(`${' '.repeat(space)}"${'a'.repeat(before)}${m}a"`)
+    expect(differ.slice(0, 20)).toEqual([])
+    // Many texts of each outcome
+    expect(outcomes.taken).toBeGreaterThan(10000)
+    expect(outcomes.refused).toBeGreaterThan(10000)
   })
 })
 

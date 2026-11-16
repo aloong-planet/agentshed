@@ -127,6 +127,35 @@ const fn special() -> [bool; 256] {
 }
 const SPECIAL: [bool; 256] = special();
 
+/// A byte's value in each of a word's eight bytes, and each byte's top bit
+const EACH: u64 = 0x0101_0101_0101_0101;
+const TOP: u64 = 0x8080_8080_8080_8080;
+
+/// A string's fast scan: where the plain text that starts at `at` ends, at the first byte of `SPECIAL` or at the
+/// text's end. It looks at eight bytes at a time, one word, and at the bytes short of a word one by one. In a word, a
+/// byte below 0x20 and a byte equal to the quote or the backslash (one below 0x01 once the word is XORed with it) each
+/// set their top bit in `(w - n) & !w & TOP`; a borrow can also set a top bit in a byte above one of them, never below,
+/// so the lowest bit set marks the first such byte exactly.
+fn plain_end(text: &[u8], mut at: usize) -> usize {
+    while let Some(word) = text.get(at..at + 8) {
+        let w = u64::from_le_bytes([word[0], word[1], word[2], word[3], word[4], word[5], word[6], word[7]]);
+        let quote = w ^ (EACH * u64::from(b'"'));
+        let backslash = w ^ (EACH * u64::from(b'\\'));
+        let found = ((w.wrapping_sub(EACH * 0x20) & !w) | (quote.wrapping_sub(EACH) & !quote) | (backslash.wrapping_sub(EACH) & !backslash)) & TOP;
+        if found != 0 {
+            return at + (found.trailing_zeros() / 8) as usize;
+        }
+        at += 8;
+    }
+    while let Some(&c) = text.get(at) {
+        if SPECIAL[c as usize] {
+            break;
+        }
+        at += 1;
+    }
+    at
+}
+
 impl<'a> Reader<'a> {
     pub(crate) fn new(text: &'a str) -> Self {
         Reader { text: text.as_bytes(), at: 0, open: Vec::new() }
@@ -233,13 +262,7 @@ impl<'a> Reader<'a> {
         let from = self.at;
         let mut escaped = false;
         loop {
-            // The fast scan: plain text up to the next byte that needs a look
-            while let Some(&c) = self.text.get(self.at) {
-                if SPECIAL[c as usize] {
-                    break;
-                }
-                self.at += 1;
-            }
+            self.at = plain_end(self.text, self.at);
             match self.text.get(self.at) {
                 Some(b'"') => {
                     let raw = &self.text[from..self.at];
