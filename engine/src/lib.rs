@@ -1,6 +1,5 @@
-//! The engine module (ADR-0045, ADR-0046), loaded through Node-API by the scan worker, the parse workers and the main process. The
-//! accounting moves in from TypeScript one component per change, each proven against the TypeScript implementation by
-//! the parity command (`pnpm engine:parity`) before that implementation is removed.
+//! The engine module (ADR-0045, ADR-0046), loaded through Node-API by the scan worker, the parse workers and the main
+//! process.
 //!
 //! Every function it exports catches a panic where it crosses into the application (`#[napi(catch_unwind)]`): the
 //! call throws an error naming the panic, and the thread and the process go on (token-stats, Scans and the window).

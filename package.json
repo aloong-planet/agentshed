@@ -27,7 +27,6 @@
     "check:i18n": "node scripts/check-i18n.mjs",
     "check:nul": "node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs",
     "bench:scan": "node scripts/bench-scan.mjs",
-    "engine:parity": "node scripts/engine-parity.mjs",
     "restore:archive": "node scripts/restore-archive.mjs",
     "lint:app": "eslint . --ignore-pattern site/ --max-warnings 0",
     "lint:site": "eslint site/ --max-warnings 0",
