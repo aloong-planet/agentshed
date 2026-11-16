@@ -1157,9 +1157,8 @@ export class TokenEngine {
         // Top level = a session (listable), deeper = a subagent or other nested transcript — the same
         // rule as listJsonl.
         // projectKey keeps the value the entry held: the project a Claude session is credited to comes from the
-        // registry, which only a build reads (token-stats A2). So with no well-formed entry to take the key from, the
-        // index serves this page and is not kept (session-view C4): kept under no project, it would be held as the
-        // session's entry by a build that cannot read the registry (token-stats A11). The next build parses the file.
+        // registry, which only a build reads (token-stats A2, A11). With no well-formed entry to take the key from,
+        // the index serves this page and is not kept (session-view C4); the next build parses the file.
         const listedBase = dirname(dirname(file)) === claudeRoot
         fresh = (await runParseJob({ kind: 'claude', file, projectKey: cached?.agg.projectKey ?? '', listed: listedBase }))?.agg ?? null
         kept = cached !== undefined

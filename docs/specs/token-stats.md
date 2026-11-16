@@ -69,7 +69,8 @@ all of them.
   its encoded directory maps to in the registry as each scan reads it, whatever it mapped to when its
   file was last parsed: from the first scan after a directory comes to map to a registered project, its
   sessions are in that project's list and their usage in its figures, and from the first scan after it
-  stops mapping to one they are in neither.
+  stops mapping to one they are in neither. A past (day, side) the usage archive retains (C10, ADR-0026)
+  is the exception: its figures stay in the projects the archive's rows were written under.
 - A3 Duplicate lines with the same `message.id + requestId` count once, keeping the one with the more
   complete usage.
 - A4 Sidechain replays (same message.id, new requestId) are deduplicated across files, keeping the

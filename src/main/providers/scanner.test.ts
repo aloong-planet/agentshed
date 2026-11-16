@@ -1,7 +1,7 @@
 // The scanner (ADR-0043): what one scan hands the main process, and what the main process makes of it. The
 // aggregation itself is the token engine's and has its own cases (token-stats.test.ts); these cover the steps a
 // scan adds around it, which ran inline in the main process before and had no case below e2e.
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -181,9 +181,24 @@ describe('Claude Code\'s registry at each scan', () => {
     await heldThrough({ error, apply: () => writeFileSync(home.roots.claudeConfigFile, text), undo: restore })
   })
 
-  it.skipIf(process.getuid?.() === 0)('one that cannot be read keeps each stored session\'s project for that scan', async () => {
-    const file = home.roots.claudeConfigFile
-    await heldThrough({ error: ERR.registryUnreadable, apply: () => chmodSync(file, 0o000), undo: () => chmodSync(file, 0o644) })
+  // A file behind a directory that cannot be entered cannot be read either, and is never one that is not there
+  // (agents-overview A3): here the registry is a link into such a directory, as a dotfile kept elsewhere is
+  const behind = (): string => join(dir, 'kept-elsewhere')
+  it.skipIf(process.getuid?.() === 0).each([
+    { name: 'cannot be read', apply: (): void => chmodSync(home.roots.claudeConfigFile, 0o000), undo: (): void => chmodSync(home.roots.claudeConfigFile, 0o644) },
+    {
+      name: 'sits behind a directory that cannot be entered',
+      apply: (): void => {
+        mkdirSync(behind())
+        writeFileSync(join(behind(), 'claude.json'), readFileSync(home.roots.claudeConfigFile))
+        rmSync(home.roots.claudeConfigFile)
+        symlinkSync(join(behind(), 'claude.json'), home.roots.claudeConfigFile)
+        chmodSync(behind(), 0o000)
+      },
+      undo: (): void => chmodSync(behind(), 0o755)
+    }
+  ])('one that $name keeps each stored session\'s project for that scan', async ({ apply, undo }) => {
+    await heldThrough({ error: ERR.registryUnreadable, apply, undo })
   })
 
   it.each([

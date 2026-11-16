@@ -2511,6 +2511,8 @@ describe('a Claude Code session is credited to the project its directory maps to
   const uncredited = { rows: [['2026-07-01', 'claude', '', 'claude-fable-5', 36, 415, 18000, 1200, 19651]], sessions: [], unreadable: 0 }
   /** What a scan over an empty store gives under these projects */
   const overEmptyStore = (paths: string[]): Promise<TokenBuildResult> => new TokenEngine(join(dir, 'empty-store'), TEST_ENGINE).build(roots(), paths)
+  /** The figures of every project and none, which no mapping changes */
+  const global = ({ global: g }: TokenBuildResult): unknown => ({ bySide: g.bySide, byModel: g.byModel, byDay: g.byDay })
 
   it.each([
     { what: 'a directory that comes to map to a registered project', from: 'none', to: 'project' },
@@ -2526,7 +2528,6 @@ describe('a Claude Code session is credited to the project its directory maps to
     const r = await e.build(roots(), paths(to))
     expect(scanOutput(r)).toEqual(output(to))
     expect(r.sessionFiles).toEqual(to === 'project' ? new Set([own, sub]) : new Set())
-    const global = ({ global: g }: TokenBuildResult): unknown => ({ bySide: g.bySide, byModel: g.byModel, byDay: g.byDay })
     expect(global(r), 'the global figures do not depend on the mapping').toStrictEqual(global(before))
     expect(parsed().sort(), 'the files whose project changed are parsed again').toEqual([own, sub].sort())
     expect(figures(r)).toStrictEqual(figures(await overEmptyStore(paths(to))))
@@ -2545,10 +2546,11 @@ describe('a Claude Code session is credited to the project its directory maps to
       usageLine('claude-opus-5-5', '2026-07-02T09:00:00Z', 40, 4, { id: 'm2', requestId: 'r2' })
     ], 1000, encodeClaudeProjectDir(proj2))
     const { e, parsed } = recorded()
-    await e.build(roots(), [proj])
+    const before = await e.build(roots(), [proj])
     expect(storedGroups(cacheDir()), 'the control: one group of the two files').toEqual([[a, b]])
     parsed()
     const r = await e.build(roots(), [proj, proj2])
+    expect(global(r), 'the global figures do not depend on the mapping: b\'s copy of m1 in both').toStrictEqual(global(before))
     expect(scanOutput(r, { [mergeKey(proj2)]: '<proj2>' })).toEqual({
       rows: [
         ['2026-07-01', 'claude', '<proj2>', 'claude-fable-5', 150, 10, 0, 0, 160],
