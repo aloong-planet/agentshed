@@ -7,6 +7,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -236,6 +237,8 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
     writeFileSync(long, Buffer.concat(Array.from({ length: COPIES }, () => full)))
   })
   afterAll(() => rmSync(longDir, { recursive: true, force: true }))
+  /** Ten bytes of the long stream ending `copies` copies into it: a read about a millisecond long per copy it passes */
+  const longInto = (copies: number): Promise<unknown> => readRangeBuffers(long, [{ start: copies * content.length - 10, end: copies * content.length }])
 
   /**
    * Six cold reads asked at once, in this order, and the order they settle in: four of the long stream, ending a quarter,
@@ -245,9 +248,8 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
   async function settleOrder(short: string): Promise<string[]> {
     const settled: string[] = []
     const ask = (name: string, read: Promise<unknown>): Promise<void> => read.then(() => { settled.push(name) })
-    const into = (copies: number): Promise<unknown> => readRangeBuffers(long, [{ start: copies * content.length - 10, end: copies * content.length }])
     await Promise.all([
-      ...[32, 64, 96, 128].map((copies) => ask(`long ${copies}`, into(copies))),
+      ...[32, 64, 96, 128].map((copies) => ask(`long ${copies}`, longInto(copies))),
       ask('short range', readRangeBuffers(short, [{ start: 0, end: 10 }])),
       ask('short whole', readRolloutWhole(short))
     ])
@@ -270,6 +272,29 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
     expect(failed.map((r) => r.status)).toEqual(Array(5).fill('rejected'))
     await withTwins(2, async (_plain, cold) => {
       expect(await settleOrder(cold)).toEqual(FOUR_PLACES)
+    })
+  })
+
+  test('a cold read holds neither the thread that asked nor the thread pool the main process\'s file reads wait on: a timer set before four long cold reads fires a moment later, and a file read asked after them settles, before any of them (spec session-view C2)', async () => {
+    await withFile('{"i":0}\n', async (small) => {
+      const settled: string[] = []
+      const after: Record<string, number> = {}
+      const start = performance.now()
+      const ask = (name: string, read: Promise<unknown>): Promise<void> => read.then(() => {
+        settled.push(name)
+        after[name] = performance.now() - start
+      })
+      // Set before the reads are asked: a read held on this thread holds the timer back as long, however late its own
+      // promise then settles
+      const timer = ask('timer', new Promise((go) => setTimeout(go, 0)))
+      // As many reads as run at once, and as libuv's pool has threads: held there, they would keep the file read waiting
+      // until the first of them ended
+      const longs = [32, 64, 96, 128].map((copies) => ask(`long ${copies}`, longInto(copies)))
+      await Promise.all([timer, ...longs, ask('file', readFile(small))])
+      expect(settled.slice(0, 2).sort()).toEqual(['file', 'timer'])
+      expect(settled.slice(2)).toEqual(['long 32', 'long 64', 'long 96', 'long 128'])
+      // Asking four reads holds the thread a moment: far less than the longest of them takes
+      expect(after.timer).toBeLessThan(after['long 128'] / 4)
     })
   })
 
