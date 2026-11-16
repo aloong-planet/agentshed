@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { threadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
 import { searchFullText, type FullTextFound, type TurnBounds } from './full-text'
@@ -352,8 +352,9 @@ describe("a turn's snippet is cut as the whole-file search cut it", () => {
 // JavaScript is the app's own: the Electron the app runs on, run as Node, as vitest's Node may carry another Unicode
 // version.
 test('the snippet lowers text as the JavaScript of the Electron the app runs on does, over every code point', () => {
-  const electronDir = fileURLToPath(new URL('../../../node_modules/electron/', import.meta.url))
-  const electron = join(electronDir, 'dist', readFileSync(join(electronDir, 'path.txt'), 'utf8'))
+  // The electron package itself, past vitest's stub (vitest.config.ts): it gives the binary's path, fetching the binary
+  // first where an install left it out, as a checkout's tests run without one
+  const electron = createRequire(import.meta.url)('electron') as string
   const script = join(dir, 'lower.cjs')
   writeFileSync(
     script,
