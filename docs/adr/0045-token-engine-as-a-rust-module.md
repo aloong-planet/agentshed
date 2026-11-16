@@ -25,6 +25,8 @@ the session page and both searches show come from the same per-line rules over t
    the display copy still crosses into the module once per write.
 6. Keep the session page's and both searches' cold rollout reads on Node's zstd decoder — rejected: under
    Electron 43 it misses later frames (Sources), and the cut-short rule would exist twice.
+7. Claude Code's session list made by the planning — rejected: in the walk, the four sides' session lists are made
+   in one place, by one walk.
 
 ## Decision
 
@@ -32,9 +34,8 @@ We adopt **option 1**.
 
 - **One module** in Rust, built from its source in this repository for each target; no binary is committed.
 - **What it owns** (token-stats, The engine module):
-  - the session walk (the Codex, Grok and Antigravity CLI session lists and every Codex rollout's first line;
-    Claude Code's are listed by the planning, in TypeScript), whose result goes to the project scan, in
-    TypeScript;
+  - the session walk (each side's session list and each Codex rollout's first line), whose lists the project scan
+    and the planning take, in TypeScript;
   - reading and parsing every session file a scan reads, cold rollouts decompressed, and reading the cold ones the
     session page and both searches read;
   - each side's per-line rules, the question index and the titles;
@@ -56,10 +57,9 @@ We adopt **option 1**.
 - Negative: every accounting, question-index and title rule exists only as rewritten in Rust, so a mistake there
   is a wrong figure nobody notices.
 - Negative: a slip in the cold rollout reader reaches the scan, the session page and both searches at once.
-- Negative: token-stats::QR-004's 600 MB leaves the module little room: the prototype alone peaked at 516–561 MB,
-  and the packaged app's cold scan peaks at 470 MB (Sources), so a change that keeps more of a scan in memory at
-  once can break it.
-- Neutral: on the Codex data the prototype matched `JSON.parse` on every line and no line failed to parse.
+- Negative: token-stats::QR-004's 600 MB leaves the module little room (the prototype's and the packaged app's peaks,
+  Sources), so a change that keeps more of a scan in memory at once can break it.
+- Neutral: the prototype read all Codex lines as `JSON.parse` does, failing on none.
 
 ## Sources
 
