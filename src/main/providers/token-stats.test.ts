@@ -2040,9 +2040,10 @@ function figures(r: TokenBuildResult): unknown {
 }
 
 /** What a build gives that the combination decides, compactly: each usage row, each project's sessions in their order,
- * and the count of unreadable conversations; every other figure is derived from the rows (`deriveStats`) */
-function scanOutput(r: TokenBuildResult): unknown {
-  const p = (key: string): string => (key === mergeKey(proj) ? '<proj>' : key)
+ * and the count of unreadable conversations; every other figure is derived from the rows (`deriveStats`). `names` names
+ * other projects' keys as `<proj>` names proj's. */
+function scanOutput(r: TokenBuildResult, names: Record<string, string> = {}): unknown {
+  const p = (key: string): string => (key === mergeKey(proj) ? '<proj>' : (names[key] ?? key))
   return {
     rows: r.rows.map((x) => [x.day, x.side, p(x.projectKey), x.model, x.input, x.output, x.cacheRead, x.cacheWrite, x.total]),
     sessions: [...r.perProject].map(([key, s]) => [p(key), s.sessions.map((x) => [basename(x.file), x.title, x.tokens, x.questionCount, x.forkState])]),
@@ -2389,17 +2390,17 @@ describe('a group (token-stats, Implementation Decisions, Cache)', () => {
   })
 })
 
+/** An engine of one combination whose parses are recorded: `parsed` gives the files parsed since it was last asked */
+function recorded(): { e: TokenEngine; parsed: () => string[] } {
+  const { runner, jobs } = recording()
+  const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, '1.0.0')
+  return { e, parsed: () => jobs.splice(0).map((j) => j.file) }
+}
+
 // A group's input: each file in scan order, its entry and what the scan adds to it (token-stats, Implementation
 // Decisions, Cache). Each case changes one thing the scan adds, the entries unchanged, and the scan after it gives what
 // one combination over the scan set gives, with nothing parsed.
 describe('a group whose input differs is combined again (token-stats, Implementation Decisions, Cache)', () => {
-  /** An engine of one combination whose parses are recorded */
-  function recorded(): { e: TokenEngine; parsed: () => string[] } {
-    const { runner, jobs } = recording()
-    const e = new TokenEngine(cacheDir(), TEST_ENGINE, runner, undefined, '1.0.0')
-    return { e, parsed: () => jobs.splice(0).map((j) => j.file) }
-  }
-
   it('a file moved in the scan order inside its group: the copy kept is the one now first', async () => {
     // Two copies of one message with equal figures: the first in scan order is kept, and the session it is in counts it
     const line = usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 1, { id: 'm-eq', requestId: 'r-eq' })
@@ -2482,6 +2483,142 @@ describe('a group whose input differs is combined again (token-stats, Implementa
     await expectFromScratch(unchanged)
     mkCodexRollout(file, proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }, { input: 50, cached: 0, output: 5 }], false, 3000, 'sample question', { id })
     expect(titleOf(await e.build(roots(), [proj]))).toEqual(['renamed'])
+  })
+})
+
+// A Claude Code session is credited to the project the registry maps its encoded directory to at the scan, whatever it
+// mapped to when its file was parsed (A2): the scan gives what a scan over an empty store gives.
+describe('a Claude Code session is credited to the project its directory maps to now (A2)', () => {
+  /** A Claude Code session of real shape, one message streamed in two blocks, and its subagent's transcript, sharing
+   * no message with it */
+  function session(): { own: string; sub: string } {
+    const sub = mkClaudeFile(join('3e7a', 'subagents', 'agent-a1.jsonl'), [
+      usageLine('claude-fable-5', '2026-07-01T09:00:30Z', 30, 3, { id: 'm-sub', requestId: 'r-sub', sidechain: true })
+    ])
+    const own = mkClaudeFile('3e7a.jsonl', [
+      realUserLine({ uuid: 'u1', parent: null, text: 'add a retry to the uploader', at: '2026-07-01T09:00:00.000Z', session: 's-1' }),
+      realAssistantLine({ uuid: 'a1', parent: 'u1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:20.000Z', block: 'thinking', output: 10, session: 's-1' }),
+      realAssistantLine({ uuid: 'a2', parent: 'a1', id: 'msg_01m1', requestId: 'req_01r1', at: '2026-07-01T09:00:40.000Z', block: 'text', output: 412, session: 's-1' })
+    ])
+    return { own, sub }
+  }
+  // The session's message once, at its complete usage (6 + 412 + 18000 + 1200), and the subagent's 30 + 3
+  const credited = {
+    rows: [['2026-07-01', 'claude', '<proj>', 'claude-fable-5', 36, 415, 18000, 1200, 19651]],
+    sessions: [['<proj>', [['3e7a.jsonl', 'add a retry to the uploader', 19618, 1, 'none']]]],
+    unreadable: 0
+  }
+  const uncredited = { rows: [['2026-07-01', 'claude', '', 'claude-fable-5', 36, 415, 18000, 1200, 19651]], sessions: [], unreadable: 0 }
+  /** What a scan over an empty store gives under these projects */
+  const overEmptyStore = (paths: string[]): Promise<TokenBuildResult> => new TokenEngine(join(dir, 'empty-store'), TEST_ENGINE).build(roots(), paths)
+
+  it.each([
+    { what: 'a directory that comes to map to a registered project', from: 'none', to: 'project' },
+    { what: 'a directory that no longer maps to one', from: 'project', to: 'none' }
+  ] as const)('$what: its sessions are credited by the mapping now, as over an empty store', async ({ from, to }) => {
+    const paths = (k: 'none' | 'project'): string[] => (k === 'project' ? [proj] : [])
+    const output = (k: 'none' | 'project'): unknown => (k === 'project' ? credited : uncredited)
+    const { own, sub } = session()
+    const { e, parsed } = recorded()
+    const before = await e.build(roots(), paths(from))
+    expect(scanOutput(before)).toEqual(output(from))
+    parsed()
+    const r = await e.build(roots(), paths(to))
+    expect(scanOutput(r)).toEqual(output(to))
+    expect(r.sessionFiles).toEqual(to === 'project' ? new Set([own, sub]) : new Set())
+    const global = ({ global: g }: TokenBuildResult): unknown => ({ bySide: g.bySide, byModel: g.byModel, byDay: g.byDay })
+    expect(global(r), 'the global figures do not depend on the mapping').toStrictEqual(global(before))
+    expect(parsed().sort(), 'the files whose project changed are parsed again').toEqual([own, sub].sort())
+    expect(figures(r)).toStrictEqual(figures(await overEmptyStore(paths(to))))
+    expect(figures(await e.build(roots(), paths(to))), 'the scan after gives the same').toStrictEqual(figures(r))
+    expect(parsed(), 'and parses nothing').toEqual([])
+  })
+
+  it('a group one of whose files comes to map to another project gives the rows a fresh combination gives', async () => {
+    const proj2 = join(dir, 'work', 'p2')
+    // One message in two projects' directories: the second copy, in p2's directory and after the first in scan order, is
+    // the larger, so it replaces the first, and the session it is in counts it with its own second message
+    const a = mkClaudeFile('a.jsonl', [userLine('first question', '2026-07-01T09:00:00Z'), usageLine('claude-fable-5', '2026-07-01T10:00:00Z', 100, 10, { id: 'm1', requestId: 'r1' })])
+    const b = mkClaudeFile('b.jsonl', [
+      userLine('second question', '2026-07-01T10:30:00Z'),
+      usageLine('claude-fable-5', '2026-07-01T11:00:00Z', 150, 10, { id: 'm1', requestId: 'r1' }),
+      usageLine('claude-opus-5-5', '2026-07-02T09:00:00Z', 40, 4, { id: 'm2', requestId: 'r2' })
+    ], 1000, encodeClaudeProjectDir(proj2))
+    const { e, parsed } = recorded()
+    await e.build(roots(), [proj])
+    expect(storedGroups(cacheDir()), 'the control: one group of the two files').toEqual([[a, b]])
+    parsed()
+    const r = await e.build(roots(), [proj, proj2])
+    expect(scanOutput(r, { [mergeKey(proj2)]: '<proj2>' })).toEqual({
+      rows: [
+        ['2026-07-01', 'claude', '<proj2>', 'claude-fable-5', 150, 10, 0, 0, 160],
+        ['2026-07-02', 'claude', '<proj2>', 'claude-opus-5-5', 40, 4, 0, 0, 44]
+      ],
+      // Each project in the order of its first touch: m1's row, met first in a's file, is p2's
+      sessions: [
+        ['<proj2>', [['b.jsonl', 'second question', 204, 1, 'none']]],
+        ['<proj>', [['a.jsonl', 'first question', 0, 1, 'none']]]
+      ],
+      unreadable: 0
+    })
+    expect(parsed(), 'the file whose project changed alone').toEqual([b])
+    expect(figures(r)).toStrictEqual(figures(await overEmptyStore([proj, proj2])))
+  })
+
+  // A10: a file parsed again for its project that cannot be read then is that file's failed read, and no other's
+  it.skipIf(process.getuid?.() === 0)('a session that cannot be read when its directory comes to map to a project gives nothing, and its sibling is credited', async () => {
+    const locked = mkClaudeFile('a.jsonl', [userLine('first question', '2026-07-01T09:00:00Z'), usageLine('claude-fable-5', '2026-07-01T10:00:00Z', 100, 10, { id: 'm1' })])
+    const sibling = mkClaudeFile('b.jsonl', [userLine('second question', '2026-07-02T09:00:00Z'), usageLine('claude-fable-5', '2026-07-02T10:00:00Z', 20, 2, { id: 'm2' })])
+    const { e, parsed } = recorded()
+    expect((await e.build(roots(), [])).global.bySide.claude.total, 'the control: both counted').toBe(132)
+    parsed()
+    chmodSync(locked, 0o000)
+    try {
+      const r = await e.build(roots(), [proj])
+      expect(scanOutput(r)).toEqual({
+        rows: [['2026-07-02', 'claude', '<proj>', 'claude-fable-5', 20, 2, 0, 0, 22]],
+        sessions: [['<proj>', [['b.jsonl', 'second question', 22, 1, 'none']]]],
+        unreadable: 0
+      })
+      expect(r.sessionFiles).toEqual(new Set([sibling]))
+      expect(parsed().sort()).toEqual([locked, sibling].sort())
+    } finally {
+      chmodSync(locked, 0o644)
+    }
+  })
+
+  // The registry could not be read (token-stats, failure modes): the project registered on another side too, so that its
+  // sessions are in the read allow-list
+  it('a registry that could not be read keeps each stored session\'s project, and a new file is credited at the next read', async () => {
+    const registered = new Set([mergeKey(proj)])
+    const a = mkClaudeFile('a.jsonl', [userLine('first question', '2026-07-01T09:00:00Z'), usageLine('claude-fable-5', '2026-07-01T10:00:00Z', 100, 10, { id: 'm1' })])
+    const { e, parsed } = recorded()
+    await e.build(roots(), [proj], registered)
+    parsed()
+    const b = mkClaudeFile('b.jsonl', [userLine('second question', '2026-07-02T09:00:00Z'), usageLine('claude-fable-5', '2026-07-02T10:00:00Z', 20, 2, { id: 'm2' })])
+    const unknown = await e.build(roots(), null, registered)
+    expect(scanOutput(unknown)).toEqual({
+      rows: [
+        ['2026-07-01', 'claude', '<proj>', 'claude-fable-5', 100, 10, 0, 0, 110],
+        ['2026-07-02', 'claude', '', 'claude-fable-5', 20, 2, 0, 0, 22]
+      ],
+      sessions: [['<proj>', [['a.jsonl', 'first question', 110, 1, 'none']]]],
+      unreadable: 0
+    })
+    expect(unknown.sessionFiles).toEqual(new Set([a]))
+    expect(parsed(), 'the stored session is held, not parsed again').toEqual([b])
+    const r = await e.build(roots(), [proj], registered)
+    expect(scanOutput(r)).toEqual({
+      rows: [
+        ['2026-07-01', 'claude', '<proj>', 'claude-fable-5', 100, 10, 0, 0, 110],
+        ['2026-07-02', 'claude', '<proj>', 'claude-fable-5', 20, 2, 0, 0, 22]
+      ],
+      sessions: [['<proj>', [['b.jsonl', 'second question', 22, 1, 'none'], ['a.jsonl', 'first question', 110, 1, 'none']]]],
+      unreadable: 0
+    })
+    expect(r.sessionFiles).toEqual(new Set([a, b]))
+    expect(parsed()).toEqual([b])
+    expect(figures(r)).toStrictEqual(figures(await overEmptyStore([proj])))
   })
 })
 
@@ -4382,6 +4519,30 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
     }
     expect([r.global.bySide[side].total, r.antigravityUnreadable]).toEqual([left, 0])
     expect([...r.sessionFiles].filter((f) => f.startsWith(`${locked()}/`))).toEqual([])
+  })
+
+  // A kept file is credited as a listed one is (A2): to the project its directory maps to at this scan
+  it.each([
+    { name: 'Claude Code\'s projects directory', locked: projects },
+    { name: 'a Claude Code project\'s directory', locked: claudeDir }
+  ])('a session kept below $name is credited to the project its directory maps to now', async ({ locked }) => {
+    const own = mkClaudeFile('a.jsonl', [userLine('first'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5, { id: 'mk1', requestId: 'rk1' })])
+    const { e, parsed } = recorded()
+    expect((await e.build(roots(), [])).rows.map((r) => r.projectKey), 'the control: no project credited').toEqual([''])
+    parsed()
+    chmodSync(locked(), 0o300)
+    try {
+      expect(() => readdirSync(locked()), 'the control: the directory cannot be listed').toThrow()
+      const r = await e.build(roots(), [proj])
+      expect(scanOutput(r)).toEqual({
+        rows: [['2026-07-30', 'claude', '<proj>', 'claude-fable-5', 10, 5, 0, 0, 15]],
+        sessions: [['<proj>', [['a.jsonl', 'first', 15, 1, 'none']]]],
+        unreadable: 0
+      })
+      expect(parsed(), 'parsed again under its project').toEqual([own])
+    } finally {
+      chmodSync(locked(), 0o755)
+    }
   })
 
   // The order is part of the figures wherever the combination keeps the first of several files sharing a key

@@ -799,11 +799,12 @@ export class TokenEngine {
 
   /**
    * claudeProjectPaths is used only for the "encoded directory name → project" attribution mapping;
-   * the global statistics cover the whole projects tree and are independent of that list.
+   * the global statistics cover the whole projects tree and are independent of that list. Null when Claude Code's
+   * registry could not be read.
    */
   async build(
     roots: ScanRoots,
-    claudeProjectPaths: string[],
+    claudeProjectPaths: string[] | null,
     /**
      * The set of merge keys for registered projects (the registry union, including stale ones — their
      * detail pages still open).
@@ -834,7 +835,7 @@ export class TokenEngine {
 
     // Encoded directory name → the project's merge key
     const encToProject = new Map<string, string>()
-    for (const p of claudeProjectPaths) encToProject.set(encodeClaudeProjectDir(p), mergeKey(p))
+    for (const p of claudeProjectPaths ?? []) encToProject.set(encodeClaudeProjectDir(p), mergeKey(p))
     const order = compareScanOrder(roots)
     // A directory the walk lists that is there but cannot be listed keeps, in the scan set, the files the store holds
     // below it, each at its place in scan order and looked at as a listed file is (token-stats, Failure modes and
@@ -847,8 +848,13 @@ export class TokenEngine {
       // are never displayed (spec A2),
       // so the read side does not admit them either — the same goes for nested transcripts, whose
       // parent sessions are all invisible
-      const admit = (agg: Admission): boolean => isRegistered(projectKey) && (nested || agg.listed)
-      slots.push(this.plan(held.get(file), file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
+      const admit = (agg: Admission): boolean => isRegistered(agg.projectKey) && (nested || agg.listed)
+      // A session is credited to the project its directory maps to at this scan (spec A2): an entry parsed under
+      // another is not held, and the file is parsed again under this one. With the registry unknown, a stored entry
+      // keeps the project it holds (spec A11)
+      const cached = held.get(file)
+      const current = claudeProjectPaths === null || (cached?.projectKey ?? '') === projectKey ? cached : undefined
+      slots.push(this.plan(current, file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
     }
     const projectsRoot = join(roots.claudeHome, 'projects')
     let dirs: string[] | null
@@ -1151,10 +1157,9 @@ export class TokenEngine {
         // Top level = a session (listable), deeper = a subagent or other nested transcript — the same
         // rule as listJsonl.
         // projectKey keeps the value the entry held: the project a Claude session is credited to comes from the
-        // registry, which only a build reads, and a build that finds the entry's signature current takes the key
-        // with it. So with no well-formed entry to take the key from, the index serves this page and is not kept
-        // (session-view C4): kept under no project it would be that hit, and the session would leave its project
-        // until its file next changed. The next build parses the file.
+        // registry, which only a build reads (token-stats A2). So with no well-formed entry to take the key from, the
+        // index serves this page and is not kept (session-view C4): kept under no project, it would be held as the
+        // session's entry by a build that cannot read the registry (token-stats A11). The next build parses the file.
         const listedBase = dirname(dirname(file)) === claudeRoot
         fresh = (await runParseJob({ kind: 'claude', file, projectKey: cached?.agg.projectKey ?? '', listed: listedBase }))?.agg ?? null
         kept = cached !== undefined
