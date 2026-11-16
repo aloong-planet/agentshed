@@ -65,6 +65,7 @@ ADR conventions for this repository:
 | [0011](0011-question-index-in-token-cache.md) | The question index rides on the token metering cache (one cache, two readings) | Accepted |
 | [0034](0034-global-search-question-corpus-in-memory.md) | Global search reads every project's question texts from main-process memory, warmed when its page opens | Accepted |
 | [0036](0036-injected-text-stays-a-question.md) | Text the agent tools write into a session as the user stays a question | Accepted |
+| [0052](0052-full-text-search-streams-in-the-engine-module.md) | A project's full-text search reads each session file a line at a time in the engine module, off the main thread, and hands back only what it shows | Accepted |
 
 ## Usage and the archive
 

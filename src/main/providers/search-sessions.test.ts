@@ -18,7 +18,8 @@ import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, writeTranscript } from '..
 //   only the matching ranges (D2);
 //   the stripped question set contains no fork replay copies by construction (03b), so nothing needs
 //   folding.
-// - Full-text mode: read whole + byte matching, with hits mapped back to their turn by offset. Hits
+// - Full-text mode: the engine module's byte matching over the stream, line by line (full-text.test.ts),
+//   with hits mapped back to their turn by offset. Hits
 //   outside the displayed range
 //   (an already-stripped fork prefix / an abandoned branch / the noise before the first question) count as
 //   folded rather than masquerading as reachable hits (D3).
