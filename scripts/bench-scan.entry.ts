@@ -42,13 +42,25 @@
 //                 parse, outside the measurement, as a scan has it ready before the page asks. What the read
 //                 took, the bytes it went through, and the main process's longest event-loop stall during it
 //                 (session-view C2: a cold rollout's read must not hold the main process).
+//   search-index  a scan of the home through the scan worker, as the app's own scan runs, into a fresh cache
+//                 directory, which then holds beside the token store each project's sessions as the app keeps them
+//                 to search by. Prints the directory, the projects by the bytes their sessions' files hold on disk,
+//                 and the project holding the largest cold rollout.
+//   search <index dir> <project path> <needle> [--full-text]
+//                 one project's session search through the app's own search code, in question mode or, with
+//                 --full-text, full-text mode, over the sessions a search-index run kept, the question indexes read
+//                 through the scan worker as the app reads them (#469). In a process of its own, so that the peak is
+//                 the search's and not a scan's: what it found, its wall time, the main process's longest event-loop
+//                 stall during it, and the main process's footprint before it and at its peak, worker threads
+//                 included, read with macOS `footprint` as token-stats::QR-004 reads memory (macOS only).
 //
 // A check that fails, and a mode that throws, exit the run non-zero, under Electron as under Node.
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
+import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { DatabaseSync } from '../src/main/providers/sqlite'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -64,8 +76,11 @@ import { startScans } from '../src/main/scan-client'
 import { UsageArchive } from '../src/main/providers/archive'
 import type { ScanRoots } from '../src/main/providers/types'
 import { isColdRollout } from '../src/main/providers/cold-rollout'
+import { searchProjectSessions } from '../src/main/providers/search-sessions'
 import { realRoots } from '../src/main/roots'
 import { compareStores, type StoreRow } from './lib/bench-store-compare.mjs'
+import type { SearchResult, SessionMeta } from '../src/shared/domain'
+import { mergeKey } from '../src/shared/path-key'
 
 const isElectron = typeof process.versions['electron'] === 'string'
 
@@ -477,6 +492,156 @@ async function rescan(flags: string[]): Promise<void> {
   }
 }
 
+/** The file a search-index run keeps the session lists in, beside the token store its scan wrote */
+const SEARCH_INDEX_FILE = 'search-sessions.json'
+
+interface SearchIndex {
+  roots: ScanRoots
+  /** Each project's sessions by its merge key, as the app keeps them to search by (perProjectStats in src/main/index.ts) */
+  projects: Record<string, { path: string; sessions: SessionMeta[] }>
+}
+
+const mb = (bytes: number, digits = 1): string => (bytes / 1e6).toFixed(digits)
+
+/** A session file's size on disk; one that can no longer be read counts nothing */
+function sizeOnDisk(file: string): number {
+  try {
+    return statSync(file).size
+  } catch {
+    return 0
+  }
+}
+
+/** The scan worker's and the parse pool's scripts, which the runner bundles */
+function workerScripts(): { scanScript: string; parseScript: string } {
+  const parseScript = process.env['AGENTSHED_BENCH_PARSE_WORKER']
+  const scanScript = process.env['AGENTSHED_BENCH_SCAN_WORKER']
+  if (!parseScript || !scanScript) throw new Error('AGENTSHED_BENCH_PARSE_WORKER and AGENTSHED_BENCH_SCAN_WORKER are not set: run through scripts/bench-scan.mjs')
+  return { scanScript, parseScript }
+}
+
+async function searchIndex(): Promise<void> {
+  const { scanScript, parseScript } = workerScripts()
+  const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-search-'))
+  const roots = realRoots()
+  const scans = startScans({ script: scanScript, parseScript, cacheDir, poolSize: poolSize(), engine: engineSource(), combination: COMBINATION })
+  const t0 = performance.now()
+  let out: ScanOutput
+  try {
+    out = await scans.scan(roots)
+  } finally {
+    await scans.close()
+  }
+  console.log(`[search-index] scan ${since(t0)} ${scans.servedOn === 'worker' ? 'on the scan worker' : 'on the main process, the scan worker having failed'}`)
+  // The stamp only matters for the archive's conflict rule, which a benchmark never exercises
+  const { stats } = settleScan(out, new UsageArchive(cacheDir, { stamp: 'bench' }))
+  const paths = new Map(out.snapshot.projects.map((p) => [mergeKey(p.path), p.path]))
+  const index: SearchIndex = { roots, projects: {} }
+  for (const [key, { sessions }] of stats) index.projects[key] = { path: paths.get(key) ?? key, sessions }
+  writeFileSync(join(cacheDir, SEARCH_INDEX_FILE), JSON.stringify(index))
+  console.log(`[search-index] index ${cacheDir}`)
+
+  const ranked = Object.values(index.projects)
+    .map(({ path, sessions }) => {
+      const sizes = sessions.map((s) => ({ file: s.file, size: sizeOnDisk(s.file), cold: isColdRollout(s.file) }))
+      const cold = sizes.filter((s) => s.cold)
+      return {
+        path,
+        sessions: sessions.length,
+        bytes: sizes.reduce((n, s) => n + s.size, 0),
+        cold: cold.length,
+        coldBytes: cold.reduce((n, s) => n + s.size, 0),
+        largestCold: cold.reduce<{ file: string; size: number } | null>((a, s) => (a === null || s.size > a.size ? s : a), null)
+      }
+    })
+    .sort((a, b) => b.bytes - a.bytes)
+  const SHOWN = 10
+  console.log(`[search-index] ${ranked.length} projects with sessions; the ${Math.min(SHOWN, ranked.length)} whose sessions' files hold the most bytes on disk:`)
+  for (const p of ranked.slice(0, SHOWN))
+    console.log(`[search-index]   ${mb(p.bytes)} MB, ${p.sessions} sessions, ${p.cold} cold rollouts (${mb(p.coldBytes)} MB)  ${p.path}`)
+  const largest = ranked.reduce<{ path: string; file: string; size: number } | null>(
+    (a, p) => (p.largestCold !== null && (a === null || p.largestCold.size > a.size) ? { path: p.path, ...p.largestCold } : a),
+    null
+  )
+  console.log(
+    largest === null
+      ? '[search-index] no project lists a cold rollout'
+      : `[search-index] the largest cold rollout, ${mb(largest.size)} MB on disk, is in ${largest.path}: ${largest.file}`
+  )
+}
+
+/** This process's footprint now and at its peak so far, in bytes, read with macOS `footprint`; its worker threads are
+ * this process's own, so their memory is in both */
+function footprint(): { now: number; peak: number } {
+  const dir = mkdtempSync(join(tmpdir(), 'agentshed-bench-footprint-'))
+  const file = join(dir, 'footprint.json')
+  try {
+    execFileSync('footprint', ['-p', String(process.pid), '-f', 'bytes', '--noCategories', '-j', file], { stdio: ['ignore', 'ignore', 'pipe'] })
+    const read = JSON.parse(readFileSync(file, 'utf8')) as {
+      processes?: Array<{ pid?: number; auxiliary?: { phys_footprint?: number; phys_footprint_peak?: number } }>
+    }
+    const own = read.processes?.find((p) => p.pid === process.pid)?.auxiliary
+    if (typeof own?.phys_footprint !== 'number' || typeof own.phys_footprint_peak !== 'number')
+      throw new Error(`footprint gave no footprint for process ${process.pid}`)
+    return { now: own.phys_footprint, peak: own.phys_footprint_peak }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+async function searchRun(args: string[]): Promise<void> {
+  if (process.platform !== 'darwin') throw new Error('search reads the footprint with macOS `footprint`, so it runs on macOS only')
+  const fullText = args.includes('--full-text')
+  const positional = args.filter((a) => a !== '--full-text')
+  if (positional.length !== 3) throw new Error('search mode needs <index dir> <project path> <needle>, and --full-text for full-text mode')
+  const [indexDir, project, needle] = positional
+  const { scanScript, parseScript } = workerScripts()
+  const index = JSON.parse(readFileSync(join(indexDir, SEARCH_INDEX_FILE), 'utf8')) as SearchIndex
+  const roots = realRoots()
+  if (JSON.stringify(index.roots) !== JSON.stringify(roots))
+    throw new Error(`${indexDir} was made for the home at ${dirname(index.roots.claudeHome)}: run search with the AGENTSHED_HOME_OVERRIDE its search-index run had`)
+  const listed = index.projects[mergeKey(project)]
+  if (!listed) throw new Error(`${indexDir} lists no sessions for ${project}`)
+  const { sessions } = listed
+  const cold = sessions.filter((s) => isColdRollout(s.file))
+  const bytes = (files: SessionMeta[]): number => files.reduce((n, s) => n + sizeOnDisk(s.file), 0)
+
+  // The token store the search-index run's scan wrote, read through the scan worker as the app reads its own
+  const scans = startScans({ script: scanScript, parseScript, cacheDir: indexDir, poolSize: poolSize(), engine: engineSource(), combination: COMBINATION })
+  try {
+    // Outside the measurement: the worker started and the store opened, as they are by the time the app is asked to
+    // search; a session changed since the index has its question index rebuilt by the search, as the app's would
+    let changed = 0
+    for (const s of sessions) if (!(await scans.isFresh(s.file))) changed++
+    console.log(
+      `[search] ${listed.path}: ${sessions.length} sessions, ${mb(bytes(sessions))} MB on disk, ${cold.length} cold rollouts (${mb(bytes(cold))} MB); ${changed} changed since the index`
+    )
+    const before = footprint()
+    let took = ''
+    let result: SearchResult | null = null
+    const stall = await longestStall(async () => {
+      const t0 = performance.now()
+      result = await searchProjectSessions(scans, roots, sessions, needle, fullText)
+      took = since(t0)
+    })
+    const after = footprint()
+    const r = result as SearchResult | null
+    if (r === null) throw new Error('the search gave no result')
+    console.log(
+      `[search] ${fullText ? 'full text' : 'questions'} ${JSON.stringify(needle)}: ${took}; ${r.totalHits} hits in ${r.sessionCount} sessions, ${r.folded} folded; main-process event-loop stall max ${stall.max} ms, p99 ${stall.p99} ms; ${scans.servedOn === 'worker' ? 'indexes read on the scan worker' : 'indexes read on the main process, the scan worker having failed'}`
+    )
+    console.log(
+      `[search] main-process footprint, worker threads included: ${mb(before.now, 0)} MB before the search; peak ${mb(after.peak, 0)} MB, ${
+        after.peak > before.peak
+          ? `reached during the search, ${mb(after.peak - before.now, 0)} MB over the footprint before it`
+          : `reached before the search began: the search's own peak is not above it`
+      }`
+    )
+  } finally {
+    await scans.close()
+  }
+}
+
 async function main(): Promise<void> {
   console.log(`[runtime] ${isElectron ? `electron ${process.versions['electron']}` : `node ${process.version}`}`)
   // The engine module on this thread, as the app's threads load it before they parse: the scans this thread runs
@@ -510,7 +675,18 @@ async function main(): Promise<void> {
     await pageRead(rest[0])
     return
   }
-  throw new Error(`unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, page <rollout>, workers, or file <path>…`)
+  if (mode === 'search-index') {
+    if (rest.length !== 0) throw new Error('search-index mode takes no arguments')
+    await searchIndex()
+    return
+  }
+  if (mode === 'search') {
+    await searchRun(rest)
+    return
+  }
+  throw new Error(
+    `unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, page <rollout>, workers, file <path>…, search-index, or search <index dir> <project path> <needle> [--full-text]`
+  )
 }
 
 async function start(): Promise<void> {
