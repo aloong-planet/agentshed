@@ -4,8 +4,9 @@
 //!
 //! - The panic seams: a test names a file, and the module panics while it parses that file — or, through the walk's
 //!   own seam, while the session walk reads that entry, or through the read's, while it reads that file's ranges for
-//!   the session page or a search — so that a test can show what a panic in the module does to a read. They are apart
-//!   so that a case of each reaches its own read: a parse never begins for an entry the walk gave up on.
+//!   the session page or a search, or searches its full text — so that a test can show what a panic in the module does
+//!   to a read. They are apart so that a case of each reaches its own read: a parse never begins for an entry the walk
+//!   gave up on.
 //! - The store-write seam: a test names a number of statements, and the next write to a token store fails once that
 //!   many have run, so that a test can show a write cut short between two of its statements (token-stats C3).
 //! - The copy seam: a test names a directory, and the module notes each directory it makes there to copy one of agy's
@@ -18,6 +19,8 @@
 //! - The line-reader seam: the benchmark reads a file through the line reader every parse reads a session file by,
 //!   and counts its lines, so that a figure about reading files is taken through the reader the app uses
 //!   (`pnpm bench:scan file`, the AGENTS.md invariant on such figures).
+//! - The lowercase seam: a test lowers a text by the rule the full-text search's snippets lower strings by, so that a
+//!   test can hold it to JavaScript's `toLowerCase` over every code point (full-text.test.ts).
 //! - The JSON string seam: a test reads a text as one string value through the reader every line is read by, so that
 //!   a test can hold what the reader makes of each character, wherever it falls in the reader's scan, to what
 //!   `JSON.parse` makes of it.
@@ -41,8 +44,8 @@ pub(crate) fn before_walk_read(file: &str) {
     let _ = file;
 }
 
-/// Called by a read of a session file's ranges before it opens the file: in a build made for tests, it panics when the
-/// file is the one the read's panic seam names, and otherwise does nothing.
+/// Called by a read of a session file's ranges, and by its full-text search, before it opens the file: in a build made
+/// for tests, it panics when the file is the one the read's panic seam names, and otherwise does nothing.
 pub(crate) fn before_range_read(file: &str) {
     #[cfg(feature = "test-seams")]
     panic_on(&NAMED_READ, file, "reading");

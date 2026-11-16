@@ -15,7 +15,8 @@
 //!   in scan order, and what the session walk takes of a file's status), `json/` (a line read by `JSON.parse`'s grammar
 //!   and with its results), `text/` (text as JavaScript holds it, and the normalisation, noise, title, fingerprint,
 //!   merge key and `Date.parse` rules over it), `question/` (the question indexer the sides share and the replay strip
-//!   of a fork's questions), `store/` (the token store, ADR-0044, which holds each session file's entry under its path
+//!   of a fork's questions), `search/` (the full-text search of one session file, read line by line against its
+//!   turns), `store/` (the token store, ADR-0044, which holds each session file's entry under its path
 //!   without reading it by side) and `group/` (the grouping and the combination, token-stats::CON-003: which files a
 //!   de-duplication key links, a group's input, its stored result and the sum of the stored results; each side's
 //!   combination is behind the trait).
@@ -40,6 +41,7 @@ mod group;
 mod json;
 mod question;
 mod read;
+mod search;
 mod seams;
 mod sides;
 mod store;

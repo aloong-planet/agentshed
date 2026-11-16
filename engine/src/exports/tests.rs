@@ -72,6 +72,12 @@ mod seam {
         seams::line_reader_seam::count(&file, cold).map_err(napi::Error::from_reason)
     }
 
+    /// Lowers `text` by the rule the full-text search's snippets lower strings by, `toLowerCase`'s (`seams.rs`)
+    #[napi(catch_unwind)]
+    pub fn seam_to_lower_case(text: napi::bindgen_prelude::Utf16String) -> napi::bindgen_prelude::Utf16String {
+        crate::text::to_lower_case(&text).into()
+    }
+
     /// Reads `text` as one string value through the reader every line is read by, and answers with the string, or null
     /// when the reader refuses the text (`seams.rs`)
     #[napi(catch_unwind)]

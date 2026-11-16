@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { loadEngineModule, threadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
-import { readRolloutWhole } from './cold-rollout'
+import { searchFullText } from './full-text'
 import { mapLimit, readRangeBuffers, readRanges } from './range-read'
 
 function withFile<T>(content: Buffer | string, fn: (file: string) => Promise<T>): Promise<T> {
@@ -211,17 +211,6 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
       const c = await readRangeBuffers(cold, [{ start: 0, end: 8 }, { start: at, end: at + 10 }])
       expect(c.bufs.map((b) => b.toString('utf8'))).toEqual(['{"i":0}\n', long.subarray(at, at + 10).toString('utf8')])
       expect(c.bytesRead).toBe(at + 10)
-      // The same stream read to its end is judged, and rejects
-      await expect(readRolloutWhole(cold)).rejects.toThrow(/could not be read as far as its ranges go/)
-    })
-  })
-
-  test('in two frames: the whole of a cold rollout reads as its plain twin (spec D2, D3: full text)', async () => {
-    await withTwins(2, async (plain, cold) => {
-      const whole = await readRolloutWhole(cold)
-      const twin = readFileSync(plain)
-      expect(whole.length).toBe(twin.length)
-      expect(whole.equals(twin)).toBe(true)
     })
   })
 
@@ -242,8 +231,9 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
 
   /**
    * Six cold reads asked at once, in this order, and the order they settle in: four of the long stream, ending a quarter,
-   * a half, three quarters and all the way into it, then ten bytes of `short` and the whole of it. A long read takes
-   * about a millisecond per copy it passes; each short one a few at most, so it settles long before the next long read.
+   * a half, three quarters and all the way into it, then ten bytes of `short` and a full-text search of it. A long read
+   * takes about a millisecond per copy it passes; each short one a few at most, so it settles long before the next long
+   * read.
    */
   async function settleOrder(short: string): Promise<string[]> {
     const settled: string[] = []
@@ -251,14 +241,14 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
     await Promise.all([
       ...[32, 64, 96, 128].map((copies) => ask(`long ${copies}`, longInto(copies))),
       ask('short range', readRangeBuffers(short, [{ start: 0, end: 10 }])),
-      ask('short whole', readRolloutWhole(short))
+      ask('short search', searchFullText('codex', short, 'x', []))
     ])
     return settled
   }
   /** The long reads take the four places; the short ones wait, and are served in the order asked when the first ends */
-  const FOUR_PLACES = ['long 32', 'short range', 'short whole', 'long 64', 'long 96', 'long 128']
+  const FOUR_PLACES = ['long 32', 'short range', 'short search', 'long 64', 'long 96', 'long 128']
 
-  test('at most four cold reads run at once on a thread, range reads and whole reads alike, the others waiting their turn in the order asked (spec session-view C2)', async () => {
+  test('at most four cold reads run at once on a thread, range reads and full-text searches alike, the others waiting their turn in the order asked (spec session-view C2)', async () => {
     await withTwins(2, async (_plain, cold) => {
       expect(await settleOrder(cold)).toEqual(FOUR_PLACES)
       // The same once places have been handed over: still four
@@ -324,17 +314,15 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
   test.each([
     ['whose stream is cut inside a line', full.subarray(0, full.length >> 1)],
     ['that is not zstd', Buffer.from('{"type":"session_meta"}\nnot zstd at all\n')]
-  ])('a cold rollout %s: a read that reaches its stream\'s end rejects, and so does reading it whole (spec token-stats B12)', async (_what, bytes) => {
+  ])('a cold rollout %s: a read that reaches its stream\'s end rejects (spec token-stats B12)', async (_what, bytes) => {
     await withCold(bytes, async (cold) => {
       await expect(readRangeBuffers(cold, [{ start: 0, end: 10 }, { start: content.length - 10, end: content.length + 1000 }])).rejects.toThrow(/could not be read as far as its ranges go/)
-      await expect(readRolloutWhole(cold)).rejects.toThrow(/could not be read as far as its ranges go/)
     })
   })
 
-  test('a missing cold rollout: refused, its ranges and its whole alike', async () => {
+  test('a missing cold rollout: its ranges are refused', async () => {
     const missing = join(tmpdir(), `rr-missing-${process.pid}.jsonl.zst`)
     await expect(readRangeBuffers(missing, [{ start: 0, end: 10 }])).rejects.toThrow(/could not be read as far as its ranges go/)
-    await expect(readRolloutWhole(missing)).rejects.toThrow(/could not be read as far as its ranges go/)
   })
 
   test('a cold rollout cut exactly at a line end reads as the shorter stream: a whole first frame, then a frame cut inside its header (spec token-stats B12)', async () => {
@@ -343,7 +331,6 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
       const c = await readRangeBuffers(cold, [{ start: 0, end: 10 }, { start: middle - 20, end: middle + 1000 }])
       expect(c.bufs.map((b) => b.toString('utf8'))).toEqual([first.subarray(0, 10).toString('utf8'), first.subarray(middle - 20).toString('utf8')])
       expect(c.bytesRead).toBe(middle)
-      expect((await readRolloutWhole(cold)).equals(first)).toBe(true)
     })
   })
 

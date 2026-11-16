@@ -9,7 +9,6 @@
 // second began inside the same read (measured 2026-11-16). Decompressing a whole file into memory for a
 // range read was rejected on measurement (the 921 MB active rollout would hold about 1.4 GB); memory
 // here follows the bytes served.
-import { readFile } from 'node:fs/promises'
 import { threadEngineModule } from '../engine-module'
 import type { ByteRange } from './range-read'
 
@@ -42,24 +41,23 @@ const waiting: Array<() => void> = []
  * B12), as does a file that cannot be read or decompressed as far as the read goes. It starts once fewer than
  * `COLD_READS_AT_ONCE` are running.
  */
-export async function readColdRanges(file: string, ranges: readonly ByteRange[]): Promise<{ bufs: Buffer[]; bytesRead: number }> {
+export function readColdRanges(file: string, ranges: readonly ByteRange[]): Promise<{ bufs: Buffer[]; bytesRead: number }> {
+  return inColdPlace(() => threadEngineModule().readRanges('codex', file, ranges))
+}
+
+/**
+ * Runs `read`, a read through a cold rollout's stream on a thread of the engine module's own, once fewer than
+ * `COLD_READS_AT_ONCE` are running: a range read, or a full-text search of a cold rollout (full-text.ts)
+ */
+export async function inColdPlace<T>(read: () => Promise<T>): Promise<T> {
   if (reading < COLD_READS_AT_ONCE) reading++
   else await new Promise<void>((go) => waiting.push(go))
   try {
-    return await threadEngineModule().readRanges('codex', file, ranges)
+    return await read()
   } finally {
     // A read that settles, or throws before it starts, hands its place to the first one waiting, or gives it up
     const next = waiting.shift()
     if (next) next()
     else reading--
   }
-}
-
-/** The whole rollout, decompressed for a cold one — the full-text search's read-whole path (spec D2, D3) */
-export async function readRolloutWhole(file: string): Promise<Buffer> {
-  if (!isColdRollout(file)) return readFile(file)
-  // One range from the stream's start past any end a file can have: the read goes to the stream's end,
-  // where the truncation rule judges it
-  const { bufs } = await readColdRanges(file, [{ start: 0, end: Number.MAX_SAFE_INTEGER }])
-  return bufs[0]
 }

@@ -62,6 +62,10 @@ impl Side for Codex {
         Some(cold::ranges(file, ranges))
     }
 
+    fn full_text(&self, file: &str, needle: &[u16], turns: &[crate::search::Turn]) -> std::result::Result<crate::search::Found, Failed> {
+        cold::full_text(file, needle, turns)
+    }
+
     /// Every rollout under Codex's data root, `roots.codexHome`, with the run's first-line readings
     fn walk(&self, js: &Js, roots: napi_value, kept: &mut Kept, held: &mut Held, _tmp_parent: Option<&str>) -> Option<Result<Walked>> {
         let mut walked = || -> Result<Walked> {

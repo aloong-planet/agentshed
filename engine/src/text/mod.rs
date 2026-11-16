@@ -75,6 +75,32 @@ pub(crate) fn find(s: &[u16], needle: &[u16], from: usize) -> Option<usize> {
     (from..=s.len() - needle.len()).find(|&i| s[i..i + needle.len()] == *needle)
 }
 
+/// `s.toLowerCase()`, by the full case mapping of the Unicode version Rust's standard library carries, the mapping
+/// JavaScript's engine takes from ICU: each run of well-formed text lowercased by `str::to_lowercase`, which applies
+/// the final sigma rule within the run, and each lone surrogate kept as it is, as `toLowerCase` keeps one. A lone
+/// surrogate is neither cased nor case-ignorable, so no final sigma's context reaches across one, and the runs it
+/// splits lower as the whole does. Whether the two mappings agree on every code point is checked against the
+/// JavaScript of the Electron the app runs on (full-text.test.ts).
+pub(crate) fn to_lower_case(s: &[u16]) -> Units {
+    if s.iter().all(|&u| u < 0x80) {
+        return s.iter().map(|&u| if (0x41..=0x5a).contains(&u) { u + 0x20 } else { u }).collect();
+    }
+    let mut out = Vec::with_capacity(s.len());
+    let mut run = String::new();
+    for c in char::decode_utf16(s.iter().copied()) {
+        match c {
+            Ok(c) => run.push(c),
+            Err(lone) => {
+                out.extend(run.to_lowercase().encode_utf16());
+                run.clear();
+                out.push(lone.unpaired_surrogate());
+            }
+        }
+    }
+    out.extend(run.to_lowercase().encode_utf16());
+    out
+}
+
 /// One human message → the real question inside it; None when the whole of it is noise. The caller takes None as "this
 /// is not a question", for the title and for whether the session is listed alike.
 ///

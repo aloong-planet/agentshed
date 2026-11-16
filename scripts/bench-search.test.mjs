@@ -8,8 +8,9 @@
 // - Project p1 holds the known hits: a Claude session with the word in its first question and in the answer to its
 //   second, and a Codex session with the word in its question, whose legacy fork replays that question (stripped, so in
 //   full-text mode the copy is folded). Beside them, a Claude session of some 52 MB with no hit, whose full-text search
-//   must raise the footprint by its size and hold the main thread: the word is all letters, so the byte search gathers
-//   every place its first letter stands, and that session holds two million of them.
+//   raised the footprint by its size and held the main thread while the search read each file whole on the main process
+//   (#469): the word is all letters, so the byte search gathered every place its first letter stands, and that session
+//   holds two million of them. Searched line by line on a thread of the engine module's own (#479), it must do neither.
 // - Project p2 holds one cold rollout, two zstd frames on disk of a few kilobytes, whose stream is 16,000,000 bytes.
 // - Project p3 holds one plain Claude session of about 1 MB: more bytes on disk than p2, fewer read by full text.
 //
@@ -142,11 +143,11 @@ test('one project\'s search, in question mode and full-text mode, reports its hi
     const fullText = searchFigures(bench(home, 'search', index, p1, 'zebra', '--full-text'))
     // The Claude answer's body hit joins them, and the fork's replayed copy is folded
     assert.deepEqual([fullText.mode, fullText.hits], ['full text', [3, 2, 1]])
-    // The large session read whole raises the peak during the search by more than half its size, and its byte search
-    // over two million candidates holds the main thread
-    assert.ok(fullText.over !== null && fullText.over >= 32, `peak ${fullText.over === null ? 'not the search\'s' : `${fullText.over} MB over`} the footprint before the search`)
-    assert.ok(fullText.ms >= 50, `wall time ${fullText.ms} ms`)
-    assert.ok(fullText.stall >= 50, `event-loop stall max ${fullText.stall} ms`)
+    // The large session is searched on a thread of the engine module's own, a line at a time: the peak during the search
+    // rises by less than half the session's size, where the whole read raised it by more, and the byte search over two
+    // million candidates no longer holds the main thread, which it held for 50 ms and more
+    assert.ok(fullText.over === null || fullText.over < 26, `peak ${fullText.over === null ? 'not the search\'s' : `${fullText.over} MB over`} the footprint before the search`)
+    assert.ok(fullText.stall < 50, `event-loop stall max ${fullText.stall} ms`)
   } finally {
     rmSync(home, { recursive: true, force: true })
     if (index) rmSync(index, { recursive: true, force: true })

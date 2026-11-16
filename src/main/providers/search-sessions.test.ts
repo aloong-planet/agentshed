@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { SessionMeta } from '@shared/domain'
 import { TokenEngine } from './token-stats'
-import { TEST_ENGINE } from '../testing/engine'
+import { threadEngineModule } from '../engine-module'
+import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
 import { searchProjectSessions } from './search-sessions'
 import type { ScanRoots } from './types'
 import { callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation } from '../testing/agy-fixture'
@@ -17,7 +18,8 @@ import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, writeTranscript } from '..
 //   only the matching ranges (D2);
 //   the stripped question set contains no fork replay copies by construction (03b), so nothing needs
 //   folding.
-// - Full-text mode: read whole + byte matching, with hits mapped back to their turn by offset. Hits
+// - Full-text mode: the engine module's byte matching over the stream, line by line (full-text.test.ts),
+//   with hits mapped back to their turn by offset. Hits
 //   outside the displayed range
 //   (an already-stripped fork prefix / an abandoned branch / the noise before the first question) count as
 //   folded rather than masquerading as reachable hits (D3).
@@ -159,7 +161,7 @@ describe('question mode (the default): searches questions only, with hits groupe
   })
 })
 
-describe('full-text mode: read whole and match, map hits to turns, fold anything outside the displayed range', () => {
+describe('full-text mode: match the whole stream, map hits to turns, fold anything outside the displayed range', () => {
   it('a body hit maps to its turn: the inBody marker plus a snippet containing the keyword', async () => {
     mkClaude('a.jsonl', [uL('question one'), aL('the answer body hides the word magicword'), uL('question two'), aL('unrelated')])
     const r = await run('magicword', true)
@@ -176,6 +178,28 @@ describe('full-text mode: read whole and match, map hits to turns, fold anything
     const r = await run('magicword', true)
     expect(r.groups[0].hits).toHaveLength(2)
     expect(r.groups[0].hits.map((h) => h.inBody).sort()).toEqual([false, true])
+  })
+
+  it('a session whose full-text search fails keeps its question hits and loses its body hits and folded count alone; the other sessions keep theirs', async () => {
+    const failing = mkClaude('a.jsonl', [aL('noise magicword before the first question'), uL('magicword in the question'), aL('magicword in the body')])
+    const spared = mkClaude('b.jsonl', [uL('another question'), aL('magicword in the body of b')])
+    const hitsOf = (r: Awaited<ReturnType<typeof run>>): Array<[string, boolean[]]> =>
+      r.groups.map((g) => [g.file, g.hits.map((h) => h.inBody)] as [string, boolean[]]).sort(([x], [y]) => x.localeCompare(y))
+    // Searched whole, the failing session has a folded hit, a question hit and a body hit
+    const whole = await run('magicword', true)
+    expect(hitsOf(whole)).toEqual([[failing, [false, true]], [spared, [true]]])
+    expect(whole.folded).toBe(1)
+    // The question search reads a plain file's ranges without the engine module: the panic reaches the full-text search alone
+    const seam = threadEngineModule() as PanicSeam
+    seam.seamPanicWhileReading(failing)
+    try {
+      const r = await run('magicword', true)
+      expect(hitsOf(r)).toEqual([[failing, [false]], [spared, [true]]])
+      expect(r.folded).toBe(0)
+      expect(r.totalHits).toBe(2)
+    } finally {
+      seam.seamPanicWhileReading(null)
+    }
   })
 
   it('hits inside an already-stripped Codex fork prefix count as folded rather than masquerading as reachable hits (D3)', async () => {
