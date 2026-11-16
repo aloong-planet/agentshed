@@ -64,6 +64,18 @@ describe('the full-text search finds hits by the byte rule of the question searc
     expect(await offsets('→€', '→€')).toEqual([0])
   })
 
+  test('a needle with line feeds hits where its bytes stand, across as many lines as it spans, hits overlapping', async () => {
+    // The third candidate ends in d; the last folds
+    expect(await offsets('xa\nb\nc\na\nb\nd\nA\nB\nC', 'a\nb\nc')).toEqual([1, 13])
+    // A line that ends in another letter starts none
+    expect(await offsets('b\nb\na\nb', 'a\nb')).toEqual([4])
+    // Beginning with its line feed: the second line feed is followed by x
+    expect(await offsets('ab\nab\nxab', '\nab')).toEqual([2])
+    // Ending with it: the last line has none
+    expect(await offsets('ab\nxab\nab', 'ab\n')).toEqual([0, 4])
+    expect(await offsets('a\na\na', 'a\na')).toEqual([0, 2])
+  })
+
   test('an all-letter needle finds every case variant in a large text', async () => {
     expect(await offsets(`${'x'.repeat(1000)}Alpha${'y'.repeat(1000)}ALPHA${'z'.repeat(1000)}alpha`, 'alpha')).toHaveLength(3)
   })
