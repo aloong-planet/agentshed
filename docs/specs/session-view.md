@@ -223,9 +223,11 @@ hands the command over; it never runs it.
   independent of total file size → milliseconds.
   **A cold rollout** (a `.jsonl.zst` file, 2026-09-10) has no byte-addressable ranges: its offsets
   are offsets in the decompressed stream, and every range read of it is one streaming decompression
-  from the start that serves the requested ranges in order and stops at the last one — opening the
-  session is one pass for all its question texts, expanding a turn is one pass to that turn, a
-  search is one pass per file. Memory follows the bytes in flight, never the file. A truncated cold
+  from the start, through every frame, by the reader the scan reads it with (token-stats B12), that
+  serves the requested ranges in order and stops at the last one — opening the session is one pass
+  for all its question texts, expanding a turn is one pass to that turn, a search is one pass per
+  file. Memory follows the bytes in flight, never the file. The decompression holds neither the main
+  process nor the thread pool its file reads share (token-stats, The engine module). A truncated cold
   rollout never reaches the session page: the scan skips it (token-stats B12).
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
   records, and Codex's subagent threads, all sit under the step that dispatched them.

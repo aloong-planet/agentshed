@@ -157,7 +157,8 @@ all of them.
   past day the archive's rule (C10) retains the earlier figure, on the own day the lower figure
   shows. Nothing marks a compacted window anywhere in the interface (G15's ruling extends to it).
 - B12 **A cold rollout is read like a plain one**: the same line reader runs over its decompressed
-  stream, so every rule above applies unchanged. Its identity is its `.jsonl.zst` path, so the day
+  stream, so every rule above applies unchanged. That stream is every zstd frame of the file in turn: a
+  stream may hold several, though every cold rollout on this machine holds one (3,001, 2026-11-16). Its identity is its `.jsonl.zst` path, so the day
   Codex compresses a rollout the plain path leaves the scan set and the compressed one enters it as
   a new file — parsed once, then cached like any other. A cold rollout that cannot be decompressed
   (not zstd, or corrupt) is skipped like an unreadable plain file, hurting only itself. "Truncated" is
@@ -1047,12 +1048,16 @@ read with macOS `footprint`.
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045, ADR-0046) is loaded by the scan worker, the parse workers and the main process,
-  and holds the session walk, the reading and parsing of every session file a scan reads, the question index
-  and the titles, the entries, the store, the grouping and the combination, and the line rules that a
-  question's text and a turn's contents are read by on the session page and in both searches. A Codex
-  session's thread name comes from Codex's session index, which is read outside the module and handed to it
-  with the rollout; the session page and both searches read a file's bytes themselves and hand them to those
-  line rules. A value in a line is built only where a rule reads it; every other value is scanned
+  and holds the session walk, the reading and parsing of every session file a scan reads, the reading of
+  the cold rollouts the session page and both searches read, the question index and the titles, the
+  entries, the store, the grouping and the combination, and the line rules that a question's text and a
+  turn's contents are read by on the session page and in both searches. A Codex session's thread name comes
+  from Codex's session index, which is read outside the module and handed to it with the rollout; the
+  session page and both searches read a plain file's bytes themselves, take a cold rollout's from the
+  module, and hand them to those line rules. The module reads a cold rollout for them by the reader and the
+  cut-short rule a scan reads it with (B12), each read on a thread of its own, so neither the thread that
+  asked nor the thread pool its file reads share waits on the decompression; the callers bound how many run
+  at once. A value in a line is built only where a rule reads it; every other value is scanned
   past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of
   ECMAScript's `JSON.parse`, with its results: a repeated key keeps its last value, a number beyond the
   double range is infinite and so no finite count, a lone surrogate escape stays that code unit, and a

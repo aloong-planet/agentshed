@@ -1,6 +1,7 @@
 //! A session file read as lines, each with its byte range: the file itself, or for a cold rollout (`.jsonl.zst`) its
 //! zstd stream decompressed as it is read (token-stats B12), its offsets then offsets in that stream (session-view C2).
-//! Or its first line alone, read no further than its line feed.
+//! Or ranges of that stream, served in one pass that stops at the last, for the session page and both searches. Or its
+//! first line alone, read no further than its line feed.
 //!
 //! A line ends at a line feed, which never occurs inside a UTF-8 character, so the bytes are split there and a line is
 //! decoded only once it is whole. A line's range runs from its first byte to after its line feed, or to the stream's end
