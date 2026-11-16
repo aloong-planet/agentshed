@@ -5,32 +5,30 @@
 ## Context
 
 The token engine (ADR-0043, ADR-0044) parsed session files in TypeScript, where `JSON.parse` built every value of
-a line though the rules never read most of the bytes (Sources). ADR-0044 left alone the cold full parse, run
-whenever a launch has neither a store to use nor a cache to import (token-stats C1, C2, C26), and it was slow and
-large (Sources). The question index, the titles and the question text and turns the session page and both
-searches show come from the same per-line rules.
+a line though the rules never read most of the bytes (Sources). ADR-0044 left alone the cold full parse (token-stats
+C1, C2, C26), and it was slow and large (Sources). The question index, the titles and the question text and turns
+the session page and both searches show come from the same per-line rules.
 
 ## Options
 
 1. **The engine, the session walk, the question-text rules and the display copy's writer in Rust, as one module** —
    chosen.
 2. Keep the engine in TypeScript, as ADR-0044 wrote it — rejected: the cold full parse stays as slow and as
-   large, and its cost is building values no rule reads.
+   large.
 3. Rust for the store, the grouping and the combination only, the parse staying in TypeScript — rejected:
    after ADR-0044 those layers are small (Sources), so the module's whole cost would buy little.
-4. Rust reads the files and hands TypeScript only the fields its rules read — rejected by the owner for
-   option 1: the fields extracted and the fields read are two lists to keep in step, and a field missed is a
-   wrong figure nobody notices.
-5. Leave the session walk and the display copy's writer in TypeScript — set aside by the owner, who put all of
-   this change's work in the module. The walk reads every Codex rollout's first line, which carries the
-   session's base instructions, and the display copy still crosses into the module once per write.
+4. Rust reads the files and hands TypeScript only the fields its rules read — rejected for option 1: the fields
+   extracted and the fields read are two lists to keep in step, and a field missed is a wrong figure nobody
+   notices.
+5. Leave the session walk and the display copy's writer in TypeScript — rejected (not recorded; ruled out when
+   scoping). The walk reads every Codex rollout's first line, which carries the session's base instructions, and
+   the display copy still crosses into the module once per write.
 
 ## Decision
 
 We adopt **option 1**.
 
-- **One module** in Rust, built from its source in this repository for each target (darwin-arm64 for releases
-  and development, linux-x64 for CI); no binary is committed.
+- **One module** in Rust, built from its source in this repository for each target; no binary is committed.
 - **What it owns** (token-stats, The engine module):
   - the session walk (the Codex, Grok and Antigravity CLI session lists and every Codex rollout's first line;
     Claude Code's sessions are listed by the planning, which stays in TypeScript), whose result goes to the
@@ -42,18 +40,16 @@ We adopt **option 1**.
   - serialising and writing the display copy, at the moments ADR-0044 sets.
 - **Reading**: a value in a line is built only where a rule reads it, and every other value is scanned past.
   Where `JSON.parse` and the module's parser would disagree on a line, the module gives JavaScript's result.
-- **Its figures are what the TypeScript engine gave**, entry for entry and field for field on the same files.
 - **The cold full parse** is held to token-stats::QR-004.
 
 ## Consequences
 
-- Positive: a prototype of the Codex parse matched the TypeScript parse field for field in under a quarter of
-  its time, about a third of its peak footprint and under a tenth of its system CPU (Sources).
+- Positive: a cold full parse in the packaged app reaches its first figures within token-stats::QR-004 (Sources).
 - Positive: the question-text rules exist once, for the scan, the session page and both searches.
 - Negative: a second language and toolchain on every target it is built for, and a library shipped outside the
-  asar archive, among the app's resources, signed and notarised with the app.
+  asar archive.
 - Negative: every accounting, question-index and title rule exists only as rewritten in Rust, so a mistake there
-  is a wrong figure nobody notices; the tests expect what the TypeScript engine gave on the same fixtures.
+  is a wrong figure nobody notices.
 - Negative: token-stats::QR-004's 600 MB leaves the module little room: the prototype alone peaked at 516–561 MB,
   and the packaged app's cold scan peaks at 470 MB (Sources), so a change that keeps more of a scan in memory at
   once can break it.
@@ -63,10 +59,11 @@ We adopt **option 1**.
 ## Sources
 
 `~/research/agentshed-memory/2026-11-13-unused-bytes.md`: a cold scan of this machine's data (7,293 files,
-19.5 GB of lines decompressed) reads 2.7% of the bytes and never 96.8%, and through the parse pool takes
-44.5–47 s and peaks at 1,330 MB. `2026-11-13-rust-codex-parse.md`: the prototype (four threads, the pool's four
-workers; all 3,052 Codex rollouts) took 9.0–9.3 s against 42.0–42.5 s, peaked at 516–561 MB against
-1,561–1,786 MB and spent 2.4 s of system CPU against 31 s. Both under the Electron 43.2.0 binary, 2026-11-13.
+19.5 GB of lines decompressed) reads 2.7% of the bytes and never 96.8%. `2026-11-13-rust-codex-parse.md`: with
+the parse in TypeScript, a cold full parse of every side on the same machine's data took 44.5–47 s through the
+parse pool and peaked at 1,330 MB; the prototype (four threads, the pool's four workers; all 3,052 Codex
+rollouts) took 9.0–9.3 s against 42.0–42.5 s, peaked at 516–561 MB against 1,561–1,786 MB and spent 2.4 s of
+system CPU against 31 s. Both under the Electron 43.2.0 binary, 2026-11-13.
 `2026-11-12-sqlite-prototype.md` (ADR-0044): those layers held 7–8 MB of live data, and summing the groups took
 14–18 ms of a 142–156 ms rescan.
 #453, 2026-11-16, packaged 3ca4011 on an empty settings directory over this machine's 7,467–7,469 files (21.0 GB of
