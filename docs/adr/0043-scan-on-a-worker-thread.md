@@ -4,113 +4,69 @@
 
 ## Context
 
-A scan ran on the main process's thread, and all of it but the parsing of changed files was
-synchronous: the walk of the session trees, the registry and component reads, the cache lookups, the
-aggregation and the cache write. While it ran the window took no input. Measured on 2026-11-11 under
-Electron 43.2.0 on a machine with 3047 Codex rollouts, 4060 Claude session files and a 45.7 MB token
-cache: a rescan with nothing to parse held the main process for one stretch of 1.4 s, and the first
-after the machine had been idle took 4.3 s.
-
-Scans start on a five-minute timer and when the window gains focus (token-stats E1), so the freeze fell
-most often at the moment the user came back to the window. A click on a project during it drew the
-page's saved copy, days old for a project last opened days ago, and the request for its current detail
-waited behind the scan.
-
-The token cache also carries every session's question index (ADR-0011), so the session page, the
-project search and global search read it between scans.
+Most of a scan is synchronous work, from the walk of the session trees to the aggregation and the cache write, so on
+the main process's thread it holds the window (Sources). Scans start on a timer and when the window gains focus
+(token-stats E1), so the freeze falls as the user comes back, and a project's current detail waits behind it. The
+token cache also holds every session's question index (ADR-0011), which the session page and both searches read
+between scans.
 
 ## Options
 
-1. **One worker thread that lives for the run owns the token engine and its cache and runs the whole
-   scan; the main process sends it requests** — chosen.
-2. Leave the scan on the main process and only cut its cost, by keeping each rollout's first-line
-   reading between scans and writing the cache only when it changed — rejected as the whole answer. What
-   is left on the measured data is still one stretch of about 0.3 s: listing and stat-ing seven thousand
-   files, the aggregation, the archive merge and the display save. It grows with the data. Both cuts are
-   made as well (token-stats::QR-002), because they shorten every scan wherever it runs.
-3. Leave the engine on the main process and make its work yield: asynchronous file calls in every
-   reader, pauses inside the aggregation — rejected. The aggregation is one pass whose order is part of
-   its result, since cross-file de-duplication keeps the first copy of a message, and the cache write
-   serialises the whole cache in one call. Each would have to be rewritten in pieces, in the code where a
-   mistake is a wrong figure nobody notices.
-4. Give the parse workers the walk and the planning as well, and leave the engine on the main process —
-   rejected. The aggregation and the cache write need every file's cached result, and those live where
-   the engine lives. Sending them to a worker at each scan costs the main process more than the
-   aggregation does.
-5. A separate process instead of a thread — rejected. The requests and results would cross the same kind
-   of boundary, with a process to start, watch and stop as well. What a process adds is isolation from a
-   crash, and a worker that fails already hands its work back (below).
-6. Change when a scan runs and leave where it runs: no scan on focus, scans only while the window is in
-   the background, or a watch on the data directories — rejected. Focus is when the figures are about to
-   be read, so it is the right moment to refresh them. A scan that still blocks would freeze a window
-   left open on a second display, or the next timer tick while the window is in use. A watch starts scans
-   more often and shortens none.
+1. **One worker thread, kept for the run, owns the token engine and its store and runs the whole scan; the main
+   process sends it requests** — chosen.
+2. Only cut the scan's cost on the main process, keeping the rollouts' first-line readings between scans and writing
+   only what changed — rejected as the whole answer: one stretch of about 0.3 s is left and grows with the data,
+   though both cuts are made as well (token-stats::QR-002).
+3. Make the engine's work yield on the main process — rejected: the aggregation is one pass whose order is part of its
+   result, since de-duplication keeps a message's first copy, so cutting it into pieces risks a wrong figure nobody
+   notices.
+4. Give the parse workers the walk and the planning, the engine staying on the main process — rejected: the
+   aggregation and the cache write need every file's cached result, and sending those to a worker each scan costs
+   more than the aggregation does.
+5. A separate process — rejected: the same boundary plus a process to start, watch and stop, for a crash isolation
+   that a failing worker already gives by handing its work back.
+6. Change when a scan runs: no scan on focus, scans only in the background, or a watch on the data directories —
+   rejected: focus is when the figures are about to be read, a scan that still blocks would freeze a window in use,
+   and a watch starts more scans and shortens none.
 
 ## Decision
 
 We adopt **option 1**.
 
-- **The scan worker owns the token engine**: the cache in memory, the cache file, and every step that
-  reads the agents' data for a scan — the session walk, the registries and components, the plan, the
-  parses, the aggregation and the cache write. It starts the parse workers itself.
-- **The main process keeps what belongs to the window and to the archive**: the triggers and the rule
-  that one scan runs at a time, the archive merge and its failure notice (ADR-0039), deriving the figures
-  from the effective rows, validating the snapshot, saving the display copy and sending the result to
-  the window.
-- **Reading the question index is a request to the worker**: the session page, the project search,
-  global search and the freshness check ask it, and it answers between the steps of a running scan.
-- **A worker that will not start, fails or exits hands the work back**: the requests in flight and every
-  later one in that run are served on the main process, by an engine that reads the cache file, as a
-  build without the worker would. It is logged once. The figures are the same and the window is held
-  again for as long as a scan's synchronous work takes. A request the worker's engine fails is a failed
-  request, as it was on the main process, and not a failed worker.
-- **Quitting asks the worker to stop and waits for it**, so it stops between steps and no cache write is
-  cut short. The display copy is flushed after the worker has stopped: a scan it finishes before it
-  takes the stop still hands over its result, and that result's save has to be on disk before the exit.
-  What the worker has not answered when it stops stays unanswered; the quit runs no failure path.
+- **The scan worker owns the token engine and its store (ADR-0044)**, with every step that reads the agents' data
+  for a scan, the parse workers included; the main process keeps the triggers, one scan at a time, the archive merge
+  and its failure notice (ADR-0039), the figures, the display copy and the window (token-stats, Where a scan runs).
+- **A question-index read is a request to the worker**, answered between the steps of a running scan.
+- **A worker that will not start, fails or exits hands the work back**: every request of the run from then on, those
+  in flight included, is served on the main process by a scanner opening the store as the worker left it, with the
+  same figures, logged once. A request the worker's engine fails is a failed request, not a failed worker.
+- **Quitting stops the worker between steps and waits for it**, so no store write is cut short, and then flushes the
+  display copy, so a scan finished before the stop is saved before the exit; what the worker has not answered stays
+  unanswered.
 
 ## Consequences
 
-- Positive: a rescan no longer freezes the window. The target on the measured data is no stretch over
-  100 ms on the main process during a rescan (token-stats::QR-001), against 1.4 s and more.
-- Positive: the cache, 45.7 MB on disk and several times that in memory, leaves the main process's heap.
-- Negative: every use of the engine is a message to another thread. A session page's index read waits
-  for the worker to reach the end of the step it is in, which is under a second on the measured data, and
-  a scan's results are copied across the boundary, about 2 MB each time.
-- Negative: a scan can run in two places, the worker and the main process after a failure, and the two
-  have to stay the same code.
-- Negative: worker threads now start worker threads. Measured on 2026-11-11 under Electron 43.2.0: a
-  worker starts its own worker and the runtime's SQLite module loads in the inner one.
-- Negative: between the worker finishing a scan and the main process taking its result, a question-index
-  read is answered from the new cache while the read allow-list is still the previous scan's. A session
-  file that left the scan set in that scan is refused as not indexed for those milliseconds, where the
-  main process's own cache still served it.
-- Negative: what ran after a scan only because the scan held the main process's thread now runs during
-  it. The quit's flush of the display copy was one (postmortem
-  `2026-11-12-the-quits-flush-relied-on-the-scan-holding-the-thread`).
-- Negative, not solved here: saving the display copy still clones and serialises it on the main process
-  at every scan and every page read, about 70 ms in two stretches on the measured data.
-
-  > **Amended (2026-11-15)**: #421 took this cost off the scans and page reads made while the window has
-  > focus. The main process no longer clones and serialises the display copy at every scan and every page
-  > read. It keeps each change as it arrives, and the engine module serialises and writes the copy only
-  > while the window has no focus, and at quit (ADR-0044, ADR-0045). The cost is not gone: handing the copy
-  > to the module holds the main thread for one stretch per write, measured in ADR-0046's Consequences.
-
-- Neutral: the triggers and their intervals do not change, and the archive stays where it was.
-
-**Evidence closed (accepted 2026-11-12)**: measured on the built change with the scan benchmark under
-Electron 43.2.0, on this machine's data (about 7,000 session files, a 46.8 MB token cache). In six rescans
-through the scan worker the main process's longest stall was 24 to 33 ms: two that left the cache file as
-it was, three that wrote it (the home was in use while it was measured), and one with a session file
-grown between the two scans. The same two scans on the main process held it for 283 ms with nothing to
-parse, and for 476 ms with one file parsed and the cache written. A locally packaged build ran its first
-scan over the same data to its cache write, 46.8 MB, with no worker or parse-pool failure logged.
+- Positive: a rescan no longer freezes the window, held to no stretch over 100 ms on the main process
+  (token-stats::QR-001), and the engine and its store leave the main thread's heap.
+- Negative: every use of the engine is a message to another thread: an index read waits for the step under way, under
+  a second on the measured data, and each scan's results, about 2 MB, are copied across.
+- Negative: after a worker failure a scan runs on the main process and holds it again, and the two have to stay the
+  same code.
+- Negative: worker threads start worker threads, the parse workers.
+- Negative: between a scan's end on the worker and the main process taking its result, an index read is answered from
+  the new store against the previous scan's allow-list, so a file that just left the scan set is refused meanwhile.
+- Negative: what ran after a scan only because the scan held the main thread now runs during it, so an order like the
+  quit's flush after the worker's stop must be kept on purpose.
+- Negative: handing the display copy to the engine module holds the main thread for one stretch per write, which
+  ADR-0044 confines to when the window has no focus (ADR-0046).
+- Neutral: the triggers, their intervals and the archive do not depend on where a scan runs.
 
 ## Sources
 
-The measurements of 2026-11-11 quoted above, taken with the scan benchmark and a phase-by-phase probe
-under Electron (the AGENTS.md invariant on main-process figures); a CPU profile of a rescan with nothing
-to parse, in which reading every rollout's first line took 830 ms, the cache write 250 ms and the
-aggregation 120 ms of 1444 ms. ADR-0011, ADR-0039; token-stats E1, token-stats::QR-001,
-token-stats::QR-002; project-detail T2 and T3.
+Measured on 2026-11-11 under Electron 43.2.0, with 3,047 Codex rollouts, 4,060 Claude session files and a 45.7 MB
+token cache: a rescan with nothing to parse held the main process for 1.4 s, 4.3 s after the machine had been idle,
+of which the rollouts' first lines took 830 ms, the cache write 250 ms and the aggregation 120 ms; saving the display
+copy took about 70 ms in two stretches; a nested worker loaded the runtime's SQLite module. On the built change
+(about 7,000 session files), six rescans through the worker held the main process for at most 24–33 ms, against
+283–476 ms for the same scans on it. Postmortem `2026-11-12-the-quits-flush-relied-on-the-scan-holding-the-thread`;
+project-detail T2 and T3.
