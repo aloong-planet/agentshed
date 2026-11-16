@@ -629,9 +629,14 @@ test('session page (Codex, paginated format): the session is listed by its compl
   await close(l)
 })
 
-test('session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one', async () => {
-  // Codex compresses a rollout untouched for seven days and deletes the plain file (spec token-stats B12,
-  // session-view C2): the fixture is the paginated rollout of the previous case, zstd-compressed.
+/**
+ * A usage home with a cold rollout (spec token-stats B12, session-view C2): Codex compresses a rollout untouched for
+ * seven days and deletes the plain file. The rollout is the paginated one of the case above, written in two zstd
+ * frames with its second question in the second. A zstd stream may hold any number of frames; every cold rollout on
+ * this machine holds one (2026-11-16, 3001 files), so the second frame is built, not sampled. Under Electron 43
+ * (Node 24) Node's own decoder stopped at the first frame whenever the second began inside the same read.
+ */
+function mkTwoFrameColdHome(): string {
   const home = mkUsageHome()
   const proj = join(home, 'demo-proj')
   const sdir = join(home, '.codex', 'sessions', '2026', '07', '30')
@@ -639,23 +644,53 @@ test('session page (Codex, cold rollout): a .jsonl.zst session is listed, counte
   const at = localDayOffset(1).toISOString()
   const item = (type: string, extra: Record<string, unknown>): string =>
     JSON.stringify({ timestamp: at, ordinal: 9, type: 'event_msg', payload: { type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type, id: 'i', ...extra }, started_at_ms: 1, completed_at_ms: 1 } })
-  const lines = [
-    JSON.stringify({ timestamp: at, ordinal: 0, type: 'session_meta', payload: { cwd: proj, id: '019fb0c0-3333-7af3-af7d-8505cedf1ec2' } }),
-    JSON.stringify({ timestamp: at, ordinal: 1, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
-    item('UserMessage', { content: [{ type: 'text', text: 'Cold question', text_elements: [] }] }),
-    JSON.stringify({ timestamp: at, ordinal: 3, type: 'token_usage_record', payload: { thread_id: 't', turn_id: 'u', session_id: 't', root_turn_id: 'u', response_id: 'resp_cold', usage: { input_tokens: 500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, reasoning_output_tokens: 0, total_tokens: 550 }, turn_token_usage: { input_tokens: 500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, reasoning_output_tokens: 0, total_tokens: 550 }, thread_token_usage: { input_tokens: 500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, reasoning_output_tokens: 0, total_tokens: 550 } } }),
-    item('AgentMessage', { content: [{ type: 'Text', text: 'Answered from the compressed file.' }], phase: 'final_answer' })
-  ]
-  writeFileSync(join(sdir, 'rollout-019fb0c0-3333-7af3-af7d-8505cedf1ec2.jsonl.zst'), zstdCompressSync(Buffer.from(lines.join('\n') + '\n')))
-  const l = await launch(undefined, home)
+  const usage = (ordinal: number, response: string): string =>
+    JSON.stringify({ timestamp: at, ordinal, type: 'token_usage_record', payload: { thread_id: 't', turn_id: 'u', session_id: 't', root_turn_id: 'u', response_id: response, usage: { input_tokens: 500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, reasoning_output_tokens: 0, total_tokens: 550 }, turn_token_usage: { input_tokens: 500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, reasoning_output_tokens: 0, total_tokens: 550 }, thread_token_usage: { input_tokens: 500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, reasoning_output_tokens: 0, total_tokens: 550 } } })
+  const frame = (lines: string[]): Buffer => zstdCompressSync(Buffer.from(lines.join('\n') + '\n'))
+  writeFileSync(join(sdir, 'rollout-019fb0c0-3333-7af3-af7d-8505cedf1ec2.jsonl.zst'), Buffer.concat([
+    frame([
+      JSON.stringify({ timestamp: at, ordinal: 0, type: 'session_meta', payload: { cwd: proj, id: '019fb0c0-3333-7af3-af7d-8505cedf1ec2' } }),
+      JSON.stringify({ timestamp: at, ordinal: 1, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+      item('UserMessage', { content: [{ type: 'text', text: 'Cold question', text_elements: [] }] }),
+      usage(3, 'resp_cold'),
+      item('AgentMessage', { content: [{ type: 'Text', text: 'Answered from the compressed file.' }], phase: 'final_answer' })
+    ]),
+    frame([
+      item('UserMessage', { content: [{ type: 'text', text: 'Question in the second frame', text_elements: [] }] }),
+      usage(6, 'resp_cold_2'),
+      item('AgentMessage', { content: [{ type: 'Text', text: 'Answered past the frame boundary.' }], phase: 'final_answer' })
+    ])
+  ]))
+  return home
+}
+
+test('session page (Codex, cold rollout): a .jsonl.zst session is listed, opens and expands like a plain one, through every frame', async () => {
+  const l = await launch(undefined, mkTwoFrameColdHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await win.locator('.pane-body .card .se', { hasText: 'Cold question' }).click()
-  await win.locator('.qlist .q', { hasText: 'Cold question' }).click()
-  await expect(win.locator('.turn .ans')).toContainText('Answered from the compressed file.')
+  // Both questions are indexed (the scan reads every frame), so a missing text below is the page's read
+  await expect(win.locator('.qlist .q')).toHaveCount(2)
+  await expect(win.locator('.qlist .q', { hasText: 'Cold question' })).toHaveCount(1)
+  await win.locator('.qlist .q', { hasText: 'Question in the second frame' }).click()
+  await expect(win.locator('.turn .ans')).toContainText('Answered past the frame boundary.')
   await expect(win.locator('.turn .unknown')).toHaveCount(0)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('session search (Codex, cold rollout): full text reads a .jsonl.zst session through every frame', async () => {
+  const l = await launch(undefined, mkTwoFrameColdHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.sbar input').fill('past the frame boundary')
+  await win.locator('.scope span', { hasText: 'Full text' }).click()
+  await expect(win.locator('.grp .hit')).toHaveCount(1)
+  await expect(win.locator('.grp .hit .bd')).toHaveText('Body')
   expect(l.errors).toEqual([])
   await close(l)
 })

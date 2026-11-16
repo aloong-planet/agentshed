@@ -33,6 +33,12 @@
 //                 the two scans, so the second has a file to parse and a store to write. It writes to
 //                 the scanned home, so it runs only when AGENTSHED_HOME_OVERRIDE points at a copy of
 //                 one, and starts from an empty store: the app's store knows none of the copy's paths.
+//   page <rollout> the read the session page makes as it opens a Codex rollout (getSessionPage in
+//                 src/main/index.ts): every question's range in one call, each question's text then taken by
+//                 the engine module's line rule. The question index comes first, from the engine module's
+//                 parse, outside the measurement, as a scan has it ready before the page asks. What the read
+//                 took, the bytes it went through, and the main process's longest event-loop stall during it
+//                 (session-view C2: a cold rollout's read must not hold the main process).
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
@@ -44,7 +50,8 @@ import { basename, dirname, join } from 'node:path'
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
 import { availableParallelism } from 'node:os'
 import { scan, type SessionWalk } from '../src/main/providers/scan'
-import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
+import { TokenEngine, runParseJob, type ParseRunner } from '../src/main/providers/token-stats'
+import { readSessionRanges } from '../src/main/source-identity'
 import { ParsePool } from '../src/main/parse-pool'
 import { ENGINE_BUILD, loadEngineModule, threadEngineModule, type EngineModule, type EngineSource } from '../src/main/engine-module'
 import { Scanner, settleScan, type ScanOutput } from '../src/main/providers/scanner'
@@ -225,6 +232,36 @@ async function longestStall(work: () => Promise<void>): Promise<{ max: string; p
   await tick()
   lag.disable()
   return { max: (lag.max / 1e6).toFixed(0), p99: (lag.percentile(99) / 1e6).toFixed(0) }
+}
+
+async function pageRead(file: string): Promise<void> {
+  const engine = threadEngineModule()
+  const meta = engine.sessionMeta('codex', file)
+  if (meta === null) throw new Error(`${file} gives no Codex session`)
+  let t0 = performance.now()
+  const parsed = await runParseJob({ kind: 'codex', file, projectKey: '', meta, threadName: undefined })
+  if (parsed === null || parsed.agg.kind !== 'codex') throw new Error(`${file} could not be parsed`)
+  const questions = parsed.agg.questions
+  console.log(`[page] ${(statSync(file).size / 1e6).toFixed(1)} MB on disk, ${questions.length} questions indexed in ${since(t0)}  ${file}`)
+  let took = ''
+  let bytes = 0
+  let unread = 0
+  // The process's resident memory, sampled while the read runs: one that grew with the bytes gone through, rather than
+  // with those in flight, would show here as gigabytes
+  const before = process.memoryUsage.rss()
+  let peak = before
+  const sampler = setInterval(() => (peak = Math.max(peak, process.memoryUsage.rss())), 10)
+  const stall = await longestStall(async () => {
+    t0 = performance.now()
+    const { texts, bytesRead } = await readSessionRanges(file, questions.map((r) => ({ start: r[0], end: r[1] })))
+    unread = texts.filter((t) => engine.questionText('codex', t) === null).length
+    bytes = bytesRead
+    took = since(t0)
+  })
+  clearInterval(sampler)
+  console.log(
+    `[page] read ${took}, through ${(bytes / 1e6).toFixed(1)} MB, ${unread} questions unreadable; main-process event-loop stall max ${stall.max} ms, p99 ${stall.p99} ms; resident memory ${(before / 1e6).toFixed(0)} MB before, ${(peak / 1e6).toFixed(0)} MB at most during the read`
+  )
 }
 
 /** The session walk, by the engine module, with no memory behind it */
@@ -459,7 +496,12 @@ async function main(): Promise<void> {
     await rescan(rest)
     return
   }
-  throw new Error(`unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, workers, or file <path>…`)
+  if (mode === 'page') {
+    if (rest.length !== 1) throw new Error('page mode needs one rollout path')
+    await pageRead(rest[0])
+    return
+  }
+  throw new Error(`unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, page <rollout>, workers, or file <path>…`)
 }
 
 async function start(): Promise<void> {

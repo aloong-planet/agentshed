@@ -7,7 +7,7 @@
 The token engine (ADR-0043, ADR-0044) parsed session files in TypeScript, where `JSON.parse` built every value of
 a line though the rules never read most of the bytes (Sources). ADR-0044 left alone the cold full parse (token-stats
 C1, C2, C26), and it was slow and large (Sources). The question index, the titles and the question text and turns
-the session page and both searches show come from the same per-line rules.
+the session page and both searches show come from the same per-line rules over the same files.
 
 ## Options
 
@@ -23,6 +23,8 @@ the session page and both searches show come from the same per-line rules.
 5. Leave the session walk and the display copy's writer in TypeScript — rejected (not recorded; ruled out when
    scoping). The walk reads every Codex rollout's first line, which carries the session's base instructions, and
    the display copy still crosses into the module once per write.
+6. Keep the session page's and both searches' cold rollout reads on Node's zstd decoder — rejected: under
+   Electron 43 it misses later frames (Sources), and the cut-short rule would exist twice.
 
 ## Decision
 
@@ -33,7 +35,8 @@ We adopt **option 1**.
   - the session walk (the Codex, Grok and Antigravity CLI session lists and every Codex rollout's first line;
     Claude Code's sessions are listed by the planning, which stays in TypeScript), whose result goes to the
     project scan, which stays in TypeScript;
-  - reading and parsing every session file a scan reads, cold rollouts decompressed;
+  - reading and parsing every session file a scan reads, cold rollouts decompressed, and reading the cold ones the
+    session page and both searches read;
   - each side's per-line rules, the question index and the titles;
   - each file's entry, the store (ADR-0044), the grouping and the combination;
   - the line rules that the session page and both searches read a question's text and a turn's contents by;
@@ -45,16 +48,17 @@ We adopt **option 1**.
 ## Consequences
 
 - Positive: a cold full parse in the packaged app reaches its first figures within token-stats::QR-004 (Sources).
-- Positive: the question-text rules exist once, for the scan, the session page and both searches.
+- Positive: the question-text rules and the cold rollout reader exist once, for the scan, the session page and both
+  searches.
 - Negative: a second language and toolchain on every target it is built for, and a library shipped outside the
   asar archive.
 - Negative: every accounting, question-index and title rule exists only as rewritten in Rust, so a mistake there
   is a wrong figure nobody notices.
+- Negative: a slip in the cold rollout reader reaches the scan, the session page and both searches at once.
 - Negative: token-stats::QR-004's 600 MB leaves the module little room: the prototype alone peaked at 516–561 MB,
   and the packaged app's cold scan peaks at 470 MB (Sources), so a change that keeps more of a scan in memory at
   once can break it.
-- Neutral: on the Codex data the prototype matched `JSON.parse` on every line and no line failed to parse; the
-  decision still requires JavaScript's result where the two would differ (token-stats, The engine module).
+- Neutral: on the Codex data the prototype matched `JSON.parse` on every line and no line failed to parse.
 
 ## Sources
 
@@ -62,9 +66,10 @@ We adopt **option 1**.
 19.5 GB of lines decompressed) reads 2.7% of the bytes and never 96.8%. `2026-11-13-rust-codex-parse.md`: with
 the parse in TypeScript, a cold full parse of every side on the same machine's data took 44.5–47 s through the
 parse pool and peaked at 1,330 MB; the prototype (four threads, the pool's four workers; all 3,052 Codex
-rollouts) took 9.0–9.3 s against 42.0–42.5 s, peaked at 516–561 MB against 1,561–1,786 MB and spent 2.4 s of
-system CPU against 31 s. Both under the Electron 43.2.0 binary, 2026-11-13.
+rollouts) took 9.0–9.3 s against 42.0–42.5 s, peaked at 516–561 MB against 1,561–1,786 MB. Both under the Electron 43.2.0 binary, 2026-11-13.
 `2026-11-12-sqlite-prototype.md` (ADR-0044): those layers held 7–8 MB of live data, and summing the groups took
 14–18 ms of a 142–156 ms rescan.
 #453, 2026-11-16, packaged 3ca4011 on an empty settings directory over this machine's 7,467–7,469 files (21.0 GB of
 lines decompressed), 1-minute load at most 3.0: first figures at 12.38–12.88 s, peak 470 MB.
+#468, 2026-11-16, Electron 43.2.0 as Node (Node 24.18.0): a second frame starting in the read where the first ends is
+not decoded (Node 26.13.0 decodes it); all 3,001 cold rollouts here held one frame.

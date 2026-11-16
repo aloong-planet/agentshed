@@ -223,10 +223,16 @@ hands the command over; it never runs it.
   independent of total file size → milliseconds.
   **A cold rollout** (a `.jsonl.zst` file, 2026-09-10) has no byte-addressable ranges: its offsets
   are offsets in the decompressed stream, and every range read of it is one streaming decompression
-  from the start that serves the requested ranges in order and stops at the last one — opening the
-  session is one pass for all its question texts, expanding a turn is one pass to that turn, a
-  search is one pass per file. Memory follows the bytes in flight, never the file. A truncated cold
-  rollout never reaches the session page: the scan skips it (token-stats B12).
+  from the start, through every frame, by the reader the scan reads it with (token-stats B12), that
+  serves the requested ranges in order and stops at the last one — opening the session is one pass
+  for all its question texts, expanding a turn is one pass to that turn, a search is one pass per
+  file. Memory follows the bytes in flight, never the file. The decompression holds neither the main
+  process nor the thread pool its file reads share (token-stats, The engine module), and four reads at
+  most decompress at once for the main process, D2b's cap, whichever surface asks them: every expanded
+  turn reads its own, all of them again on a revisit, and a search goes on after the next one starts;
+  the others wait their turn in the order asked. The scan worker, which reads a cold rollout only for a
+  stripped fork's title (B2), counts four of its own. A truncated cold rollout never reaches the session
+  page: the scan skips it (token-stats B12).
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
   records, and Codex's subagent threads, all sit under the step that dispatched them.
   **"Sitting under the dispatching step" cannot be reliably achieved on either side** — all four
@@ -358,7 +364,8 @@ hands the command over; it never runs it.
   list, search, on-demand fetch) all go through it; the token scan is not bound by it, its files being parsed
   on a pool of worker threads ([token-stats](token-stats.md), Implementation Decisions, Where parsing runs).
   🔬 **4 is a provisional value, not a conclusion.** It equals Node's default libuv thread pool size,
-  and going beyond 4 requires raising `UV_THREADPOOL_SIZE` at the same time to be realised; raising
+  and going beyond 4 requires raising `UV_THREADPOOL_SIZE` at the same time to be realised, for the
+  reads of plain files (a cold rollout's decompression runs on threads of its own, C2); raising
   it to 16 measured **no faster and slightly slower** on a warm cache (the bottleneck is memory
   bandwidth, not the thread pool).
   ⚠️ The real benefit lies in **cold-disk queue depth**, which has not been measured. Do not touch

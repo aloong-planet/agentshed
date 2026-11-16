@@ -2,12 +2,16 @@
 // days into `<name>.jsonl.zst` and deletes the plain file (its compression.rs, read 2026-09-09). The same
 // session, the same contents, the same identity rules — but readable only as a stream from its start:
 // every byte offset the question index records for it is an offset in the decompressed stream, and
-// every range read is one streaming decompression that stops at the last range (range-read.ts).
-// Decompressing a whole file into memory was rejected on measurement (the 921 MB active rollout would
-// hold about 1.4 GB); memory here follows the bytes served.
-import { createReadStream } from 'node:fs'
+// every range read is one pass through that stream that stops at the last range (range-read.ts).
+// The engine module reads it (ADR-0045), by the reader the scan reads a cold rollout with and under the
+// same truncation rule, each read on a thread of its own and four at most at once on the thread that
+// asks. Node's own zstd decoder is not used: under Electron 43 (Node 24) it stopped at a stream's first frame whenever the
+// second began inside the same read (measured 2026-11-16). Decompressing a whole file into memory for a
+// range read was rejected on measurement (the 921 MB active rollout would hold about 1.4 GB); memory
+// here follows the bytes served.
 import { readFile } from 'node:fs/promises'
-import { createZstdDecompress } from 'node:zlib'
+import { threadEngineModule } from '../engine-module'
+import type { ByteRange } from './range-read'
 
 const COLD_SUFFIX = '.jsonl.zst'
 
@@ -16,57 +20,46 @@ export function isColdRollout(file: string): boolean {
 }
 
 /**
- * The rollout's bytes as a chunk stream: the file itself for a plain rollout, the decompressed stream for
- * a cold one. A read error on the compressed file is forwarded into the decompression stream, so the
- * consumer's `for await` throws instead of hanging; a corrupt or truncated stream throws from the
- * decoder the same way. `start` skips the first bytes of a plain rollout (a resumed parse); a cold one
- * is only ever read whole, so a non-zero start there is a caller error.
+ * How many cold reads run at once on a thread, whatever asks them there, each read on a thread of the engine module's
+ * own; the others wait their turn, in the order asked. Every expanded turn of a page asks its own read, all of them
+ * again on a revisit, and a search is not cancelled by the next one, so no caller can bound them alone. Four is spec
+ * session-view D2b's cap, and the parallelism Node's decoder had on the four threads of libuv's pool. The count is this
+ * module's, so each thread that loads it keeps its own: the main process's thread reads for the session page and both
+ * searches, the scan worker only for a stripped fork's title (token-stats.ts), a line each and rare, so the process
+ * runs four in practice and eight at most.
  */
-export function rolloutBytes(file: string, highWaterMark: number, start = 0): AsyncIterable<Buffer> {
-  if (start !== 0 && isColdRollout(file)) throw new Error('a cold rollout is read from its start only')
-  const raw = createReadStream(file, { highWaterMark, start })
-  if (!isColdRollout(file)) return raw
-  // The decoder's output chunk is the consumer's read chunk: at its 16 KB default the line reader paid the
-  // per-chunk Electron cost the 1 MB read chunk exists to avoid (measured 2026-09-11, ten cold rollouts of
-  // 525 MB: 9.0 s against 1.0 s plain; see the figure recorded in spec token-stats B12 for the size below)
-  const dec = createZstdDecompress({ chunkSize: highWaterMark })
-  raw.on('error', (e) => dec.destroy(e))
-  // A consumer that stops early (a range read that reached its last range) destroys the decoder; the
-  // file stream must not stay open behind it
-  dec.on('close', () => raw.destroy())
-  return completeOrThrow(raw.pipe(dec))
-}
+const COLD_READS_AT_ONCE = 4
+let reading = 0
+const waiting: Array<() => void> = []
 
 /**
- * The same rule the engine module applies when it parses a cold rollout (engine/src/sides/codex/parse.rs): a change
- * here is made there too.
- *
- * Node's zstd decoder reports nothing for a truncated frame (measured 2026-09-11 on Node 24: a stream
- * cut in half decodes its first half and ends cleanly, synchronously and as a stream alike), so
- * truncation is judged by the recorder's own mechanism instead: every rollout line ends with a newline
- * and a cold rollout is never mid-write (Codex compresses only what was untouched for seven days), so a
- * decompressed stream that does not end with a newline is cut short (spec token-stats B12). Measured
- * over every rollout on this machine, all 1391 end with a newline, the 935 cold ones included. A cut
- * landing exactly on a line end escapes this and reads as a shorter session — self-harm, that file only.
+ * A cold rollout has no byte-addressable ranges (spec session-view C2): one pass through its
+ * decompressed stream serves every requested range, in input order, and stops once the last range's
+ * end has passed — so opening a session is one pass for all its question texts, expanding a turn one
+ * pass to that turn, a search one pass per file. Memory follows the bytes served; `bytesRead` is the
+ * decompressed length traversed, which a test can hold against the last range's end as the evidence of
+ * a single pass. A read that reaches the stream's end and finds it cut short rejects (spec token-stats
+ * B12), as does a file that cannot be read or decompressed as far as the read goes. It starts once fewer than
+ * `COLD_READS_AT_ONCE` are running.
  */
-async function* completeOrThrow(stream: AsyncIterable<Buffer>): AsyncIterable<Buffer> {
-  let last = -1
-  for await (const chunk of stream) {
-    if (chunk.length > 0) last = chunk[chunk.length - 1]
-    yield chunk
+export async function readColdRanges(file: string, ranges: readonly ByteRange[]): Promise<{ bufs: Buffer[]; bytesRead: number }> {
+  if (reading < COLD_READS_AT_ONCE) reading++
+  else await new Promise<void>((go) => waiting.push(go))
+  try {
+    return await threadEngineModule().readRanges('codex', file, ranges)
+  } finally {
+    // A read that settles, or throws before it starts, hands its place to the first one waiting, or gives it up
+    const next = waiting.shift()
+    if (next) next()
+    else reading--
   }
-  if (last !== -1 && last !== 0x0a) throw new Error('cold rollout truncated: the decompressed stream does not end with a newline')
 }
 
-/** The whole rollout, decompressed for a cold one — the full-text search's read-whole path (spec D3) */
+/** The whole rollout, decompressed for a cold one — the full-text search's read-whole path (spec D2, D3) */
 export async function readRolloutWhole(file: string): Promise<Buffer> {
   if (!isColdRollout(file)) return readFile(file)
-  const parts: Buffer[] = []
-  for await (const chunk of rolloutBytes(file, WHOLE_CHUNK)) parts.push(chunk)
-  return Buffer.concat(parts)
+  // One range from the stream's start past any end a file can have: the read goes to the stream's end,
+  // where the truncation rule judges it
+  const { bufs } = await readColdRanges(file, [{ start: 0, end: Number.MAX_SAFE_INTEGER }])
+  return bufs[0]
 }
-
-/** The read chunk for streaming reads of a cold rollout; the line reader's own size is its own choice */
-export const COLD_CHUNK_BYTES = 1024 * 1024
-const WHOLE_CHUNK = COLD_CHUNK_BYTES
-
