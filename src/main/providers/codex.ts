@@ -1,7 +1,7 @@
 // Reading Codex-side data: the registry (the [projects."<path>"] sections in config.toml).
 // No TOML dependency: only the paths in the section headers are needed, extracted line by line with a
 // regex; the section contents (trust_level) are not consumed at present.
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { RegistryResult } from './claude'
 import { isAbsent } from './read-utils'
@@ -34,7 +34,8 @@ export interface CodexSessionMeta {
 }
 
 export function readCodexRegistry(codexHome: string): RegistryResult {
-  if (!existsSync(codexHome)) return { detected: false, paths: [] }
+  // Only a root that is really not there: one behind a directory it cannot enter is unreadable (agents-overview A3)
+  if (isAbsent(codexHome)) return { detected: false, paths: [] }
   const configFile = join(codexHome, 'config.toml')
   if (isAbsent(configFile)) return { detected: true, paths: [] }
   // Section headers are looked for line by line and nothing is parsed, so the one failure here is the read

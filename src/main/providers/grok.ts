@@ -2,7 +2,7 @@
 // The registry is the per-project record Grok keeps on a user decision — the folders table in
 // trusted_folders.toml — never the session store's directory names (which decode losslessly and are
 // therefore tempting, but would make "registered" mean something different on this side).
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
 import type { RegistryResult } from './claude'
@@ -23,7 +23,8 @@ export interface GrokSessionMeta {
 }
 
 export function readGrokRegistry(grokHome: string): RegistryResult {
-  if (!existsSync(grokHome)) return { detected: false, paths: [] }
+  // Only a root that is really not there: one behind a directory it cannot enter is unreadable (agents-overview A3)
+  if (isAbsent(grokHome)) return { detected: false, paths: [] }
   const ledger = join(grokHome, 'trusted_folders.toml')
   // A9: an installed side that has registered nothing is a normal state, not a failure
   if (isAbsent(ledger)) return { detected: true, paths: [] }
