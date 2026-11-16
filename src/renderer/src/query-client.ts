@@ -26,7 +26,7 @@ export function createQueryClient(): QueryClient {
  * results among them, which also retries a failed search (global-search REQ-003/AC-02, REQ-004/AC-01).
  */
 export function invalidateOnSnapshot(client: QueryClient): void {
-  for (const name of ['projectDetail', 'sessionPage', 'turnContent', 'artifactContent', 'skillContent', 'skillFiles', 'globalSearch']) {
+  for (const name of ['projectDetail', 'sessionPage', 'turnContent', 'memoryContent', 'skillContent', 'skillFiles', 'globalSearch']) {
     void client.invalidateQueries({ queryKey: [name] })
   }
 }

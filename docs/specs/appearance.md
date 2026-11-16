@@ -141,7 +141,7 @@ platform's.
     paper feel, but the hue is not bound to the theme)  
 - C3 Local styles with hard-coded hex in `theme.css` → pulled into tokens, so no colour is missed when
   the theme changes.  
-- C4 Rendered markdown (skill preview, memory / instructions / artifact readers): links follow the
+- C4 Rendered markdown (skill preview, memory and instructions previews): links follow the
   `--accent` family; headings follow the heading ladder of sequence E — h1/h2 in the accent family,
   h3 in `--md-h3`, and h4–h6 **deliberately step out of the accent family** into `--text-2` so depth
   reads as receding rather than as ever-smaller accent text.
@@ -165,8 +165,8 @@ platform's.
 - D6 Entering and leaving settings does not lose the `selected` project.
 
 **Sequence E: rendered-markdown heading typography** (the user opens any markdown preview — a
-SKILL.md in the file drawer, a memory file, a CLAUDE.md preview, the artifact reader — and scans the
-document by its headings)
+SKILL.md in the file drawer, a memory file, a CLAUDE.md preview — and scans the document by its
+headings)
 
 - E1 **One ladder, every surface**: all rendered-markdown surfaces use the same h1–h6 ladder,
   em-based against the surface's body size (both current surfaces set 12.5px, so px below are the
@@ -213,9 +213,9 @@ document by its headings)
 - E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
   elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
   and the AGENTS.md link-interception invariant).
-- E9 A container that hosts a rendered-markdown body (the artifact reader overlay today) must not
-  restyle the headings inside the rendered body with its own chrome-heading rules; the same applies
-  to any future container that starts hosting markdown.
+- E9 A container that hosts a rendered-markdown body (the file drawer, say) must not restyle the
+  headings inside the rendered body with its own chrome-heading rules; the same applies to any
+  container that starts hosting markdown.
 
 **Sequence F: scrollbars** (the user scrolls any list, page, drawer or code block, with a mouse or a
 trackpad, in light or dark)

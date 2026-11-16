@@ -129,7 +129,7 @@ both pages and on every side whose plugins expand)
   skills-view sequence C and [skills-view::REQ-003](skills-view.md).
 - H3 Clicking a file opens a drawer to read it: markdown previews by default (frontmatter as a
   key-value card) and can be switched to raw, non-markdown shows monospace raw only; truncation
-  follows the artifact channel — the same rules as skills-view sequences C/D, including the
+  and rendering follow the same rules as skills-view sequences C/D, including the
   **capability dimension of imported content** (a single sanitising exit, links never navigating the
   whole window, image paths confined to the package).
 - H4 **Readability is independent of enablement** (ADR-0010): a disabled plugin's rows are clickable

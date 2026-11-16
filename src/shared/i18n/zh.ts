@@ -397,7 +397,6 @@ export const zh = {
     tabMcp: 'MCP',
     tabSessions: '会话',
     tabInstructions: '指令',
-    tabArts: '产物',
     byModel: '按模型拆分',
     recentSessions: '最近会话',
     noSessions: '该项目暂无会话',
@@ -452,11 +451,7 @@ export const zh = {
     noMcp: '项目无 .mcp.json;全局 MCP 见 Agents 页',
     mcpEnabled: '已启用',
     mcpDisabled: '已禁用',
-    mcpDefault: '默认',
-    filterAll: '全部',
-    noArtifacts: '未按约定沉淀(非八步项目;不视为错误)',
-    noArtifactsOfType: '该类无产物',
-    openInBrowser: 'HTML → 浏览器'
+    mcpDefault: '默认'
   },
   /** The project list (ticket 08) */
   projects: {
@@ -526,8 +521,8 @@ export const zh = {
     sessionNotWhitelisted: '会话路径不在白名单,请先打开项目详情',
     engineNotReady: '扫描引擎未就绪,请稍候再试',
     turnOutOfRange: (i: number, total: number) => `轮次下标越界:${i}(共 ${total} 轮)`,
-    artifactNotWhitelisted: '产物路径不在白名单',
-    artifactUnreadable: '该文件已不可读(被移动或删除?)',
+    memoryFileNotWhitelisted: '记忆文件路径不在白名单',
+    memoryFileUnreadable: '该文件已不可读(被移动或删除?)',
     pluginRootNotRegistered: '插件包根不在登记集,请等待扫描完成',
     projectNotOpened: '项目未打开,请先打开项目详情',
     skillPackageUnavailable: 'skill 包不可用或不在允许根下',

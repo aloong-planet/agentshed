@@ -214,7 +214,7 @@ for (const [what, file, text] of [
   })
 }
 
-// A page's notes file (prototype-pages::CON-003) holds the annotations the page's header used to, so it is exempt
+// A page's notes file (the prototype skill's notes-file rule) holds the annotations the page's header used to, so it is exempt
 // like the page; the page beside it is English, so the count rising to 9 is the notes file's line
 test('Chinese stays permitted in a notes file beside its page', () => {
   const result = check({

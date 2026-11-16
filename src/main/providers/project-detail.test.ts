@@ -113,6 +113,24 @@ describe('project-level MCP', () => {
   })
 })
 
+describe('the project\'s documents', () => {
+  it('a project keeping ADRs, specs, postmortems, prototypes and CONTEXT.md under docs/ gets a detail naming none of them', () => {
+    // The layout of this repository's own docs/ (2026-11-17): CONTEXT.md, adr/, specs/, postmortems/, prototypes/<module>/
+    const docs = join(proj, 'docs')
+    const files = ['CONTEXT.md', 'adr/0001-marker-adr.md', 'specs/marker-spec.md', 'postmortems/2026-01-01-marker.md',
+      'prototypes/marker-module/marker-page.html', 'prototypes/marker-module/marker-page.notes.md']
+    for (const f of files) {
+      mkdirSync(join(docs, f, '..'), { recursive: true })
+      writeFileSync(join(docs, f), '# marker\n')
+    }
+    writeFileSync(join(proj, 'CONTEXT.md'), '# marker-root-context\n')
+    const payload = JSON.stringify(readProjectDetail(roots(), proj))
+    expect(payload).not.toContain(docs)
+    expect(payload).not.toContain(join(proj, 'CONTEXT.md'))
+    expect(payload).not.toContain('marker')
+  })
+})
+
 // project-detail::REQ-002/AC-02: two entries, the project's own CLAUDE.md and AGENTS.md, each with its path
 describe('the Instructions section (project-detail::REQ-002/AC-02)', () => {
   it('the project CLAUDE.md and AGENTS.md, each with its path; no settings summary, even with a project key carrying settings', () => {

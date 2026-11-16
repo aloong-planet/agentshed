@@ -4,8 +4,8 @@
 // falling back to index.html looks like "returning to the home page", and the packaged build leaves a
 // blank screen; both lose all app state.
 // So a rendered link never gets its default behaviour, and this function decides its destination; the
-// allow-list (files the detail page listed)
-// is the only basis for admitting an internal link, the same invariant as the artifact read channel.
+// allow-list (files the page showing the document listed)
+// is the only basis for admitting an internal link, the same invariant as the main process's read allow-list.
 import { ERR, type ErrorCode } from '@shared/errors'
 export type MdLinkTarget =
   | { kind: 'internal'; file: string }

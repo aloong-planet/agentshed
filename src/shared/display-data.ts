@@ -10,11 +10,11 @@ export type SavedRead =
   | { kind: 'projectDetail'; path: string; data: ProjectDetail }
   | { kind: 'sessionPage'; file: string; data: SessionPage }
   | { kind: 'turnContent'; file: string; i: number; revision: string; ms: number; data: SessionTurn }
-  | { kind: 'artifactContent' | 'skillContent'; file: string; data: CappedText }
+  | { kind: 'memoryContent' | 'skillContent'; file: string; data: CappedText }
   | { kind: 'skillFiles'; args: ListSkillFilesArgs; data: ListSkillFilesResult }
 
 export interface ReadRegistrations {
-  artifacts: string[]
+  memoryFiles: string[]
   skillFiles: string[]
   projects: string[]
   pluginRoots: string[]
@@ -58,7 +58,7 @@ export function validSavedRead(v: unknown): v is SavedRead {
       (v.data as SessionPage).file === v.file && path((v.data as SessionPage).revision) && (v.data as SessionPage).questions.every(q => path(q.revision))
     case 'turnContent': return path(v.file) && number(v.i) && Number.isInteger(v.i) &&
       path(v.revision) && number(v.ms) && validateSessionTurn(v.data).ok
-    case 'artifactContent': case 'skillContent': return path(v.file) && capped(v.data)
+    case 'memoryContent': case 'skillContent': return path(v.file) && capped(v.data)
     case 'skillFiles': {
       const a = v.args, d = v.data
       return object(a) && AGENT_SIDES.has(String(a.side)) && path(a.name) &&
@@ -78,7 +78,8 @@ const pathed = (file: string, saved: unknown): unknown => (saved === null ? null
  * read replaces it (ADR-0028's upgrade case; spec memory-view, Implementation Decisions). One saved before its
  * instruction entries carried their paths — `configs` held the two files' contents and a settings summary —
  * restores with each file at its place in the project, the only place the project's own two files live, and
- * without the summary (project-detail::REQ-002/AC-02). A session page saved
+ * without the summary (project-detail::REQ-002/AC-02). One saved while the page listed the project's documents
+ * restores without the list (ADR-0051). A session page saved
  * before the session ID was kept restores with the ID its path holds — Claude Code's and Grok's — and none for
  * Codex, whose ID is in its record, until the live page replaces it (session-view::CON-003). Only an absent field
  * is filled in: a present but malformed one is left for validation to drop. */
@@ -98,6 +99,10 @@ function upgradeSavedRead(v: unknown): unknown {
         claudeMd: pathed(`${dir}CLAUDE.md`, data.configs.claudeMd),
         agentsMd: pathed(`${dir}AGENTS.md`, data.configs.agentsMd)
       } }
+    }
+    if ('artifacts' in data) {
+      data = { ...data }
+      delete data.artifacts
     }
     return data === v.data ? v : { ...v, data }
   }
@@ -195,6 +200,34 @@ function upgradeSavedSnapshot(v: unknown, paths: SavedInstructionPaths | undefin
   return { ...v, global }
 }
 
+/** A read saved before the project's document list went: a memory file's or a document's, under one kind */
+const savedBeforeDocumentsWent = (v: unknown): v is { kind: 'artifactContent'; file: string; data: CappedText } =>
+  object(v) && v.kind === 'artifactContent' && path(v.file) && capped(v.data)
+
+/** The files the restored snapshot and project pages list as memory files, and those the scan's registration held
+ * before the document list went: it only ever held the snapshot's memory files, so they stay listed when the snapshot
+ * is dropped. A path registered or read before the document list went is a memory file's only when listed here:
+ * anything else, a document included, is not kept (ADR-0051). */
+function listedMemoryFiles(snapshot: Snapshot | null, reads: SavedRead[], registrations: unknown): Set<string> {
+  const files = new Set(snapshot?.global.memory.flatMap(m => m.files.map(f => f.file)) ?? [])
+  for (const r of reads) if (r.kind === 'projectDetail') {
+    for (const t of r.data.memory.topics) files.add(t.file)
+    if (r.data.memory.mainFile !== null) files.add(r.data.memory.mainFile.file)
+  }
+  if (Array.isArray(registrations)) for (const r of registrations)
+    if (object(r) && r.owner === 'scan' && strings(r.artifacts)) for (const f of r.artifacts) files.add(f)
+  return files
+}
+
+/** A saved registration, rebuilt with exactly the current keys. One saved before the document list went holds the
+ * memory files and the documents it admitted under `artifacts`, and keeps the listed memory files among them. */
+function savedRegistration(r: unknown, memory: Set<string>): RegistrationScope[] {
+  if (!object(r) || !path(r.owner) || !strings(r.skillFiles) || !strings(r.projects) || !strings(r.pluginRoots)) return []
+  const memoryFiles = 'memoryFiles' in r ? r.memoryFiles : strings(r.artifacts) ? r.artifacts.filter(f => memory.has(f)) : null
+  if (!strings(memoryFiles)) return []
+  return [{ owner: r.owner, memoryFiles, skillFiles: r.skillFiles, projects: r.projects, pluginRoots: r.pluginRoots }]
+}
+
 /** Independent entries degrade independently; corrupt envelope metadata is handled by the store. `paths` is the
  * main process's, for restoring a snapshot saved before instruction entries carried their paths. */
 export function parseDisplayData(v: unknown, paths?: SavedInstructionPaths): DisplayData {
@@ -208,9 +241,11 @@ export function parseDisplayData(v: unknown, paths?: SavedInstructionPaths): Dis
   if (Array.isArray(v.stats)) d.stats = v.stats.filter((p): p is [string, ProjectStats] =>
     Array.isArray(p) && p.length === 2 && path(p[0]) && finiteNumbers(p[1]) && validateProjectStats(p[1]).ok && displayStatsValid(p[1]))
   if (strings(v.sessionFiles)) d.sessionFiles = v.sessionFiles
-  if (Array.isArray(v.registrations)) d.registrations = v.registrations.filter((r): r is RegistrationScope =>
-    object(r) && path(r.owner) && ['artifacts', 'skillFiles', 'projects', 'pluginRoots'].every(k => strings(r[k])))
-  if (Array.isArray(v.reads)) d.reads = v.reads.map(upgradeSavedRead).filter(validSavedRead)
+  const reads = Array.isArray(v.reads) ? v.reads.map(upgradeSavedRead) : []
+  d.reads = reads.filter(validSavedRead)
+  const memory = listedMemoryFiles(d.snapshot, d.reads, v.registrations)
+  if (Array.isArray(v.registrations)) d.registrations = v.registrations.flatMap(r => savedRegistration(r, memory))
+  for (const r of reads) if (savedBeforeDocumentsWent(r) && memory.has(r.file)) d.reads.push({ kind: 'memoryContent', file: r.file, data: r.data })
   // An answer only belongs to the saved question mapping that produced it.
   const pages = new Map(d.reads.flatMap(r => r.kind === 'sessionPage' ? [[r.file, r.data] as const] : []))
   d.reads = d.reads.filter(r => r.kind !== 'turnContent' ||
@@ -221,7 +256,7 @@ export function parseDisplayData(v: unknown, paths?: SavedInstructionPaths): Dis
 export function savedReadKey(r: SavedRead): string {
   switch (r.kind) {
     case 'projectDetail': return JSON.stringify([r.kind, r.path])
-    case 'sessionPage': case 'artifactContent': case 'skillContent': return JSON.stringify([r.kind, r.file])
+    case 'sessionPage': case 'memoryContent': case 'skillContent': return JSON.stringify([r.kind, r.file])
     case 'turnContent': return JSON.stringify([r.kind, r.file, r.revision, r.i])
     case 'skillFiles': return JSON.stringify([r.kind, r.args.side, r.args.name, r.args.scope, r.args.projectPath ?? null, r.args.pluginRoot ?? null])
   }

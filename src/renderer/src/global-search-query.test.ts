@@ -43,7 +43,7 @@ describe('invalidateOnSnapshot (every automatic rescan)', () => {
 
   it('still refreshes every page payload it refreshed before', async () => {
     const client = createQueryClient()
-    const names = ['projectDetail', 'sessionPage', 'turnContent', 'artifactContent', 'skillContent', 'skillFiles']
+    const names = ['projectDetail', 'sessionPage', 'turnContent', 'memoryContent', 'skillContent', 'skillFiles']
     const ws = await Promise.all(names.map((n) => watched(client, [n, 'x'], () => Promise.resolve({ ok: true }))))
     invalidateOnSnapshot(client)
     for (const w of ws) await expect.poll(w.calls).toBe(2)

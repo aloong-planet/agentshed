@@ -168,8 +168,8 @@ already legible is noise.
   Previously read successful file bodies and expanded file listings restore immediately when
   reopened, including after a restart; failed refreshes keep that successful content. This follows
   project-detail::REQ-001/AC-05 and ADR-0028, without prefetching unread bodies or restoring expansion.
-- C7 Single-file read truncation follows the artifact read channel (an over-long file gets a
-  truncation footnote rather than crashing).
+- C7 A single file's read is capped as a memory file's is ([memory-view](memory-view.md)): an over-long
+  file gets a truncation footnote rather than crashing.
 - C8 Esc and clicking the overlay both close the drawer. Exact registrations may be restored
   across restarts under agents-overview::CON-002: source targets are rechecked and a current
   authoritative enumeration replaces its corresponding registrations. Closing a drawer does not
@@ -188,8 +188,8 @@ already legible is noise.
   by default; non-markdown shows **no toggle**, monospace raw only.
 - D1b Frontmatter: a YAML header wrapped in `---` is split in the preview into a card of key-value
   rows (about 12.5px), with the body rendered after it.
-- D2 The preview goes through the same **markdown → sanitised HTML** pipeline as the artifact reader
-  (a single production exit; starting another unsanitised `dangerouslySetInnerHTML` is forbidden). That
+- D2 The preview goes through the one **markdown → sanitised HTML** pipeline every rendered-markdown
+  surface uses (a single production exit; starting another unsanitised `dangerouslySetInnerHTML` is forbidden). That
   pipeline keeps `[[…]]` references and non-element `<name>` placeholders as written text
   ([memory-view::CON-002](memory-view.md)).
 - D3 **Links** in the preview: the in-app / file allow-list and the destination of external http(s)

@@ -69,17 +69,6 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
     join(home, '.codex', 'agents', 'code-reviewer.toml'),
     'name = "code-reviewer"\ndescription = "Review code"\ndeveloper_instructions = "You are a reviewer."\n'
   )
-  // The demo project's artifact (docs/CONTEXT.md) carries the full heading ladder for the reader overlay
-  mkdirSync(join(demo, 'docs'), { recursive: true })
-  writeFileSync(
-    join(demo, 'docs', 'CONTEXT.md'),
-    '# Context ladder\n\nIntro.\n\n## Ladder h2\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
-  )
-  // The demo project's CLAUDE.md links to a listed artifact and to a path outside the list
-  writeFileSync(
-    join(demo, 'CLAUDE.md'),
-    '# Demo instructions\n\ninstructions link probe: [open context](./docs/CONTEXT.md) · [missing doc](./docs/none.md)\n'
-  )
   // The demo project's memory
   const enc = demo.replace(/[^A-Za-z0-9]/g, '-')
   mkdirSync(join(home, '.claude', 'projects', enc, 'memory'), { recursive: true })
@@ -395,29 +384,6 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(win.locator('.toast')).toBeVisible()
   expect(win.url()).toBe(urlBefore)
 
-  // (6b) The artifact reader overlay is a markdown surface too, so it takes the same ladder — the
-  //      regression this pins: the overlay's own title rule (.reader h2) used to out-cascade the
-  //      ladder for every h2 inside the rendered body (same specificity, later in the file)
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
-  await win.locator('.it.ai', { hasText: 'Context ladder' }).click()
-  await expect(win.locator('.reader .md')).toContainText('Ladder h2')
-  expectLadder(await headingLadder(win, '.reader .md'), 'artifact reader')
-  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
-
-  // (6d) Instructions-card links (project detail): a relative link to a listed artifact opens the same
-  //      reader overlay; anything outside the artifact list keeps the explicit notice; neither
-  //      navigates the window
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
-  await expect(win.locator('.pane-body .md')).toContainText('instructions link probe')
-  await win.locator('.pane-body .md a', { hasText: 'open context' }).click()
-  await expect(win.locator('.reader .md')).toContainText('Ladder h2')
-  expect(win.url(), 'artifact link from the Instructions card must not navigate').toBe(urlBefore)
-  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
-  await expect(win.locator('.toast')).toHaveCount(0) // wait out any earlier toast, so the next one is fresh
-  await win.locator('.pane-body .md a', { hasText: 'missing doc' }).click()
-  await expect(win.locator('.toast')).toBeVisible()
-  expect(win.url(), 'out-of-scope Instructions link must not navigate').toBe(urlBefore)
-
   // (6e) A main file written after the scan: only the project's own read registration admits it, so a topic's
   //      link to it opens it rather than reporting a refused read (memory-view, Implementation Decisions)
   writeFileSync(join(lateMem, 'MEMORY.md'), '# Late main\n\nLate main body\n')
@@ -510,7 +476,43 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
 
   // The one expected handler error: reading vanish.md, removed after the scan on purpose (AC-07). Electron logs
   // every rejected IPC handler to stderr; anything else is still a failure.
-  expect(errors.filter((e) => !(e.includes("handler for 'agentshed:read-artifact'") && e.includes(ERR.artifactUnreadable)))).toEqual([])
+  expect(errors.filter((e) => !(e.includes("handler for 'agentshed:read-memory-file'") && e.includes(ERR.memoryFileUnreadable)))).toEqual([])
+  await closeApp(app)
+  rmSync(userData, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true })
+})
+
+// memory-view::US-001/AC-07 and the query layer (ADR-0028): while the drawer's file is read, "Loading…" shows inside the
+// frame with the bar and switch already in place; a file already read opens again at once, a cached visit
+test('reopening a memory file (query layer): the first open shows Loading… while it is read, the reopen is instant', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-memorycache-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const memDir = join(home, '.claude', 'projects', proj.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
+  mkdirSync(memDir, { recursive: true })
+  writeFileSync(join(memDir, 'slow.md'), '---\nname: slow\n---\n\nSlow topic body\n')
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-memorycache-data-'))
+  const { app, errors } = await startApp({ userData, home, env: { AGENTSHED_FETCH_DELAY_MS: '600' } })
+  const win = await app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
+  await win.locator('.it.row-btn', { hasText: 'slow.md' }).click()
+  const fd = win.locator('.file-drawer')
+  await expect(fd.locator('.md-preview-body')).toHaveText('Loading…', { timeout: 300 })
+  await expect(fd.locator('.md-preview-name')).toHaveText('slow.md')
+  await expect(fd.locator('.md-preview-seg')).toBeVisible()
+  await expect(fd.locator('.md-preview-body')).toContainText('Slow topic body')
+  await expect(fd.locator('.md-fm')).toContainText('slow')
+
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await expect(fd).toHaveCount(0)
+  // Reopened: the file was read, so its body is there well inside the 600ms the channel holds a read
+  await win.locator('.it.row-btn', { hasText: 'slow.md' }).click()
+  await expect(fd.locator('.md-preview-body')).toContainText('Slow topic body', { timeout: 200 })
+
+  expect(errors).toEqual([])
   await closeApp(app)
   rmSync(userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })

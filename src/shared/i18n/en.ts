@@ -301,7 +301,6 @@ export const en: Locale = {
     tabMcp: 'MCP',
     tabSessions: 'Sessions',
     tabInstructions: 'Instructions',
-    tabArts: 'Artifacts',
     byModel: 'By model',
     recentSessions: 'Recent sessions',
     noSessions: 'No sessions in this project yet',
@@ -356,11 +355,7 @@ export const en: Locale = {
     noMcp: 'This project has no .mcp.json; see the Agents page for global MCP',
     mcpEnabled: 'Enabled',
     mcpDisabled: 'Disabled',
-    mcpDefault: 'Default',
-    filterAll: 'All',
-    noArtifacts: 'Nothing captured under the convention (not an eight-step project; not an error)',
-    noArtifactsOfType: 'No artifacts of this type',
-    openInBrowser: 'HTML → browser'
+    mcpDefault: 'Default'
   },
   projects: {
     searchPlaceholder: 'Search projects…',
@@ -424,8 +419,8 @@ export const en: Locale = {
     engineNotReady: 'The scan engine is not ready yet — please try again shortly',
     turnOutOfRange: (i, total) =>
       `Turn index out of range: ${i} (of ${total} ${plural('en', total, { one: 'turn', other: 'turns' })})`,
-    artifactNotWhitelisted: 'This artifact path is not in the allowed list',
-    artifactUnreadable: 'This file can no longer be read (moved or deleted?)',
+    memoryFileNotWhitelisted: 'This memory file path is not in the allowed list',
+    memoryFileUnreadable: 'This file can no longer be read (moved or deleted?)',
     pluginRootNotRegistered:
       'This plugin package root is not registered — wait for the scan to finish',
     projectNotOpened: 'The project is not open — open the project details first',

@@ -181,7 +181,7 @@ describe('sessionReadTarget (the session read allow-list judgement)', () => {
 
 // session-view::US-001/AC-07, AC-10 and R1: showing a session's record file in Finder admits exactly what reading
 // it admits (the exact-path session allow-list, judged first), and then only a file still there; an entry restored
-// before the first scan only while it is a regular file, as a restored artifact is opened. Real temp files and a
+// before the first scan only while it is a regular file, as a restored memory file is read. Real temp files and a
 // symlink stand in for the disk; the judge is given the same probes the handler gives it.
 import { sessionRevealTarget } from './security'
 import { regularTarget } from './source-identity'

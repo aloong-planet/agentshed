@@ -191,7 +191,7 @@ export function sessionReadTarget(
  * Showing a session's record file in Finder (session-view::US-001/AC-07, AC-10): admitted exactly as reading it
  * is — the exact-path allow-list above, judged before the disk is touched — and then only while the file is still
  * there, because Finder's own call reports no failure. An entry restored before the first scan is shown only while
- * it is a regular file, as a restored artifact is opened. The probes are the handler's; tests pass the same ones
+ * it is a regular file, as a restored memory file is read. The probes are the handler's; tests pass the same ones
  * against real files.
  */
 export function sessionRevealTarget(

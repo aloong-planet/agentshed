@@ -246,8 +246,6 @@ test('a project behind a directory that cannot be entered keeps a normal row and
   await expect(win.locator('.pane-body')).toHaveText('Project level · .mcp.json (enabled/disabled comes from project settings)This project has no .mcp.json; see the Agents page for global MCP')
   await tab('Memory').click()
   await expect(win.locator('.pane-body')).toHaveText('No automatic memory in this project yet')
-  await tab('Artifacts').click()
-  await expect(win.locator('.pane-body')).toHaveText('AllCONTEXT.mdADRspecsprototypesfeaturespostmortemsNothing captured under the convention (not an eight-step project; not an error)')
 
   // Its resume command carries no warning: session-view::US-001/AC-08's is for a directory that is gone
   await tab('Sessions').click()

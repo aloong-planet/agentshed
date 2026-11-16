@@ -1,7 +1,7 @@
 // Domain model: the single type source shared by both ends of the IPC boundary (learned from
 // Transfer's message model drift).
 // Terminology follows CONTEXT.md: project / stale project / agent side / global library /
-// project install / artifact / activity / session.
+// project install / activity / session.
 
 import type { AppError } from './errors'
 import type { Provider } from './provider'
@@ -660,33 +660,6 @@ export interface ProjectMcpEntry {
   enabled: boolean | null
 }
 
-/**
- * The six artifact types (the eight-step process's convention; tickets under .scratch are working
- * documents and do not count).
- * The order is a contract: the top-down derivation chain — terminology and invariants →
- * architectural decisions → requirements and boundaries → UI form → current capabilities →
- * after-the-fact lessons. The reader and the UI both take this constant rather than each ordering
- * it themselves.
- */
-export const ARTIFACT_ORDER = [
-  'context',
-  'adr',
-  'specs',
-  'prototypes',
-  'features',
-  'postmortems'
-] as const
-
-export type ArtifactType = (typeof ARTIFACT_ORDER)[number]
-
-export interface ArtifactEntry {
-  type: ArtifactType
-  title: string
-  /** Absolute path (reading and opening externally are validated against the main process's allow-list) */
-  file: string
-  mtimeMs: number
-}
-
 /** Project detail (fetched over IPC on demand; it does not enter the overview snapshot) */
 export interface ProjectDetail {
   path: string
@@ -704,8 +677,6 @@ export interface ProjectDetail {
   /** The overview tab's data: the project's figures from the last completed scan, attached by the main process; null
    * when that scan holds none for it. The page draws the window's own over them (project-detail::REQ-005) */
   stats: ProjectStats | null
-  /** Artifacts (six types, most recent first) */
-  artifacts: ArtifactEntry[]
 }
 
 /** The overview snapshot: one scan's complete output (extended incrementally by tickets 02–07) */

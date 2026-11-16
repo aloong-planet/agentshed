@@ -14,7 +14,7 @@ export const CMD = {
   /** Fetch project detail on demand */
   getProjectDetail: 'agentshed:get-project-detail',
   /** The session page: the question index + text read live by range (ticket 04; a range-read path, not
-   * reusing the artifact read-whole one) */
+   * reusing the memory file read-whole one) */
   getSessionPage: 'agentshed:get-session-page',
   /** Whether the session index matches disk (ticket 05; a read-only predicate the renderer uses to show
    * the rebuilding interim state) */
@@ -31,11 +31,9 @@ export const CMD = {
   /** Global search: the listed sessions of every project whose questions contain a keyword, every hit; waits
    * for a reading under way */
   globalSearch: 'agentshed:global-search',
-  /** Read an artifact's markdown (only files the detail page listed, validated against the main process's
-   * allow-list) */
-  readArtifact: 'agentshed:read-artifact',
-  /** Open an artifact externally (prototypes HTML → the system default application; the same allow-list) */
-  openArtifact: 'agentshed:open-artifact',
+  /** Read a memory file whole (only files the scan or a project page listed as memory files, validated against the
+   * main process's allow-list) */
+  readMemoryFile: 'agentshed:read-memory-file',
   /** Write text to the system clipboard via the main process (the renderer's navigator.clipboard is
    * unreliable under automation, and the OS clipboard is main-process territory anyway) */
   copyText: 'agentshed:copy-text',
