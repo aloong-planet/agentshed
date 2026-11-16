@@ -14,6 +14,8 @@
 //                                      one costs, and how long it holds the main process
 //   pnpm bench:scan rescan --main      the same two scans on the main process, with the files parsed
 //   pnpm bench:scan rescan --grow      with a session file grown between the two (a copy of a home only)
+//   pnpm bench:scan page <rollout>     the read the session page makes as it opens a Codex rollout, and how
+//                                      long it holds the main process
 //
 // AGENTSHED_HOME_OVERRIDE points the scan at a fixture home, exactly as it does for the app.
 import { build } from 'esbuild'
