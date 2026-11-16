@@ -228,6 +228,30 @@ describe('Claude Code\'s registry at each scan', () => {
     // replaced kept (token-stats C10, C13)
     expect(archive.superseded().map((s) => [s.side, s.stamp, s.replacedBy])).toEqual([['claude', 'test', 'test'], ['claude', 'test', 'test']])
   })
+
+  // A past (day, side) the usage archive retains keeps its figures in the projects its rows were written under (A2,
+  // C10): here the day's total falls under one stamp, as when Claude Code removes one of that day's transcripts, and the
+  // session's directory then comes to map to the project
+  it('a past day the usage archive retains keeps its figures where its rows were written, while the session is listed under its project', async () => {
+    const other = join(dirname(home.claude.asked), 'other.jsonl')
+    writeFileSync(other, [
+      JSON.stringify({ type: 'user', timestamp: '2026-07-30T12:00:20Z', message: { role: 'user', content: 'another claude question' } }),
+      JSON.stringify({ type: 'assistant', timestamp: '2026-07-30T12:00:30Z', message: { id: 'm-other', model: 'claude-fable-5', usage: { input_tokens: 20, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } })
+    ].join('\n') + '\n')
+    writeFileSync(home.roots.claudeConfigFile, '{"projects":{}}')
+    const scanner = new Scanner(join(dir, 'cache'), TEST_ENGINE)
+    const archive = new UsageArchive(join(dir, 'cache'), { stamp: 'test' })
+    settleScan(await scanner.scan(home.roots), archive)
+    rmSync(other)
+    settleScan(await scanner.scan(home.roots), archive)
+    restore()
+    const out = await scanner.scan(home.roots)
+    const settled = settleScan(out, archive)
+    expect(claudeOf(out), 'the control: the scan\'s own rows and list are the project\'s').toEqual(credited())
+    // The day's 15 + 21 as the archive holds them, under no project, and the undated 9 the scan's
+    expect(out.snapshot.tokens.bySide.claude.total, 'the control: the day is retained').toBe(45)
+    expect(settled.stats.get(mergeKey(home.project))?.tokens.bySide.claude.total, 'the project\'s figures: the undated row alone').toBe(9)
+  })
 })
 
 describe('the scanner\'s parse workers', () => {

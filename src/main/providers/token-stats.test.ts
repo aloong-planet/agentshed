@@ -1504,11 +1504,14 @@ describe('a stored entry that is not well formed is no entry (C2)', () => {
     // A new engine opens the store, as at startup, and serves the page before any build has run
     const e = engine()
     expect((await e.sessionQuestions(roots(), cl)).questions).toHaveLength(1)
-    // The project a Claude session is credited to comes from the registry, which the page does not read: an index
-    // kept from that page under no project would be a hit for this build, and the session would leave its project
+    // The project a Claude session is credited to comes from the registry, which the page does not read: with no
+    // well-formed entry to take it from, the index is served and not kept, so the next fetch rebuilds it (session-view
+    // C4), and the build credits the session to the project its directory maps to (token-stats A2)
+    expect(e.isFresh(cl), 'the page\'s index is not kept').toBe(false)
     const r = await e.build(roots(), [proj])
     expect(r.perProject.get(proj.toLowerCase())?.sessions.map((s) => s.file)).toEqual([cl])
     expect(r.sessionFiles.has(cl)).toBe(true)
+    expect(e.isFresh(cl), 'the control: the build keeps the entry it parsed').toBe(true)
   })
 
   it('a row gone null elsewhere in the store does not break a Codex fork\'s session page before the first scan', async () => {
@@ -3124,8 +3127,8 @@ describe('sessionQuestions (the session page service)', () => {
   })
 
   // The project a Claude session is credited to comes from the registry, which the page does not read: the
-  // rebuild keeps the project its entry held (C4). Kept under no project the index would be the next build's hit,
-  // and the session would leave its project's list and figures while its usage stayed in the total.
+  // rebuild keeps the project its entry held (C4), so the next build, whose registry maps the directory to that
+  // project, takes the index as it is (token-stats A2) rather than parse the file again.
   it('a changed signature on a Claude session: the rebuilt index keeps its project, and the next build takes it as it is', async () => {
     const cl = mkClaudeFile('sq-project.jsonl', [userLine('question one', '2026-07-30T02:00:00Z'), usageLine('claude-fable-5', '2026-07-30T02:00:10Z', 10, 5)])
     const parsed: string[] = []
