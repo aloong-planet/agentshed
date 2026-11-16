@@ -1,6 +1,6 @@
 # Skills install
 
-> Related: ADR-0004 (land by copy, symlinks rejected) · ADR-0038 (test layers) · ADR-0037 (shared skills directory)
+> Related: ADR-0004 (land by copy, symlinks rejected) · ADR-0038 (test layers) · ADR-0049 (shared skills directory)
 
 ## Problem Statement
 
@@ -94,7 +94,7 @@ Applies to: installing into a project whenever Codex or Antigravity is among the
 - skill-install::REQ-001/AC-01: Codex and Antigravity both load the project's `.agents/skills`, so
   the picker offers it as one target: one outlined mark naming both sides that load it (CX AG),
   whatever the project is registered on — never a Codex target and an Antigravity target that land
-  in the same place (ADR-0037).
+  in the same place (ADR-0049).
 - skill-install::REQ-001/AC-02: Whether a project offers it follows A8: the skill's sides ∩ the project's
   sides must include Codex or Antigravity. A project whose intersection is empty overall gets the
   existing notice that it does not belong to the skill's sides.

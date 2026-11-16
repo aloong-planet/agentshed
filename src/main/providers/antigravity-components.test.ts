@@ -102,7 +102,7 @@ function mkAgPlugin(
     writeFileSync(join(root, 'agents', file), text)
   }
   if (opts.servers) writeFileSync(join(root, 'mcp_config.json'), JSON.stringify({ mcpServers: opts.servers }, null, 2))
-  // Rules ship in the sample too; agy's rules are shown nowhere (ADR-0037)
+  // Rules ship in the sample too; agy's rules are shown nowhere (ADR-0049)
   mkdirSync(join(root, 'rules'), { recursive: true })
   writeFileSync(join(root, 'rules', 'hot-reload.md'), '---\ntrigger: glob\n---\nrule\n')
   return root

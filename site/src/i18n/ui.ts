@@ -1,7 +1,7 @@
 // The landing page's copy, in its two languages (landing-page::CON-002). English is at `/`, Chinese at `/zh/`.
 //
 // This dictionary is the site's own and is separate from the app's (src/shared/i18n/): the page is a front
-// door outside ADR-0013's scope, so its two languages are its own choice (ADR-0031 option 6); the app
+// door outside ADR-0013's scope, so its two languages are its own choice (ADR-0050 option 2); the app
 // speaks the same two (ADR-0035). The copy is the confirmed prototype's (2026-10-13, revised 2026-10-21). Both languages
 // satisfy one type, so a key present in one and missing in the other fails `astro check`.
 

@@ -24,7 +24,7 @@ export function McpServerRow({ m }: { m: McpServerEntry }): JSX.Element {
  * Antigravity CLI's servers: its global file's, then its effectively enabled plugins' under the name agy gives them.
  * agy's servers are global, so a project's page shows the same group, and only when it has servers; the agents page
  * shows it once agy is detected, saying so when it is empty. A project's own `.agents/mcp_config.json` is shown
- * nowhere: agy was not observed to load it (ADR-0037).
+ * nowhere: agy was not observed to load it (ADR-0049).
  */
 export function AntigravityMcpGroup({ snap, onProjectPage }: { snap: Snapshot; onProjectPage?: boolean }): JSX.Element | null {
   const t = useDict()

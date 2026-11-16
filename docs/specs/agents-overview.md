@@ -1,6 +1,6 @@
 # Agents overview
 
-> Related: ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
+> Related: ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side) · ADR-0049 (Antigravity CLI's components)
 > Each section's component-level requirements and boundaries live in its own spec (subagents-view /
 > memory-view / plugins-view / token-stats / skill-install); this document covers only
 > **page-level** rules: which sections exist, the summary cards, and single-side degradation.
@@ -164,7 +164,7 @@ and the IDE (ADR-0037).
   MCP file (`~/.gemini/config/mcp_config.json`), a server marked disabled carrying the disabled pill,
   and the servers bundled with its effectively enabled plugins, under the name agy gives them
   (`<plugin>_<server>`, measured) and marked as coming from that plugin. A project's own
-  `.agents/mcp_config.json` is shown nowhere: agy was not observed to load it (ADR-0037).
+  `.agents/mcp_config.json` is shown nowhere: agy was not observed to load it (ADR-0049).
 
 ### agents-overview::REQ-004 Instructions shows CLAUDE.md and AGENTS.md
 
@@ -172,7 +172,7 @@ Applies to: the Instructions section of the agents page ([project-detail::REQ-00
 governs the project page's).
 
 - agents-overview::REQ-004/AC-01: The section has two entries, CLAUDE.md and AGENTS.md, not grouped by
-  side (ADR-0037).
+  side (ADR-0049).
 - agents-overview::REQ-004/AC-02: CLAUDE.md is `~/.claude/CLAUDE.md`.
 - agents-overview::REQ-004/AC-03: AGENTS.md renders, one after another, every global AGENTS.md a side
   was observed to load that exists — `~/.codex/AGENTS.md`, `~/.gemini/AGENTS.md`,
@@ -426,5 +426,5 @@ a registration the main process produced.
 - A dedicated first-scan error state (A4d keeps the skeleton and lets the rescan triggers retry).
 - Making a first installation or a cleared user-data directory show history before its first scan: no saved display data exists in that case.
 - Settings summaries of any side (the Codex `config.toml` summary and the Claude project settings
-  summary, ADR-0037), and agy's GEMINI.md files and rules.
+  summary, ADR-0049), and agy's GEMINI.md files and rules.
 - Antigravity CLI's memories and built-in skills.

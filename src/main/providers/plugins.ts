@@ -253,7 +253,7 @@ export function agyDefinitionName(text: string | null, fallback: string): string
 }
 
 /** A plugin's bundled pieces as agy loads them: `skills/<name>/SKILL.md`, `agents/*.md` (named as agy names them) and
- * the servers of its `mcp_config.json` (`<plugin>_<server>`). Its rules are shown nowhere (ADR-0037) and its hooks have
+ * the servers of its `mcp_config.json` (`<plugin>_<server>`). Its rules are shown nowhere (ADR-0049) and its hooks have
  * no sample, so neither is a category; workspace plugins are not read (AC-03, AC-05) */
 function readAntigravityPluginContents(root: string, plugin: string): PluginContents {
   const agents: string[] = []

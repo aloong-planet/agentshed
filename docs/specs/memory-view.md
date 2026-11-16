@@ -1,6 +1,6 @@
 # Memory view
 
-> Related: ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0037 (Antigravity CLI side)
+> Related: ADR-0001 (single type source) · ADR-0038 (test layers) · ADR-0049 (Antigravity CLI's components)
 
 ## Problem Statement
 
@@ -207,5 +207,5 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
 - Following `[[name]]` references: they stay plain text (memory-view::US-001/AC-04); making them links
   needs a name-to-file rule of its own and is left for a later change.
 - Antigravity CLI's knowledge items (agy's agent-written memory): none was produced over an eight-turn
-  session, so there is no sample to ground a reader on (ADR-0037). The side shows nothing in either
+  session, so there is no sample to ground a reader on (ADR-0049). The side shows nothing in either
   Memory section, and a project registered only on Antigravity gets D4's empty state.
