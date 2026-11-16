@@ -29,7 +29,7 @@
 // is due once such an entry is found, as a fix to the check or to the module. Nor is `TokenStore.scan` on a store that
 // did not open, which combines in memory and names the files it leaves out as `combineEntries` does: TypeScript never
 // asks it, as `openStore` keeps no store whose open failed.
-import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
+import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync, symlinkSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -3766,6 +3766,68 @@ describe('scan order', () => {
     const held = storeRows(cacheDir()).map((r) => String(r.path))
     expect(new Set(held)).toEqual(new Set(jobs.map((j) => j.file)))
     expect(held).toEqual([...held].sort(compareScanOrder(roots())))
+  })
+})
+
+// The Claude Code files a scan takes (token-stats A2, Scan order): below the projects directory, each project's encoded
+// directory, and in it every `.jsonl` at any depth; a file in the projects directory itself, a link there and any other
+// file are not taken. Every file here is one size, so that the order the files are handed out in is their scan order.
+describe('the Claude Code files a scan takes', () => {
+  const content = [userLine('q'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)]
+  const claudeJobs = async (): Promise<Array<[string, string, boolean]>> => {
+    const { runner, jobs } = recording()
+    await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
+    return jobs.filter((j) => j.kind === 'claude').map((j) => [j.file, j.projectKey, j.listed])
+  }
+
+  it('is each project directory\'s transcripts at any depth, in scan order, each with its project and whether it is listed', async () => {
+    const projects = join(dir, '.claude', 'projects')
+    const enc = encodeClaudeProjectDir(proj)
+    const at = (...parts: string[]): string => join(projects, ...parts)
+    // In the registered project's directory: transcripts at the top, below a session's directory (subagents and deeper),
+    // in a directory whose name ends .jsonl, and names whose UTF-8 order is not their UTF-16 order; beside them files
+    // that are not transcripts
+    for (const rel of ['a.jsonl', join('a', 'x.jsonl'), join('a-b', 'x.jsonl'), join('s1', 'subagents', 'agent-1.jsonl'), join('s1', 'deep', 'more', 'n.jsonl'), join('d.jsonl', 'in.jsonl'), '\uFF5E.jsonl', '\u{1F600}.jsonl', 'Mike.jsonl', '_x.jsonl']) mkClaudeFile(rel, content)
+    for (const rel of ['notes.txt', join('s1', 'tool-results', 'r.json'), 'a.jsonl.bak']) mkClaudeFile(rel, content)
+    // A link to a transcript elsewhere, in the project's directory: taken by its name
+    const target = join(dir, 'elsewhere', 't.jsonl')
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, `${content.join('\n')}\n`)
+    symlinkSync(target, at(enc, 'linked.jsonl'))
+    // Directories of projects not registered, one either side of the registered one
+    mkClaudeFile('g.jsonl', content, 1000, '-Users-ghost')
+    mkClaudeFile(join('sub', 'subagents', 'agent-g.jsonl'), content, 1000, 'zz-ghost')
+    // In the projects directory itself: a transcript and a link to a project's directory
+    writeFileSync(at('loose.jsonl'), `${content.join('\n')}\n`)
+    symlinkSync(at(enc), at('linked-dir'))
+
+    const key = mergeKey(proj)
+    expect(await claudeJobs()).toEqual([
+      [at('-Users-ghost', 'g.jsonl'), '', true],
+      [at(enc, 'Mike.jsonl'), key, true],
+      [at(enc, '_x.jsonl'), key, true],
+      [at(enc, 'a', 'x.jsonl'), key, false],
+      [at(enc, 'a-b', 'x.jsonl'), key, false],
+      [at(enc, 'a.jsonl'), key, true],
+      [at(enc, 'd.jsonl', 'in.jsonl'), key, false],
+      [at(enc, 'linked.jsonl'), key, true],
+      [at(enc, 's1', 'deep', 'more', 'n.jsonl'), key, false],
+      [at(enc, 's1', 'subagents', 'agent-1.jsonl'), key, false],
+      [at(enc, '\uFF5E.jsonl'), key, true],
+      [at(enc, '\u{1F600}.jsonl'), key, true],
+      [at('zz-ghost', 'sub', 'subagents', 'agent-g.jsonl'), '', false]
+    ])
+  })
+
+  it.each([
+    ['empty', (): void => { mkdirSync(join(dir, '.claude', 'projects'), { recursive: true }) }],
+    ['not there', (): void => {}]
+  ])('is nothing when the projects directory is %s, and the other sides are scanned', async (_, make) => {
+    make()
+    const rollout = mkCodexRollout('rollout-2026-07-30T01-00-00-019f0000-0000-7000-8000-000000000001.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 1, cached: 0, output: 1 }])
+    const { runner, jobs } = recording()
+    await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
+    expect(jobs.map((j) => [j.kind, j.file])).toEqual([['codex', rollout]])
   })
 })
 
