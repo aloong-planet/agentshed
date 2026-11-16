@@ -341,10 +341,10 @@ all of them.
   well formed is not imported, and the first scan parses its file. A JSON file of another version, or one
   that is garbage by the rules that file had (it does not parse, or its `files` is not an object of
   entries), is deleted without an import, and the first scan parses every file. A JSON file beside a
-  usable store — a build from before the store ran since — is deleted unread: the store's signatures
-  decide what is current, and a file that changed since is parsed again. An import that fails lands
-  nothing and the first scan parses every file; the JSON file is then deleted as one beside a usable
-  store. A deletion that fails is logged, and a later launch deletes the file it finds.
+  usable store — a build from before the store ran since — is deleted unread: the store's entries
+  decide what is current (Implementation Decisions, Cache), and a file that changed since is parsed again.
+  An import that fails lands nothing and the first scan parses every file; the JSON file is then deleted as one
+  beside a usable store. A deletion that fails is logged, and a later launch deletes the file it finds.
 - C27 **Two processes on one store**. A development run and the installed copy use one settings directory
   on a case-insensitive volume (app-update spec, Implementation Decisions), so both can run on one store.
   Before each scan and each read of an entry, a process that finds the store changed by the other since
@@ -993,8 +993,8 @@ read with macOS `footprint`.
   row set is also what makes G7 hold by construction.
 - **Cache version bumps**: the store keeps per-file parse output, and each group's combined result
   with the combination it came from (Cache, below). A *structure* change to what is stored must bump the
-  version, and so must a change to how a per-file aggregate is computed: an unchanged file's entry is read
-  back as stored, so a new computation would never reach it. A computation change goes without a bump only
+  version, and so must a change to how a per-file aggregate is computed: a current entry (Cache, below) is
+  read back as stored, so a new computation would never reach it. A computation change goes without a bump only
   where the reason for not bumping is recorded beside the version. A change to the combination must not
   bump: the results it would make stale are combined again from the stored entries with nothing parsed,
   while a bump makes every file parse again, so a bump for a combination change would force a full rescan
