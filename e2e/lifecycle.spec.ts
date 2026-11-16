@@ -990,7 +990,7 @@ test('agents-overview::REQ-008/AC-04: killed while the window has focus, the app
   }
 })
 
-// The engine module (ADR-0045) will not load (token-stats, Scans and the window): the module seam points the run at a file
+// The engine module (ADR-0045, ADR-0047) will not load (token-stats, Scans and the window): the module seam points the run at a file
 // that is no library, through the main process's path, the scan worker's data and its scanner. engine-module.test.ts and
 // scan-client.test.ts hold the rule under Node, on a scanner standing for the scan worker's and on the main process's
 // fallback; this holds the wiring on the built app's scan worker. Gap: the built app's main-thread fallback, which no

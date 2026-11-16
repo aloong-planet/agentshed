@@ -82,8 +82,10 @@ ADR conventions for this repository:
 | [0027](0027-codex-usage-records.md) | Codex usage comes from usage records; ccusage is the alignment basis only for rollouts without them | Accepted |
 | [0039](0039-archive-file-failure-stops-no-scan.md) | An archive file that cannot be written or read stops no scan | Accepted |
 | [0043](0043-scan-on-a-worker-thread.md) | A scan runs on one worker thread that owns the token cache; the main process only starts it and takes its result | Accepted (the display-copy consequence amended 2026-11-15) |
-| [0044](0044-token-cache-in-sqlite-by-deduplication-group.md) | The token cache lives in a SQLite store and is aggregated by de-duplication group; the display copy is written while the window has no focus | Proposed |
-| [0045](0045-token-engine-as-a-rust-module.md) | The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module loaded in the app's process | Proposed |
+| [0044](0044-token-cache-in-sqlite-by-deduplication-group.md) | The token cache lives in a SQLite store and is aggregated by de-duplication group; the display copy is written while the window has no focus | Accepted |
+| [0045](0045-token-engine-as-a-rust-module.md) | The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module that builds only the values a rule reads | Proposed |
+| [0046](0046-engine-module-in-the-apps-own-threads.md) | The engine module is loaded through Node-API by the app's own threads, rather than written in Go or run as a separate process | Accepted |
+| [0047](0047-no-fallback-engine.md) | No fallback engine: a module that will not load, or is another build, fails what needs it | Accepted |
 
 ## Interface
 

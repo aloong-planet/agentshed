@@ -9,7 +9,7 @@ import { runParseJob, type ParseJob } from './providers/token-stats'
 
 const port = parentPort
 if (!port) throw new Error('parse-worker runs only as a worker thread')
-// The engine module (ADR-0045), loaded as the worker starts: one that will not load here fails the worker, and the pool
+// The engine module (ADR-0046, ADR-0047), loaded as the worker starts: one that will not load here fails the worker, and the pool
 // parses its files on the thread that runs the scan, saying so once (`[parse-pool]`)
 loadEngineModule((workerData as ParseWorkerData).engine)
 port.on('message', (job: ParseJob) => {

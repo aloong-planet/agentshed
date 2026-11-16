@@ -1,4 +1,4 @@
-// The gate on an engine module just built (scripts/build-engine.mjs; ADR-0045): the module packaging ships carries no
+// The gate on an engine module just built (scripts/build-engine.mjs; ADR-0047): the module packaging ships carries no
 // test seam and reports this build, and the development build reports this build too. The modules here are stand-ins
 // for a loaded module's exports; that the real build passes is shown by every build, which runs this same check on
 // what cargo wrote, packaging's included (build/engine-before-pack.cjs).

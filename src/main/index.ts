@@ -718,7 +718,7 @@ void app.whenReady().then(() => {
   // one, up to four. Measured on a cold scan of 4954 files (pnpm bench:scan workers --pool-only): 4 workers
   // 8.5 s at a 1.48 GB peak, 8 workers 7.4 s at 2.20 GB — the largest file alone bounds the time, so more
   // workers mostly cost memory
-  // The engine module (ADR-0045): the scan worker, its parse workers and, after a worker failure, this process load it;
+  // The engine module (ADR-0046): the scan worker, its parse workers and, after a worker failure, this process load it;
   // this process also writes the display copy through it
   const engine = {
     path: engineModulePath({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, mainDir: __dirname, env: process.env }),

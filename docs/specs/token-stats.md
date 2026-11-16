@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: ADR-0005 (aligned with ccusage) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module)
+> Related: ADR-0005 (aligned with ccusage) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module) · ADR-0046 (the engine module in the app's own threads) · ADR-0047 (no fallback engine)
 
 > Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0028).
@@ -846,7 +846,7 @@ token-stats::QR-002/AC-01 (Failure modes and boundaries, below).
   process, and the failure is logged once. The figures are the same. token-stats::QR-001 does not hold
   for the rest of that run. A scan or a read that fails on a worker still running is that scan (E3) or
   that read (session-view C4) failed, not a failed worker.
-- The engine module (ADR-0045) will not load — missing, damaged or built for another architecture — or
+- The engine module (ADR-0045, ADR-0047) will not load — missing, damaged or built for another architecture — or
   reports another build than the application's code: no other engine exists, so every scan fails (E3,
   [agents-overview::REQ-002/AC-03](agents-overview.md)) on the scan worker and on the main process alike,
   every read of a question index or of a question's text fails as that read (session-view C4), and the
@@ -913,6 +913,17 @@ with macOS `footprint`.
   display copy ([agents-overview::REQ-008](agents-overview.md)) and the archive are written by their own
   rules and are not counted.
 
+### token-stats::QR-004 A full parse of every session file
+
+Applies to: a locally packaged build with its window shown, launched on an empty token store with no JSON
+cache to import (C26), so that every session file is parsed, on about 7,300 session files holding 19.5 GB
+of lines once cold rollouts are decompressed. Memory is the main process's, its worker threads included,
+read with macOS `footprint`.
+
+- token-stats::QR-004/AC-01: From launch until the first scan's figures reach the window takes at most
+  15 s.
+- token-stats::QR-004/AC-02: Over the same span, the main process's peak footprint is at most 600 MB.
+
 ### Failure modes and boundaries: the token store
 
 - An entry the session page rebuilt between two scans (session-view C4) is a changed file for the next
@@ -968,9 +979,12 @@ with macOS `footprint`.
   row set is also what makes G7 hold by construction.
 - **Cache version bumps**: the store keeps per-file parse output, and each group's combined result
   with the combination it came from (Cache, below). A *structure* change to what is stored must bump the
-  version, and a change to the combination must not: the results it would make stale are combined again
-  from the stored entries with nothing parsed, while a bump makes every file parse again, so a bump for a
-  combination change would force a full rescan for nothing.
+  version, and so must a change to how a per-file aggregate is computed: an unchanged file's entry is read
+  back as stored, so a new computation would never reach it. A computation change goes without a bump only
+  where the reason for not bumping is recorded beside the version. A change to the combination must not
+  bump: the results it would make stale are combined again from the stored entries with nothing parsed,
+  while a bump makes every file parse again, so a bump for a combination change would force a full rescan
+  for nothing.
 - **Archive**: see ADR-0007 for its existence and grain, ADR-0026 for the conflict rule. The archive
   is the sole owner of the effective row set: each scan hands it the live rows and the scan anchor,
   and it returns the rows every figure derives from together with the archived-only days — no caller
@@ -1013,16 +1027,18 @@ with macOS `footprint`.
 - **Codex usage sources**: see ADR-0027. The parser reads both sources in one pass and applies the
   usage boundary as it goes; the per-file aggregate keeps its list of per-event increments and the
   boundary index beside it, so that the replay stripping can stop at the legacy span — a shape change
-  and a computation change, both of which bump the cache structure version under the rule below,
+  and a computation change, both of which bump the cache structure version (Cache version bumps, above),
   and the version is part of the accounting stamp (C21). Reading a cold rollout puts a zstd decompression stream in front of the
   line reader; the byte offsets the question index records for it are offsets in the decompressed
   stream.
 - **Segmentation and axis**: see ADR-0008/0009.
-- **The engine module** (ADR-0045) is loaded by the scan worker, the parse workers and the main process,
-  and holds the session walk, the reading and parsing of Codex rollouts, Claude Code sessions, Grok
-  sessions and Antigravity CLI conversations, the entries, the store, the grouping and the combination,
-  and the line rules that a question's text and a turn's contents are read by on the session page and in
-  both searches. A value in a line is built only where a rule reads it; every other value is scanned
+- **The engine module** (ADR-0045, ADR-0046) is loaded by the scan worker, the parse workers and the main process,
+  and holds the session walk, the reading and parsing of every session file a scan reads, the question index
+  and the titles, the entries, the store, the grouping and the combination, and the line rules that a
+  question's text and a turn's contents are read by on the session page and in both searches. A Codex
+  session's thread name comes from Codex's session index, which is read outside the module and handed to it
+  with the rollout; the session page and both searches read a file's bytes themselves and hand them to those
+  line rules. A value in a line is built only where a rule reads it; every other value is scanned
   past. A line is decoded as UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of
   ECMAScript's `JSON.parse`, with its results: a repeated key keeps its last value, a number beyond the
   double range is infinite and so no finite count, a lone surrogate escape stays that code unit, and a

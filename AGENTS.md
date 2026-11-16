@@ -107,7 +107,7 @@ a retried "does not appear" check cannot prove absence.
   workflow; `scripts/workflow-actions.test.mjs` enforces the form.
 - Every function the engine module exports catches a panic (`#[napi(catch_unwind)]`), and an export is named `seam_…`
   exactly when it sits behind the `test-seams` feature; `engine/build.rs` fails a build that breaks either, and
-  packaging refuses a module exporting a seam (ADR-0045).
+  packaging refuses a module exporting a seam (ADR-0046).
 - In `engine/src`, a rule that differs by agent side lives in that side's directory under `sides/`, code outside
   `sides/` never branches on a side, and the sides' trait gains a method only when side-free code calls it
   (`engine/src/lib.rs`).

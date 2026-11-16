@@ -8,7 +8,7 @@ const shared = resolve('src/shared')
 export default defineConfig({
   main: {
     resolve: { alias: { '@shared': shared } },
-    // The build the engine module must report (ADR-0045): the main process and both workers refuse another
+    // The build the engine module must report (ADR-0047): the main process and both workers refuse another
     define: engineBuildDefine(),
     build: {
       rollupOptions: {

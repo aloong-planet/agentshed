@@ -1,4 +1,4 @@
-//! The engine module (ADR-0045), loaded through Node-API by the scan worker, the parse workers and the main process. The
+//! The engine module (ADR-0045, ADR-0046), loaded through Node-API by the scan worker, the parse workers and the main process. The
 //! accounting moves in from TypeScript one component per change, each proven against the TypeScript implementation by
 //! the parity command (`pnpm engine:parity`) before that implementation is removed.
 //!

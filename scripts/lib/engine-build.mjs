@@ -1,4 +1,4 @@
-// The build the engine module belongs to (ADR-0045): a digest of the module's sources. scripts/build-engine.mjs builds
+// The build the engine module belongs to (ADR-0047): a digest of the module's sources. scripts/build-engine.mjs builds
 // it into the module, and every bundler of the application's code defines it as `__ENGINE_BUILD__` (electron-vite,
 // vitest, the scan benchmark and the parity command), so a thread refuses a module built from other sources than the
 // code that loads it — one left over from an earlier checkout, say. One function computes it for both sides.

@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config'
 import { engineBuildDefine } from './scripts/lib/engine-build.mjs'
 
 export default defineConfig({
-  // The build the engine module must report (ADR-0045), as electron-vite defines it for the app
+  // The build the engine module must report (ADR-0047), as electron-vite defines it for the app
   define: engineBuildDefine(),
   resolve: {
     alias: {
