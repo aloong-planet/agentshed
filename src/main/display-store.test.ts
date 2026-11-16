@@ -487,6 +487,35 @@ it('restores the memory files a display cache saved before the document list wen
   expect(registry.admission('skillFiles', '/s/SKILL.md')).toBe('restored')
 })
 
+// The same copy with its snapshot dropped as malformed (agents-overview's restart sequence, item 1): the scan's
+// registration only ever held memory files, so they stay memory files, registered and previewed, with no snapshot
+// to list them; a document a project page registered still does not.
+it('restores the memory files a scan registration saved before the document list went had held, when the saved snapshot is dropped', () => {
+  const root = dir()
+  const topic = '/h/.claude/projects/-w-p/memory/topic.md', codexSummary = '/h/.codex/memories/memory_summary.md', spec = '/w/p/docs/specs/s.md'
+  const snapshot = emptySnapshot(100) as unknown as { global: { skills: unknown[] } }
+  snapshot.global.skills = [null]
+  const text = (t: string) => ({ text: t, truncated: false })
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
+    ...emptyDisplayData(), snapshot,
+    registrations: [
+      { owner: 'scan', artifacts: [topic, codexSummary], pluginRoots: ['/plug'], projects: [], skillFiles: [] },
+      { owner: 'project:/w/p', artifacts: [spec, topic], projects: ['/w/p'], pluginRoots: [], skillFiles: [] }
+    ],
+    reads: [
+      { kind: 'artifactContent', file: codexSummary, data: text('Saved summary') },
+      { kind: 'artifactContent', file: spec, data: text('Saved spec') }
+    ]
+  } }))
+  const restored = new DisplayStore(root).get()
+  expect(restored.snapshot).toBeNull()
+  expect(restored.reads).toEqual([{ kind: 'memoryContent', file: codexSummary, data: text('Saved summary') }])
+  expect(restored.registrations).toEqual([
+    { owner: 'scan', memoryFiles: [topic, codexSummary], pluginRoots: ['/plug'], projects: [], skillFiles: [] },
+    { owner: 'project:/w/p', memoryFiles: [topic], projects: ['/w/p'], pluginRoots: [], skillFiles: [] }
+  ])
+})
+
 it('restores a registration this build saved as it was saved, whether or not a restored page lists its memory files', async () => {
   const root = dir(), store = writing(root), data = emptyDisplayData()
   data.registrations = [{ owner: 'project:/w/p', memoryFiles: ['/h/.claude/projects/-w-p/memory/topic.md'], skillFiles: [], projects: ['/w/p'],

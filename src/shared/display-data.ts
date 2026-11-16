@@ -204,15 +204,18 @@ function upgradeSavedSnapshot(v: unknown, paths: SavedInstructionPaths | undefin
 const savedBeforeDocumentsWent = (v: unknown): v is { kind: 'artifactContent'; file: string; data: CappedText } =>
   object(v) && v.kind === 'artifactContent' && path(v.file) && capped(v.data)
 
-/** The files the restored snapshot and project pages list as memory files. A path registered or read before the
- * document list went is a memory file's only when listed here: anything else, a document included, is not kept
- * (ADR-0051). */
-function listedMemoryFiles(snapshot: Snapshot | null, reads: SavedRead[]): Set<string> {
+/** The files the restored snapshot and project pages list as memory files, and those the scan's registration held
+ * before the document list went: it only ever held the snapshot's memory files, so they stay listed when the snapshot
+ * is dropped. A path registered or read before the document list went is a memory file's only when listed here:
+ * anything else, a document included, is not kept (ADR-0051). */
+function listedMemoryFiles(snapshot: Snapshot | null, reads: SavedRead[], registrations: unknown): Set<string> {
   const files = new Set(snapshot?.global.memory.flatMap(m => m.files.map(f => f.file)) ?? [])
   for (const r of reads) if (r.kind === 'projectDetail') {
     for (const t of r.data.memory.topics) files.add(t.file)
     if (r.data.memory.mainFile !== null) files.add(r.data.memory.mainFile.file)
   }
+  if (Array.isArray(registrations)) for (const r of registrations)
+    if (object(r) && r.owner === 'scan' && strings(r.artifacts)) for (const f of r.artifacts) files.add(f)
   return files
 }
 
@@ -240,7 +243,7 @@ export function parseDisplayData(v: unknown, paths?: SavedInstructionPaths): Dis
   if (strings(v.sessionFiles)) d.sessionFiles = v.sessionFiles
   const reads = Array.isArray(v.reads) ? v.reads.map(upgradeSavedRead) : []
   d.reads = reads.filter(validSavedRead)
-  const memory = listedMemoryFiles(d.snapshot, d.reads)
+  const memory = listedMemoryFiles(d.snapshot, d.reads, v.registrations)
   if (Array.isArray(v.registrations)) d.registrations = v.registrations.flatMap(r => savedRegistration(r, memory))
   for (const r of reads) if (savedBeforeDocumentsWent(r) && memory.has(r.file)) d.reads.push({ kind: 'memoryContent', file: r.file, data: r.data })
   // An answer only belongs to the saved question mapping that produced it.

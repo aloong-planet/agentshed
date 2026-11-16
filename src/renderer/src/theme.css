@@ -1745,13 +1745,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── A row of chips (a plugin's components), and the centred overlay a confirmation dialog opens in ── */
-.chips {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
+/* ── The centred overlay a confirmation dialog opens in ── */
 .mask {
   position: fixed;
   inset: 0;
@@ -2912,7 +2906,7 @@ mark {
   color: var(--accent-deep);
   border-color: var(--accent);
 }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0; margin-bottom: 10px; }
 .psk-list {
   margin-top: 2px;
   border: 1px solid var(--line);

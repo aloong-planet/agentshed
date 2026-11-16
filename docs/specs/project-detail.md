@@ -295,10 +295,11 @@ and no scan completed yet.
   registered in the allow-list, and a read validates against it (R1).
 - **A display copy saved while a page listed the project's documents** (ADR-0051): a saved project page
   restores without that list. A read or a read registration saved under the kind and key that memory
-  files and documents then shared survives, as a memory file's, only for a path the restored snapshot or
-  a restored project page lists as a memory file; every other one is dropped, so no document becomes
-  readable through it. An earlier build that reads a copy this build wrote restores none of its read
-  registrations and none of its memory reads.
+  files and documents then shared survives, as a memory file's, only for a path the restored snapshot, a
+  restored project page or the scan's own saved registration (which only ever held memory files) lists
+  as a memory file; every other one is dropped, so no document becomes readable through it. An earlier
+  build that reads a copy this build wrote restores none of its saved project pages and none of its read
+  registrations or memory reads.
 - **Each scan's project figures reach the window beside the snapshot** (project-detail::REQ-005):
   every project's token figures and session list, keyed the way the project list merges paths, and
   checked on both sides of the boundary like every payload (ADR-0001). They are not part of the

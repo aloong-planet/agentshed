@@ -558,7 +558,9 @@ test('leaving a project for a session page and coming back (query layer closeout
 
 // project-detail R1 and R3 (#402): a project's documents are neither listed nor read. A relative link to one in the
 // project's instructions shows the out-of-scope notice and does not navigate the window; a read of it over the real
-// channel is refused once the page has registered what it reads, while a memory topic the same page lists still reads.
+// channel is refused once the page has registered what it reads, while a memory topic the same page lists still reads:
+// one written after the scan has landed, so that only the page's own read registration admits it (the Implementation
+// Decisions' allow-list).
 test('a project document is not readable: its link in the instructions shows the notice, and a read of it is refused while a memory topic reads', async () => {
   mainErrors.allow(/memory-file-not-whitelisted/)
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-docs-'))
@@ -571,13 +573,16 @@ test('a project document is not readable: its link in the instructions shows the
   const memDir = join(home, '.claude', 'projects', proj.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
   mkdirSync(memDir, { recursive: true })
   const topic = join(memDir, 'topic.md')
-  writeFileSync(topic, 'Topic body\n')
   const userData = makeUserData()
   const { app } = await startApp({ userData, home, errors: mainErrors.errors })
   try {
     const win = await app.firstWindow()
     await win.locator('.rail .ri').nth(1).click()
-    await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+    // The row is the scan's: its registration of memory files has been made, without the topic
+    const row = win.locator('.side .row', { hasText: 'demo-proj' })
+    await expect(row).toBeVisible()
+    writeFileSync(topic, 'Topic body\n')
+    await row.click()
     await win.locator('.pane-head .tabs .tab', { hasText: 'Instructions' }).click()
     const urlBefore = win.url()
     await win.locator('.pane-body .md a', { hasText: 'the glossary' }).click()
