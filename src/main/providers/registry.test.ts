@@ -1,6 +1,6 @@
 // Ticket 02 slice (a): both sides' registries → the project union (badges / staleness / path
 // normalisation).
-import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, mkdirSync, renameSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -224,6 +224,26 @@ describe('the registry union', () => {
         expect(snap.sides[side].error).toEqual({ code: ERR.registryUnreadable, params: { path: file } })
       } finally {
         chmodSync(root, 0o755)
+      }
+    })
+
+    // Codex's and Grok's data roots sit in the home directory, so only a link can put one behind a directory that cannot
+    // be entered: such a root cannot be looked at, which is not the same as not being there (A2), so it reads as unreadable
+    it.each(sides.filter((s) => s.side === 'codex' || s.side === 'grok'))('$side behind a link into a directory that cannot be entered says its registry cannot be read', async ({ side, rel, write }) => {
+      write(mkProject('locked-side'))
+      writeClaudeRegistry([mkProject('other-side')])
+      const root = join(dir, rel[0])
+      const vault = join(dir, 'vault')
+      mkdirSync(vault)
+      renameSync(root, join(vault, rel[0]))
+      symlinkSync(join(vault, rel[0]), root)
+      chmodSync(vault, 0o000)
+      try {
+        const snap = await scan(roots(), { now: () => 1 })
+        expect(snap.sides[side].detected).toBe(true)
+        expect(snap.sides[side].error).toEqual({ code: ERR.registryUnreadable, params: { path: join(dir, ...rel) } })
+      } finally {
+        chmodSync(vault, 0o755)
       }
     })
 
