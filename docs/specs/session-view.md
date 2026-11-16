@@ -462,13 +462,9 @@ below are archived as a decision record and are no longer requirements)**
 - R2 The existing token statistics parsing and caching **must not be broken** — this feature rides the
   same scan pass, but the rules are independent (token deduplication is a metering rule and means
   something different from display deduplication).
-  The four component fields of a Codex archive row (input/output/cacheRead/cacheWrite) are
-  apportioned by the ratio `that day's volume / that session's total` and then rounded, so a session
-  **still being appended to today** enlarges the denominator and makes its **historical days'**
-  components drift — while that day's `total` does not change. Excluding the current day does not
-  stop this, because the row belongs to a past day while the denominator includes today; the
-  component fields are therefore not a stable quantity to compare, whereas `byDay` and
-  `day | side | project | model | total` are.
+  The four component fields of a Codex archive row (input/output/cacheRead/cacheWrite) are each
+  day's own measured buckets, not apportioned from the session's totals (token-stats B8), so a
+  session **still being appended to today** leaves its **historical days'** components unchanged.
 - R3 The IPC contract (`validate`) is extended along with the new fields.
 
 ## UI decisions (prototype confirmed, 2026-08-02)
