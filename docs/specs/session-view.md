@@ -228,10 +228,11 @@ hands the command over; it never runs it.
   for all its question texts, expanding a turn is one pass to that turn, a search is one pass per
   file. Memory follows the bytes in flight, never the file. The decompression holds neither the main
   process nor the thread pool its file reads share (token-stats, The engine module), and four reads at
-  most decompress at once, D2b's cap, whichever surface asks them: every expanded turn reads its own,
-  all of them again on a revisit, and a search goes on after the next one starts; the others wait their
-  turn in the order asked. A truncated cold rollout never reaches the session page: the scan skips it
-  (token-stats B12).
+  most decompress at once for the main process, D2b's cap, whichever surface asks them: every expanded
+  turn reads its own, all of them again on a revisit, and a search goes on after the next one starts;
+  the others wait their turn in the order asked. The scan worker, which reads a cold rollout only for a
+  stripped fork's title (B2), counts four of its own. A truncated cold rollout never reaches the session
+  page: the scan skips it (token-stats B12).
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
   records, and Codex's subagent threads, all sit under the step that dispatched them.
   **"Sitting under the dispatching step" cannot be reliably achieved on either side** — all four

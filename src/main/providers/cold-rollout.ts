@@ -4,8 +4,8 @@
 // every byte offset the question index records for it is an offset in the decompressed stream, and
 // every range read is one pass through that stream that stops at the last range (range-read.ts).
 // The engine module reads it (ADR-0045), by the reader the scan reads a cold rollout with and under the
-// same truncation rule, each read on a thread of its own and four at most at once. Node's own zstd
-// decoder is not used: under Electron 43 (Node 24) it stopped at a stream's first frame whenever the
+// same truncation rule, each read on a thread of its own and four at most at once on the thread that
+// asks. Node's own zstd decoder is not used: under Electron 43 (Node 24) it stopped at a stream's first frame whenever the
 // second began inside the same read (measured 2026-11-16). Decompressing a whole file into memory for a
 // range read was rejected on measurement (the 921 MB active rollout would hold about 1.4 GB); memory
 // here follows the bytes served.
@@ -20,11 +20,13 @@ export function isColdRollout(file: string): boolean {
 }
 
 /**
- * How many cold reads run at once in this process, whichever surface asks them — the session page and its turns, both
- * searches, a fork's title — each on a thread of its own; the others wait their turn, in the order asked. Every
- * expanded turn of a page asks its own read, all of them again on a revisit, and a search is not cancelled by the next
- * one, so no caller can bound them alone. Four is spec session-view D2b's cap, and the parallelism Node's decoder had
- * on the four threads of libuv's pool.
+ * How many cold reads run at once on a thread, whatever asks them there, each read on a thread of the engine module's
+ * own; the others wait their turn, in the order asked. Every expanded turn of a page asks its own read, all of them
+ * again on a revisit, and a search is not cancelled by the next one, so no caller can bound them alone. Four is spec
+ * session-view D2b's cap, and the parallelism Node's decoder had on the four threads of libuv's pool. The count is this
+ * module's, so each thread that loads it keeps its own: the main process's thread reads for the session page and both
+ * searches, the scan worker only for a stripped fork's title (token-stats.ts), a line each and rare, so the process
+ * runs four in practice and eight at most.
  */
 const COLD_READS_AT_ONCE = 4
 let reading = 0

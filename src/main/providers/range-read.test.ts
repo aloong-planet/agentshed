@@ -237,32 +237,39 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
   })
   afterAll(() => rmSync(longDir, { recursive: true, force: true }))
 
-  test('at most four cold reads run at once, whichever surface asks them: a fifth waits for one of the four to finish (spec session-view C2)', async () => {
-    const end = COPIES * content.length
+  /**
+   * Six cold reads asked at once, in this order, and the order they settle in: four of the long stream, ending a quarter,
+   * a half, three quarters and all the way into it, then ten bytes of `short` and the whole of it. A long read takes
+   * about a millisecond per copy it passes; each short one a few at most, so it settles long before the next long read.
+   */
+  async function settleOrder(short: string): Promise<string[]> {
+    const settled: string[] = []
+    const ask = (name: string, read: Promise<unknown>): Promise<void> => read.then(() => { settled.push(name) })
+    const into = (copies: number): Promise<unknown> => readRangeBuffers(long, [{ start: copies * content.length - 10, end: copies * content.length }])
+    await Promise.all([
+      ...[32, 64, 96, 128].map((copies) => ask(`long ${copies}`, into(copies))),
+      ask('short range', readRangeBuffers(short, [{ start: 0, end: 10 }])),
+      ask('short whole', readRolloutWhole(short))
+    ])
+    return settled
+  }
+  /** The long reads take the four places; the short ones wait, and are served in the order asked when the first ends */
+  const FOUR_PLACES = ['long 32', 'short range', 'short whole', 'long 64', 'long 96', 'long 128']
+
+  test('at most four cold reads run at once on a thread, range reads and whole reads alike, the others waiting their turn in the order asked (spec session-view C2)', async () => {
     await withTwins(2, async (_plain, cold) => {
-      // Each read of the long stream to its end takes about a tenth of a second; ten bytes of the short one, well under
-      // a millisecond. Where the short read, asked last, comes among the reads that settle:
-      const among = async (ahead: number): Promise<number> => {
-        const settled: string[] = []
-        await Promise.all([
-          ...Array.from({ length: ahead }, () => readRangeBuffers(long, [{ start: end - 10, end }]).then(() => { settled.push('long') })),
-          readRangeBuffers(cold, [{ start: 0, end: 10 }]).then(() => { settled.push('short') })
-        ])
-        return settled.indexOf('short')
-      }
-      // Three ahead of it leave it a place: it is served first
-      expect(await among(3)).toBe(0)
-      // Four ahead of it take every place: it waits for one of them
-      expect(await among(4)).toBeGreaterThan(0)
+      expect(await settleOrder(cold)).toEqual(FOUR_PLACES)
+      // The same once places have been handed over: still four
+      expect(await settleOrder(cold)).toEqual(FOUR_PLACES)
     })
   })
 
-  test('a cold read that fails gives up its place: after more failed reads than run at once, the next is served', async () => {
+  test('a cold read that fails gives up its place: after more failed reads than run at once, four places are left', async () => {
     const missing = join(tmpdir(), `rr-missing-${process.pid}.jsonl.zst`)
     const failed = await Promise.allSettled(Array.from({ length: 5 }, () => readRangeBuffers(missing, [{ start: 0, end: 10 }])))
     expect(failed.map((r) => r.status)).toEqual(Array(5).fill('rejected'))
     await withTwins(2, async (_plain, cold) => {
-      expect((await readRangeBuffers(cold, [{ start: 0, end: 10 }])).bufs[0].toString('utf8')).toBe(content.subarray(0, 10).toString('utf8'))
+      expect(await settleOrder(cold)).toEqual(FOUR_PLACES)
     })
   })
 
