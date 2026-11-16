@@ -51,19 +51,23 @@ test('an entry held under one signature with different contents is a disagreemen
   })
 })
 
-test('an entry only one store holds fails the run, and is named on its own side', () => {
-  const both = row(CODEX, '1762699958000:6634120', '{"kind":"codex","input":7}', null)
-  const mainThread = [both, row(CLAUDE, '1762700000123.456:40213', '{"kind":"claude","input":12}', null)]
-  const pool = [row(GEMINI, '1762762548000:9180', '{"kind":"gemini","input":3}', null), both]
-  assert.deepEqual(compareStores(mainThread, pool), {
-    entries: 3,
-    disagreeing: [],
-    onlyInMainThread: [CLAUDE],
-    onlyInPool: [GEMINI],
-    changed: [],
-    fails: true
+// One side at a time, so that each side's entry alone has to fail the run
+const both = row(CODEX, '1762699958000:6634120', '{"kind":"codex","input":7}', null)
+for (const [side, mainThread, pool, onlyInMainThread, onlyInPool] of [
+  ["main thread's", [both, row(CLAUDE, '1762700000123.456:40213', '{"kind":"claude","input":12}', null)], [both], [CLAUDE], []],
+  ["parse pool's", [both], [row(GEMINI, '1762762548000:9180', '{"kind":"gemini","input":3}', null), both], [], [GEMINI]]
+]) {
+  test(`an entry only the ${side} store holds fails the run, and is named on that side`, () => {
+    assert.deepEqual(compareStores(mainThread, pool), {
+      entries: 2,
+      disagreeing: [],
+      onlyInMainThread,
+      onlyInPool,
+      changed: [],
+      fails: true
+    })
   })
-})
+}
 
 test('an entry whose signature differs is a file that changed between the builds, counted apart, and it does not fail', () => {
   const mainThread = [

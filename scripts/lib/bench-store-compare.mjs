@@ -1,8 +1,9 @@
 // How the scan benchmark's workers mode (scripts/bench-scan.entry.ts) judges the token store a main-thread cold scan
 // built against the one a parse-pool cold scan built. The two scans read the same files one after the other, so a file
 // can change between them; its entry then carries another signature in each store, and that is no disagreement. Under
-// one signature the two stores must hold the same entry, and an entry only one of them holds fails the run too: the
-// pool dropped or invented a file.
+// one signature the two stores must hold the same entry, and an entry only one of them holds fails the run too: either
+// the pool dropped or invented a file, or the file was created or removed between the two builds, a rare false red that
+// a rerun clears.
 
 /** @param {ReadonlyArray<{ path: string, sig: string, agg: string, resume: string | null }>} rows */
 function byPath(rows) {
