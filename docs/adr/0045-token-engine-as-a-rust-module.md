@@ -1,6 +1,6 @@
 # ADR-0045: The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module that builds only the values a rule reads
 
-- Status: Proposed
+- Status: Accepted (2026-11-16)
 
 ## Context
 
@@ -31,16 +31,14 @@ We adopt **option 1**.
 
 - **One module** in Rust, built from its source in this repository for each target (darwin-arm64 for releases
   and development, linux-x64 for CI); no binary is committed.
-- **What it owns**:
+- **What it owns** (token-stats, The engine module):
   - the session walk (the Codex, Grok and Antigravity CLI session lists and every Codex rollout's first line;
     Claude Code's sessions are listed by the planning, which stays in TypeScript), whose result goes to the
     project scan, which stays in TypeScript;
   - reading and parsing every session file a scan reads, cold rollouts decompressed;
-  - each side's per-line rules, the question index and the titles; a Codex thread's name comes from Codex's
-    session index, which is read outside the module and handed to it;
+  - each side's per-line rules, the question index and the titles;
   - each file's entry, the store (ADR-0044), the grouping and the combination;
-  - the line rules that the session page and both searches read a question's text and a turn's contents by,
-    on bytes they read themselves;
+  - the line rules that the session page and both searches read a question's text and a turn's contents by;
   - serialising and writing the display copy, at the moments ADR-0044 sets.
 - **Reading**: a value in a line is built only where a rule reads it, and every other value is scanned past.
   Where `JSON.parse` and the module's parser would disagree on a line, the module gives JavaScript's result.
@@ -56,8 +54,9 @@ We adopt **option 1**.
   asar archive, among the app's resources, signed and notarised with the app.
 - Negative: every accounting, question-index and title rule exists only as rewritten in Rust, so a mistake there
   is a wrong figure nobody notices; the tests hold it to the TypeScript engine's figures on the same fixtures.
-- Negative: token-stats::QR-004's 600 MB is below the prototype's 516–561 MB plus the app's own floor of about
-  100 MB, so, by inference, the module has to read more leanly than the prototype did.
+- Negative: token-stats::QR-004's 600 MB leaves the module little room: the prototype alone peaked at 516–561 MB,
+  and the packaged app's cold scan peaks at 470 MB (Sources), so a change that keeps more of a scan in memory at
+  once can break it.
 - Neutral: on the Codex data the prototype matched `JSON.parse` on every line and no line failed to parse; the
   decision still requires JavaScript's result where the two would differ (token-stats, The engine module).
 
@@ -70,5 +69,5 @@ workers; all 3,052 Codex rollouts) took 9.0–9.3 s against 42.0–42.5 s, peake
 1,561–1,786 MB and spent 2.4 s of system CPU against 31 s. Both under the Electron 43.2.0 binary, 2026-11-13.
 `2026-11-12-sqlite-prototype.md` (ADR-0044): those layers held 7–8 MB of live data, and summing the groups took
 14–18 ms of a 142–156 ms rescan.
-#424, 2026-11-16, packaged 29856af on an empty settings directory over this machine's 7,421 files: first figures at
-18.33–18.97 s, peak 467 MB.
+#453, 2026-11-16, packaged 3ca4011 on an empty settings directory over this machine's 7,467–7,469 files (21.0 GB of
+lines decompressed), 1-minute load at most 3.0: first figures at 12.38–12.88 s, peak 470 MB.
