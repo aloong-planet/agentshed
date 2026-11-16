@@ -13,6 +13,17 @@ pub(crate) fn units(s: &str) -> Units {
     s.encode_utf16().collect()
 }
 
+/// A session file's line as text, each invalid sequence becoming U+FFFD as `String::from_utf8_lossy` makes it. A line
+/// that is valid UTF-8, nearly every one, is taken as it is once `std::str::from_utf8` has checked it, which looks at
+/// plain ASCII a word at a time; only a line it refuses is decoded lossily, which looks at each byte (on a cold scan's
+/// parse workers the lossy decode of every line took 15.8% of their samples, #453).
+pub(crate) fn line_text(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
+    match std::str::from_utf8(bytes) {
+        Ok(text) => std::borrow::Cow::Borrowed(text),
+        Err(_) => String::from_utf8_lossy(bytes),
+    }
+}
+
 /// Whether a code unit is in the set `String.prototype.trim` and the regular expression `\s` match: WhiteSpace and
 /// LineTerminator (ECMA-262 §12.2, §12.3), every member a single unit
 fn is_space(u: u16) -> bool {

@@ -4544,7 +4544,9 @@ describe('how a rollout line is read', () => {
       // Invalid bytes in a value no rule reads leave the line readable
       Buffer.concat([Buffer.from(`${head}"note":"`), bytes(0xff, 0xfe), Buffer.from(`","usage"${tail}`)]),
       // Outside a string a replacement character is no token, and the line is refused
-      Buffer.concat([Buffer.from(`{"timestamp":"${AT}",`), bytes(0xff), Buffer.from(record('r2', 999, 9).slice(1))])
+      Buffer.concat([Buffer.from(`{"timestamp":"${AT}",`), bytes(0xff), Buffer.from(record('r2', 999, 9).slice(1))]),
+      // A line that ends inside a three-byte character, cut after its second byte: U+FFFD after the object
+      Buffer.concat([Buffer.from(record('r3', 888, 8)), bytes(0xe4, 0xb8)])
     ])
     const entry = await entryOf(f)
     const R = REPLACEMENT

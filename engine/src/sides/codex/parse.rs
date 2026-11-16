@@ -75,7 +75,7 @@ pub(super) fn parse(job: &Job, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Opt
         if bytes.is_empty() || !line_feed {
             return;
         }
-        let decoded = String::from_utf8_lossy(bytes);
+        let decoded = text::line_text(bytes);
         // A line `JSON.parse` refuses is skipped (A8), and so is a string, a number, a boolean or null; the bytes still
         // count toward the offsets of the lines after them
         let parsed = match line::read(&decoded) {
