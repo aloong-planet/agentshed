@@ -1,6 +1,6 @@
 # Session view
 
-> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer and saved display pages) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module)
+> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer and saved display pages) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module) · ADR-0052 (the full-text search in the engine module, a line at a time)
 
 > Successful display payloads persist independently of the accounting index (ADR-0028).
 
@@ -226,12 +226,13 @@ hands the command over; it never runs it.
   from the start, through every frame, by the reader the scan reads it with (token-stats B12), that
   serves the requested ranges in order and stops at the last one — opening the session is one pass
   for all its question texts, expanding a turn is one pass to that turn, a search is one pass per
-  file. Memory follows the bytes in flight, never the file. The decompression holds neither the main
-  process nor the thread pool its file reads share (token-stats, The engine module), and four reads at
-  most decompress at once for the main process, D2b's cap, whichever surface asks them: every expanded
-  turn reads its own, all of them again on a revisit, and a search goes on after the next one starts;
-  the others wait their turn in the order asked. The scan worker, which reads a cold rollout only for a
-  stripped fork's title (B2), counts four of its own. A truncated cold rollout never reaches the session
+  file, a full-text search's to the stream's end (D2). Memory follows the bytes in flight, never the
+  file. The decompression holds neither the main process nor the thread pool its file reads share
+  (token-stats, The engine module), and four reads at most decompress at once for the main process,
+  D2b's cap, whichever surface asks them, a full-text search of a cold rollout taking a place as a read
+  does: every expanded turn reads its own, all of them again on a revisit, and a search goes on after
+  the next one starts; the others wait their turn in the order asked. The scan worker, which reads a
+  cold rollout only for a stripped fork's title (B2), counts four of its own. A truncated cold rollout never reaches the session
   page: the scan skips it (token-stats B12).
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
   records, and Codex's subagent threads, all sit under the step that dispatched them.
@@ -337,10 +338,16 @@ hands the command over; it never runs it.
 - D1 **Questions are searched by default** (small, clean, precise hits), with full-text search as an
   optional toggle.
 - D2 No inverted index is built. Searching questions reads each range by the offset index and
-  matches bytes; full-text search reads the file whole and matches bytes. The key is **not
-  parsing**: it is a pure byte scan, and **only matching ranges get decoded and parsed.**
-  ⚠️ **Case insensitivity must not decode + lower-case the whole thing** — generate case variants of
-  an ASCII needle and do several byte matches instead; a Chinese needle has no such problem.
+  matches bytes; full-text search reads the file's stream a line at a time, a plain file and a cold
+  rollout alike, and matches bytes, holding only the line in flight, so a file's size no longer
+  bounds what can be searched (its longest line still does), and does so in the engine module, on a
+  thread of its own, so a search neither ends nor holds the main process (C2, ADR-0052). The key is
+  **not parsing**: it is a pure byte scan, and **only matching ranges get decoded and parsed** — for
+  full text, the line of each turn's first body hit, for its snippet (D5).
+  ⚠️ **Case insensitivity must not decode + lower-case the whole thing** — for the question search,
+  generate case variants of an ASCII needle and do several byte matches instead; full-text search
+  folds the ASCII letters of the line in flight, byte for byte, into a copy it matches against; a
+  Chinese needle has no such problem.
   Corollary: **full-text search is a toggle because of hit quality (full text hits tool output
   noise), not because of performance.**
 - D2a **The question index stores offsets and one content fingerprint, and no question text at
@@ -374,6 +381,10 @@ hands the command over; it never runs it.
   deduplication the same sentence is reported once per generation of a fork chain.
   A cold rollout is searched in one streaming pass (C2), in question mode and full-text mode alike.
   A session whose file cannot be read is left out, in either mode, and the other sessions' hits stay.
+  In full-text mode a file that cannot be read to its stream's end after its questions were read —
+  a cold rollout cut short (token-stats B12), one that is not zstd, one gone or unreadable since —
+  loses its full-text part alone: nothing its search found counts, neither body hits nor folded
+  ones, and its question hits stay.
   The match is case-insensitive.
 - D4 A hit locates "which question in which session", clickable to go straight there. **The locating
   highlight for a hit**: on arrival a yellow background pulse **holds for 10 s** (8 s steady, fading
@@ -392,14 +403,18 @@ hands the command over; it never runs it.
   thing), decoding and parsing only the matching ranges and **re-verifying with the parsed text** to
   eliminate byte-level false hits from JSON escaping (the converse miss is a known boundary: a
   needle containing a quote, backslash or newline will not be found in its JSON-escaped form — such
-  keywords are rare and no escape-variant scan is done for them); full-text mode = read whole +
-  binary search of the hit offset back to its turn, counting hits outside the displayed range (an
+  keywords are rare and no escape-variant scan is done for them); full-text mode = the same byte
+  rule over each line of the stream (a needle holding a line feed matches across lines) + binary
+  search of the hit offset back to its turn, counting hits outside the displayed range (an
   already-stripped fork prefix / an abandoned branch / the noise before the first question) as
   `folded` and reporting that in the results header; question mode has no replay copies by
   construction, since the question list is already stripped. Going straight there is a scroll to the
   question's row, with no new visual element. The search term is not preserved across sections (the
   spec does not require it).
-- D5 In full-text mode a hit in a turn's body carries a "body" marker and a context snippet.
+- D5 In full-text mode a hit in a turn's body carries a "body" marker and a context snippet: one per
+  turn, from its first body hit, the first string in that line's JSON whose lower-cased text holds
+  the lower-cased needle, cut 20 characters before the hit and 60 after the needle, with an ellipsis
+  on each side cut; none when the line is not JSON or no string of it holds the needle.
 - D6 A search with no hits says "questions only by default — try switching to full text" instead of
   showing a blank.
 
@@ -457,8 +472,8 @@ below are archived as a decision record and are no longer requirements)**
   results, the real times in a Codex replayed span).
 
 **Cross-cutting regression points**
-- R1 Session file paths must enter the on-demand read allow-list (the same invariant as artifacts
-  and memory). The application's own scan produces **an exact path set**, which the main process
+- R1 Session file paths must enter the on-demand read allow-list (the same invariant as memory files
+  and skill files). The application's own scan produces **an exact path set**, which the main process
   takes from the scan's result and holds (ADR-0043), and the allow-list check is the first thing done
   on a read, before any file-system call. **The rule = listed
   sessions + subagent and nested transcripts** — the latter are not in the list (A3/A3a) but
@@ -723,7 +738,7 @@ subagents included.
   toast; the page itself follows C4/P7 on its next refresh.
 - A path that is not a listed session file is refused before it is touched (session-view::R1's
   allow-list); a restored allow-list entry is shown only while it is a regular file, as a restored
-  artifact is opened.
+  memory file is read.
 
 **Pasting the command — the agent side's own behaviour, which the product does not check**
 - The tool is not installed or not on the path: the shell says so. On this machine the Codex command

@@ -1,6 +1,6 @@
 # ADR-0045: The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module that builds only the values a rule reads
 
-- Status: Accepted (2026-11-16)
+- Status: Accepted (2026-11-17)
 
 ## Context
 
@@ -17,7 +17,7 @@ the session page and both searches show come from the same per-line rules over t
    large.
 3. Rust for the store, the grouping and the combination only, the parse staying in TypeScript — rejected:
    after ADR-0044 those layers are small (Sources), so the module's whole cost would buy little.
-4. Rust reads the files and hands TypeScript only the fields its rules read — rejected for option 1: the fields
+4. Rust reads the files and hands TypeScript only the fields its rules read — rejected: the fields
    extracted and the fields read are two lists to keep in step, and a field missed is a wrong figure nobody
    notices.
 5. Leave the session walk and the display copy's writer in TypeScript — rejected (not recorded; ruled out when
@@ -33,13 +33,14 @@ We adopt **option 1**.
 - **One module** in Rust, built from its source in this repository for each target; no binary is committed.
 - **What it owns** (token-stats, The engine module):
   - the session walk (the Codex, Grok and Antigravity CLI session lists and every Codex rollout's first line;
-    Claude Code's sessions are listed by the planning, which stays in TypeScript), whose result goes to the
-    project scan, which stays in TypeScript;
+    Claude Code's are listed by the planning, in TypeScript), whose result goes to the project scan, in
+    TypeScript;
   - reading and parsing every session file a scan reads, cold rollouts decompressed, and reading the cold ones the
     session page and both searches read;
   - each side's per-line rules, the question index and the titles;
   - each file's entry, the store (ADR-0044), the grouping and the combination;
   - the line rules that the session page and both searches read a question's text and a turn's contents by;
+  - a project's full-text search (ADR-0052);
   - serialising and writing the display copy, at the moments ADR-0044 sets.
 - **Reading**: a value in a line is built only where a rule reads it, and every other value is scanned past.
   Where `JSON.parse` and the module's parser would disagree on a line, the module gives JavaScript's result.

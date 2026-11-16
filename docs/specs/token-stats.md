@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: ADR-0005 (aligned with ccusage) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0048 (Antigravity CLI usage) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module) · ADR-0046 (the engine module in the app's own threads) · ADR-0047 (no fallback engine)
+> Related: ADR-0005 (aligned with ccusage) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records) · ADR-0037 (Antigravity CLI side) · ADR-0048 (Antigravity CLI usage) · ADR-0039 (an archive file that fails stops no scan) · ADR-0043 (a scan runs on a worker thread) · ADR-0044 (the token cache in a SQLite store, aggregated by de-duplication group) · ADR-0045 (the token engine as one Rust module) · ADR-0046 (the engine module in the app's own threads) · ADR-0047 (no fallback engine) · ADR-0052 (the full-text search in the engine module, a line at a time)
 
 > Startup restoration uses the original page prototypes.
 > Successful display payloads persist independently of the accounting index (ADR-0028).
@@ -1050,11 +1050,12 @@ read with macOS `footprint`.
 - **The engine module** (ADR-0045, ADR-0046) is loaded by the scan worker, the parse workers and the main process,
   and holds the session walk, the reading and parsing of every session file a scan reads, the reading of
   the cold rollouts the session page and both searches read, the question index and the titles, the
-  entries, the store, the grouping and the combination, and the line rules that a question's text and a
-  turn's contents are read by on the session page and in both searches. A Codex session's thread name comes
-  from Codex's session index, which is read outside the module and handed to it with the rollout; the
-  session page and both searches read a plain file's bytes themselves, take a cold rollout's from the
-  module, and hand them to those line rules. The module reads a cold rollout for them by the reader and the
+  entries, the store, the grouping and the combination, the line rules that a question's text and a
+  turn's contents are read by on the session page and in both searches, and a project's full-text search
+  of each session file, read a line at a time on a thread of its own (session-view D2, D3, ADR-0052). A
+  Codex session's thread name comes from Codex's session index, which is read outside the module and
+  handed to it with the rollout; the session page and both searches read a plain file's bytes themselves,
+  take a cold rollout's from the module, and hand them to those line rules. The module reads a cold rollout for them by the reader and the
   cut-short rule a scan reads it with (B12), each read on a thread of its own, so neither the thread that
   asked nor the thread pool its file reads share waits on the decompression; four at most run at once on
   each thread that asks them, and the others wait their turn in the order asked (session-view C2). A value
