@@ -10,10 +10,10 @@
 use std::collections::HashSet;
 
 use super::entry::{Event, Job, KeptTotal, Parsed};
-use super::{line, question, title};
+use super::{cold, line, question, title};
 use crate::json::{self, max};
 use crate::question::{Calls, Indexer};
-use crate::read::{self, Stored};
+use crate::read;
 use crate::text::{self, Units};
 
 /// `Math.max(0, x)` for an x that is not NaN
@@ -67,7 +67,7 @@ pub(super) fn parse(job: &Job, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Opt
         Some(f) => resume_start(f.cursor)?,
         None => 0,
     };
-    let stored = if job.file.ends_with(".jsonl.zst") { Stored::Zstd } else { Stored::Plain };
+    let stored = cold::stored(&job.file);
 
     let last = read::each_line(&job.file, stored, start, |bytes, start, end, line_feed| {
         // Codex ends every line with a line feed (B12): a last line without one is still being written, and is read
@@ -155,10 +155,8 @@ pub(super) fn parse(job: &Job, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Opt
         events.push(Event { at, input, cached, output, cache_write: 0.0 });
     })
     .ok()?;
-    // Every rollout line ends with a line feed and a cold rollout is never mid-write, so a decompressed stream that does
-    // not end with one was cut short, and is skipped (B12). A cut that lands exactly on a line end escapes this and
-    // reads as a shorter session.
-    if stored == Stored::Zstd && last.is_some_and(|b| b != b'\n') {
+    // A cold rollout whose stream was cut short is skipped (B12)
+    if cold::cut_short(stored, last) {
         return None;
     }
 

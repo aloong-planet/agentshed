@@ -17,6 +17,7 @@ use napi::sys::napi_value;
 
 use crate::exports::js::{Js, LocalDates};
 use crate::group::{Builder, Decoded, Member};
+use crate::read::{Failed, Served};
 use crate::text::Units;
 use crate::walk::Held;
 
@@ -76,6 +77,14 @@ pub(crate) trait Side: Sync {
     /// One session file's metadata, read as the walk reads it, for the session page's single-file rebuild; None when the
     /// module does not read this side's
     fn meta(&self, _js: &Js, _file: &str) -> Option<Result<napi_value>> {
+        None
+    }
+
+    /// Each of `ranges` of the session file `file`, `[start, end)` in the offsets its question index records, read in
+    /// one pass for the session page and both searches (session-view C2): Failed when the file cannot be read as far as
+    /// the read goes, or what it read is not whole by the side's rules. None when the module does not read this side's
+    /// files by range.
+    fn read_ranges(&self, _file: &str, _ranges: &[(u64, u64)]) -> Option<std::result::Result<Served, Failed>> {
         None
     }
 }

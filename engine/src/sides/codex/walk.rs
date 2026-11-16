@@ -7,8 +7,8 @@
 use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use super::head;
-use crate::read::{self, Stored};
+use super::{cold, head};
+use crate::read;
 use crate::text::{self, Units};
 use crate::walk::Held;
 use crate::{seams, walk};
@@ -153,8 +153,7 @@ fn kept_or_read(file: &str, last: &mut HashMap<String, Reading>, next: &mut Hash
 /// names no project (projects-list B4). `mtime_ms` is the file's time when the caller has taken it; taken after the line
 /// when not.
 pub(super) fn read_head(file: &str, mtime_ms: Option<f64>, date_parse: &mut dyn FnMut(&[u16]) -> f64) -> Option<Session> {
-    let stored = if file.ends_with(".jsonl.zst") { Stored::Zstd } else { Stored::Plain };
-    let line = read::first_line(file, stored, HEAD_STEP, HEAD_MAX).ok()??;
+    let line = read::first_line(file, cold::stored(file), HEAD_STEP, HEAD_MAX).ok()??;
     let text = String::from_utf8_lossy(&line);
     let h = head::read(&text).ok()??;
     let p = &h.payload;

@@ -2,8 +2,8 @@
 // main process each load it once, through Node-API, from the path the main process works out. No other engine exists (ADR-0047):
 // a module that will not load, or that is another build's, fails every scan and every question-index read that asks
 // for it — the reads the session page and both searches make included, whose question texts and turns the module's
-// line rules read — and every write of the display copy (token-stats, Scans and the window). Nothing here imports
-// electron, which a worker thread cannot load.
+// line rules read, and whose cold rollouts it reads — and every write of the display copy (token-stats, Scans and the
+// window). Nothing here imports electron, which a worker thread cannot load.
 import { join } from 'node:path'
 import type { AgentSide, ForkState, SessionMeta } from '@shared/domain'
 import type { UsageRow } from './providers/archive'
@@ -115,6 +115,16 @@ export interface EngineModule {
    * (session-view B2).
    */
   questionTitle(kind: AgentSide, text: string): string | null
+  /**
+   * Each of `ranges` of the session file `file`, of the side `kind`, `[start, end)` in the offsets its question index
+   * records, read in one pass on a thread of its own (session-view C2): each range's bytes, in the order asked, as much
+   * of the range as the file holds, and how far into the file's stream the read went. A cold rollout is read through
+   * its decompressed stream, every frame of it, by the reader the scan reads it with, and the read stops once the last
+   * range's end has passed. Rejects when the file cannot be read as far as the read goes, when a read that reached the
+   * stream's end finds it cut short (token-stats B12), or when the read panics; a side the module does not read by
+   * range rejects too.
+   */
+  readRanges(kind: 'codex', file: string, ranges: ReadonlyArray<{ start: number; end: number }>): Promise<{ bufs: Buffer[]; bytesRead: number }>
   /** The tool names whose call dispatches a subagent on the side `kind`, which a turn draws as a sub block: the names
    * its question index counts a turn's subagents by (session-view C3) */
   dispatches(kind: AgentSide): string[]

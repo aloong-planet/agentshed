@@ -1,8 +1,14 @@
-import { describe, expect, test } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+// Known gap: a read the system interrupts with a signal (EINTR) is taken again by the engine module's reader, which a
+// cold rollout's ranges are read through (`take` in engine/src/read/mod.rs), and no seam makes a read be interrupted,
+// so no case here drives that retry. Add one when a seam that interrupts a read exists.
+import { beforeAll, describe, expect, test } from 'vitest'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { loadEngineModule, threadEngineModule } from '../engine-module'
+import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
+import { readRolloutWhole } from './cold-rollout'
 import { mapLimit, readRangeBuffers, readRanges } from './range-read'
 
 function withFile<T>(content: Buffer | string, fn: (file: string) => Promise<T>): Promise<T> {
@@ -132,24 +138,47 @@ describe('mapLimit\'s error convergence (the unhandledRejection hole review foun
   })
 })
 
-describe('a cold rollout (.jsonl.zst): ranges are served from one streaming decompression per call (spec session-view C2)', () => {
-  /** A plain file and its compressed twin side by side; the ranges are the plain file's byte ranges */
-  function withTwins<T>(fn: (plain: string, cold: string, size: number) => Promise<T>): Promise<T> {
+describe('a cold rollout (.jsonl.zst): ranges are served from one pass through its decompressed stream per call, every frame of it (spec session-view C2)', () => {
+  beforeAll(() => {
+    loadEngineModule(TEST_ENGINE)
+  })
+
+  const MiB = 1024 * 1024
+  /** Lines past 2 MiB in all, so that the reads' 1 MiB chunks end inside lines */
+  const content = Buffer.from(Array.from({ length: 32000 }, (_, i) => JSON.stringify({ i, text: 'line ' + i + ' ' + 'x'.repeat(i % 97) }) + '\n').join(''))
+  /** Where a second frame begins: the line end nearest the middle */
+  const middle = content.indexOf(0x0a, content.length >> 1) + 1
+
+  /**
+   * A plain file and its compressed twin side by side, the twin in one zstd frame or two. A zstd stream may hold any
+   * number of frames; every cold rollout on this machine holds one (2026-11-16, 3001 files), so the second is built,
+   * not sampled. The ranges are the plain file's byte ranges.
+   */
+  function withTwins<T>(frames: number, fn: (plain: string, cold: string, size: number) => Promise<T>): Promise<T> {
     const dir = mkdtempSync(join(tmpdir(), 'rr-cold-'))
-    const lines: string[] = []
-    for (let i = 0; i < 4000; i++) lines.push(JSON.stringify({ i, text: 'line ' + i + ' ' + 'x'.repeat(i % 97) }))
-    const content = Buffer.from(lines.join('\n') + '\n')
     const plain = join(dir, 'f.jsonl')
     const cold = join(dir, 'f.jsonl.zst')
     writeFileSync(plain, content)
-    writeFileSync(cold, zstdCompressSync(content))
+    writeFileSync(cold, frames === 1 ? zstdCompressSync(content)
+      : Buffer.concat([zstdCompressSync(content.subarray(0, middle)), zstdCompressSync(content.subarray(middle))]))
     return fn(plain, cold, content.length).finally(() => rmSync(dir, { recursive: true, force: true }))
   }
 
-  test('the bytes of several ranges equal the plain twin\'s, in input order, and the call traverses exactly up to the last range\'s end', async () => {
-    await withTwins(async (plain, cold, size) => {
-      // Ranges out of order and one near the end: served in input order from one pass
-      const ranges = [{ start: 150000, end: 150200 }, { start: 10, end: 60 }, { start: size - 300, end: size - 100 }, { start: 90000, end: 90050 }]
+  /** A file of these bytes under a cold rollout's name */
+  function withCold<T>(bytes: Buffer, fn: (cold: string) => Promise<T>): Promise<T> {
+    const dir = mkdtempSync(join(tmpdir(), 'rr-cold-'))
+    const cold = join(dir, 'f.jsonl.zst')
+    writeFileSync(cold, bytes)
+    return fn(cold).finally(() => rmSync(dir, { recursive: true, force: true }))
+  }
+
+  test.each([1, 2])('in %i frame(s): the bytes of several ranges equal the plain twin\'s, in input order, and the call traverses exactly up to the last range\'s end', async (frames) => {
+    expect(content.length).toBeGreaterThan(2 * MiB)
+    await withTwins(frames, async (plain, cold, size) => {
+      // Out of order: one across the first chunk's end, one near the stream's end, one across the frame boundary, one
+      // inside the second frame; served in input order from one pass
+      const ranges = [{ start: MiB - 100, end: MiB + 100 }, { start: 10, end: 60 }, { start: size - 300, end: size - 100 },
+        { start: middle - 50, end: middle + 50 }, { start: middle + 500, end: middle + 700 }]
       const p = await readRangeBuffers(plain, ranges)
       const c = await readRangeBuffers(cold, ranges)
       expect(c.bufs.map((b) => b.toString('utf8'))).toEqual(p.bufs.map((b) => b.toString('utf8')))
@@ -158,10 +187,87 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one streaming deco
     })
   })
 
+  test('a read stops once its last range has passed, inside a line: it is served, though the stream is cut further on (only a read that reaches the stream\'s end is judged by the byte it ends on)', async () => {
+    // One line of 3 MiB of letters that barely compress; the compressed bytes cut at four fifths, so the stream ends
+    // inside that line, about 2.4 MiB in. Wherever past its first MiB the read stops, it stops inside that line too.
+    let x = 2463534242
+    const letters = Buffer.alloc(3 * MiB)
+    for (let i = 0; i < letters.length; i++) {
+      x ^= x << 13
+      x ^= x >>> 17
+      x ^= x << 5
+      letters[i] = 0x61 + ((x >>> 0) % 26)
+    }
+    const long = Buffer.concat([Buffer.from('{"i":0}\n{"text":"'), letters, Buffer.from('"}\n')])
+    const compressed = zstdCompressSync(long)
+    expect(compressed.length).toBeGreaterThan(long.length / 2)
+    await withCold(compressed.subarray(0, Math.floor(compressed.length * 0.8)), async (cold) => {
+      const at = MiB + 1000
+      const c = await readRangeBuffers(cold, [{ start: 0, end: 8 }, { start: at, end: at + 10 }])
+      expect(c.bufs.map((b) => b.toString('utf8'))).toEqual(['{"i":0}\n', long.subarray(at, at + 10).toString('utf8')])
+      expect(c.bytesRead).toBe(at + 10)
+      // The same stream read to its end is judged, and rejects
+      await expect(readRolloutWhole(cold)).rejects.toThrow(/could not be read as far as its ranges go/)
+    })
+  })
+
+  test.each([1, 2])('in %i frame(s): the whole of a cold rollout reads as its plain twin (spec D2, D3: full text)', async (frames) => {
+    await withTwins(frames, async (plain, cold) => {
+      const whole = await readRolloutWhole(cold)
+      const twin = readFileSync(plain)
+      expect(whole.length).toBe(twin.length)
+      expect(whole.equals(twin)).toBe(true)
+    })
+  })
+
   test('a range past the end of a cold rollout is truncated to what is readable, like a plain one', async () => {
-    await withTwins(async (_plain, cold, size) => {
+    await withTwins(1, async (_plain, cold, size) => {
       const c = await readRangeBuffers(cold, [{ start: size - 50, end: size + 1000 }])
       expect(c.bufs[0].length).toBe(50)
+    })
+  })
+
+  const full = zstdCompressSync(content)
+  test.each([
+    ['whose stream is cut inside a line', full.subarray(0, full.length >> 1)],
+    ['that is not zstd', Buffer.from('{"type":"session_meta"}\nnot zstd at all\n')]
+  ])('a cold rollout %s: a read that reaches its stream\'s end rejects, and so does reading it whole (spec token-stats B12)', async (_what, bytes) => {
+    await withCold(bytes, async (cold) => {
+      await expect(readRangeBuffers(cold, [{ start: 0, end: 10 }, { start: content.length - 10, end: content.length + 1000 }])).rejects.toThrow(/could not be read as far as its ranges go/)
+      await expect(readRolloutWhole(cold)).rejects.toThrow(/could not be read as far as its ranges go/)
+    })
+  })
+
+  test('a missing cold rollout: refused, its ranges and its whole alike', async () => {
+    const missing = join(tmpdir(), `rr-missing-${process.pid}.jsonl.zst`)
+    await expect(readRangeBuffers(missing, [{ start: 0, end: 10 }])).rejects.toThrow(/could not be read as far as its ranges go/)
+    await expect(readRolloutWhole(missing)).rejects.toThrow(/could not be read as far as its ranges go/)
+  })
+
+  test('a cold rollout cut exactly at a line end reads as the shorter stream: a whole first frame, then a frame cut inside its header (spec token-stats B12)', async () => {
+    const first = content.subarray(0, middle)
+    await withCold(Buffer.concat([zstdCompressSync(first), zstdCompressSync(content.subarray(middle)).subarray(0, 5)]), async (cold) => {
+      const c = await readRangeBuffers(cold, [{ start: 0, end: 10 }, { start: middle - 20, end: middle + 1000 }])
+      expect(c.bufs.map((b) => b.toString('utf8'))).toEqual([first.subarray(0, 10).toString('utf8'), first.subarray(middle - 20).toString('utf8')])
+      expect(c.bytesRead).toBe(middle)
+      expect((await readRolloutWhole(cold)).equals(first)).toBe(true)
+    })
+  })
+
+  test('a panic while reading one cold rollout rejects that read alone: a read of another, started with it, is served', async () => {
+    await withTwins(1, async (plain, cold) => {
+      const seam = threadEngineModule() as PanicSeam
+      seam.seamPanicWhileReading(cold)
+      try {
+        // The other rollout: the same twin under another cold name
+        const other = `${plain}.other.jsonl.zst`
+        writeFileSync(other, readFileSync(cold))
+        const [hit, spared] = await Promise.allSettled([readRangeBuffers(cold, [{ start: 0, end: 10 }]), readRangeBuffers(other, [{ start: 0, end: 10 }])])
+        expect(hit.status === 'rejected' && String(hit.reason)).toMatch(/reading .* panicked/)
+        expect(spared.status === 'fulfilled' && spared.value.bufs[0].toString('utf8')).toBe(content.subarray(0, 10).toString('utf8'))
+      } finally {
+        seam.seamPanicWhileReading(null)
+      }
     })
   })
 })

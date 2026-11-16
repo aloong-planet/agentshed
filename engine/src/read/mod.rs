@@ -43,18 +43,7 @@ pub(crate) struct Failed;
 /// stream, `from` included. Answers the stream's last byte, None when it held none after `from`. Whether a line or a
 /// stream that stops short of a line feed is whole is for the side to judge, by how its agent writes the file.
 pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl FnMut(&[u8], u64, u64, bool)) -> Result<Option<u8>, Failed> {
-    let mut file = File::open(path).map_err(|_| Failed)?;
-    let mut source: Box<dyn Read> = match stored {
-        Stored::Plain => {
-            if from > 0 {
-                file.seek(SeekFrom::Start(from)).map_err(|_| Failed)?;
-            }
-            Box::new(file)
-        }
-        // A cold rollout is never resumed: its stream can only be read from the start
-        Stored::Zstd if from > 0 => return Err(Failed),
-        Stored::Zstd => Box::new(zstd::stream::read::Decoder::new(file).map_err(|_| Failed)?),
-    };
+    let mut source = source(path, stored, from)?;
     // The line being assembled is buf[..held]. Each read fills buf[held..held + n], and only those n bytes join it;
     // past them the buffer keeps whatever an earlier read left there, which nothing reads. So the buffer is zeroed as
     // it is allocated and as it grows, not before every read: zeroing a chunk before each read took 3.1% of a cold
@@ -68,15 +57,7 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
         if buf.len() < held + CHUNK {
             buf.resize(held + CHUNK, 0);
         }
-        let n = match source.read(&mut buf[held..held + CHUNK]) {
-            Ok(n) => n,
-            Err(e) if e.kind() == ErrorKind::Interrupted => continue,
-            // A zstd stream that stops inside a frame: the decoder has handed over every byte it could decode, and the
-            // stream ends there. Whether it was cut is judged by the side from the bytes it ends with, not from the
-            // decoder's report (token-stats B12).
-            Err(e) if stored == Stored::Zstd && e.kind() == ErrorKind::UnexpectedEof => 0,
-            Err(_) => return Err(Failed),
-        };
+        let n = take(&mut *source, stored, &mut buf[held..held + CHUNK])?;
         if n == 0 {
             break;
         }
@@ -102,6 +83,93 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
         line(&buf[..held], base, base + held as u64, false);
     }
     Ok(last)
+}
+
+/// The stream of `path` from byte `from` on: the file itself, or a cold rollout's zstd stream decompressed as it is
+/// read, every frame of it in turn. Failed when the file cannot be opened, or a cold rollout is asked for from past its
+/// start.
+fn source(path: &str, stored: Stored, from: u64) -> Result<Box<dyn Read>, Failed> {
+    let mut file = File::open(path).map_err(|_| Failed)?;
+    match stored {
+        Stored::Plain => {
+            if from > 0 {
+                file.seek(SeekFrom::Start(from)).map_err(|_| Failed)?;
+            }
+            Ok(Box::new(file))
+        }
+        // A cold rollout is never resumed: its stream can only be read from the start
+        Stored::Zstd if from > 0 => Err(Failed),
+        Stored::Zstd => Ok(Box::new(zstd::stream::read::Decoder::new(file).map_err(|_| Failed)?)),
+    }
+}
+
+/// One read of the stream into `buf`: how many bytes it gave, 0 at the stream's end. A read interrupted by a signal is
+/// taken again.
+fn take(source: &mut dyn Read, stored: Stored, buf: &mut [u8]) -> Result<usize, Failed> {
+    loop {
+        match source.read(buf) {
+            Ok(n) => return Ok(n),
+            Err(e) if e.kind() == ErrorKind::Interrupted => {}
+            // A zstd stream that stops inside a frame: the decoder has handed over every byte it could decode, and the
+            // stream ends there. Whether it was cut is judged by the side from the bytes it ends with, not from the
+            // decoder's report (token-stats B12).
+            Err(e) if stored == Stored::Zstd && e.kind() == ErrorKind::UnexpectedEof => return Ok(0),
+            Err(_) => return Err(Failed),
+        }
+    }
+}
+
+/// What a read of ranges served
+pub(crate) struct Served {
+    /// Each range's bytes, in the order the ranges were asked for: as much of the range as the stream holds
+    pub(crate) bytes: Vec<Vec<u8>>,
+    /// How far into the stream the read went, no further than the last range's end
+    pub(crate) through: u64,
+    /// The last byte the read took, None when it took none
+    pub(crate) last: Option<u8>,
+    /// Whether the read reached the stream's end, rather than stopping once the last range had passed
+    pub(crate) ended: bool,
+}
+
+/// Reads the stream of `path` from its start, `CHUNK` bytes at a time, and serves each of `ranges`, `[start, end)` in
+/// the stream's offsets, in one pass that stops once the last range's end has passed. What is held is the bytes served
+/// and one chunk, not the stream: a range's bytes are joined into one buffer on this thread as the read ends. No ranges
+/// open nothing. Whether a stream that ends short of a line feed is whole is for the side to judge, from `last` when
+/// `ended`.
+pub(crate) fn ranges(path: &str, stored: Stored, ranges: &[(u64, u64)]) -> Result<Served, Failed> {
+    if ranges.is_empty() {
+        return Ok(Served { bytes: Vec::new(), through: 0, last: None, ended: false });
+    }
+    crate::seams::before_range_read(path);
+    let last_end = ranges.iter().map(|&(_, end)| end).max().unwrap_or(0);
+    let mut source = source(path, stored, 0)?;
+    let mut buf: Vec<u8> = vec![0; CHUNK];
+    let mut pieces: Vec<Vec<Vec<u8>>> = ranges.iter().map(|_| Vec::new()).collect();
+    let mut pos: u64 = 0;
+    let mut last: Option<u8> = None;
+    let mut ended = false;
+    while pos < last_end {
+        let n = take(&mut *source, stored, &mut buf)?;
+        if n == 0 {
+            ended = true;
+            break;
+        }
+        last = Some(buf[n - 1]);
+        let chunk_end = pos + n as u64;
+        for (i, &(start, end)) in ranges.iter().enumerate() {
+            let s = start.max(pos);
+            let e = end.min(chunk_end);
+            if s < e {
+                pieces[i].push(buf[(s - pos) as usize..(e - pos) as usize].to_vec());
+            }
+        }
+        pos = chunk_end;
+    }
+    let bytes = pieces
+        .into_iter()
+        .map(|mut p| if p.len() == 1 { p.pop().unwrap_or_default() } else { p.concat() })
+        .collect();
+    Ok(Served { bytes, through: pos.min(last_end), last, ended })
 }
 
 /// The stream's first line, its line feed left off: the file read `step` bytes at a time up to its first line feed and

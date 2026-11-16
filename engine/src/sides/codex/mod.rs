@@ -4,6 +4,7 @@
 //! file, its project, the session metadata, a resumed parse's running total — goes back as the job's own JavaScript
 //! value. The walk's sessions it writes as the TypeScript `CodexSessionMeta`.
 
+mod cold;
 mod combine;
 mod entry;
 mod head;
@@ -21,6 +22,7 @@ use self::walk::{Readings, Session};
 use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
 use crate::question::Record;
+use crate::read::{Failed, Served};
 use crate::text::{self, Units};
 use crate::walk::Held;
 
@@ -54,6 +56,10 @@ impl Side for Codex {
 
     fn dispatches(&self) -> &'static [&'static str] {
         std::slice::from_ref(&question::DISPATCH)
+    }
+
+    fn read_ranges(&self, file: &str, ranges: &[(u64, u64)]) -> Option<std::result::Result<Served, Failed>> {
+        Some(cold::ranges(file, ranges))
     }
 
     /// Every rollout under Codex's data root, `roots.codexHome`, with the run's first-line readings

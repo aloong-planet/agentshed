@@ -3,9 +3,9 @@
 //! build otherwise), so packaging's refusal of a module exporting a `seam…` name covers each (scripts/build-engine.mjs).
 //!
 //! - The panic seams: a test names a file, and the module panics while it parses that file — or, through the walk's
-//!   own seam, while the session walk reads that entry — so that a test can show what a panic in the module does to a
-//!   read. The two are apart so that a case of either reaches its own read: a parse never begins for an entry the walk
-//!   gave up on.
+//!   own seam, while the session walk reads that entry, or through the read's, while it reads that file's ranges for
+//!   the session page or a search — so that a test can show what a panic in the module does to a read. They are apart
+//!   so that a case of each reaches its own read: a parse never begins for an entry the walk gave up on.
 //! - The store-write seam: a test names a number of statements, and the next write to a token store fails once that
 //!   many have run, so that a test can show a write cut short between two of its statements (token-stats C3).
 //! - The copy seam: a test names a directory, and the module notes each directory it makes there to copy one of agy's
@@ -41,6 +41,15 @@ pub(crate) fn before_walk_read(file: &str) {
     let _ = file;
 }
 
+/// Called by a read of a session file's ranges before it opens the file: in a build made for tests, it panics when the
+/// file is the one the read's panic seam names, and otherwise does nothing.
+pub(crate) fn before_range_read(file: &str) {
+    #[cfg(feature = "test-seams")]
+    panic_on(&NAMED_READ, file, "reading");
+    #[cfg(not(feature = "test-seams"))]
+    let _ = file;
+}
+
 #[cfg(feature = "test-seams")]
 fn panic_on(named: &std::sync::Mutex<Option<String>>, file: &str, while_doing: &str) {
     let named = named.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
@@ -49,12 +58,14 @@ fn panic_on(named: &std::sync::Mutex<Option<String>>, file: &str, while_doing: &
     }
 }
 
-/// The file the module panics on while parsing, and the entry it panics on while walking; one each for the whole
-/// process, as the module's code is shared by every thread
+/// The file the module panics on while parsing, the entry it panics on while walking, and the file it panics on while
+/// reading its ranges; one each for the whole process, as the module's code is shared by every thread
 #[cfg(feature = "test-seams")]
 static NAMED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 #[cfg(feature = "test-seams")]
 static NAMED_WALKED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+#[cfg(feature = "test-seams")]
+static NAMED_READ: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
 /// Names the file the module panics while parsing, or none
 #[cfg(feature = "test-seams")]
@@ -66,6 +77,12 @@ pub(crate) fn name_panic_file(file: Option<String>) {
 #[cfg(feature = "test-seams")]
 pub(crate) fn name_walk_panic_file(file: Option<String>) {
     *NAMED_WALKED.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = file;
+}
+
+/// Names the file the module panics on while reading its ranges, or none
+#[cfg(feature = "test-seams")]
+pub(crate) fn name_read_panic_file(file: Option<String>) {
+    *NAMED_READ.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = file;
 }
 
 /// Called as a read makes the directory it copies one of agy's databases into: in a build made for tests, it notes the
