@@ -1,6 +1,7 @@
 // The full-text search of one session file (spec session-view D2, D3): the engine module reads the file's stream line
-// by line on a thread of its own, a cold rollout's decompressed as it is read, and never holds it whole, so no file is
-// too large to search and nothing of it is read on the main process's thread (C2). It maps each hit to its turn there,
+// by line on a thread of its own, a cold rollout's decompressed as it is read, and never holds it whole, so a file's
+// size no longer bounds what can be searched (its longest line still does) and nothing of it is read on the main
+// process's thread (C2). It maps each hit to its turn there,
 // and hands back only what the search shows: the hits that fall in no turn (folded), and each turn with a hit in its
 // body, with the snippet of its first. A cold rollout's search takes one of the places its reads share (cold-rollout.ts).
 import type { AgentSide } from '@shared/domain'

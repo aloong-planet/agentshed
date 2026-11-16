@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -34,8 +34,9 @@ async function offsets(content: string, needle: string): Promise<number[]> {
   return found.body.map((b) => b.turn)
 }
 
-// The byte rule a hit is found by, the one searchBytes holds for the question search (search-bytes.test.ts): each
-// assertion of that file again, through the full-text search, which finds its hits by a matcher of its own
+// The byte rule a hit is found by, the one searchBytes holds for the question search (search-bytes.test.ts): what each
+// assertion of that file holds, again through the full-text search, which finds its hits by a matcher of its own; its
+// mixed needle is held by 'a needle of letters and others' below, its large text by the first case here
 describe('the full-text search finds hits by the byte rule of the question search', () => {
   test('ASCII is case-insensitive: searching notarize hits Notarize/NOTARIZE/nOtArIzE', async () => {
     const text = 'first Notarize, then NOTARIZE, finally nOtArIzE'
@@ -47,10 +48,6 @@ describe('the full-text search finds hits by the byte rule of the question searc
     const text = 'prefix →target→ suffix'
     const hits = await offsets(text, '→target→')
     expect(hits).toEqual([Buffer.byteLength('prefix ')])
-  })
-
-  test('a mixed needle: the letters fold and the multi-byte part matches exactly', async () => {
-    expect(await offsets('mentions MAS →listing, and also mas →listing elsewhere', 'mas →listing')).toHaveLength(2)
   })
 
   test('overlapping hits each count, offsets ascending; no match and an empty needle find nothing', async () => {
@@ -74,10 +71,6 @@ describe('the full-text search finds hits by the byte rule of the question searc
     // Ending with it: the last line has none
     expect(await offsets('ab\nxab\nab', 'ab\n')).toEqual([0, 4])
     expect(await offsets('a\na\na', 'a\na')).toEqual([0, 2])
-  })
-
-  test('an all-letter needle finds every case variant in a large text', async () => {
-    expect(await offsets(`${'x'.repeat(1000)}Alpha${'y'.repeat(1000)}ALPHA${'z'.repeat(1000)}alpha`, 'alpha')).toHaveLength(3)
   })
 })
 
@@ -355,8 +348,9 @@ describe("a turn's snippet is cut as the whole-file search cut it", () => {
 // The snippet lowers each string by the case mapping of the Unicode version Rust's standard library carries, where the
 // whole-file search lowered it by JavaScript's toLowerCase, which takes ICU's. The two are held to each other over every
 // code point, alone and on each side of a capital sigma, whose final form turns on what is cased and case-ignorable
-// around it, and over every lone surrogate. The JavaScript is the app's own: the Electron the app runs on, run as Node,
-// as vitest's Node may carry another Unicode version.
+// around it, and over every lone surrogate; a text of ASCII alone, which takes a path of its own, besides. The
+// JavaScript is the app's own: the Electron the app runs on, run as Node, as vitest's Node may carry another Unicode
+// version.
 test('the snippet lowers text as the JavaScript of the Electron the app runs on does, over every code point', () => {
   const electronDir = fileURLToPath(new URL('../../../node_modules/electron/', import.meta.url))
   const electron = join(electronDir, 'dist', readFileSync(join(electronDir, 'path.txt'), 'utf8'))
@@ -373,6 +367,9 @@ for (let cp = 0; cp <= 0x10ffff; cp++) {
   texts.push(c, A + c + S, A + S + c, A + S + c + A, c + S, c + A + S)
 }
 const differ = []
+// A text of ASCII alone is lowered by a path of its own: each such character, and all of them together
+const ascii = Array.from({ length: 0x80 }, (_, cp) => String.fromCharCode(cp))
+for (const t of [...ascii, ascii.join('')]) if (lower(t) !== t.toLowerCase()) differ.push([...t].map((c) => c.codePointAt(0).toString(16)).join(' '))
 // A space is neither cased nor case-ignorable, so texts joined by one lower each on its own
 for (let i = 0; i < texts.length; i += 6000) {
   const batch = texts.slice(i, i + 6000)
@@ -451,10 +448,12 @@ describe('a long search holds neither the main process\'s thread nor its memory 
     Array.from({ length: 24000 }, (_, i) => `${i % 100 === 0 ? answer(`line ${i} magicword`) : answer(`line ${i} ${'x'.repeat(i % 97)}`)}\n`).join('')
   )
   let long = ''
+  beforeAll(() => {
+    long = fileOf(Buffer.concat(Array.from({ length: COPIES }, () => zstdCompressSync(content))), 'long.jsonl.zst')
+  })
   const turns = [{ start: 0, questionEnd: 0, end: COPIES * content.length }]
 
   test('a timer set before four long searches fires, and a file read asked after them settles, before any of them', async () => {
-    long = fileOf(Buffer.concat(Array.from({ length: COPIES }, () => zstdCompressSync(content))), 'long.jsonl.zst')
     const small = fileOf('{"i":0}\n')
     const settled: string[] = []
     const after: Record<string, number> = {}

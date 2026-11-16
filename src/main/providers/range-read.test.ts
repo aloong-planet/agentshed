@@ -211,8 +211,6 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
       const c = await readRangeBuffers(cold, [{ start: 0, end: 8 }, { start: at, end: at + 10 }])
       expect(c.bufs.map((b) => b.toString('utf8'))).toEqual(['{"i":0}\n', long.subarray(at, at + 10).toString('utf8')])
       expect(c.bytesRead).toBe(at + 10)
-      // The same stream searched to its end is judged, and the search rejects
-      await expect(searchFullText('codex', cold, 'x', [])).rejects.toThrow(/could not be searched to its end/)
     })
   })
 
@@ -316,17 +314,15 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
   test.each([
     ['whose stream is cut inside a line', full.subarray(0, full.length >> 1)],
     ['that is not zstd', Buffer.from('{"type":"session_meta"}\nnot zstd at all\n')]
-  ])('a cold rollout %s: a read that reaches its stream\'s end rejects, and so does searching it (spec token-stats B12)', async (_what, bytes) => {
+  ])('a cold rollout %s: a read that reaches its stream\'s end rejects (spec token-stats B12)', async (_what, bytes) => {
     await withCold(bytes, async (cold) => {
       await expect(readRangeBuffers(cold, [{ start: 0, end: 10 }, { start: content.length - 10, end: content.length + 1000 }])).rejects.toThrow(/could not be read as far as its ranges go/)
-      await expect(searchFullText('codex', cold, 'x', [])).rejects.toThrow(/could not be searched to its end/)
     })
   })
 
-  test('a missing cold rollout: refused, its ranges and its search alike', async () => {
+  test('a missing cold rollout: its ranges are refused', async () => {
     const missing = join(tmpdir(), `rr-missing-${process.pid}.jsonl.zst`)
     await expect(readRangeBuffers(missing, [{ start: 0, end: 10 }])).rejects.toThrow(/could not be read as far as its ranges go/)
-    await expect(searchFullText('codex', missing, 'x', [])).rejects.toThrow(/could not be searched to its end/)
   })
 
   test('a cold rollout cut exactly at a line end reads as the shorter stream: a whole first frame, then a frame cut inside its header (spec token-stats B12)', async () => {

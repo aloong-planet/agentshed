@@ -339,13 +339,15 @@ hands the command over; it never runs it.
   optional toggle.
 - D2 No inverted index is built. Searching questions reads each range by the offset index and
   matches bytes; full-text search reads the file's stream a line at a time, a plain file and a cold
-  rollout alike, and matches bytes, holding only the line in flight, so no file is too large to
-  search, and does so in the engine module, on a thread of its own, so a search neither ends nor
-  holds the main process (C2, ADR-0052). The key is **not parsing**: it is a pure byte scan, and **only
-  matching ranges get decoded and parsed** — for full text, the line of each turn's first body hit,
-  for its snippet (D5).
-  ⚠️ **Case insensitivity must not decode + lower-case the whole thing** — generate case variants of
-  an ASCII needle and do several byte matches instead; a Chinese needle has no such problem.
+  rollout alike, and matches bytes, holding only the line in flight, so a file's size no longer
+  bounds what can be searched (its longest line still does), and does so in the engine module, on a
+  thread of its own, so a search neither ends nor holds the main process (C2, ADR-0052). The key is
+  **not parsing**: it is a pure byte scan, and **only matching ranges get decoded and parsed** — for
+  full text, the line of each turn's first body hit, for its snippet (D5).
+  ⚠️ **Case insensitivity must not decode + lower-case the whole thing** — for the question search,
+  generate case variants of an ASCII needle and do several byte matches instead; full-text search
+  folds the ASCII letters of the line in flight, byte for byte, into a copy it matches against; a
+  Chinese needle has no such problem.
   Corollary: **full-text search is a toggle because of hit quality (full text hits tool output
   noise), not because of performance.**
 - D2a **The question index stores offsets and one content fingerprint, and no question text at

@@ -33,8 +33,8 @@ We adopt **option 1**.
 
 ## Consequences
 
-- Positive: the search holds one line of a file at a time, off the main thread, so no file is too large to search
-  and none holds the main process (Sources).
+- Positive: the search holds one line of a file at a time, off the main thread, so a file's size no longer bounds
+  what can be searched, its longest line alone does, and no file holds the main process (Sources).
 - Negative: the byte match exists twice, the question search's in TypeScript and this one's in the module, so a
   change to the rule is made in both.
 - Negative: a snippet is cut from text lowered by Rust's case mapping, not by the JavaScript the app runs, and the
