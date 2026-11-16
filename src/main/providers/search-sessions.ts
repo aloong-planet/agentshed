@@ -5,8 +5,9 @@
 //   decoding and parsing only the matching ranges to get the text (D2). The stripped question set
 //   contains no fork replay
 //   copies by construction (03b), so nothing needs folding.
-// - Full-text mode: read the file whole + byte matching, with hits mapped back to their turn by binary
-//   search on the offset. Hits outside the displayed range
+// - Full-text mode: the engine module searches the file's stream line by line on a thread of its own
+//   (full-text.ts), never holding it whole, and maps each hit to its turn by its offset. Hits outside the
+//   displayed range
 //   — an already-stripped fork prefix, Claude's abandoned branches, the noise before the first question —
 //   count as folded rather than masquerading as
 //   reachable hits (D3: 54.7% of Codex bytes are replay copies, and without folding the same sentence is
@@ -18,74 +19,15 @@
 //   hits from JSON escape sequences (\n, \" and so on)
 //   — the re-verification touches only the matching ranges and does not change the "no reading whole, no
 //   parsing everything" cost structure.
-import { readRolloutWhole } from './cold-rollout'
 import type { SearchHit, SearchResult, SessionMeta } from '@shared/domain'
-import type { QuestionRec } from './question-index'
 import { threadEngineModule } from '../engine-module'
+import { searchFullText, type FullTextFound } from './full-text'
 import { readRangeBuffers } from './range-read'
 import { searchBytes } from './search-bytes'
 import type { TokenEngine } from './token-stats'
 import type { ScanRoots } from './types'
 
 const fold = (s: string): string => s.toLowerCase()
-
-/** The first string value in the matching line's JSON that contains the needle → a context snippet
- * (20 characters before and 60 after) */
-function extractSnippet(lineText: string, needle: string): string | null {
-  let obj: unknown
-  try {
-    obj = JSON.parse(lineText)
-  } catch {
-    return null
-  }
-  const needleF = fold(needle)
-  const walk = (v: unknown): string | null => {
-    if (typeof v === 'string') {
-      const idx = fold(v).indexOf(needleF)
-      if (idx === -1) return null
-      const from = Math.max(0, idx - 20)
-      const to = Math.min(v.length, idx + needle.length + 60)
-      return `${from > 0 ? '…' : ''}${v.slice(from, to)}${to < v.length ? '…' : ''}`
-    }
-    if (Array.isArray(v)) {
-      for (const x of v) {
-        const r = walk(x)
-        if (r !== null) return r
-      }
-      return null
-    }
-    if (typeof v === 'object' && v !== null) {
-      for (const x of Object.values(v)) {
-        const r = walk(x)
-        if (r !== null) return r
-      }
-    }
-    return null
-  }
-  return walk(obj)
-}
-
-/** A hit offset → the index of the displayed turn it falls in (the range [question start, turn end);
- * returns -1 when it is in no turn) */
-function turnIndexOf(recs: readonly QuestionRec[], off: number): number {
-  let lo = 0
-  let hi = recs.length - 1
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1
-    if (off < recs[mid][0]) hi = mid - 1
-    else if (off >= recs[mid][2]) lo = mid + 1
-    else return mid
-  }
-  return -1
-}
-
-/** Search outwards from the hit offset for the line boundaries (0x0A) and slice out that line's text */
-function lineAround(buf: Buffer, off: number): string {
-  const start = buf.lastIndexOf(0x0a, off) + 1
-  let end = buf.indexOf(0x0a, off)
-  if (end === -1) end = buf.length
-  return buf.subarray(start, end).toString('utf8')
-}
 
 export async function searchProjectSessions(
   /** Where the question indexes are read: the scan worker's client in the app (ADR-0043) */
@@ -143,37 +85,29 @@ export async function searchProjectSessions(
       hits.push({ i: idx + 1, text: parsed.text, at: parsed.at, inBody: false, snippet: null })
     }
 
-    // ── Full text: read whole + map hits back to turns; outside the displayed range → folded ──
+    // ── Full text: the engine module's search of the file's stream; hits outside the displayed range → folded ──
     if (fullText) {
-      let whole: Buffer
+      let found: FullTextFound = { folded: 0, body: [] }
       try {
-        // A cold rollout is decompressed whole in one pass here — full-text mode reads whole by design
-        // (spec D2), and the cold reader keeps that one pass (spec C2/D3)
-        whole = await readRolloutWhole(q.source)
+        found = await searchFullText(
+          q.side,
+          q.source,
+          k,
+          recs.map((r) => ({ start: r[0], questionEnd: r[1], end: r[2] }))
+        )
       } catch {
-        whole = Buffer.alloc(0)
+        // A file that cannot be searched to its end loses its full-text hits alone: nothing of that search counts, and
+        // its question hits stand
       }
-      const bodyHit = new Set<number>()
-      const bodySnippet = new Map<number, string | null>()
-      for (const off of searchBytes(whole, k)) {
-        const t = turnIndexOf(recs, off)
-        if (t === -1) {
-          result.folded++
-          continue
-        }
-        if (off < recs[t][1]) continue // A hit on the question line was already collected by the question path
-        if (bodyHit.has(t)) continue // Several body hits in one turn are reported once
-        bodyHit.add(t)
-        bodySnippet.set(t, extractSnippet(lineAround(whole, off), k))
-      }
-      for (const t of [...bodyHit].sort((x, y) => x - y)) {
+      result.folded += found.folded
+      for (const { turn: t, snippet } of found.body) {
         const parsed = parseQ(t)
         hits.push({
           i: t + 1,
           text: parsed?.text ?? null,
           at: parsed?.at ?? recs[t][3],
           inBody: true,
-          snippet: bodySnippet.get(t) ?? null
+          snippet
         })
       }
       hits.sort((x, y) => x.i - y.i || Number(x.inBody) - Number(y.inBody))

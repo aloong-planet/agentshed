@@ -9,7 +9,6 @@
 // second began inside the same read (measured 2026-11-16). Decompressing a whole file into memory for a
 // range read was rejected on measurement (the 921 MB active rollout would hold about 1.4 GB); memory
 // here follows the bytes served.
-import { readFile } from 'node:fs/promises'
 import { threadEngineModule } from '../engine-module'
 import type { ByteRange } from './range-read'
 
@@ -61,13 +60,4 @@ export async function inColdPlace<T>(read: () => Promise<T>): Promise<T> {
     if (next) next()
     else reading--
   }
-}
-
-/** The whole rollout, decompressed for a cold one — the full-text search's read-whole path (spec D2, D3) */
-export async function readRolloutWhole(file: string): Promise<Buffer> {
-  if (!isColdRollout(file)) return readFile(file)
-  // One range from the stream's start past any end a file can have: the read goes to the stream's end,
-  // where the truncation rule judges it
-  const { bufs } = await readColdRanges(file, [{ start: 0, end: Number.MAX_SAFE_INTEGER }])
-  return bufs[0]
 }

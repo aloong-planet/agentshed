@@ -1,11 +1,13 @@
 import { afterAll, describe, expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { TEST_ENGINE } from '../testing/engine'
+import { threadEngineModule } from '../engine-module'
+import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
 import { searchFullText, type FullTextFound, type TurnBounds } from './full-text'
 import { searchBytes } from './search-bytes'
 
@@ -375,3 +377,104 @@ process.stdout.write(JSON.stringify({ unicode: process.versions.unicode, texts: 
   expect(out.differ).toEqual([])
   expect(out.texts).toBe(0x110000 * 6)
 }, 120_000)
+
+// A file the search cannot read to its end gives nothing it found, never a part (token-stats B12): its caller keeps the
+// session's question hits alone (search-sessions.test.ts)
+describe('a file that cannot be searched to its end', () => {
+  const lines = [meta(), ask('q'), answer('magicword one'), tool('magicword two'), ask('q2'), answer('magicword three')]
+  const { bytes, turns } = session(lines, [1, 4])
+  const lastLine = bytes.lastIndexOf(0x0a, bytes.length - 2) + 1
+  /** Inside the last line, just past its hit */
+  const insideLast = bytes.indexOf('magicword three') + 'magicword three'.length
+
+  test('a cold rollout cut inside a line rejects, hits before the cut and all', async () => {
+    // The stream ends inside its last line, after every turn's first hit
+    const cut = zstdCompressSync(bytes.subarray(0, insideLast))
+    expect(insideLast).toBeGreaterThan(lastLine)
+    await expect(searchFullText('codex', fileOf(cut, `f${files++}.jsonl.zst`), 'magicword', turns)).rejects.toThrow(/could not be searched to its end/)
+  })
+
+  test('a cold rollout cut exactly at a line end reads as the shorter stream: a whole first frame, then a frame cut inside its header', async () => {
+    const first = bytes.subarray(0, lastLine)
+    const cut = Buffer.concat([zstdCompressSync(first), zstdCompressSync(bytes.subarray(lastLine)).subarray(0, 5)])
+    const found = await searchFullText('codex', fileOf(cut, `f${files++}.jsonl.zst`), 'magicword', turns)
+    expect(found).toEqual(wholeFileSearch(first, 'magicword', turns))
+    expect(found.body).toEqual([{ turn: 0, snippet: 'magicword one' }])
+  })
+
+  test('a plain file whose last line has no line feed is searched to its end, that line included', async () => {
+    const found = await searchFullText('codex', fileOf(bytes.subarray(0, insideLast)), 'magicword', turns)
+    expect(found.body.map((b) => b.turn)).toEqual([0, 1])
+  })
+
+  test.each([
+    ['a cold rollout that is not zstd', () => fileOf(Buffer.from('{"type":"session_meta"}\nnot zstd at all\n'), `f${files++}.jsonl.zst`)],
+    ['a missing cold rollout', () => join(dir, 'missing.jsonl.zst')],
+    ['a missing plain file', () => join(dir, 'missing.jsonl')]
+  ])('%s rejects', async (_, file) => {
+    await expect(searchFullText('codex', file(), 'magicword', turns)).rejects.toThrow(/could not be searched to its end/)
+  })
+
+  test('a panic while searching one file rejects that search alone: a search of another, started with it, is served', async () => {
+    const hit = fileOf(bytes)
+    const other = fileOf(bytes)
+    const seam = threadEngineModule() as PanicSeam
+    seam.seamPanicWhileReading(hit)
+    try {
+      const [failed, spared] = await Promise.allSettled([searchFullText('codex', hit, 'magicword', turns), searchFullText('codex', other, 'magicword', turns)])
+      expect(failed.status === 'rejected' && String(failed.reason)).toMatch(/searching .* panicked/)
+      expect(spared.status === 'fulfilled' && spared.value).toEqual(wholeFileSearch(bytes, 'magicword', turns))
+    } finally {
+      seam.seamPanicWhileReading(null)
+    }
+  })
+})
+
+// A long cold rollout: one frame of rollout-shaped lines written 128 times over, a stream of more than 300 MiB, a hit of
+// the needle in every hundredth line
+describe('a long search holds neither the main process\'s thread nor its memory (spec session-view C2)', () => {
+  const MiB = 1024 * 1024
+  const COPIES = 128
+  const content = Buffer.from(
+    Array.from({ length: 24000 }, (_, i) => `${i % 100 === 0 ? answer(`line ${i} magicword`) : answer(`line ${i} ${'x'.repeat(i % 97)}`)}\n`).join('')
+  )
+  let long = ''
+  const turns = [{ start: 0, questionEnd: 0, end: COPIES * content.length }]
+
+  test('a timer set before four long searches fires, and a file read asked after them settles, before any of them', async () => {
+    long = fileOf(Buffer.concat(Array.from({ length: COPIES }, () => zstdCompressSync(content))), 'long.jsonl.zst')
+    const small = fileOf('{"i":0}\n')
+    const settled: string[] = []
+    const after: Record<string, number> = {}
+    const start = performance.now()
+    const ask = (name: string, read: Promise<unknown>): Promise<void> =>
+      read.then(() => {
+        settled.push(name)
+        after[name] = performance.now() - start
+      })
+    const timer = ask('timer', new Promise((go) => setTimeout(go, 0)))
+    const searches = [1, 2, 3, 4].map((n) => ask(`search ${n}`, searchFullText('codex', long, 'magicword', turns)))
+    await Promise.all([timer, ...searches, ask('file', readFile(small))])
+    expect(settled.slice(0, 2).sort()).toEqual(['file', 'timer'])
+    expect(after.timer).toBeLessThan(Math.min(...[1, 2, 3, 4].map((n) => after[`search ${n}`])) / 4)
+  }, 60_000)
+
+  test("memory follows the line in flight, never the stream: searching all of it grows a fresh process's peak by a few MiB", () => {
+    expect(COPIES * content.length).toBeGreaterThan(300 * MiB)
+    // In a process of its own, so that the peak it reports is this search's alone
+    const script = `
+      const module = { exports: {} }
+      process.dlopen(module, process.argv[1])
+      const before = process.resourceUsage().maxRSS
+      module.exports.searchFullText('codex', process.argv[2], 'magicword', JSON.parse(process.argv[3])).then((found) => {
+        const grewKiB = process.resourceUsage().maxRSS - before
+        console.log(JSON.stringify({ grewKiB, found }))
+      })`
+    const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, long, JSON.stringify(turns)], { encoding: 'utf8' })
+    expect(run.stderr).toBe('')
+    const { grewKiB, found } = JSON.parse(run.stdout) as { grewKiB: number; found: FullTextFound }
+    expect(found).toEqual({ folded: 0, body: [{ turn: 0, snippet: 'line 0 magicword' }] })
+    // A search that held the stream, as the whole-file search did, would grow it by more than 300 MiB
+    expect(grewKiB * 1024).toBeLessThan(32 * MiB)
+  }, 60_000)
+})
