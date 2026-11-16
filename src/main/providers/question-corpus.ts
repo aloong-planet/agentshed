@@ -1,6 +1,6 @@
 // Global search's question corpus (ADR-0034): the displayed question texts of every listed session in
 // every project, read into memory on first demand and kept for the run. Nothing of it is written to disk —
-// the accounting and question-index cache holds offsets, never text (session-view D2a).
+// the question index holds offsets, never text (session-view D2a).
 //
 // - What is listed is the project list's set, stale projects included, each with the sessions its Sessions
 //   tab lists (global-search REQ-001). The questions are the question index's displayed set, read through

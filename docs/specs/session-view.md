@@ -337,9 +337,12 @@ hands the command over; it never runs it.
   an ASCII needle and do several byte matches instead; a Chinese needle has no such problem.
   Corollary: **full-text search is a toggle because of hit quality (full text hits tool output
   noise), not because of performance.**
-- D2a **The accounting/question-index cache stores offsets and one content fingerprint, and no
-  question text at all — not even a truncated preview.** The separate saved-page display copy in
-  session-view::REQ-001 may contain question text; it is not an index or a search corpus.
+- D2a **The question index stores offsets and one content fingerprint, and no question text at
+  all — not even a truncated preview.** Each file's entry in the token store, which carries that
+  index, also holds the session's title, the fallback title its first question gives, or both (A4,
+  session-view::REQ-003/AC-03); a title taken from the first question is that question, clipped.
+  The separate saved-page display copy in session-view::REQ-001 may contain question text; it is
+  not an index or a search corpus.
   **The fingerprint is the one necessary relaxation**: a Codex replay rewrites the timestamps, so
   storing nothing derived from the content would leave only blind stripping by count, and blind
   stripping is exactly the silent mis-strip B2 exists to prevent. Four bytes per entry, not
