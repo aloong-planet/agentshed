@@ -150,7 +150,8 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
 
   // The stamp only matters for the archive's conflict rule, which a benchmark never exercises twice
   const archive = new UsageArchive(cacheDir, { stamp: 'bench' })
-  const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
+  // As the app's scan passes them (scanner.ts): none when Claude Code's registry could not be read
+  const claudePaths = snap.sides.claude.error ? null : snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
   const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
   t0 = performance.now()
   const built = await engine.build(roots, claudePaths, registered, sessions)

@@ -1,7 +1,8 @@
 // Reading Claude Code-side data: the registry (the projects key in ~/.claude.json).
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { ERR, type AppError } from '@shared/errors'
+import { isAbsent } from './read-utils'
 
 export interface RegistryResult {
   detected: boolean
@@ -11,7 +12,8 @@ export interface RegistryResult {
 }
 
 export function readClaudeRegistry(configFile: string): RegistryResult {
-  if (!existsSync(configFile)) return { detected: false, paths: [] }
+  // Only a file that is really not there: one it may not look at is unreadable (agents-overview A3)
+  if (isAbsent(configFile)) return { detected: false, paths: [] }
   let text: string
   try {
     text = readFileSync(configFile, 'utf8')

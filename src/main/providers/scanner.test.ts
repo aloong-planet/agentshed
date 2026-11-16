@@ -1,15 +1,16 @@
 // The scanner (ADR-0043): what one scan hands the main process, and what the main process makes of it. The
 // aggregation itself is the token engine's and has its own cases (token-stats.test.ts); these cover the steps a
 // scan adds around it, which ran inline in the main process before and had no case below e2e.
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { emptyTokenStats } from '@shared/domain'
+import { ERR } from '@shared/errors'
 import { mergeKey } from '@shared/path-key'
 import { UsageArchive } from './archive'
 import { Scanner, settleScan } from './scanner'
-import { runParseJob } from './token-stats'
+import { runParseJob, type ParseRunner } from './token-stats'
 import { loadEngineModule } from '../engine-module'
 import { encodeTrajectoryMetadata, settingsJson, writeConversation } from '../testing/agy-fixture'
 import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
@@ -118,6 +119,138 @@ describe('a session directory a scan cannot list', () => {
     }
     const back = await scanner.scan(home.roots)
     expect([shape(back), row(back)]).toEqual([shape(first), row(first)])
+  })
+})
+
+// Claude Code's registry, read at each scan, credits each session to the project its directory maps to (token-stats A2).
+// A read that fails says nothing of the mapping: each stored session keeps the project it holds, with nothing parsed, and
+// no past day's rows move between projects, which would leave the usage archive a superseded value each way. A registry
+// that is not there, or that lists no project, is read: the sessions are then no project's (token-stats, failure modes).
+describe('Claude Code\'s registry at each scan', () => {
+  type Out = Awaited<ReturnType<Scanner['scan']>>
+  /** The Claude Code rows, each by whether it has a day (which one is the time zone's), its project and its total, and
+   * each project that lists a Claude Code session with those it lists */
+  function claudeOf(out: Out): unknown {
+    const p = (key: string): string => (key === mergeKey(home.project) ? '<project>' : key)
+    const listed = [...out.sessions].map(([key, list]) => [p(key), list.filter((s) => s.side === 'claude').map((s) => s.file)] as const)
+    return {
+      rows: out.rows.filter((r) => r.side === 'claude').map((r) => [r.day ? 'dated' : 'undated', p(r.projectKey), r.total]),
+      sessions: listed.filter(([, files]) => files.length > 0)
+    }
+  }
+  /** A scanner whose parses are recorded: `parsed` gives the files parsed since it was last asked */
+  function recorded(): { scanner: Scanner; parsed: () => string[] } {
+    const files: string[] = []
+    const runner: ParseRunner = { concurrency: 1, run: (job) => { files.push(job.file); return runParseJob(job) } }
+    return { scanner: new Scanner(join(dir, 'cache'), TEST_ENGINE, runner), parsed: () => files.splice(0).sort() }
+  }
+  const credited = (): unknown => ({
+    rows: [['dated', '<project>', 15], ['undated', '<project>', 9]],
+    sessions: [['<project>', [home.claude.asked]]]
+  })
+
+  async function heldThrough(broken: { error: string; apply: () => void; undo: () => void }): Promise<void> {
+    const { scanner, parsed } = recorded()
+    const archive = new UsageArchive(join(dir, 'cache'), { stamp: 'test' })
+    const first = await scanner.scan(home.roots)
+    settleScan(first, archive)
+    expect(claudeOf(first), 'the control').toEqual(credited())
+    parsed()
+    broken.apply()
+    try {
+      const failed = await scanner.scan(home.roots)
+      expect(failed.snapshot.sides.claude.error?.code, 'the control: the read failed').toBe(broken.error)
+      settleScan(failed, archive)
+      expect(claudeOf(failed)).toEqual(credited())
+      expect(parsed(), 'each stored session is held').toEqual([])
+    } finally {
+      broken.undo()
+    }
+    const back = await scanner.scan(home.roots)
+    settleScan(back, archive)
+    expect(claudeOf(back)).toEqual(credited())
+    expect(parsed()).toEqual([])
+    expect(archive.superseded(), 'no past day\'s rows moved').toEqual([])
+  }
+  const restore = (): void => writeFileSync(home.roots.claudeConfigFile, JSON.stringify({ projects: { [home.project]: {} } }))
+
+  it.each([
+    { name: 'does not parse', text: '{', error: ERR.registryParseFailed },
+    { name: 'holds projects that are no object', text: '{"projects":1}', error: ERR.registryProjectsInvalid }
+  ])('one that $name keeps each stored session\'s project for that scan', async ({ text, error }) => {
+    await heldThrough({ error, apply: () => writeFileSync(home.roots.claudeConfigFile, text), undo: restore })
+  })
+
+  // A file behind a directory that cannot be entered cannot be read either, and is never one that is not there
+  // (agents-overview A3): here the registry is a link into such a directory, as a dotfile kept elsewhere is
+  const behind = (): string => join(dir, 'kept-elsewhere')
+  it.skipIf(process.getuid?.() === 0).each([
+    { name: 'cannot be read', apply: (): void => chmodSync(home.roots.claudeConfigFile, 0o000), undo: (): void => chmodSync(home.roots.claudeConfigFile, 0o644) },
+    {
+      name: 'sits behind a directory that cannot be entered',
+      apply: (): void => {
+        mkdirSync(behind())
+        writeFileSync(join(behind(), 'claude.json'), readFileSync(home.roots.claudeConfigFile))
+        rmSync(home.roots.claudeConfigFile)
+        symlinkSync(join(behind(), 'claude.json'), home.roots.claudeConfigFile)
+        chmodSync(behind(), 0o000)
+      },
+      undo: (): void => chmodSync(behind(), 0o755)
+    }
+  ])('one that $name keeps each stored session\'s project for that scan', async ({ apply, undo }) => {
+    await heldThrough({ error: ERR.registryUnreadable, apply, undo })
+  })
+
+  it.each([
+    { name: 'is not there', apply: (): void => rmSync(home.roots.claudeConfigFile) },
+    { name: 'lists no project', apply: (): void => writeFileSync(home.roots.claudeConfigFile, '{"projects":{}}') }
+  ])('one that $name credits the sessions to no project, and its project again once it lists it', async ({ apply }) => {
+    const { scanner, parsed } = recorded()
+    const archive = new UsageArchive(join(dir, 'cache'), { stamp: 'test' })
+    const claudeTotal = (stats: Map<string, { tokens: { bySide: { claude: { total: number } } } }>): number | undefined =>
+      stats.get(mergeKey(home.project))?.tokens.bySide.claude.total
+    settleScan(await scanner.scan(home.roots), archive)
+    parsed()
+    apply()
+    const none = await scanner.scan(home.roots)
+    expect(none.snapshot.sides.claude.error, 'the control: the registry was read').toBeUndefined()
+    const settledNone = settleScan(none, archive)
+    expect(claudeOf(none)).toEqual({ rows: [['dated', '', 15], ['undated', '', 9]], sessions: [] })
+    expect(claudeTotal(settledNone.stats), 'the project\'s figures, past day included').toBe(0)
+    expect(parsed()).toEqual([home.claude.asked, home.claude.silent].sort())
+    restore()
+    const back = await scanner.scan(home.roots)
+    const settledBack = settleScan(back, archive)
+    expect(claudeOf(back)).toEqual(credited())
+    expect(claudeTotal(settledBack.stats)).toBe(24)
+    expect(parsed()).toEqual([home.claude.asked, home.claude.silent].sort())
+    // The past day's rows moved twice at an unchanged total: accepted each time under the one stamp, the rows they
+    // replaced kept (token-stats C10, C13)
+    expect(archive.superseded().map((s) => [s.side, s.stamp, s.replacedBy])).toEqual([['claude', 'test', 'test'], ['claude', 'test', 'test']])
+  })
+
+  // A past (day, side) the usage archive retains keeps its figures in the projects its rows were written under (A2,
+  // C10): here the day's total falls under one stamp, as when Claude Code removes one of that day's transcripts, and the
+  // session's directory then comes to map to the project
+  it('a past day the usage archive retains keeps its figures where its rows were written, while the session is listed under its project', async () => {
+    const other = join(dirname(home.claude.asked), 'other.jsonl')
+    writeFileSync(other, [
+      JSON.stringify({ type: 'user', timestamp: '2026-07-30T12:00:20Z', message: { role: 'user', content: 'another claude question' } }),
+      JSON.stringify({ type: 'assistant', timestamp: '2026-07-30T12:00:30Z', message: { id: 'm-other', model: 'claude-fable-5', usage: { input_tokens: 20, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } })
+    ].join('\n') + '\n')
+    writeFileSync(home.roots.claudeConfigFile, '{"projects":{}}')
+    const scanner = new Scanner(join(dir, 'cache'), TEST_ENGINE)
+    const archive = new UsageArchive(join(dir, 'cache'), { stamp: 'test' })
+    settleScan(await scanner.scan(home.roots), archive)
+    rmSync(other)
+    settleScan(await scanner.scan(home.roots), archive)
+    restore()
+    const out = await scanner.scan(home.roots)
+    const settled = settleScan(out, archive)
+    expect(claudeOf(out), 'the control: the scan\'s own rows and list are the project\'s').toEqual(credited())
+    // The day's 15 + 21 as the archive holds them, under no project, and the undated 9 the scan's
+    expect(out.snapshot.tokens.bySide.claude.total, 'the control: the day is retained').toBe(45)
+    expect(settled.stats.get(mergeKey(home.project))?.tokens.bySide.claude.total, 'the project\'s figures: the undated row alone').toBe(9)
   })
 })
 

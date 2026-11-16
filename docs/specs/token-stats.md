@@ -65,7 +65,12 @@ all of them.
 - A2 Whole-tree scan: an unregistered project's encoded directory also counts toward the global total
   (independent of the registry) but is not listed as its own project. Subagent transcripts under a
   session's `subagents/` directory are scanned like any other file: their usage counts, and they give
-  no session entry (as B3 and F5 say of the Codex and Grok sides).
+  no session entry (as B3 and F5 say of the Codex and Grok sides). A session is credited to the project
+  its encoded directory maps to in the registry as each scan reads it, whatever it mapped to when its
+  file was last parsed: from the first scan after a directory comes to map to a registered project, its
+  sessions are in that project's list and their usage in its figures, and from the first scan after it
+  stops mapping to one they are in neither. A past (day, side) the usage archive retains (C10, ADR-0026)
+  is the exception: its figures stay in the projects the archive's rows were written under.
 - A3 Duplicate lines with the same `message.id + requestId` count once, keeping the one with the more
   complete usage.
 - A4 Sidechain replays (same message.id, new requestId) are deduplicated across files, keeping the
@@ -86,6 +91,14 @@ all of them.
 - A10 A file that cannot be read to its end (it will not open, or a read of it fails) gives no entry and is
   skipped, hurting only itself: nothing of it is counted or listed in that scan, and the scan of the other
   files goes on. A panic while the file is parsed is such a failure (Scans and the window, below).
+- A11 A scan that cannot read Claude Code's registry — the file cannot be read, does not parse, or its
+  `projects` is not an object ([agents-overview](agents-overview.md) A3) — takes no mapping from it
+  (A2): a session whose file's signature is the one its stored entry holds keeps the project that entry
+  holds and is not parsed again for it, and a file parsed in that scan, new or changed, is credited to no
+  project until the next scan that reads the registry. So an unchanged session does not move between
+  projects on a failed read, and leaves the usage archive no superseded value (C13) for its past days, as
+  the invariant on a read that fails asks (`AGENTS.md`, Reading agent data). A registry file that is not
+  there, or one that reads with no project, is a registry read: no directory maps to a project.
 
 **Sequence B: Codex-side aggregation**
 - B1 Sum per-response usage: in a paginated rollout from the usage boundary on, each usage record's
@@ -328,10 +341,10 @@ all of them.
   well formed is not imported, and the first scan parses its file. A JSON file of another version, or one
   that is garbage by the rules that file had (it does not parse, or its `files` is not an object of
   entries), is deleted without an import, and the first scan parses every file. A JSON file beside a
-  usable store — a build from before the store ran since — is deleted unread: the store's signatures
-  decide what is current, and a file that changed since is parsed again. An import that fails lands
-  nothing and the first scan parses every file; the JSON file is then deleted as one beside a usable
-  store. A deletion that fails is logged, and a later launch deletes the file it finds.
+  usable store — a build from before the store ran since — is deleted unread: the store's entries
+  decide what is current (Implementation Decisions, Cache), and a file that changed since is parsed again.
+  An import that fails lands nothing and the first scan parses every file; the JSON file is then deleted as one
+  beside a usable store. A deletion that fails is logged, and a later launch deletes the file it finds.
 - C27 **Two processes on one store**. A development run and the installed copy use one settings directory
   on a case-insensitive volume (app-update spec, Implementation Decisions), so both can run on one store.
   Before each scan and each read of an entry, a process that finds the store changed by the other since
@@ -942,12 +955,13 @@ read with macOS `footprint`.
   figures are decoded from varints of at most ten bytes, which stay far inside that range.
 - A directory the session walk lists — a side's data root or one below it — that is there but cannot be
   listed is not taken as empty: each file below it that the store holds an entry for stays in the scan
-  set, at its place in scan order, and is looked at as a listed file is. One whose signature has not
-  changed is kept from the store; one that cannot be looked at is that file's failed read, under the rule
-  its side has for a read that fails (A10, B12, F6, token-stats::REQ-004). A file written below it since
-  it was last listed is not seen until it can be listed again, and with nothing held below it — a first
-  scan, or a build with no store — it gives nothing. The session walk's own lists, which the projects
-  list reads ([projects-list](projects-list.md)), keep only what it can list.
+  set, at its place in scan order, and is looked at as a listed file is. One whose entry is current
+  (Implementation Decisions, Cache) is kept from the store; one that cannot be looked at is that file's
+  failed read, under the rule its side has for a read that fails (A10, B12, F6, token-stats::REQ-004). A
+  file written below it since it was last listed is not seen until it can be listed again, and with
+  nothing held below it — a first scan, or a build with no store — it gives nothing. The session walk's
+  own lists, which the projects list reads ([projects-list](projects-list.md)), keep only what it can
+  list.
 - Interface: unchanged (the prototype exemption, declared); G14 holds.
 
 ## Implementation Decisions
@@ -979,8 +993,8 @@ read with macOS `footprint`.
   row set is also what makes G7 hold by construction.
 - **Cache version bumps**: the store keeps per-file parse output, and each group's combined result
   with the combination it came from (Cache, below). A *structure* change to what is stored must bump the
-  version, and so must a change to how a per-file aggregate is computed: an unchanged file's entry is read
-  back as stored, so a new computation would never reach it. A computation change goes without a bump only
+  version, and so must a change to how a per-file aggregate is computed: a current entry (Cache, below) is
+  read back as stored, so a new computation would never reach it. A computation change goes without a bump only
   where the reason for not bumping is recorded beside the version. A change to the combination must not
   bump: the results it would make stale are combined again from the stored entries with nothing parsed,
   while a bump makes every file parse again, so a bump for a combination change would force a full rescan
@@ -1082,7 +1096,10 @@ read with macOS `footprint`.
   the app cached an entry that already counted it: that entry stands while the file stays unchanged
   (the `CACHE_VERSION` comment in `src/main/providers/token-stats.ts` says why). Claude and Grok
   files are parsed whole when they change: Claude's question filter needs the whole parent graph,
-  and Grok's streams are small.
+  and Grok's streams are small. An entry is current while its file's signature is the one it holds and,
+  for a Claude Code session, while the project it was parsed under is the one the registry maps its
+  directory to at the scan (A2, A11); a Claude Code file whose entry is not current for its project is
+  parsed again whole, under the project it maps to now.
 - **Where parsing runs**: the scan is planned on the thread that runs it (the next paragraph) — cache
   hits, resumes, whole parses — and the files that need parsing are parsed on a pool of worker threads
   (cores minus one, at most four), several at once, handed out largest first by their size on disk

@@ -76,7 +76,8 @@ export class Scanner {
     await betweenSteps()
     const snapshot = await scan(roots, { now: () => Date.now(), sessions: walked })
     await betweenSteps()
-    const claudePaths = snapshot.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
+    // None when Claude Code's registry could not be read: the build then keeps each stored session's project
+    const claudePaths = snapshot.sides.claude.error ? null : snapshot.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
     const registered = new Set(snapshot.projects.map((p) => mergeKey(p.path)))
     const built = await this.engine.build(roots, claudePaths, registered, walked)
     // Antigravity CLI conversations the scan could not read reach the side's card (token-stats::REQ-004/AC-02)
