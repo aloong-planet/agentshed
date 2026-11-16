@@ -149,7 +149,7 @@ export interface EngineModule {
    */
   keptLines(kind: AgentSide, text: string): boolean[]
   /**
-   * The Codex, Grok and Antigravity session lists under `roots`, each in scan order, read without writing under agy's
+   * Every side's session list under `roots`, each in scan order, read without writing under agy's
    * directories (token-stats::CON-002). Given `memory`, a walk opens only what changed since the last walk that was
    * given it; without, it reads everything. A failure reading one entry loses only that entry; a copy a read needs is
    * made under `tmpParent`, the system temporary directory when it is absent. Given `held`, a directory that is there

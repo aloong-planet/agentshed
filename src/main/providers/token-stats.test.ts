@@ -29,7 +29,7 @@
 // is due once such an entry is found, as a fix to the check or to the module. Nor is `TokenStore.scan` on a store that
 // did not open, which combines in memory and names the files it leaves out as `combineEntries` does: TypeScript never
 // asks it, as `openStore` keeps no store whose open failed.
-import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
+import { chmodSync, copyFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync, symlinkSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -3769,6 +3769,68 @@ describe('scan order', () => {
   })
 })
 
+// The Claude Code files a scan takes (token-stats A2, Scan order): below the projects directory, each project's encoded
+// directory, and in it every `.jsonl` at any depth; a file in the projects directory itself, a link there and any other
+// file are not taken. Every file here is one size, so that the order the files are handed out in is their scan order.
+describe('the Claude Code files a scan takes', () => {
+  const content = [userLine('q'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)]
+  const claudeJobs = async (): Promise<Array<[string, string, boolean]>> => {
+    const { runner, jobs } = recording()
+    await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
+    return jobs.filter((j) => j.kind === 'claude').map((j) => [j.file, j.projectKey, j.listed])
+  }
+
+  it('is each project directory\'s transcripts at any depth, in scan order, each with its project and whether it is listed', async () => {
+    const projects = join(dir, '.claude', 'projects')
+    const enc = encodeClaudeProjectDir(proj)
+    const at = (...parts: string[]): string => join(projects, ...parts)
+    // In the registered project's directory: transcripts at the top, below a session's directory (subagents and deeper),
+    // in a directory whose name ends .jsonl, and names whose UTF-8 order is not their UTF-16 order; beside them files
+    // that are not transcripts
+    for (const rel of ['a.jsonl', join('a', 'x.jsonl'), join('a-b', 'x.jsonl'), join('s1', 'subagents', 'agent-1.jsonl'), join('s1', 'deep', 'more', 'n.jsonl'), join('d.jsonl', 'in.jsonl'), '\uFF5E.jsonl', '\u{1F600}.jsonl', 'Mike.jsonl', '_x.jsonl']) mkClaudeFile(rel, content)
+    for (const rel of ['notes.txt', join('s1', 'tool-results', 'r.json'), 'a.jsonl.bak']) mkClaudeFile(rel, content)
+    // A link to a transcript elsewhere, in the project's directory: taken by its name
+    const target = join(dir, 'elsewhere', 't.jsonl')
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, `${content.join('\n')}\n`)
+    symlinkSync(target, at(enc, 'linked.jsonl'))
+    // Directories of projects not registered, one either side of the registered one
+    mkClaudeFile('g.jsonl', content, 1000, '-Users-ghost')
+    mkClaudeFile(join('sub', 'subagents', 'agent-g.jsonl'), content, 1000, 'zz-ghost')
+    // In the projects directory itself: a transcript and a link to a project's directory
+    writeFileSync(at('loose.jsonl'), `${content.join('\n')}\n`)
+    symlinkSync(at(enc), at('linked-dir'))
+
+    const key = mergeKey(proj)
+    expect(await claudeJobs()).toEqual([
+      [at('-Users-ghost', 'g.jsonl'), '', true],
+      [at(enc, 'Mike.jsonl'), key, true],
+      [at(enc, '_x.jsonl'), key, true],
+      [at(enc, 'a', 'x.jsonl'), key, false],
+      [at(enc, 'a-b', 'x.jsonl'), key, false],
+      [at(enc, 'a.jsonl'), key, true],
+      [at(enc, 'd.jsonl', 'in.jsonl'), key, false],
+      [at(enc, 'linked.jsonl'), key, true],
+      [at(enc, 's1', 'deep', 'more', 'n.jsonl'), key, false],
+      [at(enc, 's1', 'subagents', 'agent-1.jsonl'), key, false],
+      [at(enc, '\uFF5E.jsonl'), key, true],
+      [at(enc, '\u{1F600}.jsonl'), key, true],
+      [at('zz-ghost', 'sub', 'subagents', 'agent-g.jsonl'), '', false]
+    ])
+  })
+
+  it.each([
+    ['empty', (): void => { mkdirSync(join(dir, '.claude', 'projects'), { recursive: true }) }],
+    ['not there', (): void => {}]
+  ])('is nothing when the projects directory is %s, and the other sides are scanned', async (_, make) => {
+    make()
+    const rollout = mkCodexRollout('rollout-2026-07-30T01-00-00-019f0000-0000-7000-8000-000000000001.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 1, cached: 0, output: 1 }])
+    const { runner, jobs } = recording()
+    await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
+    expect(jobs.map((j) => [j.kind, j.file])).toEqual([['codex', rollout]])
+  })
+})
+
 // Where parsing runs (token-stats, Implementation Decisions): the files that need parsing are handed out largest first,
 // so that the largest file does not start last and run on alone after every other has finished; files of one size go
 // in scan order. An Antigravity conversation's file is its database: its signature leaves the database's size out, but
@@ -3799,12 +3861,15 @@ describe('the order parses are handed out in', () => {
 // again, so a session written after the walk is outside this build — the same set scan() saw.
 describe('the shared session walk', () => {
   it('build() aggregates the sessions of the supplied walk, not ones that appeared after it', async () => {
+    mkClaudeFile('c1.jsonl', [usageLine('claude-fable-5', '2026-07-30T01:00:00Z', 20, 2)])
     mkCodexRollout('rollout-a-019f100.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }])
     mkGrokSession(proj, 'g1', [grokTurn(1785369600, { input: 50, output: 5 })])
     const walked = threadEngineModule().walkSessions(roots())
+    mkClaudeFile('c2.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 200, 20)])
     mkCodexRollout('rollout-b-019f101.jsonl', proj, '2026-07-30T02:00:00Z', 'gpt-5.6-sol', [{ input: 1000, cached: 0, output: 100 }])
     mkGrokSession(proj, 'g2', [grokTurn(1785373200, { input: 500, output: 50 })])
     const r = await engine().build(roots(), [proj], undefined, walked)
+    expect(r.global.bySide.claude.total).toBe(22)
     expect(r.global.bySide.codex.total).toBe(110)
     expect(r.global.bySide.grok.total).toBe(55)
   })

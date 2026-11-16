@@ -82,7 +82,7 @@ export class Scanner {
     if (holdMs > 0) await new Promise((resolve) => setTimeout(resolve, holdMs))
     const module = this.confirmModule()
     this.memory ??= new module.SessionMemory()
-    // One walk of the Codex, Grok and Antigravity session lists, read by both scan() and the token build (#160); below a
+    // One walk of every side's session list, read by both scan() and the token build (#160); below a
     // directory there that it cannot list, it keeps the files the token store holds (token-stats, Failure modes and
     // boundaries: the token store)
     const walked = module.walkSessions(roots, this.memory, undefined, () => this.engine.heldFiles())

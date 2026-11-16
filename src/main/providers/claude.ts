@@ -4,6 +4,17 @@ import { join } from 'node:path'
 import { ERR, type AppError } from '@shared/errors'
 import { isAbsent } from './read-utils'
 
+/** A transcript below Claude Code's projects tree, as the engine module's session walk lists it
+ * (engine/src/sides/claude/walk.rs) */
+export interface ClaudeTranscript {
+  file: string
+  /** The name of the project directory it is below: the project's path as Claude Code encodes it */
+  dir: string
+  /** Whether it is below a directory inside the project directory (a subagent's or another nested transcript) rather
+   * than directly in it (a session) */
+  nested: boolean
+}
+
 export interface RegistryResult {
   detected: boolean
   paths: string[]
