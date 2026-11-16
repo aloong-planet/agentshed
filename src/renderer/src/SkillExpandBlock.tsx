@@ -1,5 +1,5 @@
 // skills-view: a skill expands into a file table and clicking a file opens a drawer (on-disk and plugin
-// entries on equal footing, A4/ADR-0012)
+// entries on equal footing, A4/ADR-0010)
 import { useEffect, useState } from 'react'
 import { PROJECT_SKILLS_DIR, type AgentSide, type SkillPkgStats } from '@shared/domain'
 import { skillsDirLoaders } from '@shared/skill-landing'
@@ -63,7 +63,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const [drawer, setDrawer] = useState<SkillFileEntry | null>(null)
 
   const pkg = pkgBySide?.[side] ?? null
-  // A4/ADR-0012: plugin namespace rows are on equal footing with on-disk ones — expandable only when the
+  // A4/ADR-0010: plugin namespace rows are on equal footing with on-disk ones — expandable only when the
   // package root is in the registration set and the stats are readable
   const expandable =
     source.kind === 'plugin' ? source.pluginRoot != null && pkg !== null : sidesArr.length > 0

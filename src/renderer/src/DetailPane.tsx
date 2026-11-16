@@ -518,7 +518,7 @@ function SkillRow({
 }): JSX.Element {
   const t = useDict()
   if (s.origin === 'plugin' || s.level === 'plugin') {
-    // A4/ADR-0012: plugin namespace rows expand and preview on equal footing with on-disk ones; still no
+    // A4/ADR-0010: plugin namespace rows expand and preview on equal footing with on-disk ones; still no
     // install or uninstall (G3)
     return (
       <SkillExpandBlock

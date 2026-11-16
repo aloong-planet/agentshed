@@ -246,7 +246,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Symlink body E')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
-  // (2) The plugin namespace row: expands and previews on equal footing with an on-disk one (A4; ADR-0012
+  // (2) The plugin namespace row: expands and previews on equal footing with an on-disk one (A4; ADR-0010
   //     overturned the v1 exclusion, and the inline stats are on equal footing too)
   const plug = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
   await expect(plug.locator('.sk-meta')).toContainText('1 file')
@@ -639,7 +639,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await spRow.click() // Collapse, so a later .files locator is not taken by this row's table
 
-  // (2) A disabled plugin's skill is still readable (H4/ADR-0012)
+  // (2) A disabled plugin's skill is still readable (H4/ADR-0010)
   await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click()
   const ctRow = win.locator('.psk', { hasText: 'content-tools:publish' })
   await ctRow.click()

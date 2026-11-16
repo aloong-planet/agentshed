@@ -37,8 +37,8 @@ prototype.
   implement. Nothing in the product shows it.
 - The footer annotation ("注:启用态判定来自 settings 分层合并(现行逻辑),本页为静态 mock;…"): not part of the design;
   do not implement.
-- The annotations at the foot of the expanded areas of `content-tools@local` ("未启用插件的 skill 仍可审阅(ADR-0012:…)")
-  and `documents` ("探测式:无启用态语义,不并入 Skills 分栏(ADR-0012);仅缓存最高版本目录"): not part of the design; do
+- The annotations at the foot of the expanded areas of `content-tools@local` ("未启用插件的 skill 仍可审阅(ADR-0010:…)")
+  and `documents` ("探测式:无启用态语义,不并入 Skills 分栏(ADR-0010);仅缓存最高版本目录"): not part of the design; do
   not implement.
 - These annotations stay in Chinese in every language.
 - The first Claude plugin and its first skill row are open when the page loads: not part of the design; do not

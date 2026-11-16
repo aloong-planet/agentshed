@@ -5,7 +5,7 @@
 //   installation record chips inline (E1), clicking a row expands the category tabs (E5), a missing
 //   installPath degrades (E6),
 //   hooks show an event summary only (E7); the Skills tab previews a package in place, independent of
-//   enablement (the H series, ADR-0012);
+//   enablement (the H series, ADR-0010);
 // the Codex group is probe-style (an empty cache hides the whole group), with only the Skills category
 // expandable for preview (E8).
 import { useState } from 'react'

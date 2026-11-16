@@ -117,7 +117,7 @@
     <div class="sub">
       插件行内直接给启用态与安装记录;展开后为<b>类目 tab</b>(Skills/Subagents/Hooks/MCP,空类目不出)。
       Skills tab 是行式列表(名 + 描述 + 文件数·大小):<b>点行</b>折叠展开文件表,点文件开抽屉读正文——与
-      Skills 分栏同一套交互。<b>可读与启用态无关</b>(ADR-0012,启用前审阅);目录缺失的行置灰。Codex 组仅 Skills tab,不并入 Skills 分栏。
+      Skills 分栏同一套交互。<b>可读与启用态无关</b>(ADR-0010,启用前审阅);目录缺失的行置灰。Codex 组仅 Skills tab,不并入 Skills 分栏。
     </div>
 
     <div class="sec-h" data-i18n="secClaude"></div>
@@ -210,7 +210,7 @@
       installs: ['user'],
       skills: [{ key: 'content-tools:publish-wechat', label: 'content-tools:publish-wechat', desc: '公众号排版与发布' }],
       agents: [], hooks: [],
-      note: '未启用插件的 skill 仍可审阅(ADR-0012:可读与启用态解耦;读取不改变任何状态)' },
+      note: '未启用插件的 skill 仍可审阅(ADR-0010:可读与启用态解耦;读取不改变任何状态)' },
     { name: 'ghost@legacy', ver: 'v1.0.0', enabled: null,
       installs: ['user'], missing: true,
       skills: [{ key: null, label: 'ghost:old-skill', desc: '', disReason: 'installMissingCache' }],
@@ -220,7 +220,7 @@
   const CODEX_PLUGINS = [
     { name: 'documents', ver: 'v26.805.11740', market: 'openai-primary-runtime',
       skills: [{ key: 'documents:documents', label: 'documents:documents', desc: '文档创建与编辑(Codex 内置)' }],
-      note: '探测式:无启用态语义,不并入 Skills 分栏(ADR-0012);仅缓存最高版本目录' }
+      note: '探测式:无启用态语义,不并入 Skills 分栏(ADR-0010);仅缓存最高版本目录' }
   ]
 
   // ── Utilities ──
