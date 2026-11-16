@@ -1085,17 +1085,17 @@ read with macOS `footprint`.
   and Grok's streams are small.
 - **Where parsing runs**: the scan is planned on the thread that runs it (the next paragraph) — cache
   hits, resumes, whole parses — and the files that need parsing are parsed on a pool of worker threads
-  (cores minus one, at most four; the project owner set the four on 2026-11-16, #453), several at
-  once, handed out largest first by their size on disk, files of one size in scan order, so that the
-  largest does not start late and run on alone; the results are then taken in scan order, because the
+  (cores minus one, at most four; the project owner set the four on 2026-11-16), several at once,
+  handed out largest first by their size on disk, files of one size in scan order, so that the largest
+  does not start late and run on alone; the results are then taken in scan order, because the
   cross-file deduplication keeps the first copy of a message and so the order is part of the result.
   Parse workers start when there is work and stop after ten idle seconds. One that fails or will not
   load hands its file back to the thread that runs the scan, so a failure costs time, never a file. On
-  an instrumented packaged cold scan of 7,454 files, 21.0 GB of lines once decompressed (#453), the
-  four workers finished within 1 ms of each other, 8.9 s of parsing for 34.6 s of parse work, while
-  the largest file alone took 4.9 s: the work over the workers bounds the time, not the largest file.
-  The pooled cache is identical, file by file, to one parsed without the pool. The session page's
-  single-file rebuild parses on the thread that runs the scan.
+  an instrumented packaged cold scan of 7,454 files, 21.0 GB of lines once decompressed (2026-11-16),
+  the four workers finished within 1 ms of each other, 8.9 s of parsing for 34.6 s of parse work,
+  while the largest file alone took 4.9 s: the work over the workers bounds the time, not the largest
+  file. The pooled cache is identical, file by file, to one parsed without the pool. The session
+  page's single-file rebuild parses on the thread that runs the scan.
 - **Scan order**: the order a scan takes session files in, which the combination makes part of the
   figures wherever it keeps the first of several files sharing a key — a message's copies, the files of
   one Codex session id as a fork's parent, the conversations holding one Antigravity call. A scan walks
