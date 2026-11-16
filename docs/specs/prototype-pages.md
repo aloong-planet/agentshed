@@ -5,8 +5,8 @@
 
 ## Problem Statement
 
-A UI prototype page is the baseline the app's interface is built from, so an agent implementing an
-interface change reads the page, or the diff a confirmed prototype change made to it. Whatever else
+An agent implementing an interface change inside the prototype gate builds it to the confirmed UI
+prototype page, so it reads the page, or the diff a confirmed prototype change made to it. Whatever else
 the page holds is read with it: reviewer notes in its header (the question it answers, a dated log
 of rulings, the reasons behind them) and comments across its markup, styles and scripts recording
 past decisions. What an agent reads stays in its context and is re-read with every later call, so

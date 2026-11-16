@@ -14,9 +14,9 @@ the table below says it in one line per feature.
   requirements behind it.
 - **Division of labour with ADRs**: decisions and trade-offs belong in ADRs; a spec cites the number
   and does not restate them.
-- **Consistency**: step 8 of every development round runs a single cross-regression
-  (spec ↔ implementation ↔ ADR ↔ CONTEXT ↔ prototypes).
-- Tickets are the disposable working documents (`.scratch/`); a spec is not.
+- **Consistency**: every development round, before it is delivered, runs a single cross-regression
+  (spec ↔ implementation ↔ ADR ↔ CONTEXT).
+- Tickets (GitHub issues) are the disposable working documents; a spec is not.
 
 | Spec | In one line |
 |---|---|

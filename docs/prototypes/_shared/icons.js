@@ -1,6 +1,7 @@
-// The prototypes' icons, kept by hand: the baseline the app's icons follow (ADR-0018 names the libraries
-// they come from). Each icon is its library's inner elements inside one wrapper. An icon already drawn here
-// keeps its drawing when the library redraws it; a new one is copied from its library's official source.
+// The prototypes' icons, kept by hand and not generated from the app (ADR-0018 names the libraries they
+// come from). Each icon is its library's inner elements inside one wrapper. An icon is drawn as the app draws
+// it, or as already drawn here where the app has none, and does not follow a library's later redrawing; one
+// in neither is copied from its library's official source.
 //
 // Usage in a prototype page:  <script src="../_shared/icons.js"></script>  then  ICONS.Folder(16)
 // It returns an SVG string rather than an element, because every prototype builds its rows with innerHTML.

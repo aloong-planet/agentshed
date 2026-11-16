@@ -1,4 +1,4 @@
-// An independently versioned presentation copy. Accounting never consumes this file (ADR-0029).
+// An independently versioned presentation copy. Accounting never consumes this file (ADR-0028).
 //
 // When it is written (agents-overview::REQ-008, ADR-0044): a change is recorded as it arrives, without copying the data,
 // and written while the window has no focus — when the window loses focus, when a change arrives while it has none, and
