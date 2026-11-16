@@ -9,6 +9,9 @@
 //   pnpm bench:scan warm               against a copy of the app's cache
 //   pnpm bench:scan file <path>…       time the line reader over specific files
 //   pnpm bench:scan --node cold        the same bundle under plain Node, for the comparison
+//   pnpm bench:scan grow <rollout>     a Codex rollout copied into a scratch home, scanned whole, then grown by about
+//                                      1 MB of its own last lines and scanned again: the rescan a live session costs,
+//                                      checked against a cold scan of the same file
 //   pnpm bench:scan workers            a cold scan on the main thread, then one on the parse pool
 //   pnpm bench:scan rescan             two scans in one process, through the scan worker: what the second
 //                                      one costs, and how long it holds the main process
