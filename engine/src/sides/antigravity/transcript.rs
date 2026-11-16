@@ -187,7 +187,7 @@ pub(super) fn index(path: &str, date_parse: &dyn Fn(&[u16]) -> f64) -> (Vec<Reco
         if bytes.is_empty() {
             return;
         }
-        let decoded = String::from_utf8_lossy(bytes);
+        let decoded = text::line_text(bytes);
         let (start, end) = (start as f64, end as f64);
         let kept = match read_line(&decoded) {
             Ok(Parsed::Object(l)) => Kept {

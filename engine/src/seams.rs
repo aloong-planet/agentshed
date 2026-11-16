@@ -18,6 +18,9 @@
 //! - The line-reader seam: the benchmark reads a file through the line reader every parse reads a session file by,
 //!   and counts its lines, so that a figure about reading files is taken through the reader the app uses
 //!   (`pnpm bench:scan file`, the AGENTS.md invariant on such figures).
+//! - The JSON string seam: a test reads a text as one string value through the reader every line is read by, so that
+//!   a test can hold what the reader makes of each character, wherever it falls in the reader's scan, to what
+//!   `JSON.parse` makes of it.
 
 /// Called by every function that parses a session file, before it reads the file: in a build made for tests, it panics
 /// when the file is the one the panic seam names, and otherwise does nothing.
@@ -190,5 +193,20 @@ pub(crate) mod line_reader_seam {
         read::each_line(file, if cold { Stored::Zstd } else { Stored::Plain }, 0, |_, _, _, _| lines += 1)
             .map_err(|_| format!("{file} could not be read to its end"))?;
         Ok(lines)
+    }
+}
+
+#[cfg(feature = "test-seams")]
+pub(crate) mod json_string_seam {
+    use crate::json::Reader;
+    use crate::text::Units;
+
+    /// What the reader makes of `text` as one string value with nothing but whitespace around it: the string's code
+    /// units, or None when it refuses the text, as `JSON.parse` refuses a line
+    pub(crate) fn read(text: &str) -> Option<Units> {
+        let mut reader = Reader::new(text);
+        let string = reader.string().ok()?;
+        reader.end().ok()?;
+        Some(string.units())
     }
 }

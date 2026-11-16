@@ -34,3 +34,10 @@ export interface StoreWriteSeam extends EngineModule {
    * process, spent by the write it fails */
   seamCutStoreWriteAfter(statements: number | null): void
 }
+
+/** The JSON string seam a build made for tests exports (engine/src/seams.rs) */
+export interface JsonStringSeam extends EngineModule {
+  /** Reads `text` as one string value through the reader every line is read by: the string, or null when the reader
+   * refuses the text */
+  seamReadJsonString(text: string): string | null
+}

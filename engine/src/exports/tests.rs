@@ -65,4 +65,11 @@ mod seam {
     pub fn seam_each_line(file: String, cold: bool) -> napi::Result<u32> {
         seams::line_reader_seam::count(&file, cold).map_err(napi::Error::from_reason)
     }
+
+    /// Reads `text` as one string value through the reader every line is read by, and answers with the string, or null
+    /// when the reader refuses the text (`seams.rs`)
+    #[napi(catch_unwind)]
+    pub fn seam_read_json_string(text: String) -> Option<String> {
+        seams::json_string_seam::read(&text).map(|units| String::from_utf16_lossy(&units))
+    }
 }

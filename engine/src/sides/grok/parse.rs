@@ -12,6 +12,7 @@ use super::question::Indexer;
 use super::title;
 use crate::json::{self, max};
 use crate::read::{self, Stored};
+use crate::text;
 
 /// The session's entry; None when its stream cannot be read to its end
 pub(super) fn parse(job: &Job) -> Option<Parsed> {
@@ -26,7 +27,7 @@ pub(super) fn parse(job: &Job) -> Option<Parsed> {
         if bytes.is_empty() {
             return;
         }
-        let decoded = String::from_utf8_lossy(bytes);
+        let decoded = text::line_text(bytes);
         // A line `JSON.parse` refuses is skipped (A8), and so is a string, a number, a boolean or null; the bytes still
         // count toward the offsets of the lines after them
         let l = match line::read(&decoded) {

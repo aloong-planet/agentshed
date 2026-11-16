@@ -943,11 +943,13 @@ export class TokenEngine {
     return result
   }
 
-  /** Parses the slots that need it, as many at once as the runner allows; a parse that gives nothing leaves the slot
-   * with the entry standing by, if any */
+  /** Parses the slots that need it, as many at once as the runner allows, the largest file first and files of one size
+   * in scan order, so that the largest does not start last and run on alone (token-stats, Implementation Decisions,
+   * Where parsing runs); each result lands on its own slot, which keeps scan order. A parse that gives nothing leaves
+   * the slot with the entry standing by, if any. */
   private async parse(slots: Slot[]): Promise<void> {
     await mapLimit(
-      slots.filter((slot) => slot.plan !== undefined),
+      slots.filter((slot) => slot.plan !== undefined).sort((a, b) => (b.plan?.st.size ?? 0) - (a.plan?.st.size ?? 0)),
       this.runner.concurrency,
       async (slot) => {
         if (!slot.plan) return
@@ -1021,7 +1023,9 @@ export class TokenEngine {
     const holds = looked !== null || !readable
     if (usable && cached.sig === sig && holds) return { file, held: cached, admit, miss }
     const fallback = readable ? cached : undefined
-    return { file, admit, fallback, miss, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st: { sig, ino: 0, size: 0 } } }
+    // The database's size on disk, no part of the signature, places the read among the others (parse)
+    const size = statOf(file)?.size ?? 0
+    return { file, admit, fallback, miss, plan: { job: { kind: 'antigravity', file, transcript: agyTranscriptPath(file) }, st: { sig, ino: 0, size } } }
   }
 
   /**

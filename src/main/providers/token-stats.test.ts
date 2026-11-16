@@ -34,7 +34,7 @@ import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
-import { TEST_ENGINE, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
+import { TEST_ENGINE, type JsonStringSeam, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
 import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storedGroups, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule, threadEngineModule } from '../engine-module'
 import { compareScanOrder } from './scan-order'
@@ -3596,8 +3596,8 @@ describe('the archive restore path (spec C16) and project figures from the effec
 })
 
 // Scan order (token-stats, Implementation Decisions, Scan order): the order the build takes every side's files in, as
-// its parses are handed out one at a time, is the files sorted by the one comparator (scan-order.ts) — over names that
-// JavaScript's string order and a whole-path order each get wrong, nested directories, and Codex's archived sessions
+// the store first holds them, is the files sorted by the one comparator (scan-order.ts) — over names that JavaScript's
+// string order and a whole-path order each get wrong, nested directories, and Codex's archived sessions
 describe('scan order', () => {
   it('every side\'s walk gives its files in scan order', async () => {
     const names = ['Mike', '_x', 'a', 'a-b', 'a.d', '9', '10', '\u00e9']
@@ -3615,10 +3615,37 @@ describe('scan order', () => {
     for (const name of ['Mike', '_x', 'a', 'a-b', 'a.d', '\u00e9']) mkAgyConversation(name, proj, [{ usage: { messageId: `m-${name}`, input: 1, output: 1 }, at: Date.parse('2026-07-30T02:00:00Z') }])
     const { runner, jobs } = recording()
     await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
-    const walked = jobs.map((j) => j.file)
-    expect(walked, 'every file of every side was handed out').toHaveLength(names.length * 2 + 5 + 6 + 6)
+    expect(jobs, 'every file of every side was handed out').toHaveLength(names.length * 2 + 5 + 6 + 6)
     expect(new Set(jobs.map((j) => j.kind))).toEqual(new Set(['claude', 'codex', 'grok', 'antigravity']))
-    expect(walked).toEqual([...walked].sort(compareScanOrder(roots())))
+    const held = storeRows(cacheDir()).map((r) => String(r.path))
+    expect(new Set(held)).toEqual(new Set(jobs.map((j) => j.file)))
+    expect(held).toEqual([...held].sort(compareScanOrder(roots())))
+  })
+})
+
+// Where parsing runs (token-stats, Implementation Decisions): the files that need parsing are handed out largest first,
+// so that the largest file does not start last and run on alone after every other has finished; files of one size go
+// in scan order. An Antigravity conversation's file is its database: its signature leaves the database's size out, but
+// that size on disk places it among the others as any file's does.
+describe('the order parses are handed out in', () => {
+  it('is the largest file first, files of one size in scan order', async () => {
+    const rollout = mkCodexRollout('rollout-2026-07-30T01-00-00-019f0000-0000-7000-8000-000000000001.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 1, cached: 0, output: 1 }])
+    const mid = statSync(rollout).size
+    const agy = mkAgyConversation('conv-order', proj, [{ usage: { messageId: 'm-order', input: 1, output: 1 }, at: Date.parse('2026-07-30T02:00:00Z') }])
+    const big = statSync(agy).size
+    /** A Claude session of `size` bytes */
+    const sized = (name: string, size: number): string => {
+      const line = (n: number): string => userLine('q'.repeat(n))
+      return mkClaudeFile(name, [line(size - Buffer.byteLength(line(0)) - 1)])
+    }
+    // Claude files whose scan order (a, b, c, d) is not their size order, a and d of one size, the rollout below the
+    // conversation's database and the database below c, so that neither end of the order is the conversation's
+    const [a, b, c, d] = [sized('a.jsonl', mid - 100), sized('b.jsonl', mid - 300), sized('c.jsonl', big + 500), sized('d.jsonl', mid - 100)]
+    expect([a, b, c, d].map((f) => statSync(f).size)).toEqual([mid - 100, mid - 300, big + 500, mid - 100])
+    expect(big, 'the database is larger than the rollout').toBeGreaterThan(mid)
+    const { runner, jobs } = recording()
+    await new TokenEngine(cacheDir(), TEST_ENGINE, runner).build(roots(), [proj])
+    expect(jobs.map((j) => j.file)).toEqual([c, agy, rollout, a, d, b])
   })
 })
 
@@ -3834,18 +3861,23 @@ describe('a parse runner that finishes out of order', () => {
     mkdirSync(proj2, { recursive: true })
     // The same message (id and request id) in a session of each project
     const shared = usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 100, 10, { id: 'msg-shared', requestId: 'req-shared' })
-    mkClaudeFile('a.jsonl', [userLine('first project question'), shared])
-    mkClaudeFile('b.jsonl', [userLine('second project question'), shared], 1000, encodeClaudeProjectDir(proj2))
-    mkClaudeFile('c.jsonl', [userLine('third'), usageLine('claude-opus-5', '2026-07-30T03:00:00Z', 7, 3)])
-    mkCodexRollout('rollout-order-019f400.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 50, cached: 0, output: 5 }])
-    mkGrokSession(proj, 'g-order', [grokTurn(1785369600, { input: 30, output: 3 })])
-    // The first job started finishes last, the next one second to last, and so on
-    let started = 0
+    // In scan order a.jsonl (project p1) comes before b.jsonl (p2), and b.jsonl is the larger, so it is handed out first
+    const files = [
+      mkClaudeFile('a.jsonl', [userLine('first project question'), shared]),
+      mkClaudeFile('b.jsonl', [userLine('second project question'), shared], 1000, encodeClaudeProjectDir(proj2)),
+      mkClaudeFile('c.jsonl', [userLine('third'), usageLine('claude-opus-5', '2026-07-30T03:00:00Z', 7, 3)]),
+      mkCodexRollout('rollout-order-019f400.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 50, cached: 0, output: 5 }]),
+      mkGrokSession(proj, 'g-order', [grokTurn(1785369600, { input: 30, output: 3 })])
+    ]
+    expect(statSync(files[1]).size).toBeGreaterThan(statSync(files[0]).size)
+    // Every job runs at once, and the results come back in reverse scan order, whatever order they were handed out in
+    const inScanOrder = [...files].sort(compareScanOrder(roots()))
+    const handed: string[] = []
     const reversing: ParseRunner = {
-      concurrency: 4,
+      concurrency: files.length,
       run: async (job) => {
-        const k = started++
-        await new Promise((r) => setTimeout(r, (10 - k) * 15))
+        handed.push(job.file)
+        await new Promise((r) => setTimeout(r, (files.length - inScanOrder.indexOf(job.file)) * 15))
         return runParseJob(job)
       }
     }
@@ -3857,8 +3889,11 @@ describe('a parse runner that finishes out of order', () => {
     })
     const pooled = await new TokenEngine(join(dir, 'cache-pooled'), TEST_ENGINE, reversing).build(roots(), [proj, proj2])
     const inline = await new TokenEngine(join(dir, 'cache-inline'), TEST_ENGINE).build(roots(), [proj, proj2])
-    expect(started).toBe(5)
+    expect([...handed].sort()).toEqual([...files].sort())
     expect(shape(pooled)).toEqual(shape(inline))
+    // The shared message counts toward the project of the first file in scan order, the smaller one
+    const claudeOf = (p: string): number | undefined => pooled.perProject.get(p.toLowerCase())?.tokens.bySide.claude.total
+    expect([claudeOf(proj), claudeOf(proj2)]).toEqual([120, 0])
     // And the pooled store is the inline store, entry by entry
     const cacheOf = (d: string): unknown => Object.fromEntries([...storedEntries(join(dir, d))].sort(([a], [b]) => a.localeCompare(b)))
     expect(cacheOf('cache-pooled')).toEqual(cacheOf('cache-inline'))
@@ -4414,6 +4449,54 @@ describe.skipIf(process.getuid?.() === 0)('a session directory the scan cannot l
   })
 })
 
+// token-stats, Implementation Decisions, The engine module: a line is "read by the grammar of ECMAScript's JSON.parse,
+// with its results". A string is read through the reader every line is read by (the JSON string seam), which looks at
+// plain text eight bytes at a time and at the bytes short of eight one by one: each character a string can hold — every
+// one below U+0080, the quote, the backslash and the control characters among them, characters of two, three and four
+// bytes, and escapes, bad ones included — is put at every byte of three such steps and of the bytes short of one, and
+// the reader is held to what JSON.parse makes of the same text.
+describe('how a line\'s string is read', () => {
+  it('as JSON.parse reads it, wherever a quote, a backslash, a control character or a byte of a multibyte character falls', () => {
+    const seam = loadEngineModule(TEST_ENGINE) as JsonStringSeam
+    const BS = String.fromCharCode(0x5c)
+    const parsed = (text: string): string | null => {
+      try {
+        const value: unknown = JSON.parse(text)
+        return typeof value === 'string' ? value : null
+      } catch {
+        return null
+      }
+    }
+    const marks = [
+      ...Array.from({ length: 0x80 }, (_, c) => String.fromCharCode(c)),
+      ...[0xe9, 0x7ff, 0x800, 0x2028, 0x4e2d, 0xfffd, 0xffff].map((c) => String.fromCharCode(c)),
+      String.fromCodePoint(0x1f600),
+      String.fromCodePoint(0x10ffff),
+      ...['n', '"', BS, '/', 'b', 'f', 'r', 't', 'u0041', 'u00e9', `uD83D${BS}uDE00`, 'x', 'u12', 'u12G4', 'U0041'].map((e) => `${BS}${e}`)
+    ]
+    // Plain text of one, two, three and four bytes a character
+    const fillers = ['a', ' ', String.fromCharCode(0x7f), String.fromCharCode(0xe9), String.fromCharCode(0x4e2d), String.fromCodePoint(0x1f600)]
+    const outcomes = { taken: 0, refused: 0 }
+    const differ: string[] = []
+    const check = (text: string): void => {
+      const expected = parsed(text)
+      outcomes[expected === null ? 'refused' : 'taken']++
+      if ((seam.seamReadJsonString(text) ?? null) !== expected) differ.push(JSON.stringify(text))
+    }
+    for (const f of fillers) {
+      for (const m of marks) for (let before = 0; before <= 16; before++) for (let after = 0; after <= 8; after++) check(`"${f.repeat(before)}${m}${f.repeat(after)}"`)
+      // A text that ends inside its string
+      for (let before = 0; before <= 16; before++) check(`"${f.repeat(before)}`)
+    }
+    // Whitespace before the string moves the byte its scan starts at
+    for (let space = 1; space < 8; space++) for (const m of marks) for (let before = 0; before <= 16; before++) check(`${' '.repeat(space)}"${'a'.repeat(before)}${m}a"`)
+    expect(differ.slice(0, 20)).toEqual([])
+    // Many texts of each outcome
+    expect(outcomes.taken).toBeGreaterThan(10000)
+    expect(outcomes.refused).toBeGreaterThan(10000)
+  })
+})
+
 // token-stats, Implementation Decisions, The engine module: "A line is decoded as UTF-8, an invalid sequence becoming
 // U+FFFD, and read by the grammar of ECMAScript's JSON.parse, with its results". One rollout per clause, parsed through
 // the module. Until the TypeScript Codex parser was removed (#427), the cases for the clauses and for timestamps were
@@ -4466,7 +4549,9 @@ describe('how a rollout line is read', () => {
       // Invalid bytes in a value no rule reads leave the line readable
       Buffer.concat([Buffer.from(`${head}"note":"`), bytes(0xff, 0xfe), Buffer.from(`","usage"${tail}`)]),
       // Outside a string a replacement character is no token, and the line is refused
-      Buffer.concat([Buffer.from(`{"timestamp":"${AT}",`), bytes(0xff), Buffer.from(record('r2', 999, 9).slice(1))])
+      Buffer.concat([Buffer.from(`{"timestamp":"${AT}",`), bytes(0xff), Buffer.from(record('r2', 999, 9).slice(1))]),
+      // A line that ends inside a three-byte character, cut after its second byte: U+FFFD after the object
+      Buffer.concat([Buffer.from(record('r3', 888, 8)), bytes(0xe4, 0xb8)])
     ])
     const entry = await entryOf(f)
     const R = REPLACEMENT

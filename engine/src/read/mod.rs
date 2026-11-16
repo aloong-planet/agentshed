@@ -55,47 +55,51 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
         Stored::Zstd if from > 0 => return Err(Failed),
         Stored::Zstd => Box::new(zstd::stream::read::Decoder::new(file).map_err(|_| Failed)?),
     };
-    let mut buf: Vec<u8> = Vec::with_capacity(CHUNK);
+    // The line being assembled is buf[..held]. Each read fills buf[held..held + n], and only those n bytes join it;
+    // past them the buffer keeps whatever an earlier read left there, which nothing reads. So the buffer is zeroed as
+    // it is allocated and as it grows, not before every read: zeroing a chunk before each read took 3.1% of a cold
+    // scan's parse workers' samples (#453).
+    let mut buf: Vec<u8> = vec![0; CHUNK];
+    let mut held = 0;
     // The stream offset of buf[0]
     let mut base = from;
     let mut last: Option<u8> = None;
     loop {
-        let held = buf.len();
-        buf.resize(held + CHUNK, 0);
-        let n = match source.read(&mut buf[held..]) {
+        if buf.len() < held + CHUNK {
+            buf.resize(held + CHUNK, 0);
+        }
+        let n = match source.read(&mut buf[held..held + CHUNK]) {
             Ok(n) => n,
-            Err(e) if e.kind() == ErrorKind::Interrupted => {
-                buf.truncate(held);
-                continue;
-            }
+            Err(e) if e.kind() == ErrorKind::Interrupted => continue,
             // A zstd stream that stops inside a frame: the decoder has handed over every byte it could decode, and the
             // stream ends there. Whether it was cut is judged by the side from the bytes it ends with, not from the
             // decoder's report (token-stats B12).
             Err(e) if stored == Stored::Zstd && e.kind() == ErrorKind::UnexpectedEof => 0,
             Err(_) => return Err(Failed),
         };
-        buf.truncate(held + n);
         if n == 0 {
             break;
         }
-        last = Some(buf[buf.len() - 1]);
+        let filled = held + n;
+        last = Some(buf[filled - 1]);
         // What was held has no line feed: only the new bytes are searched
         let mut start = 0;
         let mut search = held;
-        while let Some(i) = memchr::memchr(b'\n', &buf[search..]) {
+        while let Some(i) = memchr::memchr(b'\n', &buf[search..filled]) {
             let nl = search + i;
             line(&buf[start..nl], base + start as u64, base + nl as u64 + 1, true);
             start = nl + 1;
             search = start;
         }
+        // The line not yet ended moves to the buffer's start
         if start > 0 {
-            buf.drain(..start);
+            buf.copy_within(start..filled, 0);
             base += start as u64;
         }
+        held = filled - start;
     }
-    if !buf.is_empty() {
-        let len = buf.len() as u64;
-        line(&buf, base, base + len, false);
+    if held > 0 {
+        line(&buf[..held], base, base + held as u64, false);
     }
     Ok(last)
 }
