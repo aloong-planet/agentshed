@@ -4,7 +4,11 @@
 // Known gap: a cold read whose thread cannot be started throws as it is asked for, and gives up its place among the
 // reads that run at once (`readColdRanges` in cold-rollout.ts) as a read that fails does; no seam makes a thread fail to
 // start, so no case drives it. Add one when such a seam exists.
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+// Known gap: the cold-read cases catch a read held on the thread that asked or in libuv's pool at the hold seam, which a
+// read meets on its own thread before it opens the file (`before_range_read` in engine/src/seams.rs). Work the engine
+// module might do on the asking thread before it starts the read's thread never meets that gate, and no case bounds it:
+// a bound on its time would order by time, which these cases do not. Add one when a seam can hold that work.
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -12,9 +16,9 @@ import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { loadEngineModule, threadEngineModule } from '../engine-module'
-import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
+import { TEST_ENGINE, type HoldSeam, type PanicSeam } from '../testing/engine'
 import { searchFullText } from './full-text'
-import { mapLimit, readRangeBuffers, readRanges } from './range-read'
+import { mapLimit, readRangeBuffers, readRanges, type ByteRange } from './range-read'
 
 function withFile<T>(content: Buffer | string, fn: (file: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), 'rr-'))
@@ -226,67 +230,141 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
     writeFileSync(long, Buffer.concat(Array.from({ length: COPIES }, () => full)))
   })
   afterAll(() => rmSync(longDir, { recursive: true, force: true }))
-  /** Ten bytes of the long stream ending `copies` copies into it: a read about a millisecond long per copy it passes */
-  const longInto = (copies: number): Promise<unknown> => readRangeBuffers(long, [{ start: copies * content.length - 10, end: copies * content.length }])
+  /**
+   * Six cold rollouts, the content's frame each, so that the hold seam names each read alone (engine/src/seams.rs). The
+   * order reads run and settle in is decided at its gate, where each read waits on its own thread until the case
+   * releases it, never by how long a read takes.
+   */
+  let gateDir = ''
+  let gated: string[] = []
+  beforeAll(() => {
+    gateDir = mkdtempSync(join(tmpdir(), 'rr-cold-gate-'))
+    gated = Array.from({ length: 6 }, (_, k) => join(gateDir, `g${k}.jsonl.zst`))
+    for (const file of gated) writeFileSync(file, full)
+  })
+  afterAll(() => rmSync(gateDir, { recursive: true, force: true }))
+  const seam = (): HoldSeam => threadEngineModule() as HoldSeam
+  /**
+   * Each case's gated reads, as they settle. The places are the module's, shared by every case here: a case that fails
+   * still lets its reads go, and waits for them, so that none of them holds a place in the next case.
+   */
+  const asked: Array<Promise<unknown>> = []
+  function settling<T>(outcomes: Promise<T>): Promise<T> {
+    asked.push(outcomes)
+    return outcomes
+  }
+  afterEach(async () => {
+    seam().seamReleaseReadsOf(null)
+    await Promise.all(asked.splice(0))
+    vi.restoreAllMocks()
+  })
+  /** Long enough for a read that panics at the seam's five-second valve, four times over, with a case's own steps */
+  const GATED_CASE = 30_000
+  /** Under the valve: a read not at the gate by then never came to it */
+  const AT_THE_GATE = { timeout: 4000 }
+
+  /** Ten bytes of the content, each read its own */
+  const tenAt = (k: number): ByteRange => ({ start: 1000 * (k + 1) + k, end: 1000 * (k + 1) + k + 10 })
+  const tenOf = (k: number): string => content.subarray(tenAt(k).start, tenAt(k).end).toString('utf8')
+  /** Found once in the content, on its last line, outside any turn: a search of it finds one folded hit */
+  const ONCE = 'line 31999 '
+
+  /** Each read handed to the engine module from now on, by the file it reads, in the order handed */
+  function watchHanded(): string[] {
+    const engine = threadEngineModule()
+    const handed: string[] = []
+    const read = engine.readRanges.bind(engine)
+    const search = engine.searchFullText.bind(engine)
+    vi.spyOn(engine, 'readRanges').mockImplementation((kind, file, ranges) => {
+      handed.push(file)
+      return read(kind, file, ranges)
+    })
+    vi.spyOn(engine, 'searchFullText').mockImplementation((side, file, needle, turns) => {
+      handed.push(file)
+      return search(side, file, needle, turns)
+    })
+    return handed
+  }
+
+  /** Once the turns a settled read handed out have run: with every other read held, nothing else moves until a release */
+  const quiet = (): Promise<void> => new Promise((go) => setImmediate(go))
 
   /**
-   * Six cold reads asked at once, in this order, and the order they settle in: four of the long stream, ending a quarter,
-   * a half, three quarters and all the way into it, then ten bytes of `short` and a full-text search of it. A long read
-   * takes about a millisecond per copy it passes; each short one a few at most, so it settles long before the next long
-   * read.
+   * Six cold reads, each held at the gate, asked in this order: three range reads, a full-text search, a second search
+   * and a range read. Only the first four, the first search among them, are handed to the engine module as they are
+   * asked; each one released, a range read or a search, hands its place to the first one waiting, in the order asked,
+   * the second search before the range read asked after it; every read then serves what it was asked for.
    */
-  async function settleOrder(short: string): Promise<string[]> {
-    const settled: string[] = []
-    const ask = (name: string, read: Promise<unknown>): Promise<void> => read.then(() => { settled.push(name) })
-    await Promise.all([
-      ...[32, 64, 96, 128].map((copies) => ask(`long ${copies}`, longInto(copies))),
-      ask('short range', readRangeBuffers(short, [{ start: 0, end: 10 }])),
-      ask('short search', searchFullText('codex', short, 'x', []))
-    ])
-    return settled
+  async function fourPlaces(handed: string[]): Promise<void> {
+    const [l1, l2, l3, s4, s5, r6] = gated
+    for (const file of gated) seam().seamHoldReadsOf(file)
+    const from = handed.length
+    const ranges = [l1, l2, l3].map((file, k) => readRangeBuffers(file, [tenAt(k)]))
+    const searches = [s4, s5].map((file) => searchFullText('codex', file, ONCE, []))
+    const last = readRangeBuffers(r6, [tenAt(5)])
+    const outcomes = settling(Promise.allSettled([...ranges, last, ...searches]))
+    expect(handed.slice(from)).toEqual([l1, l2, l3, s4])
+    await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual([l1, l2, l3, s4].sort())
+    seam().seamReleaseReadsOf(l1)
+    await ranges[0]
+    await quiet()
+    expect(handed.slice(from)).toEqual([l1, l2, l3, s4, s5])
+    seam().seamReleaseReadsOf(s4)
+    await searches[0]
+    await quiet()
+    expect(handed.slice(from)).toEqual([l1, l2, l3, s4, s5, r6])
+    for (const file of [l2, l3, s5, r6]) seam().seamReleaseReadsOf(file)
+    const settled = await outcomes
+    expect(settled.slice(0, 4).map((o) => o.status === 'fulfilled' && 'bufs' in o.value && o.value.bufs.map((b) => b.toString('utf8'))))
+      .toEqual([0, 1, 2, 5].map((k) => [tenOf(k)]))
+    expect(settled.slice(4)).toEqual(Array(2).fill({ status: 'fulfilled', value: { folded: 1, body: [] } }))
   }
-  /** The long reads take the four places; the short ones wait, and are served in the order asked when the first ends */
-  const FOUR_PLACES = ['long 32', 'short range', 'short search', 'long 64', 'long 96', 'long 128']
 
   test('at most four cold reads run at once on a thread, range reads and full-text searches alike, the others waiting their turn in the order asked (spec session-view C2)', async () => {
-    await withTwins(2, async (_plain, cold) => {
-      expect(await settleOrder(cold)).toEqual(FOUR_PLACES)
-      // The same once places have been handed over: still four
-      expect(await settleOrder(cold)).toEqual(FOUR_PLACES)
-    })
-  })
+    const handed = watchHanded()
+    await fourPlaces(handed)
+    // The same once places have been handed over: still four
+    await fourPlaces(handed)
+  }, GATED_CASE)
 
   test('a cold read that fails gives up its place: after more failed reads than run at once, four places are left', async () => {
-    const missing = join(tmpdir(), `rr-missing-${process.pid}.jsonl.zst`)
-    const failed = await Promise.allSettled(Array.from({ length: 5 }, () => readRangeBuffers(missing, [{ start: 0, end: 10 }])))
-    expect(failed.map((r) => r.status)).toEqual(Array(5).fill('rejected'))
-    await withTwins(2, async (_plain, cold) => {
-      expect(await settleOrder(cold)).toEqual(FOUR_PLACES)
-    })
-  })
+    const handed = watchHanded()
+    const missing = Array.from({ length: 5 }, (_, k) => join(gateDir, `missing-${k}.jsonl.zst`))
+    for (const file of missing) seam().seamHoldReadsOf(file)
+    const failing = missing.map((file) => readRangeBuffers(file, [{ start: 0, end: 10 }]))
+    const outcomes = settling(Promise.allSettled(failing))
+    expect(handed).toEqual(missing.slice(0, 4))
+    await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual(missing.slice(0, 4).sort())
+    seam().seamReleaseReadsOf(missing[0])
+    await expect(failing[0]).rejects.toThrow(/could not be read as far as its ranges go/)
+    await quiet()
+    expect(handed).toEqual(missing)
+    seam().seamReleaseReadsOf(null)
+    // Each fails as a missing file does, not at the valve
+    expect((await outcomes).map((o) => o.status === 'rejected' && /could not be read as far as its ranges go/.test(String(o.reason))))
+      .toEqual(Array(5).fill(true))
+    await fourPlaces(handed)
+  }, GATED_CASE)
 
-  test('a cold read holds neither the thread that asked nor the thread pool the main process\'s file reads wait on: a timer set before four long cold reads fires a moment later, and a file read asked after them settles, before any of them (spec session-view C2)', async () => {
+  test('a cold read holds neither the thread that asked nor the thread pool the main process\'s file reads wait on: while four cold reads wait at the gate, a timer set before them fires and a file read asked after them settles (spec session-view C2)', async () => {
     await withFile('{"i":0}\n', async (small) => {
-      const settled: string[] = []
-      const after: Record<string, number> = {}
-      const start = performance.now()
-      const ask = (name: string, read: Promise<unknown>): Promise<void> => read.then(() => {
-        settled.push(name)
-        after[name] = performance.now() - start
-      })
-      // Set before the reads are asked: a read held on this thread holds the timer back as long, however late its own
-      // promise then settles
-      const timer = ask('timer', new Promise((go) => setTimeout(go, 0)))
+      const four = gated.slice(0, 4)
+      for (const file of four) seam().seamHoldReadsOf(file)
+      // Set before the reads are asked: a read held on this thread holds the timer back as long
+      const timer = new Promise((go) => setTimeout(go, 0))
       // As many reads as run at once, and as libuv's pool has threads: held there, they would keep the file read waiting
-      // until the first of them ended
-      const longs = [32, 64, 96, 128].map((copies) => ask(`long ${copies}`, longInto(copies)))
-      await Promise.all([timer, ...longs, ask('file', readFile(small))])
-      expect(settled.slice(0, 2).sort()).toEqual(['file', 'timer'])
-      expect(settled.slice(2)).toEqual(['long 32', 'long 64', 'long 96', 'long 128'])
-      // Asking four reads holds the thread a moment: far less than the longest of them takes
-      expect(after.timer).toBeLessThan(after['long 128'] / 4)
+      // until the first of them was let go
+      const reads = four.map((file, k) => readRangeBuffers(file, [tenAt(k)]))
+      const outcomes = settling(Promise.allSettled(reads))
+      expect(await readFile(small, 'utf8')).toBe('{"i":0}\n')
+      await timer
+      // Still waiting at the gate, neither released nor given up at its valve
+      await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual([...four].sort())
+      for (const file of four) seam().seamReleaseReadsOf(file)
+      expect((await outcomes).map((o) => o.status === 'fulfilled' && o.value.bufs.map((b) => b.toString('utf8'))))
+        .toEqual([0, 1, 2, 3].map((k) => [tenOf(k)]))
     })
-  })
+  }, GATED_CASE)
 
   test('memory follows the bytes in flight, never the file: a small range from each copy of a 300 MiB stream grows a fresh process\'s peak by a few MiB (spec session-view C2)', () => {
     const size = COPIES * content.length

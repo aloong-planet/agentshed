@@ -7,6 +7,10 @@
 //!   the session page or a search, or searches its full text — so that a test can show what a panic in the module does
 //!   to a read. They are apart so that a case of each reaches its own read: a parse never begins for an entry the walk
 //!   gave up on.
+//! - The hold seam: a test names a file, and every read of its ranges and every full-text search of it waits, on the
+//!   read's own thread and before it opens the file, until the test releases it, so that a case decides the order reads
+//!   run and settle in rather than how long each takes. A read held for longer than the seam's valve panics, and its
+//!   promise rejects as a read that panicked does, so that a case whose read is never released fails rather than hangs.
 //! - The store-write seam: a test names a number of statements, and the next write to a token store fails once that
 //!   many have run, so that a test can show a write cut short between two of its statements (token-stats C3).
 //! - The copy seam: a test names a directory, and the module notes each directory it makes there to copy one of agy's
@@ -45,12 +49,89 @@ pub(crate) fn before_walk_read(file: &str) {
 }
 
 /// Called by a read of a session file's ranges, and by its full-text search, before it opens the file: in a build made
-/// for tests, it panics when the file is the one the read's panic seam names, and otherwise does nothing.
+/// for tests, it panics when the file is the one the read's panic seam names, waits while the hold seam holds the
+/// file's reads, and otherwise does nothing.
 pub(crate) fn before_range_read(file: &str) {
     #[cfg(feature = "test-seams")]
-    panic_on(&NAMED_READ, file, "reading");
+    {
+        panic_on(&NAMED_READ, file, "reading");
+        hold_seam::wait(file);
+    }
     #[cfg(not(feature = "test-seams"))]
     let _ = file;
+}
+
+#[cfg(feature = "test-seams")]
+pub(crate) mod hold_seam {
+    use std::sync::{Condvar, Mutex, MutexGuard};
+    use std::time::{Duration, Instant};
+
+    /// How long a read waits at the gate before it panics instead: longer than a case takes to release what it holds,
+    /// shorter than it is given to fail in
+    const VALVE: Duration = Duration::from_secs(5);
+
+    /// The files whose reads are held, and the file of each read waiting at the gate now
+    struct Gate {
+        held: Vec<String>,
+        waiting: Vec<String>,
+    }
+
+    /// One for the whole process, as the module's code is shared by every thread
+    static GATE: Mutex<Gate> = Mutex::new(Gate { held: Vec::new(), waiting: Vec::new() });
+    static RELEASED: Condvar = Condvar::new();
+
+    fn gate() -> MutexGuard<'static, Gate> {
+        GATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Holds every read of `file` from now on, until it is released
+    pub(crate) fn hold(file: String) {
+        let mut gate = gate();
+        if !gate.held.contains(&file) {
+            gate.held.push(file);
+        }
+    }
+
+    /// Releases the reads of `file`, or of every file: those waiting go on, and those to come are not held
+    pub(crate) fn release(file: Option<String>) {
+        let mut gate = gate();
+        match file {
+            Some(file) => gate.held.retain(|held| *held != file),
+            None => gate.held.clear(),
+        }
+        drop(gate);
+        RELEASED.notify_all();
+    }
+
+    /// The file of each read waiting at the gate now, in the order they came to it
+    pub(crate) fn waiting() -> Vec<String> {
+        gate().waiting.clone()
+    }
+
+    pub(super) fn wait(file: &str) {
+        let valve = Instant::now() + VALVE;
+        let mut gate = gate();
+        if !gate.held.iter().any(|held| held == file) {
+            return;
+        }
+        gate.waiting.push(file.to_owned());
+        let mut given_up = false;
+        while gate.held.iter().any(|held| held == file) {
+            let now = Instant::now();
+            if now >= valve {
+                given_up = true;
+                break;
+            }
+            gate = RELEASED.wait_timeout(gate, valve - now).unwrap_or_else(|poisoned| poisoned.into_inner()).0;
+        }
+        if let Some(at) = gate.waiting.iter().position(|waiting| waiting == file) {
+            gate.waiting.remove(at);
+        }
+        drop(gate);
+        if given_up {
+            panic!("the hold seam's valve: a read of {file} was held for {VALVE:?} and never released");
+        }
+    }
 }
 
 #[cfg(feature = "test-seams")]
