@@ -19,13 +19,13 @@ mod seam {
         seams::name_walk_panic_file(file);
     }
 
-    /// Names the file the module panics on while it reads that file's ranges, or none
+    /// Names the file the module panics on while it reads that file's ranges or one of its turns, or none
     #[napi(catch_unwind)]
     pub fn seam_panic_while_reading(file: Option<String>) {
         seams::name_read_panic_file(file);
     }
 
-    /// Holds every read of `file`'s ranges, and every full-text search of it, at the hold seam's gate from now on, until
+    /// Holds every read of `file`'s ranges or turns, and every full-text search of it, at the hold seam's gate from now on, until
     /// it is released
     #[napi(catch_unwind)]
     pub fn seam_hold_reads_of(file: String) {

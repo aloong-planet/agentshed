@@ -7,7 +7,8 @@ import { runParseJob } from './token-stats'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { withIndexedTranscript } from '../testing/agy-transcript-index'
 import { readRanges } from './range-read'
-import { turnBlocksFromText } from './turn-content'
+import { turnBlocks } from './turn-content'
+import { readTurnLines } from './turn-read'
 import type { TurnBlock } from '@shared/domain'
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ const TS = '2026-08-01T10:00:00.000Z'
 const AT = Date.parse(TS)
 
 const blocks = (side: 'claude' | 'codex', objs: unknown[]): TurnBlock[] =>
-  turnBlocksFromText(side, objs.map((o) => JSON.stringify(o)).join('\n') + '\n')
+  turnBlocks(side, objs.map((o) => JSON.stringify(o)))
 
 // ── Claude line builders ──
 const cA = (content: unknown[], extra: Record<string, unknown> = {}): unknown => ({
@@ -307,8 +308,7 @@ describe('the Codex display allow-list and unknown traces', () => {
 
 describe('bad lines and side attribution (ticket 05 behaviour preserved)', () => {
   test('a bad line only hurts itself; the sides do not cross over', () => {
-    const raw = [JSON.stringify(cA([{ type: 'text', text: 'good line' }])), '{ bad line'].join('\n')
-    expect(turnBlocksFromText('claude', raw)).toHaveLength(1)
+    expect(turnBlocks('claude', [JSON.stringify(cA([{ type: 'text', text: 'good line' }])), '{ bad line'])).toHaveLength(1)
     expect(blocks('codex', [cA([{ type: 'text', text: 'claude line' }])])).toEqual([{ kind: 'unknown', count: 1, types: ['assistant'] }])
   })
 })
@@ -322,6 +322,15 @@ function withFile<T>(text: string, fn: (file: string) => Promise<T>): Promise<T>
   writeFileSync(file, text)
   return fn(file).finally(() => rmSync(dir, { recursive: true, force: true }))
 }
+
+/** A turn of `file`, a session file of `side`, by its question index record, read as the session page reads it */
+async function readTurn(side: 'claude' | 'grok' | 'antigravity', file: string, rec: QuestionRec): Promise<{ lines: string[]; bytesRead: number }> {
+  const read = await readTurnLines(side, file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] })
+  return { lines: read.lines ?? [], bytesRead: read.bytesRead }
+}
+
+/** The lines of a range's text as the whole file's read gives it, the empty piece after its last line feed left off */
+const linesOf = (text: string): string[] => text.split('\n').filter((l, i, all) => i < all.length - 1 || l !== '')
 
 /** The question index the scan gives a Claude Code session file, through the engine module */
 async function indexFile(file: string): Promise<QuestionRec[]> {
@@ -342,8 +351,7 @@ describe('the question index and the turn take the same tool calls as subagent d
       const raw = [uLine('a question'), JSON.stringify(cA([{ type: 'tool_use', id: 'tu1', name, input: { prompt: 'p' } }]))].join('\n') + '\n'
       await withFile(raw, async (file) => {
         const [rec] = await indexFile(file)
-        const { texts } = await readRanges(file, [{ start: rec[1], end: rec[2] }])
-        const kinds = turnBlocksFromText('claude', texts[0]).map((b) => b.kind)
+        const kinds = turnBlocks('claude', (await readTurn('claude', file, rec)).lines).map((b) => b.kind)
         judged.push({ name, counted: [rec[4], rec[5]], shown: [kinds.filter((k) => k === 'tool').length, kinds.filter((k) => k === 'sub').length] })
       })
     }
@@ -353,7 +361,7 @@ describe('the question index and the turn take the same tool calls as subagent d
 })
 
 describe('a range fetch agrees with a full parse (the anchor)', () => {
-  test('for every turn: the blocks from the offset path == the corresponding turn\'s blocks from the whole-file path', async () => {
+  test('for every turn: the blocks from the turn read == the corresponding turn\'s blocks from the whole-file path', async () => {
     const raw = [
       uLine('question one'),
       aLine('answer one'),
@@ -367,26 +375,12 @@ describe('a range fetch agrees with a full parse (the anchor)', () => {
       expect(recs).toHaveLength(2)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
       for (let i = 0; i < recs.length; i++) {
-        const { texts } = await readRanges(file, [{ start: recs[i][1], end: recs[i][2] }])
-        expect(turnBlocksFromText('claude', texts[0])).toEqual(turnBlocksFromText('claude', whole.texts[i]))
+        expect(turnBlocks('claude', (await readTurn('claude', file, recs[i])).lines)).toEqual(turnBlocks('claude', linesOf(whole.texts[i])))
       }
       // The first turn: the tool is already paired (its output is in place)
-      const t = turnBlocksFromText('claude', whole.texts[0]).find((b) => b.kind === 'tool')
+      const t = turnBlocks('claude', linesOf(whole.texts[0])).find((b) => b.kind === 'tool')
       expect(t && t.kind === 'tool' && t.output).toBe('ok')
     })
-  })
-
-  test('a single turn\'s bytes read is independent of the total file size (no wall clock, as ticket 05 established)', async () => {
-    const turn1 = [uLine('question one'), aLine('answer one')].join('\n') + '\n'
-    const small = turn1 + [uLine('question two'), aLine('answer two')].join('\n') + '\n'
-    const big = turn1 + [uLine('question two'), aLine('x'.repeat((5 * 1024 * 1024) / 3))].join('\n') + '\n'
-    const bytesOfTurn1 = async (text: string): Promise<number> =>
-      withFile(text, async (file) => {
-        const recs = await indexFile(file)
-        const { bytesRead } = await readRanges(file, [{ start: recs[0][1], end: recs[0][2] }])
-        return bytesRead
-      })
-    expect(await bytesOfTurn1(small)).toBe(await bytesOfTurn1(big))
   })
 })
 
@@ -421,7 +415,7 @@ describe('the Grok block model (ticket #125)', () => {
       }),
       gline(102, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done reading.' } })
     ].join('\n')
-    const blocks = turnBlocksFromText('grok', raw)
+    const blocks = turnBlocks('grok', raw.split('\n'))
     expect(blocks.map((b) => b.kind)).toEqual(['think', 'text', 'tool', 'text'])
     expect((blocks[0] as { body: string }).body).toBe('plan the table')
     // The decisive assertion: "Block" + "ed by" reunite with no separator injected
@@ -433,7 +427,7 @@ describe('the Grok block model (ticket #125)', () => {
     expect((blocks[3] as { body: string }).body).toBe('Done reading.')
   })
 
-  test('Grok: the offset path == the whole-file path, and one turn\'s bytes read is far below the file size', async () => {
+  test('Grok: the turn read == the whole-file path, and one turn\'s bytes read is far below the file size', async () => {
     const gU = (pi: number, text: string): string =>
       gline(100, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text }, _meta: { promptIndex: pi } })
     const raw =
@@ -448,9 +442,9 @@ describe('the Grok block model (ticket #125)', () => {
       const recs = (await runParseJob({ kind: 'grok', file, projectKey: '', subagent: false }))?.agg.questions ?? []
       expect(recs).toHaveLength(2)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
-      const one = await readRanges(file, [{ start: recs[0][1], end: recs[0][2] }])
-      expect(turnBlocksFromText('grok', one.texts[0])).toEqual(turnBlocksFromText('grok', whole.texts[0]))
-      expect((turnBlocksFromText('grok', one.texts[0])[0] as { body: string }).body).toBe('answer one')
+      const one = await readTurn('grok', file, recs[0])
+      expect(turnBlocks('grok', one.lines)).toEqual(turnBlocks('grok', linesOf(whole.texts[0])))
+      expect((turnBlocks('grok', one.lines)[0] as { body: string }).body).toBe('answer one')
       // Far below the file: the 2 MB padding turn is not touched by fetching turn one
       expect(one.bytesRead).toBeLessThan(2000)
       expect(statSync(file).size).toBeGreaterThan(2 * 1024 * 1024)
@@ -488,7 +482,7 @@ describe('the Grok block model (ticket #125)', () => {
         output: 'The research result body'
       })
     ].join('\n')
-    const blocks = turnBlocksFromText('grok', raw)
+    const blocks = turnBlocks('grok', raw.split('\n'))
     expect(blocks.map((b) => b.kind)).toEqual(['sub'])
     const sub = blocks[0] as { name: string | null; prompt: string; result: string | null; unlinked: boolean; steps: unknown[] }
     expect(sub.name).toBe('general-purpose')
@@ -505,7 +499,7 @@ describe('the Grok block model (ticket #125)', () => {
       JSON.stringify({ method: { name: 'odd' }, params: {} }),
       JSON.stringify({ params: {} })
     ].join('\n')
-    const blocks = turnBlocksFromText('grok', raw)
+    const blocks = turnBlocks('grok', raw.split('\n'))
     expect(blocks).toEqual([{ kind: 'unknown', count: 4, types: ['session/cancel', '7', '{"name":"odd"}', '<no-update>'] }])
   })
 
@@ -528,7 +522,7 @@ describe('the Grok block model (ticket #125)', () => {
       }),
       gline(100, { sessionUpdate: 'brand_new_thing', payload: 1 })
     ].join('\n')
-    const blocks = turnBlocksFromText('grok', raw)
+    const blocks = turnBlocks('grok', raw.split('\n'))
     expect(blocks.map((b) => b.kind)).toEqual(['text', 'unknown'])
     const unknown = blocks[1] as { types: string[]; count: number }
     expect(unknown.types).toEqual(['update/brand_new_thing'])
@@ -542,15 +536,21 @@ describe('the Grok block model (ticket #125)', () => {
 // shows is marked derived.
 describe('the Antigravity block model (session-view::REQ-004)', () => {
   const T = MEASURED_TRANSCRIPT
-  /** A turn's text: the lines after its question, as the range read hands them over */
-  const turn = (lines: readonly string[], from: number, to: number): TurnBlock[] =>
-    turnBlocksFromText('antigravity', transcriptText(lines.slice(from, to)))
+  /** A turn of these lines, as the session page reads it: written as a transcript, the whole of it the turn's body, read
+   * through the turn read, which leaves out the lines a rewind undid */
+  const read = (lines: readonly string[]): Promise<TurnBlock[]> =>
+    withFile(transcriptText(lines), async (file) => {
+      const body = { start: 0, end: statSync(file).size }
+      return turnBlocks('antigravity', (await readTurnLines('antigravity', file, { start: 0, end: 0 }, body)).lines ?? [])
+    })
+  /** The turn of the lines after a question, `[from, to)` */
+  const turn = (lines: readonly string[], from: number, to: number): Promise<TurnBlock[]> => read(lines.slice(from, to))
   const field = (line: string, key: string): unknown => (JSON.parse(line) as Record<string, unknown>)[key]
   const argsOf = (line: string): unknown => (field(line, 'tool_calls') as Array<{ args: unknown }>)[0].args
 
-  test('prose, plain-text thinking, and each tool call paired in order with the result line after it — a denied one too (AC-04)', () => {
+  test('prose, plain-text thinking, and each tool call paired in order with the result line after it — a denied one too (AC-04)', async () => {
     // The second question's turn of the measured main conversation: a server notice, three calls, the last denied
-    const bs = turn(T.main, 5, 12)
+    const bs = await turn(T.main, 5, 12)
     expect(bs.map((b) => b.kind)).toEqual(['tool', 'tool', 'think', 'tool'])
     const tools = bs.filter((b): b is Extract<TurnBlock, { kind: 'tool' }> => b.kind === 'tool')
     expect(tools.map((b) => b.name)).toEqual(['run_command', 'read_file', 'edit_file'])
@@ -559,13 +559,13 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
     expect(tools[2].output).toContain('user denied permission for write_file')
     expect((bs[2] as { body: string }).body).toBe(field(T.main[10], 'thinking'))
     // The last turn: its notice renders nothing, its answer's thinking comes before its prose
-    const last = turn(T.main, 20, 22)
+    const last = await turn(T.main, 20, 22)
     expect(last.map((b) => b.kind)).toEqual(['think', 'text'])
     expect((last[1] as { body: string }).body).toBe(field(T.main[21], 'content'))
   })
 
-  test('a subagent dispatch is a sub block whose return is the message its subagent sent back, never the creation echo (AC-05)', () => {
-    const bs = turn(T.dispatch, 1, 7)
+  test('a subagent dispatch is a sub block whose return is the message its subagent sent back, never the creation echo (AC-05)', async () => {
+    const bs = await turn(T.dispatch, 1, 7)
     expect(bs.map((b) => b.kind)).toEqual(['think', 'sub', 'think', 'tool', 'text'])
     const sub = bs[1] as Extract<TurnBlock, { kind: 'sub' }>
     expect(sub.name).toBe('self')
@@ -577,8 +577,8 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
     expect((bs[4] as { body: string }).body).toBe('The functions defined in `calc.py` are `add`, `average`, and `percent`.')
   })
 
-  test('a cancelled dispatch shows no return; a call still running shows its running result; a timer\'s message renders nothing (AC-04, AC-05, AC-06)', () => {
-    const bs = turn(T.cancelledDispatch, 4, 20)
+  test('a cancelled dispatch shows no return; a call still running shows its running result; a timer\'s message renders nothing (AC-04, AC-05, AC-06)', async () => {
+    const bs = await turn(T.cancelledDispatch, 4, 20)
     expect(bs.map((b) => b.kind)).toEqual(['think', 'tool', 'think', 'sub', 'tool', 'text', 'think', 'tool', 'tool', 'tool', 'think', 'text'])
     const sub = bs[3] as Extract<TurnBlock, { kind: 'sub' }>
     expect([sub.name, sub.result]).toEqual(['research', null])
@@ -587,64 +587,63 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
     expect(schedule.output).toContain('Tool is running as a background task')
   })
 
-  test('a failed model call\'s error line is prose; a line of another type leaves the unknown trace (AC-06)', () => {
-    expect(turn(T.failedFirstCall, 1, 2)).toEqual([
+  test('a failed model call\'s error line is prose; a line of another type leaves the unknown trace (AC-06)', async () => {
+    expect(await turn(T.failedFirstCall, 1, 2)).toEqual([
       { kind: 'text', role: 'assistant', at: Date.parse('2026-10-28T07:54:02Z'), body: field(T.failedFirstCall[1], 'error') }
     ])
     // Derived: no measured line has another type
     const invented = JSON.stringify({ step_index: 2, source: 'MODEL', type: 'BRAND_NEW', status: 'DONE', created_at: '2026-10-28T07:54:03Z' })
-    expect(turnBlocksFromText('antigravity', transcriptText([T.failedFirstCall[1], invented]))).toEqual([
+    expect(await read([T.failedFirstCall[1], invented])).toEqual([
       { kind: 'text', role: 'assistant', at: Date.parse('2026-10-28T07:54:02Z'), body: field(T.failedFirstCall[1], 'error') },
       { kind: 'unknown', count: 1, types: ['BRAND_NEW'] }
     ])
   })
 
-  test('a subagent that sends two messages within its dispatch\'s turn: the return holds both, in order (the "more than one message" failure mode)', () => {
+  test('a subagent that sends two messages within its dispatch\'s turn: the return holds both, in order (the "more than one message" failure mode)', async () => {
     // Derived: the measured message again, after the answer, with another body
     const first = JSON.parse(T.dispatch[5]) as { content: string }
     const body = 'The functions defined in `calc.py` are:\n1. `add`\n2. `average`\n3. `percent`'
     expect(first.content).toContain(`content=${body}\n</SYSTEM_MESSAGE>`)
     const second = JSON.stringify({ ...first, step_index: 8, content: first.content.replace(body, 'Also: `average` returns 0 for an empty list.') })
-    const sub = turnBlocksFromText('antigravity', transcriptText([...T.dispatch.slice(1, 7), second])).find((b) => b.kind === 'sub') as Extract<TurnBlock, { kind: 'sub' }>
+    const sub = (await read([...T.dispatch.slice(1, 7), second])).find((b) => b.kind === 'sub') as Extract<TurnBlock, { kind: 'sub' }>
     expect(sub.result).toBe(`${body}\n\nAlso: \`average\` returns 0 for an empty list.`)
   })
 
-  test('a subagent\'s later message, in a turn of its own, renders nothing there (the "messaged again" failure mode)', () => {
+  test('a subagent\'s later message, in a turn of its own, renders nothing there (the "messaged again" failure mode)', async () => {
     // Derived: the measured message, arriving after the next question
     const again = JSON.stringify({ ...(JSON.parse(T.dispatch[5]) as Record<string, unknown>), step_index: 9 })
-    expect(turnBlocksFromText('antigravity', transcriptText([again]))).toEqual([])
+    expect(await read([again])).toEqual([])
   })
 
   // Derived position of the measured mechanism: the redo reuses the index of a call within the turn. The second row
   // puts a line that will not parse and an empty line before the undone result: which lines are undone is told per
-  // line of the turn's text, so a line without a step must not shift the lines after it
+  // line of the turn, as the turn read hands them over, so a line without a step must not shift the lines after it
   const rewound = (step: number, type: string, extra: Record<string, unknown>): string =>
     JSON.stringify({ step_index: step, source: 'MODEL', type, status: 'DONE', created_at: '2026-10-28T08:06:23Z', ...extra })
   test.each([
     { name: 'every line read', between: [] },
     { name: 'a bad line and an empty line before the undone result', between: ['{"step_index":', ''] }
-  ])('a rewind inside a turn: the undone call and its result are not shown, the redo is, $name (AC-03)', ({ between }) => {
-    const bs = turnBlocksFromText('antigravity', transcriptText([
+  ])('a rewind inside a turn: the undone call and its result are not shown, the redo is, $name (AC-03)', async ({ between }) => {
+    const bs = await read([
       rewound(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }),
       ...between,
       rewound(2, 'GENERIC', { content: 'undone' }),
       rewound(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }),
       rewound(2, 'GENERIC', { content: 'redone' })
-    ]))
+    ])
     expect(bs.map((b) => b.kind === 'tool' && [b.name, b.output])).toEqual([['run_command', 'redone']])
   })
 
-  test('the offset path == the whole-file path, and one turn reads far below the file (AC-02)', async () => {
+  test('the turn read == the whole-file path, and one turn reads far below the file (AC-02)', async () => {
     const pad = JSON.stringify({ step_index: 22, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:20:20Z', content: 'y'.repeat(2 * 1024 * 1024) })
     await withIndexedTranscript(transcriptText([...T.main, pad]), async ({ questions: recs, transcript: file }) => {
       expect(recs).toHaveLength(4)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
       for (let i = 0; i < recs.length; i++) {
-        const { texts } = await readRanges(file, [{ start: recs[i][1], end: recs[i][2] }])
-        expect(turnBlocksFromText('antigravity', texts[0])).toEqual(turnBlocksFromText('antigravity', whole.texts[i]))
+        expect(turnBlocks('antigravity', (await readTurn('antigravity', file, recs[i])).lines)).toEqual(turnBlocks('antigravity', linesOf(whole.texts[i])))
       }
-      expect(turnBlocksFromText('antigravity', whole.texts[0]).map((b) => b.kind)).toEqual(['tool', 'think', 'text'])
-      const one = await readRanges(file, [{ start: recs[0][1], end: recs[0][2] }])
+      expect(turnBlocks('antigravity', linesOf(whole.texts[0])).map((b) => b.kind)).toEqual(['tool', 'think', 'text'])
+      const one = await readTurn('antigravity', file, recs[0])
       expect(one.bytesRead).toBeLessThan(20_000)
       expect(statSync(file).size).toBeGreaterThan(2 * 1024 * 1024)
     })

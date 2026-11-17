@@ -1,10 +1,10 @@
 //! A cold rollout (token-stats B12, session-view C2): Codex compresses a rollout untouched for seven days into
 //! `<name>.jsonl.zst` and deletes the plain file (its compression.rs, read 2026-09-09). The same session, its offsets
 //! those of the decompressed stream. Its name says how it is stored, and the bytes its stream ends with whether the
-//! stream was cut short. The parse, the walk, a read of a rollout's ranges for the session page and both searches, and
-//! the full-text search each take both from here.
+//! stream was cut short. The parse, the walk, a read of a rollout's ranges for the session page and both searches, a
+//! read of one of its turns, and the full-text search each take both from here.
 
-use crate::read::{self, Failed, Served, Stored};
+use crate::read::{self, Failed, Served, Stored, TurnRead};
 use crate::search::{self, Found, Turn};
 
 /// How a rollout of this name is stored: zstd-compressed under `.jsonl.zst`, plain otherwise
@@ -29,6 +29,17 @@ pub(super) fn ranges(file: &str, ranges: &[(u64, u64)]) -> Result<Served, Failed
         return Err(Failed);
     }
     Ok(served)
+}
+
+/// A turn of the rollout `file`, in its stream's offsets (`read::turn`). Failed as well when the read went to the
+/// stream's end and found it cut short, as a read of ranges is.
+pub(super) fn turn(file: &str, question: (u64, u64), body: Option<(u64, u64)>) -> Result<TurnRead, Failed> {
+    let stored = stored(file);
+    let read = read::turn(file, stored, question, body)?;
+    if read.ended && cut_short(stored, read.last) {
+        return Err(Failed);
+    }
+    Ok(read)
 }
 
 /// The full-text search of the rollout `file` (`search::full_text`), through its stream for a cold one. Failed as well

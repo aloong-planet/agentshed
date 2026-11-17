@@ -1744,7 +1744,8 @@ test('the session page header: the session ID, copying it and the resume command
 /**
  * Ticket antigravity-side/#324: a folder agy trusts, holding the measured conversations (agy-transcript-fixture.ts) —
  * a conversation of four questions; a fork of it, rewound once, whose database holds the parent's steps copied (their
- * source naming the parent, as agy writes them) and a call of its own; a fork whose source conversation is gone; a
+ * source naming the parent, as agy writes them) and a call of its own; a fork whose source conversation is gone, its
+ * turn rewound to a step within it; a
  * dispatching conversation and its subagent; and the conversation agy creates when opened and left. Titles from agy's
  * summaries for the first and the dispatcher; the forks have none.
  */
@@ -1781,8 +1782,14 @@ function mkAntigravitySessionsHome(): { home: string; proj: string; parent: stri
   const gone = 'a7c3e9f1-0b2d-4e6f-8a1c-3d5e7f9b1c2a'
   const goneSource = 'f0e1d2c3-b4a5-4968-8776-655443322110'
   const question = JSON.stringify({ step_index: 19, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:30:00Z', content: '<USER_REQUEST>\nWhat does percent(1, 4) return now?\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nThe current local time is: 2026-10-28T16:30:00+08:00.\n</ADDITIONAL_METADATA>' })
-  const answer = JSON.stringify({ step_index: 20, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:30:05Z', input_tokens: 1000, cache_read_tokens: 0, output_tokens: 100, content: 'It returns `25.0`.' })
-  write(gone, record(gone), [callOf(goneSource, 1, 0, 'e-g0', 2), callOf(gone, 19, 1, 'e-g1', 2)], [question, answer])
+  // A rewind inside the turn (session-view::REQ-004/AC-03), at a derived position of the measured mechanism: the redo
+  // reuses the steps of the call it undid, whose call and result stay in the turn's range
+  const step = (stepIndex: number, type: string, extra: Record<string, unknown>): string =>
+    JSON.stringify({ step_index: stepIndex, source: 'MODEL', type, status: 'DONE', created_at: '2026-10-28T08:30:02Z', ...extra })
+  const undone = [step(20, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }), step(21, 'GENERIC', { content: 'undone' })]
+  const redone = [step(20, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }), step(21, 'GENERIC', { content: 'redone' })]
+  const answer = JSON.stringify({ step_index: 22, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:30:05Z', input_tokens: 1000, cache_read_tokens: 0, output_tokens: 100, content: 'It returns `25.0`.' })
+  write(gone, record(gone), [callOf(goneSource, 1, 0, 'e-g0', 2), callOf(gone, 19, 1, 'e-g1', 2)], [question, ...undone, ...redone, answer])
   write(ID.dispatch, record(ID.dispatch), [callOf(ID.dispatch, 1, 0, 'e-d1', 4)], MEASURED_TRANSCRIPT.dispatch)
   write(ID.subagent, record(ID.subagent, { parentConversationId: ID.dispatch, nestingDepth: 1, subagentSpec: true }), [callOf(ID.subagent, 1, 0, 'e-s1', 4)], MEASURED_TRANSCRIPT.subagent)
   write('438a6b76-5f66-490d-8506-613ed88f6d68', record('438a6b76-5f66-490d-8506-613ed88f6d68'), [])
@@ -1794,7 +1801,7 @@ function mkAntigravitySessionsHome(): { home: string; proj: string; parent: stri
   return { home, proj, parent, fork }
 }
 
-// session-view::REQ-003/AC-06, REQ-004/AC-04, REQ-005/AC-01, AC-04, AC-05, US-001/AC-01, AC-04, AC-07 (the Antigravity
+// session-view::REQ-003/AC-06, REQ-004/AC-03, AC-04, REQ-005/AC-01, AC-04, AC-05, US-001/AC-01, AC-04, AC-07 (the Antigravity
 // clauses), project-detail::REQ-002/AC-04 (Sessions), global-search::REQ-001: an Antigravity user's sessions along the
 // user's path, in one launch. Finder's call and the clipboard are intercepted at the main process's Electron boundary,
 // as the session header case does, so the run neither opens Finder nor overwrites the clipboard.
@@ -1891,6 +1898,9 @@ test('Antigravity sessions: AG rows and forks, a fork\'s page with its banner, h
     'This session was forked from a session that is no longer on this machine — the copied history has been stripped, so only what follows this fork is shown below.'
   )
   expect(await win.locator('.pane-body .banner a').count()).toBe(0)
+  // Its turn, rewound to a step within it: the call the rewind undid is not shown, the redo is
+  await win.locator('.pane-body .q').first().click()
+  await expect(win.locator('.pane-body .turn .blk .nm')).toHaveText(['run_command'])
 
   // Global search: the fork's group wears AG and the fork pill; the parent's question hits too
   await win.locator('.rail .ri').nth(2).click()

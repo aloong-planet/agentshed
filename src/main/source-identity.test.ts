@@ -11,7 +11,8 @@ import { chmodSync, mkdtempSync, writeFileSync, symlinkSync, rmSync, mkdirSync, 
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { decodeAppError } from '@shared/errors'
-import { sourceIdentity, questionRevision, recordFileBytes, readSessionRanges, regularTarget } from './source-identity'
+import { zstdCompressSync } from 'node:zlib'
+import { sourceIdentity, questionRevision, recordFileBytes, readSessionRanges, readSessionTurn, regularTarget } from './source-identity'
 
 it('refuses substituted symlinks and non-files while keeping a directory check distinct', () => {
   const root = mkdtempSync(join(tmpdir(), 'agentshed-identity-'))
@@ -58,6 +59,32 @@ it('reads a session\'s ranges and its size, and any failure of either is the cod
     }
     expect(decodeAppError(gone)?.code).toBe('session-file-unreadable')
     expect((gone as Error).message).not.toContain(root)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+it('reads a turn of a session, and any failure of its read is the code, with no path in it (session-view P6, the in-turn fetch states)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'agentshed-identity-'))
+  try {
+    const file = join(root, 'source.jsonl')
+    writeFileSync(file, 'first\nsecond\nthird\n')
+    expect(await readSessionTurn('claude', file, { start: 0, end: 6 }, { start: 6, end: 19 })).toEqual({ question: 'first\n', lines: ['second', 'third'], bytesRead: 19 })
+    const locked = join(root, 'locked.jsonl')
+    writeFileSync(locked, 'first\n')
+    chmodSync(locked, 0o000)
+    const dir = join(root, 'dir.jsonl')
+    mkdirSync(dir)
+    const notZstd = join(root, 'rollout.jsonl.zst')
+    writeFileSync(notZstd, 'not zstd\n')
+    // A cold rollout whose stream is cut inside a line, which the turn's read runs into (spec token-stats B12): lines
+    // that differ, past the 128 KiB of a zstd block, so that half of the compressed bytes decode to part of them
+    const cut = join(root, 'cut.jsonl.zst')
+    const whole = zstdCompressSync(Buffer.from('{"q":1}\n' + Array.from({ length: 8000 }, (_, i) => JSON.stringify({ i, text: 'line ' + i + ' ' + 'x'.repeat(i % 97) }) + '\n').join('')))
+    writeFileSync(cut, whole.subarray(0, whole.length >> 1))
+    for (const [side, failing] of [['claude', join(root, 'missing.jsonl')], ['claude', locked], ['claude', dir], ['codex', notZstd], ['codex', cut]] as const) {
+      const thrown: unknown = await readSessionTurn(side, failing, { start: 0, end: 8 }, { start: 8, end: 1_000_000 }).catch((e: unknown) => e)
+      expect(decodeAppError(thrown)?.code, failing).toBe('session-file-unreadable')
+      expect((thrown as Error).message).not.toContain(root)
+    }
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 

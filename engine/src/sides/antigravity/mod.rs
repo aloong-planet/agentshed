@@ -54,8 +54,8 @@ impl Side for Antigravity {
     }
 
     /// The lines a rewind left behind (session-view::REQ-004/AC-03)
-    fn kept_lines(&self, range: &str) -> Vec<bool> {
-        transcript::kept_in(range)
+    fn kept_lines(&self, lines: &[String]) -> Vec<bool> {
+        transcript::kept_in(lines)
     }
 
     /// A panic while a conversation was parsed is its failed read (token-stats, Scans and the window), judged as

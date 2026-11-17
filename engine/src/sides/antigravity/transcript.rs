@@ -155,12 +155,12 @@ fn kept(steps: &[Option<f64>]) -> Vec<bool> {
     kept
 }
 
-/// Which lines of a turn's range a rewind left behind, one flag per line as the range's text splits at its line feeds:
-/// the index ends a turn before a rewind back to the next question, so what is left is a rewind to a step within the
-/// turn, whose undone lines stay in its range (session-view::REQ-004/AC-03). A line that will not parse has no step.
-pub(super) fn kept_in(range: &str) -> Vec<bool> {
-    let steps: Vec<Option<f64>> = range
-        .split('\n')
+/// Which of a turn's lines a rewind left behind, one flag per line: the index ends a turn before a rewind back to the
+/// next question, so what is left is a rewind to a step within the turn, whose undone lines stay in its range
+/// (session-view::REQ-004/AC-03). A line that will not parse has no step.
+pub(super) fn kept_in(lines: &[String]) -> Vec<bool> {
+    let steps: Vec<Option<f64>> = lines
+        .iter()
         .map(|text| match read_line(text) {
             Ok(Parsed::Object(l)) => l.step,
             _ => None,

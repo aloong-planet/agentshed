@@ -62,6 +62,14 @@ impl Side for Codex {
         Some(cold::ranges(file, ranges))
     }
 
+    fn stored(&self, file: &str) -> crate::read::Stored {
+        cold::stored(file)
+    }
+
+    fn read_turn(&self, file: &str, question: (u64, u64), body: Option<(u64, u64)>) -> std::result::Result<crate::read::TurnRead, Failed> {
+        cold::turn(file, question, body)
+    }
+
     fn full_text(&self, file: &str, needle: &[u16], turns: &[crate::search::Turn]) -> std::result::Result<crate::search::Found, Failed> {
         cold::full_text(file, needle, turns)
     }

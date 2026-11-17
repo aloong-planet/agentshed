@@ -16,16 +16,17 @@ export function turnLimitBytes(env: string | undefined): number {
   return rescanIntervalMs(env, TURN_LIMIT_BYTES)
 }
 
-type ReadRanges = (source: string, ranges: readonly ByteRange[]) => Promise<{ texts: string[]; bytesRead: number }>
+/** A turn's read (turn-read.ts): the question's text, the body's lines when a body was asked, how much was read */
+type ReadTurn = (source: string, question: ByteRange, body: ByteRange | null) => Promise<{ question: string; lines: string[] | null; bytesRead: number }>
 
 export type TurnRead =
-  | { question: string; body: string; bodyBytes: number; bytesRead: number }
+  | { question: string; lines: string[]; bodyBytes: number; bytesRead: number }
   /** Over the limit: only the question was read, and the body's length is what the reason shows */
-  | { question: string; body: null; bodyBytes: number; bytesRead: number }
+  | { question: string; lines: null; bodyBytes: number; bytesRead: number }
 
-/** A turn's question and, when its body is within the limit, its body, in one read */
+/** A turn's question and, when its body is within the limit, the lines its body holds, in one read */
 export async function readTurnRanges(
-  read: ReadRanges,
+  read: ReadTurn,
   source: string,
   rec: readonly [number, number, number, ...unknown[]],
   limit: number
@@ -33,9 +34,9 @@ export async function readTurnRanges(
   const question = { start: rec[0], end: rec[1] }
   const bodyBytes = rec[2] - rec[1]
   if (bodyBytes > limit) {
-    const { texts, bytesRead } = await read(source, [question])
-    return { question: texts[0], body: null, bodyBytes, bytesRead }
+    const { question: text, bytesRead } = await read(source, question, null)
+    return { question: text, lines: null, bodyBytes, bytesRead }
   }
-  const { texts, bytesRead } = await read(source, [question, { start: rec[1], end: rec[2] }])
-  return { question: texts[0], body: texts[1], bodyBytes, bytesRead }
+  const { question: text, lines, bytesRead } = await read(source, question, { start: rec[1], end: rec[2] })
+  return { question: text, lines: lines ?? [], bodyBytes, bytesRead }
 }

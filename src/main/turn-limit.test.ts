@@ -6,15 +6,20 @@ import { describe, expect, it } from 'vitest'
 import type { ByteRange } from './providers/range-read'
 import { readTurnRanges, turnLimitBytes } from './turn-limit'
 
-/** A read that records every range asked for and answers each with as many dots as the range is long, capped */
-function recordingRead(): { read: (source: string, ranges: readonly ByteRange[]) => Promise<{ texts: string[]; bytesRead: number }>; asked: ByteRange[][] } {
-  const asked: ByteRange[][] = []
+type Asked = { question: ByteRange; body: ByteRange | null }
+type Read = (source: string, question: ByteRange, body: ByteRange | null) => Promise<{ question: string; lines: string[] | null; bytesRead: number }>
+
+/** A turn read that records what it was asked for and answers the question with as many dots as its range is long,
+ * capped, and a body asked for with one line of them */
+function recordingRead(): { read: Read; asked: Asked[] } {
+  const asked: Asked[] = []
+  const dots = (r: ByteRange): string => '.'.repeat(Math.min(8, r.end - r.start))
   return {
     asked,
-    read: (_source, ranges) => {
-      asked.push(ranges.map((r) => ({ ...r })))
-      const texts = ranges.map((r) => '.'.repeat(Math.min(8, r.end - r.start)))
-      return Promise.resolve({ texts, bytesRead: texts.join('').length })
+    read: (_source, question, body) => {
+      asked.push({ question: { ...question }, body: body && { ...body } })
+      const lines = body && [dots(body)]
+      return Promise.resolve({ question: dots(question), lines, bytesRead: dots(question).length + (lines?.[0].length ?? 0) })
     }
   }
 }
@@ -34,14 +39,14 @@ describe('readTurnRanges', () => {
   it('reads the question and the body of a turn whose body is exactly the limit', async () => {
     const { read, asked } = recordingRead()
     const got = await readTurnRanges(read, 'source', [100, 140, 140 + 67_108_864], 67_108_864)
-    expect(asked).toEqual([[{ start: 100, end: 140 }, { start: 140, end: 140 + 67_108_864 }]])
-    expect(got).toEqual({ question: '........', body: '........', bodyBytes: 67_108_864, bytesRead: 16 })
+    expect(asked).toEqual([{ question: { start: 100, end: 140 }, body: { start: 140, end: 140 + 67_108_864 } }])
+    expect(got).toEqual({ question: '........', lines: ['........'], bodyBytes: 67_108_864, bytesRead: 16 })
   })
 
   it('reads only the question of a turn whose body is one byte over, and never a byte past the question', async () => {
     const { read, asked } = recordingRead()
     const got = await readTurnRanges(read, 'source', [100, 140, 140 + 67_108_865], 67_108_864)
-    expect(asked).toEqual([[{ start: 100, end: 140 }]])
-    expect(got).toEqual({ question: '........', body: null, bodyBytes: 67_108_865, bytesRead: 8 })
+    expect(asked).toEqual([{ question: { start: 100, end: 140 }, body: null }])
+    expect(got).toEqual({ question: '........', lines: null, bodyBytes: 67_108_865, bytesRead: 8 })
   })
 })

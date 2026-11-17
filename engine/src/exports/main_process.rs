@@ -1,6 +1,7 @@
 //! What the main process calls: the display copy's write (crate::display), the read of a session file's ranges the
-//! session page and both searches make (each side's), the full-text search of a session file (each side's, over
-//! crate::search), and the line rules a question's text and a turn's contents are read by there (each side's).
+//! session page and both searches make (each side's), the read of a turn the session page expands (each side's, over
+//! crate::read), the full-text search of a session file (each side's, over crate::search), and the line rules a
+//! question's text is read by there (each side's).
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::PathBuf;
@@ -10,6 +11,8 @@ use napi::{Env, Error, JsValue, Result, Status, Task};
 use napi_derive::napi;
 
 use super::side;
+use crate::read::Stored;
+use crate::sides::Side;
 use crate::display::{stringify, write_atomically};
 use crate::exports::js::Js;
 use crate::search::Turn;
@@ -27,13 +30,6 @@ pub fn question_text<'env>(env: &'env Env, kind: String, text: String) -> Result
 #[napi(catch_unwind)]
 pub fn dispatches(kind: String) -> Result<Vec<String>> {
     Ok(side(&kind)?.dispatches().iter().map(|name| (*name).to_owned()).collect())
-}
-
-/// Which lines of `text` the turn holds, one flag per line as `text` splits at its line feeds: `text` is a turn's range
-/// in a session file of the side `kind`, as the question index recorded it, read
-#[napi(catch_unwind)]
-pub fn kept_lines(kind: String, text: String) -> Result<Vec<bool>> {
-    Ok(side(&kind)?.kept_lines(&text))
 }
 
 /// A range of a session file, `[start, end)` in the offsets its question index records
@@ -84,6 +80,93 @@ pub fn read_ranges<'env>(env: &'env Env, kind: String, file: String, ranges: Vec
         })
         .map_err(|e| Error::from_reason(format!("no thread could be started to read {named}: {e}")))?;
     Ok(promise)
+}
+
+/// What a read of a turn gave: its question's bytes, the lines of its body the turn holds, each as text, and how far
+/// into the file's stream the read went from where it started (the question's start in a plain file, the stream's start
+/// in a cold rollout)
+#[napi(object)]
+pub struct TurnLines {
+    pub question: Buffer,
+    pub lines: Vec<String>,
+    pub bytes_read: f64,
+}
+
+type SettleTurn = Box<dyn FnOnce(Env) -> Result<TurnLines> + Send>;
+
+/// What a turn's read hands over from the thread that read it: the question's bytes, the lines the turn holds, and how
+/// far into the stream the read went from where it started
+type Turned = (Vec<u8>, Vec<String>, u64);
+
+/// Reads a turn of the session file `file` with `side` (`Side::read_turn`) and drops the lines the turn does not hold
+/// (the side's `kept_lines`); or why the turn was not read, as the promise rejects with it
+fn turned(side: &dyn Side, file: &str, question: (u64, u64), body: Option<(u64, u64)>) -> std::result::Result<Turned, String> {
+    let read = catch_unwind(AssertUnwindSafe(|| {
+        side.read_turn(file, question, body).map(|read| {
+            let kept = side.kept_lines(&read.lines);
+            let lines = read.lines.into_iter().zip(kept).filter_map(|(line, kept)| kept.then_some(line)).collect();
+            (read.question, lines, read.through - read.started)
+        })
+    }));
+    match read {
+        Ok(Ok(turned)) => Ok(turned),
+        Ok(Err(_)) => Err(format!("{file} could not be read as far as its turn goes")),
+        Err(_) => Err(format!("reading {file} panicked")),
+    }
+}
+
+fn turn_lines((question, lines, bytes_read): Turned) -> TurnLines {
+    TurnLines { question: Buffer::from(question), lines, bytes_read: bytes_read as f64 }
+}
+
+/// Reads a turn of the session file `file`, of the side `kind`: its `question`'s range and, when `body` is given, its
+/// body's, in one pass that stops at the turn's end (session-view C2). A cold rollout's read runs on a thread of its
+/// own, as `read_ranges` reads it and for its reason. A plain file's runs on the thread pool, where the main process's
+/// own reads of plain files run, so that it is one of the four plain reads at once session-view D2b bounds them to, as
+/// the range read it replaced was. The body is read line by line, each line decoded as it is whole, and the lines the
+/// turn does not hold (the side's `kept_lines`) are dropped on the reading thread, so that no allocation holds the
+/// whole body but a line of it. The promise settles with the question's bytes and the body's lines, or rejects when the
+/// file cannot be read as far as the turn goes, what it read is not whole, or the read panicked. A thread that cannot
+/// be started throws, before any promise is handed out.
+#[napi(catch_unwind, ts_return_type = "Promise<TurnLines>")]
+pub fn read_turn<'env>(env: &'env Env, kind: String, file: String, question: ByteRange, body: Option<ByteRange>) -> Result<Unknown<'env>> {
+    let side = side(&kind)?;
+    let question = (question.start as u64, question.end as u64);
+    let body = body.map(|b| (b.start as u64, b.end as u64));
+    if side.stored(&file) == Stored::Plain {
+        return Ok(env.spawn(ReadTurn { side, file, question, body })?.promise_object().to_unknown());
+    }
+    let (deferred, promise) = env.create_deferred::<TurnLines, SettleTurn>()?;
+    let named = file.clone();
+    std::thread::Builder::new()
+        .name("agentshed-read".to_owned())
+        .spawn(move || match turned(side, &file, question, body) {
+            Ok(turned) => deferred.resolve(Box::new(move |_| Ok(turn_lines(turned)))),
+            Err(reason) => deferred.reject(Error::from_reason(reason)),
+        })
+        .map_err(|e| Error::from_reason(format!("no thread could be started to read {named}: {e}")))?;
+    Ok(promise.to_unknown())
+}
+
+/// A plain file's turn read, on the thread pool
+struct ReadTurn {
+    side: &'static dyn Side,
+    file: String,
+    question: (u64, u64),
+    body: Option<(u64, u64)>,
+}
+
+impl Task for ReadTurn {
+    type Output = Turned;
+    type JsValue = TurnLines;
+
+    fn compute(&mut self) -> Result<Turned> {
+        turned(self.side, &self.file, self.question, self.body).map_err(Error::from_reason)
+    }
+
+    fn resolve(&mut self, _env: Env, turned: Turned) -> Result<TurnLines> {
+        Ok(turn_lines(turned))
+    }
 }
 
 /// A turn of a session file as its question index records it, in the offsets of the file's stream: its question's
