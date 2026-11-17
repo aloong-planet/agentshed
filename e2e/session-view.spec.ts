@@ -4,7 +4,7 @@
 // alike, since one component carries both (the drawer switches files only from preview mode, through a link
 // in the preview, so "the new file opens in preview" holds without the reset ever being exercised). Add a
 // case when a path to either appears — a hit list beside an open session, or a file switch from raw mode.
-import { appendFileSync, chmodSync, mkdtempSync, mkdirSync, statSync, writeFileSync, rmSync } from 'node:fs'
+import { appendFileSync, chmodSync, mkdtempSync, mkdirSync, readFileSync, statSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
@@ -1108,6 +1108,80 @@ test('a session file that changed since the index and cannot be read: the page a
   // The handler errors this case provokes on purpose carry the code and nothing else does
   expect(l.errors.length).toBeGreaterThan(0)
   for (const e of l.errors) expect(e.includes(ERR.sessionFileUnreadable), `a collected stderr chunk without the code:\n${e}`).toBe(true)
+  await close(l)
+})
+
+test('a turn whose body is over the turn limit is not fetched: its row says why in the current language, and the other turn, the question list and a moved question are as before (in-turn fetch states)', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const long = join(home, '.claude', 'projects', enc, 'long.jsonl')
+  const reply = (text: string): string =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: localDayOffset(0).toISOString(),
+      message: { model: 'claude-fable-5', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+    })
+  // The first turn's body is its reply line, padded to 3,072 bytes with its newline ("3.0 KB"); the limit is lowered to
+  // 2,048 ("2.0 KB"), above the second turn's body of one short reply
+  const padded = reply('x'.repeat(3072 - Buffer.byteLength(reply('')) - 1))
+  expect(Buffer.byteLength(padded + '\n')).toBe(3072)
+  writeFileSync(long, [questionLine('Long turn question'), padded, questionLine('Short turn question'), reply('Short turn reply')].join('\n') + '\n')
+  const l = await launch(undefined, home, { AGENTSHED_TURN_LIMIT_BYTES: '2048' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Long turn question' }).click()
+  await expect(win.locator('.qlist .q .txt')).toHaveText(['Short turn question', 'Long turn question'])
+
+  const longRow = win.locator('.qlist .q', { hasText: 'Long turn question' })
+  await longRow.click()
+  await expect(win.locator('.turn .tnote')).toHaveText('This turn could not be fetched: It is 3.0 KB, over the 2.0 KB limit for one turn, so it was not read')
+  // The other turn comes whole, with its footnote, and the long one keeps its reason beside it
+  await win.locator('.qlist .q', { hasText: 'Short turn question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['Short turn reply'])
+  await expect(win.locator('.turn .fetched')).toHaveCount(1)
+  await expect(win.locator('.turn .tnote')).toHaveCount(1)
+  // Closed and opened again, it is asked again and says the same
+  await longRow.click()
+  await expect(win.locator('.turn .tnote')).toHaveCount(0)
+  await longRow.click()
+  await expect(win.locator('.turn .tnote')).toHaveText('This turn could not be fetched: It is 3.0 KB, over the 2.0 KB limit for one turn, so it was not read')
+
+  // In Chinese, fetched again under the new language. Han by code point (check:lang):
+  // "这一轮取不回来:正文有 3.0 KB,超过单轮 2.0 KB 的上限,所以没有读取"
+  await win.locator('.ri.set').click()
+  await win.locator('[data-testid="language-trigger"]').click()
+  await win.locator('.lang-opt[data-lang="zh"]').click()
+  await expect(win.locator('html')).toHaveAttribute('lang', 'zh-CN')
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.sback').click()
+  await win.locator('.pane-body .card .se', { hasText: 'Long turn question' }).click()
+  await longRow.click()
+  const zh = (...cps: number[]): string => String.fromCharCode(...cps)
+  await expect(win.locator('.turn .tnote')).toHaveText(
+    `${zh(0x8fd9, 0x4e00, 0x8f6e, 0x53d6, 0x4e0d, 0x56de, 0x6765)}:${zh(0x6b63, 0x6587, 0x6709)} 3.0 KB,${zh(0x8d85, 0x8fc7, 0x5355, 0x8f6e)} 2.0 KB ${zh(0x7684, 0x4e0a, 0x9650)},${zh(0x6240, 0x4ee5, 0x6ca1, 0x6709, 0x8bfb, 0x53d6)}`
+  )
+
+  // A question moved by a line put before it (as in the lifecycle restore case) is refused as moved, not given the
+  // reason meant for the question the page showed; the page read after the move gets the reason. At the turn channel,
+  // since on screen the moved question would show the same reason either way.
+  const turn = (revision: string | undefined): Promise<string> => win.evaluate(async ([file, r]) => {
+    try { return JSON.stringify((await window.agentshed.getSessionTurn({ file, i: 0, revision: r })).blocks) } catch (e) { return String((e as Error).message) }
+  }, [long, revision] as const)
+  const before = await win.evaluate(f => window.agentshed.getSessionPage(f), long)
+  expect(typeof before.questions[0]?.revision, 'the page gives its first question an identity').toBe('string')
+  expect(await turn(before.questions[0]?.revision)).toContain(ERR.turnTooLong)
+  writeFileSync(long, JSON.stringify({ type: 'permission-mode', permissionMode: 'default', sessionId: 'long-session' }) + '\n' + readFileSync(long, 'utf8'))
+  const refused = await turn(before.questions[0]?.revision)
+  expect(refused).toContain(ERR.sessionNotIndexed)
+  expect(refused).not.toContain(ERR.turnTooLong)
+  const moved = await win.evaluate(f => window.agentshed.getSessionPage(f), long)
+  expect(await turn(moved.questions[0]?.revision)).toContain(ERR.turnTooLong)
+
+  // The handler errors this case provokes on purpose carry one of its two codes, and nothing else does
+  expect(l.errors.length).toBeGreaterThan(0)
+  for (const e of l.errors) expect(e.includes(ERR.turnTooLong) || e.includes(ERR.sessionNotIndexed), `a collected stderr chunk without either code:\n${e}`).toBe(true)
   await close(l)
 })
 

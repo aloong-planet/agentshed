@@ -2,6 +2,7 @@ import './launch-guard'
 import { ReadRegistry } from './read-registrations'
 import { DisplayStore, engineWrite } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, recordFileBytes, regularTarget } from './source-identity'
+import { readTurnRanges, TURN_LIMIT_SEAM, turnLimitBytes } from './turn-limit'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
 import { existsSync, readFileSync } from 'node:fs'
@@ -202,6 +203,8 @@ const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'],
  * letting e2e change a preference while that read is in flight and assert the read does not undo it
  * (#61). The launch-argument read at window creation is not delayed. 0 in production. */
 const PREFS_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_PREFS_DELAY_MS'], 0)
+/** The turn limit (session-view, the in-turn fetch states): 64 MiB, which e2e lowers through its seam */
+const TURN_LIMIT_BYTES = turnLimitBytes(process.env[TURN_LIMIT_SEAM])
 
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
@@ -392,13 +395,15 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   if (a.i >= q.questions.length) throw appError(ERR.turnOutOfRange, { i: a.i, total: q.questions.length })
   const rec = q.questions[a.i]
   // A whole turn = from after the question up to the next one ([turn start, turn end); the page already
-  // has the question in full; re-read that selected question only to validate its source identity)
-  const { texts, bytesRead } = await readSessionRanges(source, [{ start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] }])
-  const revision = questionRevision(identity, file, rec[0], rec[1], texts[0])
+  // has the question in full; re-read that selected question only to validate its source identity). A body over the
+  // turn limit is not read at all; its question still is, so that a rewrite shows as one, not as this turn's reason
+  const read = await readTurnRanges(readSessionRanges, source, rec, TURN_LIMIT_BYTES)
+  const revision = questionRevision(identity, file, rec[0], rec[1], read.question)
   if (a.revision !== undefined && a.revision !== revision) throw appError(ERR.sessionNotIndexed)
-  const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, texts[1]), bytesRead }
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
   if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
+  if (read.body === null) throw appError(ERR.turnTooLong, { bytes: read.bodyBytes, limit: TURN_LIMIT_BYTES })
+  const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, read.body), bytesRead: read.bytesRead }
   assertSessionTurn(turn)
   remember({ kind: 'turnContent', file, i: a.i, revision, ms: Math.max(1, Math.round(performance.now() - readStarted)), data: turn })
   return turn

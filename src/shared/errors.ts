@@ -27,6 +27,8 @@ export const ERR = {
   engineNotReady: 'engine-not-ready',
   /** The turn index is out of range (params.i and params.total) */
   turnOutOfRange: 'turn-out-of-range',
+  /** The turn's body is over the turn limit and was not read (params.bytes, its length; params.limit) */
+  turnTooLong: 'turn-too-long',
   /** The memory file path is not allow-listed */
   memoryFileNotWhitelisted: 'memory-file-not-whitelisted',
   /** A listed memory file can no longer be read (moved, deleted, or a system error) */

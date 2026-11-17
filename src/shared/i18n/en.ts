@@ -419,6 +419,7 @@ export const en: Locale = {
     engineNotReady: 'The scan engine is not ready yet — please try again shortly',
     turnOutOfRange: (i, total) =>
       `Turn index out of range: ${i} (of ${total} ${plural('en', total, { one: 'turn', other: 'turns' })})`,
+    turnTooLong: (size, limit) => `It is ${size}, over the ${limit} limit for one turn, so it was not read`,
     memoryFileNotWhitelisted: 'This memory file path is not in the allowed list',
     memoryFileUnreadable: 'This file can no longer be read (moved or deleted?)',
     pluginRootNotRegistered:
