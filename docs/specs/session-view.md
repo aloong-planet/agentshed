@@ -249,7 +249,7 @@ hands the command over; it never runs it.
   loses every saved page; a turn's kept form can be far larger than its body. On this machine's real data on
   2026-11-17, 383 of 16,465 turns were over it: 13 Claude, 369 Codex, 1 Grok.
   **The total** (2026-11-17, ADR-0053): the turns kept, in the display copy and in memory, together stay within
-  128 Mi (134,217,728) UTF-16 units of their saved form. When a newly fetched turn does not fit beside them, the
+  128 Mi (134,217,728) UTF-16 units of their serialised form. When a newly fetched turn does not fit beside them, the
   earliest fetched leave first until it does, and one that leaves is fetched again, with the fetching notice, when next
   opened; a turn over the total alone is not kept. Fetching a kept turn again makes it the latest fetched. A saved copy
   is cut to the total in effect when it is restored, the earliest fetched leaving first.
@@ -481,7 +481,9 @@ as a cached visit under session-view::REQ-001)
   reached from it keeps the single back control of P2/P3. The rest of this sequence applies, with the
   global search page in the project page's place in P1 and P8.
 - P11 Turns already read stay available: expanding one again shows its saved content at once, an
-  unread one waits for a read, and a failed refresh keeps the last successful content.
+  unread one waits for a read, and a failed refresh keeps the last successful content; a turn not kept
+  under the keep size or the total (C2) waits for a read again, as an unread one does, and a refresh refusing a kept
+  turn grown past the turn limit (C2) replaces what was kept with its reason.
 
 **Sequence E: export (dropped entirely by the user's ruling 2026-08-06, never implemented; the entries
 below are archived as a decision record and are no longer requirements)**
