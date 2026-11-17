@@ -4,6 +4,10 @@
 // Known gap: a cold read whose thread cannot be started throws as it is asked for, and gives up its place among the
 // reads that run at once (`readColdRanges` in cold-rollout.ts) as a read that fails does; no seam makes a thread fail to
 // start, so no case drives it. Add one when such a seam exists.
+// Known gap: the cold-read cases catch a read held on the thread that asked or in libuv's pool at the hold seam, which a
+// read meets on its own thread before it opens the file (`before_range_read` in engine/src/seams.rs). Work the engine
+// module might do on the asking thread before it starts the read's thread never meets that gate, and no case bounds it:
+// a bound on its time would order by time, which these cases do not. Add one when a seam can hold that work.
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -286,32 +290,34 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
   const quiet = (): Promise<void> => new Promise((go) => setImmediate(go))
 
   /**
-   * Six cold reads, each held at the gate, asked in this order: four range reads, a fifth, and a full-text search. Only
-   * the first four are handed to the engine module as they are asked; each one released hands its place to the first
-   * one waiting, in the order asked; every read then serves what it was asked for.
+   * Six cold reads, each held at the gate, asked in this order: three range reads, a full-text search, a second search
+   * and a range read. Only the first four, the first search among them, are handed to the engine module as they are
+   * asked; each one released, a range read or a search, hands its place to the first one waiting, in the order asked,
+   * the second search before the range read asked after it; every read then serves what it was asked for.
    */
   async function fourPlaces(handed: string[]): Promise<void> {
-    const [l1, l2, l3, l4, r5, s6] = gated
+    const [l1, l2, l3, s4, s5, r6] = gated
     for (const file of gated) seam().seamHoldReadsOf(file)
     const from = handed.length
-    const reads = [l1, l2, l3, l4, r5].map((file, k) => readRangeBuffers(file, [tenAt(k)]))
-    const search = searchFullText('codex', s6, ONCE, [])
-    const outcomes = settling(Promise.allSettled([...reads, search]))
-    expect(handed.slice(from)).toEqual([l1, l2, l3, l4])
-    await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual([l1, l2, l3, l4].sort())
+    const ranges = [l1, l2, l3].map((file, k) => readRangeBuffers(file, [tenAt(k)]))
+    const searches = [s4, s5].map((file) => searchFullText('codex', file, ONCE, []))
+    const last = readRangeBuffers(r6, [tenAt(5)])
+    const outcomes = settling(Promise.allSettled([...ranges, last, ...searches]))
+    expect(handed.slice(from)).toEqual([l1, l2, l3, s4])
+    await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual([l1, l2, l3, s4].sort())
     seam().seamReleaseReadsOf(l1)
-    await reads[0]
+    await ranges[0]
     await quiet()
-    expect(handed.slice(from)).toEqual([l1, l2, l3, l4, r5])
-    seam().seamReleaseReadsOf(r5)
-    await reads[4]
+    expect(handed.slice(from)).toEqual([l1, l2, l3, s4, s5])
+    seam().seamReleaseReadsOf(s4)
+    await searches[0]
     await quiet()
-    expect(handed.slice(from)).toEqual([l1, l2, l3, l4, r5, s6])
-    for (const file of [l2, l3, l4, s6]) seam().seamReleaseReadsOf(file)
+    expect(handed.slice(from)).toEqual([l1, l2, l3, s4, s5, r6])
+    for (const file of [l2, l3, s5, r6]) seam().seamReleaseReadsOf(file)
     const settled = await outcomes
-    expect(settled.slice(0, 5).map((o) => o.status === 'fulfilled' && 'bufs' in o.value && o.value.bufs.map((b) => b.toString('utf8'))))
-      .toEqual([0, 1, 2, 3, 4].map((k) => [tenOf(k)]))
-    expect(settled[5]).toEqual({ status: 'fulfilled', value: { folded: 1, body: [] } })
+    expect(settled.slice(0, 4).map((o) => o.status === 'fulfilled' && 'bufs' in o.value && o.value.bufs.map((b) => b.toString('utf8'))))
+      .toEqual([0, 1, 2, 5].map((k) => [tenOf(k)]))
+    expect(settled.slice(4)).toEqual(Array(2).fill({ status: 'fulfilled', value: { folded: 1, body: [] } }))
   }
 
   test('at most four cold reads run at once on a thread, range reads and full-text searches alike, the others waiting their turn in the order asked (spec session-view C2)', async () => {
