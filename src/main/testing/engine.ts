@@ -21,6 +21,17 @@ export interface PanicSeam extends EngineModule {
   seamParse(file: string): string
 }
 
+/** The hold seam a build made for tests exports (engine/src/seams.rs) */
+export interface HoldSeam extends EngineModule {
+  /** Holds every read of `file`'s ranges, and every full-text search of it, on the read's own thread before it opens the
+   * file, until it is released; one for the whole process. A read held for five seconds panics instead. */
+  seamHoldReadsOf(file: string): void
+  /** Releases the reads of `file`, or of every file: those waiting go on, and those to come are not held */
+  seamReleaseReadsOf(file: string | null): void
+  /** The file of each read waiting at the gate now, in the order they came to it */
+  seamReadsHeld(): string[]
+}
+
 /** The copy seam a build made for tests exports (engine/src/seams.rs) */
 export interface CopySeam extends EngineModule {
   /** Watches the directories the module makes in `parent` to copy agy's databases into, or none; one for the whole

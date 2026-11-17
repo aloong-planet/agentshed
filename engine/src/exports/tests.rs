@@ -25,6 +25,25 @@ mod seam {
         seams::name_read_panic_file(file);
     }
 
+    /// Holds every read of `file`'s ranges, and every full-text search of it, at the hold seam's gate from now on, until
+    /// it is released
+    #[napi(catch_unwind)]
+    pub fn seam_hold_reads_of(file: String) {
+        seams::hold_seam::hold(file);
+    }
+
+    /// Releases the reads of `file`, or of every file
+    #[napi(catch_unwind)]
+    pub fn seam_release_reads_of(file: Option<String>) {
+        seams::hold_seam::release(file);
+    }
+
+    /// The file of each read waiting at the hold seam's gate now, in the order they came to it
+    #[napi(catch_unwind)]
+    pub fn seam_reads_held() -> Vec<String> {
+        seams::hold_seam::waiting()
+    }
+
     /// A stand-in for a function that parses a session file, for the seam's own tests: it parses nothing, and answers
     /// with the file once the seam has let it through
     #[napi(catch_unwind)]
