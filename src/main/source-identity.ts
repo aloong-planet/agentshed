@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
 import { lstatSync, statSync } from 'node:fs'
 import { appError, ERR } from '@shared/errors'
+import type { AgentSide } from '@shared/domain'
 import { readRanges, type ByteRange } from './providers/range-read'
+import { readTurnLines, type TurnLines } from './providers/turn-read'
 
 /** lstat never follows a replaced final symlink. The exact allow-list check belongs before this. */
 export function sourceIdentity(file: string): string {
@@ -21,6 +23,14 @@ export function sourceIdentity(file: string): string {
 export async function readSessionRanges(source: string, ranges: readonly ByteRange[]): Promise<{ texts: string[]; bytesRead: number }> {
   try {
     return await readRanges(source, ranges)
+  } catch {
+    throw appError(ERR.sessionFileUnreadable)
+  }
+}
+/** A turn of a session of `side`, for its page: what fails here is the file's, as for `readSessionRanges` */
+export async function readSessionTurn(side: AgentSide, source: string, question: ByteRange, body: ByteRange | null): Promise<TurnLines> {
+  try {
+    return await readTurnLines(side, source, question, body)
   } catch {
     throw appError(ERR.sessionFileUnreadable)
   }

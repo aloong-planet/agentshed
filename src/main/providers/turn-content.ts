@@ -71,7 +71,7 @@ function oneLine(s: string, max = 88): string {
 }
 
 /** A tool's argument object → display text (objects are serialised; a string is passed through). Every
- * value here comes out of JSON.parse in turnBlocksFromText, so serialising it back cannot throw. */
+ * value here comes out of JSON.parse in turnBlocks, so serialising it back cannot throw. */
 function inputText(v: unknown): string {
   if (typeof v === 'string') return v
   if (v === undefined || v === null) return ''
@@ -605,7 +605,7 @@ function agyAt(o: Record<string, unknown>): number | null {
  * (`invoke_subagent`) is a sub block: its result only echoes the creation, and its return is the message the created
  * conversation sends back — a system message whose sender is that conversation's id, in this turn (C3). A failed model
  * call's error line is prose (owner's ruling 2026-10-28); every other system message is harness noise. Lines a rewind
- * undid inside the turn never reach here (`turnBlocksFromText`); a rewind back to a question does not either, the
+ * undid inside the turn never reach here (the engine module's turn read leaves them out); a rewind back to a question does not either, the
  * indexer having ended the turn before it.
  */
 function antigravityAssemble(objs: Array<Record<string, unknown>>, dispatches: Dispatches): TurnBlock[] {
@@ -672,15 +672,15 @@ function antigravityAssemble(objs: Array<Record<string, unknown>>, dispatches: D
 }
 
 /**
- * A turn's range, read, → its blocks. The lines the turn holds are the engine module's to say (a line agy's rewind
- * undid is not one), as are the tool names that dispatch a subagent: the rules the question index applies.
+ * The lines a turn holds, as its read hands them over (turn-read.ts), → its blocks. Which lines the turn holds was the
+ * engine module's to say as it read them (a line agy's rewind undid is not one), as are the tool names that dispatch a
+ * subagent: the rules the question index applies.
  */
-export function turnBlocksFromText(side: AgentSide, raw: string): TurnBlock[] {
+export function turnBlocks(side: AgentSide, lines: readonly string[]): TurnBlock[] {
   const engine = threadEngineModule()
-  const kept = engine.keptLines(side, raw)
   const objs: Array<Record<string, unknown>> = []
-  raw.split('\n').forEach((line, i) => {
-    if (!kept[i] || !line.trim()) return
+  lines.forEach((line) => {
+    if (!line.trim()) return
     try {
       const obj: unknown = JSON.parse(line)
       if (typeof obj === 'object' && obj !== null) objs.push(obj as Record<string, unknown>)

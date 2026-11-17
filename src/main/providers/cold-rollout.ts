@@ -2,7 +2,8 @@
 // days into `<name>.jsonl.zst` and deletes the plain file (its compression.rs, read 2026-09-09). The same
 // session, the same contents, the same identity rules — but readable only as a stream from its start:
 // every byte offset the question index records for it is an offset in the decompressed stream, and
-// every range read is one pass through that stream that stops at the last range (range-read.ts).
+// every range read is one pass through that stream that stops at the last range (range-read.ts), and every
+// turn's read one pass that stops at the turn's end (turn-read.ts).
 // The engine module reads it (ADR-0045), by the reader the scan reads a cold rollout with and under the
 // same truncation rule, each read on a thread of its own and four at most at once on the thread that
 // asks. Node's own zstd decoder is not used: under Electron 43 (Node 24) it stopped at a stream's first frame whenever the
@@ -28,8 +29,27 @@ export function isColdRollout(file: string): boolean {
  * runs four in practice and eight at most.
  */
 const COLD_READS_AT_ONCE = 4
-let reading = 0
-const waiting: Array<() => void> = []
+
+/**
+ * Places for reads on threads of the engine module's own: a read given to the function runs once fewer than `n` it was
+ * given are running, the others waiting their turn, in the order asked
+ */
+export function placesOf(n: number): <T>(read: () => Promise<T>) => Promise<T> {
+  let reading = 0
+  const waiting: Array<() => void> = []
+  return async (read) => {
+    if (reading < n) reading++
+    else await new Promise<void>((go) => waiting.push(go))
+    try {
+      return await read()
+    } finally {
+      // A read that settles, or throws before it starts, hands its place to the first one waiting, or gives it up
+      const next = waiting.shift()
+      if (next) next()
+      else reading--
+    }
+  }
+}
 
 /**
  * A cold rollout has no byte-addressable ranges (spec session-view C2): one pass through its
@@ -47,17 +67,7 @@ export function readColdRanges(file: string, ranges: readonly ByteRange[]): Prom
 
 /**
  * Runs `read`, a read through a cold rollout's stream on a thread of the engine module's own, once fewer than
- * `COLD_READS_AT_ONCE` are running: a range read, or a full-text search of a cold rollout (full-text.ts)
+ * `COLD_READS_AT_ONCE` are running: a range read, a turn's read (turn-read.ts), or a full-text search of a cold rollout
+ * (full-text.ts)
  */
-export async function inColdPlace<T>(read: () => Promise<T>): Promise<T> {
-  if (reading < COLD_READS_AT_ONCE) reading++
-  else await new Promise<void>((go) => waiting.push(go))
-  try {
-    return await read()
-  } finally {
-    // A read that settles, or throws before it starts, hands its place to the first one waiting, or gives it up
-    const next = waiting.shift()
-    if (next) next()
-    else reading--
-  }
-}
+export const inColdPlace = placesOf(COLD_READS_AT_ONCE)

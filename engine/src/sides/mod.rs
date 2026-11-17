@@ -17,7 +17,7 @@ use napi::sys::napi_value;
 
 use crate::exports::js::{Js, LocalDates};
 use crate::group::{Builder, Decoded, Member};
-use crate::read::{Failed, Served, Stored};
+use crate::read::{Failed, Served, Stored, TurnRead};
 use crate::search::{Found, Turn};
 use crate::text::Units;
 use crate::walk::Held;
@@ -37,11 +37,11 @@ pub(crate) trait Side: Sync {
     /// the names the side's question index counts a turn's subagents by
     fn dispatches(&self) -> &'static [&'static str];
 
-    /// Which lines of a turn's range the turn holds, one flag per line as the range's text splits at its line feeds:
-    /// `range` is the turn's range as the side's question index recorded it, read and decoded. By default every line,
-    /// for a side whose agent leaves no line of a turn's range out of it.
-    fn kept_lines(&self, range: &str) -> Vec<bool> {
-        range.split('\n').map(|_| true).collect()
+    /// Which of a turn's lines the turn holds, one flag per line: `lines` are the lines of the turn's range as the side's
+    /// question index recorded it, as its read hands them over (`read::turn`). By default every line, for a side whose
+    /// agent leaves no line of a turn's range out of it.
+    fn kept_lines(&self, lines: &[String]) -> Vec<bool> {
+        lines.iter().map(|_| true).collect()
     }
 
     /// What a parse that panicked answers: the file's failed read, under the side's rule for a read that fails
@@ -87,6 +87,14 @@ pub(crate) trait Side: Sync {
     /// files by range.
     fn read_ranges(&self, _file: &str, _ranges: &[(u64, u64)]) -> Option<std::result::Result<Served, Failed>> {
         None
+    }
+
+    /// A turn of the session file `file`, its question's range and, when `body` is given, its body's, in the offsets its
+    /// question index records, read in one pass that stops at the turn's end (session-view C2): Failed when the file
+    /// cannot be read as far as the read goes, or what it read is not whole by the side's rules. By default the file read
+    /// as it is stored, plain, for a side whose agent writes no other kind.
+    fn read_turn(&self, file: &str, question: (u64, u64), body: Option<(u64, u64)>) -> std::result::Result<TurnRead, Failed> {
+        crate::read::turn(file, Stored::Plain, question, body)
     }
 
     /// The full-text search of the session file `file` for `needle` against its `turns` (session-view D2, D3), its

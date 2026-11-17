@@ -126,6 +126,24 @@ export interface EngineModule {
    */
   readRanges(kind: 'codex', file: string, ranges: ReadonlyArray<{ start: number; end: number }>): Promise<{ bufs: Buffer[]; bytesRead: number }>
   /**
+   * A turn of the session file `file`, of the side `kind`: its `question`'s range and, when `body` is given, its body's,
+   * `[start, end)` in the offsets its question index records, read in one pass that stops at the turn's end, on a thread
+   * of its own (session-view C2). Settles with the question's bytes, as much of its range as the file holds; the lines
+   * of the body the turn holds, each as text with its line feed left off, clipped to the body's range, as the body's
+   * text splits at its line feeds but for the empty piece after a last line feed (a line agy's rewind undid inside the
+   * turn is not held, session-view::REQ-004/AC-03); and how far into the file's stream the read went from where it
+   * started, the question's start in a plain file and the stream's start in a cold rollout. The body is read line by
+   * line and never held whole. A cold rollout is read through its decompressed stream, as `readRanges` reads it.
+   * Rejects when the file cannot be read as far as the turn goes, when a read that reached the stream's end finds it cut
+   * short (token-stats B12), or when the read panics.
+   */
+  readTurn(
+    kind: AgentSide,
+    file: string,
+    question: { start: number; end: number },
+    body: { start: number; end: number } | null
+  ): Promise<{ question: Buffer; lines: string[]; bytesRead: number }>
+  /**
    * The full-text search of the session file `file`, of the side `kind`, for `needle` against its `turns`, each turn's
    * question `[start, questionEnd)` and the turn `[start, end)` in the offsets its question index records (session-view
    * D2, D3), on a thread of its own: the file's stream is read line by line, a cold rollout's decompressed as it is
@@ -142,12 +160,6 @@ export interface EngineModule {
   /** The tool names whose call dispatches a subagent on the side `kind`, which a turn draws as a sub block: the names
    * its question index counts a turn's subagents by (session-view C3) */
   dispatches(kind: AgentSide): string[]
-  /**
-   * Which lines of `text` the turn holds, one flag per line as `text.split('\n')` cuts it: `text` is a turn's range in a
-   * session file of the side `kind`, as the question index recorded it, read. A line agy's rewind undid inside the turn
-   * is not held (session-view::REQ-004/AC-03); every other side's turn holds every line.
-   */
-  keptLines(kind: AgentSide, text: string): boolean[]
   /**
    * Every side's session list under `roots`, each in scan order, read without writing under agy's
    * directories (token-stats::CON-002). Given `memory`, a walk opens only what changed since the last walk that was

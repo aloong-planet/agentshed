@@ -1,7 +1,8 @@
 //! A session file read as lines, each with its byte range: the file itself, or for a cold rollout (`.jsonl.zst`) its
 //! zstd stream decompressed as it is read (token-stats B12), its offsets then offsets in that stream (session-view C2).
-//! Or ranges of that stream, served in one pass that stops at the last, for the session page and both searches. Or its
-//! first line alone, read no further than its line feed.
+//! Or ranges of that stream, served in one pass that stops at the last, for the session page and both searches. Or a
+//! turn of it, its question's bytes and its body's lines, in one pass that stops at the turn's end, for the session
+//! page. Or its first line alone, read no further than its line feed.
 //!
 //! A line ends at a line feed, which never occurs inside a UTF-8 character, so the bytes are split there and a line is
 //! decoded only once it is whole. A line's range runs from its first byte to after its line feed, or to the stream's end
@@ -53,9 +54,26 @@ pub(crate) struct Failed;
 /// stream, `from` included. Answers the stream's last byte, None when it held none after `from`. Whether a line or a
 /// stream that stops short of a line feed is whole is for the side to judge, by how its agent writes the file. A line,
 /// the last included, of more than `LINE_MAX` bytes fails the read once that many and one are held, read no further.
-pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl FnMut(&[u8], u64, u64, bool)) -> Result<Option<u8>, Failed> {
-    let max = crate::seams::line_max(path, LINE_MAX);
+pub(crate) fn each_line(path: &str, stored: Stored, from: u64, line: impl FnMut(&[u8], u64, u64, bool)) -> Result<Option<u8>, Failed> {
     let mut source = source(path, stored, from)?;
+    Ok(lines(path, &mut *source, stored, from, None, line)?.last)
+}
+
+/// How far a read of lines went
+struct Reached {
+    /// The last byte the read took, None when it took none
+    last: Option<u8>,
+    /// The stream offset the read stopped at
+    through: u64,
+    /// Whether the read reached the stream's end, rather than stopping at its bound
+    ended: bool,
+}
+
+/// The line loop of `each_line`, over `source` positioned at stream offset `from`, read no further than `until` when
+/// one is given: no read passes it, and a line it cuts is handed over as far as `until`, as a last line without a line
+/// feed.
+fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Option<u64>, mut line: impl FnMut(&[u8], u64, u64, bool)) -> Result<Reached, Failed> {
+    let max = crate::seams::line_max(path, LINE_MAX);
     // The line being assembled is buf[..held]. Each read fills buf[held..held + n], and only those n bytes join it;
     // past them the buffer keeps whatever an earlier read left there, which nothing reads. So the buffer is zeroed as
     // it is allocated and as it grows, not before every read: zeroing a chunk before each read took 3.1% of a cold
@@ -67,15 +85,24 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
     // The stream offset of buf[0]
     let mut base = from;
     let mut last: Option<u8> = None;
+    let mut ended = true;
     loop {
-        // `held` is at most `max`, so a read takes at least one byte
-        let want = CHUNK.min(max + 1 - held);
+        // `held` is at most `max`, so a read takes at least one byte, short of the bound
+        let mut want = CHUNK.min(max + 1 - held);
+        if let Some(until) = until {
+            let left = until.saturating_sub(base + held as u64);
+            if left == 0 {
+                ended = false;
+                break;
+            }
+            want = want.min(usize::try_from(left).unwrap_or(usize::MAX));
+        }
         if buf.len() < held + want {
             let grown = (held + want).max(buf.len() * 2).min(max + 1);
             buf.reserve_exact(grown - buf.len());
             buf.resize(grown, 0);
         }
-        let n = take(&mut *source, stored, &mut buf[held..held + want])?;
+        let n = take(source, stored, &mut buf[held..held + want])?;
         if n == 0 {
             break;
         }
@@ -104,7 +131,7 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
     if held > 0 {
         line(&buf[..held], base, base + held as u64, false);
     }
-    Ok(last)
+    Ok(Reached { last, through: base + held as u64, ended })
 }
 
 /// The stream of `path` from byte `from` on: the file itself, or a cold rollout's zstd stream decompressed as it is
@@ -192,6 +219,77 @@ pub(crate) fn ranges(path: &str, stored: Stored, ranges: &[(u64, u64)]) -> Resul
         .map(|mut p| if p.len() == 1 { p.pop().unwrap_or_default() } else { p.concat() })
         .collect();
     Ok(Served { bytes, through: pos.min(last_end), last, ended })
+}
+
+/// What a read of a turn gave
+pub(crate) struct TurnRead {
+    /// The question's bytes, line feeds included: as much of its range as the stream holds
+    pub(crate) question: Vec<u8>,
+    /// The body's lines, each as text, its line feed left off and its bytes clipped to the body's range: as the body's
+    /// text splits at its line feeds, but for the empty piece after a last line feed
+    pub(crate) lines: Vec<String>,
+    /// The stream offset the read started at: the question's start in a plain file, the stream's start in a cold rollout
+    pub(crate) started: u64,
+    /// The stream offset the read stopped at, no further than the turn's end
+    pub(crate) through: u64,
+    /// The last byte the read took, None when it took none
+    pub(crate) last: Option<u8>,
+    /// Whether the read reached the stream's end, rather than stopping at the turn's end
+    pub(crate) ended: bool,
+}
+
+/// Reads a turn of `path`: its question's range `[start, end)` in the stream's offsets, and when `body` is given, the
+/// body's, in one pass that stops at the turn's end. A plain file is read from the question's start, a cold rollout's
+/// stream from its own start, the bytes before the question passed over a chunk at a time. The body is read line by line
+/// (`each_line`'s loop, under its line limit), each line decoded as it is whole, so that what is held is the body's text
+/// and one line, never the body's bytes as well. A line feed never occurs inside a UTF-8 character, so the lines decode
+/// as the body's text decoded whole would split. Whether a stream that ends short of a line feed is whole is for the
+/// side to judge, from `last` when `ended`.
+pub(crate) fn turn(path: &str, stored: Stored, question: (u64, u64), body: Option<(u64, u64)>) -> Result<TurnRead, Failed> {
+    crate::seams::before_range_read(path);
+    let until = body.map_or(question.1, |(_, end)| end).max(question.1);
+    let from = question.0.min(until);
+    let started = if stored == Stored::Plain { from } else { 0 };
+    let mut source = source(path, stored, started)?;
+    let mut read = TurnRead { question: Vec::new(), lines: Vec::new(), started, through: from, last: None, ended: false };
+    if stored == Stored::Zstd && from > 0 {
+        let mut buf: Vec<u8> = vec![0; CHUNK];
+        let mut pos: u64 = 0;
+        while pos < from {
+            let want = CHUNK.min(usize::try_from(from - pos).unwrap_or(usize::MAX));
+            let n = take(&mut *source, stored, &mut buf[..want])?;
+            if n == 0 {
+                read.through = pos;
+                read.ended = true;
+                return Ok(read);
+            }
+            read.last = Some(buf[n - 1]);
+            pos += n as u64;
+        }
+    }
+    let (question_bytes, body_lines) = (&mut read.question, &mut read.lines);
+    let reached = lines(path, &mut *source, stored, from, Some(until), |bytes, start, end, _| {
+        let text_end = start + bytes.len() as u64;
+        // The question takes the line's bytes and its line feed, as far as they fall in its range
+        let (lo, hi) = (start.max(question.0), end.min(question.1));
+        if lo < hi {
+            question_bytes.extend_from_slice(&bytes[(lo.min(text_end) - start) as usize..(hi.min(text_end) - start) as usize]);
+            if hi > text_end {
+                question_bytes.push(b'\n');
+            }
+        }
+        if let Some((body_start, body_end)) = body {
+            let (lo, hi) = (start.max(body_start), end.min(body_end));
+            if lo < hi {
+                let hi = hi.min(text_end).max(lo);
+                body_lines.push(crate::text::line_text(&bytes[(lo - start) as usize..(hi - start) as usize]).into_owned());
+            }
+        }
+    })?;
+    read.through = reached.through;
+    read.last = reached.last.or(read.last);
+    read.ended = reached.ended;
+    Ok(read)
 }
 
 /// The stream's first line, its line feed left off: the file read `step` bytes at a time up to its first line feed and

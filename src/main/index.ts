@@ -1,7 +1,7 @@
 import './launch-guard'
 import { ReadRegistry } from './read-registrations'
 import { DisplayStore, engineWrite } from './display-store'
-import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, recordFileBytes, regularTarget } from './source-identity'
+import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, readSessionTurn, recordFileBytes, regularTarget } from './source-identity'
 import { readTurnRanges, TURN_LIMIT_SEAM, turnLimitBytes } from './turn-limit'
 import { KEPT_TURNS_SEAM, keptTurnsUnits, TURN_KEEP_SEAM, turnKeepBytes, turnKept } from './turn-keep'
 import { keptTurnUnits, turnsToRelease } from '@shared/kept-turns'
@@ -24,7 +24,7 @@ import {
 import type { CappedText, ProjectFigures, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import { AGENT_SIDES, assertSnapshot, assertProjectFigures, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
-import { turnBlocksFromText } from './providers/turn-content'
+import { turnBlocks } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
 import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
 import { readProjectDetail } from './providers/project-detail'
@@ -424,17 +424,17 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   // A whole turn = from after the question up to the next one ([turn start, turn end); the page already
   // has the question in full; re-read that selected question only to validate its source identity). A body over the
   // turn limit is not read at all; its question still is, so that a rewrite shows as one, not as this turn's reason
-  const read = await readTurnRanges(readSessionRanges, source, rec, TURN_LIMIT_BYTES)
+  const read = await readTurnRanges((s, question, body) => readSessionTurn(q.side, s, question, body), source, rec, TURN_LIMIT_BYTES)
   const revision = questionRevision(identity, file, rec[0], rec[1], read.question)
   if (a.revision !== undefined && a.revision !== revision) throw appError(ERR.sessionNotIndexed)
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
   if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
-  if (read.body === null) {
+  if (read.lines === null) {
     // A turn kept before it grew past the limit can no longer be kept either: its copy leaves with the reason
     if (savedReads.delete(savedTurnKey(file, revision, a.i))) persistDisplay()
     throw appError(ERR.turnTooLong, { bytes: read.bodyBytes, limit: TURN_LIMIT_BYTES })
   }
-  const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, read.body), bytesRead: read.bytesRead }
+  const turn: SessionTurn = { blocks: turnBlocks(q.side, read.lines), bytesRead: read.bytesRead }
   // A body over the keep size is shown but never kept: not in the display copy, and (by the mark) not in the renderer
   const kept = turnKept(read.bodyBytes, TURN_KEEP_BYTES)
   if (!kept) turn.unkept = true

@@ -4,10 +4,11 @@
 //!
 //! - The panic seams: a test names a file, and the module panics while it parses that file — or, through the walk's
 //!   own seam, while the session walk reads that entry, or through the read's, while it reads that file's ranges for
-//!   the session page or a search, or searches its full text — so that a test can show what a panic in the module does
+//!   the session page or a search, reads one of its turns, or searches its full text — so that a test can show what a panic in the module does
 //!   to a read. They are apart so that a case of each reaches its own read: a parse never begins for an entry the walk
 //!   gave up on.
-//! - The hold seam: a test names a file, and every read of its ranges and every full-text search of it waits, on the
+//! - The hold seam: a test names a file, and every read of its ranges or of one of its turns, and every full-text
+//!   search of it, waits, on the
 //!   read's own thread and before it opens the file, until the test releases it, so that a case decides the order reads
 //!   run and settle in rather than how long each takes. A read held for longer than the seam's valve panics, and its
 //!   promise rejects as a read that panicked does, so that a case whose read is never released fails rather than hangs.
@@ -51,7 +52,8 @@ pub(crate) fn before_walk_read(file: &str) {
     let _ = file;
 }
 
-/// Called by a read of a session file's ranges, and by its full-text search, before it opens the file: in a build made
+/// Called by a read of a session file's ranges, by a read of one of its turns, and by its full-text search, before it
+/// opens the file: in a build made
 /// for tests, it panics when the file is the one the read's panic seam names, waits while the hold seam holds the
 /// file's reads, and otherwise does nothing.
 pub(crate) fn before_range_read(file: &str) {

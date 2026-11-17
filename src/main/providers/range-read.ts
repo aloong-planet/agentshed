@@ -1,7 +1,7 @@
-// Reading a file by byte range (spec C2/D2b): fetching a turn on a question click, reading text for the
-// question list, and reading back for search
-// all go through this one path — **never reading whole**, so a 133 MB session reads the same order of
-// magnitude as a 3 MB one.
+// Reading a file by byte range (spec C2/D2b): reading text for the question list, and reading back for
+// search, go through this one path — **never reading whole**, so a 133 MB session reads the same order of
+// magnitude as a 3 MB one. Fetching a turn on a question click reads its ranges line by line instead
+// (turn-read.ts).
 //
 // The concurrency cap defaults to 4 (spec D2b: 🔬 a to-be-confirmed value). The measured warm-cache knee
 // is at 8; 4 is taken because

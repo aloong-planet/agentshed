@@ -1,6 +1,7 @@
 //! What the main process calls: the display copy's write (crate::display), the read of a session file's ranges the
-//! session page and both searches make (each side's), the full-text search of a session file (each side's, over
-//! crate::search), and the line rules a question's text and a turn's contents are read by there (each side's).
+//! session page and both searches make (each side's), the read of a turn the session page expands (each side's, over
+//! crate::read), the full-text search of a session file (each side's, over crate::search), and the line rules a
+//! question's text is read by there (each side's).
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::PathBuf;
@@ -27,13 +28,6 @@ pub fn question_text<'env>(env: &'env Env, kind: String, text: String) -> Result
 #[napi(catch_unwind)]
 pub fn dispatches(kind: String) -> Result<Vec<String>> {
     Ok(side(&kind)?.dispatches().iter().map(|name| (*name).to_owned()).collect())
-}
-
-/// Which lines of `text` the turn holds, one flag per line as `text` splits at its line feeds: `text` is a turn's range
-/// in a session file of the side `kind`, as the question index recorded it, read
-#[napi(catch_unwind)]
-pub fn kept_lines(kind: String, text: String) -> Result<Vec<bool>> {
-    Ok(side(&kind)?.kept_lines(&text))
 }
 
 /// A range of a session file, `[start, end)` in the offsets its question index records
@@ -81,6 +75,55 @@ pub fn read_ranges<'env>(env: &'env Env, kind: String, file: String, ranges: Vec
                 deferred.reject(Error::from_reason(format!("the engine module does not read {kind} files by range")));
             }
             Err(_) => deferred.reject(Error::from_reason(format!("reading {file} panicked"))),
+        })
+        .map_err(|e| Error::from_reason(format!("no thread could be started to read {named}: {e}")))?;
+    Ok(promise)
+}
+
+/// What a read of a turn gave: its question's bytes, the lines of its body the turn holds, each as text, and how far
+/// into the file's stream the read went from where it started (the question's start in a plain file, the stream's start
+/// in a cold rollout)
+#[napi(object)]
+pub struct TurnLines {
+    pub question: Buffer,
+    pub lines: Vec<String>,
+    pub bytes_read: f64,
+}
+
+type SettleTurn = Box<dyn FnOnce(Env) -> Result<TurnLines> + Send>;
+
+/// Reads a turn of the session file `file`, of the side `kind`: its `question`'s range and, when `body` is given, its
+/// body's, in one pass that stops at the turn's end (session-view C2), on a thread of its own, as `read_ranges` reads
+/// (and for its reason). The body is read line by line, each line decoded as it is whole, and the lines the turn does
+/// not hold (the side's `kept_lines`) are dropped on that thread, so that no copy of the whole body is made. The
+/// promise settles with the question's bytes and the body's lines, or rejects when the file cannot be read as far as
+/// the turn goes, what it read is not whole, or the read panicked. A thread that cannot be started throws, before any
+/// promise is handed out.
+#[napi(catch_unwind)]
+pub fn read_turn<'env>(env: &'env Env, kind: String, file: String, question: ByteRange, body: Option<ByteRange>) -> Result<Object<'env>> {
+    let side = side(&kind)?;
+    let question = (question.start as u64, question.end as u64);
+    let body = body.map(|b| (b.start as u64, b.end as u64));
+    let (deferred, promise) = env.create_deferred::<TurnLines, SettleTurn>()?;
+    let named = file.clone();
+    std::thread::Builder::new()
+        .name("agentshed-read".to_owned())
+        .spawn(move || {
+            let read = catch_unwind(AssertUnwindSafe(|| {
+                side.read_turn(&file, question, body).map(|read| {
+                    let kept = side.kept_lines(&read.lines);
+                    let lines = read.lines.into_iter().zip(kept).filter_map(|(line, kept)| kept.then_some(line)).collect();
+                    (read.question, lines, read.through - read.started)
+                })
+            }));
+            match read {
+                Ok(Ok((question, lines, bytes_read))) => {
+                    let read = TurnLines { question: Buffer::from(question), lines, bytes_read: bytes_read as f64 };
+                    deferred.resolve(Box::new(move |_| Ok(read)));
+                }
+                Ok(Err(_)) => deferred.reject(Error::from_reason(format!("{file} could not be read as far as its turn goes"))),
+                Err(_) => deferred.reject(Error::from_reason(format!("reading {file} panicked"))),
+            }
         })
         .map_err(|e| Error::from_reason(format!("no thread could be started to read {named}: {e}")))?;
     Ok(promise)
