@@ -24,6 +24,11 @@ pub(crate) fn line_text(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
     }
 }
 
+/// `line_text` of a line held in a buffer of its own, which becomes the text in place when the line is valid UTF-8
+pub(crate) fn line_text_owned(bytes: Vec<u8>) -> String {
+    String::from_utf8(bytes).unwrap_or_else(|refused| String::from_utf8_lossy(refused.as_bytes()).into_owned())
+}
+
 /// Whether a code unit is in the set `String.prototype.trim` and the regular expression `\s` match: WhiteSpace and
 /// LineTerminator (ECMA-262 §12.2, §12.3), every member a single unit
 fn is_space(u: u16) -> bool {

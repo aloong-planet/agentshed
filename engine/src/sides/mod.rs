@@ -89,6 +89,12 @@ pub(crate) trait Side: Sync {
         None
     }
 
+    /// How the session file `file` is stored. By default plain, for a side whose agent writes no other kind.
+    fn stored(&self, file: &str) -> Stored {
+        let _ = file;
+        Stored::Plain
+    }
+
     /// A turn of the session file `file`, its question's range and, when `body` is given, its body's, in the offsets its
     /// question index records, read in one pass that stops at the turn's end (session-view C2): Failed when the file
     /// cannot be read as far as the read goes, or what it read is not whole by the side's rules. By default the file read

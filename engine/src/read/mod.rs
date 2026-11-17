@@ -9,6 +9,7 @@
 //! for a last line without one, so adjacent lines meet with no gap. One buffer holds the line being assembled, and grows
 //! to the longest line of the file, but never past `LINE_MAX` and one byte: a file with a longer line fails to be read.
 
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::{ErrorKind, Read, Seek, SeekFrom};
 use std::os::unix::fs::FileExt;
@@ -56,7 +57,8 @@ pub(crate) struct Failed;
 /// the last included, of more than `LINE_MAX` bytes fails the read once that many and one are held, read no further.
 pub(crate) fn each_line(path: &str, stored: Stored, from: u64, line: impl FnMut(&[u8], u64, u64, bool)) -> Result<Option<u8>, Failed> {
     let mut source = source(path, stored, from)?;
-    Ok(lines(path, &mut *source, stored, from, None, line)?.last)
+    let mut line = line;
+    Ok(lines(path, &mut *source, stored, from, None, false, |bytes, start, end, ended| line(&bytes, start, end, ended))?.last)
 }
 
 /// How far a read of lines went
@@ -71,8 +73,10 @@ struct Reached {
 
 /// The line loop of `each_line`, over `source` positioned at stream offset `from`, read no further than `until` when
 /// one is given: no read passes it, and a line it cuts is handed over as far as `until`, as a last line without a line
-/// feed.
-fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Option<u64>, mut line: impl FnMut(&[u8], u64, u64, bool)) -> Result<Reached, Failed> {
+/// feed. With `hand_over`, a line longer than a read is handed over as the buffer that assembled it, owned, rather
+/// than lent: the reader then takes a new buffer, so that a caller keeping the line holds it once, not as its bytes in
+/// the buffer and a copy as well. Every other line is lent.
+fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Option<u64>, hand_over: bool, mut line: impl FnMut(Cow<'_, [u8]>, u64, u64, bool)) -> Result<Reached, Failed> {
     let max = crate::seams::line_max(path, LINE_MAX);
     // The line being assembled is buf[..held]. Each read fills buf[held..held + n], and only those n bytes join it;
     // past them the buffer keeps whatever an earlier read left there, which nothing reads. So the buffer is zeroed as
@@ -106,14 +110,27 @@ fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Op
         if n == 0 {
             break;
         }
-        let filled = held + n;
+        let mut filled = held + n;
         last = Some(buf[filled - 1]);
         // What was held has no line feed: only the new bytes are searched
         let mut start = 0;
         let mut search = held;
         while let Some(i) = memchr::memchr(b'\n', &buf[search..filled]) {
             let nl = search + i;
-            line(&buf[start..nl], base + start as u64, base + nl as u64 + 1, true);
+            if hand_over && start == 0 && nl >= CHUNK {
+                // The bytes after the line, at most this read's, move to a new buffer, and the old one is the line
+                let after = filled - (nl + 1);
+                let mut rest = vec![0; CHUNK.min(max + 1).max(after)];
+                rest[..after].copy_from_slice(&buf[nl + 1..filled]);
+                let mut whole = std::mem::replace(&mut buf, rest);
+                whole.truncate(nl);
+                line(Cow::Owned(whole), base, base + nl as u64 + 1, true);
+                base += nl as u64 + 1;
+                filled = after;
+                search = 0;
+                continue;
+            }
+            line(Cow::Borrowed(&buf[start..nl]), base + start as u64, base + nl as u64 + 1, true);
             start = nl + 1;
             search = start;
         }
@@ -128,10 +145,16 @@ fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Op
             return Err(Failed);
         }
     }
+    let through = base + held as u64;
     if held > 0 {
-        line(&buf[..held], base, base + held as u64, false);
+        if hand_over && held >= CHUNK {
+            buf.truncate(held);
+            line(Cow::Owned(buf), base, through, false);
+        } else {
+            line(Cow::Borrowed(&buf[..held]), base, through, false);
+        }
     }
-    Ok(Reached { last, through: base + held as u64, ended })
+    Ok(Reached { last, through, ended })
 }
 
 /// The stream of `path` from byte `from` on: the file itself, or a cold rollout's zstd stream decompressed as it is
@@ -242,9 +265,10 @@ pub(crate) struct TurnRead {
 /// body's, in one pass that stops at the turn's end. A plain file is read from the question's start, a cold rollout's
 /// stream from its own start, the bytes before the question passed over a chunk at a time. The body is read line by line
 /// (`each_line`'s loop, under its line limit), each line decoded as it is whole, so that what is held is the body's text
-/// and one line, never the body's bytes as well. A line feed never occurs inside a UTF-8 character, so the lines decode
-/// as the body's text decoded whole would split. Whether a stream that ends short of a line feed is whole is for the
-/// side to judge, from `last` when `ended`.
+/// and one read's bytes, never the body's bytes as well: a line longer than a read is taken over from the reader as the
+/// buffer that assembled it, and becomes its text in place when it is valid UTF-8. A line feed never occurs inside a
+/// UTF-8 character, so the lines decode as the body's text decoded whole would split. Whether a stream that ends short of
+/// a line feed is whole is for the side to judge, from `last` when `ended`.
 pub(crate) fn turn(path: &str, stored: Stored, question: (u64, u64), body: Option<(u64, u64)>) -> Result<TurnRead, Failed> {
     crate::seams::before_range_read(path);
     let until = body.map_or(question.1, |(_, end)| end).max(question.1);
@@ -268,7 +292,7 @@ pub(crate) fn turn(path: &str, stored: Stored, question: (u64, u64), body: Optio
         }
     }
     let (question_bytes, body_lines) = (&mut read.question, &mut read.lines);
-    let reached = lines(path, &mut *source, stored, from, Some(until), |bytes, start, end, _| {
+    let reached = lines(path, &mut *source, stored, from, Some(until), true, |bytes, start, end, _| {
         let text_end = start + bytes.len() as u64;
         // The question takes the line's bytes and its line feed, as far as they fall in its range
         let (lo, hi) = (start.max(question.0), end.min(question.1));
@@ -282,7 +306,10 @@ pub(crate) fn turn(path: &str, stored: Stored, question: (u64, u64), body: Optio
             let (lo, hi) = (start.max(body_start), end.min(body_end));
             if lo < hi {
                 let hi = hi.min(text_end).max(lo);
-                body_lines.push(crate::text::line_text(&bytes[(lo - start) as usize..(hi - start) as usize]).into_owned());
+                body_lines.push(match bytes {
+                    Cow::Owned(whole) if lo == start && hi == text_end => crate::text::line_text_owned(whole),
+                    _ => crate::text::line_text(&bytes[(lo - start) as usize..(hi - start) as usize]).into_owned(),
+                });
             }
         }
     })?;

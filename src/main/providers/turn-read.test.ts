@@ -5,6 +5,7 @@
 import { afterAll, afterEach, describe, expect, test, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -133,6 +134,39 @@ describe('a turn read hands over what the range read gives the same ranges, plai
       expect(read.lines).toEqual(split(texts[1]))
     }
   })
+
+  // Lines longer than one read of the module (1 MiB), which it hands over as the buffer that assembled them rather than
+  // a copy: one holding invalid bytes, a short line after it in the same read, and one the body ends inside of; and a
+  // body that starts inside a long line
+  const MiB = 1024 * 1024
+  const long = (n: number, bytes: Buffer): Buffer => {
+    const shaped = answer('y'.repeat(n) + 'MARK')
+    const at = shaped.indexOf('MARK')
+    return Buffer.concat([shaped.subarray(0, at), bytes, shaped.subarray(at + 4)])
+  }
+  const longs = rollout([
+    { line: meta() },
+    { line: ask('q'), question: true },
+    { line: long(1.5 * MiB, INVALID[3]) },
+    { line: answer('short, after a long line') },
+    { line: long(2.5 * MiB, Buffer.from('z')) },
+    { line: answer('the end') }
+  ])
+  const [{ question: q, body: b }] = longs.turns
+  const intoSecond = longs.content.indexOf('z', b.start) - MiB
+  test.each([
+    ['the whole body', q, b],
+    ['a body that ends inside a long line', q, { start: b.start, end: intoSecond }],
+    ['a body that starts inside a long line', { start: q.start, end: b.start + 1000 }, { start: b.start + 1000, end: b.end }]
+  ])('lines longer than a read, %s: the pieces are the range\'s text split at its line feeds, plain and cold', async (_what, question, body) => {
+    expect(intoSecond - b.start).toBeGreaterThan(2.5 * MiB)
+    for (const cold of [false, true]) {
+      const { texts } = await readRanges(rolloutOf(longs.content, false), [question, body])
+      const read = await readTurnLines('codex', rolloutOf(longs.content, cold), question, body)
+      expect(read.question).toBe(texts[0])
+      expect(read.lines).toEqual(split(texts[1]))
+    }
+  })
 })
 
 describe('a turn read stops at the turn\'s end (session-view C2)', () => {
@@ -177,18 +211,25 @@ describe('a turn read stops at the turn\'s end (session-view C2)', () => {
   })
 })
 
-describe('a turn read holds no copy of the whole turn (#485)', () => {
-  // A turn of 64 MiB, the turn limit, in 1 MiB lines. The read hands over its text twice at its peak: the module's
-  // lines, and the JavaScript strings made from them on the main thread, each line's freed as its string is made, but
-  // the freed memory still counted in the process's resident size; no allocation larger than a line. Measured on
-  // 2026-11-17, under Node, the peak grew by 132 MiB for the plain file and 135 MiB for the cold rollout. The range read
-  // it replaced, with the decode, the kept-lines call and the split the turn's assembly made (32936fa), grew it by 193
-  // MiB and 261 MiB: the body's bytes, its string, the module's copy of that string for the kept-lines rule, and for the
-  // cold rollout the pieces and their join as well. The bound lies between: the text twice and some MiB.
+describe('a turn read holds no allocation of the whole turn but a line of it (#485)', () => {
+  // A turn of 64 MiB, the turn limit, in 1 MiB lines and in one line. The read hands over its text twice at its peak:
+  // the module's lines, and the JavaScript strings made from them on the main thread, each line's freed as its string
+  // is made, but the freed memory still counted in the process's resident size. Measured on 2026-11-17, under Node, the
+  // peak grew by 132 MiB for the plain file in 1 MiB lines and 135 MiB for the cold rollout. The range read it
+  // replaced, with the decode, the kept-lines call and the split the turn's assembly made (32936fa), grew it by 193 MiB
+  // and 261 MiB: the body's bytes, its string, the module's copy of that string for the kept-lines rule, and for the
+  // cold rollout the pieces and their join as well; by 193 MiB for the plain file in one line. So did the turn read as
+  // first written (2fda292) for the one line, its line buffer grown by doubling and zeroed whole. The bound lies
+  // between: the text twice and some MiB.
   const MiB = 1024 * 1024
-  const line = Buffer.concat([Buffer.from('{"a":"'), Buffer.alloc(MiB - 9, 0x78), Buffer.from('"}')])
-  const { content, turns } = rollout([{ line: ask('q'), question: true }, ...Array.from({ length: 64 }, () => ({ line }))])
-  test.each([false, true])('a 64 MiB turn read in 1 MiB lines grows a fresh process\'s peak by the text twice and a few MiB (cold %s)', (cold) => {
+  test.each([
+    { shape: 'in 1 MiB lines', count: 64, size: MiB, cold: false },
+    { shape: 'in 1 MiB lines', count: 64, size: MiB, cold: true },
+    { shape: 'in one line', count: 1, size: 64 * MiB, cold: false },
+    { shape: 'in one line', count: 1, size: 64 * MiB, cold: true }
+  ])('a 64 MiB turn read $shape grows a fresh process\'s peak by the text twice and a few MiB (cold $cold)', ({ count, size, cold }) => {
+    const line = Buffer.concat([Buffer.from('{"a":"'), Buffer.alloc(size - 9, 0x78), Buffer.from('"}')])
+    const { content, turns } = rollout([{ line: ask('q'), question: true }, ...Array.from({ length: count }, () => ({ line }))])
     const [{ question, body }] = turns
     expect(body.end - body.start).toBe(64 * MiB)
     const file = rolloutOf(content, cold)
@@ -205,7 +246,7 @@ describe('a turn read holds no copy of the whole turn (#485)', () => {
     const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, file, JSON.stringify(question), JSON.stringify(body)], { encoding: 'utf8' })
     expect(run.stderr).toBe('')
     const { grewKiB, lines, length } = JSON.parse(run.stdout) as { grewKiB: number; lines: number; length: number }
-    expect([lines, length]).toEqual([64, 64 * (MiB - 1)])
+    expect([lines, length]).toEqual([count, count * (size - 1)])
     expect(grewKiB * 1024).toBeLessThan(2 * 64 * MiB + 24 * MiB)
   })
 })
@@ -291,23 +332,30 @@ describe('the places turn reads take (session-view C2)', () => {
     expect((await outcomes).every((o) => o.status === 'fulfilled')).toBe(true)
   }, HELD_CASE)
 
-  test('a plain file\'s turn read never waits for a cold place, and at most four run at once, a fifth handed over once one is given up', async () => {
+  test('a plain file\'s turn read never waits for a cold place, and runs on the thread pool the main process\'s reads of plain files run on: while four hold it, a file read waits (D2b)', async () => {
     const handed = watchHanded()
     const cold = Array.from({ length: 4 }, () => rolloutOf(content, true))
-    const plain = Array.from({ length: 5 }, () => rolloutOf(content, false))
+    const plain = Array.from({ length: 4 }, () => rolloutOf(content, false))
     held([...cold, ...plain])
-    // Every cold place held
+    // Every cold place held, and every thread of the pool
     const colds = cold.map((file) => readTurnLines('codex', file, question, body))
     const plains = plain.map((file) => readTurnLines('codex', file, question, body))
     const outcomes = Promise.allSettled([...colds, ...plains])
     asked.push(outcomes)
-    expect(handed).toEqual([...cold, ...plain.slice(0, 4)])
-    await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual([...cold, ...plain.slice(0, 4)].sort())
-    seam().seamReleaseReadsOf(plain[0])
-    await plains[0]
-    await quiet()
     expect(handed).toEqual([...cold, ...plain])
+    await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual([...cold, ...plain].sort())
+    // A file read of the main process's own waits for a thread of the pool: a read that took none would be done in a
+    // few milliseconds
+    let done = false
+    const other = readFile(plain[0]).then(() => {
+      done = true
+    })
+    asked.push(other)
+    await new Promise((go) => setTimeout(go, 300))
+    expect(done).toBe(false)
+    seam().seamReleaseReadsOf(plain[0])
+    await other
     seam().seamReleaseReadsOf(null)
-    expect(served(await outcomes)).toEqual(Array(9).fill(['{"a":1}']))
+    expect(served(await outcomes)).toEqual(Array(8).fill(['{"a":1}']))
   }, HELD_CASE)
 })

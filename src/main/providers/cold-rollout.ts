@@ -29,27 +29,8 @@ export function isColdRollout(file: string): boolean {
  * runs four in practice and eight at most.
  */
 const COLD_READS_AT_ONCE = 4
-
-/**
- * Places for reads on threads of the engine module's own: a read given to the function runs once fewer than `n` it was
- * given are running, the others waiting their turn, in the order asked
- */
-export function placesOf(n: number): <T>(read: () => Promise<T>) => Promise<T> {
-  let reading = 0
-  const waiting: Array<() => void> = []
-  return async (read) => {
-    if (reading < n) reading++
-    else await new Promise<void>((go) => waiting.push(go))
-    try {
-      return await read()
-    } finally {
-      // A read that settles, or throws before it starts, hands its place to the first one waiting, or gives it up
-      const next = waiting.shift()
-      if (next) next()
-      else reading--
-    }
-  }
-}
+let reading = 0
+const waiting: Array<() => void> = []
 
 /**
  * A cold rollout has no byte-addressable ranges (spec session-view C2): one pass through its
@@ -70,4 +51,15 @@ export function readColdRanges(file: string, ranges: readonly ByteRange[]): Prom
  * `COLD_READS_AT_ONCE` are running: a range read, a turn's read (turn-read.ts), or a full-text search of a cold rollout
  * (full-text.ts)
  */
-export const inColdPlace = placesOf(COLD_READS_AT_ONCE)
+export async function inColdPlace<T>(read: () => Promise<T>): Promise<T> {
+  if (reading < COLD_READS_AT_ONCE) reading++
+  else await new Promise<void>((go) => waiting.push(go))
+  try {
+    return await read()
+  } finally {
+    // A read that settles, or throws before it starts, hands its place to the first one waiting, or gives it up
+    const next = waiting.shift()
+    if (next) next()
+    else reading--
+  }
+}

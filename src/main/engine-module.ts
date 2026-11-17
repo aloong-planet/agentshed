@@ -127,13 +127,13 @@ export interface EngineModule {
   readRanges(kind: 'codex', file: string, ranges: ReadonlyArray<{ start: number; end: number }>): Promise<{ bufs: Buffer[]; bytesRead: number }>
   /**
    * A turn of the session file `file`, of the side `kind`: its `question`'s range and, when `body` is given, its body's,
-   * `[start, end)` in the offsets its question index records, read in one pass that stops at the turn's end, on a thread
-   * of its own (session-view C2). Settles with the question's bytes, as much of its range as the file holds; the lines
+   * `[start, end)` in the offsets its question index records, read in one pass that stops at the turn's end (session-view
+   * C2): a cold rollout's on a thread of its own, a plain file's on the thread pool (session-view D2b). Settles with the question's bytes, as much of its range as the file holds; the lines
    * of the body the turn holds, each as text with its line feed left off, clipped to the body's range, as the body's
    * text splits at its line feeds but for the empty piece after a last line feed (a line agy's rewind undid inside the
    * turn is not held, session-view::REQ-004/AC-03); and how far into the file's stream the read went from where it
    * started, the question's start in a plain file and the stream's start in a cold rollout. The body is read line by
-   * line and never held whole. A cold rollout is read through its decompressed stream, as `readRanges` reads it.
+   * line: no allocation holds it whole but a line of it. A cold rollout is read through its decompressed stream, as `readRanges` reads it.
    * Rejects when the file cannot be read as far as the turn goes, when a read that reached the stream's end finds it cut
    * short (token-stats B12), or when the read panics.
    */
