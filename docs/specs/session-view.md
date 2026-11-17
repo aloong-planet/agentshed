@@ -342,7 +342,7 @@ hands the command over; it never runs it.
   rollout alike, and matches bytes, holding only the line in flight, so a file's size no longer
   bounds what can be searched, and does so in the engine module, on a thread of its own, so a search
   neither ends nor holds the main process (C2, ADR-0052). A line longer than the line limit
-  ([token-stats](token-stats.md) A10) is not held: it fails the search of its file (D3). The key is
+  ([token-stats](token-stats.md) A10) is not held whole: it fails the search of its file (D3). The key is
   **not parsing**: it is a pure byte scan, and **only matching ranges get decoded and parsed** — for
   full text, the line of each turn's first body hit, for its snippet (D5).
   ⚠️ **Case insensitivity must not decode + lower-case the whole thing** — for the question search,

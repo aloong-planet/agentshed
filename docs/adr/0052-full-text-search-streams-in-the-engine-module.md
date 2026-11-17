@@ -41,7 +41,8 @@ We adopt **option 1**.
   two agree only while both carry one Unicode version.
 - Negative: the footprint still follows a file's longest line, held with its lowered copy and, while its snippet is
   cut, its strings as UTF-16: a 67.7 MB line raised it by about 208 MB (Sources). A line past the engine module's
-  line limit is not held but fails its file's search, its question hits alone kept (token-stats A10, session-view D3).
+  line limit is not held whole but fails its file's search, its question hits alone kept (token-stats A10,
+  session-view D3).
 - Neutral: on this machine's data the search found what the whole-file search found in every project that search
   completes in (Sources).
 
