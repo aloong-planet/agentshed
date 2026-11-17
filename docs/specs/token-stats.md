@@ -88,9 +88,18 @@ all of them.
   of its own (A3), is under-counted. Such replies exist; the under-count is known and accepted until the
   figures differ from ccusage's perceptibly (ADR-0005's restart condition), as taking a reply's figures
   from its iterations would part from the meter the figures are reconciled against.
-- A10 A file that cannot be read to its end (it will not open, or a read of it fails) gives no entry and is
-  skipped, hurting only itself: nothing of it is counted or listed in that scan, and the scan of the other
-  files goes on. A panic while the file is parsed is such a failure (Scans and the window, below).
+- A10 A file that cannot be read to its end (it will not open, a read of it fails, or a line of it is longer
+  than the line limit) gives no entry and is skipped, hurting only itself: nothing of it is counted or listed
+  in that scan, and the scan of the other files goes on. A panic while the file is parsed is such a failure
+  (Scans and the window, below).
+  **The line limit** is 256 MiB, 268,435,456 bytes, counted without the line feed; a last line without one is
+  held to it alike. A line of exactly the limit is read; one a byte longer fails the read of its whole file,
+  nothing kept of the lines before it, and the read stops there instead of reading the line to its end. Every
+  session file a scan reads line by line is held to it, failing under its side's rule for a read that fails
+  (B12, F6; an Antigravity CLI transcript, session-view::REQ-004/AC-08), and so is the full-text search
+  (session-view D2, D3). It keeps what one line costs below an allocation the process would refuse, which
+  ends the process where nothing can catch it; the longest line in this machine's agent data was 67.7 MB
+  (2026-11-17).
 - A11 A scan that cannot read Claude Code's registry — the file cannot be read, does not parse, or its
   `projects` is not an object ([agents-overview](agents-overview.md) A3) — takes no mapping from it
   (A2): a session whose file's signature is the one its stored entry holds keeps the project that entry
