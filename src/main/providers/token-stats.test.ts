@@ -2470,7 +2470,7 @@ describe('a group whose input differs is combined again (token-stats, Implementa
     await expectFromScratch(r)
   })
 
-  // A Codex session's name is read from the session index when its rollout is parsed (session-view B4): renamed there
+  // A Codex session's name is read from the session index when its rollout is parsed (session-view A4): renamed there
   // alone, the session keeps the name its entry holds, and takes the new one when its rollout is next written. This
   // machine's index, 2026-11-15: 19 of 669 ids carry more than one name, and every one of their rollouts was written at or
   // after its last rename.

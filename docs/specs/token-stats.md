@@ -1067,9 +1067,8 @@ read with macOS `footprint`.
   handed to it with the rollout; the session page's question list and both searches read a plain file's bytes
   themselves, take a cold rollout's from the module, and hand them to those line rules, and a turn the session page
   expands, plain or cold, the module reads and hands over as the lines the turn holds. The module reads a cold rollout for them by the reader and the
-  cut-short rule a scan reads it with (B12), each read on a thread of its own, so neither the thread that
-  asked nor the thread pool its file reads share waits on the decompression; four at most run at once on
-  each thread that asks them, and the others wait their turn in the order asked (session-view C2). A value
+  cut-short rule a scan reads it with (B12), each read on a thread of its own and as many at once as session-view C2
+  allows. A value
   in a line is built only where a rule reads it; every other value is scanned past. A line is decoded as
   UTF-8, an invalid sequence becoming U+FFFD, and read by the grammar of ECMAScript's `JSON.parse`, with
   its results: a repeated key keeps its last value, a number beyond the
