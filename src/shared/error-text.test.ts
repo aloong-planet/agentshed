@@ -20,6 +20,16 @@ describe('errorText', () => {
     expect(errorText('en', raw)).toBe('Turn index out of range: 7 (of 3 turns)')
   })
 
+  it('a turn over the limit names its body\'s size and the limit, formatted for the language', () => {
+    const raw = wrap(encodeAppError({ code: ERR.turnTooLong, params: { bytes: 582_015_113, limit: 67_108_864 } }))
+    expect(errorText('en', raw)).toBe('It is 555.1 MB, over the 64.0 MB limit for one turn, so it was not read')
+    // Han by code point (check:lang): "正文有 555.1 MB,超过单轮 64.0 MB 的上限,所以没有读取"
+    const zh = (...cps: number[]): string => String.fromCharCode(...cps)
+    expect(errorText('zh', raw)).toBe(
+      `${zh(0x6b63, 0x6587, 0x6709)} 555.1 MB,${zh(0x8d85, 0x8fc7, 0x5355, 0x8f6e)} 64.0 MB ${zh(0x7684, 0x4e0a, 0x9650)},${zh(0x6240, 0x4ee5, 0x6ca1, 0x6709, 0x8bfb, 0x53d6)}`
+    )
+  })
+
   it('an absent optional parameter leaves no empty brackets in the wording', () => {
     const withField = wrap(encodeAppError({ code: ERR.badArgs, params: { channel: 'setMode', field: 'mode' } }))
     const noField = wrap(encodeAppError({ code: ERR.badArgs, params: { channel: 'setMode' } }))

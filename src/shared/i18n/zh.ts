@@ -521,6 +521,7 @@ export const zh = {
     sessionNotWhitelisted: '会话路径不在白名单,请先打开项目详情',
     engineNotReady: '扫描引擎未就绪,请稍候再试',
     turnOutOfRange: (i: number, total: number) => `轮次下标越界:${i}(共 ${total} 轮)`,
+    turnTooLong: (size: string, limit: string) => `正文有 ${size},超过单轮 ${limit} 的上限,所以没有读取`,
     memoryFileNotWhitelisted: '记忆文件路径不在白名单',
     memoryFileUnreadable: '该文件已不可读(被移动或删除?)',
     pluginRootNotRegistered: '插件包根不在登记集,请等待扫描完成',

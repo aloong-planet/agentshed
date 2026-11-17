@@ -4,6 +4,7 @@
 // i18n dictionaries: it produces only codes and parameters,
 // and sentence composition happens in the renderer. This is the one place the two meet.
 import { ERR, decodeAppError, type ErrorParams } from './errors'
+import { formatBytes } from './format'
 import { dictOf, type Language } from './i18n'
 
 /** Parameter values are `string | number`, narrowed at the use site to whatever that position needs;
@@ -55,6 +56,8 @@ export function errorText(lang: Language, raw: unknown): string {
       return t.engineNotReady
     case ERR.turnOutOfRange:
       return t.turnOutOfRange(n(p, 'i'), n(p, 'total'))
+    case ERR.turnTooLong:
+      return t.turnTooLong(formatBytes(lang, n(p, 'bytes')), formatBytes(lang, n(p, 'limit')))
     case ERR.memoryFileNotWhitelisted:
       return t.memoryFileNotWhitelisted
     case ERR.memoryFileUnreadable:
