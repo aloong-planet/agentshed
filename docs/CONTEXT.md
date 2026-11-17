@@ -176,7 +176,7 @@ _Avoid_: compaction (the act, not the span), truncated history
 
 **Cold rollout**:
 A rollout Codex has compressed into a `.jsonl.zst` file after seven days without writes, deleting the
-plain file. It is the same session under the same identity.
+plain file. It is the same conversation under a new session identity, its `.jsonl.zst` path, not the plain path's.
 _Avoid_: archived session (Codex's own `archived_sessions` root is a different thing), compressed session
 
 ### Usage and the archive

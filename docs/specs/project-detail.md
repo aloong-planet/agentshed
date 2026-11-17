@@ -90,7 +90,7 @@ cached visits under project-detail::REQ-001)
 - T7 Switching to a project no longer in the snapshot: the not-in-snapshot empty state (S7), no fetch,
   at once.
 - T8 Leaving for a session page and coming back: the project page is a cached visit (its detail was
-  on screen when the session opened), landing on the Sessions section per the session-view rule, and
+  on screen when the session opened), landing on the Sessions section (project-detail::REQ-004/AC-02), and
   its detail revalidates by transfusion.
 - T9 Leaving the Projects dimension (Agents, Settings) and coming back: the selection is kept (the
   existing rule) and the page is a cached visit — no refetch, no empty frame. The exception is coming back

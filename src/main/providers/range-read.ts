@@ -3,7 +3,7 @@
 // magnitude as a 3 MB one. Fetching a turn on a question click reads its ranges line by line instead
 // (turn-read.ts).
 //
-// The concurrency cap defaults to 4 (spec D2b: 🔬 a to-be-confirmed value). The measured warm-cache knee
+// The concurrency cap defaults to 4 (spec D2b). The measured warm-cache knee
 // is at 8; 4 is taken because
 // it equals Node's default libuv thread pool size, and going beyond 4 only pays off if
 // UV_THREADPOOL_SIZE is raised at the same time;

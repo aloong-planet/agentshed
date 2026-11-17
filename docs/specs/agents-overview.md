@@ -375,7 +375,7 @@ a registration the main process produced.
   the data; the copy is serialised and written by the engine module (ADR-0045) only when it is written,
   and read at launch without it. A forced kill may lose writes not yet
   completed, never invalidate the previous complete save. No numeric retention limit has been approved for the pages
-  other than session turns; the turns kept stay within session-view::C2's keep size and total (ADR-0053).
+  other than session turns; the turns kept stay within the keep size and total of [session-view](session-view.md) C2 (ADR-0053).
 - Main owns the saved data and produces validated page payloads; the renderer receives restored data
   before showing restored pages. Do not add an arbitrary renderer-to-disk cache-write API.
 - Use the existing inline scanning form in the page heading, including the project-list heading
