@@ -10,8 +10,8 @@
 //   displayed range
 //   — an already-stripped fork prefix, Claude's abandoned branches, the noise before the first question —
 //   count as folded rather than masquerading as
-//   reachable hits (D3: 54.7% of Codex bytes are replay copies, and without folding the same sentence is
-//   reported once per generation).
+//   reachable hits (D3: a fork's replay copies repeat its parent's text, and without folding the same
+//   sentence is reported once per generation).
 //   The full-text toggle exists for **hit quality** (full text hits tool output noise), not performance.
 // - Case: searchBytes folds at the byte level (never decode + toLowerCase over everything — spec D2
 //   measured 391 ms as the
