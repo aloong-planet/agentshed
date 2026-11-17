@@ -1,6 +1,6 @@
 # ADR-0053: A display copy kept apart from the accounting cache restores the pages read after a restart, keeping turns' content only within a size per turn and a total
 
-- Status: Proposed
+- Status: Accepted (2026-11-17)
 
 ## Context
 
