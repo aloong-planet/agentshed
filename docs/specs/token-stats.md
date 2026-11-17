@@ -1058,13 +1058,15 @@ read with macOS `footprint`.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **The engine module** (ADR-0045, ADR-0046) is loaded by the scan worker, the parse workers and the main process,
   and holds the session walk, the reading and parsing of every session file a scan reads, the reading of
-  the cold rollouts the session page and both searches read, the question index and the titles, the
+  the cold rollouts the session page and both searches read and of each turn the session page expands, a line at a
+  time (session-view C2), the question index and the titles, the
   entries, the store, the grouping and the combination, the line rules that a question's text and a
   turn's contents are read by on the session page and in both searches, and a project's full-text search
   of each session file, read a line at a time on a thread of its own (session-view D2, D3, ADR-0052). A
   Codex session's thread name comes from Codex's session index, which is read outside the module and
-  handed to it with the rollout; the session page and both searches read a plain file's bytes themselves,
-  take a cold rollout's from the module, and hand them to those line rules. The module reads a cold rollout for them by the reader and the
+  handed to it with the rollout; the session page's question list and both searches read a plain file's bytes
+  themselves, take a cold rollout's from the module, and hand them to those line rules, and a turn the session page
+  expands, plain or cold, the module reads and hands over as the lines the turn holds. The module reads a cold rollout for them by the reader and the
   cut-short rule a scan reads it with (B12), each read on a thread of its own, so neither the thread that
   asked nor the thread pool its file reads share waits on the decompression; four at most run at once on
   each thread that asks them, and the others wait their turn in the order asked (session-view C2). A value
