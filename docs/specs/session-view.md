@@ -234,6 +234,12 @@ hands the command over; it never runs it.
   the next one starts; the others wait their turn in the order asked. The scan worker, which reads a
   cold rollout only for a stripped fork's title (B2), counts four of its own. A truncated cold rollout never reaches the session
   page: the scan skips it (token-stats B12).
+  **The turn limit** (2026-11-17): a turn whose body, everything after its question up to the next one (C1), is longer
+  than 64 MiB (67,108,864 bytes) by these offsets is never read; a body of exactly the limit is read. Its row takes the
+  in-turn failure state with a reason of its own, the body's size and the limit, never "the file can no longer be read".
+  The size is known from the index before anything is read, so the session's other turns, its questions and its
+  figures are as they were, and clicking the row again gets the same reason. On this machine's real data on 2026-11-17,
+  21 turns were over it, all in 3 Codex files, the longest 582,015,113 bytes.
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
   records, and Codex's subagent threads, all sit under the step that dispatched them.
   **"Sitting under the dispatching step" cannot be reliably achieved on either side** — all four
@@ -550,7 +556,8 @@ below are archived as a decision record and are no longer requirements)**
 - **In-turn fetch states**: fetching = a momentary notice on the first fetch, with an
   already-fetched turn re-expanding instantly; a single turn's failure = that turn gives the reason
   in a sentence in the current UI language, never the raw IPC error, without affecting the others,
-  and clicking again retries; an empty turn (no prose reply) shows only the fetch footnote and
+  and clicking again retries; a turn over the turn limit (C2) is such a failure, its reason giving its size and the
+  limit, and a retry gives the same reason; an empty turn (no prose reply) shows only the fetch footnote and
   invents no placeholder; the footnote includes the actual bytes read. Visually all of them are
   small, faint in-turn text (the prototype's `.rebuild` style).
 - **The overview section**: the overview's session card is clickable. It lists **only the 5 most
@@ -997,7 +1004,8 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   **On-demand answer fetching**: a turn's range can only come from the application's own index, held
   where the scan runs (ADR-0043; the renderer cannot supply byte ranges), with the same allow-list
   check first; the payload carries the
-  bytes read as evidence of "nothing was read whole". A read-only freshness predicate lets the
+  bytes read as evidence of "nothing was read whole". The turn limit (C2) is decided from that range before the
+  turn's body is read; a test seam lowers it so that e2e need not write 64 MiB. A read-only freshness predicate lets the
   renderer decide whether to show the interim "rebuilding the index for this file only" state, while
   the rebuild itself is still triggered by the fetch call (idempotent, and the file changing between
   the two steps is harmless).
