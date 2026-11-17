@@ -2,6 +2,8 @@
 // is what makes a revisit instant across a project switch, a session opened and closed, or leaving and
 // returning to the Projects dimension (spec project-detail T9, T11).
 import { QueryClient } from '@tanstack/react-query'
+import { keepTurnsWithin, releaseTurnsNotKept } from './display-queries'
+import { KEPT_TURNS_UNITS } from '@shared/kept-turns'
 
 /** retry: false — a failed fetch surfaces at once rather than being retried silently (T10). No
  * override of staleTime (library default 0, which is exactly "every mount revalidates", T2) or
@@ -16,8 +18,12 @@ export const queryClientOptions = {
   }
 } as const
 
-export function createQueryClient(): QueryClient {
-  return new QueryClient(queryClientOptions)
+/** `keptTurnsUnits` is the total limit on kept turns the main process applies (ADR-0053), passed at launch */
+export function createQueryClient(keptTurnsUnits = KEPT_TURNS_UNITS): QueryClient {
+  const client = new QueryClient(queryClientOptions)
+  keepTurnsWithin(client, keptTurnsUnits)
+  releaseTurnsNotKept(client)
+  return client
 }
 
 /**

@@ -274,6 +274,7 @@ function validateTurnBlock(b: Record<string, unknown>, at: string): ValidateResu
 export function validateSessionTurn(v: unknown): ValidateResult {
   if (!isRecord(v)) return failType('turn', 'object')
   if (typeof v['bytesRead'] !== 'number') return failType('turn.bytesRead', 'number')
+  if ('unkept' in v && v['unkept'] !== true) return failType('turn.unkept', 'true')
   const blocks = v['blocks']
   if (!Array.isArray(blocks)) return failType('turn.blocks', 'array')
   for (let i = 0; i < blocks.length; i++) {

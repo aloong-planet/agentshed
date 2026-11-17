@@ -365,7 +365,7 @@ it('isolates a saved page whose numeric data overflowed JSON without discarding 
 
 // A project detail saved by a version whose memory had no main-file entry (the installed app's own cache holds
 // `memory: { main, topics }`): it still restores, its main file not yet listed, until the live read replaces it
-// (ADR-0028's upgrade case; memory-view, Implementation Decisions). A malformed entry is still dropped.
+// (ADR-0053's upgrade case; memory-view, Implementation Decisions). A malformed entry is still dropped.
 it('restores a project detail saved before its memory carried the main file entry', () => {
   const root = dir()
   const detail = (memory: Record<string, unknown>) => ({
@@ -587,6 +587,25 @@ it('restores session pages saved before the session ID was kept, filling the ID 
   ])
 })
 
+// A turn's body length is what decides it is kept (ADR-0053), and a turn saved before the copy carried it cannot be told
+// from one over the keep size that an older build kept; it is not restored and is fetched again when next opened, while
+// the rest of that copy restores (session-view, the in-turn fetch states)
+it('restores a saved turn only with its body length, and the session page beside one saved without it', () => {
+  const root = dir()
+  const older = sessionReads('/s/older.jsonl', 'claude').map((r) => {
+    if (r.kind !== 'turnContent') return r
+    const rest: Record<string, unknown> = { ...r }
+    delete rest.bodyBytes
+    return rest
+  })
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
+    ...emptyDisplayData(), reads: [...older, ...sessionReads('/s/now.jsonl', 'codex')]
+  } }))
+  expect(new DisplayStore(root).get().reads.map((r) => [r.kind, 'file' in r ? r.file : null])).toEqual([
+    ['sessionPage', '/s/older.jsonl'], ['sessionPage', '/s/now.jsonl'], ['turnContent', '/s/now.jsonl']
+  ])
+})
+
 // A display cache written before Antigravity CLI joined the side set (the key sets of this machine's real cache on
 // 2026-10-29: every per-side Record — the snapshot's sides, every token block's bySide and its days' bySide, each
 // global skill's symlink and pkg — holds claude, codex and grok only). The contract now asks for every side, so
@@ -679,7 +698,7 @@ it('still drops a saved snapshot whose entry for the side is present but malform
 })
 
 // The count of Antigravity conversations a scan could not read is part of the saved snapshot, so the side card's
-// notice is back at the next launch before its first scan (token-stats::REQ-004/AC-02, ADR-0028); a malformed count is
+// notice is back at the next launch before its first scan (token-stats::REQ-004/AC-02, ADR-0053); a malformed count is
 // a corrupt leaf and drops the snapshot
 it('restores a saved snapshot carrying the count of unreadable Antigravity conversations, and drops one whose count is malformed', () => {
   const root = dir()
@@ -743,7 +762,7 @@ function sessionReads(file: string, side: AgentSide): SavedRead[] {
     forkPoints: 0, forkParentTitle: null, forkParentFile: null, sessionId: null,
     questions: [{ revision: `q-${side}`, i: 1, text: 'Saved question', at: 1, tools: 0, subagents: 0 }] }
   const turn: SessionTurn = { blocks: [], bytesRead: 0 }
-  return [{ kind: 'sessionPage', file, data: page }, { kind: 'turnContent', file, i: 0, revision: `q-${side}`, ms: 1, data: turn }]
+  return [{ kind: 'sessionPage', file, data: page }, { kind: 'turnContent', file, i: 0, revision: `q-${side}`, ms: 1, bodyBytes: 40, data: turn }]
 }
 function snapshotNaming(projectSides: AgentSide[]): Snapshot {
   const snap = emptySnapshot(900)

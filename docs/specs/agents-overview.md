@@ -6,7 +6,7 @@
 > **page-level** rules: which sections exist, the summary cards, and single-side degradation.
 
 > Startup restoration uses the original page prototypes.
-> Successful display payloads persist independently of the accounting index (ADR-0028), and are
+> Successful display payloads persist independently of the accounting index (ADR-0053), and are
 > written while the window has no focus (ADR-0044), by the engine module (ADR-0045).
 
 ## Problem Statement
@@ -374,7 +374,8 @@ a registration the main process produced.
   agents-overview::REQ-008 says, with ordered atomic replacement. A change is recorded without copying
   the data; the copy is serialised and written by the engine module (ADR-0045) only when it is written,
   and read at launch without it. A forced kill may lose writes not yet
-  completed, never invalidate the previous complete save. No numeric retention limit has been approved.
+  completed, never invalidate the previous complete save. No numeric retention limit has been approved for the pages
+  other than session turns; the turns kept stay within session-view::C2's keep size and total (ADR-0053).
 - Main owns the saved data and produces validated page payloads; the renderer receives restored data
   before showing restored pages. Do not add an arbitrary renderer-to-disk cache-write API.
 - Use the existing inline scanning form in the page heading, including the project-list heading

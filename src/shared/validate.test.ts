@@ -490,6 +490,11 @@ describe('validateSessionTurn (the single-turn fetch payload, ticket 05)', () =>
     const bad3 = { blocks: [{ kind: 'text', role: 'assistant', at: 'yesterday', body: 'x' }], bytesRead: 1 }
     expect(validateSessionTurn(bad3).ok).toBe(false)
   })
+  it('admits a turn marked unkept, and refuses the mark as anything but true', () => {
+    expect(validateSessionTurn({ ...ok, unkept: true }).ok).toBe(true)
+    const r = validateSessionTurn({ ...ok, unkept: false })
+    expect(r.ok === false && r.failure.path).toBe('turn.unkept')
+  })
 })
 
 describe('validateSessionTurn — ticket 07\'s rich content blocks', () => {

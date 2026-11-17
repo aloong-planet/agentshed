@@ -167,7 +167,7 @@ already legible is noise.
   a first-read failure the drawer's content area reports "file cannot be read" without closing it.
   Previously read successful file bodies and expanded file listings restore immediately when
   reopened, including after a restart; failed refreshes keep that successful content. This follows
-  project-detail::REQ-001/AC-05 and ADR-0028, without prefetching unread bodies or restoring expansion.
+  project-detail::REQ-001/AC-05 and ADR-0053, without prefetching unread bodies or restoring expansion.
 - C7 A single file's read is capped as a memory file's is ([memory-view](memory-view.md)): an over-long
   file gets a truncation footnote rather than crashing.
 - C8 Esc and clicking the overlay both close the drawer. Exact registrations may be restored
@@ -416,7 +416,7 @@ Skills section, project detail's Skills section and the Plugins section's Skills
   the package, so a link cycle ends. Any other directory symlink is followed, and a directory reached by two
   paths is listed under both.
 - skills-view::REQ-003/AC-06: A listing saved before this rule restores with no depth notice; it shows the
-  files it held until its refresh lists the deeper ones (ADR-0028).
+  files it held until its refresh lists the deeper ones (ADR-0053).
 
 ### Failure modes and boundaries: any depth
 

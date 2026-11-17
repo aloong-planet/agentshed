@@ -3,7 +3,9 @@ import { ReadRegistry } from './read-registrations'
 import { DisplayStore, engineWrite } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, recordFileBytes, regularTarget } from './source-identity'
 import { readTurnRanges, TURN_LIMIT_SEAM, turnLimitBytes } from './turn-limit'
-import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
+import { KEPT_TURNS_SEAM, keptTurnsUnits, TURN_KEEP_SEAM, turnKeepBytes, turnKept } from './turn-keep'
+import { keptTurnUnits, turnsToRelease } from '@shared/kept-turns'
+import { emptyDisplayData, savedReadKey, savedTurnKey, type SavedRead, type StartupStatus } from '@shared/display-data'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -54,7 +56,7 @@ import { createPrefsHandlers } from './prefs-handlers'
 import { buildMenuTemplate } from './app-menu'
 import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
-import { APP_VERSION_ARG, LANG_ARG, SEARCH_NEEDLE_MAX, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
+import { APP_VERSION_ARG, KEPT_TURNS_ARG, LANG_ARG, SEARCH_NEEDLE_MAX, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
 import { IDLE_UPDATE, parseSettingsCheck, parseUpdateNotice, parseUpdateState, type CheckOutcome, type SettingsCheck, type UpdateNotice, type UpdateState } from '@shared/update'
 import { UpdateController } from './update-controller'
@@ -156,6 +158,26 @@ function persistDisplay(): void {
   displayStore.record({ snapshot: current, stats: [...perProjectStats], sessionFiles: [...sessionWhitelist],
     registrations: readRegistry.snapshot(), reads: [...savedReads.values()] })
 }
+type SavedTurn = Extract<SavedRead, { kind: 'turnContent' }>
+/** Each kept turn's measure against the total limit, taken once */
+const turnUnits = new WeakMap<SavedTurn, number>()
+function unitsOf(read: SavedTurn): number {
+  let units = turnUnits.get(read)
+  if (units === undefined) { units = keptTurnUnits(read.data); turnUnits.set(read, units) }
+  return units
+}
+/** Keeps a turn as the latest fetched, the earliest kept leaving first until it fits the total limit (ADR-0053), the
+ * renderer deciding the same with the same rule; one over the limit alone is not kept */
+function keepTurn(read: SavedTurn): void {
+  const key = savedReadKey(read)
+  savedReads.delete(key)
+  const kept: [string, number][] = []
+  for (const [k, r] of savedReads) if (r.kind === 'turnContent') kept.push([k, unitsOf(r)])
+  const released = turnsToRelease(kept, unitsOf(read), KEPT_TURNS)
+  if (released === null) return
+  for (const k of released) savedReads.delete(k)
+  savedReads.set(key, read)
+}
 function remember(read: SavedRead): void {
   if (read.kind === 'sessionPage') {
     for (const [key, saved] of savedReads) if (saved.kind === 'turnContent' && saved.file === read.file && saved.revision !== read.data.questions[saved.i]?.revision) savedReads.delete(key)
@@ -163,8 +185,8 @@ function remember(read: SavedRead): void {
   if (read.kind === 'turnContent') {
     const page = savedReads.get(JSON.stringify(['sessionPage', read.file]))
     if (page?.kind !== 'sessionPage' || page.data.questions[read.i]?.revision !== read.revision) return
-  }
-  savedReads.set(savedReadKey(read), read)
+    keepTurn(read)
+  } else savedReads.set(savedReadKey(read), read)
   persistDisplay()
 }
 function setStartupStatus(status: StartupStatus): void {
@@ -205,6 +227,11 @@ const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'],
 const PREFS_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_PREFS_DELAY_MS'], 0)
 /** The turn limit (session-view, the in-turn fetch states): 64 MiB, which e2e lowers through its seam */
 const TURN_LIMIT_BYTES = turnLimitBytes(process.env[TURN_LIMIT_SEAM])
+/** The keep size (ADR-0053): 8 MiB, which e2e lowers through its seam */
+const TURN_KEEP_BYTES = turnKeepBytes(process.env[TURN_KEEP_SEAM])
+/** The total limit on kept turns (ADR-0053): 128 Mi UTF-16 units, which e2e lowers through its seam; the renderer gets it
+ * at launch */
+const KEPT_TURNS = keptTurnsUnits(process.env[KEPT_TURNS_SEAM])
 
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
@@ -402,10 +429,21 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   if (a.revision !== undefined && a.revision !== revision) throw appError(ERR.sessionNotIndexed)
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
   if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
-  if (read.body === null) throw appError(ERR.turnTooLong, { bytes: read.bodyBytes, limit: TURN_LIMIT_BYTES })
+  if (read.body === null) {
+    // A turn kept before it grew past the limit can no longer be kept either: its copy leaves with the reason
+    if (savedReads.delete(savedTurnKey(file, revision, a.i))) persistDisplay()
+    throw appError(ERR.turnTooLong, { bytes: read.bodyBytes, limit: TURN_LIMIT_BYTES })
+  }
   const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, read.body), bytesRead: read.bytesRead }
+  // A body over the keep size is shown but never kept: not in the display copy, and (by the mark) not in the renderer
+  const kept = turnKept(read.bodyBytes, TURN_KEEP_BYTES)
+  if (!kept) turn.unkept = true
   assertSessionTurn(turn)
-  remember({ kind: 'turnContent', file, i: a.i, revision, ms: Math.max(1, Math.round(performance.now() - readStarted)), data: turn })
+  const saved: SavedTurn = { kind: 'turnContent', file, i: a.i, revision, ms: Math.max(1, Math.round(performance.now() - readStarted)),
+    bodyBytes: read.bodyBytes, data: turn }
+  if (kept) remember(saved)
+  // An unkept turn also retires a copy kept earlier under its key: one restored, or kept before the turn grew
+  else if (savedReads.delete(savedReadKey(saved))) persistDisplay()
   return turn
 })
 handle(CMD.searchSessions, async (_e, raw: unknown) => {
@@ -657,6 +695,7 @@ function createWindow(): void {
       // every word, and that has to be avoided.
       additionalArguments: [
         `${TREND_SPAN_ARG}${prefsHandlers.getPrefs().trendSpan}`,
+        `${KEPT_TURNS_ARG}${KEPT_TURNS}`,
         `${LANG_ARG}${initialLanguage()}`,
         `${SYS_LANGS_ARG}${systemPreferredLanguages().join(',')}`,
         `${APP_VERSION_ARG}${app.getVersion()}`,
@@ -749,7 +788,9 @@ void app.whenReady().then(() => {
   perProjectStats = new Map(restored.stats)
   sessionWhitelist = new Set(restored.sessionFiles)
   for (const stats of perProjectStats.values()) for (const s of stats.sessions) sessionTokens.set(s.file, s.tokens)
-  savedReads = new Map(restored.reads.map(r => [savedReadKey(r), r]))
+  // Restored turns in the order they were kept, so that the total limit in effect now binds a copy saved under another
+  savedReads = new Map()
+  for (const r of restored.reads) if (r.kind === 'turnContent') keepTurn(r); else savedReads.set(savedReadKey(r), r)
   readRegistry = new ReadRegistry(restored.registrations)
   createWindow()
   applyMenu()

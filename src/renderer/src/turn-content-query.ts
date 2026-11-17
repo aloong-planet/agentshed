@@ -3,9 +3,10 @@ import type { SessionTurnArgs } from '@shared/ipc'
 // The query-layer wrapper combining sessionFresh + getSessionTurn (ADR-0028, session-view C4). A
 // non-suspense query (see skill-files-query.ts's header comment): each expanded question row owns
 // its own query, mounted only while that row is open. Collapsing unmounts it; TanStack Query's cache
-// (not local component state) is what makes reopening an already-fetched turn instant, replacing the
-// old code's manual "already fetched, don't re-send" check — and, since staleTime is the library
-// default (0), a reopen still revalidates quietly in the background instead of going stale forever.
+// (not local component state) is what makes reopening an already-fetched turn instant, a turn over
+// the keep size excepted (display-queries.ts releases it), replacing the old code's manual "already
+// fetched, don't re-send" check — and, since staleTime is the library default (0), a reopen still
+// revalidates quietly in the background instead of going stale forever.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SessionTurn } from '@shared/domain'
 

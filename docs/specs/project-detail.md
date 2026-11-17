@@ -7,7 +7,7 @@
 > memory-view / plugins-view / skill-install / token-stats); this document covers **page-level**
 > rules.
 
-> Successful display payloads persist independently of the accounting index (ADR-0028).
+> Successful display payloads persist independently of the accounting index (ADR-0053).
 
 ## Problem Statement
 
@@ -303,7 +303,7 @@ and no scan completed yet.
 - **Each scan's project figures reach the window beside the snapshot** (project-detail::REQ-005):
   every project's token figures and session list, keyed the way the project list merges paths, and
   checked on both sides of the boundary like every payload (ADR-0001). They are not part of the
-  snapshot (A3), and the display copy saves them beside it (ADR-0028). The detail a page fetches still
+  snapshot (A3), and the display copy saves them beside it (ADR-0053). The detail a page fetches still
   carries that project's figures as of the fetch, and the page draws the window's for that project
   over them whenever the window holds them: a scan replaces the figures the main process reads a
   detail from and sends them to the window in the same turn, so the window's are never the older.

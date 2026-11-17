@@ -8,13 +8,14 @@ import { appendFileSync, chmodSync, mkdtempSync, mkdirSync, readFileSync, statSy
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
-import { test, expect } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { ERR } from '../src/shared/errors'
 import { MEASURED_TITLE, callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation, writeSummaries } from '../src/main/testing/agy-fixture'
 import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTranscript } from '../src/main/testing/agy-transcript-fixture'
 import { localDayOffset } from './support/dates'
 import { mkUsageHome, mkEmptyProjectHome, questionLine } from './support/homes'
-import { launch, close } from './support/launch'
+import { closeApp } from './close-app'
+import { launch, close, makeUserData, startApp } from './support/launch'
 import { holdStoreWrites } from './support/token-store'
 
 /**
@@ -1148,6 +1149,24 @@ test('a turn whose body is over the turn limit is not fetched: its row says why 
   await longRow.click()
   await expect(win.locator('.turn .tnote')).toHaveText('This turn could not be fetched: It is 3.0 KB, over the 2.0 KB limit for one turn, so it was not read')
 
+  // The short turn, kept, grows past the limit under its question (an appended reply): opened again, it gives the reason
+  // instead of what was kept, and what was kept leaves what the display copy is written from
+  const shortRow = win.locator('.qlist .q', { hasText: 'Short turn question' })
+  const kept = async (): Promise<(number | false)[]> => (await win.evaluate(() => window.agentshed.getStartup().then(r => r.display.reads)))
+    .filter(r => r.kind === 'turnContent').map(r => r.kind === 'turnContent' && r.i)
+  expect(await kept()).toEqual([1])
+  await longRow.click()
+  await shortRow.click()
+  await expect(win.locator('.turn')).toHaveCount(0)
+  appendFileSync(long, padded + '\n')
+  await shortRow.click()
+  await expect(win.locator('.turn .tnote')).toHaveText(/^This turn could not be fetched: It is \d+\.\d KB, over the 2\.0 KB limit for one turn, so it was not read$/)
+  await expect.poll(kept, { message: 'the grown turn leaves what the display copy is written from' }).toEqual([])
+  await shortRow.click()
+  await expect(win.locator('.turn')).toHaveCount(0)
+  await longRow.click()
+  await expect(win.locator('.turn .tnote')).toHaveText('This turn could not be fetched: It is 3.0 KB, over the 2.0 KB limit for one turn, so it was not read')
+
   // In Chinese, fetched again under the new language. Han by code point (check:lang):
   // "这一轮取不回来:正文有 3.0 KB,超过单轮 2.0 KB 的上限,所以没有读取"
   await win.locator('.ri.set').click()
@@ -1183,6 +1202,174 @@ test('a turn whose body is over the turn limit is not fetched: its row says why 
   expect(l.errors.length).toBeGreaterThan(0)
   for (const e of l.errors) expect(e.includes(ERR.turnTooLong) || e.includes(ERR.sessionNotIndexed), `a collected stderr chunk without either code:\n${e}`).toBe(true)
   await close(l)
+})
+
+test('a turn over the keep size is fetched again when reopened and is not saved, while one within it reopens at once and is until it grows past it (in-turn fetch states)', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const file = join(home, '.claude', 'projects', enc, 'keep.jsonl')
+  const reply = (text: string): string =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: localDayOffset(0).toISOString(),
+      message: { model: 'claude-fable-5', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+    })
+  // The first turn's body is 3,072 bytes, over the keep size lowered to 2,048 and far within the turn limit; the second
+  // turn's body is one short reply, within both, under a question long enough that question and body together are over
+  // the keep size: it is the body alone that is measured
+  const padded = reply('y'.repeat(3072 - Buffer.byteLength(reply('')) - 1))
+  expect(Buffer.byteLength(padded + '\n')).toBe(3072)
+  const smallQuestion = `Small turn question ${'q'.repeat(2100)}`
+  expect(Buffer.byteLength(questionLine(smallQuestion))).toBeGreaterThan(2048)
+  writeFileSync(file, [questionLine('Big turn question'), padded, questionLine(smallQuestion), reply('Small turn reply')].join('\n') + '\n')
+  const l = await launch(undefined, home, { AGENTSHED_TURN_KEEP_BYTES: '2048' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Big turn question' }).click()
+  await expect(win.locator('.qlist .q .txt')).toHaveText([smallQuestion, 'Big turn question'])
+
+  // Every fetching note any turn shows from here on is counted, however briefly it shows
+  await win.evaluate(() => {
+    const w = window as unknown as { fetchingNotes: number }
+    w.fetchingNotes = 0
+    new MutationObserver((records) => {
+      for (const r of records) for (const n of r.addedNodes) {
+        if (n instanceof Element && (n.matches('.turn .tnote') || n.querySelector('.turn .tnote'))) w.fetchingNotes++
+      }
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+  const notes = (): Promise<number> => win.evaluate(() => (window as unknown as { fetchingNotes: number }).fetchingNotes)
+  const open = async (question: string, answer: string): Promise<void> => {
+    await win.locator('.qlist .q', { hasText: question }).click()
+    await expect(win.locator('.turn .ans')).toHaveText([answer])
+    await expect(win.locator('.turn .fetched')).toHaveCount(1)
+  }
+  const shut = async (question: string): Promise<void> => {
+    await win.locator('.qlist .q', { hasText: question }).click()
+    await expect(win.locator('.turn')).toHaveCount(0)
+  }
+  const big = 'y'.repeat(3072 - Buffer.byteLength(reply('')) - 1)
+
+  // Each turn shows whole the first time, fetched
+  await open('Big turn question', big)
+  await shut('Big turn question')
+  await open('Small turn question', 'Small turn reply')
+  await shut('Small turn question')
+  const first = await notes()
+  expect(first, 'both first opens fetched').toBeGreaterThanOrEqual(2)
+  // Reopened, the small turn draws at once from what was kept, and the big one is fetched again
+  await open('Small turn question', 'Small turn reply')
+  await shut('Small turn question')
+  expect(await notes(), 'the kept turn reopens with no fetching note').toBe(first)
+  await open('Big turn question', big)
+  expect(await notes(), 'the turn over the keep size is fetched again').toBeGreaterThan(first)
+
+  // What the display copy is written from holds the small turn (index 1) and not the big one (index 0)
+  const kept = async (): Promise<(number | false)[]> => (await win.evaluate(() => window.agentshed.getStartup().then(r => r.display.reads)))
+    .filter(r => r.kind === 'turnContent').map(r => r.kind === 'turnContent' && r.i)
+  expect(await kept()).toEqual([1])
+
+  // The agent goes on writing the small turn, under the same question, until its body is over the keep size: reopened, it
+  // draws what was kept and refreshes to the grown turn, which retires the kept copy, so the next reopen fetches it again
+  await shut('Big turn question')
+  appendFileSync(file, padded + '\n')
+  await win.locator('.qlist .q', { hasText: 'Small turn question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['Small turn reply', big])
+  await expect.poll(kept, { message: 'the grown turn leaves what the display copy is written from' }).toEqual([])
+  await shut('Small turn question')
+  const grown = await notes()
+  await win.locator('.qlist .q', { hasText: 'Small turn question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['Small turn reply', big])
+  expect(await notes(), 'the grown turn is fetched again').toBeGreaterThan(grown)
+  await close(l)
+})
+
+test('kept turns stay within the total limit: a copy saved under a larger one restores cut to it, the earliest fetched leave first in both processes, and one over it alone is kept in neither (in-turn fetch states)', async () => {
+  const home = mkUsageHome()
+  const userData = makeUserData()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const file = join(home, '.claude', 'projects', enc, 'total.jsonl')
+  const answers = [...['a', 'b', 'c'].map((ch) => ch.repeat(2000)), 'd'.repeat(6000)]
+  const reply = (text: string): string => JSON.stringify({
+    type: 'assistant',
+    timestamp: localDayOffset(0).toISOString(),
+    message: { model: 'claude-fable-5', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+  })
+  const questions = ['First turn question', 'Second turn question', 'Third turn question', 'Fourth turn question']
+  writeFileSync(file, questions.flatMap((q, i) => [questionLine(q), reply(answers[i])]).join('\n') + '\n')
+  const toSession = async (win: Page): Promise<void> => {
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row').first().click()
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+    await win.locator('.pane-body .card .se', { hasText: 'First turn question' }).click()
+    await expect(win.locator('.qlist .q .txt')).toHaveText([...questions].reverse())
+  }
+  const toggle = async (win: Page, i: number, open: boolean): Promise<void> => {
+    await win.locator('.qlist .q', { hasText: questions[i] }).click()
+    if (open) await expect(win.locator('.turn .ans')).toHaveText([answers[i]])
+    else await expect(win.locator('.turn')).toHaveCount(0)
+  }
+  // The turns kept, by index, in the order the copy holds them: the order they were fetched
+  const kept = async (win: Page): Promise<(number | false)[]> => (await win.evaluate(() => window.agentshed.getStartup().then(r => r.display.reads)))
+    .filter(r => r.kind === 'turnContent').map(r => r.kind === 'turnContent' && r.i)
+  let app: ElectronApplication | undefined
+  try {
+    // Under the default limit all four are kept, and a normal quit writes them to the copy
+    app = (await startApp({ userData, home })).app
+    let win = await app.firstWindow()
+    await toSession(win)
+    for (const i of [0, 1, 2, 3]) { await toggle(win, i, true); await toggle(win, i, false) }
+    expect(await kept(win)).toEqual([0, 1, 2, 3])
+    await closeApp(app)
+    app = undefined
+
+    // Each of the first three serialises to a little over 2,000 units, so a limit of 5,000 holds two, and the fourth,
+    // over 6,000, is over it alone: the copy restores without the earliest fetched and without the fourth
+    app = (await startApp({ userData, home, env: { AGENTSHED_KEPT_TURNS_UNITS: '5000' } })).app
+    win = await app.firstWindow()
+    expect(await kept(win), 'restored cut to the limit in effect').toEqual([1, 2])
+    await toSession(win)
+    await win.evaluate(() => {
+      const w = window as unknown as { fetchingNotes: number }
+      w.fetchingNotes = 0
+      new MutationObserver((records) => {
+        for (const r of records) for (const n of r.addedNodes) {
+          if (n instanceof Element && (n.matches('.turn .tnote') || n.querySelector('.turn .tnote'))) w.fetchingNotes++
+        }
+      }).observe(document.body, { childList: true, subtree: true })
+    })
+    const notes = (): Promise<number> => win.evaluate(() => (window as unknown as { fetchingNotes: number }).fetchingNotes)
+    // The first turn, not restored, is fetched, and the second, the earliest kept, leaves to make room for it
+    await toggle(win, 0, true)
+    await toggle(win, 0, false)
+    const fetched = await notes()
+    expect(fetched, 'the turn not restored is fetched').toBeGreaterThan(0)
+    await expect.poll(() => kept(win)).toEqual([2, 0])
+    // The third reopens at once from what the renderer kept
+    await toggle(win, 2, true)
+    await toggle(win, 2, false)
+    expect(await notes(), 'a kept turn reopens with no fetching note').toBe(fetched)
+    // The second left the renderer's memory too, under the limit the main process passed it, so it is fetched again
+    await toggle(win, 1, true)
+    expect(await notes(), 'the turn released in the renderer is fetched again').toBeGreaterThan(fetched)
+    await expect.poll(() => kept(win)).toEqual([2, 1])
+    // The fourth, over the limit alone, is shown when fetched and kept in neither process, the others staying
+    await toggle(win, 1, false)
+    const before = await notes()
+    await toggle(win, 3, true)
+    expect(await notes(), 'the turn over the limit alone is fetched').toBeGreaterThan(before)
+    expect(await kept(win), 'and not kept in the main process, nothing leaving for it').toEqual([2, 1])
+    await toggle(win, 3, false)
+    const again = await notes()
+    await toggle(win, 3, true)
+    expect(await notes(), 'nor in the renderer: it is fetched again').toBeGreaterThan(again)
+  } finally {
+    if (app) await closeApp(app).catch(() => {})
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
 })
 
 test('a project search with one session file that cannot be read shows the other sessions\' hits and leaves that one out (a failure on one entry stays there)', async () => {

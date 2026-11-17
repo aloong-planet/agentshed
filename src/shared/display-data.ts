@@ -1,5 +1,5 @@
 import { displaySnapshotValid, displayDetailValid, displayStatsValid } from './display-shape'
-// Successful presentation payloads only (ADR-0028). No renderer-to-disk write channel.
+// Successful presentation payloads only (ADR-0053). No renderer-to-disk write channel.
 import type { CappedText, ProjectDetail, ProjectStats, SessionPage, SessionTurn, Snapshot } from './domain'
 import type { ListSkillFilesArgs, ListSkillFilesResult } from './ipc'
 import { validateProjectDetail, validateProjectStats, validateSessionPage, validateSessionTurn, validateSnapshot, AGENT_SIDES } from './validate'
@@ -9,7 +9,9 @@ import { emptyTotals, type AgentSide } from './domain'
 export type SavedRead =
   | { kind: 'projectDetail'; path: string; data: ProjectDetail }
   | { kind: 'sessionPage'; file: string; data: SessionPage }
-  | { kind: 'turnContent'; file: string; i: number; revision: string; ms: number; data: SessionTurn }
+  /** `bodyBytes`: the turn's body length, which decides it is kept (ADR-0053). A turn saved without it, by a build before
+   * the copy carried it, is not restored: it cannot be told from one over the keep size, and is fetched again */
+  | { kind: 'turnContent'; file: string; i: number; revision: string; ms: number; bodyBytes: number; data: SessionTurn }
   | { kind: 'memoryContent' | 'skillContent'; file: string; data: CappedText }
   | { kind: 'skillFiles'; args: ListSkillFilesArgs; data: ListSkillFilesResult }
 
@@ -57,7 +59,7 @@ export function validSavedRead(v: unknown): v is SavedRead {
     case 'sessionPage': return path(v.file) && validateSessionPage(v.data).ok &&
       (v.data as SessionPage).file === v.file && path((v.data as SessionPage).revision) && (v.data as SessionPage).questions.every(q => path(q.revision))
     case 'turnContent': return path(v.file) && number(v.i) && Number.isInteger(v.i) &&
-      path(v.revision) && number(v.ms) && validateSessionTurn(v.data).ok
+      path(v.revision) && number(v.ms) && number(v.bodyBytes) && Number.isInteger(v.bodyBytes) && validateSessionTurn(v.data).ok
     case 'memoryContent': case 'skillContent': return path(v.file) && capped(v.data)
     case 'skillFiles': {
       const a = v.args, d = v.data
@@ -75,7 +77,7 @@ export function validSavedRead(v: unknown): v is SavedRead {
 const pathed = (file: string, saved: unknown): unknown => (saved === null ? null : { file, content: saved })
 
 /** A project detail saved before its memory carried the main file's entry restores with none listed; the live
- * read replaces it (ADR-0028's upgrade case; spec memory-view, Implementation Decisions). One saved before its
+ * read replaces it (ADR-0053's upgrade case; spec memory-view, Implementation Decisions). One saved before its
  * instruction entries carried their paths — `configs` held the two files' contents and a settings summary —
  * restores with each file at its place in the project, the only place the project's own two files live, and
  * without the summary (project-detail::REQ-002/AC-02). One saved while the page listed the project's documents
@@ -253,11 +255,15 @@ export function parseDisplayData(v: unknown, paths?: SavedInstructionPaths): Dis
   return d
 }
 
+/** The key a turn's saved read is held under, for a turn known before its content is */
+export function savedTurnKey(file: string, revision: string, i: number): string {
+  return JSON.stringify(['turnContent', file, revision, i])
+}
 export function savedReadKey(r: SavedRead): string {
   switch (r.kind) {
     case 'projectDetail': return JSON.stringify([r.kind, r.path])
     case 'sessionPage': case 'memoryContent': case 'skillContent': return JSON.stringify([r.kind, r.file])
-    case 'turnContent': return JSON.stringify([r.kind, r.file, r.revision, r.i])
+    case 'turnContent': return savedTurnKey(r.file, r.revision, r.i)
     case 'skillFiles': return JSON.stringify([r.kind, r.args.side, r.args.name, r.args.scope, r.args.projectPath ?? null, r.args.pluginRoot ?? null])
   }
 }

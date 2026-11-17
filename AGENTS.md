@@ -60,9 +60,11 @@ a retried "does not appear" check cannot prove absence.
 ### Navigation and rendering
 
 - A page switch never shows an intermediate frame, a revisit draws the last shown page (a project's with the
-  latest scan's token figures and session list) and then refreshes it by transfusion, and a saved page
-  restores through the live contract, filling or converting any changed field (ADR-0028,
-  project-detail::REQ-005, postmortem `2026-10-21-a-new-field-would-have-dropped-every-saved-page`).
+  latest scan's token figures and session list) and then refreshes it by transfusion, except a turn whose
+  content ADR-0053's limits leave unkept, which a revisit fetches again, and a saved page restores through the
+  live contract, filling or converting any changed field, except that a turn saved without its body's length is dropped
+  alone and fetched again (ADR-0028, ADR-0053, project-detail::REQ-005, postmortem
+  `2026-10-21-a-new-field-would-have-dropped-every-saved-page`).
 - A link inside rendered content never navigates the window: it opens in the app when allow-listed, in
   the system browser when external, and otherwise shows a notice; the main process's navigation handlers
   are only the backstop.
