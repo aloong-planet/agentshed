@@ -3,6 +3,7 @@ import { ReadRegistry } from './read-registrations'
 import { DisplayStore, engineWrite } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, recordFileBytes, regularTarget } from './source-identity'
 import { readTurnRanges, TURN_LIMIT_SEAM, turnLimitBytes } from './turn-limit'
+import { TURN_KEEP_SEAM, turnKeepBytes, turnKept } from './turn-keep'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
 import { existsSync, readFileSync } from 'node:fs'
@@ -205,6 +206,8 @@ const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'],
 const PREFS_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_PREFS_DELAY_MS'], 0)
 /** The turn limit (session-view, the in-turn fetch states): 64 MiB, which e2e lowers through its seam */
 const TURN_LIMIT_BYTES = turnLimitBytes(process.env[TURN_LIMIT_SEAM])
+/** The keep size (ADR-0053): 8 MiB, which e2e lowers through its seam */
+const TURN_KEEP_BYTES = turnKeepBytes(process.env[TURN_KEEP_SEAM])
 
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
@@ -404,8 +407,11 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
   if (read.body === null) throw appError(ERR.turnTooLong, { bytes: read.bodyBytes, limit: TURN_LIMIT_BYTES })
   const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, read.body), bytesRead: read.bytesRead }
+  // A body over the keep size is shown but never kept: not in the display copy, and (by the mark) not in the renderer
+  const kept = turnKept(rec[2] - rec[1], TURN_KEEP_BYTES)
+  if (!kept) turn.unkept = true
   assertSessionTurn(turn)
-  remember({ kind: 'turnContent', file, i: a.i, revision, ms: Math.max(1, Math.round(performance.now() - readStarted)), data: turn })
+  if (kept) remember({ kind: 'turnContent', file, i: a.i, revision, ms: Math.max(1, Math.round(performance.now() - readStarted)), data: turn })
   return turn
 })
 handle(CMD.searchSessions, async (_e, raw: unknown) => {

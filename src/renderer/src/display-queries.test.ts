@@ -46,3 +46,16 @@ it('bootstrap hydrates read previews without fetching and never replaces a newer
   expect(client.isFetching()).toBe(0)
   client.clear()
 })
+
+it('a turn over the keep size is not retained once its query is removed, while a kept turn is', async () => {
+  const client = new QueryClient()
+  const turn = (unkept: boolean) => ({ ok: true as const, ms: 3, turn: { blocks: [], bytesRead: 9, ...(unkept ? { unkept: true as const } : {}) } })
+  const over = displayQuery(client, ['turnContent', '/s', 0, 'r0'], () => Promise.resolve(turn(true)))
+  const within = displayQuery(client, ['turnContent', '/s', 1, 'r1'], () => Promise.resolve(turn(false)))
+  await client.fetchQuery(over)
+  await client.fetchQuery(within)
+  client.removeQueries()
+  expect(over.initialData()).toBeUndefined()
+  expect(within.initialData()).toEqual(turn(false))
+  client.clear()
+})

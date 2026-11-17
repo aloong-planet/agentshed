@@ -240,6 +240,12 @@ hands the command over; it never runs it.
   The size is known from the index before anything is read, so the session's other turns, its questions and its
   figures are as they were, and clicking the row again gets the same reason. On this machine's real data on 2026-11-17,
   21 turns were over it, all in 3 Codex files, the longest 582,015,113 bytes.
+  **The keep size** (2026-11-17, ADR-0053): a turn whose body by these offsets is longer than 8 MiB (8,388,608 bytes)
+  is shown whole when fetched, but kept neither in the saved display copy (REQ-001) nor in memory once its row closes:
+  opening it again fetches it again, with the fetching notice, and after a relaunch it is fetched as one never read. A
+  body of exactly the size is kept. The display copy is read at launch as one string, and a copy that cannot be read
+  loses every saved page; a turn's kept form can be far larger than its body. On this machine's real data on
+  2026-11-17, 383 of 16,465 turns were over it: 13 Claude, 369 Codex, 1 Grok.
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
   records, and Codex's subagent threads, all sit under the step that dispatched them.
   **"Sitting under the dispatching step" cannot be reliably achieved on either side** — all four
@@ -461,7 +467,7 @@ as a cached visit under session-view::REQ-001)
   interrupted, the project page stays, and the session page is kept when it arrives (a later open
   is P4).
 - P9 Turn contents and their freshness check use the query layer (ADR-0028), retaining the
-  existing in-turn states. Session search also uses the query layer, but its results are not
+  existing in-turn states; a turn over the keep size (C2) leaves it when its row closes. Session search also uses the query layer, but its results are not
   persisted across restarts.
 - P10 A session opened directly from a global search hit has the two exits global-search::US-003
   defines ([global-search](global-search.md)) in place of the single back control; a fork parent
@@ -554,7 +560,7 @@ below are archived as a decision record and are no longer requirements)**
   (on a sort change or collapsing a day). The blocks' default copy is: no return record / no return
   / an unattributed warning.
 - **In-turn fetch states**: fetching = a momentary notice on the first fetch, with an
-  already-fetched turn re-expanding instantly; a single turn's failure = that turn gives the reason
+  already-fetched turn re-expanding instantly, except one over the keep size (C2), which shows the notice again; a single turn's failure = that turn gives the reason
   in a sentence in the current UI language, never the raw IPC error, without affecting the others,
   and clicking again retries; a turn over the turn limit (C2) is such a failure, its reason giving its size and the
   limit, and a retry gives the same reason; an empty turn (no prose reply) shows only the fetch footnote and
@@ -623,8 +629,8 @@ normalised so whenever it is read, by the same function the index uses), each as
   after the source has been rewritten, branched, compacted or compressed.
 
 - session-view::REQ-001/AC-05: Persist already fetched answers with their originating page, so an
-  answer read in the preceding run can be opened from saved content. Never fetch unread turns
-  merely to fill a persistence file. Expanded/collapsed state still resets under
+  answer read in the preceding run can be opened from saved content, except an answer over the keep
+  size (C2), which is fetched again. Never fetch unread turns merely to fill a persistence file. Expanded/collapsed state still resets under
   [agents-overview::CON-003](agents-overview.md).
 
 ### Failure modes and boundaries: opening restored content
@@ -1005,7 +1011,9 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   where the scan runs (ADR-0043; the renderer cannot supply byte ranges), with the same allow-list
   check first; the payload carries the
   bytes read as evidence of "nothing was read whole". The turn limit (C2) is decided from that range before the
-  turn's body is read; a test seam lowers it so that e2e need not write 64 MiB. A read-only freshness predicate lets the
+  turn's body is read; a test seam lowers it so that e2e need not write 64 MiB. The keep size (C2) is decided from the
+  same range: a turn over it is not saved, and its payload carries a mark by which the renderer neither retains it nor
+  leaves it in the query cache once its row closes; a test seam of its own lowers it. A read-only freshness predicate lets the
   renderer decide whether to show the interim "rebuilding the index for this file only" state, while
   the rebuild itself is still triggered by the fetch call (idempotent, and the file changing between
   the two steps is harmless).

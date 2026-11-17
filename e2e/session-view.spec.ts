@@ -1185,6 +1185,71 @@ test('a turn whose body is over the turn limit is not fetched: its row says why 
   await close(l)
 })
 
+test('a turn over the keep size is fetched again when reopened and is not saved, while one within it reopens at once and is (in-turn fetch states)', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const file = join(home, '.claude', 'projects', enc, 'keep.jsonl')
+  const reply = (text: string): string =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: localDayOffset(0).toISOString(),
+      message: { model: 'claude-fable-5', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+    })
+  // The first turn's body is 3,072 bytes, over the keep size lowered to 2,048 and far within the turn limit; the second
+  // turn's body is one short reply, within both
+  const padded = reply('y'.repeat(3072 - Buffer.byteLength(reply('')) - 1))
+  expect(Buffer.byteLength(padded + '\n')).toBe(3072)
+  writeFileSync(file, [questionLine('Big turn question'), padded, questionLine('Small turn question'), reply('Small turn reply')].join('\n') + '\n')
+  const l = await launch(undefined, home, { AGENTSHED_TURN_KEEP_BYTES: '2048' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Big turn question' }).click()
+  await expect(win.locator('.qlist .q .txt')).toHaveText(['Small turn question', 'Big turn question'])
+
+  // Every fetching note any turn shows from here on is counted, however briefly it shows
+  await win.evaluate(() => {
+    const w = window as unknown as { fetchingNotes: number }
+    w.fetchingNotes = 0
+    new MutationObserver((records) => {
+      for (const r of records) for (const n of r.addedNodes) {
+        if (n instanceof Element && (n.matches('.turn .tnote') || n.querySelector('.turn .tnote'))) w.fetchingNotes++
+      }
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+  const notes = (): Promise<number> => win.evaluate(() => (window as unknown as { fetchingNotes: number }).fetchingNotes)
+  const open = async (question: string, answer: string): Promise<void> => {
+    await win.locator('.qlist .q', { hasText: question }).click()
+    await expect(win.locator('.turn .ans')).toHaveText([answer])
+    await expect(win.locator('.turn .fetched')).toHaveCount(1)
+  }
+  const shut = async (question: string): Promise<void> => {
+    await win.locator('.qlist .q', { hasText: question }).click()
+    await expect(win.locator('.turn')).toHaveCount(0)
+  }
+  const big = 'y'.repeat(3072 - Buffer.byteLength(reply('')) - 1)
+
+  // Each turn shows whole the first time, fetched
+  await open('Big turn question', big)
+  await shut('Big turn question')
+  await open('Small turn question', 'Small turn reply')
+  await shut('Small turn question')
+  const first = await notes()
+  expect(first, 'both first opens fetched').toBeGreaterThanOrEqual(2)
+  // Reopened, the small turn draws at once from what was kept, and the big one is fetched again
+  await open('Small turn question', 'Small turn reply')
+  await shut('Small turn question')
+  expect(await notes(), 'the kept turn reopens with no fetching note').toBe(first)
+  await open('Big turn question', big)
+  expect(await notes(), 'the turn over the keep size is fetched again').toBeGreaterThan(first)
+
+  // What the display copy is written from holds the small turn (index 1) and not the big one (index 0)
+  const reads = await win.evaluate(() => window.agentshed.getStartup().then(r => r.display.reads))
+  expect(reads.filter(r => r.kind === 'turnContent').map(r => r.kind === 'turnContent' && r.i)).toEqual([1])
+  await close(l)
+})
+
 test('a project search with one session file that cannot be read shows the other sessions\' hits and leaves that one out (a failure on one entry stays there)', async () => {
   const home = mkUsageHome()
   const claude = join(home, '.claude', 'projects', join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-'), 'a.jsonl')

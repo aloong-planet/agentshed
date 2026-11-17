@@ -10,6 +10,10 @@ function records(client: QueryClient): Map<string, Result> {
   if (!map) { map = new Map(); copies.set(client, map) }
   return map
 }
+/** A turn over the keep size (ADR-0053) is shown but not kept, so a revisit fetches it again */
+function unkeptTurn(key: QueryKey, result: Result): boolean {
+  return key[0] === 'turnContent' && (result as { turn?: { unkept?: true } }).turn?.unkept === true
+}
 export function displayQuery<T extends Result>(client: QueryClient, key: QueryKey, fetch: () => Promise<T>): {
   queryKey: QueryKey; initialData: () => T | undefined; queryFn: () => Promise<T>
 } {
@@ -19,7 +23,7 @@ export function displayQuery<T extends Result>(client: QueryClient, key: QueryKe
     initialData: () => map.get(id) as T | undefined,
     queryFn: async () => {
       const result = await fetch()
-      if (result.ok) map.set(id, result)
+      if (result.ok) { if (!unkeptTurn(key, result)) map.set(id, result) }
       else if (key[0] === 'sessionPage' && decodeAppError(result.error)?.code === ERR.sessionNotWhitelisted) map.delete(id)
       else return (map.get(id) as T | undefined) ?? result
       return result

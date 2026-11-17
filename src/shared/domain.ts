@@ -516,6 +516,9 @@ export interface SessionTurn {
   blocks: TurnBlock[]
   /** The bytes actually read this time — evidence that nothing was read whole, and the data behind the UI footnote */
   bytesRead: number
+  /** Present only on a turn over the keep size (ADR-0053): shown, but kept neither in the display copy nor in the
+   * renderer's memory, so a revisit fetches it again */
+  unkept?: true
 }
 
 /** A search hit (ticket 08; the searchSessions channel) */
