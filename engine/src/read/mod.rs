@@ -6,7 +6,7 @@
 //! A line ends at a line feed, which never occurs inside a UTF-8 character, so the bytes are split there and a line is
 //! decoded only once it is whole. A line's range runs from its first byte to after its line feed, or to the stream's end
 //! for a last line without one, so adjacent lines meet with no gap. One buffer holds the line being assembled, and grows
-//! to the longest line of the file.
+//! to the longest line of the file, but never past `LINE_MAX` and one byte: a file with a longer line fails to be read.
 
 use std::fs::File;
 use std::io::{ErrorKind, Read, Seek, SeekFrom};
@@ -26,6 +26,15 @@ use std::os::unix::fs::FileExt;
 /// figures), its `file` mode reading through this function.
 const CHUNK: usize = 1024 * 1024;
 
+/// The longest line `each_line` takes, in bytes without its line feed: 256 MiB. A file with a longer line is not read
+/// to its end, as a file that cannot be read is not, so that one such line costs its own file and never the process: an
+/// allocation the process refuses ends it, and no `catch_unwind` reaches that (#479, #485). Each copy of a line its
+/// reading makes then stays well below the about 2 GiB a single allocation is granted under Electron, a ceiling inferred
+/// from #479 and not confirmed: the line buffer at most the limit and one byte, a lossy copy of invalid UTF-8 at most
+/// about three times it. The longest line found in the agents' session data on 2026-11-17 was 67.7 MB, about a quarter
+/// of the limit (#485).
+const LINE_MAX: usize = 256 * 1024 * 1024;
+
 /// How a file's bytes are stored
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Stored {
@@ -34,31 +43,39 @@ pub(crate) enum Stored {
     Zstd,
 }
 
-/// The file could not be read to its end: it could not be opened or read, or its stream could not be decompressed.
-/// What its lines gave is then not used.
+/// The file could not be read to its end: it could not be opened or read, its stream could not be decompressed, or a
+/// line of it is longer than `LINE_MAX`. What its lines gave is then not used.
 #[derive(Debug)]
 pub(crate) struct Failed;
 
 /// Reads `path` from byte `from` on, calling `line` with each line's bytes (its line feed left off), its range, and
 /// whether a line feed ends it, which only the stream's last line can lack. Offsets count from the start of the
 /// stream, `from` included. Answers the stream's last byte, None when it held none after `from`. Whether a line or a
-/// stream that stops short of a line feed is whole is for the side to judge, by how its agent writes the file.
+/// stream that stops short of a line feed is whole is for the side to judge, by how its agent writes the file. A line,
+/// the last included, of more than `LINE_MAX` bytes fails the read once that many and one are held, read no further.
 pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl FnMut(&[u8], u64, u64, bool)) -> Result<Option<u8>, Failed> {
+    let max = crate::seams::line_max(path, LINE_MAX);
     let mut source = source(path, stored, from)?;
     // The line being assembled is buf[..held]. Each read fills buf[held..held + n], and only those n bytes join it;
     // past them the buffer keeps whatever an earlier read left there, which nothing reads. So the buffer is zeroed as
     // it is allocated and as it grows, not before every read: zeroing a chunk before each read took 3.1% of a cold
-    // scan's parse workers' samples (#453).
-    let mut buf: Vec<u8> = vec![0; CHUNK];
+    // scan's parse workers' samples (#453). It grows by doubling, as a `Vec` does, but to no more than `max + 1`: the
+    // whole capacity is zeroed, so each byte it holds is one the process has paid for, and a read near the limit takes
+    // only what the line still lacks to pass it.
+    let mut buf: Vec<u8> = vec![0; CHUNK.min(max + 1)];
     let mut held = 0;
     // The stream offset of buf[0]
     let mut base = from;
     let mut last: Option<u8> = None;
     loop {
-        if buf.len() < held + CHUNK {
-            buf.resize(held + CHUNK, 0);
+        // `held` is at most `max`, so a read takes at least one byte
+        let want = CHUNK.min(max + 1 - held);
+        if buf.len() < held + want {
+            let grown = (held + want).max(buf.len() * 2).min(max + 1);
+            buf.reserve_exact(grown - buf.len());
+            buf.resize(grown, 0);
         }
-        let n = take(&mut *source, stored, &mut buf[held..held + CHUNK])?;
+        let n = take(&mut *source, stored, &mut buf[held..held + want])?;
         if n == 0 {
             break;
         }
@@ -79,6 +96,10 @@ pub(crate) fn each_line(path: &str, stored: Stored, from: u64, mut line: impl Fn
             base += start as u64;
         }
         held = filled - start;
+        // Every line ended so far was at most `max` bytes, as a read gives no more than the held line lacks to pass it
+        if held > max {
+            return Err(Failed);
+        }
     }
     if held > 0 {
         line(&buf[..held], base, base + held as u64, false);

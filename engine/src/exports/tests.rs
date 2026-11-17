@@ -91,6 +91,13 @@ mod seam {
         seams::line_reader_seam::count(&file, cold).map_err(napi::Error::from_reason)
     }
 
+    /// Holds the lines the line reader takes from `file` to `limit` bytes from now on, or to the reader's own limit
+    /// again (`seams.rs`)
+    #[napi(catch_unwind)]
+    pub fn seam_limit_lines_of(file: String, limit: Option<u32>) {
+        seams::line_limit_seam::limit(file, limit);
+    }
+
     /// Lowers `text` by the rule the full-text search's snippets lower strings by, `toLowerCase`'s (`seams.rs`)
     #[napi(catch_unwind)]
     pub fn seam_to_lower_case(text: napi::bindgen_prelude::Utf16String) -> napi::bindgen_prelude::Utf16String {

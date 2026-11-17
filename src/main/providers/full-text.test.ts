@@ -7,7 +7,7 @@ import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { threadEngineModule } from '../engine-module'
-import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
+import { TEST_ENGINE, type LineLimitSeam, type PanicSeam } from '../testing/engine'
 import { searchFullText, type FullTextFound, type TurnBounds } from './full-text'
 import { searchBytes } from './search-bytes'
 
@@ -424,6 +424,28 @@ describe('a file that cannot be searched to its end', () => {
   ])('%s rejects', async (_, file) => {
     await expect(searchFullText('codex', file(), 'magicword', turns)).rejects.toThrow(/could not be searched to its end/)
   })
+
+  // token-stats A10: a line longer than the line limit fails the search of its file, as a file that cannot be read
+  // does. The limit is lowered for the one file through the line-limit seam to a byte under a line in the middle of the
+  // session; each needle takes another of the search's reads: none, one without a line feed, one with
+  test.each(['', 'magicword', '}\n{'].flatMap((needle) => [false, true].map((isCold) => ({ needle, isCold }))))(
+    'a line longer than the line limit rejects that search alone, a search of another file started with it served (needle $needle, cold $isCold)',
+    async ({ needle, isCold }) => {
+      const long = answer(`magicword ${'x'.repeat(20_000)}`)
+      const { bytes, turns } = session([meta(), ask('q'), answer('magicword one'), long, ask('q2'), answer('magicword three')], [1, 4])
+      const named = isCold ? fileOf(cold(bytes), `f${files++}.jsonl.zst`) : fileOf(bytes)
+      const other = isCold ? fileOf(cold(bytes), `f${files++}.jsonl.zst`) : fileOf(bytes)
+      const seam = threadEngineModule() as LineLimitSeam
+      seam.seamLimitLinesOf(named, Buffer.byteLength(long) - 1)
+      try {
+        const [failed, spared] = await Promise.allSettled([searchFullText('codex', named, needle, turns), searchFullText('codex', other, needle, turns)])
+        expect(failed.status === 'rejected' && String(failed.reason)).toMatch(/could not be searched to its end/)
+        expect(spared.status === 'fulfilled' && spared.value).toEqual(wholeFileSearch(bytes, needle, turns))
+      } finally {
+        seam.seamLimitLinesOf(named, null)
+      }
+    }
+  )
 
   test('a panic while searching one file rejects that search alone: a search of another, started with it, is served', async () => {
     const hit = fileOf(bytes)

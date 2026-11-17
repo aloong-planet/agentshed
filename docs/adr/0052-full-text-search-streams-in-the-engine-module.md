@@ -34,13 +34,15 @@ We adopt **option 1**.
 ## Consequences
 
 - Positive: the search holds one line of a file at a time, off the main thread, so a file's size no longer bounds
-  what can be searched, its longest line alone does, and no file holds the main process (Sources).
+  what can be searched and no file holds the main process (Sources).
 - Negative: the byte match exists twice, the question search's in TypeScript and this one's in the module, so a
   change to the rule is made in both.
 - Negative: a snippet is cut from text lowered by Rust's case mapping, not by the JavaScript the app runs, and the
   two agree only while both carry one Unicode version.
 - Negative: the footprint still follows a file's longest line, held with its lowered copy and, while its snippet is
-  cut, its strings as UTF-16: a 67.7 MB line raised it by about 208 MB (Sources).
+  cut, its strings as UTF-16: a 67.7 MB line raised it by about 208 MB (Sources). A line past the engine module's
+  line limit is not held whole but fails its file's search, its question hits alone kept (token-stats A10,
+  session-view D3).
 - Neutral: on this machine's data the search found what the whole-file search found in every project that search
   completes in (Sources).
 

@@ -66,7 +66,7 @@ import { scan, type SessionWalk } from './scan'
 import { agyTranscriptPath, type AntigravitySessionMeta } from './antigravity'
 import { TokenEngine, runParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
 import { loadEngineModule, threadEngineModule, type SessionMemory } from '../engine-module'
-import { TEST_ENGINE, type CopySeam, type PanicSeam } from '../testing/engine'
+import { TEST_ENGINE, type CopySeam, type LineLimitSeam, type PanicSeam } from '../testing/engine'
 import { onStore, storeFileBytes } from '../testing/token-store'
 import { UsageArchive } from './archive'
 import type { ScanRoots } from './types'
@@ -1199,6 +1199,33 @@ describe('how a transcript line is read by the engine module', () => {
       [0, Buffer.byteLength(`${asking(0, 'first')}\n`)],
       [Buffer.byteLength(`${asking(0, 'first')}\n`), text.length]
     ])
+  })
+  // token-stats A10: a transcript that cannot be read to its end gives no question, as a missing one does; the limit
+  // lowered for this transcript through the line-limit seam to a byte under its second line
+  it('a transcript with a line longer than the line limit gives no question, as a missing one does (session-view::REQ-004/AC-08), the figures of its database kept', async () => {
+    const file = usageConversation(ID, [mkProject('p')], [{ usage: { messageId: 'm-long', input: 100, output: 10 }, at: oct(26) }])
+    const transcript = transcriptFile(agyRoot(), ID)
+    const long = asking(1, `a later question ${'x'.repeat(20_000)}`)
+    mkdirSync(dirname(transcript), { recursive: true })
+    writeFileSync(transcript, lines(asking(0, 'first'), long))
+    const seam = threadEngineModule() as LineLimitSeam
+    seam.seamLimitLinesOf(transcript, Buffer.byteLength(long) - 1)
+    try {
+      const over = await entryOf(file)
+      expect([over?.questions, over?.listed, over?.unreadable, over?.calls.length]).toEqual([[], false, false, 1])
+      const aside = `${transcript}.aside`
+      renameSync(transcript, aside)
+      try {
+        expect(over).toEqual(await entryOf(file))
+      } finally {
+        renameSync(aside, transcript)
+      }
+    } finally {
+      seam.seamLimitLinesOf(transcript, null)
+    }
+    // The figures are the database's, whichever way the transcript reads; with the limit lifted it gives both questions
+    const read = await entryOf(file)
+    expect([read?.questions.length, read?.title]).toEqual([2, 'first'])
   })
 })
 

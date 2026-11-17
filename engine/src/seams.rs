@@ -23,6 +23,9 @@
 //! - The line-reader seam: the benchmark reads a file through the line reader every parse reads a session file by,
 //!   and counts its lines, so that a figure about reading files is taken through the reader the app uses
 //!   (`pnpm bench:scan file`, the AGENTS.md invariant on such figures).
+//! - The line-limit seam: a test names a file and a limit, and the line reader holds that file's lines to the limit
+//!   instead of its own, so that a case can show a line one byte past the limit failing its file, and what a read of
+//!   such a line costs, without writing a file of hundreds of MiB.
 //! - The lowercase seam: a test lowers a text by the rule the full-text search's snippets lower strings by, so that a
 //!   test can hold it to JavaScript's `toLowerCase` over every code point (full-text.test.ts).
 //! - The JSON string seam: a test reads a text as one string value through the reader every line is read by, so that
@@ -294,6 +297,40 @@ pub(crate) mod line_reader_seam {
         read::each_line(file, if cold { Stored::Zstd } else { Stored::Plain }, 0, |_, _, _, _| lines += 1)
             .map_err(|_| format!("{file} could not be read to its end"))?;
         Ok(lines)
+    }
+}
+
+/// The longest line the line reader takes from `file`: in a build made for tests, the limit the line-limit seam names
+/// for that file, and otherwise `limit`
+pub(crate) fn line_max(file: &str, limit: usize) -> usize {
+    #[cfg(feature = "test-seams")]
+    return line_limit_seam::of(file).unwrap_or(limit);
+    #[cfg(not(feature = "test-seams"))]
+    {
+        let _ = file;
+        limit
+    }
+}
+
+#[cfg(feature = "test-seams")]
+pub(crate) mod line_limit_seam {
+    use std::sync::Mutex;
+
+    /// Each file named, with the limit its lines are held to; one for the whole process, as the module's code is shared
+    /// by every thread, and keyed by file, as the tests of one process share it
+    static LIMITS: Mutex<Vec<(String, usize)>> = Mutex::new(Vec::new());
+
+    /// Holds the lines of `file` to `limit` bytes from now on, or to the reader's own limit again
+    pub(crate) fn limit(file: String, limit: Option<u32>) {
+        let mut limits = LIMITS.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        limits.retain(|(named, _)| *named != file);
+        if let Some(limit) = limit {
+            limits.push((file, limit as usize));
+        }
+    }
+
+    pub(super) fn of(file: &str) -> Option<usize> {
+        LIMITS.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).iter().find(|(named, _)| named == file).map(|&(_, limit)| limit)
     }
 }
 

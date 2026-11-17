@@ -54,3 +54,13 @@ export interface JsonStringSeam extends EngineModule {
    * refuses the text */
   seamReadJsonString(text: string): string | null
 }
+
+/** The line-limit seam a build made for tests exports (engine/src/seams.rs) */
+export interface LineLimitSeam extends EngineModule {
+  /** Holds the lines the line reader takes from `file` to `limit` bytes from now on, or, given null, to the reader's own
+   * limit again; keyed by file, one table for the whole process */
+  seamLimitLinesOf(file: string, limit: number | null): void
+  /** Reads `file` through the line reader, through its zstd stream when `cold`: how many lines it gave; throws when it
+   * cannot be read to its end */
+  seamEachLine(file: string, cold: boolean): number
+}
