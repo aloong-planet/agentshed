@@ -19,7 +19,7 @@ export function turnLimitBytes(env: string | undefined): number {
 type ReadRanges = (source: string, ranges: readonly ByteRange[]) => Promise<{ texts: string[]; bytesRead: number }>
 
 export type TurnRead =
-  | { question: string; body: string; bytesRead: number }
+  | { question: string; body: string; bodyBytes: number; bytesRead: number }
   /** Over the limit: only the question was read, and the body's length is what the reason shows */
   | { question: string; body: null; bodyBytes: number; bytesRead: number }
 
@@ -37,5 +37,5 @@ export async function readTurnRanges(
     return { question: texts[0], body: null, bodyBytes, bytesRead }
   }
   const { texts, bytesRead } = await read(source, [question, { start: rec[1], end: rec[2] }])
-  return { question: texts[0], body: texts[1], bytesRead }
+  return { question: texts[0], body: texts[1], bodyBytes, bytesRead }
 }

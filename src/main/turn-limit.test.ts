@@ -35,7 +35,7 @@ describe('readTurnRanges', () => {
     const { read, asked } = recordingRead()
     const got = await readTurnRanges(read, 'source', [100, 140, 140 + 67_108_864], 67_108_864)
     expect(asked).toEqual([[{ start: 100, end: 140 }, { start: 140, end: 140 + 67_108_864 }]])
-    expect(got).toEqual({ question: '........', body: '........', bytesRead: 16 })
+    expect(got).toEqual({ question: '........', body: '........', bodyBytes: 67_108_864, bytesRead: 16 })
   })
 
   it('reads only the question of a turn whose body is one byte over, and never a byte past the question', async () => {

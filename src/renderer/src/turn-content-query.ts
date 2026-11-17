@@ -4,10 +4,9 @@ import type { SessionTurnArgs } from '@shared/ipc'
 // non-suspense query (see skill-files-query.ts's header comment): each expanded question row owns
 // its own query, mounted only while that row is open. Collapsing unmounts it; TanStack Query's cache
 // (not local component state) is what makes reopening an already-fetched turn instant, a turn over
-// the keep size excepted (see below), replacing the old code's manual "already fetched, don't re-send"
-// check — and, since staleTime is the library default (0), a reopen still revalidates quietly in the
-// background instead of going stale forever.
-import { useEffect } from 'react'
+// the keep size excepted (display-queries.ts releases it), replacing the old code's manual "already
+// fetched, don't re-send" check — and, since staleTime is the library default (0), a reopen still
+// revalidates quietly in the background instead of going stale forever.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SessionTurn } from '@shared/domain'
 
@@ -56,11 +55,5 @@ export function useTurnContentQuery(
   const { data, isLoading } = useQuery({
     ...displayQuery(client, turnContentQueryKey(file, i, revision), () => fetchTurnContent(file, i, onRebuilding, undefined, undefined, revision))
   })
-  // A turn over the keep size (ADR-0053) leaves the cache when its row collapses, so a reopen fetches it again
-  const unkept = data?.ok === true && data.turn.unkept === true
-  useEffect(() => {
-    if (!unkept) return
-    return () => client.removeQueries({ queryKey: turnContentQueryKey(file, i, revision), exact: true })
-  }, [client, file, i, revision, unkept])
   return { data, isLoading }
 }

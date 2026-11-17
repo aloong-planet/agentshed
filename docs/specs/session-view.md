@@ -243,7 +243,8 @@ hands the command over; it never runs it.
   **The keep size** (2026-11-17, ADR-0053): a turn whose body by these offsets is longer than 8 MiB (8,388,608 bytes)
   is shown whole when fetched, but kept neither in the saved display copy (REQ-001) nor in memory once its row closes:
   opening it again fetches it again, with the fetching notice, and after a relaunch it is fetched as one never read. A
-  body of exactly the size is kept. The display copy is read at launch as one string, and a copy that cannot be read
+  body of exactly the size is kept. A turn kept while within the size that grows past it under the same question is
+  drawn from what was kept when next opened, then refreshed, and from that fetch on is kept nowhere. The display copy is read at launch as one string, and a copy that cannot be read
   loses every saved page; a turn's kept form can be far larger than its body. On this machine's real data on
   2026-11-17, 383 of 16,465 turns were over it: 13 Claude, 369 Codex, 1 Grok.
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
@@ -467,7 +468,7 @@ as a cached visit under session-view::REQ-001)
   interrupted, the project page stays, and the session page is kept when it arrives (a later open
   is P4).
 - P9 Turn contents and their freshness check use the query layer (ADR-0028), retaining the
-  existing in-turn states; a turn over the keep size (C2) leaves it when its row closes. Session search also uses the query layer, but its results are not
+  existing in-turn states; a turn over the keep size (C2) leaves it once no row shows it, its fetch returning before or after its row closed. Session search also uses the query layer, but its results are not
   persisted across restarts.
 - P10 A session opened directly from a global search hit has the two exits global-search::US-003
   defines ([global-search](global-search.md)) in place of the single back control; a fork parent
@@ -1012,8 +1013,8 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   check first; the payload carries the
   bytes read as evidence of "nothing was read whole". The turn limit (C2) is decided from that range before the
   turn's body is read; a test seam lowers it so that e2e need not write 64 MiB. The keep size (C2) is decided from the
-  same range: a turn over it is not saved, and its payload carries a mark by which the renderer neither retains it nor
-  leaves it in the query cache once its row closes; a test seam of its own lowers it. A read-only freshness predicate lets the
+  same range: a turn over it is not saved, and retires a copy saved under its key; its payload carries a mark by which
+  the renderer neither retains it (retiring a copy it held) nor leaves it in the query cache once no row shows it; a test seam of its own lowers it. A read-only freshness predicate lets the
   renderer decide whether to show the interim "rebuilding the index for this file only" state, while
   the rebuild itself is still triggered by the fetch call (idempotent, and the file changing between
   the two steps is harmless).

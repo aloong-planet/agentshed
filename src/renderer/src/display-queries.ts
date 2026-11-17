@@ -23,12 +23,22 @@ export function displayQuery<T extends Result>(client: QueryClient, key: QueryKe
     initialData: () => map.get(id) as T | undefined,
     queryFn: async () => {
       const result = await fetch()
-      if (result.ok) { if (!unkeptTurn(key, result)) map.set(id, result) }
+      // An unkept turn also retires a copy kept earlier under its key: one restored, or kept before the turn grew
+      if (result.ok) { if (unkeptTurn(key, result)) map.delete(id); else map.set(id, result) }
       else if (key[0] === 'sessionPage' && decodeAppError(result.error)?.code === ERR.sessionNotWhitelisted) map.delete(id)
       else return (map.get(id) as T | undefined) ?? result
       return result
     }
   }
+}
+/** A turn over the keep size leaves the query cache as soon as no row shows it: when its row closes, and when its fetch
+ * returns after its row closed (ADR-0053). Installed once on the renderer's client, so a reopen fetches it again */
+export function releaseUnkeptTurns(client: QueryClient): () => void {
+  const cache = client.getQueryCache()
+  return cache.subscribe((event) => {
+    const q = event.query, data = q.state.data as Result | undefined
+    if (q.getObserversCount() === 0 && data?.ok === true && unkeptTurn(q.queryKey as QueryKey, data)) cache.remove(q)
+  })
 }
 export function hydrateDisplayQueries(client: QueryClient, reads: SavedRead[]): void {
   for (const r of reads) {

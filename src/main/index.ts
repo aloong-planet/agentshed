@@ -408,10 +408,13 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   if (read.body === null) throw appError(ERR.turnTooLong, { bytes: read.bodyBytes, limit: TURN_LIMIT_BYTES })
   const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, read.body), bytesRead: read.bytesRead }
   // A body over the keep size is shown but never kept: not in the display copy, and (by the mark) not in the renderer
-  const kept = turnKept(rec[2] - rec[1], TURN_KEEP_BYTES)
+  const kept = turnKept(read.bodyBytes, TURN_KEEP_BYTES)
   if (!kept) turn.unkept = true
   assertSessionTurn(turn)
-  if (kept) remember({ kind: 'turnContent', file, i: a.i, revision, ms: Math.max(1, Math.round(performance.now() - readStarted)), data: turn })
+  const saved: SavedRead = { kind: 'turnContent', file, i: a.i, revision, ms: Math.max(1, Math.round(performance.now() - readStarted)), data: turn }
+  if (kept) remember(saved)
+  // An unkept turn also retires a copy kept earlier under its key: one restored, or kept before the turn grew
+  else if (savedReads.delete(savedReadKey(saved))) persistDisplay()
   return turn
 })
 handle(CMD.searchSessions, async (_e, raw: unknown) => {

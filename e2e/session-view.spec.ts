@@ -1185,7 +1185,7 @@ test('a turn whose body is over the turn limit is not fetched: its row says why 
   await close(l)
 })
 
-test('a turn over the keep size is fetched again when reopened and is not saved, while one within it reopens at once and is (in-turn fetch states)', async () => {
+test('a turn over the keep size is fetched again when reopened and is not saved, while one within it reopens at once and is until it grows past it (in-turn fetch states)', async () => {
   const home = mkUsageHome()
   const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
   const file = join(home, '.claude', 'projects', enc, 'keep.jsonl')
@@ -1196,17 +1196,20 @@ test('a turn over the keep size is fetched again when reopened and is not saved,
       message: { model: 'claude-fable-5', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
     })
   // The first turn's body is 3,072 bytes, over the keep size lowered to 2,048 and far within the turn limit; the second
-  // turn's body is one short reply, within both
+  // turn's body is one short reply, within both, under a question long enough that question and body together are over
+  // the keep size: it is the body alone that is measured
   const padded = reply('y'.repeat(3072 - Buffer.byteLength(reply('')) - 1))
   expect(Buffer.byteLength(padded + '\n')).toBe(3072)
-  writeFileSync(file, [questionLine('Big turn question'), padded, questionLine('Small turn question'), reply('Small turn reply')].join('\n') + '\n')
+  const smallQuestion = `Small turn question ${'q'.repeat(2100)}`
+  expect(Buffer.byteLength(questionLine(smallQuestion))).toBeGreaterThan(2048)
+  writeFileSync(file, [questionLine('Big turn question'), padded, questionLine(smallQuestion), reply('Small turn reply')].join('\n') + '\n')
   const l = await launch(undefined, home, { AGENTSHED_TURN_KEEP_BYTES: '2048' })
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await win.locator('.pane-body .card .se', { hasText: 'Big turn question' }).click()
-  await expect(win.locator('.qlist .q .txt')).toHaveText(['Small turn question', 'Big turn question'])
+  await expect(win.locator('.qlist .q .txt')).toHaveText([smallQuestion, 'Big turn question'])
 
   // Every fetching note any turn shows from here on is counted, however briefly it shows
   await win.evaluate(() => {
@@ -1245,8 +1248,22 @@ test('a turn over the keep size is fetched again when reopened and is not saved,
   expect(await notes(), 'the turn over the keep size is fetched again').toBeGreaterThan(first)
 
   // What the display copy is written from holds the small turn (index 1) and not the big one (index 0)
-  const reads = await win.evaluate(() => window.agentshed.getStartup().then(r => r.display.reads))
-  expect(reads.filter(r => r.kind === 'turnContent').map(r => r.kind === 'turnContent' && r.i)).toEqual([1])
+  const kept = async (): Promise<(number | false)[]> => (await win.evaluate(() => window.agentshed.getStartup().then(r => r.display.reads)))
+    .filter(r => r.kind === 'turnContent').map(r => r.kind === 'turnContent' && r.i)
+  expect(await kept()).toEqual([1])
+
+  // The agent goes on writing the small turn, under the same question, until its body is over the keep size: reopened, it
+  // draws what was kept and refreshes to the grown turn, which retires the kept copy, so the next reopen fetches it again
+  await shut('Big turn question')
+  appendFileSync(file, padded + '\n')
+  await win.locator('.qlist .q', { hasText: 'Small turn question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['Small turn reply', big])
+  await expect.poll(kept, { message: 'the grown turn leaves what the display copy is written from' }).toEqual([])
+  await shut('Small turn question')
+  const grown = await notes()
+  await win.locator('.qlist .q', { hasText: 'Small turn question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['Small turn reply', big])
+  expect(await notes(), 'the grown turn is fetched again').toBeGreaterThan(grown)
   await close(l)
 })
 

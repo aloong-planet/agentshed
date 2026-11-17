@@ -43,10 +43,12 @@ We adopt **option 1**.
 
 - Positive: a full restart shows the previous data and the pages read before, ahead of the first scan and across an
   accounting or index version bump; the source-read and accounting rules keep one owner each.
-- Positive: no single turn can bring the copy near the string cap, nor stay in memory for the app's life.
+- Positive: a turn whose body alone is over 8 MiB, the form the huge turns seen take, is never written to the copy, nor
+  held in memory once no row shows it.
 - Negative: read content takes disk space and startup time, with no numeric retention limit, and its store needs
   atomic, ordered writes and schema validation.
-- Negative: the number of turns kept has no bound, so their total can still pass the string cap.
+- Negative: neither the number of turns kept nor a kept turn's stored form has a bound (a tool input is re-serialised,
+  and nesting grows it far past its body), so the copy can still pass the string cap.
 - Negative: a revisit of a turn not kept waits for its fetch, which on a large compressed rollout decompresses from the
   file's start.
 - Negative: the display copy may be stale, so its startup status and later replacement must stay visible and coherent.

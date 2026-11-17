@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { displayQuery, hydrateDisplayQueries } from './display-queries'
+import { createQueryClient } from './query-client'
 import { appError, ERR } from '@shared/errors'
 import type { FileContentResult } from './memory-content-query'
 
@@ -57,5 +58,41 @@ it('a turn over the keep size is not retained once its query is removed, while a
   client.removeQueries()
   expect(over.initialData()).toBeUndefined()
   expect(within.initialData()).toEqual(turn(false))
+  client.clear()
+})
+
+it('a turn kept earlier under its key leaves the copy once a fetch returns it over the keep size', async () => {
+  const client = new QueryClient()
+  let unkept = false
+  const options = displayQuery(client, ['turnContent', '/s', 0, 'r0'], () => Promise.resolve({ ok: true as const, ms: 3,
+    turn: { blocks: [], bytesRead: 9, ...(unkept ? { unkept: true as const } : {}) } }))
+  await client.fetchQuery(options)
+  expect(options.initialData()).toEqual({ ok: true, ms: 3, turn: { blocks: [], bytesRead: 9 } })
+  unkept = true
+  await options.queryFn()
+  expect(options.initialData()).toBeUndefined()
+  client.clear()
+})
+
+it("the renderer's client drops a turn over the keep size once no row shows it, whether its fetch returns before or after the row closes", async () => {
+  const client = createQueryClient()
+  const result = (unkept: boolean) => ({ ok: true as const, ms: 3, turn: { blocks: [], bytesRead: 9, ...(unkept ? { unkept: true as const } : {}) } })
+  const key = (i: number) => ['turnContent', '/s', i, `r${i}`]
+  let release: Array<() => void> = []
+  const row = (i: number, unkept: boolean, pending: boolean): () => void => new QueryObserver(client, displayQuery(client, key(i), () =>
+    pending ? new Promise<ReturnType<typeof result>>((r) => { release.push(() => r(result(unkept))) }) : Promise.resolve(result(unkept)))).subscribe(() => {})
+  const settled = () => new Promise((r) => setTimeout(r, 0))
+  const closedAfter = row(0, true, false)
+  await settled()
+  expect(client.getQueryData(key(0)), 'shown while its row is open').toEqual(result(true))
+  closedAfter()
+  expect(client.getQueryData(key(0))).toBeUndefined()
+  row(1, true, true)()
+  row(2, false, true)()
+  for (const r of release) r()
+  release = []
+  await settled()
+  expect(client.getQueryData(key(1)), 'its fetch returned after its row closed').toBeUndefined()
+  expect(client.getQueryData(key(2)), 'a kept turn stays').toEqual(result(false))
   client.clear()
 })
