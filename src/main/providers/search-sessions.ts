@@ -13,10 +13,9 @@
 //   reachable hits (D3: a fork's replay copies repeat its parent's text, and without folding the same
 //   sentence is reported once per generation).
 //   The full-text toggle exists for **hit quality** (full text hits tool output noise), not performance.
-// - Case: searchBytes folds at the byte level (never decode + toLowerCase over everything — spec D2
-//   measured 391 ms as the
-//   counter-example); after a hit, **re-verify** with the parsed text to guard against byte-level false
-//   hits from JSON escape sequences (\n, \" and so on)
+// - Case: searchBytes folds at the byte level (never decode + toLowerCase over everything — measured
+//   391 ms as the counter-example, see search-bytes.ts); after a hit, **re-verify** with the parsed
+//   text to guard against byte-level false hits from JSON escape sequences (\n, \" and so on)
 //   — the re-verification touches only the matching ranges and does not change the "no reading whole, no
 //   parsing everything" cost structure.
 import type { SearchHit, SearchResult, SessionMeta } from '@shared/domain'
