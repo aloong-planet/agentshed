@@ -25,7 +25,8 @@ export function keepTurnsWithin(client: QueryClient, limit: number): void {
 }
 /**
  * Keeps a fetched or restored turn under its key, or not: a turn over the keep size, marked by the main process, is
- * shown but not kept, and also retires a copy kept earlier under its key, one restored or kept before the turn grew.
+ * shown but not kept, and also retires a copy kept earlier under its key, one restored or kept before the turn grew, as
+ * does a result with no turn (one grown past the turn limit).
  * One kept makes room under the total limit as the main process does, the earliest fetched leaving the copy first, and
  * the cache too while no row shows it (a row showing it keeps it until it closes, see releaseTurnsNotKept). Returns
  * whether it was kept
@@ -60,6 +61,8 @@ export function displayQuery<T extends Result>(client: QueryClient, key: QueryKe
     queryFn: async () => {
       const result = await fetch()
       if (result.ok) { if (key[0] === 'turnContent') keepTurn(client, id, result); else map.set(id, result) }
+      // A turn grown past the turn limit is shown with its reason, and a copy kept under its key leaves (no turn, not kept)
+      else if (key[0] === 'turnContent' && decodeAppError(result.error)?.code === ERR.turnTooLong) keepTurn(client, id, result)
       else if (key[0] === 'sessionPage' && decodeAppError(result.error)?.code === ERR.sessionNotWhitelisted) map.delete(id)
       else return (map.get(id) as T | undefined) ?? result
       return result

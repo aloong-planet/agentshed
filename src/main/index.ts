@@ -5,7 +5,7 @@ import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, reco
 import { readTurnRanges, TURN_LIMIT_SEAM, turnLimitBytes } from './turn-limit'
 import { KEPT_TURNS_SEAM, keptTurnsUnits, TURN_KEEP_SEAM, turnKeepBytes, turnKept } from './turn-keep'
 import { keptTurnUnits, turnsToRelease } from '@shared/kept-turns'
-import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
+import { emptyDisplayData, savedReadKey, savedTurnKey, type SavedRead, type StartupStatus } from '@shared/display-data'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -429,7 +429,11 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   if (a.revision !== undefined && a.revision !== revision) throw appError(ERR.sessionNotIndexed)
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
   if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
-  if (read.body === null) throw appError(ERR.turnTooLong, { bytes: read.bodyBytes, limit: TURN_LIMIT_BYTES })
+  if (read.body === null) {
+    // A turn kept before it grew past the limit can no longer be kept either: its copy leaves with the reason
+    if (savedReads.delete(savedTurnKey(file, revision, a.i))) persistDisplay()
+    throw appError(ERR.turnTooLong, { bytes: read.bodyBytes, limit: TURN_LIMIT_BYTES })
+  }
   const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, read.body), bytesRead: read.bytesRead }
   // A body over the keep size is shown but never kept: not in the display copy, and (by the mark) not in the renderer
   const kept = turnKept(read.bodyBytes, TURN_KEEP_BYTES)

@@ -255,11 +255,15 @@ export function parseDisplayData(v: unknown, paths?: SavedInstructionPaths): Dis
   return d
 }
 
+/** The key a turn's saved read is held under, for a turn known before its content is */
+export function savedTurnKey(file: string, revision: string, i: number): string {
+  return JSON.stringify(['turnContent', file, revision, i])
+}
 export function savedReadKey(r: SavedRead): string {
   switch (r.kind) {
     case 'projectDetail': return JSON.stringify([r.kind, r.path])
     case 'sessionPage': case 'memoryContent': case 'skillContent': return JSON.stringify([r.kind, r.file])
-    case 'turnContent': return JSON.stringify([r.kind, r.file, r.revision, r.i])
+    case 'turnContent': return savedTurnKey(r.file, r.revision, r.i)
     case 'skillFiles': return JSON.stringify([r.kind, r.args.side, r.args.name, r.args.scope, r.args.projectPath ?? null, r.args.pluginRoot ?? null])
   }
 }

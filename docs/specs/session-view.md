@@ -238,8 +238,9 @@ hands the command over; it never runs it.
   than 64 MiB (67,108,864 bytes) by these offsets is never read; a body of exactly the limit is read. Its row takes the
   in-turn failure state with a reason of its own, the body's size and the limit, never "the file can no longer be read".
   The size is known from the index before anything is read, so the session's other turns, its questions and its
-  figures are as they were, and clicking the row again gets the same reason. On this machine's real data on 2026-11-17,
-  21 turns were over it, all in 3 Codex files, the longest 582,015,113 bytes.
+  figures are as they were, and clicking the row again gets the same reason. A kept turn that grows past the limit under
+  the same question is drawn from what was kept when next opened, then refreshed to the reason, and from then on is kept
+  nowhere. On this machine's real data on 2026-11-17, 21 turns were over it, all in 3 Codex files, the longest 582,015,113 bytes.
   **The keep size** (2026-11-17, ADR-0053): a turn whose body by these offsets is longer than 8 MiB (8,388,608 bytes)
   is shown whole when fetched, but kept neither in the saved display copy (REQ-001) nor in memory once its row closes:
   opening it again fetches it again, with the fetching notice, and after a relaunch it is fetched as one never read. A
@@ -1018,7 +1019,8 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   where the scan runs (ADR-0043; the renderer cannot supply byte ranges), with the same allow-list
   check first; the payload carries the
   bytes read as evidence of "nothing was read whole". The turn limit (C2) is decided from that range before the
-  turn's body is read; a test seam lowers it so that e2e need not write 64 MiB. The keep size (C2) is decided from the
+  turn's body is read; a test seam lowers it so that e2e need not write 64 MiB. A turn refused under it retires a copy saved
+  or retained under its key, in both processes. The keep size (C2) is decided from the
   same range: a turn over it is not saved, and retires a copy saved under its key; its payload carries a mark by which
   the renderer neither retains it (retiring a copy it held) nor leaves it in the query cache once no row shows it; a test seam of its own lowers it.
   A saved turn carries its body's length, and one saved without it is dropped when the copy is restored. The total

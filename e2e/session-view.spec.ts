@@ -1149,6 +1149,24 @@ test('a turn whose body is over the turn limit is not fetched: its row says why 
   await longRow.click()
   await expect(win.locator('.turn .tnote')).toHaveText('This turn could not be fetched: It is 3.0 KB, over the 2.0 KB limit for one turn, so it was not read')
 
+  // The short turn, kept, grows past the limit under its question (an appended reply): opened again, it gives the reason
+  // instead of what was kept, and what was kept leaves what the display copy is written from
+  const shortRow = win.locator('.qlist .q', { hasText: 'Short turn question' })
+  const kept = async (): Promise<(number | false)[]> => (await win.evaluate(() => window.agentshed.getStartup().then(r => r.display.reads)))
+    .filter(r => r.kind === 'turnContent').map(r => r.kind === 'turnContent' && r.i)
+  expect(await kept()).toEqual([1])
+  await longRow.click()
+  await shortRow.click()
+  await expect(win.locator('.turn')).toHaveCount(0)
+  appendFileSync(long, padded + '\n')
+  await shortRow.click()
+  await expect(win.locator('.turn .tnote')).toHaveText(/^This turn could not be fetched: It is \d+\.\d KB, over the 2\.0 KB limit for one turn, so it was not read$/)
+  await expect.poll(kept, { message: 'the grown turn leaves what the display copy is written from' }).toEqual([])
+  await shortRow.click()
+  await expect(win.locator('.turn')).toHaveCount(0)
+  await longRow.click()
+  await expect(win.locator('.turn .tnote')).toHaveText('This turn could not be fetched: It is 3.0 KB, over the 2.0 KB limit for one turn, so it was not read')
+
   // In Chinese, fetched again under the new language. Han by code point (check:lang):
   // "这一轮取不回来:正文有 3.0 KB,超过单轮 2.0 KB 的上限,所以没有读取"
   await win.locator('.ri.set').click()
@@ -1268,18 +1286,18 @@ test('a turn over the keep size is fetched again when reopened and is not saved,
   await close(l)
 })
 
-test('kept turns stay within the total limit: a copy saved under a larger one restores cut to it, and the earliest fetched leave first in both processes (in-turn fetch states)', async () => {
+test('kept turns stay within the total limit: a copy saved under a larger one restores cut to it, the earliest fetched leave first in both processes, and one over it alone is kept in neither (in-turn fetch states)', async () => {
   const home = mkUsageHome()
   const userData = makeUserData()
   const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
   const file = join(home, '.claude', 'projects', enc, 'total.jsonl')
-  const answers = ['a', 'b', 'c'].map((ch) => ch.repeat(2000))
+  const answers = [...['a', 'b', 'c'].map((ch) => ch.repeat(2000)), 'd'.repeat(6000)]
   const reply = (text: string): string => JSON.stringify({
     type: 'assistant',
     timestamp: localDayOffset(0).toISOString(),
     message: { model: 'claude-fable-5', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
   })
-  const questions = ['First turn question', 'Second turn question', 'Third turn question']
+  const questions = ['First turn question', 'Second turn question', 'Third turn question', 'Fourth turn question']
   writeFileSync(file, questions.flatMap((q, i) => [questionLine(q), reply(answers[i])]).join('\n') + '\n')
   const toSession = async (win: Page): Promise<void> => {
     await win.locator('.rail .ri').nth(1).click()
@@ -1298,17 +1316,17 @@ test('kept turns stay within the total limit: a copy saved under a larger one re
     .filter(r => r.kind === 'turnContent').map(r => r.kind === 'turnContent' && r.i)
   let app: ElectronApplication | undefined
   try {
-    // Under the default limit all three are kept, and a normal quit writes them to the copy
+    // Under the default limit all four are kept, and a normal quit writes them to the copy
     app = (await startApp({ userData, home })).app
     let win = await app.firstWindow()
     await toSession(win)
-    for (const i of [0, 1, 2]) { await toggle(win, i, true); await toggle(win, i, false) }
-    expect(await kept(win)).toEqual([0, 1, 2])
+    for (const i of [0, 1, 2, 3]) { await toggle(win, i, true); await toggle(win, i, false) }
+    expect(await kept(win)).toEqual([0, 1, 2, 3])
     await closeApp(app)
     app = undefined
 
-    // Each turn serialises to a little over 2,000 units, so a limit of 5,000 holds two: the copy restores without the
-    // earliest fetched
+    // Each of the first three serialises to a little over 2,000 units, so a limit of 5,000 holds two, and the fourth,
+    // over 6,000, is over it alone: the copy restores without the earliest fetched and without the fourth
     app = (await startApp({ userData, home, env: { AGENTSHED_KEPT_TURNS_UNITS: '5000' } })).app
     win = await app.firstWindow()
     expect(await kept(win), 'restored cut to the limit in effect').toEqual([1, 2])
@@ -1337,6 +1355,16 @@ test('kept turns stay within the total limit: a copy saved under a larger one re
     await toggle(win, 1, true)
     expect(await notes(), 'the turn released in the renderer is fetched again').toBeGreaterThan(fetched)
     await expect.poll(() => kept(win)).toEqual([2, 1])
+    // The fourth, over the limit alone, is shown when fetched and kept in neither process, the others staying
+    await toggle(win, 1, false)
+    const before = await notes()
+    await toggle(win, 3, true)
+    expect(await notes(), 'the turn over the limit alone is fetched').toBeGreaterThan(before)
+    expect(await kept(win), 'and not kept in the main process, nothing leaving for it').toEqual([2, 1])
+    await toggle(win, 3, false)
+    const again = await notes()
+    await toggle(win, 3, true)
+    expect(await notes(), 'nor in the renderer: it is fetched again').toBeGreaterThan(again)
   } finally {
     if (app) await closeApp(app).catch(() => {})
     rmSync(home, { recursive: true, force: true })
