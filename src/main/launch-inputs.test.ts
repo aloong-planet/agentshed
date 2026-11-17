@@ -5,7 +5,7 @@
 // packaging. It does not read standard error, so the sentence on a real package is checked by hand (docs/ops/mac-signing.md).
 import { describe, expect, it } from 'vitest'
 import { ENGINE_MODULE_SEAM } from './engine-module'
-import { TURN_KEEP_SEAM } from './turn-keep'
+import { KEPT_TURNS_SEAM, TURN_KEEP_SEAM } from './turn-keep'
 import { TURN_LIMIT_SEAM } from './turn-limit'
 import { launchRefusal, refusedLaunchInputs } from './launch-inputs'
 
@@ -82,7 +82,7 @@ describe('the launch inputs a packaged build refuses (mac-distribution::CON-008)
 
   // The engine module's seam (ADR-0045) and the turn limit's by the names the app reads, so a seam renamed off the prefix
   // fails here
-  it.each(['AGENTSHED_HOME_OVERRIDE', 'AGENTSHED_UPDATE_SCRIPT', ENGINE_MODULE_SEAM, TURN_LIMIT_SEAM, TURN_KEEP_SEAM, 'AGENTSHED_A_SEAM_NOT_WRITTEN_YET'])('refuses a test seam by its prefix: %s', (name) => {
+  it.each(['AGENTSHED_HOME_OVERRIDE', 'AGENTSHED_UPDATE_SCRIPT', ENGINE_MODULE_SEAM, TURN_LIMIT_SEAM, TURN_KEEP_SEAM, KEPT_TURNS_SEAM, 'AGENTSHED_A_SEAM_NOT_WRITTEN_YET'])('refuses a test seam by its prefix: %s', (name) => {
     expect(refusedLaunchInputs([], { [name]: '1' })).toEqual([name])
   })
 

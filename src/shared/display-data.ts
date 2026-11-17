@@ -9,7 +9,9 @@ import { emptyTotals, type AgentSide } from './domain'
 export type SavedRead =
   | { kind: 'projectDetail'; path: string; data: ProjectDetail }
   | { kind: 'sessionPage'; file: string; data: SessionPage }
-  | { kind: 'turnContent'; file: string; i: number; revision: string; ms: number; data: SessionTurn }
+  /** `bodyBytes`: the turn's body length, which decides it is kept (ADR-0053). A turn saved without it, by a build before
+   * the copy carried it, is not restored: it cannot be told from one over the keep size, and is fetched again */
+  | { kind: 'turnContent'; file: string; i: number; revision: string; ms: number; bodyBytes: number; data: SessionTurn }
   | { kind: 'memoryContent' | 'skillContent'; file: string; data: CappedText }
   | { kind: 'skillFiles'; args: ListSkillFilesArgs; data: ListSkillFilesResult }
 
@@ -57,7 +59,7 @@ export function validSavedRead(v: unknown): v is SavedRead {
     case 'sessionPage': return path(v.file) && validateSessionPage(v.data).ok &&
       (v.data as SessionPage).file === v.file && path((v.data as SessionPage).revision) && (v.data as SessionPage).questions.every(q => path(q.revision))
     case 'turnContent': return path(v.file) && number(v.i) && Number.isInteger(v.i) &&
-      path(v.revision) && number(v.ms) && validateSessionTurn(v.data).ok
+      path(v.revision) && number(v.ms) && number(v.bodyBytes) && Number.isInteger(v.bodyBytes) && validateSessionTurn(v.data).ok
     case 'memoryContent': case 'skillContent': return path(v.file) && capped(v.data)
     case 'skillFiles': {
       const a = v.args, d = v.data

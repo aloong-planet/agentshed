@@ -96,3 +96,47 @@ it("the renderer's client drops a turn over the keep size once no row shows it, 
   expect(client.getQueryData(key(2)), 'a kept turn stays').toEqual(result(false))
   client.clear()
 })
+
+it("the renderer's client keeps turns within the total limit, the earliest fetched leaving first once no row shows it", async () => {
+  // Each turn below serialises to 27 units, so a limit of 54 holds two
+  const client = createQueryClient(54)
+  const result = (i: number) => ({ ok: true as const, ms: 3, turn: { blocks: [], bytesRead: i } })
+  const key = (i: number) => ['turnContent', '/s', i, `r${i}`]
+  const options = (i: number) => displayQuery(client, key(i), () => Promise.resolve(result(i)))
+  await client.fetchQuery(options(1))
+  await client.fetchQuery(options(2))
+  await client.fetchQuery({ ...options(1), staleTime: 0 })
+  await client.fetchQuery(options(3))
+  expect(options(2).initialData(), 'the earliest fetched leaves the copy').toBeUndefined()
+  expect(client.getQueryData(key(2)), 'and the cache, no row showing it').toBeUndefined()
+  for (const i of [1, 3]) {
+    expect(options(i).initialData()).toEqual(result(i))
+    expect(client.getQueryData(key(i))).toEqual(result(i))
+  }
+  // A row opening refetches its turn, which makes it the latest fetched: [3, 1], then 4 and 5 push it out
+  const shown = new QueryObserver(client, options(1)).subscribe(() => {})
+  await new Promise((r) => setTimeout(r, 0))
+  await client.fetchQuery(options(4))
+  await client.fetchQuery(options(5))
+  expect(options(1).initialData()).toBeUndefined()
+  expect(client.getQueryData(key(1)), 'a released turn stays while its row shows it').toEqual(result(1))
+  shown()
+  expect(client.getQueryData(key(1)), 'and leaves once its row closes').toBeUndefined()
+  for (const i of [4, 5]) expect(client.getQueryData(key(i))).toEqual(result(i))
+  client.clear()
+})
+
+it('hydrating restored turns keeps them within the total limit, the earliest saved leaving first', () => {
+  const client = createQueryClient(54)
+  const read = (i: number) => ({ kind: 'turnContent' as const, file: '/s', i, revision: `r${i}`, ms: 3, bodyBytes: 40, data: { blocks: [], bytesRead: i } })
+  hydrateDisplayQueries(client, [read(1), read(2), read(3)])
+  const key = (i: number) => ['turnContent', '/s', i, `r${i}`]
+  const copy = (i: number) => displayQuery(client, key(i), () => Promise.reject(new Error('not fetched'))).initialData()
+  expect(copy(1)).toBeUndefined()
+  expect(client.getQueryData(key(1))).toBeUndefined()
+  for (const i of [2, 3]) {
+    expect(copy(i)).toEqual({ ok: true, ms: 3, turn: { blocks: [], bytesRead: i } })
+    expect(client.getQueryData(key(i))).toEqual({ ok: true, ms: 3, turn: { blocks: [], bytesRead: i } })
+  }
+  client.clear()
+})

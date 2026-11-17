@@ -1,7 +1,7 @@
 // The keep size (session-view, the in-turn fetch states; #485): a turn whose body is over it is shown but kept neither in
 // the display copy nor in memory, measured on the body as the turn limit is.
 import { describe, expect, it } from 'vitest'
-import { turnKeepBytes, turnKept } from './turn-keep'
+import { keptTurnsUnits, turnKeepBytes, turnKept } from './turn-keep'
 
 describe('turnKeepBytes', () => {
   it('is 8 MiB unless the test seam lowers it to a positive number', () => {
@@ -11,6 +11,14 @@ describe('turnKeepBytes', () => {
     expect(turnKeepBytes('0')).toBe(8_388_608)
     expect(turnKeepBytes('-5')).toBe(8_388_608)
     expect(turnKeepBytes('300')).toBe(300)
+  })
+})
+
+describe('keptTurnsUnits', () => {
+  it('is 128 Mi units unless the test seam lowers it to a positive number', () => {
+    expect(keptTurnsUnits(undefined)).toBe(134_217_728)
+    expect(keptTurnsUnits('0')).toBe(134_217_728)
+    expect(keptTurnsUnits('300')).toBe(300)
   })
 })
 

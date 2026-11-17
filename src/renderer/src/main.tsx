@@ -7,7 +7,7 @@ import { createQueryClient } from './query-client'
 import './theme.css'
 
 // One client for the app's lifetime (ADR-0028): its cache is what makes a revisit instant.
-const queryClient = createQueryClient()
+const queryClient = createQueryClient(window.agentshed.keptTurnsUnits)
 
 const el = document.getElementById('root')
 if (el) {

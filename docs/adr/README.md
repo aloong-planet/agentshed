@@ -100,7 +100,7 @@ ADR conventions for this repository:
 | [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer | Accepted |
 | [0033](0033-app-is-the-interface-baseline.md) | The app is the interface's baseline; the prototypes are kept by hand, never generated from the app or compared with it | Accepted |
 | [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Simplified Chinese and English, and the READMEs follow them | Accepted |
-| [0053](0053-display-copy-restores-read-pages.md) | A display copy kept apart from the accounting cache restores the pages read after a restart, keeping a turn's content only within a size per turn | Proposed |
+| [0053](0053-display-copy-restores-read-pages.md) | A display copy kept apart from the accounting cache restores the pages read after a restart, keeping turns' content only within a size per turn and a total | Proposed |
 
 ## Updates
 

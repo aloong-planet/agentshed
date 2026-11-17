@@ -1,4 +1,5 @@
 import { parseDisplayData, type StartupData, type StartupStatus } from '@shared/display-data'
+import { keptTurnsUnitsArg } from '@shared/kept-turns'
 import { contextBridge, ipcRenderer } from 'electron'
 import {
   CMD,
@@ -123,6 +124,8 @@ function initialTrendSpan(): TrendSpan {
 
 const api = {
   initialTrendSpan: initialTrendSpan(),
+  /** The total limit on kept turns the main process applies (ADR-0053), so that the renderer keeps the same ones */
+  keptTurnsUnits: keptTurnsUnitsArg(process.argv),
   /** The effective language, available on the first frame (not the preference — that goes through getPrefs) */
   initialLanguage: initialLanguage(),
   /** The system's preferred language list at startup: the renderer computes the effective language

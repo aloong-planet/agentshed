@@ -182,6 +182,9 @@ export const LANG_ARG = '--agentshed-language='
 /** The saved chart span is available before the first skeleton or restored-data render. */
 export const TREND_SPAN_ARG = '--agentshed-trend-span='
 
+/** The total limit on kept turns (ADR-0053), in UTF-16 units: the main process decides it, the renderer applies the same */
+export const KEPT_TURNS_ARG = '--agentshed-kept-turns-units='
+
 /**
  * The system's preferred language list (comma separated), passed to the preload through the same channel.
  * The renderer needs it to **compute locally** the effective language when the user selects "follow

@@ -587,6 +587,25 @@ it('restores session pages saved before the session ID was kept, filling the ID 
   ])
 })
 
+// A turn's body length is what decides it is kept (ADR-0053), and a turn saved before the copy carried it cannot be told
+// from one over the keep size that an older build kept; it is not restored and is fetched again when next opened, while
+// the rest of that copy restores (session-view, the in-turn fetch states)
+it('restores a saved turn only with its body length, and the session page beside one saved without it', () => {
+  const root = dir()
+  const older = sessionReads('/s/older.jsonl', 'claude').map((r) => {
+    if (r.kind !== 'turnContent') return r
+    const rest: Record<string, unknown> = { ...r }
+    delete rest.bodyBytes
+    return rest
+  })
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
+    ...emptyDisplayData(), reads: [...older, ...sessionReads('/s/now.jsonl', 'codex')]
+  } }))
+  expect(new DisplayStore(root).get().reads.map((r) => [r.kind, 'file' in r ? r.file : null])).toEqual([
+    ['sessionPage', '/s/older.jsonl'], ['sessionPage', '/s/now.jsonl'], ['turnContent', '/s/now.jsonl']
+  ])
+})
+
 // A display cache written before Antigravity CLI joined the side set (the key sets of this machine's real cache on
 // 2026-10-29: every per-side Record — the snapshot's sides, every token block's bySide and its days' bySide, each
 // global skill's symlink and pkg — holds claude, codex and grok only). The contract now asks for every side, so
@@ -743,7 +762,7 @@ function sessionReads(file: string, side: AgentSide): SavedRead[] {
     forkPoints: 0, forkParentTitle: null, forkParentFile: null, sessionId: null,
     questions: [{ revision: `q-${side}`, i: 1, text: 'Saved question', at: 1, tools: 0, subagents: 0 }] }
   const turn: SessionTurn = { blocks: [], bytesRead: 0 }
-  return [{ kind: 'sessionPage', file, data: page }, { kind: 'turnContent', file, i: 0, revision: `q-${side}`, ms: 1, data: turn }]
+  return [{ kind: 'sessionPage', file, data: page }, { kind: 'turnContent', file, i: 0, revision: `q-${side}`, ms: 1, bodyBytes: 40, data: turn }]
 }
 function snapshotNaming(projectSides: AgentSide[]): Snapshot {
   const snap = emptySnapshot(900)
