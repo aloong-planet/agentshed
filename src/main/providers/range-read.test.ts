@@ -240,8 +240,18 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
   })
   afterAll(() => rmSync(gateDir, { recursive: true, force: true }))
   const seam = (): HoldSeam => threadEngineModule() as HoldSeam
-  afterEach(() => {
+  /**
+   * Each case's gated reads, as they settle. The places are the module's, shared by every case here: a case that fails
+   * still lets its reads go, and waits for them, so that none of them holds a place in the next case.
+   */
+  const asked: Array<Promise<unknown>> = []
+  function settling<T>(outcomes: Promise<T>): Promise<T> {
+    asked.push(outcomes)
+    return outcomes
+  }
+  afterEach(async () => {
     seam().seamReleaseReadsOf(null)
+    await Promise.all(asked.splice(0))
     vi.restoreAllMocks()
   })
   /** Long enough for a read that panics at the seam's five-second valve, four times over, with a case's own steps */
@@ -286,7 +296,7 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
     const from = handed.length
     const reads = [l1, l2, l3, l4, r5].map((file, k) => readRangeBuffers(file, [tenAt(k)]))
     const search = searchFullText('codex', s6, ONCE, [])
-    const outcomes = Promise.allSettled([...reads, search])
+    const outcomes = settling(Promise.allSettled([...reads, search]))
     expect(handed.slice(from)).toEqual([l1, l2, l3, l4])
     await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual([l1, l2, l3, l4].sort())
     seam().seamReleaseReadsOf(l1)
@@ -316,7 +326,7 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
     const missing = Array.from({ length: 5 }, (_, k) => join(gateDir, `missing-${k}.jsonl.zst`))
     for (const file of missing) seam().seamHoldReadsOf(file)
     const failing = missing.map((file) => readRangeBuffers(file, [{ start: 0, end: 10 }]))
-    const outcomes = Promise.allSettled(failing)
+    const outcomes = settling(Promise.allSettled(failing))
     expect(handed).toEqual(missing.slice(0, 4))
     await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual(missing.slice(0, 4).sort())
     seam().seamReleaseReadsOf(missing[0])
@@ -339,7 +349,7 @@ describe('a cold rollout (.jsonl.zst): ranges are served from one pass through i
       // As many reads as run at once, and as libuv's pool has threads: held there, they would keep the file read waiting
       // until the first of them was let go
       const reads = four.map((file, k) => readRangeBuffers(file, [tenAt(k)]))
-      const outcomes = Promise.allSettled(reads)
+      const outcomes = settling(Promise.allSettled(reads))
       expect(await readFile(small, 'utf8')).toBe('{"i":0}\n')
       await timer
       // Still waiting at the gate, neither released nor given up at its valve
