@@ -1,7 +1,8 @@
 // The turn limit (session-view, the in-turn fetch states; owner's decision on #485): a turn whose body is longer than
 // this is never read. The body's length is the index's own `[turn start, turn end)`, known before any read, so the
-// decision costs nothing and a huge turn costs no memory. The question line is still read: it is not the body, the line
-// limit already holds it, and its text is what ties the fetch to the question the page showed after a rewrite.
+// decision costs nothing and a huge turn costs no memory. The question is still read: it is not the body, and its text is
+// what ties the fetch to the question the page showed after a rewrite. This limit does not bound it, and neither does the
+// line limit for every side: a Grok question is a run of lines, each within the line limit, the run itself unbounded.
 import type { ByteRange } from './providers/range-read'
 import { rescanIntervalMs } from './rescan'
 

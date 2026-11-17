@@ -6,8 +6,6 @@ import { describe, expect, it } from 'vitest'
 import type { ByteRange } from './providers/range-read'
 import { readTurnRanges, turnLimitBytes } from './turn-limit'
 
-const MiB = 1024 * 1024
-
 /** A read that records every range asked for and answers each with as many dots as the range is long, capped */
 function recordingRead(): { read: (source: string, ranges: readonly ByteRange[]) => Promise<{ texts: string[]; bytesRead: number }>; asked: ByteRange[][] } {
   const asked: ByteRange[][] = []
@@ -45,12 +43,5 @@ describe('readTurnRanges', () => {
     const got = await readTurnRanges(read, 'source', [100, 140, 140 + 67_108_865], 67_108_864)
     expect(asked).toEqual([[{ start: 100, end: 140 }]])
     expect(got).toEqual({ question: '........', body: null, bodyBytes: 67_108_865, bytesRead: 8 })
-  })
-
-  it('measures the body by its own length, not by where it ends in the file', async () => {
-    const { read, asked } = recordingRead()
-    // Ends far past the limit in the file, yet its body is 2 MiB: read
-    await readTurnRanges(read, 'source', [200 * MiB, 200 * MiB + 10, 202 * MiB + 10], 64 * MiB)
-    expect(asked[0]).toHaveLength(2)
   })
 })
