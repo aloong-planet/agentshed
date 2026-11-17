@@ -73,17 +73,19 @@ struct Reached {
 
 /// The line loop of `each_line`, over `source` positioned at stream offset `from`, read no further than `until` when
 /// one is given: no read passes it, and a line it cuts is handed over as far as `until`, as a last line without a line
-/// feed. With `hand_over`, a line longer than a read is handed over as the buffer that assembled it, owned, rather
-/// than lent: the reader then takes a new buffer, so that a caller keeping the line holds it once, not as its bytes in
-/// the buffer and a copy as well. Every other line is lent.
+/// feed. With `hand_over`, a line longer than a read that fills nearly all the buffer that assembled it is handed over
+/// as that buffer, owned, rather than lent: the reader then takes a new buffer, so that a caller keeping the line holds
+/// it once, not as its bytes in the buffer and a copy as well. Every other line is lent, so that a caller keeping it
+/// holds a copy of its own length, not a buffer that grew past it (`handed`).
 fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Option<u64>, hand_over: bool, mut line: impl FnMut(Cow<'_, [u8]>, u64, u64, bool)) -> Result<Reached, Failed> {
     let max = crate::seams::line_max(path, LINE_MAX);
     // The line being assembled is buf[..held]. Each read fills buf[held..held + n], and only those n bytes join it;
     // past them the buffer keeps whatever an earlier read left there, which nothing reads. So the buffer is zeroed as
-    // it is allocated and as it grows, not before every read: zeroing a chunk before each read took 3.1% of a cold
-    // scan's parse workers' samples (#453). It grows by doubling, as a `Vec` does, but to no more than `max + 1`: the
-    // whole capacity is zeroed, so each byte it holds is one the process has paid for, and a read near the limit takes
-    // only what the line still lacks to pass it.
+    // it grows, not before every read: zeroing a chunk before each read took 3.1% of a cold scan's parse workers'
+    // samples (#453). Its room grows by doubling, as a `Vec`'s does, but to no more than `max + 1`, and a read near the
+    // limit takes only what the line still lacks to pass it. Only as much of the room as the reads have needed is
+    // zeroed: room never written to is never touched, and a large allocation's pages are backed only once touched,
+    // so that a line handed over (`handed`) holds no more than a read past its length (#485).
     let mut buf: Vec<u8> = vec![0; CHUNK.min(max + 1)];
     let mut held = 0;
     // The stream offset of buf[0]
@@ -102,9 +104,11 @@ fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Op
             want = want.min(usize::try_from(left).unwrap_or(usize::MAX));
         }
         if buf.len() < held + want {
-            let grown = (held + want).max(buf.len() * 2).min(max + 1);
-            buf.reserve_exact(grown - buf.len());
-            buf.resize(grown, 0);
+            if buf.capacity() < held + want {
+                let room = (held + want).max(buf.capacity() * 2).min(max + 1);
+                buf.reserve_exact(room - buf.len());
+            }
+            buf.resize(held + want, 0);
         }
         let n = take(source, stored, &mut buf[held..held + want])?;
         if n == 0 {
@@ -117,7 +121,7 @@ fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Op
         let mut search = held;
         while let Some(i) = memchr::memchr(b'\n', &buf[search..filled]) {
             let nl = search + i;
-            if hand_over && start == 0 && nl >= CHUNK {
+            if hand_over && start == 0 && handed(nl, buf.len()) {
                 // The bytes after the line, at most this read's, move to a new buffer, and the old one is the line
                 let after = filled - (nl + 1);
                 let mut rest = vec![0; CHUNK.min(max + 1).max(after)];
@@ -147,7 +151,7 @@ fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Op
     }
     let through = base + held as u64;
     if held > 0 {
-        if hand_over && held >= CHUNK {
+        if hand_over && handed(held, buf.len()) {
             buf.truncate(held);
             line(Cow::Owned(buf), base, through, false);
         } else {
@@ -155,6 +159,16 @@ fn lines(path: &str, source: &mut dyn Read, stored: Stored, from: u64, until: Op
         }
     }
     Ok(Reached { last, through, ended })
+}
+
+/// Whether a line of `len` bytes at the start of a buffer of `zeroed` bytes is handed over as that buffer: when it is
+/// longer than a read and leaves no more than an eighth of its length unused there. The buffer holds every byte it has
+/// zeroed, up to a read past the line, so a line just past a read would keep about twice its length; such a line is
+/// copied out, at its own length, and the buffer is kept for the next. A line taken over thus costs at most an eighth
+/// more than its length, and one copied out at most the buffer, which reaches eight reads and one at most before the
+/// lines it assembles are taken over.
+fn handed(len: usize, zeroed: usize) -> bool {
+    len >= CHUNK && zeroed - len <= len / 8
 }
 
 /// The stream of `path` from byte `from` on: the file itself, or a cold rollout's zstd stream decompressed as it is

@@ -234,6 +234,10 @@ hands the command over; it never runs it.
   the next one starts; the others wait their turn in the order asked. The scan worker, which reads a
   cold rollout only for a stripped fork's title (B2), counts four of its own. A truncated cold rollout never reaches the session
   page: the scan skips it (token-stats B12).
+  **Expanding a turn** (2026-11-17, #485), plain or cold, reads its question's range and its body's in one pass that
+  stops at the turn's end, the body a line at a time, so that no copy of the whole turn is held: at its peak the read
+  holds the turn's text twice, as the lines read and as the strings shown, and never more than one line of it in one
+  piece. A plain file's turn read is one of D2b's four plain reads; a cold rollout's takes one of the four places above.
   **The turn limit** (2026-11-17): a turn whose body, everything after its question up to the next one (C1), is longer
   than 64 MiB (67,108,864 bytes) by these offsets is never read; a body of exactly the limit is read. Its row takes the
   in-turn failure state with a reason of its own, the body's size and the limit, never "the file can no longer be read".
@@ -1020,8 +1024,12 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   **On-demand answer fetching**: a turn's range can only come from the application's own index, held
   where the scan runs (ADR-0043; the renderer cannot supply byte ranges), with the same allow-list
   check first; the payload carries the
-  bytes read as evidence of "nothing was read whole". The turn limit (C2) is decided from that range before the
-  turn's body is read; a test seam lowers it so that e2e need not write 64 MiB. A turn refused under it retires a copy saved
+  bytes read as evidence of "nothing was read whole". The engine module (ADR-0045) reads the turn: the question's
+  bytes, and the body's lines with the lines REQ-004/AC-03 drops left out on the reading thread. A line longer than a
+  read that fills nearly all the buffer it was assembled in becomes its text in place, and any other is copied out at
+  its own length, so that a buffer grown past a line is never kept with it. A plain file's turn read runs on the thread
+  pool the main process's reads of plain files run on (D2b), and a cold rollout's on a thread of its own. The turn
+  limit (C2) is decided from that range before the turn's body is read; a test seam lowers it so that e2e need not write 64 MiB. A turn refused under it retires a copy saved
   or retained under its key, in both processes. The keep size (C2) is decided from the
   same range: a turn over it is not saved, and retires a copy saved under its key; its payload carries a mark by which
   the renderer neither retains it (retiring a copy it held) nor leaves it in the query cache once no row shows it; a test seam of its own lowers it.

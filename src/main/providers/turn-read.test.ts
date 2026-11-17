@@ -119,50 +119,32 @@ describe('a turn read hands over what the range read gives the same ranges, plai
     for (let n = 0; n <= k; n++) i = lines.indexOf(0x0a, i + 1)
     return i
   }
-  test.each([
-    ['a body from inside a line to inside another', { start: 0, end: 10 }, { start: 10, end: at('two') + 1 }],
-    ['a body starting and ending inside a character', { start: 0, end: han + 1 }, { start: han + 1, end: han + 4 }],
-    ['a body starting at a line feed, ending right after one', { start: 0, end: nl(1) }, { start: nl(1), end: nl(3) + 1 }],
-    ['an empty body inside a line', { start: 0, end: 7 }, { start: 7, end: 7 }],
-    ['a question over several lines, a body to the stream\'s end', { start: 5, end: at('two') }, { start: at('two'), end: lines.length }]
-  ])('%s: the pieces are the range\'s text split at its line feeds, plain and cold', async (_what, question, body) => {
-    for (const cold of [false, true]) {
-      const plain = rolloutOf(lines, false)
-      const { texts } = await readRanges(plain, [question, body])
-      const read = await readTurnLines('codex', rolloutOf(lines, cold), question, body)
-      expect(read.question).toBe(texts[0])
-      expect(read.lines).toEqual(split(texts[1]))
-    }
-  })
-
-  // Lines longer than one read of the module (1 MiB), which it hands over as the buffer that assembled them rather than
-  // a copy: one holding invalid bytes, a short line after it in the same read, and one the body ends inside of; and a
-  // body that starts inside a long line
+  // And lines longer than one read of the module (1 MiB). One of nine reads is taken over as the buffer that assembled
+  // it rather than copied: one holds invalid bytes, a short line follows it in the same read, and a body ends inside
+  // another, or starts inside the first. One of a read and a half is copied out, its buffer kept, and holds invalid bytes
   const MiB = 1024 * 1024
   const long = (n: number, bytes: Buffer): Buffer => {
     const shaped = answer('y'.repeat(n) + 'MARK')
     const at = shaped.indexOf('MARK')
     return Buffer.concat([shaped.subarray(0, at), bytes, shaped.subarray(at + 4)])
   }
-  const longs = rollout([
-    { line: meta() },
-    { line: ask('q'), question: true },
-    { line: long(1.5 * MiB, INVALID[3]) },
-    { line: answer('short, after a long line') },
-    { line: long(2.5 * MiB, Buffer.from('z')) },
-    { line: answer('the end') }
-  ])
+  const [first, short, copied, last] = [long(9 * MiB, INVALID[3]), answer('short, after a long line'), long(1.5 * MiB, INVALID[0]), long(9 * MiB, Buffer.from('z'))]
+  const longs = rollout([{ line: meta() }, { line: ask('q'), question: true }, { line: first }, { line: short }, { line: copied }, { line: last }, { line: answer('the end') }])
   const [{ question: q, body: b }] = longs.turns
-  const intoSecond = longs.content.indexOf('z', b.start) - MiB
+  const intoLast = b.start + first.length + 1 + short.length + 1 + copied.length + 1 + 4 * MiB
   test.each([
-    ['the whole body', q, b],
-    ['a body that ends inside a long line', q, { start: b.start, end: intoSecond }],
-    ['a body that starts inside a long line', { start: q.start, end: b.start + 1000 }, { start: b.start + 1000, end: b.end }]
-  ])('lines longer than a read, %s: the pieces are the range\'s text split at its line feeds, plain and cold', async (_what, question, body) => {
-    expect(intoSecond - b.start).toBeGreaterThan(2.5 * MiB)
+    ['a body from inside a line to inside another', lines, { start: 0, end: 10 }, { start: 10, end: at('two') + 1 }],
+    ['a body starting and ending inside a character', lines, { start: 0, end: han + 1 }, { start: han + 1, end: han + 4 }],
+    ['a body starting at a line feed, ending right after one', lines, { start: 0, end: nl(1) }, { start: nl(1), end: nl(3) + 1 }],
+    ['an empty body inside a line', lines, { start: 0, end: 7 }, { start: 7, end: 7 }],
+    ['a question over several lines, a body to the stream\'s end', lines, { start: 5, end: at('two') }, { start: at('two'), end: lines.length }],
+    ['lines longer than a read, the whole body', longs.content, q, b],
+    ['lines longer than a read, a body that ends inside one', longs.content, q, { start: b.start, end: intoLast }],
+    ['lines longer than a read, a body that starts inside one', longs.content, { start: q.start, end: b.start + 1000 }, { start: b.start + 1000, end: b.end }]
+  ])('%s: the pieces are the range\'s text split at its line feeds, plain and cold', async (_what, content, question, body) => {
     for (const cold of [false, true]) {
-      const { texts } = await readRanges(rolloutOf(longs.content, false), [question, body])
-      const read = await readTurnLines('codex', rolloutOf(longs.content, cold), question, body)
+      const { texts } = await readRanges(rolloutOf(content, false), [question, body])
+      const read = await readTurnLines('codex', rolloutOf(content, cold), question, body)
       expect(read.question).toBe(texts[0])
       expect(read.lines).toEqual(split(texts[1]))
     }
@@ -212,26 +194,33 @@ describe('a turn read stops at the turn\'s end (session-view C2)', () => {
 })
 
 describe('a turn read holds no allocation of the whole turn but a line of it (#485)', () => {
-  // A turn of 64 MiB, the turn limit, in 1 MiB lines and in one line. The read hands over its text twice at its peak:
-  // the module's lines, and the JavaScript strings made from them on the main thread, each line's freed as its string
-  // is made, but the freed memory still counted in the process's resident size. Measured on 2026-11-17, under Node, the
-  // peak grew by 132 MiB for the plain file in 1 MiB lines and 135 MiB for the cold rollout. The range read it
-  // replaced, with the decode, the kept-lines call and the split the turn's assembly made (32936fa), grew it by 193 MiB
-  // and 261 MiB: the body's bytes, its string, the module's copy of that string for the kept-lines rule, and for the
-  // cold rollout the pieces and their join as well; by 193 MiB for the plain file in one line. So did the turn read as
-  // first written (2fda292) for the one line, its line buffer grown by doubling and zeroed whole. The bound lies
-  // between: the text twice and some MiB.
+  // A turn of up to 64 MiB, the turn limit, in lines of several lengths: of a read of the module (1 MiB) exactly, of a
+  // read and a little more, of two reads and a little more, of four and a fifth, and one line of it all or of half and a
+  // little more. The read hands
+  // over its text twice at its peak: the module's lines, and the JavaScript strings made from them on the main thread,
+  // each line's freed as its string is made, but the freed memory still counted in the process's resident size.
+  // Measured on 2026-11-17, under Node, the peak grew by 130 to 134 MiB for each of these shapes, plain. The range read
+  // it replaced, with the decode, the kept-lines call and the split the turn's assembly made (32936fa), grew it by 188
+  // to 193 MiB, plain, and by 261 MiB for the cold rollout in 1 MiB lines. So did the turn read as first written
+  // (2fda292) for one line, its line buffer copied out while held, and as first fixed (e346a13) for lines a little past
+  // one or two reads, the buffers that assembled them handed over at about twice their length. The bound lies between:
+  // the text twice and some MiB.
   const MiB = 1024 * 1024
-  test.each([
-    { shape: 'in 1 MiB lines', count: 64, size: MiB, cold: false },
-    { shape: 'in 1 MiB lines', count: 64, size: MiB, cold: true },
-    { shape: 'in one line', count: 1, size: 64 * MiB, cold: false },
-    { shape: 'in one line', count: 1, size: 64 * MiB, cold: true }
-  ])('a 64 MiB turn read $shape grows a fresh process\'s peak by the text twice and a few MiB (cold $cold)', ({ count, size, cold }) => {
+  const shapes = [
+    { shape: 'in lines of a read', count: 64, size: MiB },
+    { shape: 'in lines a little past a read', count: 63, size: MiB + 10_240 },
+    { shape: 'in lines a little past two reads', count: 31, size: 2 * MiB + 10_240 },
+    { shape: 'in lines of four reads and a fifth', count: 15, size: 4 * MiB + 200_000 },
+    { shape: 'in one line', count: 1, size: 64 * MiB },
+    { shape: 'in one line of half the limit and a little more', count: 1, size: 32 * MiB + MiB / 2 }
+  ]
+  test.each(shapes.flatMap((s) => [false, true].map((cold) => ({ ...s, cold }))))('a turn read $shape grows a fresh process\'s peak by the text twice and a few MiB (cold $cold)', ({ count, size, cold }) => {
     const line = Buffer.concat([Buffer.from('{"a":"'), Buffer.alloc(size - 9, 0x78), Buffer.from('"}')])
     const { content, turns } = rollout([{ line: ask('q'), question: true }, ...Array.from({ length: count }, () => ({ line }))])
     const [{ question, body }] = turns
-    expect(body.end - body.start).toBe(64 * MiB)
+    const bodyBytes = body.end - body.start
+    expect(bodyBytes).toBe(count * size)
+    expect(bodyBytes).toBeLessThanOrEqual(64 * MiB)
     const file = rolloutOf(content, cold)
     // In a process of its own, so that the peak it reports is this read's alone
     const script = `
@@ -247,7 +236,7 @@ describe('a turn read holds no allocation of the whole turn but a line of it (#4
     expect(run.stderr).toBe('')
     const { grewKiB, lines, length } = JSON.parse(run.stdout) as { grewKiB: number; lines: number; length: number }
     expect([lines, length]).toEqual([count, count * (size - 1)])
-    expect(grewKiB * 1024).toBeLessThan(2 * 64 * MiB + 24 * MiB)
+    expect(grewKiB * 1024).toBeLessThan(2 * bodyBytes + 24 * MiB)
   })
 })
 
