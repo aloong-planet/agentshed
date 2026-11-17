@@ -2,11 +2,11 @@
 // full-text search read by, holds a line to a limit (token-stats A10): a line of exactly the limit is read, one byte
 // over it fails the read of its file. Each reader entry point's case, a file with such a line failing under its side's
 // rule, is with that entry point's tests (token-stats.test.ts, antigravity.test.ts, full-text.test.ts).
-// Known gap: past the limit the read stops, at the limit and one byte, and reads the line no further. No outcome tells
-// that apart from a reader that read on to the line's end and failed then: both fail the file, and the memory case
-// below bounds what either holds, not how far it read. Add a case when a seam counts the bytes a read takes.
+// Known gap: the buffer grows by doubling. One grown by a read at a time reaches the same capacity, the limit and one
+// byte, so the memory case below does not tell them apart, and on 2026-11-17 neither did time (a 250 MiB line read in
+// 47-51 ms grown a read at a time, 63-76 ms doubled). Add a case when a seam counts the reader's reallocations.
 import { afterAll, describe, expect, test } from 'vitest'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { closeSync, mkdtempSync, openSync, rmSync, writeFileSync, writeSync } from 'node:fs'
 import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
@@ -72,12 +72,40 @@ describe('a line is held to the line limit (token-stats A10)', () => {
     expect(JSON.parse(run.stdout)).toEqual([1, `${over} could not be read to its end`])
   })
 
+  // A line one byte over the limit, then a writer that holds the stream open: a read that stops at the limit and one
+  // byte fails at once, one that reads the line on to its end waits for the writer and is cut off by the timeout. A
+  // plain file only: the check is in the loop both kinds of file are read by.
+  test('a read past the limit stops there: a line one byte over it fails while its writer still holds the stream open', () => {
+    const fifo = join(dir, 'held-open.jsonl')
+    execFileSync('mkfifo', [fifo])
+    const writer = spawn(process.execPath, ['-e', `
+      const fd = require('node:fs').openSync(process.argv[1], 'w')
+      require('node:fs').writeSync(fd, 'x'.repeat(17))
+      setTimeout(() => {}, 60_000)`, fifo], { stdio: 'ignore' })
+    try {
+      const script = `
+        const module = { exports: {} }
+        process.dlopen(module, process.argv[1])
+        module.exports.seamLimitLinesOf(process.argv[2], 16)
+        let outcome
+        try { outcome = module.exports.seamEachLine(process.argv[2], false) } catch (e) { outcome = String(e.message) }
+        console.log(JSON.stringify(outcome))`
+      const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, fifo], { encoding: 'utf8', timeout: 10_000 })
+      expect(run.error).toBeUndefined()
+      expect(run.stderr).toBe('')
+      expect(JSON.parse(run.stdout)).toBe(`${fifo} could not be read to its end`)
+    } finally {
+      writer.kill()
+    }
+  })
+
   // The limit lowered to 24 MiB, a line of 64 MiB with no line feed. The buffer grows by doubling, 1 MiB to 16, then to
   // the limit and one byte, and the whole of it is zeroed, so the peak shows its capacity: 24 MiB. A buffer let double
-  // once more holds 32 MiB, one let grow to the line 64 MiB or more. Above the buffer, the constant: the call's own
+  // once more holds 32 MiB, one let grow to the line 64 MiB or more. Above the buffer, ABOVE_THE_BUFFER: the call's own
   // cost, about 1.2 MiB as a file of one short line measured it on 2026-11-17, and for the cold rollout the zstd
-  // decoder's window, 2 MiB for this frame (`zstd -lv`), and its buffers; 6 MiB in all, measured at 1.8 MiB for the
-  // plain file and 4.4 MiB for the cold rollout.
+  // decoder's window, 2 MiB for this frame (`zstd -lv`), and its buffers; measured at 1.8 MiB for the plain file and
+  // 4.4 MiB for the cold rollout.
+  const ABOVE_THE_BUFFER = 6 * MiB
   test.each([false, true])('a line past the limit grows a fresh process\'s peak by the limit and a few MiB, never the line (cold %s)', (cold) => {
     const limit = 24 * MiB
     const file = fileOf(Buffer.alloc(64 * MiB, 0x78), cold)
@@ -95,6 +123,6 @@ describe('a line is held to the line limit (token-stats A10)', () => {
     expect(run.stderr).toBe('')
     const { grewKiB, outcome } = JSON.parse(run.stdout) as { grewKiB: number; outcome: number | string }
     expect(outcome).toBe(`${file} could not be read to its end`)
-    expect(grewKiB * 1024).toBeLessThan(limit + 6 * MiB)
+    expect(grewKiB * 1024).toBeLessThan(limit + ABOVE_THE_BUFFER)
   })
 })
