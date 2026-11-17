@@ -97,9 +97,10 @@ ADR conventions for this repository:
 | [0013](0013-ui-language-set-and-i18n-scope.md) | The i18n scope is the app's copy, its menu and the README, every language left to right, with no RTL commitment | Accepted |
 | [0014](0014-self-built-typed-i18n-layer.md) | A self-built typed i18n layer; general-purpose i18n frameworks rejected | Accepted |
 | [0018](0018-icons-are-inline-svg-from-one-source.md) | Icons are inline SVG from one icon module, Lucide first and a library drawn the same way where Lucide lacks the meaning | Accepted |
-| [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer, and a display copy kept apart from the accounting cache restores it after a restart | Accepted |
+| [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer | Accepted |
 | [0033](0033-app-is-the-interface-baseline.md) | The app is the interface's baseline; the prototypes are kept by hand, never generated from the app or compared with it | Accepted |
 | [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Simplified Chinese and English, and the READMEs follow them | Accepted |
+| [0053](0053-display-copy-restores-read-pages.md) | A display copy kept apart from the accounting cache restores the pages read after a restart, keeping a turn's content only within a size per turn | Proposed |
 
 ## Updates
 

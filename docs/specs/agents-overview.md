@@ -6,7 +6,7 @@
 > **page-level** rules: which sections exist, the summary cards, and single-side degradation.
 
 > Startup restoration uses the original page prototypes.
-> Successful display payloads persist independently of the accounting index (ADR-0028), and are
+> Successful display payloads persist independently of the accounting index (ADR-0053), and are
 > written while the window has no focus (ADR-0044), by the engine module (ADR-0045).
 
 ## Problem Statement

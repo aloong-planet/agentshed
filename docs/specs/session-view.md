@@ -1,8 +1,8 @@
 # Session view
 
-> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer and saved display pages) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module) · ADR-0052 (the full-text search in the engine module, a line at a time)
+> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0053 (saved display pages, and the turns they keep) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module) · ADR-0052 (the full-text search in the engine module, a line at a time)
 
-> Successful display payloads persist independently of the accounting index (ADR-0028).
+> Successful display payloads persist independently of the accounting index (ADR-0053).
 
 ## Problem Statement
 
@@ -714,7 +714,7 @@ characters the path or the agent's record holds.
 
 ### session-view::CON-003 Pages saved before the session ID restore with it filled in (direct acceptance)
 
-Applies to: session pages in the saved display copy (session-view::REQ-001, ADR-0028). A page saved by
+Applies to: session pages in the saved display copy (session-view::REQ-001, ADR-0053). A page saved by
 a version that did not keep the session ID restores rather than being dropped: a Claude Code or Grok
 page gets its ID from its file path by the same rule as a live page, and a Codex page gets none, so it
 shows session-view::US-001/AC-09's form until the live page replaces it.
@@ -947,7 +947,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   one is laid out — and from the beginning again when the row's width, text or keyword changes. The
   ellipsis's width is measured on a hidden probe in the row, once per font: the computed `font`
   shorthand cannot serve, since the row's tabular figures leave it empty.
-- **Restored answer identity** (ADR-0028): each displayed question carries a fingerprint of its
+- **Restored answer identity** (ADR-0053): each displayed question carries a fingerprint of its
   source file identity, byte position and raw question record. Turn queries key by that fingerprint
   as well as path and ordinal. A read validates the selected question and its answer in one range
   operation (one streaming pass for compressed files), checks that the source stayed unchanged,
