@@ -34,7 +34,7 @@ import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
-import { TEST_ENGINE, type JsonStringSeam, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
+import { TEST_ENGINE, type JsonStringSeam, type LineLimitSeam, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
 import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storedGroups, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule, threadEngineModule } from '../engine-module'
 import { compareScanOrder } from './scan-order'
@@ -4274,6 +4274,85 @@ describe('a panic in the engine module while a Grok session is parsed', () => {
     }
     // Nothing is kept for it: the next build parses it
     expect((await new TokenEngine(join(dir, 'cache-panic'), TEST_ENGINE).build(roots(), [proj])).global.bySide.grok.total).toBe(77 + 44)
+  })
+})
+
+// token-stats A10: a session file holding a line longer than the line limit is not read to its end, as a file that
+// cannot be read is not, under the rule its side has for a read that fails, and every other file is parsed. The limit
+// is lowered for the named file through the line-limit seam to one byte under a line written after its figures, so
+// that the figures before that line would show were any of the file kept.
+describe('a session file with a line longer than the line limit', () => {
+  const seam = (): LineLimitSeam => loadEngineModule(TEST_ENGINE) as LineLimitSeam
+  const shape = (r: TokenBuildResult): unknown => ({ global: r.global, rows: r.rows, perProject: [...r.perProject], sessionFiles: [...r.sessionFiles] })
+  const named: string[] = []
+  afterEach(() => {
+    for (const file of named.splice(0)) seam().seamLimitLinesOf(file, null)
+  })
+  /** Appends `line` to `file` and holds the file's lines to a byte under it */
+  const overLimit = (file: string, line: string): void => {
+    appendFileSync(file, `${line}\n`)
+    named.push(file)
+    seam().seamLimitLinesOf(file, Buffer.byteLength(line) - 1)
+  }
+  const pad = 'x'.repeat(20_000)
+
+  /**
+   * Builds over the limit, then with `file` made unreadable by `unreadable`: the same figures, those of every other
+   * file; and once the limit is lifted, the next build parses the file, nothing having been kept for it
+   */
+  async function failsAsUnreadable(file: string, side: AgentSide, unreadable: (file: string) => () => void): Promise<void> {
+    const over = await new TokenEngine(join(dir, 'cache-over'), TEST_ENGINE).build(roots(), [proj])
+    expect(over.global.bySide[side].total).toBe(77)
+    const restore = unreadable(file)
+    try {
+      expect(shape(over)).toEqual(shape(await new TokenEngine(join(dir, 'cache-unreadable'), TEST_ENGINE).build(roots(), [proj])))
+    } finally {
+      restore()
+    }
+    seam().seamLimitLinesOf(file, null)
+    expect((await new TokenEngine(join(dir, 'cache-over'), TEST_ENGINE).build(roots(), [proj])).global.bySide[side].total).toBe(77 + 44)
+  }
+  const chmodded = (file: string): (() => void) => {
+    chmodSync(file, 0)
+    return () => chmodSync(file, 0o644)
+  }
+
+  it('is that Claude Code session\'s failed read: skipped as an unreadable one is, every other file parsed', async () => {
+    const file = mkClaudeFile('long.jsonl', [userLine('a question in the file with the long line'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 40, 4, { id: 'ml', requestId: 'rl' })])
+    mkClaudeFile('other.jsonl', [userLine('a question in the other file'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 70, 7, { id: 'mo', requestId: 'ro' })])
+    overLimit(file, userLine(`a later question ${pad}`))
+    await failsAsUnreadable(file, 'claude', chmodded)
+  })
+
+  it.each([false, true])('is that rollout\'s failed read: skipped as an unreadable one is, every other rollout parsed (cold %s)', async (cold) => {
+    let file = mkCodexRollout('rollout-long-019f510.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 40, cached: 0, output: 4 }])
+    mkCodexRollout('rollout-other-019f511.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 70, cached: 0, output: 7 }])
+    const long = JSON.stringify({ timestamp: '2026-07-30T01:00:05Z', type: 'response_item', payload: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: pad }] } })
+    if (cold) {
+      appendFileSync(file, `${long}\n`)
+      const plain = file
+      file = `${plain}.zst`
+      writeFileSync(file, zstdCompressSync(readFileSync(plain)))
+      rmSync(plain)
+      named.push(file)
+      seam().seamLimitLinesOf(file, Buffer.byteLength(long) - 1)
+    } else {
+      overLimit(file, long)
+    }
+    await failsAsUnreadable(file, 'codex', chmodded)
+  })
+
+  it('is that Grok session\'s failed read: it contributes nothing, as a session missing its update stream does (F6), every other session parsed', async () => {
+    mkdirSync(join(dir, '.grok'), { recursive: true })
+    writeFileSync(join(dir, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+    const file = mkGrokSession(proj, '019f-long', [grokUser(1786088600, 'the long question', 0), grokTurn(1786088610, { input: 40, output: 4 })])
+    mkGrokSession(proj, '019f-other', [grokUser(1786088600, 'the other question', 0), grokTurn(1786088610, { input: 70, output: 7 })])
+    overLimit(file, grokUser(1786088620, `a later question ${pad}`, 1))
+    await failsAsUnreadable(file, 'grok', (f) => {
+      const aside = join(dir, 'aside.jsonl')
+      renameSync(f, aside)
+      return () => renameSync(aside, f)
+    })
   })
 })
 

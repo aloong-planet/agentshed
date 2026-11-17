@@ -340,8 +340,9 @@ hands the command over; it never runs it.
 - D2 No inverted index is built. Searching questions reads each range by the offset index and
   matches bytes; full-text search reads the file's stream a line at a time, a plain file and a cold
   rollout alike, and matches bytes, holding only the line in flight, so a file's size no longer
-  bounds what can be searched (its longest line still does), and does so in the engine module, on a
-  thread of its own, so a search neither ends nor holds the main process (C2, ADR-0052). The key is
+  bounds what can be searched, and does so in the engine module, on a thread of its own, so a search
+  neither ends nor holds the main process (C2, ADR-0052). A line longer than the line limit
+  ([token-stats](token-stats.md) A10) is not held: it fails the search of its file (D3). The key is
   **not parsing**: it is a pure byte scan, and **only matching ranges get decoded and parsed** — for
   full text, the line of each turn's first body hit, for its snippet (D5).
   ⚠️ **Case insensitivity must not decode + lower-case the whole thing** — for the question search,
@@ -382,7 +383,8 @@ hands the command over; it never runs it.
   A cold rollout is searched in one streaming pass (C2), in question mode and full-text mode alike.
   A session whose file cannot be read is left out, in either mode, and the other sessions' hits stay.
   In full-text mode a file that cannot be read to its stream's end after its questions were read —
-  a cold rollout cut short (token-stats B12), one that is not zstd, one gone or unreadable since —
+  a cold rollout cut short (token-stats B12), one that is not zstd, one gone or unreadable since, one
+  with a line longer than the line limit (token-stats A10) —
   loses its full-text part alone: nothing its search found counts, neither body hits nor folded
   ones, and its question hits stay.
   The match is case-insensitive.
@@ -854,8 +856,10 @@ Applies to: opening an Antigravity session, expanding its turns and searching it
 - session-view::REQ-004/AC-07: The turn volume counts tool calls other than `invoke_subagent`, and
   subagent dispatches as `invoke_subagent` calls.
 - session-view::REQ-004/AC-08: A conversation whose transcript is missing — the empty conversation agy
-  creates has none (measured) — has no question. A line that will not parse is skipped without
-  discarding the rest of the file.
+  creates has none (measured) — has no question, and so does one whose transcript cannot be read to its
+  end, a line of it longer than the line limit ([token-stats](token-stats.md) A10) included; its figures
+  are its database's either way. A line that will not parse is skipped without discarding the rest of the
+  file.
 - session-view::REQ-004/AC-09: A listed session enters the read allow-list (R1) by its database's
   path, the session's identity, and its transcript is read only through that entry: the main process
   derives the transcript's path from the admitted database path and never takes one from the
