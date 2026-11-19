@@ -643,7 +643,7 @@ describe('what a Codex call shows', () => {
     expect(bs.map((b) => b.kind === 'tool' && b.name)).toEqual(['custom_tool_call', 'function_call', 'tool_search_call'])
   })
 
-  test('what it returned: the output of any of the three output types whose call_id is the one the call was last made with, the last of them, shown as an input is', async () => {
+  test('what it returned: the output of any of the three output types whose call_id is the one the call was last made with, an empty one being none, the last of them, shown as an input is', async () => {
     const out = (fields: Record<string, unknown>): unknown => xRI({ type: 'function_call_output', ...fields })
     const bs = await codexBlocks([
       out({ call_id: 'early', output: 'before its call' }),
@@ -660,6 +660,9 @@ describe('what a Codex call shows', () => {
       out({ output: 'no id' }),
       call({ name: 'g', call_id: 7 }),
       out({ call_id: 7, output: 'an id that is no string' }),
+      // Codex writes an empty call_id on a call a Chat Completions provider gave no id, and on its output
+      call({ name: 'k', call_id: '' }),
+      out({ call_id: '', output: 'an empty id' }),
       out({ call_id: 'nobody', output: 'an id no call was made with' }),
       call({ name: 'h', call_id: 'c4' }),
       xRI({ type: 'tool_search_output', call_id: 'c4', output: null }),
@@ -678,6 +681,7 @@ describe('what a Codex call shows', () => {
       ['e', 'to the call made last'],
       ['f', null],
       ['g', null],
+      ['k', null],
       ['h', ''],
       ['i', ''],
       ['j', '42'],

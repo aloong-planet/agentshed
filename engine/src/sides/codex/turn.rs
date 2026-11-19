@@ -301,7 +301,7 @@ enum Given {
     Prose(Vec<usize>),
     /// A reasoning's sub-headings: these texts, but those only white space
     Reason(Vec<usize>),
-    /// A call by the tool `name`, a subagent's dispatch when `sub`, and its id when it has one
+    /// A call by the tool `name`, a subagent's dispatch when `sub`, and its id when it has one that is not empty
     Call { id: Option<JsString>, name: JsString, sub: bool, input: Text },
     /// An output for the call at a place among the turn's blocks
     Output(usize, Text),
@@ -392,7 +392,10 @@ impl Turn {
                 let input = p.input.filter(|v| !matches!(v, Value::Null)).or(p.arguments);
                 let name = p.name.map_or(kind, |n| n.text());
                 let sub = matches!(&name, JsString::Utf8(n) if dispatches.contains(&n.as_str()));
-                return Given::Call { id: p.call_id.map(|id| id.text()), name, sub, input: Text::of(input, strings) };
+                // An empty id is none (`if (callId)`): Codex writes one on a call a Chat Completions provider gave no
+                // id, and on an output answering a call it did not run
+                let id = p.call_id.filter(|id| !id.is_empty()).map(|id| id.text());
+                return Given::Call { id, name, sub, input: Text::of(input, strings) };
             }
             if one_of(&OUTPUT_TYPES, &kind) {
                 return match p.call_id.and_then(|id| self.calls.get(&id.text()).copied()) {
