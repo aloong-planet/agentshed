@@ -2,7 +2,8 @@
 //! `<name>.jsonl.zst` and deletes the plain file (its compression.rs, read 2026-09-09). The same session, its offsets
 //! those of the decompressed stream. Its name says how it is stored, and the bytes its stream ends with whether the
 //! stream was cut short. The parse, the walk, a read of a rollout's ranges for the session page and both searches, a
-//! read of one of its turns, and the full-text search each take both from here.
+//! read of one of its turns, and the full-text search each take both from here; the question search too, which reads a
+//! plain rollout's ranges where they lie.
 
 use crate::read::{self, Failed, Served, Stored, TurnRead};
 use crate::search::{self, Found, Turn};
@@ -29,6 +30,18 @@ pub(super) fn ranges(file: &str, ranges: &[(u64, u64)]) -> Result<Served, Failed
         return Err(Failed);
     }
     Ok(served)
+}
+
+/// Each of `ranges` of the rollout `file`, in its stream's offsets, handed to `each` with its index: a plain rollout's
+/// read where they lie (`read::at`), a cold one's in one pass of its stream (`ranges`, under its cut-short rule).
+pub(super) fn questions(file: &str, ranges: &[(u64, u64)], each: &mut dyn FnMut(usize, &[u8])) -> Result<(), Failed> {
+    if stored(file) == Stored::Plain {
+        return read::at(file, ranges, each);
+    }
+    for (i, bytes) in self::ranges(file, ranges)?.bytes.iter().enumerate() {
+        each(i, bytes);
+    }
+    Ok(())
 }
 
 /// A turn of the rollout `file`, in its stream's offsets (`read::turn`). Failed as well when the read went to the

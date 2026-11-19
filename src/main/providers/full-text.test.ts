@@ -9,7 +9,6 @@ import { join } from 'node:path'
 import { threadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type LineLimitSeam, type PanicSeam } from '../testing/engine'
 import { searchFullText, type FullTextFound, type TurnBounds } from './full-text'
-import { searchBytes } from './search-bytes'
 
 const dir = mkdtempSync(join(tmpdir(), 'full-text-'))
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
@@ -34,10 +33,9 @@ async function offsets(content: string, needle: string): Promise<number[]> {
   return found.body.map((b) => b.turn)
 }
 
-// The byte rule a hit is found by, the one searchBytes holds for the question search (search-bytes.test.ts): what each
-// assertion of that file holds, again through the full-text search, which finds its hits by a matcher of its own; its
-// mixed needle is held by 'a needle of letters and others' below, its large text by the first case here
-describe('the full-text search finds hits by the byte rule of the question search', () => {
+// The byte rule a hit is found by (session-view D4): the needle's UTF-8 bytes, ASCII letters' case folded, every offset
+// where they stand, hits overlapping; a mixed needle is held by 'a needle of letters and others' below
+describe('the full-text search finds hits by the byte rule', () => {
   test('ASCII is case-insensitive: searching notarize hits Notarize/NOTARIZE/nOtArIzE', async () => {
     const text = 'first Notarize, then NOTARIZE, finally nOtArIzE'
     expect(await offsets(text, 'notarize')).toHaveLength(3)
@@ -74,9 +72,22 @@ describe('the full-text search finds hits by the byte rule of the question searc
   })
 })
 
-// ── The whole-file search this one replaced, as search-sessions.ts ran it before #479 (fc20a2b), copied unchanged: the
-// oracle each case holds the streaming search to, run over the file's whole stream in memory ──
+// ── The whole-file search this one replaced, as search-sessions.ts ran it before #479 (fc20a2b), copied unchanged but
+// for its byte match, which is stated here as plainly as it reads: the oracle each case holds the streaming search to,
+// run over the file's whole stream in memory ──
 const fold = (s: string): string => s.toLowerCase()
+/** ASCII letters' case folded, byte for byte */
+const foldAscii = (b: Buffer): Buffer => Buffer.from(b.map((x) => (x >= 0x41 && x <= 0x5a ? x + 0x20 : x)))
+/** Every offset where `needle`'s UTF-8 bytes stand in `whole`, ASCII letters' case folded, hits overlapping; none for an
+ * empty needle */
+function byteHits(whole: Buffer, needle: string): number[] {
+  const hay = foldAscii(whole)
+  const k = foldAscii(Buffer.from(needle, 'utf8'))
+  const hits: number[] = []
+  if (k.length === 0) return hits
+  for (let at = hay.indexOf(k); at !== -1; at = hay.indexOf(k, at + 1)) hits.push(at)
+  return hits
+}
 function extractSnippet(lineText: string, needle: string): string | null {
   let obj: unknown
   try {
@@ -131,7 +142,7 @@ function wholeFileSearch(whole: Buffer, k: string, recs: readonly TurnBounds[]):
   let folded = 0
   const bodyHit = new Set<number>()
   const bodySnippet = new Map<number, string | null>()
-  for (const off of searchBytes(whole, k)) {
+  for (const off of byteHits(whole, k)) {
     const t = turnIndexOf(recs, off)
     if (t === -1) {
       folded++

@@ -85,14 +85,24 @@ pub(crate) mod hold_seam {
     /// shorter than it is given to fail in
     const VALVE: Duration = Duration::from_secs(5);
 
-    /// The files whose reads are held, and the file of each read waiting at the gate now
+    /// The files whose reads are held, and each read waiting at the gate now
     struct Gate {
         held: Vec<String>,
-        waiting: Vec<String>,
+        waiting: Vec<Waiting>,
+        /// The number the next read to wait takes
+        next: u64,
+    }
+
+    /// A read waiting at the gate: its number, its file, and whether a release has let it go
+    struct Waiting {
+        read: u64,
+        file: String,
+        let_go: bool,
     }
 
     /// One for the whole process, as the module's code is shared by every thread
-    static GATE: Mutex<Gate> = Mutex::new(Gate { held: Vec::new(), waiting: Vec::new() });
+    static GATE: Mutex<Gate> = Mutex::new(Gate { held: Vec::new(), waiting: Vec::new(), next: 0 });
+    /// Signalled when a release lets reads go, and when a read leaves the gate
     static RELEASED: Condvar = Condvar::new();
 
     fn gate() -> MutexGuard<'static, Gate> {
@@ -107,20 +117,34 @@ pub(crate) mod hold_seam {
         }
     }
 
-    /// Releases the reads of `file`, or of every file: those waiting go on, and those to come are not held
+    /// Releases the reads of `file`, or of every file: those waiting go on, and those to come are not held. It returns
+    /// once those waiting have left the gate, so that a hold of the file right after it holds only the reads that come
+    /// later, never one it let go.
     pub(crate) fn release(file: Option<String>) {
         let mut gate = gate();
-        match file {
-            Some(file) => gate.held.retain(|held| *held != file),
+        match &file {
+            Some(file) => gate.held.retain(|held| held != file),
             None => gate.held.clear(),
         }
-        drop(gate);
+        for waiting in gate.waiting.iter_mut() {
+            if file.as_ref().is_none_or(|file| *file == waiting.file) {
+                waiting.let_go = true;
+            }
+        }
         RELEASED.notify_all();
+        let valve = Instant::now() + VALVE;
+        while gate.waiting.iter().any(|waiting| waiting.let_go) {
+            let now = Instant::now();
+            if now >= valve {
+                break;
+            }
+            gate = RELEASED.wait_timeout(gate, valve - now).unwrap_or_else(|poisoned| poisoned.into_inner()).0;
+        }
     }
 
     /// The file of each read waiting at the gate now, in the order they came to it
     pub(crate) fn waiting() -> Vec<String> {
-        gate().waiting.clone()
+        gate().waiting.iter().map(|waiting| waiting.file.clone()).collect()
     }
 
     pub(super) fn wait(file: &str) {
@@ -129,9 +153,11 @@ pub(crate) mod hold_seam {
         if !gate.held.iter().any(|held| held == file) {
             return;
         }
-        gate.waiting.push(file.to_owned());
+        let read = gate.next;
+        gate.next += 1;
+        gate.waiting.push(Waiting { read, file: file.to_owned(), let_go: false });
         let mut given_up = false;
-        while gate.held.iter().any(|held| held == file) {
+        while !gate.waiting.iter().any(|waiting| waiting.read == read && waiting.let_go) && gate.held.iter().any(|held| held == file) {
             let now = Instant::now();
             if now >= valve {
                 given_up = true;
@@ -139,10 +165,10 @@ pub(crate) mod hold_seam {
             }
             gate = RELEASED.wait_timeout(gate, valve - now).unwrap_or_else(|poisoned| poisoned.into_inner()).0;
         }
-        if let Some(at) = gate.waiting.iter().position(|waiting| waiting == file) {
-            gate.waiting.remove(at);
-        }
+        gate.waiting.retain(|waiting| waiting.read != read);
         drop(gate);
+        // A release waits for the reads it let go to leave
+        RELEASED.notify_all();
         if given_up {
             panic!("the hold seam's valve: a read of {file} was held for {VALVE:?} and never released");
         }

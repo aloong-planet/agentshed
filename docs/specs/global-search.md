@@ -205,13 +205,9 @@ with plural forms; no string enumerates the agent sides as a set.
   characters is refused at the IPC boundary as it is for a project's search, and the page shows the
   failure line (global-search::REQ-003/AC-01); shortening the keyword searches again.
 - S5 A one-letter keyword can hit thousands of questions: all are listed (global-search::US-001/AC-09).
-- S6 Case: matching ignores case for every letter the platform lowercases, not only ASCII — a project's
-  own byte-level question pass folds ASCII only, so a non-ASCII letter's other case can hit here and miss
-  there. Accepted; recorded so it is not reported as a defect.
-- S7 Keywords with quotes or backslashes match the question as written, since the texts are matched after
-  parsing (a project's own search misses them in their escaped form, session-view D4). A question written
-  over several lines is matched as the session page shows it, its line breaks as spaces, so the words either
-  side of a break match with a space between them; the box itself takes no line break.
+- S6 Case, quotes, backslashes and line breaks: a keyword matches a question as a project's question
+  search matches it ([session-view](session-view.md) D4).
+- S7 The search box takes no line break.
 - S8 A long question or title is cut with an ellipsis on its line; its full text is on the session page. A
   question whose keyword would fall past the cut starts shortly before it instead
   ([session-view::REQ-002](session-view.md)).

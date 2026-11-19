@@ -38,7 +38,7 @@ mod seam {
         seams::hold_seam::hold(file);
     }
 
-    /// Releases the reads of `file`, or of every file
+    /// Releases the reads of `file`, or of every file, returning once those waiting have left the gate
     #[napi(catch_unwind)]
     pub fn seam_release_reads_of(file: Option<String>) {
         seams::hold_seam::release(file);

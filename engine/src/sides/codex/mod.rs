@@ -62,6 +62,10 @@ impl Side for Codex {
         Some(cold::ranges(file, ranges))
     }
 
+    fn read_questions(&self, file: &str, ranges: &[(u64, u64)], each: &mut dyn FnMut(usize, &[u8])) -> std::result::Result<(), Failed> {
+        cold::questions(file, ranges, each)
+    }
+
     fn stored(&self, file: &str) -> crate::read::Stored {
         cold::stored(file)
     }
