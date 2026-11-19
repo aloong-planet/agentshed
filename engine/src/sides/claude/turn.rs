@@ -391,5 +391,5 @@ fn sub(name: JsString, input: Option<&str>, at: At) -> Block {
             })
         });
     }
-    Block::Sub { at, name: kind.unwrap_or(name), prompt: prompt.or(description).unwrap_or_else(JsString::empty), result: None }
+    Block::Sub { at, name: Some(kind.unwrap_or(name)), prompt: prompt.or(description).unwrap_or_else(JsString::empty), result: None }
 }
