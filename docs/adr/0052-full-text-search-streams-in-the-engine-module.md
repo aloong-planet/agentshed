@@ -8,9 +8,9 @@ A project's full-text search read each session file whole into the main process,
 by the engine module (ADR-0045), and matched it, mapped its hits to turns and cut its snippets on the main thread,
 while its question search matched each question's bytes with only ASCII letters' case folded. A cold rollout whose
 stream exceeds 2 GiB ended the main process, and a large file held the main thread for seconds and raised the
-footprint by two to three times its size (Sources). What the full-text search shows had to stay as it was, and the
-question search missed what global search finds by a non-ASCII letter's other case, a quote, a backslash or a line
-break.
+footprint by two to three times its size (Sources). What the full-text search shows had to stay as it was, snippets
+aside, and the question search missed what global search finds by a non-ASCII letter's other case, a quote, a
+backslash or a line break.
 
 ## Options
 
@@ -24,6 +24,9 @@ break.
 5. Keep the question search's byte match, in TypeScript or in the module, its difference from global search
    accepted — rejected: a question its own project's search misses is one global search finds, and the byte match
    would exist twice.
+6. Cut snippets as the whole-file search did, at offsets in the lowered string, in code units — rejected: U+0130,
+   lowering to two units, moves the cut until the needle can leave its snippet, and a character beyond the basic plane
+   counts twice or is split.
 
 ## Decision
 
@@ -32,11 +35,12 @@ We adopt **options 1 and 4**.
 - The module is given the needle, the file and its turns, and gives back the hits in no turn and each turn's first
   body hit with its snippet.
 - The module is given the needle, the file and its questions' ranges, and gives back the questions that hit; in
-  full-text mode, searched before the full text (session-view D3), every question with its text, for the body hits.
-- The byte rule, the mapping of a hit to its turn and the snippet are the whole-file search's, quirk for quirk
-  (session-view D2–D5).
-- A cold rollout's search takes one of the places its reads share (session-view C2), and a file that cannot be read to
-  its end gives nothing of what its search found (session-view D3).
+  full-text mode (session-view D3), every question with its text, for the body hits.
+- The byte rule and the mapping of a hit to its turn are the whole-file search's, quirk for quirk (session-view
+  D2–D4); a snippet comes from the string that search took, cut where the hit stands in it, its 20 and 60 counted in
+  characters (D5).
+- A cold rollout's search shares the places its reads take, and a file not read to its end gives nothing it found
+  (session-view C2, D3).
 
 ## Consequences
 
@@ -44,15 +48,13 @@ We adopt **options 1 and 4**.
   what can be searched and no file holds the main process (Sources).
 - Positive: a question global search finds, its own project's search finds too, by one match rule.
 - Negative: a snippet is cut, and a project's question matched, from text lowered by Rust's case mapping, not by the
-  JavaScript the app runs, so they agree with global search only while Rust's standard library and Electron's
-  JavaScript carry one Unicode version.
+  JavaScript the app runs, so they agree with global search only while the two carry one Unicode version.
 - Negative: the footprint still follows a file's longest line, held with its lowered copy and, while its snippet is
   cut, its strings as UTF-16: a 67.7 MB line raised it by about 208 MB (Sources); in full-text mode a session's
-  question texts are held together, as its question list holds them. A line past the engine module's
-  line limit is not held whole but fails its file's search, its question hits alone kept (token-stats A10,
-  session-view D3).
-- Neutral: on this machine's data the full-text search found what the whole-file search found in every project that
-  search completes in (Sources).
+  question texts are held together, as its question list holds them. A line past the line limit fails its file's
+  search instead (token-stats A10, session-view D3).
+- Neutral: on this machine's data the full-text search found the hits and turns the whole-file search found in every
+  project that search completes in (Sources).
 
 ## Sources
 
