@@ -1,6 +1,6 @@
 # ADR-0045: The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module that builds only the values a rule reads
 
-- Status: Accepted (2026-11-17)
+- Status: Accepted (2026-11-20)
 
 ## Context
 
@@ -42,7 +42,7 @@ We adopt **option 1**.
   - each side's per-line rules, the question index and the titles;
   - each file's entry, the store (ADR-0044), the grouping and the combination;
   - the line rules that the session page and both searches read a question's text and a turn's contents by;
-  - a project's full-text search (ADR-0052);
+  - a project's search in both modes (ADR-0052);
   - serialising and writing the display copy, at the moments ADR-0044 sets.
 - **Reading**: a value in a line is built only where a rule reads it, and every other value is scanned past.
   Where `JSON.parse` and the module's parser would disagree on a line, the module gives JavaScript's result.

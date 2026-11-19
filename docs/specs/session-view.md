@@ -1,6 +1,6 @@
 # Session view
 
-> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0053 (saved display pages, and the turns they keep) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module) · ADR-0052 (the full-text search in the engine module, a line at a time)
+> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0053 (saved display pages, and the turns they keep) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module) · ADR-0052 (a project's search in the engine module)
 
 > Successful display payloads persist independently of the accounting index (ADR-0053).
 
