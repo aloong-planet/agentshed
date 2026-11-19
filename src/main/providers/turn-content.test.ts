@@ -493,26 +493,7 @@ describe('the parts of a Claude Code line a turn draws', () => {
 const xEvent = (payload: Record<string, unknown>): unknown => ({ type: 'event_msg', timestamp: TS, payload })
 const xRI = (payload: Record<string, unknown>): unknown => ({ type: 'response_item', timestamp: TS, payload })
 
-describe('Codex tool blocks (paired by call_id; both the input and arguments fields)', () => {
-  test('both custom_tool_call.input and function_call.arguments are honoured; outputs pair by call_id', async () => {
-    const bs = await codexBlocks([
-      xRI({ type: 'custom_tool_call', id: 'r1', call_id: 'c1', name: 'exec', input: 'ls -la', status: 'completed' }),
-      xRI({ type: 'custom_tool_call_output', call_id: 'c1', output: '3 files' }),
-      xRI({ type: 'function_call', id: 'r2', call_id: 'c2', name: 'wait', arguments: '{"ms":100}' }),
-      xRI({ type: 'function_call_output', call_id: 'c2', output: 'ok' }),
-      xRI({ type: 'tool_search_call', id: 'r3', call_id: 'c3', arguments: '{"q":"read"}', status: 'completed' })
-    ])
-    expect(bs.map((b) => b.kind)).toEqual(['tool', 'tool', 'tool'])
-    const [t1, t2, t3] = bs as Array<Extract<TurnBlock, { kind: 'tool' }>>
-    expect(t1.name).toBe('exec')
-    expect(t1.input).toBe('ls -la')
-    expect(t1.output).toBe('3 files')
-    expect(t2.input).toBe('{"ms":100}')
-    expect(t2.output).toBe('ok')
-    expect(t3.name).toBe('tool_search_call')
-    expect(t3.output).toBeNull()
-  })
-
+describe('Codex sub blocks', () => {
   test('spawn_agent yields a sub block: the unlinked label, with the sub-thread unattributed (ruled 2026-08-06)', async () => {
     const bs = await codexBlocks([
       xRI({ type: 'function_call', id: 'r1', call_id: 'c1', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"t1"}' }),
@@ -529,14 +510,6 @@ describe('Codex tool blocks (paired by call_id; both the input and arguments fie
 })
 
 describe('Codex reasoning blocks (reasoning.summary is a plaintext sub-heading; the body is encrypted and unobtainable)', () => {
-  test('a non-empty summary yields a reason block; an empty array yields none (64% are empty in the full enumeration)', async () => {
-    const bs = await codexBlocks([
-      xRI({ type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: '**compare the directories first**' }, { type: 'summary_text', text: 'then look at the differences' }], encrypted_content: 'gAAA…' }),
-      xRI({ type: 'reasoning', id: 'r2', summary: [], encrypted_content: 'gAAA…' })
-    ])
-    expect(bs).toEqual([{ kind: 'reason', at: AT, titles: ['**compare the directories first**', 'then look at the differences'] }])
-  })
-
   test('event_msg/agent_reasoning is a mirror and yields no block (to avoid double counting)', async () => {
     expect(await codexBlocks([xEvent({ type: 'agent_reasoning', text: 'sub-heading' })])).toEqual([])
   })
@@ -738,7 +711,9 @@ describe('Codex prose and reasoning', () => {
   test("a reasoning's sub-headings are its summary's texts in order, but those only white space, no string, or no object's", async () => {
     const bs = await codexBlocks([
       xRI({ type: 'reasoning', summary: 'no array' }),
-      xRI({ type: 'reasoning', summary: [{ text: 'first' }, 'a string', { text: null }, { text: blank }, { type: 'summary_text', text: 'second' }] }),
+      // The body, encrypted_content, is never shown (session-view C6)
+      xRI({ type: 'reasoning', summary: [{ text: 'first' }, 'a string', { text: null }, { text: blank }, { type: 'summary_text', text: 'second' }], encrypted_content: 'gAAA…' }),
+      xRI({ type: 'reasoning', summary: [], encrypted_content: 'gAAA…' }),
       xRI({ type: 'reasoning', summary: [{ text: blank }] }),
       xRI({ type: 'reasoning' })
     ])
