@@ -59,11 +59,11 @@
 //                 stall during it, and the main process's footprint before it and at its peak, worker threads
 //                 included, read with macOS `footprint` as token-stats::QR-004 reads memory (macOS only).
 //   turn-index <side> <dir>
-//                 the turns of the side (claude or codex) the turn mode measures: every session of the side under the
-//                 home, walked and indexed by the engine module's parse as a scan indexes it, and of their turns the
+//                 the turns of a side (claude, codex or grok) the turn mode measures: every session of the side under
+//                 the home, walked and indexed by the engine module's parse as a scan indexes it, and of their turns the
 //                 three of plain files whose bodies are the largest within the turn limit, and the largest of a cold
-//                 rollout when there is one; and a session file of the side written into <dir>, one question and a body
-//                 of tool calls and their results a little under the limit. Prints each as the turn mode's arguments.
+//                 rollout when there is one; and a session of the side written into <dir>, one question and a body of
+//                 tool calls and their results a little under the limit. Prints each as the turn mode's arguments.
 //   turn <side> <file> <question start> <question end> <turn end>
 //                 the turn fetch the session page makes as it expands a turn of the side (getSessionTurn in
 //                 src/main/index.ts), from the turn's question index record as turn-index printed it: the turn read,
@@ -97,9 +97,9 @@ import { Scanner, settleScan, tokenBuildInputs, type ScanOutput } from '../src/m
 import { startScans } from '../src/main/scan-client'
 import { UsageArchive } from '../src/main/providers/archive'
 import type { ScanRoots } from '../src/main/providers/types'
-import type { QuestionRec } from '../src/main/providers/question-index'
 import { isColdRollout } from '../src/main/providers/cold-rollout'
 import { searchProjectSessions } from '../src/main/providers/search-sessions'
+import type { QuestionRec } from '../src/main/providers/question-index'
 import { realRoots } from '../src/main/roots'
 import { compareStores, type StoreRow } from './lib/bench-store-compare.mjs'
 import type { SearchResult, SessionMeta, SessionTurn } from '../src/shared/domain'
@@ -773,141 +773,185 @@ interface IndexedTurn {
 const bodyBytes = (t: IndexedTurn): number => t.rec[2] - t.rec[1]
 
 /** The sides the turn mode measures */
-type TurnSide = 'claude' | 'codex'
+type TurnSide = 'claude' | 'codex' | 'grok'
 
 /** The turn mode's arguments for a turn of `side` */
 const turnArgs = (side: TurnSide, t: IndexedTurn): string => `turn ${side} ${t.file} ${t.rec.join(' ')}`
 
-/** The turns of a session file as the engine module's parse indexes it for a scan: its question index's records */
-const indexed = (file: string, questions: readonly QuestionRec[]): IndexedTurn[] =>
-  questions.map((r) => ({ file, rec: [r[0], r[1], r[2]] }))
-
-/** Every turn of a Claude Code transcript, as the engine module's parse indexes it for a scan */
-async function claudeTurns(file: string, listed: boolean): Promise<IndexedTurn[]> {
-  const parsed = await runParseJob({ kind: 'claude', file, projectKey: '', listed })
-  return parsed === null || parsed.agg.kind !== 'claude' ? [] : indexed(file, parsed.agg.questions)
+/** The question index records of a parse's entry, as turns of `file` */
+function indexedTurns(file: string, questions: readonly QuestionRec[]): IndexedTurn[] {
+  return questions.map((r) => ({ file, rec: [r[0], r[1], r[2]] }))
 }
 
-/** Every turn of a Codex rollout, plain or cold, as the engine module's parse indexes it for a scan, `meta` its session as
- * the walk lists it */
-async function codexTurns(meta: SessionWalk['codex'][number]): Promise<IndexedTurn[]> {
-  const parsed = await runParseJob({ kind: 'codex', file: meta.file, projectKey: '', meta, threadName: undefined })
-  return parsed === null || parsed.agg.kind !== 'codex' ? [] : indexed(meta.file, parsed.agg.questions)
+/** What the turn mode measures of a side */
+interface TurnSideBench {
+  /** The scan root holding the side's sessions */
+  root: 'claudeHome' | 'codexHome' | 'grokHome'
+  /** Every turn of the side's sessions in `walk`, as the engine module's parse indexes them for a scan, and how many
+   * sessions there were */
+  turns(walk: SessionWalk): Promise<{ sessions: number; turns: IndexedTurn[] }>
+  /** A session of one question whose body is a little under the turn limit, written into `dir`: its lines, the body's
+   * after the question's */
+  nearLimit(dir: string): { file: string; lines: string[] }
 }
 
-/** A line of a constructed session file: its JSON and a line feed */
-const jsonLine = (o: unknown): string => JSON.stringify(o) + '\n'
-
-/** The time every line of a constructed turn carries */
-const BENCH_TS = '2026-11-20T10:00:00.000Z'
-
-/**
- * A body of tool calls and their results a little under the turn limit, as `pair(i, output)` writes the `i`th call and
- * its result: tool output of the shape a long build log has, quotes, tabs and non-ASCII text among it, each result about
- * a MiB. `head` is what the file holds before the body.
- */
-function nearLimitText(head: string, pair: (i: number, output: string) => string): string {
-  const parts = [head]
-  const unit = `${BENCH_TS} INFO\tworker-3 handled "GET /api/sessions/résumé" 200 in 12 ms — ok\n`
+/** A run of tool calls and their results, each result about a MiB of output the shape a long build log has, quotes,
+ * tabs and non-ASCII text among it, after `head`, the lines before the body: as many as fit a little under the turn
+ * limit. `call(i)` writes the i-th call's lines, `result(i, text)` its result's. */
+function nearLimitLines(head: string, call: (i: number) => string, result: (i: number, text: string) => string): string[] {
+  const unit = `2026-11-20T10:00:00.000Z INFO\tworker-3 handled "GET /api/sessions/résumé" 200 in 12 ms — ok\n`
   const target = TURN_LIMIT - 4096
+  const lines = [head]
   let body = 0
   for (let i = 0; ; i++) {
-    const empty = Buffer.byteLength(pair(i, ''))
-    const perUnit = Buffer.byteLength(pair(i, unit)) - empty
+    const empty = Buffer.byteLength(call(i)) + Buffer.byteLength(result(i, ''))
+    const perUnit = Buffer.byteLength(result(i, unit)) - Buffer.byteLength(result(i, ''))
     const room = Math.floor((target - body - empty) / perUnit)
     if (room <= 0) break
-    const text = pair(i, unit.repeat(Math.min(room, Math.floor((1024 * 1024) / perUnit))))
-    parts.push(text)
-    body += Buffer.byteLength(text)
+    const n = Math.min(room, Math.floor((1024 * 1024) / perUnit))
+    const pair = [call(i), result(i, unit.repeat(n))]
+    lines.push(...pair)
+    body += Buffer.byteLength(pair.join(''))
   }
-  return parts.join('')
+  return lines
 }
 
-/** The one turn the constructed file `file` indexes as, checked to be a little under the limit */
-function nearLimitTurn(file: string, turns: IndexedTurn[]): IndexedTurn {
-  const [turn, ...more] = turns
+const TURN_SIDES: Record<TurnSide, TurnSideBench> = {
+  claude: {
+    root: 'claudeHome',
+    async turns(walk) {
+      const turns: IndexedTurn[] = []
+      for (const t of walk.claude) {
+        const parsed = await runParseJob({ kind: 'claude', file: t.file, projectKey: '', listed: !t.nested })
+        if (parsed !== null && parsed.agg.kind === 'claude') turns.push(...indexedTurns(t.file, parsed.agg.questions))
+      }
+      return { sessions: walk.claude.length, turns }
+    },
+    nearLimit(dir) {
+      const ts = '2026-11-20T10:00:00.000Z'
+      const line = (o: unknown): string => JSON.stringify(o) + '\n'
+      const lines = nearLimitLines(
+        line({ type: 'user', timestamp: ts, uuid: 'q', message: { role: 'user', content: 'Why does the nightly build fail?' } }),
+        (i) =>
+          line({ type: 'assistant', timestamp: ts, message: { role: 'assistant', content: [
+            { type: 'text', text: `Reading log ${i}.` },
+            { type: 'tool_use', id: `toolu_${i}`, name: 'Bash', input: { command: `cat build-${i}.log`, description: `Read build log ${i}` } }
+          ] } }),
+        (i, text) => line({ type: 'user', timestamp: ts, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_${i}`, content: text }] } })
+      )
+      return { file: join(dir, 'near-limit.jsonl'), lines }
+    }
+  },
+  codex: {
+    root: 'codexHome',
+    async turns(walk) {
+      const turns: IndexedTurn[] = []
+      for (const s of walk.codex) {
+        const parsed = await runParseJob({ kind: 'codex', file: s.file, projectKey: '', meta: s, threadName: undefined })
+        if (parsed !== null && parsed.agg.kind === 'codex') turns.push(...indexedTurns(s.file, parsed.agg.questions))
+      }
+      return { sessions: walk.codex.length, turns }
+    },
+    nearLimit(dir) {
+      const ts = '2026-11-20T10:00:00.000Z'
+      const line = (type: string, payload: unknown): string => JSON.stringify({ timestamp: ts, type, payload }) + '\n'
+      // A plain rollout of the legacy format: its session's meta line, the question, then the agent's prose and a shell
+      // call, as a Codex rollout writes them, and the call's output
+      const lines = nearLimitLines(
+        line('session_meta', { id: '0196f1c2-3b4d-7e5f-8a6b-1c2d3e4f5a6b', timestamp: ts, cwd: '/work/nightly', originator: 'codex_cli_rs', cli_version: '0.60.0' }) +
+          line('event_msg', { type: 'user_message', message: 'Why does the nightly build fail?', images: [] }),
+        (i) =>
+          line('event_msg', { type: 'agent_message', message: `Reading log ${i}.` }) +
+          line('response_item', { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: `cat build-${i}.log`, workdir: '/work/nightly' }), call_id: `call_${i}` }),
+        (i, text) => line('response_item', { type: 'function_call_output', call_id: `call_${i}`, output: text })
+      )
+      return { file: join(dir, 'rollout-2026-11-20T10-00-00-0196f1c2-3b4d-7e5f-8a6b-1c2d3e4f5a6b.jsonl'), lines }
+    }
+  },
+  grok: {
+    root: 'grokHome',
+    async turns(walk) {
+      const turns: IndexedTurn[] = []
+      for (const s of walk.grok) {
+        const parsed = await runParseJob({ kind: 'grok', file: s.file, projectKey: '', subagent: s.subagent })
+        if (parsed !== null && parsed.agg.kind === 'grok') turns.push(...indexedTurns(s.file, parsed.agg.questions))
+      }
+      return { sessions: walk.grok.length, turns }
+    },
+    nearLimit(dir) {
+      const ts = 1_795_000_000
+      const line = (update: Record<string, unknown>): string =>
+        JSON.stringify({ timestamp: ts, method: '_x.ai/session/update', params: { sessionId: 's', update } }) + '\n'
+      const lines = nearLimitLines(
+        line({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Why does the nightly build fail?' }, _meta: { promptIndex: 0 } }),
+        // A message split across chunks mid-word, then the call
+        (i) =>
+          [
+            line({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Read' } }),
+            line({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: `ing log ${i}.` } }),
+            line({
+              sessionUpdate: 'tool_call',
+              toolCallId: `call_${i}`,
+              title: 'read_file',
+              rawInput: { target_file: `/srv/ci/build-${i}.log` },
+              _meta: { 'x.ai/tool': { name: 'read_file', label: 'Read' } }
+            })
+          ].join(''),
+        (i, text) =>
+          line({ sessionUpdate: 'tool_call_update', toolCallId: `call_${i}`, status: 'completed', content: [{ type: 'content', content: { type: 'text', text } }] })
+      )
+      // Grok's own layout, a session's stream in a directory of its own (sessions/<cwd>/<session id>/updates.jsonl)
+      const session = join(dir, 'sessions', encodeURIComponent('/srv/ci'), 'near-limit')
+      mkdirSync(session, { recursive: true })
+      return { file: join(session, 'updates.jsonl'), lines }
+    }
+  }
+}
+
+function turnSide(name: string | undefined): TurnSide {
+  if (name === 'claude' || name === 'codex' || name === 'grok') return name
+  throw new Error(`the turn modes measure the sides ${Object.keys(TURN_SIDES).join(' and ')}, not "${name ?? ''}"`)
+}
+
+/** The session `bench` writes into `dir`, indexed: its one turn, checked to be a little under the turn limit */
+async function writeNearLimitTurn(bench: TurnSideBench, dir: string): Promise<IndexedTurn> {
+  const { file, lines } = bench.nearLimit(dir)
+  writeFileSync(file, lines.join(''))
+  const walk: SessionWalk = { claude: [], codex: [], grok: [], antigravity: [], held: { claude: [], codex: [], grok: [], antigravity: [] } }
+  if (bench.root === 'claudeHome') walk.claude.push({ file, dir, nested: false })
+  else if (bench.root === 'codexHome') {
+    const meta = threadEngineModule().sessionMeta('codex', file)
+    if (meta === null) throw new Error(`${file} gives no Codex session`)
+    walk.codex.push(meta)
+  } else walk.grok.push({ file, cwd: '/srv/ci', subagent: false, mtimeMs: statSync(file).mtimeMs })
+  const { turns: [turn, ...more] } = await bench.turns(walk)
   if (!turn || more.length > 0) throw new Error(`${file} should index as one turn`)
   if (bodyBytes(turn) > TURN_LIMIT || bodyBytes(turn) < TURN_LIMIT - 1024 * 1024)
     throw new Error(`${file}'s body is ${bodyBytes(turn)} bytes, not a little under the limit of ${TURN_LIMIT}`)
   return turn
 }
 
-/** How the turn mode finds a side's turns: every session of the side the walk lists, indexed as a scan indexes it; and a
- * session file it writes into `dir`, of one question whose body is a little under the turn limit */
-interface TurnSource {
-  turns(walk: SessionWalk): Promise<{ sessions: number; turns: IndexedTurn[] }>
-  nearLimit(dir: string): Promise<IndexedTurn>
-}
-
-const TURN_SIDES: Record<TurnSide, TurnSource> = {
-  claude: {
-    async turns(walk) {
-      const turns: IndexedTurn[] = []
-      for (const t of walk.claude) turns.push(...(await claudeTurns(t.file, !t.nested)))
-      return { sessions: walk.claude.length, turns }
-    },
-    /** A transcript whose body is a run of Bash calls, each with its text, and their results */
-    async nearLimit(dir) {
-      const file = join(dir, 'near-limit.jsonl')
-      const head = jsonLine({ type: 'user', timestamp: BENCH_TS, uuid: 'q', message: { role: 'user', content: 'Why does the nightly build fail?' } })
-      const pair = (i: number, output: string): string =>
-        jsonLine({ type: 'assistant', timestamp: BENCH_TS, message: { role: 'assistant', content: [
-          { type: 'text', text: `Reading log ${i}.` },
-          { type: 'tool_use', id: `toolu_${i}`, name: 'Bash', input: { command: `cat build-${i}.log`, description: `Read build log ${i}` } }
-        ] } }) +
-        jsonLine({ type: 'user', timestamp: BENCH_TS, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_${i}`, content: output }] } })
-      writeFileSync(file, nearLimitText(head, pair))
-      return nearLimitTurn(file, await claudeTurns(file, true))
-    }
-  },
-  codex: {
-    async turns(walk) {
-      const turns: IndexedTurn[] = []
-      for (const s of walk.codex) turns.push(...(await codexTurns(s)))
-      return { sessions: walk.codex.length, turns }
-    },
-    /** A plain rollout, legacy format, whose body is a run of the agent's prose, a shell call and the call's output, as a
-     * Codex rollout writes them */
-    async nearLimit(dir) {
-      const file = join(dir, 'rollout-2026-11-20T10-00-00-0196f1c2-3b4d-7e5f-8a6b-1c2d3e4f5a6b.jsonl')
-      const line = (type: string, payload: unknown): string => jsonLine({ timestamp: BENCH_TS, type, payload })
-      const head =
-        line('session_meta', { id: '0196f1c2-3b4d-7e5f-8a6b-1c2d3e4f5a6b', timestamp: BENCH_TS, cwd: '/work/nightly', originator: 'codex_cli_rs', cli_version: '0.60.0' }) +
-        line('event_msg', { type: 'user_message', message: 'Why does the nightly build fail?', images: [] })
-      const pair = (i: number, output: string): string =>
-        line('event_msg', { type: 'agent_message', message: `Reading log ${i}.` }) +
-        line('response_item', { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: `cat build-${i}.log`, workdir: '/work/nightly' }), call_id: `call_${i}` }) +
-        line('response_item', { type: 'function_call_output', call_id: `call_${i}`, output })
-      writeFileSync(file, nearLimitText(head, pair))
-      const meta = threadEngineModule().sessionMeta('codex', file)
-      if (meta === null) throw new Error(`${file} gives no Codex session`)
-      return nearLimitTurn(file, await codexTurns(meta))
-    }
-  }
-}
-
-/** The side a turn mode's first argument names */
-function turnSide(arg: string | undefined): TurnSide {
-  if (arg === 'claude' || arg === 'codex') return arg
-  throw new Error(`the turn modes measure claude or codex turns, not ${JSON.stringify(arg)}`)
-}
-
-async function turnIndex(side: TurnSide, dir: string): Promise<void> {
+async function turnIndex(args: string[]): Promise<void> {
+  if (args.length !== 2) throw new Error('turn-index mode needs the side and the directory to write its constructed turn into')
+  const side = turnSide(args[0])
+  const bench = TURN_SIDES[side]
   const home = realRoots()
-  // The side's sessions alone: every other side's root is an empty directory
+  // The side's sessions alone: every other side's root is an empty directory, Claude Code's registry file one that is
+  // not there
   const empty = mkdtempSync(join(tmpdir(), 'agentshed-bench-empty-'))
   const roots: ScanRoots = {
     ...home,
-    claudeHome: side === 'claude' ? home.claudeHome : empty,
+    claudeHome: empty,
     claudeConfigFile: join(empty, 'none.json'),
-    codexHome: side === 'codex' ? home.codexHome : empty,
+    codexHome: empty,
     geminiHome: empty,
     grokHome: empty,
     antigravityHome: empty,
-    agentsSkillsDir: empty
+    agentsSkillsDir: empty,
+    [bench.root]: home[bench.root]
   }
   const t0 = performance.now()
-  const { sessions, turns } = await TURN_SIDES[side].turns(walkSessions(roots))
+  const { sessions, turns } = await bench.turns(walkSessions(roots))
   const within = turns.filter((t) => bodyBytes(t) <= TURN_LIMIT).sort((a, b) => bodyBytes(b) - bodyBytes(a))
   const cold = within.filter((t) => isColdRollout(t.file))
   console.log(
@@ -915,14 +959,14 @@ async function turnIndex(side: TurnSide, dir: string): Promise<void> {
   )
   for (const t of within.filter((t) => !isColdRollout(t.file)).slice(0, 3)) console.log(`[turn-index] ${mb(bodyBytes(t))} MB body: ${turnArgs(side, t)}`)
   if (cold.length > 0) console.log(`[turn-index] ${mb(bodyBytes(cold[0]))} MB body, the largest of a cold rollout: ${turnArgs(side, cold[0])}`)
-  const made = await TURN_SIDES[side].nearLimit(dir)
+  const made = await writeNearLimitTurn(bench, args[1])
   console.log(`[turn-index] ${mb(bodyBytes(made))} MB body, constructed: ${turnArgs(side, made)}`)
 }
 
 async function turnFetch(args: string[]): Promise<void> {
   if (process.platform !== 'darwin') throw new Error('turn reads the footprint with macOS `footprint`, so it runs on macOS only')
-  const [sideArg, file, ...numbers] = args
-  const side = turnSide(sideArg)
+  const [name, file, ...numbers] = args
+  const side = turnSide(name)
   const rec = numbers.map(Number)
   if (args.length !== 5 || !rec.every((n) => Number.isSafeInteger(n) && n >= 0))
     throw new Error('turn mode needs <side> <file> <question start> <question end> <turn end>, as turn-index prints them')
@@ -996,8 +1040,7 @@ async function main(): Promise<void> {
     return
   }
   if (mode === 'turn-index') {
-    if (rest.length !== 2) throw new Error('turn-index mode needs the side and the directory to write its constructed turn into')
-    await turnIndex(turnSide(rest[0]), rest[1])
+    await turnIndex(rest)
     return
   }
   if (mode === 'turn') {

@@ -186,7 +186,7 @@ fn block_value(js: &Js, block: Block) -> Result<napi_value> {
         Block::Sub { at, name, prompt, result } => js.object(&[
             ("kind", kind("sub")?),
             ("at", at_value(js, at)?),
-            ("name", js.js_string(name)?),
+            ("name", js.js_string_or_null(name)?),
             ("prompt", js.js_string(prompt)?),
             ("steps", js.array([])?),
             ("result", js.js_string_or_null(result)?),

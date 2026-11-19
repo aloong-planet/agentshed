@@ -1,22 +1,16 @@
 // Turn content normalisation (ticket 05 established prose, ticket 07 completed it): each side's raw
 // lines within a turn range are
 // unified into a common message model (TurnBlock), and the renderer knows only that model rather than
-// one per side. A Claude Code turn's blocks and a Codex turn's are the engine module's, assembled as its
-// read reads the lines (engine/src/sides/claude/turn.rs and engine/src/sides/codex/turn.rs, whose headers
-// hold each side's enumeration); the other sides' are assembled here from the lines the read hands over,
-// one side moving into the module at a time (ADR-0054, ADR-0047).
+// one per side. A Claude Code, Codex or Grok turn's blocks are the engine module's, assembled as its read
+// reads the lines (engine/src/sides/claude/turn.rs, engine/src/sides/codex/turn.rs and
+// engine/src/sides/grok/turn.rs, whose headers hold each side's enumeration); the other sides' are
+// assembled here from the lines the read hands over, one side moving into the module at a time (ADR-0054,
+// ADR-0047).
 //
 // Unknown types outside the allow-list always leave a trace (an unknown block placed at the end of the
 // block order) — spec C8: allow-list failures are invisible, so nothing is ever silently dropped (the
 // AGENTS.md invariant that admitting may not follow the sample).
-import type {
-  AgentSide,
-  TurnBlock,
-  TurnSubBlock,
-  TurnTextBlock,
-  TurnThinkBlock,
-  TurnToolBlock
-} from '@shared/domain'
+import type { AgentSide, TurnBlock, TurnSubBlock, TurnToolBlock } from '@shared/domain'
 import { threadEngineModule } from '../engine-module'
 import type { TurnBody } from './turn-read'
 
@@ -59,191 +53,6 @@ function unknownBlock(u: Unknowns): TurnBlock[] {
   let count = 0
   for (const n of u.counts.values()) count += n
   return [{ kind: 'unknown', count, types: [...u.counts.keys()] }]
-}
-
-/**
- * A whole turn range's raw text → a block sequence (in the file's order).
- * A bad line only hurts itself: skip it without breaking the chain and without throwing — an active
- * session's range may end mid-line.
- */
-/**
- * The enumerated non-display update types (full enumeration of this machine's streams,
- * 2026-08-16: 17 types in total). State records, deliberately stripped — and deliberately NOT
- * breaking a prose/thought merge, because a single assistant message measures as split MID-WORD
- * across chunk records with these state records between the fragments. Anything outside the
- * enumeration leaves a trace (the AGENTS.md allow-list invariant).
- */
-const GROK_STATE_TYPES = new Set([
-  'turn_completed',
-  'plan',
-  'session_recap',
-  'retry_state',
-  'task_backgrounded',
-  'task_completed',
-  'current_mode_update',
-  'auto_compact_started',
-  'auto_compact_completed',
-  'compaction_checkpoint'
-])
-
-/** The text inside a Grok chunk record's content */
-function grokChunkText(upd: Record<string, unknown>): string {
-  const content = upd['content'] as Record<string, unknown> | undefined
-  const t = content?.['text']
-  return typeof t === 'string' ? t : ''
-}
-
-/** The joined text of a tool_call_update's content array */
-function grokUpdateContentText(upd: Record<string, unknown>): string | null {
-  const arr = upd['content']
-  if (!Array.isArray(arr)) return null
-  let out = ''
-  for (const item of arr) {
-    if (typeof item !== 'object' || item === null) continue
-    const inner = (item as Record<string, unknown>)['content'] as Record<string, unknown> | undefined
-    const t = inner?.['text']
-    if (typeof t === 'string') out += t
-  }
-  return out === '' ? null : out
-}
-
-function grokAssemble(objs: Array<Record<string, unknown>>, dispatches: Dispatches): TurnBlock[] {
-  const out: TurnBlock[] = []
-  const u: Unknowns = { counts: new Map() }
-  const toolById = new Map<string, TurnToolBlock>()
-  /** Spawn sub blocks awaiting their subagent_spawned pairing, in dispatch order */
-  const unpairedSubs: TurnSubBlock[] = []
-  /** subagent_id → its sub block, for the finished record's result */
-  const subById = new Map<string, TurnSubBlock>()
-  /** The ids of spawn tool calls, whose own updates are the "started in background" echo, not a result */
-  const spawnToolIds = new Set<string>()
-  let openProse: TurnTextBlock | null = null
-  let openThink: TurnThinkBlock | null = null
-
-  for (const o of objs) {
-    const params = o['params'] as Record<string, unknown> | undefined
-    const upd = params?.['update'] as Record<string, unknown> | undefined
-    const t = typeof upd?.['sessionUpdate'] === 'string' ? upd['sessionUpdate'] : null
-    if (upd === undefined || t === null) {
-      const method = o['method']
-      noteUnknown(u, method === undefined || method === null ? '<no-update>' : labelOf(method))
-      continue
-    }
-    const tsRaw = o['timestamp']
-    const at = typeof tsRaw === 'number' && Number.isFinite(tsRaw) ? tsRaw * 1000 : null
-
-    if (t === 'agent_message_chunk') {
-      const text = grokChunkText(upd)
-      if (openProse) openProse.body += text // raw: a fragment can end mid-word
-      else {
-        openProse = { kind: 'text', role: 'assistant', at, body: text }
-        out.push(openProse)
-      }
-      openThink = null
-      continue
-    }
-    if (t === 'agent_thought_chunk') {
-      const text = grokChunkText(upd)
-      if (openThink) openThink.body += text
-      else {
-        openThink = { kind: 'think', at, body: text }
-        out.push(openThink)
-      }
-      openProse = null
-      continue
-    }
-    if (t === 'tool_call') {
-      openProse = null
-      openThink = null
-      const id = typeof upd['toolCallId'] === 'string' ? upd['toolCallId'] : null
-      const rawInput = upd['rawInput']
-      if (typeof upd['title'] === 'string' && dispatches.has(upd['title'])) {
-        const input = rawInput as Record<string, unknown> | undefined
-        const prompt =
-          typeof input?.['prompt'] === 'string'
-            ? input['prompt']
-            : typeof input?.['description'] === 'string'
-              ? input['description']
-              : ''
-        const sub: TurnSubBlock = {
-          kind: 'sub',
-          at,
-          // The dispatch record carries no agent type; the paired subagent_spawned names it
-          name: null,
-          prompt,
-          steps: [],
-          result: null,
-          // The child's transcript is not read — its internal steps are unattributed, same label
-          // as the Codex side
-          unlinked: true
-        }
-        unpairedSubs.push(sub)
-        if (id !== null) spawnToolIds.add(id)
-        out.push(sub)
-        continue
-      }
-      const meta = (upd['_meta'] as Record<string, unknown> | undefined)?.['x.ai/tool'] as
-        | Record<string, unknown>
-        | undefined
-      const name =
-        typeof meta?.['name'] === 'string'
-          ? meta['name']
-          : typeof upd['title'] === 'string'
-            ? upd['title']
-            : null
-      const input = inputText(rawInput)
-      const block: TurnToolBlock = {
-        kind: 'tool',
-        at,
-        name,
-        summary: oneLine(`${name ?? ''} ${input}`.trim()),
-        input,
-        output: null,
-        truncated: false
-      }
-      if (id !== null) toolById.set(id, block)
-      out.push(block)
-      continue
-    }
-    if (t === 'tool_call_update') {
-      const id = typeof upd['toolCallId'] === 'string' ? upd['toolCallId'] : null
-      if (id === null || spawnToolIds.has(id)) continue // a spawn's echo is not a result
-      const block = toolById.get(id)
-      if (!block) continue // an update for a call dispatched before this turn only enriches nothing
-      const text = grokUpdateContentText(upd)
-      if (text !== null) block.output = text
-      continue
-    }
-    if (t === 'subagent_spawned') {
-      const sub = unpairedSubs.shift()
-      if (sub) {
-        const kind = upd['subagent_type']
-        if (typeof kind === 'string' && kind !== '') sub.name = kind
-        const id = upd['subagent_id']
-        if (typeof id === 'string') subById.set(id, sub)
-      }
-      continue
-    }
-    if (t === 'subagent_finished') {
-      const id = upd['subagent_id']
-      const sub = typeof id === 'string' ? subById.get(id) : undefined
-      if (sub) {
-        const output = upd['output']
-        const error = upd['error']
-        sub.result =
-          typeof output === 'string' && output !== ''
-            ? output
-            : typeof error === 'string'
-              ? error
-              : null
-      }
-      continue
-    }
-    if (t === 'user_message_chunk') continue // the question renders in its own row; injected notices render nothing
-    if (GROK_STATE_TYPES.has(t)) continue
-    noteUnknown(u, `update/${t}`)
-  }
-  return [...out, ...unknownBlock(u)]
 }
 
 // ── Antigravity CLI (session-view::REQ-004). Every transcript of 2026-10-28 enumerated (15 transcripts, 104 lines):
@@ -357,7 +166,6 @@ export function turnBlocks(side: AgentSide, lines: readonly string[]): TurnBlock
     }
   })
   const dispatches = new Set(engine.dispatches(side))
-  if (side === 'grok') return grokAssemble(objs, dispatches)
   if (side === 'antigravity') return antigravityAssemble(objs, dispatches)
   throw new Error(`a ${side} turn's blocks are the engine module's: its read hands over no lines`)
 }

@@ -40,8 +40,8 @@ pub(crate) enum Block {
     /// one nothing was returned for
     Tool { at: At, name: Option<JsString>, summary: JsString, input: JsString, output: Option<JsString>, truncated: bool },
     /// A subagent's dispatch and what it returned (`TurnSubBlock`), its steps none and its `unlinked` true: no provider
-    /// gives a key joining a subagent's lines to its dispatch (session-view C3)
-    Sub { at: At, name: JsString, prompt: JsString, result: Option<JsString> },
+    /// gives a key joining a subagent's lines to its dispatch (session-view C3). `name` None for a dispatch nothing names.
+    Sub { at: At, name: Option<JsString>, prompt: JsString, result: Option<JsString> },
     /// The trace of the lines of types outside the side's known ones (`TurnUnknownBlock`, session-view C8)
     Unknown { count: u32, types: Vec<JsString> },
 }
@@ -84,6 +84,46 @@ pub(crate) fn undefined_label() -> JsString {
 /// How many code units a tool's one-line summary keeps before it is clipped
 const SUMMARY_MAX: usize = 88;
 
+/// A one-line summary of `text` (`oneLine`): its first line, up to the first line feed, its ends trimmed, and past 88
+/// code units the first 88 and `…`, a surrogate pair cut in two as `slice` cuts it. Only a line feed ends the line: a
+/// carriage return, U+2028 or U+2029 is the line's, and white space at its ends is trimmed. Only as much of the text as
+/// the summary takes is read, and no more of it held than the summary keeps.
+pub(crate) fn one_line(text: impl IntoIterator<Item = u16>) -> JsString {
+    let mut out = Units::with_capacity(SUMMARY_MAX + 1);
+    // How many units the line has read, and how many of them run to its last that is not white space
+    let (mut read, mut kept) = (0, 0);
+    for u in text {
+        if u == 0x0a {
+            break;
+        }
+        if kept == 0 && text::is_space(u) {
+            continue;
+        }
+        read += 1;
+        if out.len() < SUMMARY_MAX {
+            out.push(u);
+        }
+        if !text::is_space(u) {
+            kept = read;
+            if kept > SUMMARY_MAX {
+                break;
+            }
+        }
+    }
+    if kept > SUMMARY_MAX {
+        return clipped(out);
+    }
+    out.truncate(kept);
+    JsString::from_units(out)
+}
+
+/// A summary past 88 code units, clipped: its first 88 and `…`
+fn clipped(mut out: Units) -> JsString {
+    out.truncate(SUMMARY_MAX);
+    out.push(0x2026);
+    JsString::from_units(out)
+}
+
 /// A tool's one-line summary while it is collapsed, of its input as shown (`oneLine(text.replace(/\s+/g, ' '))`): each
 /// run of white space one space, the ends trimmed, and past 88 code units the first 88 and `…`, a surrogate pair cut
 /// in two as `slice` cuts it. Only as much of the input as the summary takes is read.
@@ -105,8 +145,7 @@ pub(crate) fn summary(input: &JsString) -> JsString {
         }
     }
     if out.len() > SUMMARY_MAX {
-        out.truncate(SUMMARY_MAX);
-        out.push(0x2026);
+        return clipped(out);
     }
     JsString::from_units(out)
 }

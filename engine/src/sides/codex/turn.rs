@@ -436,7 +436,7 @@ impl Turn {
             Given::Call { id, name, sub, input } => {
                 let input = input.made(strings);
                 let block = if sub {
-                    Block::Sub { at, name, prompt: input, result: None }
+                    Block::Sub { at, name: Some(name), prompt: input, result: None }
                 } else {
                     Block::Tool { at, name: Some(name), summary: turn::summary(&input), input, output: None, truncated: false }
                 };

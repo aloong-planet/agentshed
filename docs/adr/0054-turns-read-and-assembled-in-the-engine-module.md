@@ -51,3 +51,9 @@ turn`, medians of five, the assembly in TypeScript against in the module: the th
 120.8, 82.2 and 66.2 MB against 64.5, 54.1 and 47.3 MB; the largest of a cold rollout (64.8 MB) took 2101 ms against
 1968 ms and peaked at 224.6 MB against 97.9 MB; a constructed 67.1 MB turn took 193 ms against 192 ms and peaked at
 282.7 MB against 153.8 MB.
+
+#497, 2026-11-20, Electron 43.2.0, every Grok session on this machine: all 467 turns (16,574 blocks) assembled by the
+module deep-equal to the TypeScript assembly's. `pnpm bench:scan turn`, medians of five, the assembly in TypeScript
+against in the module: the three largest Grok turns (10.0, 5.1 and 4.4 MB of body) took 13, 18 and 9 ms to their
+blocks against 8, 9 and 5 ms, the main process peaking at 49.9, 45.7 and 37.1 MB against 39.0, 32.9 and 33.6 MB; a
+constructed 67.1 MB turn took 218 ms against 201 ms and peaked at 282.5 MB against 153.8 MB.
