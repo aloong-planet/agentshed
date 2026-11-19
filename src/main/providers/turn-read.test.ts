@@ -52,6 +52,23 @@ function claudeFile(content: Buffer): string {
   return file
 }
 
+// Lines shaped as Grok writes its update stream (as turn-content.test.ts builds them): every line a record of an update,
+// a question a user chunk, an answer a prose chunk, a call a tool_call and its output a tool_call_update's text
+const grokLine = (update: unknown): Buffer =>
+  Buffer.from(JSON.stringify({ timestamp: 1_795_000_000, method: '_x.ai/session/update', params: { sessionId: 's', update } }))
+const grokAsk = (text: string): Buffer => grokLine({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text }, _meta: { promptIndex: 0 } })
+const grokSay = (text: string): Buffer => grokLine({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+const grokCall = (id: string): Buffer =>
+  grokLine({ sessionUpdate: 'tool_call', toolCallId: id, title: 'read_file', rawInput: { target_file: 'log' }, _meta: { 'x.ai/tool': { name: 'read_file' } } })
+const grokOutput = (id: string, text: string): Buffer =>
+  grokLine({ sessionUpdate: 'tool_call_update', toolCallId: id, status: 'completed', content: [{ type: 'content', content: { type: 'text', text } }] })
+/** A Grok update stream holding `content` */
+function grokFile(content: Buffer): string {
+  const file = join(dir, `grok-${files++}.jsonl`)
+  writeFileSync(file, content)
+  return file
+}
+
 /** Bytes that are not valid UTF-8, each a different case of the decoder's replacement: a lone continuation byte, a
  * sequence cut short, an overlong form, a surrogate's encoding */
 const INVALID = [Buffer.from([0xff]), Buffer.from([0xe4, 0xb8]), Buffer.from([0xc0, 0xaf]), Buffer.from([0xed, 0xa0, 0x80])]
@@ -259,44 +276,47 @@ describe('a turn read holds no allocation of the whole turn but a line of it (#4
   })
 })
 
-describe('a Claude Code turn read, its blocks assembled, holds no allocation of the whole turn but a line of it and its blocks (#494)', () => {
+describe('a turn read of a side whose turns the engine module assembles, its blocks assembled, holds no allocation of the whole turn but a line of it and its blocks (#494)', () => {
   // The module holds the turn's lines and, as each line is read and let go, the blocks made of it; the main thread then
   // makes JavaScript's strings of the blocks, each block's let go as its strings are made. The bound is the Codex
   // read's, the text twice and some MiB: for these shapes the blocks hold nearly all of the text.
   const MiB = 1024 * 1024
-  /** A return line of `size` bytes for the call `id` */
-  const returnOf = (id: string, size: number): Buffer => {
-    const empty = claudeReturn(id, '').length
-    return claudeReturn(id, 'x'.repeat(size - empty))
+  /** Calls and their returns, each return a line of `size` bytes written by `returned`, and what the blocks show of
+   * them: a tool block each, its output the return's text, the line less the line's shape around it, whose call ids
+   * differ in length */
+  const returns = (call: (id: string) => Buffer, returned: (id: string, text: string) => Buffer, count: number, size: number): { lines: Buffer[]; shown: [number, number] } => {
+    const ids = Array.from({ length: count }, (_, i) => `t${i}`)
+    const text = (id: string): number => size - returned(id, '').length
+    return { lines: ids.flatMap((id) => [call(id), returned(id, 'x'.repeat(text(id)))]), shown: [count, ids.reduce((n, id) => n + text(id), 0)] }
   }
+  const half = 32 * MiB + MiB / 2
   const shapes = [
-    { shape: 'of tool results in lines a little past a read', lines: Array.from({ length: 62 }, (_, i) => [claudeCall(`t${i}`), returnOf(`t${i}`, MiB + 10_240)]).flat() },
-    { shape: 'of one answer in a line of half the limit and a little more', lines: [claudeSay('x'.repeat(32 * MiB + MiB / 2))] }
+    { side: 'claude' as const, shape: 'of tool results in lines a little past a read', file: claudeFile, ask: claudeAsk('q'), ...returns(claudeCall, claudeReturn, 62, MiB + 10_240) },
+    { side: 'claude' as const, shape: 'of one answer in a line of half the limit and a little more', file: claudeFile, ask: claudeAsk('q'), lines: [claudeSay('x'.repeat(half))], shown: [1, half] },
+    { side: 'grok' as const, shape: 'of tool outputs in lines a little past a read', file: grokFile, ask: grokAsk('q'), ...returns(grokCall, grokOutput, 62, MiB + 10_240) },
+    { side: 'grok' as const, shape: 'of one prose chunk in a line of half the limit and a little more', file: grokFile, ask: grokAsk('q'), lines: [grokSay('x'.repeat(half))], shown: [1, half] }
   ]
-  test.each(shapes)('a turn $shape grows a fresh process\'s peak by the text twice and a few MiB', ({ lines }) => {
-    const { content, turns } = rollout([{ line: claudeAsk('q'), question: true }, ...lines.map((line) => ({ line }))])
+  test.each(shapes)('$side: a turn $shape grows a fresh process\'s peak by the text twice and a few MiB', ({ side, file: fileOf, ask, lines, shown: expected }) => {
+    const { content, turns } = rollout([{ line: ask, question: true }, ...lines.map((line) => ({ line }))])
     const [{ question, body }] = turns
     const bodyBytes = body.end - body.start
     expect(bodyBytes).toBeGreaterThan(32 * MiB)
     expect(bodyBytes).toBeLessThanOrEqual(64 * MiB)
-    const file = claudeFile(content)
+    const file = fileOf(content)
     // In a process of its own, so that the peak it reports is this read's alone
     const script = `
       const module = { exports: {} }
       process.dlopen(module, process.argv[1])
-      const [file, q, b] = [process.argv[2], JSON.parse(process.argv[3]), JSON.parse(process.argv[4])]
+      const [side, file, q, b] = [process.argv[2], process.argv[3], JSON.parse(process.argv[4]), JSON.parse(process.argv[5])]
       const before = process.resourceUsage().maxRSS
-      module.exports.readTurn('claude', file, q, b).then((read) => {
+      module.exports.readTurn(side, file, q, b).then((read) => {
         const grewKiB = process.resourceUsage().maxRSS - before
         const shown = read.blocks.reduce((n, b) => n + (b.kind === 'tool' ? b.output.length : b.body.length), 0)
         console.log(JSON.stringify({ grewKiB, blocks: read.blocks.length, shown }))
       })`
-    const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, file, JSON.stringify(question), JSON.stringify(body)], { encoding: 'utf8' })
+    const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, side, file, JSON.stringify(question), JSON.stringify(body)], { encoding: 'utf8' })
     expect(run.stderr).toBe('')
     const { grewKiB, blocks, shown } = JSON.parse(run.stdout) as { grewKiB: number; blocks: number; shown: number }
-    // Each return's text is its line less the line's shape around it, whose call ids differ in length
-    const returns = lines.length === 1 ? [] : Array.from({ length: lines.length / 2 }, (_, i) => MiB + 10_240 - claudeReturn(`t${i}`, '').length)
-    const expected = lines.length === 1 ? [1, 32 * MiB + MiB / 2] : [returns.length, returns.reduce((n, l) => n + l, 0)]
     expect([blocks, shown]).toEqual(expected)
     expect(grewKiB * 1024).toBeLessThan(2 * bodyBytes + 24 * MiB)
   })
