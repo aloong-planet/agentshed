@@ -58,6 +58,18 @@
 //                 found, its wall time, the main process's longest event-loop
 //                 stall during it, and the main process's footprint before it and at its peak, worker threads
 //                 included, read with macOS `footprint` as token-stats::QR-004 reads memory (macOS only).
+//   turn-index <dir>
+//                 the Claude Code turns the turn mode measures: every Claude Code transcript under the home, walked and
+//                 indexed by the engine module's parse as a scan indexes it, and of their turns the three whose bodies
+//                 are the largest within the turn limit; and a turn written into <dir>, one question and a body of tool
+//                 calls and their results a little under the limit. Prints each as the turn mode's arguments.
+//   turn <file> <question start> <question end> <turn end>
+//                 the turn fetch the session page makes as it expands a Claude Code turn (getSessionTurn in
+//                 src/main/index.ts), from the turn's question index record as turn-index printed it: the turn read,
+//                 its blocks, and their contract check, the question index's lookup and the display copy aside. In a
+//                 process of its own, so that the peak is the fetch's: one JSON line with the time to the blocks and
+//                 the main process's footprint before the fetch and at its peak, read as the search mode reads it
+//                 (macOS only).
 //
 // A check that fails, and a mode that throws, exit the run non-zero, under Electron as under Node.
 //
@@ -73,7 +85,11 @@ import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
 import { availableParallelism } from 'node:os'
 import { scan, type SessionWalk } from '../src/main/providers/scan'
 import { TokenEngine, runParseJob, sessionReadSource, type ParseRunner } from '../src/main/providers/token-stats'
-import { readSessionRanges } from '../src/main/source-identity'
+import { questionRevision, readSessionRanges, readSessionTurn, sourceIdentity } from '../src/main/source-identity'
+import { readTurnRanges, turnLimitBytes } from '../src/main/turn-limit'
+import { turnKeepBytes, turnKept } from '../src/main/turn-keep'
+import { turnBlocks } from '../src/main/providers/turn-content'
+import { assertSessionTurn } from '../src/shared/validate'
 import { ParsePool } from '../src/main/parse-pool'
 import { ENGINE_BUILD, loadEngineModule, threadEngineModule, type EngineModule, type EngineSource } from '../src/main/engine-module'
 import { Scanner, settleScan, tokenBuildInputs, type ScanOutput } from '../src/main/providers/scanner'
@@ -84,7 +100,7 @@ import { isColdRollout } from '../src/main/providers/cold-rollout'
 import { searchProjectSessions } from '../src/main/providers/search-sessions'
 import { realRoots } from '../src/main/roots'
 import { compareStores, type StoreRow } from './lib/bench-store-compare.mjs'
-import type { SearchResult, SessionMeta } from '../src/shared/domain'
+import type { SearchResult, SessionMeta, SessionTurn } from '../src/shared/domain'
 import { mergeKey } from '../src/shared/path-key'
 
 const isElectron = typeof process.versions['electron'] === 'string'
@@ -742,6 +758,124 @@ async function searchRun(args: string[]): Promise<void> {
   }
 }
 
+/** The turn limit and keep size the app applies (turn-limit.ts, turn-keep.ts), with no seam moving them */
+const TURN_LIMIT = turnLimitBytes(undefined)
+const TURN_KEEP = turnKeepBytes(undefined)
+
+/** A turn by its question index record's first three numbers: the question's start and end, and the turn's end */
+interface IndexedTurn {
+  file: string
+  rec: [number, number, number]
+}
+
+const bodyBytes = (t: IndexedTurn): number => t.rec[2] - t.rec[1]
+
+/** The turn mode's arguments for a turn */
+const turnArgs = (t: IndexedTurn): string => `turn ${t.file} ${t.rec.join(' ')}`
+
+/** Every turn of a Claude Code transcript, as the engine module's parse indexes it for a scan */
+async function claudeTurns(file: string, listed: boolean): Promise<IndexedTurn[]> {
+  const parsed = await runParseJob({ kind: 'claude', file, projectKey: '', listed })
+  if (parsed === null || parsed.agg.kind !== 'claude') return []
+  return parsed.agg.questions.map((r) => ({ file, rec: [r[0], r[1], r[2]] }))
+}
+
+/**
+ * A Claude Code transcript of one question whose body, a run of tool calls and their results, is a little under the turn
+ * limit: tool output of the shape a long build log has, quotes, tabs and non-ASCII text among it, each result about a
+ * MiB. Written into `dir`; its turn as the parse indexes it.
+ */
+async function writeNearLimitTurn(dir: string): Promise<IndexedTurn> {
+  const file = join(dir, 'near-limit.jsonl')
+  const ts = '2026-11-20T10:00:00.000Z'
+  const line = (o: unknown): string => JSON.stringify(o) + '\n'
+  const parts = [line({ type: 'user', timestamp: ts, uuid: 'q', message: { role: 'user', content: 'Why does the nightly build fail?' } })]
+  const unit = `${ts} INFO\tworker-3 handled "GET /api/sessions/résumé" 200 in 12 ms — ok\n`
+  const target = TURN_LIMIT - 4096
+  let body = 0
+  for (let i = 0; ; i++) {
+    const call = line({ type: 'assistant', timestamp: ts, message: { role: 'assistant', content: [
+      { type: 'text', text: `Reading log ${i}.` },
+      { type: 'tool_use', id: `toolu_${i}`, name: 'Bash', input: { command: `cat build-${i}.log`, description: `Read build log ${i}` } }
+    ] } })
+    const result = (n: number): string =>
+      line({ type: 'user', timestamp: ts, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_${i}`, content: unit.repeat(n) }] } })
+    const empty = Buffer.byteLength(call) + Buffer.byteLength(result(0))
+    const perUnit = Buffer.byteLength(result(1)) - Buffer.byteLength(result(0))
+    const room = Math.floor((target - body - empty) / perUnit)
+    if (room <= 0) break
+    const n = Math.min(room, Math.floor((1024 * 1024) / perUnit))
+    const pair = call + result(n)
+    parts.push(pair)
+    body += Buffer.byteLength(pair)
+  }
+  writeFileSync(file, parts.join(''))
+  const [turn, ...more] = await claudeTurns(file, true)
+  if (!turn || more.length > 0) throw new Error(`${file} should index as one turn`)
+  if (bodyBytes(turn) > TURN_LIMIT || bodyBytes(turn) < TURN_LIMIT - 1024 * 1024)
+    throw new Error(`${file}'s body is ${bodyBytes(turn)} bytes, not a little under the limit of ${TURN_LIMIT}`)
+  return turn
+}
+
+async function turnIndex(dir: string): Promise<void> {
+  const home = realRoots()
+  // Claude Code's transcripts alone: every other side's root is an empty directory
+  const empty = mkdtempSync(join(tmpdir(), 'agentshed-bench-empty-'))
+  const roots: ScanRoots = {
+    ...home,
+    claudeConfigFile: join(empty, 'none.json'),
+    codexHome: empty,
+    geminiHome: empty,
+    grokHome: empty,
+    antigravityHome: empty,
+    agentsSkillsDir: empty
+  }
+  const t0 = performance.now()
+  const transcripts = walkSessions(roots).claude
+  const turns: IndexedTurn[] = []
+  for (const t of transcripts) turns.push(...(await claudeTurns(t.file, !t.nested)))
+  const within = turns.filter((t) => bodyBytes(t) <= TURN_LIMIT).sort((a, b) => bodyBytes(b) - bodyBytes(a))
+  console.log(
+    `[turn-index] ${transcripts.length} transcripts, ${turns.length} turns, ${turns.length - within.length} over the turn limit, indexed in ${since(t0)}`
+  )
+  for (const t of within.slice(0, 3)) console.log(`[turn-index] ${mb(bodyBytes(t))} MB body: ${turnArgs(t)}`)
+  const made = await writeNearLimitTurn(dir)
+  console.log(`[turn-index] ${mb(bodyBytes(made))} MB body, constructed: ${turnArgs(made)}`)
+}
+
+async function turnFetch(args: string[]): Promise<void> {
+  if (process.platform !== 'darwin') throw new Error('turn reads the footprint with macOS `footprint`, so it runs on macOS only')
+  const [file, ...numbers] = args
+  const rec = numbers.map(Number)
+  if (args.length !== 4 || !rec.every((n) => Number.isSafeInteger(n) && n >= 0))
+    throw new Error('turn mode needs <file> <question start> <question end> <turn end>, as turn-index prints them')
+  const before = footprint()
+  // getSessionTurn's steps from the question index's record on (src/main/index.ts)
+  const t0 = performance.now()
+  const source = sessionReadSource(realRoots(), file)
+  const identity = sourceIdentity(source)
+  const read = await readTurnRanges((s, question, body) => readSessionTurn('claude', s, question, body), source, [rec[0], rec[1], rec[2]], TURN_LIMIT)
+  questionRevision(identity, file, rec[0], rec[1], read.question)
+  if (sourceIdentity(source) !== identity) throw new Error(`${file} changed during the read`)
+  if (read.lines === null) throw new Error(`the turn's body, ${read.bodyBytes} bytes, is over the turn limit`)
+  const turn: SessionTurn = { blocks: turnBlocks('claude', read.lines), bytesRead: read.bytesRead }
+  if (!turnKept(read.bodyBytes, TURN_KEEP)) turn.unkept = true
+  assertSessionTurn(turn)
+  const ms = performance.now() - t0
+  const after = footprint()
+  console.log(
+    `[turn] ${JSON.stringify({
+      file,
+      bodyBytes: read.bodyBytes,
+      blocks: turn.blocks.length,
+      ms: Math.round(ms),
+      footprintBefore: before.now,
+      peak: after.peak,
+      peakReachedInFetch: after.peak > before.peak
+    })}`
+  )
+}
+
 async function main(): Promise<void> {
   console.log(`[runtime] ${isElectron ? `electron ${process.versions['electron']}` : `node ${process.version}`}`)
   // The engine module on this thread, as the app's threads load it before they parse: the scans this thread runs
@@ -784,8 +918,17 @@ async function main(): Promise<void> {
     await searchRun(rest)
     return
   }
+  if (mode === 'turn-index') {
+    if (rest.length !== 1) throw new Error('turn-index mode needs the directory to write its constructed turn into')
+    await turnIndex(rest[0])
+    return
+  }
+  if (mode === 'turn') {
+    await turnFetch(rest)
+    return
+  }
   throw new Error(
-    `unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, page <rollout>, workers, file <path>…, search-index, or search <index dir> <project path> <needle> [--full-text]`
+    `unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, page <rollout>, workers, file <path>…, search-index, search <index dir> <project path> <needle> [--full-text], turn-index <dir>, or turn <file> <question start> <question end> <turn end>`
   )
 }
 
