@@ -74,7 +74,7 @@ describe('the full-text search finds hits by the byte rule', () => {
 
 // ── The whole-file search this one replaced, as search-sessions.ts ran it before #479 (fc20a2b), copied unchanged but
 // for its byte match, which is stated here as plainly as it reads: the oracle each case holds the streaming search to,
-// run over the file's whole stream in memory ──
+// run over the file's whole stream in memory, but for the cut of a snippet where a case says the two differ ──
 const fold = (s: string): string => s.toLowerCase()
 /** ASCII letters' case folded, byte for byte */
 const foldAscii = (b: Buffer): Buffer => Buffer.from(b.map((x) => (x >= 0x41 && x <= 0x5a ? x + 0x20 : x)))
@@ -275,10 +275,11 @@ describe('the full-text search gives what the whole-file search gave', () => {
   })
 })
 
-// The snippet, worked out in the engine module as extractSnippet worked it out, quirk for quirk. Each character here
-// lowers the same in every Unicode version since 15, so the oracle gives the same answer under any Node the tests run
-// on; the mapping of every code point is held to the app's own JavaScript below.
-describe("a turn's snippet is cut as the whole-file search cut it", () => {
+// The snippet (session-view D5): the string extractSnippet took, cut where the hit stands in that string. Where
+// extractSnippet cut it otherwise, at the offsets it found in the lowered string and in code units, the case says so
+// (cutAnew). Each character here lowers the same in every Unicode version since 15, so the oracle gives the same answer
+// under any Node the tests run on; the mapping of every code point is held to the app's own JavaScript below.
+describe("a turn's snippet is the string the whole-file search took, cut where the hit stands in it", () => {
   const ELLIPSIS = String.fromCharCode(0x2026)
   const REPLACEMENT = String.fromCharCode(0xfffd)
   /** The snippet the one body line `body` gives for `needle`, in a turn of its own */
@@ -286,6 +287,21 @@ describe("a turn's snippet is cut as the whole-file search cut it", () => {
     const found = await same([ask('q'), body], [0], needle)
     expect(found.body).toHaveLength(1)
     return found.body[0].snippet
+  }
+  /**
+   * Where the whole-file search cut the string otherwise: the one body line `body`, in a turn of its own, gives `want`
+   * for `needle`, the file plain and as a cold rollout of one frame and of three, and its turn and folded hits are those
+   * the whole-file search found
+   */
+  const cutAnew = async (body: string, needle: string, want: string): Promise<void> => {
+    const { bytes, turns } = session([ask('q'), body], [0])
+    const whole = wholeFileSearch(bytes, needle, turns)
+    for (const file of [fileOf(bytes), fileOf(cold(bytes), `f${files++}.jsonl.zst`), fileOf(cold(bytes, 3), `f${files++}.jsonl.zst`)]) {
+      const found = await searchFullText('codex', file, needle, turns)
+      expect(found.body.map((b) => b.snippet)).toEqual([want])
+      expect({ folded: found.folded, turns: found.body.map((b) => b.turn) }).toEqual({ folded: whole.folded, turns: whole.body.map((b) => b.turn) })
+    }
+    expect(whole.body.map((b) => b.snippet)).not.toEqual([want])
   }
 
   test('an invalid UTF-8 sequence reads as U+FFFD, one for each maximal subpart', async () => {
@@ -319,12 +335,42 @@ describe("a turn's snippet is cut as the whole-file search cut it", () => {
     expect(await snippetOf('{"t":"\\ud800 magic"}', 'magic')).toBe(`${String.fromCharCode(0xd800)} magic`)
   })
 
-  test('the cut is made in the string at the offset found in the lowered one: a character that lowers longer moves it', async () => {
-    // U+0130 lowers to two code units, so each one before the hit moves the cut one unit to the right
-    const dotted = String.fromCharCode(0x130)
-    const v = `${dotted.repeat(30)}magic${'z'.repeat(100)}`
-    const snippet = await snippetOf(JSON.stringify({ t: v }), 'magic')
-    expect(snippet).toBe(`${ELLIPSIS}${v.slice(40, 125)}${ELLIPSIS}`)
+  // U+0130 lowers to two code units, i and a combining dot above, so a hit stands further on in the lowered string than
+  // in the string itself
+  const DOTTED = String.fromCharCode(0x130)
+  const DOT_ABOVE = String.fromCharCode(0x307)
+
+  test.each([
+    ['one, the 20 characters before the hit reaching the string\'s start', `${DOTTED}${'b'.repeat(19)}magic${'z'.repeat(100)}`, `${DOTTED}${'b'.repeat(19)}magic${'z'.repeat(60)}${ELLIPSIS}`],
+    ['more than 20', `${DOTTED.repeat(30)}magic${'z'.repeat(100)}`, `${ELLIPSIS}${DOTTED.repeat(20)}magic${'z'.repeat(60)}${ELLIPSIS}`]
+  ])('the cut is made where the hit stands in the string itself, U+0130 before it: %s', async (_, v, want) => {
+    await cutAnew(JSON.stringify({ t: v }), 'magic', want)
+  })
+
+  test('the 60 after the needle are counted from where it ends in the string itself, U+0130 after it', async () => {
+    const v = `${'a'.repeat(25)}magic${DOTTED.repeat(70)}`
+    expect(await snippetOf(JSON.stringify({ t: v }), 'magic')).toBe(`${ELLIPSIS}${'a'.repeat(20)}magic${DOTTED.repeat(60)}${ELLIPSIS}`)
+  })
+
+  test.each([
+    ['the match shorter in the string than in the lowered one', `magi${DOT_ABOVE}c`, `${'a'.repeat(30)}MAG${DOTTED}C${'z'.repeat(100)}`, `${ELLIPSIS}${'a'.repeat(20)}MAG${DOTTED}C${'z'.repeat(60)}${ELLIPSIS}`],
+    ['the match beginning and ending inside what a character lowers to', `${DOT_ABOVE}xi`, `${'a'.repeat(30)}${DOTTED}x${DOTTED}${'z'.repeat(100)}`, `${ELLIPSIS}${'a'.repeat(20)}${DOTTED}x${DOTTED}${'z'.repeat(60)}${ELLIPSIS}`]
+  ])('the snippet holds the whole match, U+0130 inside it: %s', async (_, needle, t, want) => {
+    // The byte hit is on the second string, which holds the needle's own bytes; the snippet is the first string's
+    await cutAnew(JSON.stringify({ t, u: needle }), needle, want)
+  })
+
+  test('a character beyond the BMP counts as one and is never split, and a lone surrogate counts as one', async () => {
+    const E = String.fromCodePoint(0x1f600)
+    // The 20th character before the hit a lone low surrogate after a pair's low half, and the 60th after the needle a
+    // lone high one before a pair's high half
+    const LOW = String.fromCharCode(0xdc00)
+    const HIGH = String.fromCharCode(0xd800)
+    const v = `${E.repeat(5)}${LOW}${E.repeat(18)}xmagicy${E.repeat(58)}${HIGH}${E.repeat(10)}`
+    await cutAnew(JSON.stringify({ t: v }), 'magic', `${ELLIPSIS}${LOW}${E.repeat(18)}xmagicy${E.repeat(58)}${HIGH}${ELLIPSIS}`)
+    // A string that ends on a lone high surrogate, as one cut inside a pair does, within the 60 after the needle
+    const tail = `${'a'.repeat(21)}magic${E.repeat(10)}${HIGH}`
+    expect(await snippetOf(JSON.stringify({ t: tail }), 'magic')).toBe(`${ELLIPSIS}${'a'.repeat(20)}magic${E.repeat(10)}${HIGH}`)
   })
 
   test('an ellipsis marks each side cut, and none a side left whole', async () => {
