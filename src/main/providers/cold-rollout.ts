@@ -36,7 +36,7 @@ const waiting: Array<() => void> = []
  * A cold rollout has no byte-addressable ranges (spec session-view C2): one pass through its
  * decompressed stream serves every requested range, in input order, and stops once the last range's
  * end has passed — so opening a session is one pass for all its question texts, expanding a turn one
- * pass to that turn, a search one pass per file. Memory follows the bytes served; `bytesRead` is the
+ * pass to that turn, a question search one pass per file. Memory follows the bytes served; `bytesRead` is the
  * decompressed length traversed, which a test can hold against the last range's end as the evidence of
  * a single pass. A read that reaches the stream's end and finds it cut short rejects (spec token-stats
  * B12), as does a file that cannot be read or decompressed as far as the read goes. It starts once fewer than

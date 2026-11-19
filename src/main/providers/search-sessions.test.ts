@@ -321,7 +321,7 @@ describe('full-text mode: match the whole stream, map hits to turns, fold anythi
   })
 })
 
-describe('a cold rollout (.jsonl.zst) is searched in one streaming pass, in question mode and full-text mode alike (spec D3, C2)', () => {
+describe('a cold rollout (.jsonl.zst) is searched in question mode and full-text mode alike (spec D3)', () => {
   it('question mode: the cold twin hits exactly like the plain one', async () => {
     const { plain, cold } = mkCodexTwins()
     const r = await run('zebra', false)
