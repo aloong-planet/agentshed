@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readRanges, type ByteRange } from './range-read'
 import { readColdRanges } from './cold-rollout'
-import { readTurnLines } from './turn-read'
+import { readTurn, type TurnRead } from './turn-read'
 import { threadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type HoldSeam, type LineLimitSeam, type PanicSeam } from '../testing/engine'
 
@@ -35,6 +35,22 @@ const ask = (message: string): Buffer => line('event_msg', { type: 'user_message
 const answer = (text: string): Buffer =>
   line('response_item', { type: 'message', id: 'msg_1', role: 'assistant', content: [{ type: 'output_text', text }], phase: 'final' })
 const meta = (): Buffer => line('session_meta', { session_id: 's1', id: 's1', timestamp: AT, cwd: '/work/p', runtime_workspace_roots: [] })
+
+// Lines shaped as Claude Code writes them (as turn-content.test.ts builds them): a question a user's line of text, an
+// answer an assistant's line of text segments, a call an assistant's tool_use segment, its return a user's tool_result
+const claudeLine = (o: unknown): Buffer => Buffer.from(JSON.stringify(o))
+const claudeAsk = (text: string): Buffer => claudeLine({ type: 'user', timestamp: AT, message: { role: 'user', content: text } })
+const claudeSay = (text: string): Buffer => claudeLine({ type: 'assistant', timestamp: AT, message: { role: 'assistant', content: [{ type: 'text', text }] } })
+const claudeCall = (id: string): Buffer =>
+  claudeLine({ type: 'assistant', timestamp: AT, message: { role: 'assistant', content: [{ type: 'tool_use', id, name: 'Bash', input: { command: 'cat log' } }] } })
+const claudeReturn = (id: string, content: string): Buffer =>
+  claudeLine({ type: 'user', timestamp: AT, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content }] } })
+/** A Claude Code session file holding `content` */
+function claudeFile(content: Buffer): string {
+  const file = join(dir, `claude-${files++}.jsonl`)
+  writeFileSync(file, content)
+  return file
+}
 
 /** Bytes that are not valid UTF-8, each a different case of the decoder's replacement: a lone continuation byte, a
  * sequence cut short, an overlong form, a surrogate's encoding */
@@ -62,6 +78,9 @@ function rollout(lines: Array<{ line: Buffer; question?: true }>): { content: Bu
   }))
   return { content: Buffer.concat(lines.flatMap(({ line }) => [line, Buffer.from('\n')])), turns }
 }
+
+/** The lines of the body a turn read handed over, of a side whose turns TypeScript assembles */
+const linesOf = (read: TurnRead): string[] | null => (read.body !== null && 'lines' in read.body ? read.body.lines : null)
 
 /** The range read's text of a body split at its line feeds, the empty piece after a last line feed left off */
 const split = (text: string): string[] => {
@@ -92,10 +111,10 @@ describe('a turn read hands over what the range read gives the same ranges, plai
     const handed: string[] = []
     for (const { question, body } of turns) {
       const { texts } = await readRanges(plain, [question, body])
-      const read = await readTurnLines('codex', file, question, body)
+      const read = await readTurn('codex', file, question, body)
       expect(read.question).toBe(texts[0])
-      expect(read.lines).toEqual(split(texts[1]))
-      handed.push(read.question, ...(read.lines ?? []))
+      expect(linesOf(read)).toEqual(split(texts[1]))
+      handed.push(read.question, ...(linesOf(read) ?? []))
     }
     // The invalid bytes are inside the turns read, each replaced as the WHATWG decoder replaces it: one U+FFFD for the
     // lone byte, one for the cut sequence, two for the overlong form, three for the surrogate
@@ -144,9 +163,9 @@ describe('a turn read hands over what the range read gives the same ranges, plai
   ])('%s: the pieces are the range\'s text split at its line feeds, plain and cold', async (_what, content, question, body) => {
     for (const cold of [false, true]) {
       const { texts } = await readRanges(rolloutOf(content, false), [question, body])
-      const read = await readTurnLines('codex', rolloutOf(content, cold), question, body)
+      const read = await readTurn('codex', rolloutOf(content, cold), question, body)
       expect(read.question).toBe(texts[0])
-      expect(read.lines).toEqual(split(texts[1]))
+      expect(linesOf(read)).toEqual(split(texts[1]))
     }
   })
 })
@@ -165,7 +184,7 @@ describe('a turn read stops at the turn\'s end (session-view C2)', () => {
     expect(big.turns[0]).toEqual(small.turns[0])
     const expected = cold ? body.end : body.end - question.start
     for (const { content } of [small, big]) {
-      expect((await readTurnLines('codex', rolloutOf(content, cold), question, body)).bytesRead).toBe(expected)
+      expect((await readTurn('codex', rolloutOf(content, cold), question, body)).bytesRead).toBe(expected)
     }
   })
 
@@ -177,8 +196,8 @@ describe('a turn read stops at the turn\'s end (session-view C2)', () => {
     try {
       // The limit is passed by the line after the first turn only: a read that went on to it would fail
       expect(() => seam.seamEachLine(file, cold)).toThrow(/could not be read to its end/)
-      const read = await readTurnLines('codex', file, turns[0].question, turns[0].body)
-      expect(read.lines).toHaveLength(1)
+      const read = await readTurn('codex', file, turns[0].question, turns[0].body)
+      expect(linesOf(read)).toHaveLength(1)
     } finally {
       seam.seamLimitLinesOf(file, null)
     }
@@ -187,9 +206,9 @@ describe('a turn read stops at the turn\'s end (session-view C2)', () => {
   test.each([false, true])('with no body, as over the turn limit: the question alone is read, and no lines are handed over (cold %s)', async (cold) => {
     const { content, turns } = twoTurns(10)
     const { question } = turns[1]
-    const read = await readTurnLines('codex', rolloutOf(content, cold), question, null)
+    const read = await readTurn('codex', rolloutOf(content, cold), question, null)
     const { texts } = await readRanges(rolloutOf(content, false), [question])
-    expect(read).toEqual({ question: texts[0], lines: null, bytesRead: cold ? question.end : question.end - question.start })
+    expect(read).toEqual({ question: texts[0], body: null, bytesRead: cold ? question.end : question.end - question.start })
   })
 })
 
@@ -240,7 +259,66 @@ describe('a turn read holds no allocation of the whole turn but a line of it (#4
   })
 })
 
+describe('a Claude Code turn read, its blocks assembled, holds no allocation of the whole turn but a line of it and its blocks (#494)', () => {
+  // The module holds the turn's lines and, as each line is read and let go, the blocks made of it; the main thread then
+  // makes JavaScript's strings of the blocks, each block's let go as its strings are made. The bound is the Codex
+  // read's, the text twice and some MiB: for these shapes the blocks hold nearly all of the text.
+  const MiB = 1024 * 1024
+  /** A return line of `size` bytes for the call `id` */
+  const returnOf = (id: string, size: number): Buffer => {
+    const empty = claudeReturn(id, '').length
+    return claudeReturn(id, 'x'.repeat(size - empty))
+  }
+  const shapes = [
+    { shape: 'of tool results in lines a little past a read', lines: Array.from({ length: 62 }, (_, i) => [claudeCall(`t${i}`), returnOf(`t${i}`, MiB + 10_240)]).flat() },
+    { shape: 'of one answer in a line of half the limit and a little more', lines: [claudeSay('x'.repeat(32 * MiB + MiB / 2))] }
+  ]
+  test.each(shapes)('a turn $shape grows a fresh process\'s peak by the text twice and a few MiB', ({ lines }) => {
+    const { content, turns } = rollout([{ line: claudeAsk('q'), question: true }, ...lines.map((line) => ({ line }))])
+    const [{ question, body }] = turns
+    const bodyBytes = body.end - body.start
+    expect(bodyBytes).toBeGreaterThan(32 * MiB)
+    expect(bodyBytes).toBeLessThanOrEqual(64 * MiB)
+    const file = claudeFile(content)
+    // In a process of its own, so that the peak it reports is this read's alone
+    const script = `
+      const module = { exports: {} }
+      process.dlopen(module, process.argv[1])
+      const [file, q, b] = [process.argv[2], JSON.parse(process.argv[3]), JSON.parse(process.argv[4])]
+      const before = process.resourceUsage().maxRSS
+      module.exports.readTurn('claude', file, q, b).then((read) => {
+        const grewKiB = process.resourceUsage().maxRSS - before
+        const shown = read.blocks.reduce((n, b) => n + (b.kind === 'tool' ? b.output.length : b.body.length), 0)
+        console.log(JSON.stringify({ grewKiB, blocks: read.blocks.length, shown }))
+      })`
+    const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, file, JSON.stringify(question), JSON.stringify(body)], { encoding: 'utf8' })
+    expect(run.stderr).toBe('')
+    const { grewKiB, blocks, shown } = JSON.parse(run.stdout) as { grewKiB: number; blocks: number; shown: number }
+    // Each return's text is its line less the line's shape around it, whose call ids differ in length
+    const returns = lines.length === 1 ? [] : Array.from({ length: lines.length / 2 }, (_, i) => MiB + 10_240 - claudeReturn(`t${i}`, '').length)
+    const expected = lines.length === 1 ? [1, 32 * MiB + MiB / 2] : [returns.length, returns.reduce((n, l) => n + l, 0)]
+    expect([blocks, shown]).toEqual(expected)
+    expect(grewKiB * 1024).toBeLessThan(2 * bodyBytes + 24 * MiB)
+  })
+})
+
 describe('a turn read that fails', () => {
+  test('a panic while assembling the blocks of one Claude Code turn rejects that read alone: a read of another, started with it, is served', async () => {
+    const { content, turns } = rollout([{ line: claudeAsk('q'), question: true }, { line: claudeSay('a') }])
+    const [{ question, body }] = turns
+    const hit = claudeFile(content)
+    const other = claudeFile(content)
+    const seam = threadEngineModule() as PanicSeam
+    seam.seamPanicWhileAssembling(hit)
+    try {
+      const [failed, spared] = await Promise.allSettled([readTurn('claude', hit, question, body), readTurn('claude', other, question, body)])
+      expect(failed.status === 'rejected' && String(failed.reason)).toMatch(/reading .* panicked/)
+      expect(spared.status === 'fulfilled' && spared.value.body).toEqual({ blocks: [{ kind: 'text', role: 'assistant', at: Date.parse(AT), body: 'a' }] })
+    } finally {
+      seam.seamPanicWhileAssembling(null)
+    }
+  })
+
   test.each([false, true])('a panic while reading one session file rejects that read alone: a read of another, started with it, is served (cold %s)', async (cold) => {
     const shown = answer('a')
     const { content, turns } = rollout([{ line: ask('q'), question: true }, { line: shown }])
@@ -250,9 +328,9 @@ describe('a turn read that fails', () => {
     const seam = threadEngineModule() as PanicSeam
     seam.seamPanicWhileReading(hit)
     try {
-      const [failed, spared] = await Promise.allSettled([readTurnLines('codex', hit, question, body), readTurnLines('codex', other, question, body)])
+      const [failed, spared] = await Promise.allSettled([readTurn('codex', hit, question, body), readTurn('codex', other, question, body)])
       expect(failed.status === 'rejected' && String(failed.reason)).toMatch(/reading .* panicked/)
-      expect(spared.status === 'fulfilled' && spared.value.lines).toEqual([shown.toString('utf8')])
+      expect(spared.status === 'fulfilled' && linesOf(spared.value)).toEqual([shown.toString('utf8')])
     } finally {
       seam.seamPanicWhileReading(null)
     }
@@ -299,16 +377,16 @@ describe('the places turn reads take (session-view C2)', () => {
   const held = (files: string[]): void => {
     for (const file of files) seam().seamHoldReadsOf(file)
   }
-  const served = (outcomes: Array<PromiseSettledResult<{ lines: string[] | null }>>): unknown[] =>
-    outcomes.map((o) => o.status === 'fulfilled' && o.value.lines)
+  const served = (outcomes: Array<PromiseSettledResult<TurnRead>>): unknown[] =>
+    outcomes.map((o) => o.status === 'fulfilled' && linesOf(o.value))
 
   test('a cold rollout\'s turn read takes one of the four cold places its range reads take: a fifth cold read waits for one to be given up', async () => {
     const handed = watchHanded()
     const cold = Array.from({ length: 5 }, () => rolloutOf(content, true))
     held(cold)
-    const reads = [readTurnLines('codex', cold[0], question, body), readTurnLines('codex', cold[1], question, body),
-      readColdRanges(cold[2], [body]), readTurnLines('codex', cold[3], question, body)]
-    const fifth = readTurnLines('codex', cold[4], question, body)
+    const reads = [readTurn('codex', cold[0], question, body), readTurn('codex', cold[1], question, body),
+      readColdRanges(cold[2], [body]), readTurn('codex', cold[3], question, body)]
+    const fifth = readTurn('codex', cold[4], question, body)
     const outcomes = Promise.allSettled([...reads, fifth])
     asked.push(outcomes)
     expect(handed).toEqual(cold.slice(0, 4))
@@ -327,8 +405,8 @@ describe('the places turn reads take (session-view C2)', () => {
     const plain = Array.from({ length: 4 }, () => rolloutOf(content, false))
     held([...cold, ...plain])
     // Every cold place held, and every thread of the pool
-    const colds = cold.map((file) => readTurnLines('codex', file, question, body))
-    const plains = plain.map((file) => readTurnLines('codex', file, question, body))
+    const colds = cold.map((file) => readTurn('codex', file, question, body))
+    const plains = plain.map((file) => readTurn('codex', file, question, body))
     const outcomes = Promise.allSettled([...colds, ...plains])
     asked.push(outcomes)
     expect(handed).toEqual([...cold, ...plain])

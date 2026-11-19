@@ -24,7 +24,7 @@ import {
 import type { CappedText, ProjectFigures, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import { AGENT_SIDES, assertSnapshot, assertProjectFigures, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
-import { turnBlocks } from './providers/turn-content'
+import { bodyBlocks } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
 import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
 import { readProjectDetail } from './providers/project-detail'
@@ -429,12 +429,12 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   if (a.revision !== undefined && a.revision !== revision) throw appError(ERR.sessionNotIndexed)
   if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
   if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
-  if (read.lines === null) {
+  if (read.body === null) {
     // A turn kept before it grew past the limit can no longer be kept either: its copy leaves with the reason
     if (savedReads.delete(savedTurnKey(file, revision, a.i))) persistDisplay()
     throw appError(ERR.turnTooLong, { bytes: read.bodyBytes, limit: TURN_LIMIT_BYTES })
   }
-  const turn: SessionTurn = { blocks: turnBlocks(q.side, read.lines), bytesRead: read.bytesRead }
+  const turn: SessionTurn = { blocks: bodyBlocks(q.side, read.body), bytesRead: read.bytesRead }
   // A body over the keep size is shown but never kept: not in the display copy, and (by the mark) not in the renderer
   const kept = turnKept(read.bodyBytes, TURN_KEEP_BYTES)
   if (!kept) turn.unkept = true

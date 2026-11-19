@@ -190,7 +190,7 @@ impl JsonText {
 
 /// QuoteJSONString (ECMA-262, JSON.stringify): `"` and `\` escaped, the control characters as the short escapes or
 /// `\u00xx`, a surrogate with no partner as `\udxxx`, everything else as UTF-8
-fn write_string(out: &mut Vec<u8>, units: &[u16]) {
+pub(crate) fn write_string(out: &mut Vec<u8>, units: &[u16]) {
     out.push(b'"');
     let mut i = 0;
     while i < units.len() {
@@ -233,7 +233,7 @@ fn utf8(out: &mut Vec<u8>, point: u32) {
 
 /// Number::toString(10) (ECMA-262): the shortest digits that read back as the same double, placed by its rules —
 /// plain up to 21 integer digits, `0.000…` down to six leading zeros, exponential beyond either
-fn write_number(out: &mut Vec<u8>, value: f64) {
+pub(crate) fn write_number(out: &mut Vec<u8>, value: f64) {
     if !value.is_finite() {
         out.extend_from_slice(b"null");
         return;

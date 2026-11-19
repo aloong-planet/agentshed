@@ -18,6 +18,9 @@ export interface PanicSeam extends EngineModule {
   /** Names the file the module panics on while it reads that file's ranges or one of its turns, or none; one for the
    * whole process */
   seamPanicWhileReading(file: string | null): void
+  /** Names the file the module panics on while it assembles the blocks of one of its turns, or none; one for the whole
+   * process */
+  seamPanicWhileAssembling(file: string | null): void
   /** A stand-in for a function that parses a session file: answers with the file once the seam lets it through */
   seamParse(file: string): string
 }

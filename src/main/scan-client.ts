@@ -26,7 +26,7 @@ export interface ScanClientOptions {
   fallback: () => Scans & { close?: () => void }
   /**
    * Confirms the engine module on this thread before a question index is asked for: what an index is read for — a
-   * question's text, a turn's contents — is read here by the module's line rules (ADR-0045). A throw fails that read,
+   * question's text, a turn's contents — is read here by the module's line rules (ADR-0045, ADR-0054). A throw fails that read,
    * as an index that cannot be read fails it.
    */
   confirm: () => void

@@ -6,7 +6,8 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::PathBuf;
 
-use napi::bindgen_prelude::{AsyncTask, Buffer, FromNapiValue, Object, Unknown, Utf16String};
+use napi::bindgen_prelude::{AsyncTask, Buffer, FromNapiValue, Object, ToNapiValue, TypeName, Unknown, Utf16String, ValueType};
+use napi::sys::{napi_env, napi_value};
 use napi::{Env, Error, JsValue, Result, Status, Task};
 use napi_derive::napi;
 
@@ -16,6 +17,7 @@ use crate::sides::Side;
 use crate::display::{stringify, write_atomically};
 use crate::exports::js::Js;
 use crate::search::{Question, Questions, Turn};
+use crate::turn::{At, Block, TurnBody};
 
 /// The question `text` holds, as the session page and both searches show it: `text` is a question's range in a session
 /// file of the side `kind`, as the question index recorded it, read; null when it holds no question
@@ -82,30 +84,20 @@ pub fn read_ranges<'env>(env: &'env Env, kind: String, file: String, ranges: Vec
     Ok(promise)
 }
 
-/// What a read of a turn gave: its question's bytes, the lines of its body the turn holds, each as text, and how far
-/// into the file's stream the read went from where it started (the question's start in a plain file, the stream's start
-/// in a cold rollout)
-#[napi(object)]
-pub struct TurnLines {
-    pub question: Buffer,
-    pub lines: Vec<String>,
-    pub bytes_read: f64,
-}
+/// What a turn's read hands over from the thread that read it: the question's bytes, the body (`Side::turn_body`), and
+/// how far into the stream the read went from where it started
+type Turned = (Vec<u8>, TurnBody, u64);
 
-type SettleTurn = Box<dyn FnOnce(Env) -> Result<TurnLines> + Send>;
-
-/// What a turn's read hands over from the thread that read it: the question's bytes, the lines the turn holds, and how
-/// far into the stream the read went from where it started
-type Turned = (Vec<u8>, Vec<String>, u64);
-
-/// Reads a turn of the session file `file` with `side` (`Side::read_turn`) and drops the lines the turn does not hold
-/// (the side's `kept_lines`); or why the turn was not read, as the promise rejects with it
+/// Reads a turn of the session file `file` with `side` (`Side::read_turn`), drops the lines the turn does not hold
+/// (the side's `kept_lines`) and makes the body of the rest (the side's `turn_body`): the side's assembly of its blocks
+/// runs inside the read's panic catch, so that a panic fails that read alone; or why the turn was not read, as the
+/// promise rejects with it
 fn turned(side: &dyn Side, file: &str, question: (u64, u64), body: Option<(u64, u64)>) -> std::result::Result<Turned, String> {
     let read = catch_unwind(AssertUnwindSafe(|| {
         side.read_turn(file, question, body).map(|read| {
             let kept = side.kept_lines(&read.lines);
             let lines = read.lines.into_iter().zip(kept).filter_map(|(line, kept)| kept.then_some(line)).collect();
-            (read.question, lines, read.through - read.started)
+            (read.question, side.turn_body(file, lines), read.through - read.started)
         })
     }));
     match read {
@@ -115,8 +107,81 @@ fn turned(side: &dyn Side, file: &str, question: (u64, u64), body: Option<(u64, 
     }
 }
 
-fn turn_lines((question, lines, bytes_read): Turned) -> TurnLines {
-    TurnLines { question: Buffer::from(question), lines, bytes_read: bytes_read as f64 }
+/// A turn's read as its promise settles with it, made on the main process's thread: `{ question, bytesRead }` with the
+/// body's `blocks`, or its `lines`, each block's strings let go as JavaScript is handed them. A conversion that panics
+/// rejects the read.
+struct TurnValue {
+    file: String,
+    turned: Turned,
+}
+
+impl TypeName for TurnValue {
+    fn type_name() -> &'static str {
+        "TurnRead"
+    }
+
+    fn value_type() -> ValueType {
+        ValueType::Object
+    }
+}
+
+impl ToNapiValue for TurnValue {
+    unsafe fn to_napi_value(env: napi_env, value: Self) -> Result<napi_value> {
+        let TurnValue { file, turned: (question, body, bytes_read) } = value;
+        let converted = catch_unwind(AssertUnwindSafe(|| {
+            let js = Js::new(&Env::from_raw(env));
+            let question = unsafe { Buffer::to_napi_value(env, Buffer::from(question)) }?;
+            let body = match body {
+                TurnBody::Blocks(blocks) => ("blocks", js.array(blocks.into_iter().map(|block| block_value(&js, block)))?),
+                TurnBody::Lines(lines) => ("lines", unsafe { Vec::<String>::to_napi_value(env, lines) }?),
+            };
+            js.object(&[("question", question), body, ("bytesRead", js.num(bytes_read as f64)?)])
+        }));
+        converted.unwrap_or_else(|_| Err(Error::from_reason(format!("converting the turn read of {file} panicked"))))
+    }
+}
+
+/// A block as the TypeScript `TurnBlock` of its kind, its members in that type's order
+fn block_value(js: &Js, block: Block) -> Result<napi_value> {
+    let kind = |name: &str| js.text_utf8(name);
+    match block {
+        Block::Text { at, body } => {
+            js.object(&[("kind", kind("text")?), ("role", kind("assistant")?), ("at", at_value(js, at)?), ("body", js.js_string(body)?)])
+        }
+        Block::Think { at, body } => js.object(&[("kind", kind("think")?), ("at", at_value(js, at)?), ("body", js.js_string(body)?)]),
+        Block::Tool { at, name, summary, input, output, truncated } => js.object(&[
+            ("kind", kind("tool")?),
+            ("at", at_value(js, at)?),
+            ("name", js.js_string_or_null(name)?),
+            ("summary", js.js_string(summary)?),
+            ("input", js.js_string(input)?),
+            ("output", js.js_string_or_null(output)?),
+            ("truncated", js.boolean(truncated)?),
+        ]),
+        Block::Sub { at, name, prompt, result } => js.object(&[
+            ("kind", kind("sub")?),
+            ("at", at_value(js, at)?),
+            ("name", js.js_string(name)?),
+            ("prompt", js.js_string(prompt)?),
+            ("steps", js.array([])?),
+            ("result", js.js_string_or_null(result)?),
+            ("unlinked", js.boolean(true)?),
+        ]),
+        Block::Unknown { count, types } => js.object(&[
+            ("kind", kind("unknown")?),
+            ("count", js.num(f64::from(count))?),
+            ("types", js.array(types.into_iter().map(|t| js.js_string(t)))?),
+        ]),
+    }
+}
+
+/// A block's time: a number, or null for none; a timestamp the module does not read is read here by `Date.parse`
+fn at_value(js: &Js, at: At) -> Result<napi_value> {
+    match at {
+        At::None => js.null(),
+        At::Ms(ms) => js.num(ms),
+        At::Later(units) => js.num_or_null(Some(js.date_parse(&units)).filter(|ms| !ms.is_nan())),
+    }
 }
 
 /// Reads a turn of the session file `file`, of the side `kind`: its `question`'s range and, when `body` is given, its
@@ -125,10 +190,11 @@ fn turn_lines((question, lines, bytes_read): Turned) -> TurnLines {
 /// own reads of plain files run, so that it is one of the four plain reads at once session-view D2b bounds them to, as
 /// the range read it replaced was. The body is read line by line, each line decoded as it is whole, and the lines the
 /// turn does not hold (the side's `kept_lines`) are dropped on the reading thread, so that no allocation holds the
-/// whole body but a line of it. The promise settles with the question's bytes and the body's lines, or rejects when the
-/// file cannot be read as far as the turn goes, what it read is not whole, or the read panicked. A thread that cannot
-/// be started throws, before any promise is handed out.
-#[napi(catch_unwind, ts_return_type = "Promise<TurnLines>")]
+/// whole body but a line of it; of a side whose turns the module assembles, the blocks are assembled there too, each
+/// line let go once it is read (`Side::turn_body`). The promise settles with the question's bytes and the body's
+/// blocks or lines, or rejects when the file cannot be read as far as the turn goes, what it read is not whole, or the
+/// read or its assembly panicked. A thread that cannot be started throws, before any promise is handed out.
+#[napi(catch_unwind, ts_return_type = "Promise<{ question: Buffer; bytesRead: number } & ({ blocks: object[] } | { lines: string[] })>")]
 pub fn read_turn<'env>(env: &'env Env, kind: String, file: String, question: ByteRange, body: Option<ByteRange>) -> Result<Unknown<'env>> {
     let side = side(&kind)?;
     let question = (question.start as u64, question.end as u64);
@@ -136,17 +202,19 @@ pub fn read_turn<'env>(env: &'env Env, kind: String, file: String, question: Byt
     if side.stored(&file) == Stored::Plain {
         return Ok(env.spawn(ReadTurn { side, file, question, body })?.promise_object().to_unknown());
     }
-    let (deferred, promise) = env.create_deferred::<TurnLines, SettleTurn>()?;
+    let (deferred, promise) = env.create_deferred::<TurnValue, SettleTurn>()?;
     let named = file.clone();
     std::thread::Builder::new()
         .name("agentshed-read".to_owned())
         .spawn(move || match turned(side, &file, question, body) {
-            Ok(turned) => deferred.resolve(Box::new(move |_| Ok(turn_lines(turned)))),
+            Ok(turned) => deferred.resolve(Box::new(move |_| Ok(TurnValue { file, turned }))),
             Err(reason) => deferred.reject(Error::from_reason(reason)),
         })
         .map_err(|e| Error::from_reason(format!("no thread could be started to read {named}: {e}")))?;
     Ok(promise.to_unknown())
 }
+
+type SettleTurn = Box<dyn FnOnce(Env) -> Result<TurnValue> + Send>;
 
 /// A plain file's turn read, on the thread pool
 struct ReadTurn {
@@ -158,14 +226,14 @@ struct ReadTurn {
 
 impl Task for ReadTurn {
     type Output = Turned;
-    type JsValue = TurnLines;
+    type JsValue = TurnValue;
 
     fn compute(&mut self) -> Result<Turned> {
         turned(self.side, &self.file, self.question, self.body).map_err(Error::from_reason)
     }
 
-    fn resolve(&mut self, _env: Env, turned: Turned) -> Result<TurnLines> {
-        Ok(turn_lines(turned))
+    fn resolve(&mut self, _env: Env, turned: Turned) -> Result<TurnValue> {
+        Ok(TurnValue { file: std::mem::take(&mut self.file), turned })
     }
 }
 

@@ -7,7 +7,8 @@
 //! ## Layout
 //!
 //! - `sides/<side>/`: what differs by agent side — its entry types, the fields its rules read off a line, its parse,
-//!   its question rules, its title, its side of the session walk, and its entry's de-duplication keys and combination.
+//!   its question rules, its title, its side of the session walk, its entry's de-duplication keys and combination, and
+//!   for a side whose turns the module assembles, a turn's blocks.
 //!   A side's items stay private to its directory, except the one adapter it registers in `sides/mod.rs`, which is the
 //!   one list of the sides, with the trait they implement. The trait gains a method only when side-free code calls one.
 //! - Side-free modules, which never branch on a side: what more than one side uses, written once — `read/` (lines over
@@ -16,7 +17,8 @@
 //!   and with its results), `text/` (text as JavaScript holds it, and the normalisation, noise, title, fingerprint,
 //!   merge key and `Date.parse` rules over it), `question/` (the question indexer the sides share and the replay strip
 //!   of a fork's questions), `search/` (the full-text search of one session file, read line by line against its
-//!   turns), `store/` (the token store, ADR-0044, which holds each session file's entry under its path
+//!   turns), `turn/` (a turn's blocks as the session page draws them, and the rules every side's assembly of them
+//!   shares), `store/` (the token store, ADR-0044, which holds each session file's entry under its path
 //!   without reading it by side) and `group/` (the grouping and the combination, token-stats::CON-003: which files a
 //!   de-duplication key links, a group's input, its stored result and the sum of the stored results; each side's
 //!   combination is behind the trait).
@@ -46,4 +48,5 @@ mod seams;
 mod sides;
 mod store;
 mod text;
+mod turn;
 mod walk;

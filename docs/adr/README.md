@@ -66,6 +66,7 @@ ADR conventions for this repository:
 | [0034](0034-global-search-question-corpus-in-memory.md) | Global search reads every project's question texts from main-process memory, warmed when its page opens | Accepted |
 | [0036](0036-injected-text-stays-a-question.md) | Text the agent tools write into a session as the user stays a question | Accepted |
 | [0052](0052-full-text-search-streams-in-the-engine-module.md) | A project's search runs in the engine module, off the main thread, reading the full text a line at a time and handing back only what it shows | Accepted |
+| [0054](0054-turns-read-and-assembled-in-the-engine-module.md) | The engine module reads each turn the session page expands and assembles its blocks | Accepted |
 
 ## Usage and the archive
 

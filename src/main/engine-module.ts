@@ -5,7 +5,7 @@
 // line rules read, and whose cold rollouts it reads — and every write of the display copy (token-stats, Scans and the
 // window). Nothing here imports electron, which a worker thread cannot load.
 import { join } from 'node:path'
-import type { AgentSide, ForkState, SessionMeta } from '@shared/domain'
+import type { AgentSide, ForkState, SessionMeta, TurnBlock } from '@shared/domain'
 import type { UsageRow } from './providers/archive'
 import type { CodexSessionMeta } from './providers/codex'
 import type { GrokSessionMeta } from './providers/grok'
@@ -128,21 +128,23 @@ export interface EngineModule {
   /**
    * A turn of the session file `file`, of the side `kind`: its `question`'s range and, when `body` is given, its body's,
    * `[start, end)` in the offsets its question index records, read in one pass that stops at the turn's end (session-view
-   * C2): a cold rollout's on a thread of its own, a plain file's on the thread pool (session-view D2b). Settles with the question's bytes, as much of its range as the file holds; the lines
-   * of the body the turn holds, each as text with its line feed left off, clipped to the body's range, as the body's
+   * C2): a cold rollout's on a thread of its own, a plain file's on the thread pool (session-view D2b). Settles with the question's bytes, as much of its range as the file holds; the body,
+   * of the lines the turn holds, each as text with its line feed left off, clipped to the body's range, as the body's
    * text splits at its line feeds but for the empty piece after a last line feed (a line agy's rewind undid inside the
-   * turn is not held, session-view::REQ-004/AC-03); and how far into the file's stream the read went from where it
-   * started, the question's start in a plain file and the stream's start in a cold rollout. The body is read line by
-   * line: no allocation holds it whole but a line of it. A cold rollout is read through its decompressed stream, as `readRanges` reads it.
+   * turn is not held, session-view::REQ-004/AC-03): their `blocks` for a side whose turns the module assembles (a Claude
+   * Code turn), the `lines` themselves for one whose turns are still assembled here (ADR-0047); and how far into the
+   * file's stream the read went from where it started, the question's start in a plain file and the stream's start in a
+   * cold rollout. The body is read line by line: no allocation holds it whole but a line of it. A cold rollout is read
+   * through its decompressed stream, as `readRanges` reads it.
    * Rejects when the file cannot be read as far as the turn goes, when a read that reached the stream's end finds it cut
-   * short (token-stats B12), or when the read panics.
+   * short (token-stats B12), or when the read or its assembly panics.
    */
   readTurn(
     kind: AgentSide,
     file: string,
     question: { start: number; end: number },
     body: { start: number; end: number } | null
-  ): Promise<{ question: Buffer; lines: string[]; bytesRead: number }>
+  ): Promise<{ question: Buffer; bytesRead: number } & ({ blocks: TurnBlock[] } | { lines: string[] })>
   /**
    * The full-text search of the session file `file`, of the side `kind`, for `needle` against its `turns`, each turn's
    * question `[start, questionEnd)` and the turn `[start, end)` in the offsets its question index records (session-view
