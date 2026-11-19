@@ -37,8 +37,8 @@ We adopt **options 1 and 4**.
 - The module is given the needle, the file and its questions' ranges, and gives back the questions that hit; in
   full-text mode (session-view D3), every question with its text, for the body hits.
 - The byte rule and the mapping of a hit to its turn are the whole-file search's, quirk for quirk (session-view
-  D2–D4); a snippet comes from the string that search took, cut where the hit stands in it, its 20 and 60 counted in
-  characters (D5).
+  D2–D4); a snippet comes from the string that search took, cut where the hit stands in it and counted in characters
+  (D5).
 - A cold rollout's search shares the places its reads take, and a file not read to its end gives nothing it found
   (session-view C2, D3).
 

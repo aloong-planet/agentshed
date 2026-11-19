@@ -1,14 +1,13 @@
-//! The snippet a turn's first body hit shows (session-view D5): the first string in the JSON value of the hit's line
-//! that holds the needle, the string `extractSnippet` in search-sessions.ts took before #479, cut to 20 characters
-//! before the hit and 60 after the needle. The line is decoded as `Buffer.toString('utf8')` decodes it, each invalid
-//! sequence becoming U+FFFD, and read by `JSON.parse`'s grammar: a line it would refuse gives no snippet. The strings
-//! are visited in the order that function's walk visited them: an array's elements in order, an object's values in
-//! `Object.values`' order, its array-index keys ascending and then its other keys in the order first written, a
+//! The snippet a turn's first body hit shows (session-view D5): the string `extractSnippet` in search-sessions.ts took
+//! before #479, cut where the hit stands in it. The line is decoded as `Buffer.toString('utf8')` decodes it, each
+//! invalid sequence becoming U+FFFD, and read by `JSON.parse`'s grammar: a line it would refuse gives no snippet. The
+//! strings are visited in the order that function's walk visited them: an array's elements in order, an object's values
+//! in `Object.values`' order, its array-index keys ascending and then its other keys in the order first written, a
 //! repeated key holding its first place with its last value. A string holds the needle when its `toLowerCase()` holds
-//! the needle's; the hit is the characters of the string whose lowercase that first match falls in, so a character
-//! that lowers to another length moves neither edge of the cut, where `extractSnippet` cut the string at the offsets
-//! it found in the lowered one. A character is one as `Array.from` counts it: a surrogate pair, never split, or any
-//! other code unit, a lone surrogate included.
+//! the needle's; the hit is the characters of the string whose lowercase that first match falls in, so a character that
+//! lowers to another length moves neither edge of the cut, where `extractSnippet` cut the string at the offsets it
+//! found in the lowered one. A character is one as `Array.from` counts it: a surrogate pair, never split, or any other
+//! code unit, a lone surrogate included.
 
 use std::collections::HashMap;
 

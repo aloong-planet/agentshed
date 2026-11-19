@@ -275,11 +275,10 @@ describe('the full-text search gives what the whole-file search gave', () => {
   })
 })
 
-// The snippet (session-view D5): the string extractSnippet took, cut 20 characters before the hit and 60 after the
-// needle where the hit stands in that string. Where extractSnippet cut it otherwise, at the offsets it found in the
-// lowered string and in code units, the case says so (cutAnew). Each character here lowers the same in every Unicode
-// version since 15, so the oracle gives the same answer under any Node the tests run on; the mapping of every code
-// point is held to the app's own JavaScript below.
+// The snippet (session-view D5): the string extractSnippet took, cut where the hit stands in that string. Where
+// extractSnippet cut it otherwise, at the offsets it found in the lowered string and in code units, the case says so
+// (cutAnew). Each character here lowers the same in every Unicode version since 15, so the oracle gives the same answer
+// under any Node the tests run on; the mapping of every code point is held to the app's own JavaScript below.
 describe("a turn's snippet is the string the whole-file search took, cut where the hit stands in it", () => {
   const ELLIPSIS = String.fromCharCode(0x2026)
   const REPLACEMENT = String.fromCharCode(0xfffd)
@@ -369,6 +368,9 @@ describe("a turn's snippet is the string the whole-file search took, cut where t
     const HIGH = String.fromCharCode(0xd800)
     const v = `${E.repeat(5)}${LOW}${E.repeat(18)}xmagicy${E.repeat(58)}${HIGH}${E.repeat(10)}`
     await cutAnew(JSON.stringify({ t: v }), 'magic', `${ELLIPSIS}${LOW}${E.repeat(18)}xmagicy${E.repeat(58)}${HIGH}${ELLIPSIS}`)
+    // A string that ends on a lone high surrogate, as one cut inside a pair does, within the 60 after the needle
+    const tail = `${'a'.repeat(21)}magic${E.repeat(10)}${HIGH}`
+    expect(await snippetOf(JSON.stringify({ t: tail }), 'magic')).toBe(`${ELLIPSIS}${'a'.repeat(20)}magic${E.repeat(10)}${HIGH}`)
   })
 
   test('an ellipsis marks each side cut, and none a side left whole', async () => {
