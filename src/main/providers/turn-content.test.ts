@@ -197,6 +197,279 @@ describe('the Claude display allow-list and unknown traces (the whole 18-type to
   })
 })
 
+// ── A Claude Code turn as the engine module reads its lines (#494): the forms a line can write a value in that the
+// cases above do not, each held to what JSON.parse, JSON.stringify and Date.parse give the same line ──
+
+/** A `\u` escape as JSON text writes it, of the code unit `hex` */
+const esc = (hex: string): string => `${'\\'}u${hex}`
+const unit = (u: number): string => String.fromCharCode(u)
+
+/** An assistant's line, written as text, whose one segment is `segment`, itself text */
+const assistantLine = (segment: string, at = `"${TS}"`): string =>
+  `{"type":"assistant","timestamp":${at},"message":{"role":"assistant","content":[${segment}]}}`
+/** A tool call whose input is `input`, written as text */
+const callWith = (input: string, id = '"tu1"'): string => `{"type":"tool_use","id":${id},"name":"Bash","input":${input}}`
+/** A user's line, written as text, returning `content` for the call `id` */
+const returnLine = (content: string, id = '"tu1"'): string =>
+  `{"type":"user","timestamp":"${TS}","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":${id},"content":${content}}]}}`
+
+/** The one tool block of a turn */
+async function toolOf(lines: string[]): Promise<Extract<TurnBlock, { kind: 'tool' }>> {
+  const tools = (await claudeTurn(lines)).filter((b) => b.kind === 'tool')
+  expect(tools).toHaveLength(1)
+  return tools[0]
+}
+
+describe('a Claude Code tool\'s input is shown as JSON.stringify(value, null, 2) gives the value JSON.parse reads', () => {
+  test.each([
+    ['nested containers, empty ones among them', '{"command":"ls -la","options":{"all":true,"depth":2,"paths":["/a","/b"]},"empty":{},"none":[]}'],
+    ['array index keys first, ascending; any other key in the order written', '{"b":1,"10":"ten","2":"two","a":[],"0":0,"01":"no index","4294967294":"the last index","4294967295":"no index","-1":"no index"}'],
+    ['a repeated key: once, at its first place, with its last value', '{"a":1,"b":2,"a":{"c":3}}'],
+    ['a repeated key written once with an escape', `{"a":1,"b":2,"${esc('0061')}":3}`],
+    ['numbers as Number::toString writes the double', '[1.0,1e400,-1e400,-0,1e21,1e-7,0.1,0.000001,123456789012345678901234,5e-324,-1.5e-10,100,2.5E+3]'],
+    ['string escapes, a lone surrogate among them', `{"s":"line\\nnext\\ttab \\"q\\" \\\\ \\/ ${esc('0000')} ${esc('001f')} ${esc('d800')} ${esc('dc00')}x ${esc('d83d')}${esc('de00')} ${esc('2028')} ${esc('00e9')}"}`],
+    ['text outside ASCII, as written', `{"${unit(0xe9)}t${unit(0xe9)}":"${unit(0x2014)} ${String.fromCodePoint(0x1f600)}"}`],
+    ['the key __proto__, an own member as JSON.parse makes it', '{"__proto__":{"x":1},"y":2}'],
+    // A line feed would end the line
+    ['white space between tokens', '{ "a" :\t[ 1 ,\r 2 ] , "b" : { } }'],
+    ['containers nested', '[[[[{"a":[{}],"b":[[]]}]]]]'],
+    ['an empty object', '{}'],
+    ['an empty array', '[]'],
+    ['a number', '42'],
+    ['true', 'true'],
+    ['false', 'false']
+  ])('%s', async (_what, input) => {
+    expect((await toolOf([assistantLine(callWith(input))])).input).toBe(JSON.stringify(JSON.parse(input), null, 2))
+  })
+
+  test.each([
+    ['a string, as it is', '"cat a.txt"', 'cat a.txt'],
+    ['a string\'s escapes decoded', `"a\\tb ${esc('d83d')}${esc('de00')}"`, `a\tb ${String.fromCodePoint(0x1f600)}`],
+    ['null, as nothing', 'null', '']
+  ])('%s', async (_what, input, shown) => {
+    expect((await toolOf([assistantLine(callWith(input))])).input).toBe(shown)
+  })
+
+  test('no input, as nothing', async () => {
+    expect((await toolOf([assistantLine('{"type":"tool_use","id":"tu1","name":"Bash"}')])).input).toBe('')
+  })
+})
+
+describe('a Claude Code tool\'s one-line summary: its input\'s white space runs one space, its ends trimmed, past 88 code units clipped', () => {
+  const x = (n: number): string => 'x'.repeat(n)
+  test.each([
+    ['runs of white space, JavaScript\'s whole set', `"  a \\t\\n b${unit(0xa0)}c${unit(0x2003)}${unit(0x3000)}d${unit(0xfeff)}${unit(0x2028)}e${unit(0x1680)} "`, 'a b c d e'],
+    ['an input shown as JSON', '{"command":"ls"}', '{ "command": "ls" }'],
+    ['88 code units, as they are', `"${x(88)}"`, x(88)],
+    ['89 code units, clipped to 88 and an ellipsis', `"${x(89)}"`, `${x(88)}${unit(0x2026)}`],
+    ['88 code units and trailing white space, trimmed rather than clipped', `"${x(88)}   "`, x(88)],
+    ['a space at the clip, kept', `"${x(87)}  y"`, `${x(87)} ${unit(0x2026)}`],
+    ['a surrogate pair cut at the clip, its high half kept as the clip cuts it', `"${x(87)}${String.fromCodePoint(0x1f600)}y"`, `${x(87)}${unit(0xd83d)}${unit(0x2026)}`],
+    ['nothing but white space, nothing', '"  \\n "', '']
+  ])('%s', async (_what, input, summary) => {
+    expect((await toolOf([assistantLine(callWith(input))])).summary).toBe(summary)
+  })
+})
+
+describe('a Claude Code tool\'s return: the text its content holds', () => {
+  test.each([
+    ['a string, its escapes decoded', '"x\\ny"', 'x\ny'],
+    ['an array: the string text of each element that is an object, a line each',
+      '[{"type":"text","text":"one"},"a string",{"type":"image","source":{}},{"text":5},[{"text":"in an array"}],{"type":"text","text":"two","text":"three"}]', 'one\nthree'],
+    ['an empty array, nothing', '[]', ''],
+    ['null, nothing', 'null', '']
+  ])('%s', async (_what, content, shown) => {
+    expect((await toolOf([assistantLine(callWith('{}')), returnLine(content)])).output).toBe(shown)
+  })
+
+  test.each([
+    ['an object', '{"b":1,"a":[1,{"2":0,"1":0}]}'],
+    ['a number', '3.0'],
+    ['true', 'true']
+  ])('any other value, as JSON.stringify(value, null, 2) gives it: %s', async (_what, content) => {
+    expect((await toolOf([assistantLine(callWith('{}')), returnLine(content)])).output).toBe(JSON.stringify(JSON.parse(content), null, 2))
+  })
+
+  test('no content, nothing', async () => {
+    const line = `{"type":"user","timestamp":"${TS}","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1"}]}}`
+    expect((await toolOf([assistantLine(callWith('{}')), line])).output).toBe('')
+  })
+})
+
+describe('the trace of a Claude Code turn\'s unknown types names each type as the line writes it', () => {
+  test.each([
+    ['a number', '{"type":5}', ['5']],
+    ['null', '{"type":null}', ['null']],
+    ['a boolean', '{"type":true}', ['true']],
+    ['an array', '{"type":[1,"a"]}', ['[1,"a"]']],
+    ['an object, its keys in the engine\'s order', '{"type":{"b":1,"1":0,"a":{"c":[]}}}', ['{"1":0,"b":1,"a":{"c":[]}}']],
+    ['a string with escapes, decoded', `{"type":"new${esc('005f')}type"}`, ['new_type']],
+    ['none', '{"timestamp":"x"}', ['undefined']],
+    ['a line that is an array, which has none', '[{"type":"assistant"}]', ['undefined']],
+    ['a repeated type: the last', '{"type":"assistant","type":"brand_new"}', ['brand_new']]
+  ])('%s', async (_what, line, types) => {
+    expect(await claudeTurn([line])).toEqual([{ kind: 'unknown', count: 1, types }])
+  })
+
+  test.each([
+    ['a known type written last', '{"type":"brand_new","type":"system"}'],
+    ['a string', '"a string"'],
+    ['a number', '42'],
+    ['null', 'null'],
+    ['a line JSON.parse refuses', '{"type":"brand_new",}'],
+    ['an empty line', '']
+  ])('%s leaves no trace', async (_what, line) => {
+    expect(await claudeTurn([line])).toEqual([])
+  })
+
+  test('types in the order first met, each once, and every line counted', async () => {
+    const bs = await claudeTurn(['{"type":"b"}', '{"type":"a"}', '{"type":"b"}', '{"type":5}', '[]'])
+    expect(bs).toEqual([{ kind: 'unknown', count: 5, types: ['b', 'a', '5', 'undefined'] }])
+  })
+})
+
+describe('a Claude Code turn\'s text as JavaScript holds it: a lone surrogate kept, invalid UTF-8 replaced', () => {
+  test('a lone surrogate escape in prose, thinking, a tool\'s name, input, return and id, and a type, each kept as that code unit', async () => {
+    const lone = esc('d800')
+    // In the prose: a high half before a letter, a low half alone, a high half before an escape that is no low half
+    const prose = `a${lone}b${esc('dc00')}c${lone}${esc('0041')}`
+    const bs = await claudeTurn([
+      // A low half the first lone one in the thinking
+      assistantLine(`{"type":"thinking","thinking":"t${esc('dc00')}"},{"type":"text","text":"${prose}"},{"type":"tool_use","id":"i${esc('dc00')}","name":"n${lone}","input":"in${lone}"}`),
+      returnLine(`"out${lone} tool-results/x"`, `"i${esc('dc00')}"`),
+      `{"type":"x${lone}"}`
+    ])
+    const l = unit(0xd800)
+    expect(bs).toEqual([
+      { kind: 'think', at: AT, body: `t${unit(0xdc00)}` },
+      { kind: 'text', role: 'assistant', at: AT, body: `a${l}b${unit(0xdc00)}c${l}A` },
+      { kind: 'tool', at: AT, name: `n${l}`, summary: `in${l}`, input: `in${l}`, output: `out${l} tool-results/x`, truncated: true },
+      { kind: 'unknown', count: 1, types: [`x${l}`] }
+    ])
+  })
+
+  test('bytes that are not UTF-8, inside a line\'s strings, each replaced as Buffer.toString replaces them', async () => {
+    const bytes = [Buffer.from([0xff]), Buffer.from([0xe4, 0xb8]), Buffer.from([0xc0, 0xaf]), Buffer.from([0xed, 0xa0, 0x80])]
+    const [before, after] = assistantLine('{"type":"text","text":"aMARKb"}').split('MARK')
+    const line = Buffer.concat([Buffer.from(before), ...bytes, Buffer.from(after)])
+    const dir = mkdtempSync(join(tmpdir(), 'turn-'))
+    try {
+      const file = join(dir, 's.jsonl')
+      writeFileSync(file, Buffer.concat([line, Buffer.from('\n')]))
+      const read = await readTurnOf('claude', file, { start: 0, end: 0 }, { start: 0, end: statSync(file).size })
+      const shown = (JSON.parse(line.toString('utf8')) as { message: { content: Array<{ text: string }> } }).message.content[0].text
+      expect(blocksOf(read)).toEqual([{ kind: 'text', role: 'assistant', at: AT, body: shown }])
+      expect(shown.split(unit(0xfffd)).length - 1).toBe(7)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('a Claude Code block\'s time is what Date.parse gives its line\'s timestamp', () => {
+  test.each([
+    '2026-08-01T10:00:00.000Z',
+    '2026-08-01T10:00:00Z',
+    '2026-08-01T10:00:00.000+08:00',
+    '2026-08-01 10:00:00',
+    'Aug 1, 2026',
+    '2026-02-30T00:00:00Z',
+    '2026-13-01T00:00:00.000Z',
+    'not a date',
+    ''
+  ])('%j', async (timestamp) => {
+    const [text] = await claudeTurn([assistantLine('{"type":"text","text":"a"}', JSON.stringify(timestamp))])
+    const ms = Date.parse(timestamp)
+    expect(text).toEqual({ kind: 'text', role: 'assistant', at: Number.isNaN(ms) ? null : ms, body: 'a' })
+  })
+
+  test.each([
+    ['a number', '1754042400000'],
+    ['null', 'null']
+  ])('a timestamp that is %s, none', async (_what, timestamp) => {
+    expect((await claudeTurn([assistantLine('{"type":"text","text":"a"}', timestamp)]))[0]).toMatchObject({ at: null })
+  })
+})
+
+describe('a Claude Code return pairs with its call by id', () => {
+  const outputs = (bs: TurnBlock[]): unknown[] => bs.map((b) => (b.kind === 'tool' ? ['tool', b.output] : b.kind === 'sub' ? ['sub', b.result] : [b.kind]))
+
+  test('a second return for one id replaces the first', async () => {
+    expect(outputs(await claudeTurn([assistantLine(callWith('{}')), returnLine('"one"'), returnLine('"two"')]))).toEqual([['tool', 'two']])
+  })
+
+  test('an id a later call takes again: each return goes to the call last made with it', async () => {
+    const bs = await claudeTurn([assistantLine(callWith('{}')), returnLine('"one"'), assistantLine(callWith('{}')), returnLine('"two"')])
+    expect(outputs(bs)).toEqual([['tool', 'one'], ['tool', 'two']])
+  })
+
+  test('an id a tool and a subagent\'s dispatch both took: the return is the tool\'s', async () => {
+    const dispatch = '{"type":"tool_use","id":"tu1","name":"Agent","input":{"prompt":"p"}}'
+    for (const lines of [[callWith('{}'), dispatch], [dispatch, callWith('{}')]]) {
+      const bs = await claudeTurn([...lines.map((segment) => assistantLine(segment)), returnLine('"back"')])
+      expect(outputs(bs)).toEqual(lines[0] === dispatch ? [['sub', null], ['tool', 'back']] : [['tool', 'back'], ['sub', null]])
+    }
+  })
+
+  test('a return before its call, for an id no call made, or with an id that is no string, fills in nothing', async () => {
+    const bs = await claudeTurn([returnLine('"early"'), assistantLine(callWith('{}')), returnLine('"other"', '"tu2"'), returnLine('"odd"', '1')])
+    expect(outputs(bs)).toEqual([['tool', null]])
+  })
+
+  test('a call whose id is no string draws nothing; one whose name is no string names no tool', async () => {
+    const bs = await claudeTurn([assistantLine(callWith('{}', '7')), assistantLine('{"type":"tool_use","id":"tu1","name":3,"input":{}}')])
+    expect(bs).toEqual([{ kind: 'tool', at: AT, name: null, summary: '{}', input: '{}', output: null, truncated: false }])
+  })
+})
+
+describe('a Claude Code subagent\'s dispatch: its name and its prompt', () => {
+  test.each([
+    ['a description when there is no prompt', '{"description":"d","subagent_type":"s"}', 's', 'd'],
+    ['a description when the prompt is no string', '{"prompt":1,"description":"d"}', 'Agent', 'd'],
+    ['nothing when there is neither', '{"subagent_type":2}', 'Agent', ''],
+    ['the tool\'s name for an input that is an array', '["prompt","p"]', 'Agent', ''],
+    ['the tool\'s name for an input that is a string', '"prompt"', 'Agent', ''],
+    ['the last of a repeated field', '{"prompt":"a","prompt":"b","subagent_type":"x","subagent_type":"y"}', 'y', 'b']
+  ])('%s', async (_what, input, name, prompt) => {
+    const [sub] = await claudeTurn([assistantLine(`{"type":"tool_use","id":"tu1","name":"Agent","input":${input}}`)])
+    expect(sub).toEqual({ kind: 'sub', at: AT, name, prompt, steps: [], result: null, unlinked: true })
+  })
+})
+
+describe('the parts of a Claude Code line a turn draws', () => {
+  test.each([
+    ['thinking that is only white space', '{"type":"thinking","thinking":" \\n\\t"}'],
+    ['thinking that is no string', '{"type":"thinking","thinking":["a"]}'],
+    ['text that is no string', '{"type":"text","text":{"a":1}}'],
+    ['a segment that is no object', '"text"'],
+    ['a segment of a type it does not draw', '{"type":"image","source":{}}']
+  ])('%s draws nothing', async (_what, segment) => {
+    expect(await claudeTurn([assistantLine(segment)])).toEqual([])
+  })
+
+  test('texts joined by line feeds, an empty one among them', async () => {
+    expect(await claudeTurn([assistantLine('{"type":"text","text":""},{"type":"text","text":"a"}')])).toEqual([
+      { kind: 'text', role: 'assistant', at: AT, body: '\na' }
+    ])
+  })
+
+  test.each([
+    ['content that is a string', `{"type":"assistant","timestamp":"${TS}","message":{"role":"assistant","content":"a"}}`],
+    ['a message that is an array', `{"type":"assistant","message":[{"content":[{"type":"text","text":"a"}]}]}`],
+    ['a repeated message, the last no object', `{"type":"assistant","message":{"content":[{"type":"text","text":"a"}]},"message":1}`],
+    ['a repeated content, the last no array', `{"type":"assistant","message":{"content":[{"type":"text","text":"a"}],"content":{}}}`],
+    ['a user\'s question', `{"type":"user","message":{"role":"user","content":"a question"}}`],
+    ['a sidechain line, its flag repeated', `{"type":"assistant","isSidechain":false,"isSidechain":true,"message":{"content":[{"type":"text","text":"a"}]}}`]
+  ])('%s: nothing drawn, nothing traced', async (_what, line) => {
+    expect(await claudeTurn([line])).toEqual([])
+  })
+
+  test('a line whose sidechain flag is true and then false is drawn', async () => {
+    const line = `{"type":"assistant","timestamp":"${TS}","isSidechain":true,"isSidechain":false,"message":{"content":[{"type":"text","text":"a"}]}}`
+    expect(await claudeTurn([line])).toEqual([{ kind: 'text', role: 'assistant', at: AT, body: 'a' }])
+  })
+})
+
 // ── Codex line builders ──
 const xEvent = (payload: Record<string, unknown>): unknown => ({ type: 'event_msg', timestamp: TS, payload })
 const xRI = (payload: Record<string, unknown>): unknown => ({ type: 'response_item', timestamp: TS, payload })
