@@ -255,10 +255,17 @@ describe('a Claude Code tool\'s input is shown as JSON.stringify(value, null, 2)
   })
 })
 
+/** Every code unit JavaScript's `/\s/` matches, each unit tried */
+const JS_SPACE = Array.from({ length: 0x10000 }, (_, u) => u).filter((u) => /\s/.test(unit(u)))
+
 describe('a Claude Code tool\'s one-line summary: its input\'s white space runs one space, its ends trimmed, past 88 code units clipped', () => {
   const x = (n: number): string => 'x'.repeat(n)
+  const spaces = JS_SPACE.map((u) => esc(u.toString(16).padStart(4, '0')))
+  const run = spaces.join('')
   test.each([
-    ['runs of white space, JavaScript\'s whole set', `"  a \\t\\n b${unit(0xa0)}c${unit(0x2003)}${unit(0x3000)}d${unit(0xfeff)}${unit(0x2028)}e${unit(0x1680)} "`, 'a b c d e'],
+    // Letters apart by each unit alone, by a run of them all, and the ends runs of them all
+    ['runs of white space, JavaScript\'s whole set', `"${run}x${spaces.join('x')}x${run}x${run}"`, Array(27).fill('x').join(' ')],
+    ['units JavaScript does not take as white space, kept', `"a${esc('0085')}b${esc('200b')}c"`, `a${unit(0x85)}b${unit(0x200b)}c`],
     ['an input shown as JSON', '{"command":"ls"}', '{ "command": "ls" }'],
     ['88 code units, as they are', `"${x(88)}"`, x(88)],
     ['89 code units, clipped to 88 and an ellipsis', `"${x(89)}"`, `${x(88)}${unit(0x2026)}`],
@@ -273,7 +280,10 @@ describe('a Claude Code tool\'s one-line summary: its input\'s white space runs 
 
 describe('a Claude Code tool\'s return: the text its content holds', () => {
   test.each([
-    ['a string, its escapes decoded', '"x\\ny"', 'x\ny'],
+    // The line's longest well formed string, so decoded in the line's own buffer: escapes of each length, one of them
+    // in upper-case hex digits
+    ['a string, its escapes decoded', `"x\\ny ${esc('001b')}[31m ${esc('00C9')} ${esc('d83d')}${esc('de00')} ${esc('2028')} end"`,
+      `x\ny ${unit(0x1b)}[31m ${unit(0xc9)} ${String.fromCodePoint(0x1f600)} ${unit(0x2028)} end`],
     ['an array: the string text of each element that is an object, a line each',
       '[{"type":"text","text":"one"},"a string",{"type":"image","source":{}},{"text":5},[{"text":"in an array"}],{"type":"text","text":"two","text":"three"}]', 'one\nthree'],
     ['an empty array, nothing', '[]', ''],
