@@ -24,9 +24,10 @@
 //                                      one project's session search over those sessions: what it found, how long it
 //                                      took, and the main process's footprint before it and at its peak (macOS)
 //   pnpm bench:scan turn-index <side> <dir>
-//                                      the side's (claude, codex or grok) three largest turns of plain files within the
-//                                      turn limit, its largest of a cold rollout when it has one, and one written into
-//                                      <dir> a little under the limit, each as the turn mode's arguments
+//                                      the side's (claude, codex, grok or antigravity) three largest turns of plain
+//                                      files within the turn limit, its largest of a cold rollout when it has one, and
+//                                      one written into <dir> a little under the limit, each as the turn mode's
+//                                      arguments
 //   pnpm bench:scan turn <side> <file> <question start> <question end> <turn end>
 //                                      the turn fetch of one turn of the side: the time to its blocks, and the main
 //                                      process's footprint before it and at its peak (macOS)
