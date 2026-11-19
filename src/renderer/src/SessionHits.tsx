@@ -4,25 +4,23 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { AgentSide, ForkState } from '@shared/domain'
 import { useDisplayClock } from './DisplayClock'
 import { hitWindow } from './hit-window'
+import { occurrences } from './occurrences'
 import { useDict, useLanguage } from './language'
 import { fmtAgo } from './ProjectsPane'
 import { SIDE_BADGE } from './side-badge'
 import { GitFork } from './icons'
 
-/** Highlighting matched text (case-insensitive; split as plain text, never through HTML) */
+/** Highlighting matched text (case-insensitive, at the text's own characters; split as plain text, never through
+ *  HTML) */
 export function Highlight({ text, needle }: { text: string; needle: string }): JSX.Element {
   if (needle === '') return <>{text}</>
-  const lower = text.toLowerCase()
-  const k = needle.toLowerCase()
   const parts: JSX.Element[] = []
   let from = 0
-  for (let n = 0; ; n++) {
-    const i = lower.indexOf(k, from)
-    if (i === -1) break
-    if (i > from) parts.push(<span key={`t${n}`}>{text.slice(from, i)}</span>)
-    parts.push(<mark key={`m${n}`}>{text.slice(i, i + needle.length)}</mark>)
-    from = i + needle.length
-  }
+  occurrences(text, needle).forEach(({ start, end }, n) => {
+    if (start > from) parts.push(<span key={`t${n}`}>{text.slice(from, start)}</span>)
+    parts.push(<mark key={`m${n}`}>{text.slice(start, end)}</mark>)
+    from = end
+  })
   parts.push(<span key="tail">{text.slice(from)}</span>)
   return <>{parts}</>
 }
