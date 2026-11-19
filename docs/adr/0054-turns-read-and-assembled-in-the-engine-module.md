@@ -32,7 +32,8 @@ We adopt **option 1**.
 - Negative: a turn's assembly exists only as rewritten in Rust, so a slip there draws a turn wrongly, with no other
   implementation to show the difference.
 - Negative: until every side has moved, turns are assembled in Rust for some sides and in TypeScript for others.
-- Neutral: the blocks the session page draws are the ones the TypeScript assembly drew (Sources).
+- Neutral: the blocks the session page draws are the ones the TypeScript assembly drew, but where that assembly broke
+  session-view C8 (Sources).
 
 ## Sources
 
@@ -41,6 +42,15 @@ assembled by the module deep-equal to the TypeScript assembly's. `pnpm bench:sca
 in TypeScript against in the module: the three largest Claude Code turns (20.3, 17.8 and 13.2 MB of body) took 19, 18
 and 15 ms to their blocks against 11, 11 and 8 ms, the main process peaking at 71.8, 66.9 and 57.0 MB against 48.4,
 48.6 and 41.8 MB; a constructed 67.1 MB turn took 195 ms against 189 ms and peaked at 282.6 MB against 153.8 MB.
+
+#496, 2026-11-20, Electron 43.2.0, every Codex rollout on this machine, plain and cold: all 6076 turns (97,841 blocks)
+assembled by the module deep-equal to the TypeScript assembly's. A payload type naming a property every object has,
+which that assembly took for an output and the module traces (session-view C8), is in none of them. `pnpm bench:scan
+turn`, medians of five, the assembly in TypeScript against in the module: the three largest plain Codex turns (25.4,
+17.2 and 10.5 MB of body) took 54, 40 and 20 ms to their blocks against 37, 19 and 14 ms, the main process peaking at
+120.8, 82.2 and 66.2 MB against 64.5, 54.1 and 47.3 MB; the largest of a cold rollout (64.8 MB) took 2101 ms against
+1968 ms and peaked at 224.6 MB against 97.9 MB; a constructed 67.1 MB turn took 193 ms against 192 ms and peaked at
+282.7 MB against 153.8 MB.
 
 #497, 2026-11-20, Electron 43.2.0, every Grok session on this machine: all 467 turns (16,574 blocks) assembled by the
 module deep-equal to the TypeScript assembly's. `pnpm bench:scan turn`, medians of five, the assembly in TypeScript

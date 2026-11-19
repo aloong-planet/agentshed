@@ -84,20 +84,38 @@ pub fn read_ranges<'env>(env: &'env Env, kind: String, file: String, ranges: Vec
     Ok(promise)
 }
 
-/// What a turn's read hands over from the thread that read it: the question's bytes, the body (`Side::turn_body`), and
-/// how far into the stream the read went from where it started
-type Turned = (Vec<u8>, TurnBody, u64);
+/// What a turn's read hands over from the thread that read it: the question's bytes, the body (`Handed`), and how far
+/// into the stream the read went from where it started
+type Turned = (Vec<u8>, Handed, u64);
+
+/// What a turn's read hands over for its body: the body its side makes of the lines the turn holds (`Side::turn_body`),
+/// or, in a build made for tests, those lines as the read kept them, unassembled, when the observed-reads seam names
+/// the file (`seams.rs`)
+enum Handed {
+    Body(TurnBody),
+    #[cfg(feature = "test-seams")]
+    Kept(Vec<String>),
+}
+
+/// The body of a read of one of `file`'s turns, `lines` the lines the turn holds
+fn handed(side: &dyn Side, file: &str, lines: Vec<String>) -> Handed {
+    #[cfg(feature = "test-seams")]
+    if crate::seams::observed_reads_seam::observes(file) {
+        return Handed::Kept(lines);
+    }
+    Handed::Body(side.turn_body(file, lines))
+}
 
 /// Reads a turn of the session file `file` with `side` (`Side::read_turn`), drops the lines the turn does not hold
-/// (the side's `kept_lines`) and makes the body of the rest (the side's `turn_body`): the side's assembly of its blocks
-/// runs inside the read's panic catch, so that a panic fails that read alone; or why the turn was not read, as the
-/// promise rejects with it
+/// (the side's `kept_lines`) and makes the body of the rest (`handed`, by the side's `turn_body`): the side's assembly
+/// of its blocks runs inside the read's panic catch, so that a panic fails that read alone; or why the turn was not
+/// read, as the promise rejects with it
 fn turned(side: &dyn Side, file: &str, question: (u64, u64), body: Option<(u64, u64)>) -> std::result::Result<Turned, String> {
     let read = catch_unwind(AssertUnwindSafe(|| {
         side.read_turn(file, question, body).map(|read| {
             let kept = side.kept_lines(&read.lines);
             let lines = read.lines.into_iter().zip(kept).filter_map(|(line, kept)| kept.then_some(line)).collect();
-            (read.question, side.turn_body(file, lines), read.through - read.started)
+            (read.question, handed(side, file, lines), read.through - read.started)
         })
     }));
     match read {
@@ -108,8 +126,8 @@ fn turned(side: &dyn Side, file: &str, question: (u64, u64), body: Option<(u64, 
 }
 
 /// A turn's read as its promise settles with it, made on the main process's thread: `{ question, bytesRead }` with the
-/// body's `blocks`, or its `lines`, each block's strings let go as JavaScript is handed them. A conversion that panics
-/// rejects the read.
+/// body's `blocks`, or its `lines` (in a build made for tests, its `keptLines` under the observed-reads seam), each
+/// block's strings let go as JavaScript is handed them. A conversion that panics rejects the read.
 struct TurnValue {
     file: String,
     turned: Turned,
@@ -132,8 +150,10 @@ impl ToNapiValue for TurnValue {
             let js = Js::new(&Env::from_raw(env));
             let question = unsafe { Buffer::to_napi_value(env, Buffer::from(question)) }?;
             let body = match body {
-                TurnBody::Blocks(blocks) => ("blocks", js.array(blocks.into_iter().map(|block| block_value(&js, block)))?),
-                TurnBody::Lines(lines) => ("lines", unsafe { Vec::<String>::to_napi_value(env, lines) }?),
+                Handed::Body(TurnBody::Blocks(blocks)) => ("blocks", js.array(blocks.into_iter().map(|block| block_value(&js, block)))?),
+                Handed::Body(TurnBody::Lines(lines)) => ("lines", unsafe { Vec::<String>::to_napi_value(env, lines) }?),
+                #[cfg(feature = "test-seams")]
+                Handed::Kept(lines) => ("keptLines", unsafe { Vec::<String>::to_napi_value(env, lines) }?),
             };
             js.object(&[("question", question), body, ("bytesRead", js.num(bytes_read as f64)?)])
         }));
@@ -149,6 +169,11 @@ fn block_value(js: &Js, block: Block) -> Result<napi_value> {
             js.object(&[("kind", kind("text")?), ("role", kind("assistant")?), ("at", at_value(js, at)?), ("body", js.js_string(body)?)])
         }
         Block::Think { at, body } => js.object(&[("kind", kind("think")?), ("at", at_value(js, at)?), ("body", js.js_string(body)?)]),
+        Block::Reason { at, titles } => js.object(&[
+            ("kind", kind("reason")?),
+            ("at", at_value(js, at)?),
+            ("titles", js.array(titles.into_iter().map(|t| js.js_string(t)))?),
+        ]),
         Block::Tool { at, name, summary, input, output, truncated } => js.object(&[
             ("kind", kind("tool")?),
             ("at", at_value(js, at)?),

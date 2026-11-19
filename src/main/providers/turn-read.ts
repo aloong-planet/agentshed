@@ -31,7 +31,8 @@ export interface TurnRead {
  */
 export async function readTurn(side: AgentSide, file: string, question: ByteRange, body: ByteRange | null): Promise<TurnRead> {
   const read = () => threadEngineModule().readTurn(side, file, question, body)
-  const got = await (isColdRollout(file) ? inColdPlace(read) : read())
-  const turn: TurnBody = 'blocks' in got ? { blocks: got.blocks } : { lines: got.lines }
-  return { question: got.question.toString('utf8'), body: body === null ? null : turn, bytesRead: got.bytesRead }
+  // The body is what the module handed over but the question and how far it read, so that a build made for tests hands
+  // a test what its observed-reads seam saw (engine/src/seams.rs) through the same places
+  const { question: asked, bytesRead, ...turn } = await (isColdRollout(file) ? inColdPlace(read) : read())
+  return { question: asked.toString('utf8'), body: body === null ? null : turn, bytesRead }
 }

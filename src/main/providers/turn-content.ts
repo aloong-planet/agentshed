@@ -1,26 +1,15 @@
 // Turn content normalisation (ticket 05 established prose, ticket 07 completed it): each side's raw
 // lines within a turn range are
 // unified into a common message model (TurnBlock), and the renderer knows only that model rather than
-// one per side. A Claude Code or Grok turn's blocks are the engine module's, assembled as its read reads
-// the lines (engine/src/sides/claude/turn.rs and engine/src/sides/grok/turn.rs, whose headers hold those
-// sides' enumerations); the other sides' are assembled here from the lines the read hands over, one side
-// moving into the module at a time (ADR-0054, ADR-0047).
+// one per side. A Claude Code, Codex or Grok turn's blocks are the engine module's, assembled as its read
+// reads the lines (engine/src/sides/claude/turn.rs, engine/src/sides/codex/turn.rs and
+// engine/src/sides/grok/turn.rs, whose headers hold each side's enumeration); the other sides' are
+// assembled here from the lines the read hands over, one side moving into the module at a time (ADR-0054,
+// ADR-0047).
 //
-// The rules are grounded in a full enumeration (2026-08-05/06; the AGENTS.md invariant that a set of
-// shapes comes from a full enumeration):
-// - Codex (296 files): 7 top-level types; 9 response_item types — the call arguments are on
-//   custom_tool_call.input / function_call.arguments / tool_search_call.arguments,
-//   and the outputs pair by call_id (always present); reasoning.summary = [{type:'summary_text',text}]
-//   is a plaintext sub-heading (64% empty, and an empty one produces no block), while the body,
-//   encrypted_content, is never obtainable (spec C6);
-//   15 event_msg types, with prose taken from agent_message; agent_reasoning is a mirror of reasoning
-//   and is not rendered, to avoid double counting; spawn_agent's output has no thread id → the
-//   sub-thread cannot be attributed and the sub block is marked
-//   unlinked (the user ruled on 2026-08-06 against forcing a heuristic pairing).
-// - Unknown types outside the allow-list always leave a trace (an unknown block placed at the end of the
-//   block order) — spec C8:
-//   allow-list failures are invisible, so nothing is ever silently dropped (the AGENTS.md invariant
-//   that admitting may not follow the sample).
+// Unknown types outside the allow-list always leave a trace (an unknown block placed at the end of the
+// block order) — spec C8: allow-list failures are invisible, so nothing is ever silently dropped (the
+// AGENTS.md invariant that admitting may not follow the sample).
 import type { AgentSide, TurnBlock, TurnSubBlock, TurnToolBlock } from '@shared/domain'
 import { threadEngineModule } from '../engine-module'
 import type { TurnBody } from './turn-read'
@@ -31,11 +20,6 @@ type Dispatches = ReadonlySet<string>
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
-}
-
-function atOf(obj: Record<string, unknown>): number | null {
-  const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp']) : NaN
-  return Number.isNaN(ts) ? null : ts
 }
 
 /** The one-line summary shown while collapsed: the first line, length-limited */
@@ -58,82 +42,6 @@ function labelOf(v: unknown): string {
   return typeof v === 'string' ? v : (JSON.stringify(v) ?? 'undefined')
 }
 
-// ── Codex's whole three-layer spectrum (a full enumeration of 296 files on 2026-08-05/06) ──
-const CODEX_TOP_KNOWN = new Set([
-  'event_msg',
-  'response_item',
-  'turn_context',
-  'session_meta',
-  'world_state',
-  'inter_agent_communication_metadata',
-  'compacted',
-  // The paginated format's per-response accounting record (ADR-0027): usage, never display
-  'token_usage_record'
-])
-// The paginated format's completed-item event carries a typed item in place of the legacy events (full
-// enumeration of 60245 events over 1391 rollouts, 2026-09-10). AgentMessage is the prose carrier — no
-// paginated rollout carries the legacy agent_message event beside it (0 of 1367, measured 2026-09-11) —
-// and UserMessage is the question (its own row, never a block). The other types leave no block:
-// Reasoning, CommandExecution, DynamicToolCall and FileChange accompany response_item records that are
-// rendered already (the reasoning summary, the tool calls), while McpToolCall and WebSearch carry calls
-// whose legacy records (the mcp_tool_call_end and web_search_end events) were never rendered either —
-// measured 2026-09-11, in 31 of 1367 paginated rollouts the tool-like items outnumber the response_item
-// calls, so they are not mirrors: a known gap on both formats, recorded in the spec, not a double-write
-// rule. A type outside this set leaves the unknown trace like any other.
-const CODEX_ITEM_KNOWN = new Set([
-  'Reasoning',
-  'AgentMessage',
-  'UserMessage',
-  'FileChange',
-  'McpToolCall',
-  'WebSearch',
-  'DynamicToolCall',
-  'CommandExecution',
-  'SubAgentActivity',
-  'ContextCompaction',
-  'Extension',
-  'CollabAgentToolCall',
-  'ImageView'
-])
-const CODEX_EVENT_KNOWN = new Set([
-  'token_count',
-  'agent_message',
-  'agent_reasoning',
-  'task_started',
-  'user_message',
-  'task_complete',
-  'thread_settings_applied',
-  'mcp_tool_call_end',
-  'patch_apply_end',
-  'web_search_end',
-  'sub_agent_activity',
-  'context_compacted',
-  'turn_aborted',
-  'thread_rolled_back',
-  'image_generation_end'
-])
-const CODEX_RI_KNOWN = new Set([
-  'message',
-  'reasoning',
-  'custom_tool_call',
-  'custom_tool_call_output',
-  'function_call',
-  'function_call_output',
-  'agent_message',
-  'tool_search_call',
-  'tool_search_output',
-  // The paginated format's compaction marker on the response path: an encrypted body and nothing else
-  // (78 records over 1391 rollouts, 2026-09-11; found by the unknown-trace probe, not by the item
-  // enumeration, which is why it was missing) — noise, like the encrypted reasoning body
-  'compaction'
-])
-const CODEX_CALLS = new Set(['custom_tool_call', 'function_call', 'tool_search_call'])
-const CODEX_OUTPUTS: Record<string, string> = {
-  custom_tool_call_output: 'custom_tool_call',
-  function_call_output: 'function_call',
-  tool_search_output: 'tool_search_call'
-}
-
 interface Unknowns {
   counts: Map<string, number>
 }
@@ -145,97 +53,6 @@ function unknownBlock(u: Unknowns): TurnBlock[] {
   let count = 0
   for (const n of u.counts.values()) count += n
   return [{ kind: 'unknown', count, types: [...u.counts.keys()] }]
-}
-
-function codexAssemble(objs: Array<Record<string, unknown>>, dispatches: Dispatches): TurnBlock[] {
-  const out: TurnBlock[] = []
-  const byCallId = new Map<string, TurnToolBlock | TurnSubBlock>()
-  const u: Unknowns = { counts: new Map() }
-
-  for (const o of objs) {
-    const top = labelOf(o['type'])
-    if (top === 'event_msg') {
-      const p = asRecord(o['payload'])
-      const pt = labelOf(p?.['type'])
-      if (pt === 'agent_message') {
-        const m = p?.['message']
-        if (typeof m === 'string' && m.trim()) out.push({ kind: 'text', role: 'assistant', at: atOf(o), body: m })
-      } else if (pt === 'item_completed') {
-        const item = asRecord(p?.['item'])
-        const it = labelOf(item?.['type'])
-        if (it === 'AgentMessage') {
-          const c = item?.['content']
-          const body = Array.isArray(c)
-            ? c
-                .map((s) => asRecord(s)?.['text'])
-                .filter((t): t is string => typeof t === 'string' && t.trim() !== '')
-                .join('\n\n')
-            : ''
-          if (body) out.push({ kind: 'text', role: 'assistant', at: atOf(o), body })
-        } else if (!CODEX_ITEM_KNOWN.has(it)) {
-          noteUnknown(u, `item_completed/${it}`)
-        }
-      } else if (!CODEX_EVENT_KNOWN.has(pt)) {
-        noteUnknown(u, `event_msg/${pt}`)
-      }
-      // The remaining event_msg types (including the agent_reasoning mirror) are known noise
-      continue
-    }
-    if (top === 'response_item') {
-      const p = asRecord(o['payload'])
-      const pt = labelOf(p?.['type'])
-      if (CODEX_CALLS.has(pt) && p) {
-        const callId = typeof p['call_id'] === 'string' ? p['call_id'] : null
-        const name = typeof p['name'] === 'string' ? p['name'] : pt
-        const text = inputText(p['input'] ?? p['arguments'])
-        if (dispatches.has(name)) {
-          const sub: TurnSubBlock = {
-            kind: 'sub',
-            at: atOf(o),
-            name,
-            prompt: text,
-            steps: [],
-            result: null,
-            unlinked: true
-          }
-          if (callId) byCallId.set(callId, sub)
-          out.push(sub)
-        } else {
-          const tool: TurnToolBlock = {
-            kind: 'tool',
-            at: atOf(o),
-            name,
-            summary: oneLine(text.replace(/\s+/g, ' ')),
-            input: text,
-            output: null,
-            truncated: false
-          }
-          if (callId) byCallId.set(callId, tool)
-          out.push(tool)
-        }
-      } else if (pt in CODEX_OUTPUTS && p) {
-        const hit = typeof p['call_id'] === 'string' ? byCallId.get(p['call_id']) : undefined
-        const text = typeof p['output'] === 'string' ? p['output'] : inputText(p['output'])
-        if (hit?.kind === 'tool') hit.output = text
-        else if (hit?.kind === 'sub') hit.result = text
-      } else if (pt === 'reasoning' && p) {
-        const titles = Array.isArray(p['summary'])
-          ? p['summary']
-              .map((s) => asRecord(s)?.['text'])
-              .filter((t): t is string => typeof t === 'string' && t.trim() !== '')
-          : []
-        if (titles.length > 0) out.push({ kind: 'reason', at: atOf(o), titles })
-      } else if (!CODEX_RI_KNOWN.has(pt)) {
-        noteUnknown(u, `response_item/${pt}`)
-      }
-      // message / agent_message on the response_item path are double-write mirrors, known noise
-      continue
-    }
-    if (!CODEX_TOP_KNOWN.has(top)) noteUnknown(u, top)
-    // The remaining top-level types (turn_context/session_meta/world_state and so on) are known noise
-  }
-
-  return [...out, ...unknownBlock(u)]
 }
 
 // ── Antigravity CLI (session-view::REQ-004). Every transcript of 2026-10-28 enumerated (15 transcripts, 104 lines):
@@ -350,7 +167,5 @@ export function turnBlocks(side: AgentSide, lines: readonly string[]): TurnBlock
   })
   const dispatches = new Set(engine.dispatches(side))
   if (side === 'antigravity') return antigravityAssemble(objs, dispatches)
-  if (side === 'claude') throw new Error('a Claude Code turn\'s blocks are the engine module\'s: its read hands over no lines')
-  if (side === 'grok') throw new Error('a Grok turn\'s blocks are the engine module\'s: its read hands over no lines')
-  return codexAssemble(objs, dispatches)
+  throw new Error(`a ${side} turn's blocks are the engine module's: its read hands over no lines`)
 }
