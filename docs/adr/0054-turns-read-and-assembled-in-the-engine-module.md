@@ -41,3 +41,9 @@ assembled by the module deep-equal to the TypeScript assembly's. `pnpm bench:sca
 in TypeScript against in the module: the three largest Claude Code turns (20.3, 17.8 and 13.2 MB of body) took 19, 18
 and 15 ms to their blocks against 11, 11 and 8 ms, the main process peaking at 71.8, 66.9 and 57.0 MB against 48.4,
 48.6 and 41.8 MB; a constructed 67.1 MB turn took 195 ms against 189 ms and peaked at 282.6 MB against 153.8 MB.
+
+#497, 2026-11-20, Electron 43.2.0, every Grok session on this machine: all 467 turns (16,574 blocks) assembled by the
+module deep-equal to the TypeScript assembly's. `pnpm bench:scan turn`, medians of five, the assembly in TypeScript
+against in the module: the three largest Grok turns (10.0, 5.1 and 4.4 MB of body) took 13, 18 and 9 ms to their
+blocks against 8, 9 and 5 ms, the main process peaking at 49.9, 45.7 and 37.1 MB against 39.0, 32.9 and 33.6 MB; a
+constructed 67.1 MB turn took 218 ms against 201 ms and peaked at 282.5 MB against 153.8 MB.
