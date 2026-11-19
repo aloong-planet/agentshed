@@ -174,8 +174,8 @@ hands the command over; it never runs it.
   are offsets in the decompressed stream, and every range read of it is one streaming decompression
   from the start, through every frame, by the reader the scan reads it with (token-stats B12), that
   serves the requested ranges in order and stops at the last one — opening the session is one pass
-  for all its question texts, expanding a turn is one pass to that turn, a search is one pass per
-  file, a full-text search's to the stream's end (D2). Memory follows the bytes in flight, never the
+  for all its question texts, expanding a turn is one pass to that turn, a question search is one pass
+  per file, and a full-text search adds one to the stream's end (D2, D3). Memory follows the bytes in flight, never the
   file. The decompression holds neither the main process nor the thread pool its plain file reads
   share, and four reads at most decompress at once for the main process,
   D2b's cap, whichever surface asks them, a full-text search of a cold rollout taking a place as a read
@@ -319,7 +319,7 @@ hands the command over; it never runs it.
   `UV_THREADPOOL_SIZE` raised with it (a cold rollout's decompression runs on threads of its own, C2).
 - D3 Full-text search must **deduplicate**: without it, the same sentence in a fork's replay copy is
   reported once per generation of a fork chain.
-  A cold rollout is searched in one streaming pass (C2), in question mode and full-text mode alike.
+  A cold rollout is searched in question mode and full-text mode alike, by the passes C2 counts.
   A session whose file cannot be read is left out, in either mode, and the other sessions' hits stay.
   In full-text mode a file that cannot be read to its stream's end after its questions were read —
   a cold rollout cut short (token-stats B12), one that is not zstd, one gone or unreadable since, one
