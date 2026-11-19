@@ -1066,7 +1066,7 @@ read with macOS `footprint`.
   Codex session's thread name comes from Codex's session index, which is read outside the module and
   handed to it with the rollout; the session page's question list and both searches read a plain file's bytes
   themselves, take a cold rollout's from the module, and hand them to those line rules, and a turn the session page
-  expands, plain or cold, the module reads and hands over as the lines the turn holds. The module reads a cold rollout for them by the reader and the
+  expands, plain or cold, the module reads. The module reads a cold rollout for them by the reader and the
   cut-short rule a scan reads it with (B12), each read on a thread of its own and as many at once as session-view C2
   allows. A value
   in a line is built only where a rule reads it; every other value is scanned past. A line is decoded as
