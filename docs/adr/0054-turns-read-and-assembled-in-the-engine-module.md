@@ -22,8 +22,9 @@ We adopt **option 1**.
 - **The read**: the module reads each turn the session page expands, its question's range and its body's, in one pass
   that stops at the turn's end, a line at a time, leaving out the lines the turn does not hold by its side's line rules.
 - **The assembly**: the module assembles the turn's blocks by its side's rules as part of the read, so that a panic
-  there fails that read alone, and hands the blocks over in place of the lines. The sides move in one at a time
-  (ADR-0047): until the last has, the others' turns are handed over as their lines and assembled in TypeScript.
+  there fails that read alone, and hands the blocks over in place of the lines. The sides move in one at a time, a
+  side's turns assembled in one place at any time (ADR-0047): until the last has, the others' turns are handed over
+  as their lines and assembled in TypeScript.
 
 ## Consequences
 
