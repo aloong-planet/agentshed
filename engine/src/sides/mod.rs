@@ -91,11 +91,20 @@ pub(crate) trait Side: Sync {
     }
 
     /// Each of `ranges` of the session file `file`, `[start, end)` in the offsets its question index records, read in
-    /// one pass for the session page and both searches (session-view C2): Failed when the file cannot be read as far as
+    /// one pass for the session page and global search (session-view C2): Failed when the file cannot be read as far as
     /// the read goes, or what it read is not whole by the side's rules. None when the module does not read this side's
     /// files by range.
     fn read_ranges(&self, _file: &str, _ranges: &[(u64, u64)]) -> Option<std::result::Result<Served, Failed>> {
         None
+    }
+
+    /// Each of `ranges` of the session file `file`, `[start, end)` in the offsets its question index records, handed to
+    /// `each` with its index, in the order asked, for a project's question search (session-view D2, D4): as much of the
+    /// range as the file holds. Failed when the file cannot be read as far as the read goes, or what it read is not whole
+    /// by the side's rules. By default the file read as it is stored, plain, each range where it lies, for a side whose
+    /// agent writes no other kind.
+    fn read_questions(&self, file: &str, ranges: &[(u64, u64)], each: &mut dyn FnMut(usize, &[u8])) -> std::result::Result<(), Failed> {
+        crate::read::at(file, ranges, each)
     }
 
     /// How the session file `file` is stored. By default plain, for a side whose agent writes no other kind.

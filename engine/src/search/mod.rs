@@ -1,13 +1,17 @@
 //! The full-text search of one session file (session-view D2, D3): the file's stream read line by line, never held
 //! whole, and each hit of the needle mapped to the turn it falls in. What it gives back is what the search shows of
 //! the file: how many hits fall in no turn (folded), and each turn with a hit in its body, with the snippet of its first.
+//! And a project's question search over one file (`questions`).
 //!
 //! A hit is every offset where the stream's bytes equal the needle's UTF-8 bytes once ASCII letters are folded, hits
-//! overlapping, as `searchBytes` in `src/main/providers/search-bytes.ts` finds them in a whole buffer; the turn of a hit,
-//! the snippet of a turn's first body hit and the order they come back in are those the whole-file search worked out
-//! from that buffer, rule for rule (search-sessions.ts before #479).
+//! overlapping, as a search of the whole buffer for them would find them; the turn of a hit, the snippet of a turn's
+//! first body hit and the order they come back in are those the whole-file search worked out from that buffer, rule
+//! for rule (search-sessions.ts before #479).
 
+mod questions;
 mod snippet;
+
+pub(crate) use questions::{Question, Questions};
 
 use memchr::memmem::Finder;
 

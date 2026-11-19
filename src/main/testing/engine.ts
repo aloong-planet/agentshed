@@ -30,7 +30,8 @@ export interface HoldSeam extends EngineModule {
   /** Holds every read of `file`'s ranges or turns, and every full-text search of it, on the read's own thread before it opens the
    * file, until it is released; one for the whole process. A read held for five seconds panics instead. */
   seamHoldReadsOf(file: string): void
-  /** Releases the reads of `file`, or of every file: those waiting go on, and those to come are not held */
+  /** Releases the reads of `file`, or of every file: those waiting go on, and those to come are not held. It returns once
+   * those waiting have left the gate, so that holding the file again right after it holds only the reads that come later */
   seamReleaseReadsOf(file: string | null): void
   /** The file of each read waiting at the gate now, in the order they came to it */
   seamReadsHeld(): string[]

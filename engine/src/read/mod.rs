@@ -1,8 +1,9 @@
 //! A session file read as lines, each with its byte range: the file itself, or for a cold rollout (`.jsonl.zst`) its
 //! zstd stream decompressed as it is read (token-stats B12), its offsets then offsets in that stream (session-view C2).
 //! Or ranges of that stream, served in one pass that stops at the last, for the session page and both searches. Or a
-//! turn of it, its question's bytes and its body's lines, in one pass that stops at the turn's end, for the session
-//! page. Or its first line alone, read no further than its line feed.
+//! plain file's ranges, each read where it lies, for a project's question search. Or a turn of it, its question's bytes
+//! and its body's lines, in one pass that stops at the turn's end, for the session page. Or its first line alone, read
+//! no further than its line feed.
 //!
 //! A line ends at a line feed, which never occurs inside a UTF-8 character, so the bytes are split there and a line is
 //! decoded only once it is whole. A line's range runs from its first byte to after its line feed, or to the stream's end
@@ -256,6 +257,37 @@ pub(crate) fn ranges(path: &str, stored: Stored, ranges: &[(u64, u64)]) -> Resul
         .map(|mut p| if p.len() == 1 { p.pop().unwrap_or_default() } else { p.concat() })
         .collect();
     Ok(Served { bytes, through: pos.min(last_end), last, ended })
+}
+
+/// Reads each of `ranges` of the plain file `path`, `[start, end)` in its offsets, where it lies, one after another,
+/// and hands `each` its index and as much of it as the file holds: nothing else of the file is read. One buffer holds
+/// the range being handed over, and grows to the longest; a range the process cannot find room for fails the read
+/// rather than the process. No ranges open nothing. Failed when the file cannot be opened or read.
+pub(crate) fn at(path: &str, ranges: &[(u64, u64)], each: &mut dyn FnMut(usize, &[u8])) -> Result<(), Failed> {
+    if ranges.is_empty() {
+        return Ok(());
+    }
+    crate::seams::before_range_read(path);
+    let file = File::open(path).map_err(|_| Failed)?;
+    let size = file.metadata().map_err(|_| Failed)?.len();
+    let mut buf: Vec<u8> = Vec::new();
+    for (i, &(start, end)) in ranges.iter().enumerate() {
+        // No more than the file holds is asked for, so a range past its end costs no room
+        let want = usize::try_from(end.min(size).saturating_sub(start)).map_err(|_| Failed)?;
+        buf.clear();
+        buf.try_reserve_exact(want).map_err(|_| Failed)?;
+        buf.resize(want, 0);
+        let mut got = 0;
+        while got < want {
+            let n = read_at(&file, &mut buf[got..], start + got as u64)?;
+            if n == 0 {
+                break;
+            }
+            got += n;
+        }
+        each(i, &buf[..got]);
+    }
+    Ok(())
 }
 
 /// What a read of a turn gave

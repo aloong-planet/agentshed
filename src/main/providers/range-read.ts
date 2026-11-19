@@ -1,7 +1,7 @@
-// Reading a file by byte range (spec C2/D2b): reading text for the question list, and reading back for
-// search, go through this one path — **never reading whole**, so a 133 MB session reads the same order of
+// Reading a file by byte range (spec C2/D2b): reading text for the question list, and for global search's
+// corpus, goes through this one path — **never reading whole**, so a 133 MB session reads the same order of
 // magnitude as a 3 MB one. Fetching a turn on a question click reads its ranges line by line instead
-// (turn-read.ts).
+// (turn-read.ts), and a project's question search reads them in the engine module (question-search.ts).
 //
 // The concurrency cap defaults to 4 (spec D2b). The measured warm-cache knee
 // is at 8; 4 is taken because
@@ -53,8 +53,7 @@ export interface ByteRange {
 }
 
 /**
- * Read each range's raw bytes (used by search's byte matching layer, ticket 08: the coarse pass does not
- * decode).
+ * Read each range's raw bytes, which `readRanges` decodes.
  * `bytesRead` is the total bytes actually read — the **evidence** that nothing was read whole, and what
  * tests assert on
  * rather than wall-clock time (which drifts with the page cache).

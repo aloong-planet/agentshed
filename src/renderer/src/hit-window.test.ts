@@ -38,4 +38,16 @@ describe('hitWindow', () => {
   it('takes the first occurrence, whatever its case', () => {
     expect(hitWindow('abcdefghijklmnopqrstuvwxyQuokka one, quokka two', 'quokka').before).toBe('…fghijklmnopqrstuvwxyQuokka one, quokka two')
   })
+
+  it('finds an occurrence that differs from the keyword only in the case of a non-ASCII letter', () => {
+    expect(hitWindow(`${THIRTY}Énergie x`, 'énergie').before).toBe('…01234567890123456789Énergie x')
+  })
+
+  it('counts its characters in the text itself when a letter before the occurrence lowers to two units', () => {
+    // İ (U+0130) lowers to two units: an offset found in the lowered text lands one character late in the text
+    expect(hitWindow(`İ${THIRTY}quokka and more`, 'quokka')).toEqual({
+      before: '…01234567890123456789quokka and more',
+      at: '…quokka and more'
+    })
+  })
 })

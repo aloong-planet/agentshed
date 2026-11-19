@@ -159,6 +159,23 @@ export interface EngineModule {
     needle: string,
     turns: ReadonlyArray<{ start: number; questionEnd: number; end: number }>
   ): Promise<{ folded: number; body: Array<{ turn: number; snippet: string | null }> }>
+  /**
+   * A project's question search of the session file `file`, of the side `kind`, for `needle` (session-view D2, D4):
+   * each of `questions`, a question's range `[start, end)` in the offsets its question index records, read, and its
+   * text, as the question list shows it, matched as global search matches one (global-search S6). A plain file's
+   * ranges are read where they lie, on the thread pool (session-view D2b); a cold rollout's in one pass of its
+   * decompressed stream, on a thread of its own, as `readRanges` reads it. Settles with each question that holds the
+   * needle, or with every question when `every`, ascending by index among `questions`, with its text, null when its
+   * range holds no question, and whether it holds the needle. Rejects when the file cannot be read as far as its questions
+   * go, when a read that reached the stream's end finds it cut short (token-stats B12), or when the search panics.
+   */
+  searchQuestions(
+    kind: AgentSide,
+    file: string,
+    needle: string,
+    questions: ReadonlyArray<{ start: number; end: number }>,
+    every: boolean
+  ): Promise<Array<{ question: number; text: string | null; hit: boolean }>>
   /** The tool names whose call dispatches a subagent on the side `kind`, which a turn draws as a sub block: the names
    * its question index counts a turn's subagents by (session-view C3) */
   dispatches(kind: AgentSide): string[]
