@@ -277,7 +277,7 @@ describe('what is searched: the listed sessions of every project in the list, th
   })
 })
 
-describe('matching (US-001/AC-02, AC-09; S5–S7)', () => {
+describe('matching (US-001/AC-02, AC-09; S5, S6)', () => {
   it('every hit is listed: 600 matching questions give 600 hits', async () => {
     claudeSession(alpha, 'many', Array.from({ length: 600 }, (_, k) => ({ q: `xenon sample number ${k + 1}` })))
     const { corpus } = await corpusOver()

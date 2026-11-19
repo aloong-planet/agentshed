@@ -295,17 +295,13 @@ hands the command over; it never runs it.
 **Sequence D: search**
 - D1 **Questions are searched by default** (small, clean, precise hits), with full-text search as an
   optional toggle.
-- D2 No inverted index is built. Searching questions reads each range by the offset index and
-  matches bytes; full-text search reads the file's stream a line at a time, a plain file and a cold
-  rollout alike, and matches bytes, holding only the line in flight, so a file's size no longer
-  bounds what can be searched, and does so in the engine module, on a thread of its own, so a search
-  neither ends nor holds the main process (C2, ADR-0052). A line longer than the line limit
-  ([token-stats](token-stats.md) A10) is not held whole: it fails the search of its file (D3). The key is
-  **not parsing**: it is a pure byte scan, and **only matching ranges get decoded and parsed** — for
-  full text, the line of each turn's first body hit, for its snippet (D5).
-  ⚠️ **Case insensitivity must not decode + lower-case the whole thing**: the question search folds
-  as D4 says; full-text search folds the ASCII letters of the line in flight, byte for byte, into a
-  copy it matches against; a Chinese needle has no such problem.
+- D2 No inverted index is built. Searching questions reads each question's range by the offset index
+  and matches its text (D4); full-text search reads the file's stream a line at a time, a plain file and
+  a cold rollout alike, and matches bytes, holding only the line in flight, so a file's size no longer
+  bounds what can be searched. Both run in the engine module, so a search neither ends nor holds the
+  main process (C2, ADR-0052). A line longer than the line limit ([token-stats](token-stats.md) A10)
+  is not held whole: it fails the search of its file (D3). Full-text search **parses nothing** but the
+  line of each turn's first body hit, for its snippet (D5).
 - D2a **The question index stores offsets and one content fingerprint, and no question text at
   all — not even a truncated preview.** Each file's entry in the token store, which carries that
   index, also holds the session's title, the fallback title its first question gives, or both (A4,
@@ -341,19 +337,18 @@ hands the command over; it never runs it.
   when a saved page predates the question (P4). The position is then the reader's: nothing that re-renders the page —
   the display clock, a rescan, a row click, the sort, folding a day — moves it back.
   The needle is at most 200 characters, and the session set is taken by the main process from its
-  own per-project statistics, since the renderer cannot supply file paths; question mode = a coarse
-  pass over raw byte ranges (case folding: a non-alphabetic segment as the match anchor / for an
-  all-alphabetic needle, two variants of the first letter — never decode + lower-case the whole
-  thing), decoding and parsing only the matching ranges and **re-verifying with the parsed text** to
-  eliminate byte-level false hits from JSON escaping (the converse miss is a known boundary: a
-  needle containing a quote, backslash or newline will not be found in its JSON-escaped form, and no
-  escape-variant scan is done for it); full-text mode = the same byte
-  rule over each line of the stream (a needle holding a line feed matches across lines) + binary
-  search of the hit offset back to its turn, counting hits outside the displayed range (an
-  already-stripped fork prefix / an abandoned branch / the noise before the first question) as
-  `folded` and reporting that in the results header; question mode has no replay copies by
-  construction, since the question list is already stripped. The search term is not preserved across
-  sections.
+  own per-project statistics, since the renderer cannot supply file paths; question mode = a question
+  hits when its text, as the question list shows it (session-view::REQ-002), holds the needle once both
+  are lowered by the platform's lowercase mapping: every letter's other case matches, not only ASCII's,
+  quotes and backslashes match as written, and the words either side of a line break match with a space
+  between them; full-text mode = question mode's hits, plus a body hit wherever a line of the stream holds
+  the needle's UTF-8 bytes with ASCII letters' case folded (a needle holding a line feed matches across
+  lines; a non-ASCII letter's other case, and a quote, backslash or line break in its JSON-escaped form,
+  are not found), each mapped to the turn its offset falls in: one inside a question's own range is
+  question mode's, and those outside the displayed range (an already-stripped fork prefix / an abandoned
+  branch / the noise before the first question) count as `folded`, reported in the results header;
+  question mode has no replay copies by construction, since the question list is already stripped. The
+  search term is not preserved across sections.
 - D5 In full-text mode a hit in a turn's body carries a "body" marker and a context snippet: one per
   turn, from its first body hit, the first string in that line's JSON whose lower-cased text holds
   the lower-cased needle, cut 20 characters before the hit and 60 after the needle, with an ellipsis

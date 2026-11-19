@@ -48,8 +48,8 @@ export function readColdRanges(file: string, ranges: readonly ByteRange[]): Prom
 
 /**
  * Runs `read`, a read through a cold rollout's stream on a thread of the engine module's own, once fewer than
- * `COLD_READS_AT_ONCE` are running: a range read, a turn's read (turn-read.ts), or a full-text search of a cold rollout
- * (full-text.ts)
+ * `COLD_READS_AT_ONCE` are running: a range read, a turn's read (turn-read.ts), or a question search (question-search.ts)
+ * or full-text search (full-text.ts) of a cold rollout
  */
 export async function inColdPlace<T>(read: () => Promise<T>): Promise<T> {
   if (reading < COLD_READS_AT_ONCE) reading++

@@ -6,26 +6,22 @@ import { join } from 'node:path'
 import type { SessionMeta } from '@shared/domain'
 import { TokenEngine } from './token-stats'
 import { threadEngineModule } from '../engine-module'
-import { TEST_ENGINE, type PanicSeam } from '../testing/engine'
+import { TEST_ENGINE, type LineLimitSeam } from '../testing/engine'
 import { searchProjectSessions } from './search-sessions'
 import type { ScanRoots } from './types'
 import { callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation } from '../testing/agy-fixture'
 import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, writeTranscript } from '../testing/agy-transcript-fixture'
 
 // ─────────────────────────────────────────────────────────────────────────
-// Ticket 08: searching this project's sessions (spec D1–D4).
-// - Question mode: a coarse pass over raw bytes read range by range from the offsets, decoding and parsing
-//   only the matching ranges (D2);
-//   the stripped question set contains no fork replay copies by construction (03b), so nothing needs
-//   folding.
+// Searching this project's sessions (spec D1–D4).
+// - Question mode: the engine module reads each question's range by the offsets and matches its text as global search
+//   matches a question (D4, question-search.test.ts holds the rule); the stripped question set contains no fork replay
+//   copies by construction (03b), so nothing needs folding.
 // - Full-text mode: the engine module's byte matching over the stream, line by line (full-text.test.ts),
 //   with hits mapped back to their turn by offset. Hits
 //   outside the displayed range
 //   (an already-stripped fork prefix / an abandoned branch / the noise before the first question) count as
 //   folded rather than masquerading as reachable hits (D3).
-// - Case: searchBytes folds at the byte level (never decode + toLowerCase over everything); after a hit,
-//   the parsed
-//   text re-verifies it, guarding against byte-level false hits from JSON escape sequences.
 // ─────────────────────────────────────────────────────────────────────────
 
 let dir = ''
@@ -104,6 +100,57 @@ function mkStrippedFork(): { PARENT: string; CHILD: string } {
   return { PARENT, CHILD }
 }
 
+/** A Codex rollout of real shape (a question event, a prose event, a usage event) and its compressed twin */
+function mkCodexTwins(question = 'where is the zebra kept'): { plain: string; cold: string } {
+  const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+  mkdirSync(d, { recursive: true })
+  const at = '2026-07-30T02:00:00Z'
+  const lines = [
+    JSON.stringify({ timestamp: at, type: 'session_meta', payload: { cwd: proj } }),
+    JSON.stringify({ timestamp: at, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+    JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'user_message', message: question } }),
+    JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'agent_message', message: 'In the savannah enclosure, past the giraffes.' } }),
+    JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'token_count', info: { last_token_usage: { input_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 5, total_tokens: 15 }, total_token_usage: { input_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 5, total_tokens: 15 } } } })
+  ]
+  const plain = join(d, 'rollout-2026-07-30T02-00-00-019f0000-cccc-7000-8000-000000000051.jsonl')
+  const cold = join(d, 'rollout-2026-07-30T02-00-00-019f0000-cccc-7000-8000-000000000052.jsonl.zst')
+  writeFileSync(plain, lines.join('\n') + '\n')
+  writeFileSync(cold, zstdCompressSync(readFileSync(plain)))
+  return { plain, cold }
+}
+
+// An Antigravity conversation: its identity the database, its questions read from its transcript, by default the
+// measured fork, rewound once (session-view::REQ-004)
+function mkAgyFork(lines: readonly string[] = MEASURED_TRANSCRIPT.forkRewound): string {
+  const home = roots().antigravityHome
+  mkdirSync(join(home, 'conversations'), { recursive: true })
+  writeFileSync(join(home, 'settings.json'), settingsJson([proj]))
+  const id = MEASURED_TRANSCRIPT_ID.forkRewound
+  const { step, gen } = callRecord({ conversationId: id, stepIdx: 22, genIdx: 0, usage: { messageId: 'm-f', input: 10, output: 1 }, createdAt: Date.parse(TS), completedAt: Date.parse(TS) })
+  writeConversation(join(home, 'conversations'), id, encodeTrajectoryMetadata({ folders: [proj], conversationId: id }), { steps: [step], gens: [gen] })
+  writeTranscript(home, id, lines)
+  return join(home, 'conversations', `${id}.db`)
+}
+
+/** A line of an agy transcript, as the measured ones are written */
+const agyLine = (step: number, type: string, extra: Record<string, unknown>, at = '2026-10-28T08:06:23Z'): string =>
+  JSON.stringify({ step_index: step, source: type === 'USER_INPUT' ? 'USER_EXPLICIT' : 'MODEL', type, status: 'DONE', created_at: at, ...extra })
+
+/** A Grok session directory in the real layout (as question-corpus.test.ts writes one), its question a
+ * user_message_chunk; its updates' timestamps are epoch seconds */
+function mkGrok(id: string, question: string): string {
+  const d = join(dir, '.grok', 'sessions', encodeURIComponent(proj), id)
+  mkdirSync(d, { recursive: true })
+  writeFileSync(join(d, 'summary.json'), JSON.stringify({ info: { id, cwd: proj }, current_model_id: 'grok-4.5' }))
+  const f = join(d, 'updates.jsonl')
+  const line = (update: Record<string, unknown>): string => JSON.stringify({ timestamp: 1790000000, method: '_x.ai/session/update', params: { sessionId: 's', update } })
+  writeFileSync(f, [
+    line({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: question }, _meta: { modelId: 'grok-4.5', promptIndex: 0 } }),
+    line({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Noted.' } })
+  ].join('\n') + '\n')
+  return f
+}
+
 describe('question mode (the default): searches questions only, with hits grouped by session', () => {
   it('hit groups, indices and text; a session with no hits gets no group; case-insensitive', async () => {
     mkClaude('a.jsonl', [uL('check the Notarize config for me'), aL('sure'), uL('a second, unrelated question')])
@@ -141,6 +188,26 @@ describe('question mode (the default): searches questions only, with hits groupe
     }
   })
 
+  it('a needle that differs from a question only in a non-ASCII letter\'s case finds it on every side, a cold rollout too, with its text and time (D4)', async () => {
+    const claude = mkClaude('a.jsonl', [uL('Über den Plan von Claude'), aL('sure')])
+    const { plain, cold } = mkCodexTwins('Über den Plan von Codex')
+    const grok = mkGrok('019f-grok-1', 'Über den Plan von Grok')
+    const agy = mkAgyFork([
+      agyLine(0, 'USER_INPUT', { content: '<USER_REQUEST>\nÜber den Plan von agy\n</USER_REQUEST>' }, '2026-10-28T08:06:23Z'),
+      agyLine(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] })
+    ])
+    const r = await run('über den plan', false)
+    const rows = r.groups.map((g) => [g.file, g.side, g.hits.map((h) => [h.i, h.text, h.at, h.inBody])])
+    const byFile = (x: unknown[], y: unknown[]): number => String(x[0]).localeCompare(String(y[0]))
+    expect(rows.sort(byFile)).toEqual([
+      [claude, 'claude', [[1, 'Über den Plan von Claude', Date.parse(TS), false]]],
+      [plain, 'codex', [[1, 'Über den Plan von Codex', Date.parse('2026-07-30T02:00:00Z'), false]]],
+      [cold, 'codex', [[1, 'Über den Plan von Codex', Date.parse('2026-07-30T02:00:00Z'), false]]],
+      [grok, 'grok', [[1, 'Über den Plan von Grok', 1790000000 * 1000, false]]],
+      [agy, 'antigravity', [[1, 'Über den Plan von agy', Date.parse('2026-10-28T08:06:23Z'), false]]]
+    ].sort(byFile))
+  })
+
   it('a word in the body does not hit in question mode (questions only by default)', async () => {
     mkClaude('a.jsonl', [uL('a question'), aL('the answer contains the word notarize')])
     const r = await run('notarize', false)
@@ -173,6 +240,19 @@ describe('full-text mode: match the whole stream, map hits to turns, fold anythi
     expect(hit.snippet).toContain('magicword')
   })
 
+  // D4: the question hits are question mode's, and a body hit is a line's bytes holding the needle's, ASCII letters'
+  // case folded; a hit before the first question counts as folded
+  it.each([
+    ['a question hit follows question mode\'s rule', 'über den plan', [[1, false]], 0],
+    ['a non-ASCII letter\'s other case, only in a body, is not found', 'ärger', [], 0],
+    ['an ASCII letter\'s other case, only in a body, is', 'notarize', [[1, true]], 1],
+    ['a needle hitting only inside a question\'s own range gives one question hit and no body hit', 'plan', [[1, false]], 0]
+  ])('%s', async (_, needle, hits, folded) => {
+    mkClaude('a.jsonl', [aL('noise before the first question: NOTARIZE'), uL('Über den Plan'), aL('ÄRGER only in the body, and NOTARIZE too'), uL('a second question')])
+    const r = await run(needle, true)
+    expect([r.groups.flatMap((g) => g.hits.map((h) => [h.i, h.inBody])), r.folded]).toEqual([hits, folded])
+  })
+
   it('one question hit and one body hit within a turn; several body hits in one turn are reported once', async () => {
     mkClaude('a.jsonl', [uL('magicword in the question'), aL('the body has magicword too'), aL('magicword once more')])
     const r = await run('magicword', true)
@@ -185,20 +265,24 @@ describe('full-text mode: match the whole stream, map hits to turns, fold anythi
     const spared = mkClaude('b.jsonl', [uL('another question'), aL('magicword in the body of b')])
     const hitsOf = (r: Awaited<ReturnType<typeof run>>): Array<[string, boolean[]]> =>
       r.groups.map((g) => [g.file, g.hits.map((h) => h.inBody)] as [string, boolean[]]).sort(([x], [y]) => x.localeCompare(y))
+    const e = new TokenEngine(join(dir, 'cache'), TEST_ENGINE)
+    const sessions = (await e.build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
+    const search = (): ReturnType<typeof run> => searchProjectSessions(e, roots(), sessions, 'magicword', true)
     // Searched whole, the failing session has a folded hit, a question hit and a body hit
-    const whole = await run('magicword', true)
+    const whole = await search()
     expect(hitsOf(whole)).toEqual([[failing, [false, true]], [spared, [true]]])
     expect(whole.folded).toBe(1)
-    // The question search reads a plain file's ranges without the engine module: the panic reaches the full-text search alone
-    const seam = threadEngineModule() as PanicSeam
-    seam.seamPanicWhileReading(failing)
+    // Every line of the failing session past the line limit: its full-text search, which reads it line by line, fails
+    // (token-stats A10), and the question search, which reads each question's range where it lies, does not
+    const seam = threadEngineModule() as LineLimitSeam
+    seam.seamLimitLinesOf(failing, 10)
     try {
-      const r = await run('magicword', true)
+      const r = await search()
       expect(hitsOf(r)).toEqual([[failing, [false]], [spared, [true]]])
       expect(r.folded).toBe(0)
       expect(r.totalHits).toBe(2)
     } finally {
-      seam.seamPanicWhileReading(null)
+      seam.seamLimitLinesOf(failing, null)
     }
   })
 
@@ -215,25 +299,6 @@ describe('full-text mode: match the whole stream, map hits to turns, fold anythi
 })
 
 describe('a cold rollout (.jsonl.zst) is searched in one streaming pass, in question mode and full-text mode alike (spec D3, C2)', () => {
-  /** A Codex rollout of real shape (a question event, a prose event, a usage event) and its compressed twin */
-  function mkCodexTwins(): { plain: string; cold: string } {
-    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
-    mkdirSync(d, { recursive: true })
-    const at = '2026-07-30T02:00:00Z'
-    const lines = [
-      JSON.stringify({ timestamp: at, type: 'session_meta', payload: { cwd: proj } }),
-      JSON.stringify({ timestamp: at, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
-      JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'user_message', message: 'where is the zebra kept' } }),
-      JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'agent_message', message: 'In the savannah enclosure, past the giraffes.' } }),
-      JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'token_count', info: { last_token_usage: { input_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 5, total_tokens: 15 }, total_token_usage: { input_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 5, total_tokens: 15 } } } })
-    ]
-    const plain = join(d, 'rollout-2026-07-30T02-00-00-019f0000-cccc-7000-8000-000000000051.jsonl')
-    const cold = join(d, 'rollout-2026-07-30T02-00-00-019f0000-cccc-7000-8000-000000000052.jsonl.zst')
-    writeFileSync(plain, lines.join('\n') + '\n')
-    writeFileSync(cold, zstdCompressSync(readFileSync(plain)))
-    return { plain, cold }
-  }
-
   it('question mode: the cold twin hits exactly like the plain one', async () => {
     const { plain, cold } = mkCodexTwins()
     const r = await run('zebra', false)
@@ -254,17 +319,6 @@ describe('a cold rollout (.jsonl.zst) is searched in one streaming pass, in ques
 // An Antigravity conversation (session-view::REQ-004): its questions are read from its transcript — the measured fork,
 // rewound once — while its identity is the database. The question a rewind undid is neither a hit nor reachable.
 describe('an Antigravity conversation is searched in its transcript', () => {
-  function mkAgyFork(lines: readonly string[] = MEASURED_TRANSCRIPT.forkRewound): string {
-    const home = roots().antigravityHome
-    mkdirSync(join(home, 'conversations'), { recursive: true })
-    writeFileSync(join(home, 'settings.json'), settingsJson([proj]))
-    const id = MEASURED_TRANSCRIPT_ID.forkRewound
-    const { step, gen } = callRecord({ conversationId: id, stepIdx: 22, genIdx: 0, usage: { messageId: 'm-f', input: 10, output: 1 }, createdAt: Date.parse(TS), completedAt: Date.parse(TS) })
-    writeConversation(join(home, 'conversations'), id, encodeTrajectoryMetadata({ folders: [proj], conversationId: id }), { steps: [step], gens: [gen] })
-    writeTranscript(home, id, lines)
-    return join(home, 'conversations', `${id}.db`)
-  }
-
   it('question mode hits the kept question; the undone one is not a hit, and in full text it is folded', async () => {
     const file = mkAgyFork()
     const q = await run('simplest', false)
@@ -278,15 +332,13 @@ describe('an Antigravity conversation is searched in its transcript', () => {
 
   it('a hit in lines a rewind undid inside a turn: no question hit, and in full text a hit of that turn (the in-turn rewind failure mode)', async () => {
     // Derived position of the measured mechanism: the redo reuses the index of a call within the first turn
-    const line = (step: number, type: string, extra: Record<string, unknown>): string =>
-      JSON.stringify({ step_index: step, source: type === 'USER_INPUT' ? 'USER_EXPLICIT' : 'MODEL', type, status: 'DONE', created_at: '2026-10-28T08:06:23Z', ...extra })
     const file = mkAgyFork([
-      line(0, 'USER_INPUT', { content: '<USER_REQUEST>\nfirst question\n</USER_REQUEST>' }),
-      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }),
-      line(2, 'GENERIC', { content: 'an undone result naming a zebra' }),
-      line(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }),
-      line(2, 'GENERIC', { content: 'the redone result' }),
-      line(3, 'USER_INPUT', { content: '<USER_REQUEST>\nsecond question\n</USER_REQUEST>' })
+      agyLine(0, 'USER_INPUT', { content: '<USER_REQUEST>\nfirst question\n</USER_REQUEST>' }),
+      agyLine(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'read_file', args: { Path: '/x' } }] }),
+      agyLine(2, 'GENERIC', { content: 'an undone result naming a zebra' }),
+      agyLine(1, 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: 'ls' } }] }),
+      agyLine(2, 'GENERIC', { content: 'the redone result' }),
+      agyLine(3, 'USER_INPUT', { content: '<USER_REQUEST>\nsecond question\n</USER_REQUEST>' })
     ])
     expect((await run('zebra', false)).groups).toEqual([])
     const full = await run('zebra', true)

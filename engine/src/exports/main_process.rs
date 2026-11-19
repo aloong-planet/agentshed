@@ -1,7 +1,7 @@
 //! What the main process calls: the display copy's write (crate::display), the read of a session file's ranges the
 //! session page and both searches make (each side's), the read of a turn the session page expands (each side's, over
-//! crate::read), the full-text search of a session file (each side's, over crate::search), and the line rules a
-//! question's text is read by there (each side's).
+//! crate::read), a project's question search and full-text search of a session file (each side's, over crate::search),
+//! and the line rules a question's text is read by there (each side's).
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::PathBuf;
@@ -15,7 +15,7 @@ use crate::read::Stored;
 use crate::sides::Side;
 use crate::display::{stringify, write_atomically};
 use crate::exports::js::Js;
-use crate::search::Turn;
+use crate::search::{Question, Questions, Turn};
 
 /// The question `text` holds, as the session page and both searches show it: `text` is a question's range in a session
 /// file of the side `kind`, as the question index recorded it, read; null when it holds no question
@@ -219,6 +219,85 @@ pub fn search_full_text<'env>(env: &'env Env, kind: String, file: String, needle
         })
         .map_err(|e| Error::from_reason(format!("no thread could be started to search {named}: {e}")))?;
     Ok(promise)
+}
+
+/// A question the question search gave back: by its index among the questions asked about, its text as the question
+/// list shows it, null when its range holds no question, and whether it holds the needle
+#[napi(object)]
+pub struct QuestionFound {
+    pub question: u32,
+    pub text: Option<Utf16String>,
+    pub hit: bool,
+}
+
+type SettleQuestions = Box<dyn FnOnce(Env) -> Result<Vec<QuestionFound>> + Send>;
+
+/// Searches the questions of the session file `file` with `side` (`Side::read_questions`, `search::Questions`); or why
+/// they were not searched, as the promise rejects with it
+fn searched(side: &dyn Side, file: &str, needle: &[u16], ranges: &[(u64, u64)], also: &[u32]) -> std::result::Result<Vec<Question>, String> {
+    let read = catch_unwind(AssertUnwindSafe(|| {
+        let shown = |range: &str| side.question_text(range);
+        let mut questions = Questions::new(needle, also, &shown);
+        side.read_questions(file, ranges, &mut |i, range| questions.question(i, range)).map(|()| questions.found())
+    }));
+    match read {
+        Ok(Ok(found)) => Ok(found),
+        Ok(Err(_)) => Err(format!("{file} could not be read as far as its questions go")),
+        Err(_) => Err(format!("searching {file} panicked")),
+    }
+}
+
+fn questions_found(found: Vec<Question>) -> Vec<QuestionFound> {
+    found.into_iter().map(|q| QuestionFound { question: q.index, text: q.text.map(Utf16String::from), hit: q.hit }).collect()
+}
+
+/// Searches the questions of the session file `file`, of the side `kind`, for `needle` (session-view D2, D4): each of
+/// `questions`, a question's range, read, and its text, as the question list shows it, matched as global search matches
+/// one. The promise settles with each question that hits and each at an index `also` names, ascending, with its text
+/// and whether it hits; or rejects when the file cannot be read as far as its questions go, what it read is not whole,
+/// or the search panicked. A plain file's ranges are read where they lie, on the thread pool, as a plain turn read is
+/// (`read_turn`), so that it is one of the four plain reads at once session-view D2b bounds them to; a cold rollout's
+/// in one pass of its stream, on a thread of its own, as `read_ranges` reads it and for its reason. A thread that
+/// cannot be started throws, before any promise is handed out.
+#[napi(catch_unwind, ts_return_type = "Promise<Array<QuestionFound>>")]
+pub fn search_questions<'env>(env: &'env Env, kind: String, file: String, needle: Utf16String, questions: Vec<ByteRange>, also: Vec<u32>) -> Result<Unknown<'env>> {
+    let side = side(&kind)?;
+    let ranges: Vec<(u64, u64)> = questions.iter().map(|r| (r.start as u64, r.end as u64)).collect();
+    if side.stored(&file) == Stored::Plain {
+        return Ok(env.spawn(SearchQuestions { side, file, needle, ranges, also })?.promise_object().to_unknown());
+    }
+    let (deferred, promise) = env.create_deferred::<Vec<QuestionFound>, SettleQuestions>()?;
+    let named = file.clone();
+    std::thread::Builder::new()
+        .name("agentshed-read".to_owned())
+        .spawn(move || match searched(side, &file, &needle, &ranges, &also) {
+            Ok(found) => deferred.resolve(Box::new(move |_| Ok(questions_found(found)))),
+            Err(reason) => deferred.reject(Error::from_reason(reason)),
+        })
+        .map_err(|e| Error::from_reason(format!("no thread could be started to search {named}: {e}")))?;
+    Ok(promise.to_unknown())
+}
+
+/// A plain file's question search, on the thread pool
+struct SearchQuestions {
+    side: &'static dyn Side,
+    file: String,
+    needle: Utf16String,
+    ranges: Vec<(u64, u64)>,
+    also: Vec<u32>,
+}
+
+impl Task for SearchQuestions {
+    type Output = Vec<Question>;
+    type JsValue = Vec<QuestionFound>;
+
+    fn compute(&mut self) -> Result<Vec<Question>> {
+        searched(self.side, &self.file, &self.needle, &self.ranges, &self.also).map_err(Error::from_reason)
+    }
+
+    fn resolve(&mut self, _env: Env, found: Vec<Question>) -> Result<Vec<QuestionFound>> {
+        Ok(questions_found(found))
+    }
 }
 
 /// Writes `copy` to `file` as the text `JSON.stringify(copy)` gives. The value is read here, on the calling thread, as
