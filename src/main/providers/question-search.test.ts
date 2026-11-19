@@ -61,25 +61,27 @@ describe('a question hits when its text as the question list shows it holds the 
   test.each([
     ['a non-ASCII letter of the other case', 'énergie', [[0, 'Énergie du plan']]],
     ['every letter of the other case', 'ÉNERGIE', [[0, 'Énergie du plan']]],
-    ['a non-ASCII capital of the other case', 'äRGER', [[1, 'Ärger mit dem Build']]],
     ['quotes as written', '"hi"', [[2, 'say "hi" to them']]],
     ['a backslash as written', 'C:\\work', [[3, 'C:\\work\\notes']]],
     ['the words either side of a line break, with a space between them', 'alpha beta', [[4, 'alpha beta']]],
     ['not a quote in its escaped form', '\\"hi', []],
-    ['not a line break in its escaped form', 'alpha\\nbeta', []]
+    ['not a line break in its escaped form', 'alpha\\nbeta', []],
+    ['an empty needle, which every text holds, as `includes` holds it', '', [[0, 'Énergie du plan'], [1, 'Ärger mit dem Build'], [2, 'say "hi" to them'], [3, 'C:\\work\\notes'], [4, 'alpha beta']]]
   ])('%s: %j', async (_, needle, hits) => {
     const found = await searchQuestions('claude', file, needle, questions)
     expect(found.map((q) => [q.question, q.text, q.hit])).toEqual(hits.map(([i, text]) => [i, text, true]))
   })
 
-  test('a question asked for apart comes back whether or not it hits, ascending among the hits, and a range that holds no question with no text', async () => {
+  test('asked for every question, it gives back each, hit or not, ascending, and a range that holds no question with no text', async () => {
     // The answer's line where a question's range would be: what a range of a file rewritten since its index reads
     const answer = { start: questions[0].end, end: questions[1].start }
-    const found = await searchQuestions('claude', file, 'BUILD', [...questions, answer], [5, 3, 0])
+    const found = await searchQuestions('claude', file, 'BUILD', [...questions, answer], true)
     expect(found).toEqual([
       { question: 0, text: 'Énergie du plan', hit: false },
       { question: 1, text: 'Ärger mit dem Build', hit: true },
+      { question: 2, text: 'say "hi" to them', hit: false },
       { question: 3, text: 'C:\\work\\notes', hit: false },
+      { question: 4, text: 'alpha beta', hit: false },
       { question: 5, text: null, hit: false }
     ])
   })

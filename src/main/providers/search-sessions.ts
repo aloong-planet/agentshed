@@ -11,8 +11,9 @@
 //   folded rather than masquerading as
 //   reachable hits (D3: a fork's replay copies repeat its parent's text, and without folding the same
 //   sentence is reported once per generation). A hit inside a question's own range is question mode's, so the question
-//   hits are question mode's, and the search of the questions is asked after the full-text one for the texts its body
-//   hits show as well: a cold rollout is read through twice, as it was when the questions were searched first.
+//   hits are question mode's. The questions are searched first, every question's text given back for those the body
+//   hits show, so that a file that cannot be read to its end once its questions were read — one gone since, say —
+//   loses its full-text part alone (D3); a cold rollout is read through twice.
 //   The full-text toggle exists for **hit quality** (full text hits tool output noise), not performance.
 import type { SearchHit, SearchResult, SessionMeta } from '@shared/domain'
 import { searchFullText, type FullTextFound } from './full-text'
@@ -42,6 +43,22 @@ export async function searchProjectSessions(
     }
     const recs = q.questions
 
+    // ── The questions: those that hit, and in full-text mode every question's text, for the body hits ──
+    // From the file the ranges are in: the session file, or an Antigravity conversation's transcript
+    let questions: QuestionFound[]
+    try {
+      questions = await searchQuestions(
+        q.side,
+        q.source,
+        k,
+        recs.map((r) => ({ start: r[0], end: r[1] })),
+        fullText
+      )
+    } catch {
+      // A file that exists and cannot be read only hurts itself too, as above
+      continue
+    }
+
     // ── Full text: the engine module's search of the file's stream; hits outside the displayed range → folded ──
     let found: FullTextFound = { folded: 0, body: [] }
     if (fullText) {
@@ -53,25 +70,9 @@ export async function searchProjectSessions(
           recs.map((r) => ({ start: r[0], questionEnd: r[1], end: r[2] }))
         )
       } catch {
-        // A file that cannot be searched to its end loses its full-text hits alone: nothing of that search counts, and
-        // its question hits stand
+        // A file that cannot be searched to its end once its questions were read loses its full-text hits alone:
+        // nothing of that search counts, and its question hits stand
       }
-    }
-
-    // ── The questions: those that hit, and the texts the body hits show ──
-    // From the file the ranges are in: the session file, or an Antigravity conversation's transcript
-    let questions: QuestionFound[]
-    try {
-      questions = await searchQuestions(
-        q.side,
-        q.source,
-        k,
-        recs.map((r) => ({ start: r[0], end: r[1] })),
-        found.body.map((b) => b.turn)
-      )
-    } catch {
-      // A file that exists and cannot be read only hurts itself too, as above: its full-text search with it
-      continue
     }
     const text = new Map(questions.map((f) => [f.question, f.text]))
     const hits: SearchHit[] = []

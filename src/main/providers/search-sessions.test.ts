@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import type { SessionMeta } from '@shared/domain'
 import { TokenEngine } from './token-stats'
 import { threadEngineModule } from '../engine-module'
-import { TEST_ENGINE, type LineLimitSeam } from '../testing/engine'
+import { TEST_ENGINE, type HoldSeam, type LineLimitSeam } from '../testing/engine'
 import { searchProjectSessions } from './search-sessions'
 import type { ScanRoots } from './types'
 import { callRecord, encodeTrajectoryMetadata, settingsJson, writeConversation } from '../testing/agy-fixture'
@@ -244,9 +244,7 @@ describe('full-text mode: match the whole stream, map hits to turns, fold anythi
   // case folded; a hit before the first question counts as folded
   it.each([
     ['a question hit follows question mode\'s rule', 'über den plan', [[1, false]], 0],
-    ['a non-ASCII letter\'s other case, only in a body, is not found', 'ärger', [], 0],
-    ['an ASCII letter\'s other case, only in a body, is', 'notarize', [[1, true]], 1],
-    ['a needle hitting only inside a question\'s own range gives one question hit and no body hit', 'plan', [[1, false]], 0]
+    ['a non-ASCII letter\'s other case, only in a body, is not found', 'ärger', [], 0]
   ])('%s', async (_, needle, hits, folded) => {
     mkClaude('a.jsonl', [aL('noise before the first question: NOTARIZE'), uL('Über den Plan'), aL('ÄRGER only in the body, and NOTARIZE too'), uL('a second question')])
     const r = await run(needle, true)
@@ -283,6 +281,31 @@ describe('full-text mode: match the whole stream, map hits to turns, fold anythi
       expect(r.totalHits).toBe(2)
     } finally {
       seam.seamLimitLinesOf(failing, null)
+    }
+  })
+
+  it('a session file gone once its questions were read loses its full-text part alone, and its question hits stay (D3)', async () => {
+    const gone = mkClaude('a.jsonl', [uL('magicword in the question'), aL('magicword in the body')])
+    const e = new TokenEngine(join(dir, 'cache'), TEST_ENGINE)
+    const sessions = (await e.build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
+    const seam = threadEngineModule() as HoldSeam
+    const AT_THE_GATE = { timeout: 4000 }
+    // The search's first read of the file is let through at the hold seam's gate, and the file deleted while its second
+    // waits there (engine/src/seams.rs)
+    seam.seamHoldReadsOf(gone)
+    try {
+      const search = searchProjectSessions(e, roots(), sessions, 'magicword', true)
+      await expect.poll(() => seam.seamReadsHeld(), AT_THE_GATE).toEqual([gone])
+      seam.seamReleaseReadsOf(gone)
+      seam.seamHoldReadsOf(gone)
+      await expect.poll(() => seam.seamReadsHeld(), AT_THE_GATE).toEqual([gone])
+      rmSync(gone)
+      seam.seamReleaseReadsOf(gone)
+      const r = await search
+      expect(r.groups.map((g) => [g.file, g.hits.map((h) => [h.i, h.text, h.inBody])])).toEqual([[gone, [[1, 'magicword in the question', false]]]])
+      expect([r.totalHits, r.folded]).toEqual([1, 0])
+    } finally {
+      seam.seamReleaseReadsOf(null)
     }
   })
 

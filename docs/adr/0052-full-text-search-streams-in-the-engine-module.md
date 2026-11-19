@@ -31,8 +31,8 @@ We adopt **options 1 and 4**.
 
 - The module is given the needle, the file and its turns, and gives back the hits in no turn and each turn's first
   body hit with its snippet.
-- The module is given the needle, the file and its questions' ranges, and gives back the questions that hit, and the
-  texts of those whose turns have a body hit (session-view D4).
+- The module is given the needle, the file and its questions' ranges, and gives back the questions that hit; in
+  full-text mode, searched before the full text (session-view D3), every question with its text, for the body hits.
 - The byte rule, the mapping of a hit to its turn and the snippet are the whole-file search's, quirk for quirk
   (session-view D2–D5).
 - A cold rollout's search takes one of the places its reads share (session-view C2), and a file that cannot be read to
@@ -47,7 +47,8 @@ We adopt **options 1 and 4**.
   JavaScript the app runs, so they agree with global search only while Rust's standard library and Electron's
   JavaScript carry one Unicode version.
 - Negative: the footprint still follows a file's longest line, held with its lowered copy and, while its snippet is
-  cut, its strings as UTF-16: a 67.7 MB line raised it by about 208 MB (Sources). A line past the engine module's
+  cut, its strings as UTF-16: a 67.7 MB line raised it by about 208 MB (Sources); in full-text mode a session's
+  question texts are held together, as its question list holds them. A line past the engine module's
   line limit is not held whole but fails its file's search, its question hits alone kept (token-stats A10,
   session-view D3).
 - Neutral: on this machine's data the full-text search found what the whole-file search found in every project that
