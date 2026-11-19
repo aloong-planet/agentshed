@@ -23,10 +23,12 @@
 //   pnpm bench:scan search <index dir> <project path> <needle> [--full-text]
 //                                      one project's session search over those sessions: what it found, how long it
 //                                      took, and the main process's footprint before it and at its peak (macOS)
-//   pnpm bench:scan turn-index <dir>   the three largest Claude Code turns within the turn limit, and one written into
-//                                      <dir> a little under it, each as the turn mode's arguments
-//   pnpm bench:scan turn <file> <question start> <question end> <turn end>
-//                                      the turn fetch of one Claude Code turn: the time to its blocks, and the main
+//   pnpm bench:scan turn-index <side> <dir>
+//                                      the side's (claude or codex) three largest turns of plain files within the turn
+//                                      limit, its largest of a cold rollout, and one written into <dir> a little under
+//                                      the limit, each as the turn mode's arguments
+//   pnpm bench:scan turn <side> <file> <question start> <question end> <turn end>
+//                                      the turn fetch of one turn of the side: the time to its blocks, and the main
 //                                      process's footprint before it and at its peak (macOS)
 //
 // AGENTSHED_HOME_OVERRIDE points the scan at a fixture home, exactly as it does for the app.
