@@ -58,13 +58,14 @@
 //                 found, its wall time, the main process's longest event-loop
 //                 stall during it, and the main process's footprint before it and at its peak, worker threads
 //                 included, read with macOS `footprint` as token-stats::QR-004 reads memory (macOS only).
-//   turn-index <dir>
-//                 the Claude Code turns the turn mode measures: every Claude Code transcript under the home, walked and
-//                 indexed by the engine module's parse as a scan indexes it, and of their turns the three whose bodies
-//                 are the largest within the turn limit; and a turn written into <dir>, one question and a body of tool
-//                 calls and their results a little under the limit. Prints each as the turn mode's arguments.
-//   turn <file> <question start> <question end> <turn end>
-//                 the turn fetch the session page makes as it expands a Claude Code turn (getSessionTurn in
+//   turn-index <side> <dir>
+//                 the turns of a side (claude or grok) the turn mode measures: every session of the side under the home,
+//                 walked and indexed by the engine module's parse as a scan indexes it, and of their turns the three
+//                 whose bodies are the largest within the turn limit; and a session of the side written into <dir>, one
+//                 question and a body of tool calls and their results a little under the limit. Prints each as the turn
+//                 mode's arguments.
+//   turn <side> <file> <question start> <question end> <turn end>
+//                 the turn fetch the session page makes as it expands a turn of the side (getSessionTurn in
 //                 src/main/index.ts), from the turn's question index record as turn-index printed it: the turn read,
 //                 its blocks, and their contract check, the question index's lookup and the display copy aside. In a
 //                 process of its own, so that the peak is the fetch's: one JSON line with the time to the blocks and
@@ -98,6 +99,7 @@ import { UsageArchive } from '../src/main/providers/archive'
 import type { ScanRoots } from '../src/main/providers/types'
 import { isColdRollout } from '../src/main/providers/cold-rollout'
 import { searchProjectSessions } from '../src/main/providers/search-sessions'
+import type { QuestionRec } from '../src/main/providers/question-index'
 import { realRoots } from '../src/main/roots'
 import { compareStores, type StoreRow } from './lib/bench-store-compare.mjs'
 import type { SearchResult, SessionMeta, SessionTurn } from '../src/shared/domain'
@@ -770,95 +772,182 @@ interface IndexedTurn {
 
 const bodyBytes = (t: IndexedTurn): number => t.rec[2] - t.rec[1]
 
-/** The turn mode's arguments for a turn */
-const turnArgs = (t: IndexedTurn): string => `turn ${t.file} ${t.rec.join(' ')}`
+/** The sides the turn mode measures */
+type TurnSide = 'claude' | 'grok'
 
-/** Every turn of a Claude Code transcript, as the engine module's parse indexes it for a scan */
-async function claudeTurns(file: string, listed: boolean): Promise<IndexedTurn[]> {
-  const parsed = await runParseJob({ kind: 'claude', file, projectKey: '', listed })
-  if (parsed === null || parsed.agg.kind !== 'claude') return []
-  return parsed.agg.questions.map((r) => ({ file, rec: [r[0], r[1], r[2]] }))
+/** The turn mode's arguments for a turn of `side` */
+const turnArgs = (side: TurnSide, t: IndexedTurn): string => `turn ${side} ${t.file} ${t.rec.join(' ')}`
+
+/** The question index records of a parse's entry, as turns of `file` */
+function indexedTurns(file: string, questions: readonly QuestionRec[]): IndexedTurn[] {
+  return questions.map((r) => ({ file, rec: [r[0], r[1], r[2]] }))
 }
 
-/**
- * A Claude Code transcript of one question whose body, a run of tool calls and their results, is a little under the turn
- * limit: tool output of the shape a long build log has, quotes, tabs and non-ASCII text among it, each result about a
- * MiB. Written into `dir`; its turn as the parse indexes it.
- */
-async function writeNearLimitTurn(dir: string): Promise<IndexedTurn> {
-  const file = join(dir, 'near-limit.jsonl')
-  const ts = '2026-11-20T10:00:00.000Z'
-  const line = (o: unknown): string => JSON.stringify(o) + '\n'
-  const parts = [line({ type: 'user', timestamp: ts, uuid: 'q', message: { role: 'user', content: 'Why does the nightly build fail?' } })]
-  const unit = `${ts} INFO\tworker-3 handled "GET /api/sessions/résumé" 200 in 12 ms — ok\n`
+/** What the turn mode measures of a side */
+interface TurnSideBench {
+  /** The scan root holding the side's sessions */
+  root: 'claudeHome' | 'grokHome'
+  /** Every turn of the side's sessions in `walk`, as the engine module's parse indexes them for a scan, and how many
+   * sessions there were */
+  turns(walk: SessionWalk): Promise<{ sessions: number; turns: IndexedTurn[] }>
+  /** A session of one question whose body is a little under the turn limit, written into `dir`: its lines, the
+   * question's first */
+  nearLimit(dir: string): { file: string; lines: string[] }
+}
+
+/** A run of tool calls and their results, each result about a MiB of output the shape a long build log has, quotes,
+ * tabs and non-ASCII text among it, after the line `head`: as many as fit a little under the turn limit. `call(i)` writes
+ * the i-th call's line, `result(i, text)` its result's. */
+function nearLimitLines(head: string, call: (i: number) => string, result: (i: number, text: string) => string): string[] {
+  const unit = `2026-11-20T10:00:00.000Z INFO\tworker-3 handled "GET /api/sessions/résumé" 200 in 12 ms — ok\n`
   const target = TURN_LIMIT - 4096
+  const lines = [head]
   let body = 0
   for (let i = 0; ; i++) {
-    const call = line({ type: 'assistant', timestamp: ts, message: { role: 'assistant', content: [
-      { type: 'text', text: `Reading log ${i}.` },
-      { type: 'tool_use', id: `toolu_${i}`, name: 'Bash', input: { command: `cat build-${i}.log`, description: `Read build log ${i}` } }
-    ] } })
-    const result = (n: number): string =>
-      line({ type: 'user', timestamp: ts, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_${i}`, content: unit.repeat(n) }] } })
-    const empty = Buffer.byteLength(call) + Buffer.byteLength(result(0))
-    const perUnit = Buffer.byteLength(result(1)) - Buffer.byteLength(result(0))
+    const empty = Buffer.byteLength(call(i)) + Buffer.byteLength(result(i, ''))
+    const perUnit = Buffer.byteLength(result(i, unit)) - Buffer.byteLength(result(i, ''))
     const room = Math.floor((target - body - empty) / perUnit)
     if (room <= 0) break
     const n = Math.min(room, Math.floor((1024 * 1024) / perUnit))
-    const pair = call + result(n)
-    parts.push(pair)
-    body += Buffer.byteLength(pair)
+    const pair = [call(i), result(i, unit.repeat(n))]
+    lines.push(...pair)
+    body += Buffer.byteLength(pair.join(''))
   }
-  writeFileSync(file, parts.join(''))
-  const [turn, ...more] = await claudeTurns(file, true)
+  return lines
+}
+
+const TURN_SIDES: Record<TurnSide, TurnSideBench> = {
+  claude: {
+    root: 'claudeHome',
+    async turns(walk) {
+      const turns: IndexedTurn[] = []
+      for (const t of walk.claude) {
+        const parsed = await runParseJob({ kind: 'claude', file: t.file, projectKey: '', listed: !t.nested })
+        if (parsed !== null && parsed.agg.kind === 'claude') turns.push(...indexedTurns(t.file, parsed.agg.questions))
+      }
+      return { sessions: walk.claude.length, turns }
+    },
+    nearLimit(dir) {
+      const ts = '2026-11-20T10:00:00.000Z'
+      const line = (o: unknown): string => JSON.stringify(o) + '\n'
+      const lines = nearLimitLines(
+        line({ type: 'user', timestamp: ts, uuid: 'q', message: { role: 'user', content: 'Why does the nightly build fail?' } }),
+        (i) =>
+          line({ type: 'assistant', timestamp: ts, message: { role: 'assistant', content: [
+            { type: 'text', text: `Reading log ${i}.` },
+            { type: 'tool_use', id: `toolu_${i}`, name: 'Bash', input: { command: `cat build-${i}.log`, description: `Read build log ${i}` } }
+          ] } }),
+        (i, text) => line({ type: 'user', timestamp: ts, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_${i}`, content: text }] } })
+      )
+      return { file: join(dir, 'near-limit.jsonl'), lines }
+    }
+  },
+  grok: {
+    root: 'grokHome',
+    async turns(walk) {
+      const turns: IndexedTurn[] = []
+      for (const s of walk.grok) {
+        const parsed = await runParseJob({ kind: 'grok', file: s.file, projectKey: '', subagent: s.subagent })
+        if (parsed !== null && parsed.agg.kind === 'grok') turns.push(...indexedTurns(s.file, parsed.agg.questions))
+      }
+      return { sessions: walk.grok.length, turns }
+    },
+    nearLimit(dir) {
+      const ts = 1_795_000_000
+      const line = (update: Record<string, unknown>): string =>
+        JSON.stringify({ timestamp: ts, method: '_x.ai/session/update', params: { sessionId: 's', update } }) + '\n'
+      const lines = nearLimitLines(
+        line({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Why does the nightly build fail?' }, _meta: { promptIndex: 0 } }),
+        // A message split across chunks mid-word, then the call
+        (i) =>
+          [
+            line({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Read' } }),
+            line({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: `ing log ${i}.` } }),
+            line({
+              sessionUpdate: 'tool_call',
+              toolCallId: `call_${i}`,
+              title: 'read_file',
+              rawInput: { target_file: `/srv/ci/build-${i}.log` },
+              _meta: { 'x.ai/tool': { name: 'read_file', label: 'Read' } }
+            })
+          ].join(''),
+        (i, text) =>
+          line({ sessionUpdate: 'tool_call_update', toolCallId: `call_${i}`, status: 'completed', content: [{ type: 'content', content: { type: 'text', text } }] })
+      )
+      // Grok's own layout, a session's stream in a directory of its own (sessions/<cwd>/<session id>/updates.jsonl)
+      const session = join(dir, 'sessions', encodeURIComponent('/srv/ci'), 'near-limit')
+      mkdirSync(session, { recursive: true })
+      return { file: join(session, 'updates.jsonl'), lines }
+    }
+  }
+}
+
+function turnSide(name: string | undefined): TurnSide {
+  if (name === 'claude' || name === 'grok') return name
+  throw new Error(`the turn modes measure the sides ${Object.keys(TURN_SIDES).join(' and ')}, not "${name ?? ''}"`)
+}
+
+/** The session `bench` writes into `dir`, indexed: its one turn, checked to be a little under the turn limit */
+async function writeNearLimitTurn(bench: TurnSideBench, dir: string): Promise<IndexedTurn> {
+  const { file, lines } = bench.nearLimit(dir)
+  writeFileSync(file, lines.join(''))
+  const walk: SessionWalk = { claude: [], codex: [], grok: [], antigravity: [], held: { claude: [], codex: [], grok: [], antigravity: [] } }
+  if (bench.root === 'claudeHome') walk.claude.push({ file, dir, nested: false })
+  else walk.grok.push({ file, cwd: '/srv/ci', subagent: false, mtimeMs: statSync(file).mtimeMs })
+  const { turns: [turn, ...more] } = await bench.turns(walk)
   if (!turn || more.length > 0) throw new Error(`${file} should index as one turn`)
   if (bodyBytes(turn) > TURN_LIMIT || bodyBytes(turn) < TURN_LIMIT - 1024 * 1024)
     throw new Error(`${file}'s body is ${bodyBytes(turn)} bytes, not a little under the limit of ${TURN_LIMIT}`)
   return turn
 }
 
-async function turnIndex(dir: string): Promise<void> {
+async function turnIndex(args: string[]): Promise<void> {
+  if (args.length !== 2) throw new Error('turn-index mode needs the side and the directory to write its constructed turn into')
+  const side = turnSide(args[0])
+  const bench = TURN_SIDES[side]
   const home = realRoots()
-  // Claude Code's transcripts alone: every other side's root is an empty directory
+  // The side's sessions alone: every other side's root is an empty directory, Claude Code's registry file one that is
+  // not there
   const empty = mkdtempSync(join(tmpdir(), 'agentshed-bench-empty-'))
   const roots: ScanRoots = {
     ...home,
+    claudeHome: empty,
     claudeConfigFile: join(empty, 'none.json'),
     codexHome: empty,
     geminiHome: empty,
     grokHome: empty,
     antigravityHome: empty,
-    agentsSkillsDir: empty
+    agentsSkillsDir: empty,
+    [bench.root]: home[bench.root]
   }
   const t0 = performance.now()
-  const transcripts = walkSessions(roots).claude
-  const turns: IndexedTurn[] = []
-  for (const t of transcripts) turns.push(...(await claudeTurns(t.file, !t.nested)))
+  const { sessions, turns } = await bench.turns(walkSessions(roots))
   const within = turns.filter((t) => bodyBytes(t) <= TURN_LIMIT).sort((a, b) => bodyBytes(b) - bodyBytes(a))
   console.log(
-    `[turn-index] ${transcripts.length} transcripts, ${turns.length} turns, ${turns.length - within.length} over the turn limit, indexed in ${since(t0)}`
+    `[turn-index] ${side}: ${sessions} sessions, ${turns.length} turns, ${turns.length - within.length} over the turn limit, indexed in ${since(t0)}`
   )
-  for (const t of within.slice(0, 3)) console.log(`[turn-index] ${mb(bodyBytes(t))} MB body: ${turnArgs(t)}`)
-  const made = await writeNearLimitTurn(dir)
-  console.log(`[turn-index] ${mb(bodyBytes(made))} MB body, constructed: ${turnArgs(made)}`)
+  for (const t of within.slice(0, 3)) console.log(`[turn-index] ${mb(bodyBytes(t))} MB body: ${turnArgs(side, t)}`)
+  const made = await writeNearLimitTurn(bench, args[1])
+  console.log(`[turn-index] ${mb(bodyBytes(made))} MB body, constructed: ${turnArgs(side, made)}`)
 }
 
 async function turnFetch(args: string[]): Promise<void> {
   if (process.platform !== 'darwin') throw new Error('turn reads the footprint with macOS `footprint`, so it runs on macOS only')
-  const [file, ...numbers] = args
+  const [name, file, ...numbers] = args
+  const side = turnSide(name)
   const rec = numbers.map(Number)
-  if (args.length !== 4 || !rec.every((n) => Number.isSafeInteger(n) && n >= 0))
-    throw new Error('turn mode needs <file> <question start> <question end> <turn end>, as turn-index prints them')
+  if (args.length !== 5 || !rec.every((n) => Number.isSafeInteger(n) && n >= 0))
+    throw new Error('turn mode needs <side> <file> <question start> <question end> <turn end>, as turn-index prints them')
   const before = footprint()
   // getSessionTurn's steps from the question index's record on (src/main/index.ts)
   const t0 = performance.now()
   const source = sessionReadSource(realRoots(), file)
   const identity = sourceIdentity(source)
-  const read = await readTurnRanges((s, question, body) => readSessionTurn('claude', s, question, body), source, [rec[0], rec[1], rec[2]], TURN_LIMIT)
+  const read = await readTurnRanges((s, question, body) => readSessionTurn(side, s, question, body), source, [rec[0], rec[1], rec[2]], TURN_LIMIT)
   questionRevision(identity, file, rec[0], rec[1], read.question)
   if (sourceIdentity(source) !== identity) throw new Error(`${file} changed during the read`)
   if (read.body === null) throw new Error(`the turn's body, ${read.bodyBytes} bytes, is over the turn limit`)
-  const turn: SessionTurn = { blocks: bodyBlocks('claude', read.body), bytesRead: read.bytesRead }
+  const turn: SessionTurn = { blocks: bodyBlocks(side, read.body), bytesRead: read.bytesRead }
   if (!turnKept(read.bodyBytes, TURN_KEEP)) turn.unkept = true
   assertSessionTurn(turn)
   const ms = performance.now() - t0
@@ -919,8 +1008,7 @@ async function main(): Promise<void> {
     return
   }
   if (mode === 'turn-index') {
-    if (rest.length !== 1) throw new Error('turn-index mode needs the directory to write its constructed turn into')
-    await turnIndex(rest[0])
+    await turnIndex(rest)
     return
   }
   if (mode === 'turn') {
@@ -928,7 +1016,7 @@ async function main(): Promise<void> {
     return
   }
   throw new Error(
-    `unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, page <rollout>, workers, file <path>…, search-index, search <index dir> <project path> <needle> [--full-text], turn-index <dir>, or turn <file> <question start> <question end> <turn end>`
+    `unknown mode "${mode}": expected cold, warm, rescan, grow <rollout>, page <rollout>, workers, file <path>…, search-index, search <index dir> <project path> <needle> [--full-text], turn-index <side> <dir>, or turn <side> <file> <question start> <question end> <turn end>`
   )
 }
 

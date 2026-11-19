@@ -10,6 +10,7 @@ mod line;
 mod parse;
 mod question;
 mod title;
+mod turn;
 mod walk;
 
 use napi::sys::napi_value;
@@ -19,6 +20,7 @@ use self::entry::{Job, Parsed};
 use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
 use crate::text::{self, Units};
+use crate::turn::TurnBody;
 use crate::walk::Held;
 
 pub(crate) struct Grok;
@@ -53,6 +55,11 @@ impl Side for Grok {
 
     fn dispatches(&self) -> &'static [&'static str] {
         std::slice::from_ref(&question::DISPATCH)
+    }
+
+    fn turn_body(&self, file: &str, lines: Vec<String>) -> TurnBody {
+        crate::seams::before_turn_assembly(file);
+        TurnBody::Blocks(turn::blocks(lines, self.dispatches()))
     }
 
     /// Every session under Grok's data root, `roots.grokHome`

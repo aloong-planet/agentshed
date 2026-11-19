@@ -52,10 +52,16 @@ function blocksOf(read: TurnRead): TurnBlock[] {
   return read.body.blocks
 }
 
-/** A Claude Code turn whose body is `lines`, written as a session file of its own and read whole by the engine module,
- * which assembles its blocks, as the session page reads a turn */
-const claudeTurn = (lines: string[]): Promise<TurnBlock[]> =>
-  withFile(lines.map((l) => `${l}\n`).join(''), async (file) => blocksOf(await readTurnOf('claude', file, { start: 0, end: 0 }, { start: 0, end: statSync(file).size })))
+/** A turn of `side`, a side whose turns the engine module assembles, whose body is `lines`, written as a session file of
+ * its own and read whole by the engine module, which assembles its blocks, as the session page reads a turn */
+const engineTurn = (side: 'claude' | 'grok', lines: string[]): Promise<TurnBlock[]> =>
+  withFile(lines.map((l) => `${l}\n`).join(''), async (file) => blocksOf(await readTurnOf(side, file, { start: 0, end: 0 }, { start: 0, end: statSync(file).size })))
+
+/** A Claude Code turn whose body is `lines` (`engineTurn`) */
+const claudeTurn = (lines: string[]): Promise<TurnBlock[]> => engineTurn('claude', lines)
+
+/** A Grok turn whose body is `lines` (`engineTurn`) */
+const grokTurn = (lines: string[]): Promise<TurnBlock[]> => engineTurn('grok', lines)
 
 /** `claudeTurn` of the lines `objs` written as JSON */
 const claudeBlocks = (objs: unknown[]): Promise<TurnBlock[]> => claudeTurn(objs.map((o) => JSON.stringify(o)))
@@ -624,15 +630,19 @@ function withFile<T>(text: string, fn: (file: string) => Promise<T>): Promise<T>
 const linesHanded = (read: TurnRead): string[] => (read.body !== null && 'lines' in read.body ? read.body.lines : [])
 
 /** A turn of `file`, a session file of `side`, by its question index record, read as the session page reads it */
-async function readTurn(side: 'grok' | 'antigravity', file: string, rec: QuestionRec): Promise<{ lines: string[]; bytesRead: number }> {
+async function readTurn(side: 'antigravity', file: string, rec: QuestionRec): Promise<{ lines: string[]; bytesRead: number }> {
   const read = await readTurnOf(side, file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] })
   return { lines: linesHanded(read), bytesRead: read.bytesRead }
 }
 
-/** A Claude Code turn of `file` by its question index record, read as the session page reads it: the blocks the engine
- * module assembled */
+/** A turn of `file`, a session file of `side`, a side whose turns the engine module assembles, by its question index
+ * record, read as the session page reads it */
+const engineTurnRead = (side: 'claude' | 'grok', file: string, rec: QuestionRec): Promise<TurnRead> =>
+  readTurnOf(side, file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] })
+
+/** A Claude Code turn of `file` by its question index record (`engineTurnRead`): the blocks the engine module assembled */
 async function claudeTurnOf(file: string, rec: QuestionRec): Promise<TurnBlock[]> {
-  return blocksOf(await readTurnOf('claude', file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] }))
+  return blocksOf(await engineTurnRead('claude', file, rec))
 }
 
 /** The lines of a range's text as the whole file's read gives it, the empty piece after its last line feed left off */
@@ -646,6 +656,15 @@ async function indexFile(file: string): Promise<QuestionRec[]> {
 const uLine = (t: string): string => JSON.stringify({ type: 'user', timestamp: TS, message: { role: 'user', content: t } })
 const aLine = (t: string): string => JSON.stringify(cA([{ type: 'text', text: t }]))
 
+/** A line of a Grok update stream at `tsSec` seconds, its update `update` */
+const gline = (tsSec: number, update: Record<string, unknown>): string =>
+  JSON.stringify({ timestamp: tsSec, method: '_x.ai/session/update', params: { sessionId: 's', update } })
+
+/** The question index the scan gives a Grok update stream, through the engine module */
+async function indexGrokFile(file: string): Promise<QuestionRec[]> {
+  return (await runParseJob({ kind: 'grok', file, projectKey: '', subagent: false }))?.agg.questions ?? []
+}
+
 // The question index counts a turn's subagents by the engine module's dispatch names, and the turn draws a sub block by
 // the same names, which it takes from the module: for each tool name below, alone in a turn, the two take the call as
 // the dispatch it is or is not — a name matches as written, its case and its spaces included.
@@ -658,6 +677,24 @@ describe('the question index and the turn take the same tool calls as subagent d
       await withFile(raw, async (file) => {
         const [rec] = await indexFile(file)
         const kinds = (await claudeTurnOf(file, rec)).map((b) => b.kind)
+        judged.push({ name, counted: [rec[4], rec[5]], shown: [kinds.filter((k) => k === 'tool').length, kinds.filter((k) => k === 'sub').length] })
+      })
+    }
+    const each = (kind: 'tool' | 'sub'): number[] => (kind === 'sub' ? [0, 1] : [1, 0])
+    expect(judged).toEqual(NAMES.map(([name, kind]) => ({ name, counted: each(kind), shown: each(kind) })))
+  })
+
+  test('grok: a call is counted as a subagent exactly when its turn shows it as one', async () => {
+    const NAMES: Array<[string, 'tool' | 'sub']> = [['spawn_subagent', 'sub'], ['Spawn_subagent', 'tool'], ['spawn_subagent ', 'tool'], ['read_file', 'tool'], ['', 'tool']]
+    const judged: Array<{ name: string; counted: unknown; shown: unknown }> = []
+    for (const [name] of NAMES) {
+      const raw = [
+        gline(100, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'a question' }, _meta: { promptIndex: 0 } }),
+        gline(100, { sessionUpdate: 'tool_call', toolCallId: 'c1', title: name, rawInput: { prompt: 'p' } })
+      ].join('\n') + '\n'
+      await withFile(raw, async (file) => {
+        const [rec] = await indexGrokFile(file)
+        const kinds = blocksOf(await engineTurnRead('grok', file, rec)).map((b) => b.kind)
         judged.push({ name, counted: [rec[4], rec[5]], shown: [kinds.filter((k) => k === 'tool').length, kinds.filter((k) => k === 'sub').length] })
       })
     }
@@ -697,10 +734,8 @@ describe('a range fetch agrees with a full parse (the anchor)', () => {
 // (current_mode_update) between the fragments — so adjacent same-kind chunks merge with no
 // injected separator, and the enumerated state records must not break the merge.
 describe('the Grok block model (ticket #125)', () => {
-  const gline = (tsSec: number, update: Record<string, unknown>): string =>
-    JSON.stringify({ timestamp: tsSec, method: '_x.ai/session/update', params: { sessionId: 's', update } })
 
-  test('prose fragments split mid-word merge raw across state records; thinking, tools and order survive', () => {
+  test('prose fragments split mid-word merge raw across state records; thinking, tools and order survive', async () => {
     const raw = [
       gline(100, { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'plan the table' } }),
       gline(100, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'A tracker:\n\n| # | Block' } }),
@@ -721,7 +756,7 @@ describe('the Grok block model (ticket #125)', () => {
       }),
       gline(102, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done reading.' } })
     ].join('\n')
-    const blocks = turnBlocks('grok', raw.split('\n'))
+    const blocks = await grokTurn(raw.split('\n'))
     expect(blocks.map((b) => b.kind)).toEqual(['think', 'text', 'tool', 'text'])
     expect((blocks[0] as { body: string }).body).toBe('plan the table')
     // The decisive assertion: "Block" + "ed by" reunite with no separator injected
@@ -745,19 +780,19 @@ describe('the Grok block model (ticket #125)', () => {
       ].join('\n') + '\n'
     await withFile(raw, async (file) => {
       // The question index the engine module gives the stream
-      const recs = (await runParseJob({ kind: 'grok', file, projectKey: '', subagent: false }))?.agg.questions ?? []
+      const recs = await indexGrokFile(file)
       expect(recs).toHaveLength(2)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
-      const one = await readTurn('grok', file, recs[0])
-      expect(turnBlocks('grok', one.lines)).toEqual(turnBlocks('grok', linesOf(whole.texts[0])))
-      expect((turnBlocks('grok', one.lines)[0] as { body: string }).body).toBe('answer one')
+      const one = await engineTurnRead('grok', file, recs[0])
+      expect(blocksOf(one)).toEqual(await grokTurn(linesOf(whole.texts[0])))
+      expect((blocksOf(one)[0] as { body: string }).body).toBe('answer one')
       // Far below the file: the 2 MB padding turn is not touched by fetching turn one
       expect(one.bytesRead).toBeLessThan(2000)
       expect(statSync(file).size).toBeGreaterThan(2 * 1024 * 1024)
     })
   })
 
-  test('a spawn dispatch is a sub block: name from subagent_spawned, result from the in-turn finished record, not its own tool update', () => {
+  test('a spawn dispatch is a sub block: name from subagent_spawned, result from the in-turn finished record, not its own tool update', async () => {
     const raw = [
       gline(100, {
         sessionUpdate: 'tool_call',
@@ -788,7 +823,7 @@ describe('the Grok block model (ticket #125)', () => {
         output: 'The research result body'
       })
     ].join('\n')
-    const blocks = turnBlocks('grok', raw.split('\n'))
+    const blocks = await grokTurn(raw.split('\n'))
     expect(blocks.map((b) => b.kind)).toEqual(['sub'])
     const sub = blocks[0] as { name: string | null; prompt: string; result: string | null; unlinked: boolean; steps: unknown[] }
     expect(sub.name).toBe('general-purpose')
@@ -798,18 +833,18 @@ describe('the Grok block model (ticket #125)', () => {
     expect(sub.steps).toEqual([])
   })
 
-  test('a record without an update is named by its method; a non-string method by its JSON, a missing one as <no-update>', () => {
+  test('a record without an update is named by its method; a non-string method by its JSON, a missing one as <no-update>', async () => {
     const raw = [
       JSON.stringify({ method: 'session/cancel', params: {} }),
       JSON.stringify({ method: 7, params: {} }),
       JSON.stringify({ method: { name: 'odd' }, params: {} }),
       JSON.stringify({ params: {} })
     ].join('\n')
-    const blocks = turnBlocks('grok', raw.split('\n'))
+    const blocks = await grokTurn(raw.split('\n'))
     expect(blocks).toEqual([{ kind: 'unknown', count: 4, types: ['session/cancel', '7', '{"name":"odd"}', '<no-update>'] }])
   })
 
-  test('enumerated state records leave no trace; an unknown update type does; an injected user notice renders nothing', () => {
+  test('enumerated state records leave no trace; an unknown update type does; an injected user notice renders nothing', async () => {
     const raw = [
       gline(100, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'hello' } }),
       gline(100, { sessionUpdate: 'plan', entries: [] }),
@@ -828,11 +863,216 @@ describe('the Grok block model (ticket #125)', () => {
       }),
       gline(100, { sessionUpdate: 'brand_new_thing', payload: 1 })
     ].join('\n')
-    const blocks = turnBlocks('grok', raw.split('\n'))
+    const blocks = await grokTurn(raw.split('\n'))
     expect(blocks.map((b) => b.kind)).toEqual(['text', 'unknown'])
     const unknown = blocks[1] as { types: string[]; count: number }
     expect(unknown.types).toEqual(['update/brand_new_thing'])
     expect(unknown.count).toBe(1)
+  })
+
+  test('a chunk joins the open block of its kind, at the time of the chunk that opened it, until a chunk of the other kind or a call ends it', async () => {
+    const say = (ts: number, text: unknown): string => gline(ts, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+    const think = (ts: number, text: string): string => gline(ts, { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text } })
+    const call = (ts: number, id: string): string => gline(ts, { sessionUpdate: 'tool_call', toolCallId: id, title: 'read_file' })
+    const blocks = await grokTurn([
+      gline(98, { sessionUpdate: 'tool_call', toolCallId: 'd0', title: 'spawn_subagent', rawInput: { prompt: 'p' } }),
+      call(99, 't0'),
+      say(100, 'a'),
+      // A record of every other kind between two chunks of prose: none ends the open block
+      gline(101, { sessionUpdate: 'tool_call_update', toolCallId: 't0', content: [{ type: 'content', content: { type: 'text', text: 'out' } }] }),
+      gline(101, { sessionUpdate: 'subagent_spawned', subagent_id: 's0', subagent_type: 'explore' }),
+      gline(101, { sessionUpdate: 'subagent_finished', subagent_id: 's0', output: 'result' }),
+      gline(101, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'a notice' }, _meta: { promptIndex: 1 } }),
+      gline(101, { sessionUpdate: 'current_mode_update', currentModeId: 'code' }),
+      gline(101, { sessionUpdate: 'brand_new_thing' }),
+      JSON.stringify({ method: 'session/cancel', params: {} }),
+      say(102, 'b'),
+      think(103, 'c'),
+      say(104, 'd'),
+      think(105, 'e'),
+      think(106, 'f'),
+      call(107, 't1'),
+      think(108, 'g'),
+      call(109, 't2'),
+      say(110, 'h'),
+      call(111, 't3'),
+      // A chunk with no text still opens a block, which the next chunk joins
+      say(112, 7),
+      gline(113, { sessionUpdate: 'agent_message_chunk', content: 'no record' }),
+      say(114, 'i')
+    ])
+    const tool = (ts: number, output: string | null): TurnBlock =>
+      ({ kind: 'tool', at: ts * 1000, name: 'read_file', summary: 'read_file', input: '', output, truncated: false })
+    expect(blocks).toEqual([
+      { kind: 'sub', at: 98_000, name: 'explore', prompt: 'p', steps: [], result: 'result', unlinked: true },
+      tool(99, 'out'),
+      { kind: 'text', role: 'assistant', at: 100_000, body: 'ab' },
+      { kind: 'think', at: 103_000, body: 'c' },
+      { kind: 'text', role: 'assistant', at: 104_000, body: 'd' },
+      { kind: 'think', at: 105_000, body: 'ef' },
+      tool(107, null),
+      { kind: 'think', at: 108_000, body: 'g' },
+      tool(109, null),
+      { kind: 'text', role: 'assistant', at: 110_000, body: 'h' },
+      tool(111, null),
+      { kind: 'text', role: 'assistant', at: 112_000, body: 'i' },
+      { kind: 'unknown', count: 2, types: ['update/brand_new_thing', 'session/cancel'] }
+    ])
+  })
+
+  test('a tool is named by its tool meta, then its title; shows its input as written, any other value than a string as JSON; and is summed up by the first line of its name and input', async () => {
+    const [NEL, BOM, LS, PS, CR] = [0x85, 0xfeff, 0x2028, 0x2029, 0x0d].map(unit)
+    const call = (fields: Record<string, unknown>): string => gline(100, { sessionUpdate: 'tool_call', toolCallId: 'c', ...fields })
+    const shown = (await grokTurn([
+      call({ title: 'Run', _meta: { 'x.ai/tool': { name: 'run_terminal_cmd', label: 'Run' } }, rawInput: 'ls -la' }),
+      call({ title: 'grep', _meta: { 'x.ai/tool': { label: 'Search' } }, rawInput: { pattern: 'x' } }),
+      call({ _meta: { 'x.ai/tool': { name: 5 } }, rawInput: null }),
+      // Only a line feed ends the first line; the white space at its ends is JavaScript's
+      call({ title: 'sh', rawInput: `a${CR}b${LS}c${PS}d${PS}${LS}${CR}\ne` }),
+      call({ rawInput: `${NEL} x ${NEL}${BOM}\nnext` }),
+      call({ rawInput: '\n\n  first\nsecond' }),
+      call({ title: 'sh', rawInput: 'a   \t b  ' }),
+      // 88 code units, and past them
+      call({ title: 'n', rawInput: 'x'.repeat(86) }),
+      call({ title: 'n', rawInput: `${'x'.repeat(86)}${' '.repeat(10)}\ny` }),
+      call({ title: 'n', rawInput: 'x'.repeat(87) }),
+      call({ title: 'n', rawInput: `${'x'.repeat(85)}${String.fromCodePoint(0x1f600)}z` })
+    ])).map((b) => (b.kind === 'tool' ? [b.name, b.input, b.summary] : b.kind))
+    expect(shown).toEqual([
+      ['run_terminal_cmd', 'ls -la', 'run_terminal_cmd ls -la'],
+      ['grep', '{\n  "pattern": "x"\n}', 'grep {'],
+      [null, '', ''],
+      ['sh', `a${CR}b${LS}c${PS}d${PS}${LS}${CR}\ne`, `sh a${CR}b${LS}c${PS}d`],
+      [null, `${NEL} x ${NEL}${BOM}\nnext`, `${NEL} x ${NEL}`],
+      [null, '\n\n  first\nsecond', 'first'],
+      ['sh', 'a   \t b  ', 'sh a   \t b'],
+      ['n', 'x'.repeat(86), `n ${'x'.repeat(86)}`],
+      ['n', `${'x'.repeat(86)}${' '.repeat(10)}\ny`, `n ${'x'.repeat(86)}`],
+      ['n', 'x'.repeat(87), `n ${'x'.repeat(86)}…`],
+      ['n', `${'x'.repeat(85)}${String.fromCodePoint(0x1f600)}z`, `n ${'x'.repeat(85)}${unit(0xd83d)}…`]
+    ])
+  })
+
+  test('a tool\'s output is the texts of the last update for its call that has any, joined as written; no other update changes it', async () => {
+    const call = (id: string): string => gline(100, { sessionUpdate: 'tool_call', toolCallId: id, title: 'read_file' })
+    const update = (id: unknown, content: unknown): string => gline(100, { sessionUpdate: 'tool_call_update', toolCallId: id, status: 'completed', content })
+    const text = (t: unknown): Record<string, unknown> => ({ type: 'content', content: { type: 'text', text: t } })
+    const outputs = (await grokTurn([
+      call('a'),
+      update('a', [text('first')]),
+      update('a', [text('sec'), 'x', null, 7, [text('in an array')], { type: 'content' }, { content: 'x' }, text(5), text('ond')]),
+      update('a', []),
+      update('a', [text('')]),
+      update('a', 'not an array'),
+      update('a', [{ type: 'content', content: { type: 'resource' } }]),
+      update(7, [text('no id')]),
+      update('nowhere', [text('no call')]),
+      call('b'),
+      update('b', [text('')]),
+      call('c'),
+      // Of two calls by one id, an update is the later one's
+      call('d'),
+      call('d'),
+      update('d', [text('the later')]),
+      // An id a dispatch was made with is the dispatch's, its updates its echo, whatever call takes the id
+      gline(100, { sessionUpdate: 'tool_call', toolCallId: 'e', title: 'spawn_subagent', rawInput: { prompt: 'p' } }),
+      call('e'),
+      update('e', [text('echo')])
+    ])).map((b) => (b.kind === 'tool' ? b.output : b.kind))
+    expect(outputs).toEqual(['second', null, null, null, 'the later', 'sub', null])
+  })
+
+  test('spawned records name the dispatches in the order they were made, and a finished record gives its dispatch\'s result', async () => {
+    const dispatch = (id: string, rawInput: unknown): string => gline(100, { sessionUpdate: 'tool_call', toolCallId: id, title: 'spawn_subagent', rawInput })
+    const spawned = (id: string, type: unknown): string =>
+      gline(100, { sessionUpdate: 'subagent_spawned', subagent_id: id, child_session_id: id, subagent_type: type })
+    const finished = (id: string, fields: Record<string, unknown>): string =>
+      gline(100, { sessionUpdate: 'subagent_finished', subagent_id: id, child_session_id: id, status: 'completed', ...fields })
+    const subs = (await grokTurn([
+      dispatch('d1', { description: 'One', prompt: 'Do one' }),
+      dispatch('d2', { description: 'Two' }),
+      dispatch('d3', { description: 'Three', prompt: 3 }),
+      dispatch('d4', 'a string'),
+      spawned('s1', 'explore'),
+      spawned('s2', 'plan'),
+      spawned('s3', ''),
+      spawned('s4', 4),
+      // No dispatch is left for it to name
+      spawned('s5', 'late'),
+      finished('s1', { output: '', error: 'it failed' }),
+      finished('s2', { output: 'done' }),
+      finished('s3', { output: 'early' }),
+      finished('s3', { error: 3 }),
+      finished('s5', { output: 'nobody' }),
+      finished('s9', { output: 'nobody' })
+    ])).map((b) => (b.kind === 'sub' ? [b.name, b.prompt, b.result] : b.kind))
+    expect(subs).toEqual([
+      ['explore', 'Do one', 'it failed'],
+      ['plan', 'Two', 'done'],
+      [null, 'Three', null],
+      [null, '', null]
+    ])
+  })
+
+  test('a line\'s time is its timestamp in seconds; a line with no update is named by its method; a line that is no record is passed over', async () => {
+    const chunk = (kind: 'message' | 'thought', text: string): Record<string, unknown> => ({ sessionUpdate: `agent_${kind}_chunk`, content: { type: 'text', text } })
+    const blocks = await grokTurn([
+      gline(1.5, chunk('message', 'a')),
+      JSON.stringify({ timestamp: '100', params: { update: chunk('thought', 'b') } }),
+      JSON.stringify({ params: { update: chunk('message', 'c') } }),
+      `{"timestamp":1e400,"params":{"update":${JSON.stringify(chunk('thought', 'd'))}}}`,
+      // A time in range whose milliseconds are not
+      gline(1e306, chunk('message', 'e')),
+      JSON.stringify([{ method: 'in an array', params: { update: chunk('message', 'x') } }]),
+      JSON.stringify({ method: 'params a string', params: 'x' }),
+      JSON.stringify({ method: 'update an array', params: { update: [chunk('message', 'x')] } }),
+      JSON.stringify({ method: 'a type that is no string', params: { update: { sessionUpdate: 5 } } }),
+      JSON.stringify({ method: null, params: {} }),
+      `{"method":"params last a number","params":{"update":${JSON.stringify(chunk('message', 'x'))}},"params":7}`,
+      '"a string"',
+      '42',
+      '{ bad',
+      '',
+      '   ',
+      // Of a repeated key, the last value
+      '{"timestamp":1,"params":{"update":{"sessionUpdate":"plan","sessionUpdate":"agent_thought_chunk","content":{"text":"first"},"content":{"text":"last"}}},"timestamp":2}',
+      '{"params":{"update":{"sessionUpdate":"agent_message_chunk","content":{"text":"dropped"},"content":["no record"]}}}',
+      '{"params":{"update":{"sessionUpdate":"tool_call","toolCallId":"r","title":"by title","_meta":{"x.ai/tool":{"name":"by meta"}},"_meta":7}}}',
+      '{"params":{"update":{"sessionUpdate":"tool_call_update","toolCallId":"r","content":[{"content":{"text":"dropped"}}],"content":{"text":"no array"}}}}',
+      '{"params":{"update":{"sessionUpdate":"tool_call","title":"by title too","_meta":{"x.ai/tool":{"name":"by meta"},"x.ai/tool":5}}}}'
+    ])
+    expect(blocks).toEqual([
+      { kind: 'text', role: 'assistant', at: 1500, body: 'a' },
+      { kind: 'think', at: null, body: 'b' },
+      { kind: 'text', role: 'assistant', at: null, body: 'c' },
+      { kind: 'think', at: null, body: 'd' },
+      { kind: 'text', role: 'assistant', at: Infinity, body: 'e' },
+      { kind: 'think', at: 2000, body: 'last' },
+      { kind: 'text', role: 'assistant', at: null, body: '' },
+      { kind: 'tool', at: null, name: 'by title', summary: 'by title', input: '', output: null, truncated: false },
+      { kind: 'tool', at: null, name: 'by title too', summary: 'by title too', input: '', output: null, truncated: false },
+      { kind: 'unknown', count: 6, types: ['<no-update>', 'params a string', 'update an array', 'a type that is no string', 'params last a number'] }
+    ])
+  })
+
+  test('a string\'s escapes are decoded, and a lone surrogate ending one chunk joins its partner starting the next', async () => {
+    const line = (update: string): string => `{"timestamp":100,"params":{"update":${update}}}`
+    const chunk = (kind: 'message' | 'thought', text: string): string => line(`{"sessionUpdate":"agent_${kind}_chunk","content":{"text":"${text}"}}`)
+    const blocks = await grokTurn([
+      line('{"sessionUpdate":"tool_call","toolCallId":"t","title":"read_file"}'),
+      // The longer text is made in the line's own buffer, the shorter copied
+      line(`{"sessionUpdate":"tool_call_update","toolCallId":"t","content":[{"content":{"text":"x${esc('0041')}"}},{"content":{"text":"a${esc('0001')}b${esc('00E9')}c${esc('d83d')}${esc('de00')}d${esc('2028')}e, and more"}}]}`),
+      chunk('message', 'hi '),
+      chunk('message', esc('d83d')),
+      chunk('message', `${esc('de00')} there`),
+      chunk('thought', `${esc('dc00')} alone`),
+      chunk('thought', ' it stays')
+    ])
+    expect(blocks.map((b) => (b.kind === 'tool' ? b.output : b.kind === 'text' || b.kind === 'think' ? b.body : b.kind))).toEqual([
+      `xAa${unit(1)}b${unit(0xe9)}c${String.fromCodePoint(0x1f600)}d${unit(0x2028)}e, and more`,
+      `hi ${String.fromCodePoint(0x1f600)} there`,
+      `${unit(0xdc00)} alone it stays`
+    ])
   })
 })
 
