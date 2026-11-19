@@ -1,33 +1,13 @@
 // Turn content normalisation (ticket 05 established prose, ticket 07 completed it): each side's raw
 // lines within a turn range are
 // unified into a common message model (TurnBlock), and the renderer knows only that model rather than
-// one per side.
+// one per side. A Claude Code turn's blocks are the engine module's, assembled as its read reads the
+// lines (engine/src/sides/claude/turn.rs, whose header holds the Claude Code enumeration); the other
+// sides' are assembled here from the lines the read hands over, one side moving into the module at a
+// time (ADR-0045, ADR-0047).
 //
 // The rules are grounded in a full enumeration (2026-08-05/06; the AGENTS.md invariant that a set of
 // shapes comes from a full enumeration):
-// - Claude (2131 files): 18 top-level types in the whole spectrum (the KNOWN set); the whole assistant
-//   segment spectrum is
-//   text/tool_use/thinking (all 3312 main-chain thinking segments in the repository are **empty**, with
-//   only a signature
-//   placeholder — plaintext thinking bodies do not land on the main chain, so the think block mechanism
-//   is retained but current data produces none);
-//   tool_result pairs by tool_use_id (19,711/19,711 matched).
-//   **Subagent internal steps are not attributed** (measured 2026-08-06): all four candidate join keys
-//   were excluded —
-//   toolUseResult.agentId (7 digits) and sidechain.agentId (17 digits) are different namespaces, 0/225
-//   matched;
-//   dispatch lines have no promptId (0/202); outputFile points at a background task's output, not a
-//   transcript; a sidechain's
-//   first-line text equals the dispatch prompt in 0/1299 cases. No grouping rule is written without a
-//   sample (an AGENTS.md invariant),
-//   so the sub block is unified on both sides: the dispatch arguments + the return + an unattributed
-//   label, with sidechain lines not rendered (a known type,
-//   whose full transcript is in the source or a nested file).
-//   The truncation criterion = the return text contains a tool-results/ sidecar path (mechanism-based:
-//   the harness's sidecar directory;
-//   spec C7's original "no reference chain" was corrected by measurement — the path is there, but the
-//   sidecar file does not enter the read allow-list,
-//   and only the truncated version is shown with a label; the user ruled on 2026-08-06).
 // - Codex (296 files): 7 top-level types; 9 response_item types — the call arguments are on
 //   custom_tool_call.input / function_call.arguments / tool_search_call.arguments,
 //   and the outputs pair by call_id (always present); reasoning.summary = [{type:'summary_text',text}]
@@ -84,46 +64,6 @@ function inputText(v: unknown): string {
 function labelOf(v: unknown): string {
   return typeof v === 'string' ? v : (JSON.stringify(v) ?? 'undefined')
 }
-
-/** Claude tool_result content → text (a string or an array of text segments; anything else falls back to
- * serialisation) */
-function resultText(v: unknown): string {
-  if (typeof v === 'string') return v
-  if (Array.isArray(v)) {
-    return v
-      .map((s) => asRecord(s)?.['text'])
-      .filter((t): t is string => typeof t === 'string')
-      .join('\n')
-  }
-  return inputText(v)
-}
-
-/** The truncation criterion: the harness puts oversized originals in a tool-results/ sidecar and leaves
- * the path in the body (mechanism-based) */
-const TRUNC_MARK = 'tool-results/'
-
-// ── The whole Claude top-level type spectrum (a full enumeration of 2131 files on 2026-08-06, 18 types) ──
-// assistant/user carry content; the other 16 are known noise: neither rendered nor traced.
-const CLAUDE_KNOWN = new Set([
-  'assistant',
-  'user',
-  'attachment',
-  'system',
-  'ai-title',
-  'last-prompt',
-  'mode',
-  'permission-mode',
-  'queue-operation',
-  'file-history-snapshot',
-  'pr-link',
-  'bridge-session',
-  'file-history-delta',
-  'relocated',
-  'worktree-state',
-  'started',
-  'result',
-  'frame-link'
-])
 
 // ── Codex's whole three-layer spectrum (a full enumeration of 296 files on 2026-08-05/06) ──
 const CODEX_TOP_KNOWN = new Set([
@@ -212,101 +152,6 @@ function unknownBlock(u: Unknowns): TurnBlock[] {
   let count = 0
   for (const n of u.counts.values()) count += n
   return [{ kind: 'unknown', count, types: [...u.counts.keys()] }]
-}
-
-function claudeAssemble(objs: Array<Record<string, unknown>>, dispatches: Dispatches): TurnBlock[] {
-  const out: TurnBlock[] = []
-  const toolById = new Map<string, TurnToolBlock>()
-  const subById = new Map<string, TurnSubBlock>()
-  const u: Unknowns = { counts: new Map() }
-
-  for (const o of objs) {
-    // Sidechain lines are not rendered: they are a subagent's transcript, and which dispatch they belong
-    // to has
-    // no stable reference chain in the records (see the measurements in the file header), so no
-    // speculative grouping is done — a known type, no trace
-    if (o['isSidechain'] === true) continue
-    const t = labelOf(o['type'])
-    if (t === 'assistant') {
-      const c = asRecord(o['message'])?.['content']
-      if (!Array.isArray(c)) continue
-      const at = atOf(o)
-      const texts: string[] = []
-      const tail: TurnBlock[] = []
-      for (const seg of c) {
-        const s = asRecord(seg)
-        if (!s) continue
-        if (s['type'] === 'thinking' && typeof s['thinking'] === 'string' && s['thinking'].trim()) {
-          // The within-line order = thinking → prose → tools (which is the real segment order)
-          out.push({ kind: 'think', at, body: s['thinking'] })
-        } else if (s['type'] === 'text' && typeof s['text'] === 'string') {
-          texts.push(s['text'])
-        } else if (s['type'] === 'tool_use' && typeof s['id'] === 'string') {
-          const name = typeof s['name'] === 'string' ? s['name'] : null
-          const input = asRecord(s['input'])
-          if (name !== null && dispatches.has(name)) {
-            const sub: TurnSubBlock = {
-              kind: 'sub',
-              at,
-              name: typeof input?.['subagent_type'] === 'string' ? input['subagent_type'] : name,
-              prompt:
-                typeof input?.['prompt'] === 'string'
-                  ? input['prompt']
-                  : typeof input?.['description'] === 'string'
-                    ? input['description']
-                    : '',
-              steps: [],
-              result: null,
-              // Unified on both sides: internal steps have no stable reference chain to attribute them
-              // by (see the measurements in the file header), so it is labelled explicitly
-              unlinked: true
-            }
-            subById.set(s['id'], sub)
-            tail.push(sub)
-          } else {
-            const text = inputText(s['input'])
-            const tool: TurnToolBlock = {
-              kind: 'tool',
-              at,
-              name,
-              summary: oneLine(text.replace(/\s+/g, ' ')),
-              input: text,
-              output: null,
-              truncated: false
-            }
-            toolById.set(s['id'], tool)
-            tail.push(tool)
-          }
-        }
-      }
-      const body = texts.join('\n')
-      if (body.trim()) out.push({ kind: 'text', role: 'assistant', at, body })
-      out.push(...tail)
-      continue
-    }
-    if (t === 'user') {
-      const c = asRecord(o['message'])?.['content']
-      if (!Array.isArray(c)) continue
-      for (const seg of c) {
-        const s = asRecord(seg)
-        if (s?.['type'] !== 'tool_result' || typeof s['tool_use_id'] !== 'string') continue
-        const text = resultText(s['content'])
-        const tool = toolById.get(s['tool_use_id'])
-        if (tool) {
-          tool.output = text
-          tool.truncated = text.includes(TRUNC_MARK)
-          continue
-        }
-        const sub = subById.get(s['tool_use_id'])
-        if (sub) sub.result = text
-      }
-      continue
-    }
-    if (!CLAUDE_KNOWN.has(t)) noteUnknown(u, t)
-    // Known noise (16 types): neither rendered nor traced
-  }
-
-  return [...out, ...unknownBlock(u)]
 }
 
 function codexAssemble(objs: Array<Record<string, unknown>>, dispatches: Dispatches): TurnBlock[] {
@@ -698,5 +543,6 @@ export function turnBlocks(side: AgentSide, lines: readonly string[]): TurnBlock
   const dispatches = new Set(engine.dispatches(side))
   if (side === 'grok') return grokAssemble(objs, dispatches)
   if (side === 'antigravity') return antigravityAssemble(objs, dispatches)
-  return side === 'claude' ? claudeAssemble(objs, dispatches) : codexAssemble(objs, dispatches)
+  if (side === 'claude') throw new Error('a Claude Code turn\'s blocks are the engine module\'s: its read hands over no lines')
+  return codexAssemble(objs, dispatches)
 }
