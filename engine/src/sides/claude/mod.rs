@@ -56,7 +56,8 @@ impl Side for Claude {
         &question::DISPATCH
     }
 
-    fn turn_body(&self, lines: Vec<String>) -> TurnBody {
+    fn turn_body(&self, file: &str, lines: Vec<String>) -> TurnBody {
+        crate::seams::before_turn_assembly(file);
         TurnBody::Blocks(turn::blocks(lines, self.dispatches()))
     }
 

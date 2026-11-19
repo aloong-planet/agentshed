@@ -50,6 +50,42 @@ impl<'a> Str<'a> {
         (!self.escaped).then_some(self.raw)
     }
 
+    /// How many bytes the line writes the string in
+    pub(crate) fn written_len(&self) -> usize {
+        self.raw.len()
+    }
+
+    /// Whether the string is well formed, holding no lone surrogate, so that UTF-8 has a form of it: false only when an
+    /// escape writes a surrogate that no escape of its partner follows or precedes
+    pub(crate) fn is_well_formed(&self) -> bool {
+        if !self.escaped {
+            return true;
+        }
+        let mut i = 0;
+        while let Some(at) = memchr::memchr(b'\\', &self.raw[i..]) {
+            i += at;
+            if self.raw[i + 1] != b'u' {
+                i += 2;
+                continue;
+            }
+            match escaped_unit(&self.raw[i + 2..i + 6]) {
+                0xd800..=0xdbff => match self.raw.get(i + 6..i + 12) {
+                    Some([b'\\', b'u', hex @ ..]) if (0xdc00..=0xdfff).contains(&escaped_unit(hex)) => i += 12,
+                    _ => return false,
+                },
+                0xdc00..=0xdfff => return false,
+                _ => i += 6,
+            }
+        }
+        true
+    }
+
+    /// Where the string lies in `line`, the text it was read from
+    pub(crate) fn span(&self, line: &str) -> Span {
+        let start = self.raw.as_ptr() as usize - line.as_ptr() as usize;
+        Span { start, end: start + self.raw.len(), escaped: self.escaped }
+    }
+
     /// The string's code units, its escapes decoded
     pub(crate) fn units(&self) -> Units {
         if !self.escaped {
@@ -153,6 +189,63 @@ pub(crate) fn number_value(text: &[u8]) -> Read<f64> {
     // Rust's parse rounds correctly and gives an infinity beyond the range, as ECMA-262's StringToNumber does
     let s = std::str::from_utf8(text).map_err(|_| Bad)?;
     s.parse::<f64>().map_err(|_| Bad)
+}
+
+/// Where a string lies in the line it was read from: what lies between its quotes, and whether an escape is among it
+#[derive(Clone, Copy)]
+pub(crate) struct Span {
+    start: usize,
+    end: usize,
+    escaped: bool,
+}
+
+/// The well formed string at `span` of `line`, made in the line's own buffer, which then holds nothing else: its text
+/// moved to the buffer's start, each escape decoded where it is written, and the room past it given back. A string's
+/// decoded text is never longer than the escapes and text that write it, so the text written never overtakes what is
+/// still to be read. No allocation is made for it, but when the allocator moves the buffer to give room back.
+pub(crate) fn take(line: String, span: Span) -> String {
+    let mut bytes = line.into_bytes();
+    let Span { start, end, escaped } = span;
+    let mut w = 0;
+    let mut r = start;
+    while r < end {
+        if !escaped || bytes[r] != b'\\' {
+            let run = if escaped { memchr::memchr(b'\\', &bytes[r..end]).map_or(end, |p| r + p) } else { end };
+            bytes.copy_within(r..run, w);
+            w += run - r;
+            r = run;
+            continue;
+        }
+        let (c, written) = match bytes[r + 1] {
+            b'"' => ('"', 2),
+            b'\\' => ('\\', 2),
+            b'/' => ('/', 2),
+            b'b' => ('\u{8}', 2),
+            b'f' => ('\u{c}', 2),
+            b'n' => ('\n', 2),
+            b'r' => ('\r', 2),
+            b't' => ('\t', 2),
+            _ => {
+                let unit = escaped_unit(&bytes[r + 2..r + 6]);
+                if (0xd800..=0xdbff).contains(&unit) {
+                    // Well formed: the escape of its partner follows
+                    let low = escaped_unit(&bytes[r + 8..r + 12]);
+                    let point = 0x10000 + ((u32::from(unit) - 0xd800) << 10) + (u32::from(low).wrapping_sub(0xdc00) & 0x3ff);
+                    (char::from_u32(point).unwrap_or('\u{fffd}'), 12)
+                } else {
+                    (char::from_u32(u32::from(unit)).unwrap_or('\u{fffd}'), 6)
+                }
+            }
+        };
+        let mut buf = [0; 4];
+        let text = c.encode_utf8(&mut buf).as_bytes();
+        bytes[w..w + text.len()].copy_from_slice(text);
+        w += text.len();
+        r += written;
+    }
+    bytes.truncate(w);
+    bytes.shrink_to_fit();
+    String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
 /// The code unit a `\u` escape's four hex digits write, checked when the string was read

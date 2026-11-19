@@ -4,9 +4,10 @@
 //!
 //! - The panic seams: a test names a file, and the module panics while it parses that file — or, through the walk's
 //!   own seam, while the session walk reads that entry, or through the read's, while it reads that file's ranges for
-//!   the session page or a search, reads one of its turns, or searches its full text — so that a test can show what a panic in the module does
+//!   the session page or a search, reads one of its turns, or searches its full text, or through the assembly's, while
+//!   it assembles the blocks of one of its turns once read — so that a test can show what a panic in the module does
 //!   to a read. They are apart so that a case of each reaches its own read: a parse never begins for an entry the walk
-//!   gave up on.
+//!   gave up on, and an assembly never begins for a turn whose read panicked.
 //! - The hold seam: a test names a file, and every read of its ranges or of one of its turns, and every full-text
 //!   search of it, waits, on the
 //!   read's own thread and before it opens the file, until the test releases it, so that a case decides the order reads
@@ -62,6 +63,15 @@ pub(crate) fn before_range_read(file: &str) {
         panic_on(&NAMED_READ, file, "reading");
         hold_seam::wait(file);
     }
+    #[cfg(not(feature = "test-seams"))]
+    let _ = file;
+}
+
+/// Called by a side's assembly of a turn's blocks (`Side::turn_body`) before it reads the turn's lines: in a build made
+/// for tests, it panics when the file is the one the assembly's panic seam names, and otherwise does nothing.
+pub(crate) fn before_turn_assembly(file: &str) {
+    #[cfg(feature = "test-seams")]
+    panic_on(&NAMED_ASSEMBLED, file, "assembling a turn of");
     #[cfg(not(feature = "test-seams"))]
     let _ = file;
 }
@@ -147,14 +157,17 @@ fn panic_on(named: &std::sync::Mutex<Option<String>>, file: &str, while_doing: &
     }
 }
 
-/// The file the module panics on while parsing, the entry it panics on while walking, and the file it panics on while
-/// reading its ranges; one each for the whole process, as the module's code is shared by every thread
+/// The file the module panics on while parsing, the entry it panics on while walking, the file it panics on while
+/// reading its ranges, and the file it panics on while assembling one of its turns; one each for the whole process, as
+/// the module's code is shared by every thread
 #[cfg(feature = "test-seams")]
 static NAMED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 #[cfg(feature = "test-seams")]
 static NAMED_WALKED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 #[cfg(feature = "test-seams")]
 static NAMED_READ: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+#[cfg(feature = "test-seams")]
+static NAMED_ASSEMBLED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
 /// Names the file the module panics while parsing, or none
 #[cfg(feature = "test-seams")]
@@ -172,6 +185,12 @@ pub(crate) fn name_walk_panic_file(file: Option<String>) {
 #[cfg(feature = "test-seams")]
 pub(crate) fn name_read_panic_file(file: Option<String>) {
     *NAMED_READ.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = file;
+}
+
+/// Names the file the module panics on while assembling one of its turns, or none
+#[cfg(feature = "test-seams")]
+pub(crate) fn name_assembly_panic_file(file: Option<String>) {
+    *NAMED_ASSEMBLED.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = file;
 }
 
 /// Called as a read makes the directory it copies one of agy's databases into: in a build made for tests, it notes the

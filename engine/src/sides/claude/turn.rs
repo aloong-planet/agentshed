@@ -184,20 +184,65 @@ where
 }
 
 /// The blocks of a turn whose lines are `lines`, each line let go once it is read; `dispatches` the tool names whose
-/// call dispatches a subagent
+/// call dispatches a subagent.
+///
+/// A line is read in two steps. While its text is read, what it gives the turn is noted with its strings still the
+/// line's (`Given`). Then the strings are made: the longest that is well formed in the line's own buffer, which it then
+/// holds alone (`json::take`), the others copied. A line holding a long text, a tool's long return say, is so held
+/// once, in the line read or in its block, and never twice over (session-view C2).
 pub(super) fn blocks(lines: Vec<String>, dispatches: &[&str]) -> Vec<Block> {
     let mut turn = Turn::default();
     for line in lines {
-        match read(&line) {
-            Ok(json::Line::Object(l)) => turn.line(&l, dispatches),
-            // An array has none of an object's fields
-            Ok(json::Line::Array) => turn.line(&Line::default(), dispatches),
-            Ok(json::Line::Other) | Err(_) => {}
+        let (given, at, mut strings, longest) = {
+            let parsed = match read(&line) {
+                Ok(json::Line::Object(l)) => l,
+                // An array has none of an object's fields
+                Ok(json::Line::Array) => Line::default(),
+                Ok(json::Line::Other) | Err(_) => continue,
+            };
+            let at = turn::at_of(parsed.timestamp);
+            let mut strings: Vec<Str<'_>> = Vec::new();
+            let given = turn.given(&parsed, &at, dispatches, &mut strings);
+            let longest = (0..strings.len()).filter(|&i| strings[i].is_well_formed()).max_by_key(|&i| strings[i].written_len());
+            let span = longest.map(|i| (i, strings[i].span(&line)));
+            let made: Vec<Option<JsString>> = strings.iter().enumerate().map(|(i, s)| (Some(i) != longest).then(|| s.text())).collect();
+            (given, at, made, span)
+        };
+        if let Some((i, span)) = longest {
+            strings[i] = Some(JsString::Utf8(json::take(line, span)));
         }
+        turn.apply(given, at, &mut strings);
     }
     let mut out = turn.out;
     out.extend(turn.unknowns.block());
     out
+}
+
+/// What a line gives a turn, in the order it gives it, a string by its place among the line's strings
+enum Given {
+    /// A thinking segment's text
+    Think(usize),
+    /// The line's prose: its text segments' texts
+    Prose(Vec<usize>),
+    /// A call, by its id
+    Call(JsString, Block),
+    /// A return for the call at a place among the turn's blocks
+    Return(usize, Returns),
+}
+
+/// A return's text, as `resultText` makes it
+enum Returns {
+    /// One of the line's strings
+    String(usize),
+    /// Some of them, each on a line of its own
+    Lines(Vec<usize>),
+    /// Made already: nothing, or a value shown as its input would be
+    Made(JsString),
+}
+
+/// A string of the line's, made: each is taken once
+fn made(strings: &mut [Option<JsString>], i: usize) -> JsString {
+    strings.get_mut(i).and_then(Option::take).unwrap_or_default()
 }
 
 /// A turn's blocks as its lines are read, with the calls a return pairs with by id
@@ -210,80 +255,120 @@ struct Turn {
 }
 
 impl Turn {
-    fn line(&mut self, line: &Line<'_>, dispatches: &[&str]) {
+    /// What `line` gives the turn, each string it gives by its place in `strings`
+    fn given<'a>(&mut self, line: &Line<'a>, at: &At, dispatches: &[&str], strings: &mut Vec<Str<'a>>) -> Vec<Given> {
         if line.sidechain {
-            return;
+            return Vec::new();
         }
         let kind = line.kind.map(|raw| reread(raw, turn::label)).unwrap_or_else(turn::undefined_label);
         let is = |name: &str| matches!(&kind, JsString::Utf8(k) if k.as_str() == name);
         if is("assistant") {
-            if let Some(segments) = &line.segments {
-                self.assistant(segments, turn::at_of(line.timestamp), dispatches);
-            }
-        } else if is("user") {
-            if let Some(segments) = &line.segments {
-                self.user(segments);
-            }
-        } else if !KNOWN.iter().any(|known| is(known)) {
+            return line.segments.as_deref().map_or_else(Vec::new, |s| assistant(s, at, dispatches, strings));
+        }
+        if is("user") {
+            return line.segments.as_deref().map_or_else(Vec::new, |s| self.user(s, strings));
+        }
+        if !KNOWN.iter().any(|known| is(known)) {
             self.unknowns.note(kind);
         }
-    }
-
-    /// An assistant's line: within it, thinking, then its prose, then its calls, the order its segments come in
-    fn assistant(&mut self, segments: &[Segment<'_>], at: At, dispatches: &[&str]) {
-        let mut texts = Vec::new();
-        let mut calls: Vec<(JsString, Block)> = Vec::new();
-        for s in segments {
-            let kind = |name: &str| s.kind.is_some_and(|k| k.is(name));
-            if kind("thinking") && s.thinking.is_some_and(|t| !t.text().is_blank()) {
-                let body = s.thinking.map(|t| t.text()).unwrap_or_else(JsString::empty);
-                self.out.push(Block::Think { at: at.clone(), body });
-            } else if kind("text") && s.text.is_some() {
-                texts.extend(s.text.map(|t| t.text()));
-            } else if kind("tool_use") && s.id.is_some() {
-                let id = s.id.map(|i| i.text()).unwrap_or_else(JsString::empty);
-                let name = s.name.map(|n| n.text());
-                let dispatch = matches!(&name, Some(JsString::Utf8(n)) if dispatches.contains(&n.as_str()));
-                let block = match name {
-                    Some(name) if dispatch => sub(name, s.input, at.clone()),
-                    name => {
-                        let input = s.input.map(|raw| reread(raw, turn::input_text)).unwrap_or_else(JsString::empty);
-                        Block::Tool { at: at.clone(), name, summary: turn::summary(&input), input, output: None, truncated: false }
-                    }
-                };
-                calls.push((id, block));
-            }
-        }
-        let body = JsString::join(texts, "\n");
-        if !body.is_blank() {
-            self.out.push(Block::Text { at, body });
-        }
-        for (id, block) in calls {
-            let calls = if matches!(block, Block::Sub { .. }) { &mut self.subs } else { &mut self.tools };
-            calls.insert(id, self.out.len());
-            self.out.push(block);
-        }
+        Vec::new()
     }
 
     /// A user's line: each tool_result fills in the call it returns for, a tool's before a subagent's
-    fn user(&mut self, segments: &[Segment<'_>]) {
+    fn user<'a>(&self, segments: &[Segment<'a>], strings: &mut Vec<Str<'a>>) -> Vec<Given> {
+        let mut given = Vec::new();
         for s in segments {
             if !s.kind.is_some_and(|k| k.is("tool_result")) {
                 continue;
             }
             let Some(id) = s.tool_use_id.map(|i| i.text()) else { continue };
-            let at = self.tools.get(&id).or_else(|| self.subs.get(&id)).copied();
-            match at.and_then(|at| self.out.get_mut(at)) {
-                Some(Block::Tool { output, truncated, .. }) => {
-                    let text = returned(s.content.as_ref());
-                    *truncated = text.includes(TRUNCATED_MARK);
-                    *output = Some(text);
+            let Some(&at) = self.tools.get(&id).or_else(|| self.subs.get(&id)) else { continue };
+            let mut string = |s: Str<'a>| {
+                strings.push(s);
+                strings.len() - 1
+            };
+            let returns = match &s.content {
+                None => Returns::Made(JsString::empty()),
+                Some(Returned::String(text)) => Returns::String(string(*text)),
+                Some(Returned::Texts(texts)) => Returns::Lines(texts.iter().map(|t| string(*t)).collect()),
+                Some(Returned::Other(raw)) => Returns::Made(reread(raw, turn::input_text)),
+            };
+            given.push(Given::Return(at, returns));
+        }
+        given
+    }
+
+    /// What a line gives, its strings made, into the turn's blocks: `at` the line's time
+    fn apply(&mut self, given: Vec<Given>, at: At, strings: &mut [Option<JsString>]) {
+        for g in given {
+            match g {
+                Given::Think(i) => {
+                    let body = made(strings, i);
+                    if !body.is_blank() {
+                        self.out.push(Block::Think { at: at.clone(), body });
+                    }
                 }
-                Some(Block::Sub { result, .. }) => *result = Some(returned(s.content.as_ref())),
-                _ => {}
+                Given::Prose(texts) => {
+                    let body = JsString::join(texts.into_iter().map(|i| made(strings, i)).collect(), "\n");
+                    if !body.is_blank() {
+                        self.out.push(Block::Text { at: at.clone(), body });
+                    }
+                }
+                Given::Call(id, block) => {
+                    let calls = if matches!(block, Block::Sub { .. }) { &mut self.subs } else { &mut self.tools };
+                    calls.insert(id, self.out.len());
+                    self.out.push(block);
+                }
+                Given::Return(at, returns) => {
+                    let text = match returns {
+                        Returns::String(i) => made(strings, i),
+                        Returns::Lines(texts) => JsString::join(texts.into_iter().map(|i| made(strings, i)).collect(), "\n"),
+                        Returns::Made(text) => text,
+                    };
+                    match self.out.get_mut(at) {
+                        Some(Block::Tool { output, truncated, .. }) => {
+                            *truncated = text.includes(TRUNCATED_MARK);
+                            *output = Some(text);
+                        }
+                        Some(Block::Sub { result, .. }) => *result = Some(text),
+                        _ => {}
+                    }
+                }
             }
         }
     }
+}
+
+/// An assistant's line: within it, thinking, then its prose, then its calls, the order its segments come in
+fn assistant<'a>(segments: &[Segment<'a>], at: &At, dispatches: &[&str], strings: &mut Vec<Str<'a>>) -> Vec<Given> {
+    let mut given = Vec::new();
+    let mut prose = Vec::new();
+    let mut calls = Vec::new();
+    for s in segments {
+        let kind = |name: &str| s.kind.is_some_and(|k| k.is(name));
+        if let (true, Some(thinking)) = (kind("thinking"), s.thinking) {
+            // A thinking that is only white space is no block, and nothing else either
+            strings.push(thinking);
+            given.push(Given::Think(strings.len() - 1));
+        } else if let (true, Some(text)) = (kind("text"), s.text) {
+            strings.push(text);
+            prose.push(strings.len() - 1);
+        } else if let (true, Some(id)) = (kind("tool_use"), s.id) {
+            let name = s.name.map(|n| n.text());
+            let dispatch = matches!(&name, Some(JsString::Utf8(n)) if dispatches.contains(&n.as_str()));
+            let block = match name {
+                Some(name) if dispatch => sub(name, s.input, at.clone()),
+                name => {
+                    let input = s.input.map(|raw| reread(raw, turn::input_text)).unwrap_or_else(JsString::empty);
+                    Block::Tool { at: at.clone(), name, summary: turn::summary(&input), input, output: None, truncated: false }
+                }
+            };
+            calls.push(Given::Call(id.text(), block));
+        }
+    }
+    given.push(Given::Prose(prose));
+    given.extend(calls);
+    given
 }
 
 /// A subagent's dispatch by the tool `name`: named by its `subagent_type`, the tool's name when it has none; its prompt
@@ -307,15 +392,4 @@ fn sub(name: JsString, input: Option<&str>, at: At) -> Block {
         });
     }
     Block::Sub { at, name: kind.unwrap_or(name), prompt: prompt.or(description).unwrap_or_else(JsString::empty), result: None }
-}
-
-/// A return's text (`resultText`): a string as it is, an array's string texts each on a line of its own, nothing for
-/// none or null, and any other value as its input would be shown
-fn returned(content: Option<&Returned<'_>>) -> JsString {
-    match content {
-        None => JsString::empty(),
-        Some(Returned::String(s)) => s.text(),
-        Some(Returned::Texts(texts)) => JsString::join(texts.iter().map(|t| t.text()).collect(), "\n"),
-        Some(Returned::Other(raw)) => reread(raw, turn::input_text),
-    }
 }

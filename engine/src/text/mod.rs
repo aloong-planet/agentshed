@@ -79,8 +79,11 @@ impl JsString {
         }
     }
 
-    /// `strings.join(separator)`, for a separator of ASCII text
-    pub(crate) fn join(strings: Vec<JsString>, separator: &str) -> JsString {
+    /// `strings.join(separator)`, for a separator of ASCII text: one string is itself, not a copy of it
+    pub(crate) fn join(mut strings: Vec<JsString>, separator: &str) -> JsString {
+        if strings.len() == 1 {
+            return strings.pop().unwrap_or_default();
+        }
         if strings.iter().all(|s| matches!(s, JsString::Utf8(_))) {
             let texts: Vec<String> = strings.into_iter().map(|s| if let JsString::Utf8(text) = s { text } else { String::new() }).collect();
             return JsString::Utf8(texts.join(separator));

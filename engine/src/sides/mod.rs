@@ -45,10 +45,11 @@ pub(crate) trait Side: Sync {
         lines.iter().map(|_| true).collect()
     }
 
-    /// What a turn's read hands over for its body, `lines` the lines the turn holds (`kept_lines`): its blocks, for a
-    /// side whose turns the module assembles, each line let go once it is read; by default the lines, for a side whose
-    /// turns TypeScript still assembles (ADR-0047)
-    fn turn_body(&self, lines: Vec<String>) -> TurnBody {
+    /// What a turn's read of the session file `file` hands over for its body, `lines` the lines the turn holds
+    /// (`kept_lines`): its blocks, for a side whose turns the module assembles, each line let go once it is read; by
+    /// default the lines, for a side whose turns TypeScript still assembles (ADR-0047)
+    fn turn_body(&self, file: &str, lines: Vec<String>) -> TurnBody {
+        let _ = file;
         TurnBody::Lines(lines)
     }
 

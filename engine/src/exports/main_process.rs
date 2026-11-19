@@ -97,7 +97,7 @@ fn turned(side: &dyn Side, file: &str, question: (u64, u64), body: Option<(u64, 
         side.read_turn(file, question, body).map(|read| {
             let kept = side.kept_lines(&read.lines);
             let lines = read.lines.into_iter().zip(kept).filter_map(|(line, kept)| kept.then_some(line)).collect();
-            (read.question, side.turn_body(lines), read.through - read.started)
+            (read.question, side.turn_body(file, lines), read.through - read.started)
         })
     }));
     match read {

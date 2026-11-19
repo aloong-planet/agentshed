@@ -25,6 +25,12 @@ mod seam {
         seams::name_read_panic_file(file);
     }
 
+    /// Names the file the module panics on while it assembles the blocks of one of its turns, or none
+    #[napi(catch_unwind)]
+    pub fn seam_panic_while_assembling(file: Option<String>) {
+        seams::name_assembly_panic_file(file);
+    }
+
     /// Holds every read of `file`'s ranges or turns, and every full-text search of it, at the hold seam's gate from now on, until
     /// it is released
     #[napi(catch_unwind)]

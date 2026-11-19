@@ -36,6 +36,22 @@ const answer = (text: string): Buffer =>
   line('response_item', { type: 'message', id: 'msg_1', role: 'assistant', content: [{ type: 'output_text', text }], phase: 'final' })
 const meta = (): Buffer => line('session_meta', { session_id: 's1', id: 's1', timestamp: AT, cwd: '/work/p', runtime_workspace_roots: [] })
 
+// Lines shaped as Claude Code writes them (as turn-content.test.ts builds them): a question a user's line of text, an
+// answer an assistant's line of text segments, a call an assistant's tool_use segment, its return a user's tool_result
+const claudeLine = (o: unknown): Buffer => Buffer.from(JSON.stringify(o))
+const claudeAsk = (text: string): Buffer => claudeLine({ type: 'user', timestamp: AT, message: { role: 'user', content: text } })
+const claudeSay = (text: string): Buffer => claudeLine({ type: 'assistant', timestamp: AT, message: { role: 'assistant', content: [{ type: 'text', text }] } })
+const claudeCall = (id: string): Buffer =>
+  claudeLine({ type: 'assistant', timestamp: AT, message: { role: 'assistant', content: [{ type: 'tool_use', id, name: 'Bash', input: { command: 'cat log' } }] } })
+const claudeReturn = (id: string, content: string): Buffer =>
+  claudeLine({ type: 'user', timestamp: AT, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content }] } })
+/** A Claude Code session file holding `content` */
+function claudeFile(content: Buffer): string {
+  const file = join(dir, `claude-${files++}.jsonl`)
+  writeFileSync(file, content)
+  return file
+}
+
 /** Bytes that are not valid UTF-8, each a different case of the decoder's replacement: a lone continuation byte, a
  * sequence cut short, an overlong form, a surrogate's encoding */
 const INVALID = [Buffer.from([0xff]), Buffer.from([0xe4, 0xb8]), Buffer.from([0xc0, 0xaf]), Buffer.from([0xed, 0xa0, 0x80])]
@@ -243,7 +259,66 @@ describe('a turn read holds no allocation of the whole turn but a line of it (#4
   })
 })
 
+describe('a Claude Code turn read, its blocks assembled, holds no allocation of the whole turn but a line of it and its blocks (#494)', () => {
+  // The module holds the turn's lines and, as each line is read and let go, the blocks made of it; the main thread then
+  // makes JavaScript's strings of the blocks, each block's let go as its strings are made. The bound is the Codex
+  // read's, the text twice and some MiB: for these shapes the blocks hold nearly all of the text.
+  const MiB = 1024 * 1024
+  /** A return line of `size` bytes for the call `id` */
+  const returnOf = (id: string, size: number): Buffer => {
+    const empty = claudeReturn(id, '').length
+    return claudeReturn(id, 'x'.repeat(size - empty))
+  }
+  const shapes = [
+    { shape: 'of tool results in lines a little past a read', lines: Array.from({ length: 62 }, (_, i) => [claudeCall(`t${i}`), returnOf(`t${i}`, MiB + 10_240)]).flat() },
+    { shape: 'of one answer in a line of half the limit and a little more', lines: [claudeSay('x'.repeat(32 * MiB + MiB / 2))] }
+  ]
+  test.each(shapes)('a turn $shape grows a fresh process\'s peak by the text twice and a few MiB', ({ lines }) => {
+    const { content, turns } = rollout([{ line: claudeAsk('q'), question: true }, ...lines.map((line) => ({ line }))])
+    const [{ question, body }] = turns
+    const bodyBytes = body.end - body.start
+    expect(bodyBytes).toBeGreaterThan(32 * MiB)
+    expect(bodyBytes).toBeLessThanOrEqual(64 * MiB)
+    const file = claudeFile(content)
+    // In a process of its own, so that the peak it reports is this read's alone
+    const script = `
+      const module = { exports: {} }
+      process.dlopen(module, process.argv[1])
+      const [file, q, b] = [process.argv[2], JSON.parse(process.argv[3]), JSON.parse(process.argv[4])]
+      const before = process.resourceUsage().maxRSS
+      module.exports.readTurn('claude', file, q, b).then((read) => {
+        const grewKiB = process.resourceUsage().maxRSS - before
+        const shown = read.blocks.reduce((n, b) => n + (b.kind === 'tool' ? b.output.length : b.body.length), 0)
+        console.log(JSON.stringify({ grewKiB, blocks: read.blocks.length, shown }))
+      })`
+    const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, file, JSON.stringify(question), JSON.stringify(body)], { encoding: 'utf8' })
+    expect(run.stderr).toBe('')
+    const { grewKiB, blocks, shown } = JSON.parse(run.stdout) as { grewKiB: number; blocks: number; shown: number }
+    // Each return's text is its line less the line's shape around it, whose call ids differ in length
+    const returns = lines.length === 1 ? [] : Array.from({ length: lines.length / 2 }, (_, i) => MiB + 10_240 - claudeReturn(`t${i}`, '').length)
+    const expected = lines.length === 1 ? [1, 32 * MiB + MiB / 2] : [returns.length, returns.reduce((n, l) => n + l, 0)]
+    expect([blocks, shown]).toEqual(expected)
+    expect(grewKiB * 1024).toBeLessThan(2 * bodyBytes + 24 * MiB)
+  })
+})
+
 describe('a turn read that fails', () => {
+  test('a panic while assembling the blocks of one Claude Code turn rejects that read alone: a read of another, started with it, is served', async () => {
+    const { content, turns } = rollout([{ line: claudeAsk('q'), question: true }, { line: claudeSay('a') }])
+    const [{ question, body }] = turns
+    const hit = claudeFile(content)
+    const other = claudeFile(content)
+    const seam = threadEngineModule() as PanicSeam
+    seam.seamPanicWhileAssembling(hit)
+    try {
+      const [failed, spared] = await Promise.allSettled([readTurn('claude', hit, question, body), readTurn('claude', other, question, body)])
+      expect(failed.status === 'rejected' && String(failed.reason)).toMatch(/reading .* panicked/)
+      expect(spared.status === 'fulfilled' && spared.value.body).toEqual({ blocks: [{ kind: 'text', role: 'assistant', at: Date.parse(AT), body: 'a' }] })
+    } finally {
+      seam.seamPanicWhileAssembling(null)
+    }
+  })
+
   test.each([false, true])('a panic while reading one session file rejects that read alone: a read of another, started with it, is served (cold %s)', async (cold) => {
     const shown = answer('a')
     const { content, turns } = rollout([{ line: ask('q'), question: true }, { line: shown }])
