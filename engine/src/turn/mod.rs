@@ -3,7 +3,7 @@
 //! value is named in the trace of unknown types, and the trace itself (session-view C8). What a side's lines mean is the
 //! side's own (`sides/<side>/turn.rs`). A side whose turns the module does not assemble hands over the lines instead,
 //! which TypeScript assembles; the sides move into the module one at a time, each side's turns assembled by one of the
-//! two at any time (ADR-0045, ADR-0047).
+//! two at any time (ADR-0054, ADR-0047).
 
 use std::collections::HashSet;
 

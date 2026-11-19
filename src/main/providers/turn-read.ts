@@ -1,5 +1,5 @@
 // A turn's read for the session page (session-view C2): its question's range and its body's, in one pass through the
-// session file that stops at the turn's end, by the engine module (ADR-0045). The body is read line by line there, so
+// session file that stops at the turn's end, by the engine module (ADR-0054). The body is read line by line there, so
 // that no allocation holds the whole body but a line of it (#485): not its bytes, not its text in one string, not a split
 // of it. A side whose turns the module assembles has its blocks handed over, each line let go once it is read; any other
 // side, the lines the turn holds, which turn-content.ts assembles (ADR-0047). At its peak the read holds the body's text

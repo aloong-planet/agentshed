@@ -871,7 +871,7 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   **On-demand answer fetching**: a turn's range can only come from the application's own index, held
   where the scan runs (ADR-0043; the renderer cannot supply byte ranges), with the same allow-list
   check first; the payload carries the
-  bytes read as evidence of "nothing was read whole". The engine module (ADR-0045) reads the turn: the question's
+  bytes read as evidence of "nothing was read whole". The engine module (ADR-0054) reads the turn: the question's
   bytes, and the body's lines with the lines REQ-004/AC-03 drops left out on the reading thread. The turn
   limit (C2) is decided from that range before the turn's body is read. A turn refused under it retires a copy saved
   or retained under its key, in both processes. The keep size (C2) is decided from the

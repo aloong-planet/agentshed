@@ -6,8 +6,8 @@
 
 The token engine (ADR-0043, ADR-0044) parsed session files in TypeScript, where `JSON.parse` built every value of
 a line though the rules never read most of the bytes (Sources). ADR-0044 left alone the cold full parse (token-stats
-C1, C2, C26), and it was slow and large (Sources). The question index, the titles and the question text and turns
-the session page and both searches show come from the same per-line rules.
+C1, C2, C26), and it was slow and large (Sources). The question index, the titles and the question text the session
+page and both searches show come from the same per-line rules.
 
 ## Options
 
@@ -26,7 +26,6 @@ the session page and both searches show come from the same per-line rules.
 6. Keep the session page's and both searches' cold rollout reads on Node's zstd decoder — rejected: under
    Electron 43 it misses later frames (Sources), and the cut-short rule would exist twice.
 7. Claude Code's session list made by the planning — rejected: the walk makes the four sides' session lists in one place.
-8. Read a turn in TypeScript as byte ranges — rejected: each step holds a copy of the whole turn (#485).
 
 ## Decision
 
@@ -38,10 +37,10 @@ We adopt **option 1**.
     and the planning take, in TypeScript;
   - reading and parsing every session file a scan reads, cold rollouts decompressed, and reading the cold ones the
     session page and both searches read;
-  - reading each turn the session page expands, a line at a time;
+  - the turns the session page expands (ADR-0054);
   - each side's per-line rules, the question index and the titles;
   - each file's entry, the store (ADR-0044), the grouping and the combination;
-  - the line rules that the session page and both searches read a question's text and a turn's contents by;
+  - the line rules that the session page and both searches read a question's text by;
   - a project's full-text search (ADR-0052);
   - serialising and writing the display copy, at the moments ADR-0044 sets.
 - **Reading**: a value in a line is built only where a rule reads it, and every other value is scanned past.

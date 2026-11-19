@@ -4,7 +4,7 @@
 // one per side. A Claude Code turn's blocks are the engine module's, assembled as its read reads the
 // lines (engine/src/sides/claude/turn.rs, whose header holds the Claude Code enumeration); the other
 // sides' are assembled here from the lines the read hands over, one side moving into the module at a
-// time (ADR-0045, ADR-0047).
+// time (ADR-0054, ADR-0047).
 //
 // The rules are grounded in a full enumeration (2026-08-05/06; the AGENTS.md invariant that a set of
 // shapes comes from a full enumeration):
