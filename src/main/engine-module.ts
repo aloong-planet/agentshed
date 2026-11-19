@@ -132,7 +132,7 @@ export interface EngineModule {
    * of the lines the turn holds, each as text with its line feed left off, clipped to the body's range, as the body's
    * text splits at its line feeds but for the empty piece after a last line feed (a line agy's rewind undid inside the
    * turn is not held, session-view::REQ-004/AC-03): their `blocks` for a side whose turns the module assembles (a Claude
-   * Code turn), the `lines` themselves for one whose turns are still assembled here (ADR-0047); and how far into the
+   * Code or a Codex turn), the `lines` themselves for one whose turns are still assembled here (ADR-0047); and how far into the
    * file's stream the read went from where it started, the question's start in a plain file and the stream's start in a
    * cold rollout. The body is read line by line: no allocation holds it whole but a line of it. A cold rollout is read
    * through its decompressed stream, as `readRanges` reads it.
