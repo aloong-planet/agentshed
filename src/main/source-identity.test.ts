@@ -67,7 +67,8 @@ it('reads a turn of a session, and any failure of its read is the code, with no 
   try {
     const file = join(root, 'source.jsonl')
     writeFileSync(file, 'first\nsecond\nthird\n')
-    expect(await readSessionTurn('claude', file, { start: 0, end: 6 }, { start: 6, end: 19 })).toEqual({ question: 'first\n', lines: ['second', 'third'], bytesRead: 19 })
+    // A side whose turn the read hands over as its lines: a Claude Code turn's are assembled into blocks
+    expect(await readSessionTurn('codex', file, { start: 0, end: 6 }, { start: 6, end: 19 })).toEqual({ question: 'first\n', body: { lines: ['second', 'third'] }, bytesRead: 19 })
     const locked = join(root, 'locked.jsonl')
     writeFileSync(locked, 'first\n')
     chmodSync(locked, 0o000)
