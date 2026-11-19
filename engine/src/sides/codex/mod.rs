@@ -12,6 +12,7 @@ mod line;
 mod parse;
 mod question;
 mod title;
+mod turn;
 mod walk;
 
 use napi::sys::napi_value;
@@ -24,6 +25,7 @@ use crate::exports::js::Js;
 use crate::question::Record;
 use crate::read::{Failed, Served};
 use crate::text::{self, Units};
+use crate::turn::TurnBody;
 use crate::walk::Held;
 
 pub(crate) struct Codex;
@@ -68,6 +70,11 @@ impl Side for Codex {
 
     fn read_turn(&self, file: &str, question: (u64, u64), body: Option<(u64, u64)>) -> std::result::Result<crate::read::TurnRead, Failed> {
         cold::turn(file, question, body)
+    }
+
+    fn turn_body(&self, file: &str, lines: Vec<String>) -> TurnBody {
+        crate::seams::before_turn_assembly(file);
+        TurnBody::Blocks(turn::blocks(lines, self.dispatches()))
     }
 
     fn full_text(&self, file: &str, needle: &[u16], turns: &[crate::search::Turn]) -> std::result::Result<crate::search::Found, Failed> {

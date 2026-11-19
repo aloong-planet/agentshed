@@ -13,6 +13,8 @@ import { tmpdir } from 'node:os'
 import { decodeAppError } from '@shared/errors'
 import { zstdCompressSync } from 'node:zlib'
 import { sourceIdentity, questionRevision, recordFileBytes, readSessionRanges, readSessionTurn, regularTarget } from './source-identity'
+import { threadEngineModule } from './engine-module'
+import type { ObservedReadsSeam } from './testing/engine'
 
 it('refuses substituted symlinks and non-files while keeping a directory check distinct', () => {
   const root = mkdtempSync(join(tmpdir(), 'agentshed-identity-'))
@@ -67,8 +69,14 @@ it('reads a turn of a session, and any failure of its read is the code, with no 
   try {
     const file = join(root, 'source.jsonl')
     writeFileSync(file, 'first\nsecond\nthird\n')
-    // A side whose turn the read hands over as its lines: a Claude Code turn's are assembled into blocks
-    expect(await readSessionTurn('codex', file, { start: 0, end: 6 }, { start: 6, end: 19 })).toEqual({ question: 'first\n', body: { lines: ['second', 'third'] }, bytesRead: 19 })
+    // The body as the read kept it, through the observed-reads seam: the module assembles a Codex turn's into blocks
+    const seam = threadEngineModule() as ObservedReadsSeam
+    seam.seamObserveTurnReadsOf(file, true)
+    try {
+      expect(await readSessionTurn('codex', file, { start: 0, end: 6 }, { start: 6, end: 19 })).toEqual({ question: 'first\n', body: { keptLines: ['second', 'third'] }, bytesRead: 19 })
+    } finally {
+      seam.seamObserveTurnReadsOf(file, false)
+    }
     const locked = join(root, 'locked.jsonl')
     writeFileSync(locked, 'first\n')
     chmodSync(locked, 0o000)

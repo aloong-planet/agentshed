@@ -28,6 +28,11 @@
 //! - The line-limit seam: a test names a file and a limit, and the line reader holds that file's lines to the limit
 //!   instead of its own, so that a case can show a line one byte past the limit failing its file, and what a read of
 //!   such a line costs, without writing a file of hundreds of MiB.
+//! - The observed-reads seam: a test names a file, and each read of one of its turns hands over, for its body, the
+//!   lines the read kept — once the side's `kept_lines` has left out those the turn does not hold — in place of the
+//!   body the side makes of them, so that a case can hold what a read kept to what it should, of a side whose turns the
+//!   module assembles as of any other. It observes the read: it is not the lines a side whose turns TypeScript assembles
+//!   hands over (`TurnBody::Lines`), and owes that path nothing.
 //! - The lowercase seam: a test lowers a text by the rule the full-text search's snippets lower strings by, so that a
 //!   test can hold it to JavaScript's `toLowerCase` over every code point (full-text.test.ts).
 //! - The JSON string seam: a test reads a text as one string value through the reader every line is read by, so that
@@ -352,6 +357,29 @@ pub(crate) mod line_limit_seam {
 
     pub(super) fn of(file: &str) -> Option<usize> {
         LIMITS.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).iter().find(|(named, _)| named == file).map(|&(_, limit)| limit)
+    }
+}
+
+#[cfg(feature = "test-seams")]
+pub(crate) mod observed_reads_seam {
+    use std::sync::Mutex;
+
+    /// Each file named; one for the whole process, as the module's code is shared by every thread, and keyed by file, as
+    /// the tests of one process share it
+    static OBSERVED: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+    /// Has every turn read of `file` from now on hand over the lines it kept, or, given false, the body again
+    pub(crate) fn observe(file: String, observed: bool) {
+        let mut named = OBSERVED.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        named.retain(|named| *named != file);
+        if observed {
+            named.push(file);
+        }
+    }
+
+    /// Whether the turn reads of `file` hand over the lines they kept
+    pub(crate) fn observes(file: &str) -> bool {
+        OBSERVED.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).iter().any(|named| named == file)
     }
 }
 

@@ -104,6 +104,13 @@ mod seam {
         seams::line_limit_seam::limit(file, limit);
     }
 
+    /// Has every read of one of `file`'s turns from now on hand over, for its body, the lines the read kept, in place of
+    /// the body its side makes of them, or, given false, the body again (`seams.rs`)
+    #[napi(catch_unwind)]
+    pub fn seam_observe_turn_reads_of(file: String, observed: bool) {
+        seams::observed_reads_seam::observe(file, observed);
+    }
+
     /// Lowers `text` by the rule the full-text search's snippets lower strings by, `toLowerCase`'s (`seams.rs`)
     #[napi(catch_unwind)]
     pub fn seam_to_lower_case(text: napi::bindgen_prelude::Utf16String) -> napi::bindgen_prelude::Utf16String {

@@ -43,9 +43,6 @@ import type { TurnBlock } from '@shared/domain'
 const TS = '2026-08-01T10:00:00.000Z'
 const AT = Date.parse(TS)
 
-const blocks = (side: 'codex', objs: unknown[]): TurnBlock[] =>
-  turnBlocks(side, objs.map((o) => JSON.stringify(o)))
-
 /** The blocks a turn read handed over of a side whose turns the engine module assembles */
 function blocksOf(read: TurnRead): TurnBlock[] {
   if (read.body === null || !('blocks' in read.body)) throw new Error('the read handed over no blocks')
@@ -59,6 +56,14 @@ const claudeTurn = (lines: string[]): Promise<TurnBlock[]> =>
 
 /** `claudeTurn` of the lines `objs` written as JSON */
 const claudeBlocks = (objs: unknown[]): Promise<TurnBlock[]> => claudeTurn(objs.map((o) => JSON.stringify(o)))
+
+/** A Codex turn whose body is `lines`, written as a rollout of its own and read whole by the engine module, which
+ * assembles its blocks, as the session page reads a turn */
+const codexTurn = (lines: string[]): Promise<TurnBlock[]> =>
+  withFile(lines.map((l) => `${l}\n`).join(''), async (file) => blocksOf(await readTurnOf('codex', file, { start: 0, end: 0 }, { start: 0, end: statSync(file).size })))
+
+/** `codexTurn` of the lines `objs` written as JSON */
+const codexBlocks = (objs: unknown[]): Promise<TurnBlock[]> => codexTurn(objs.map((o) => JSON.stringify(o)))
 
 // ── Claude line builders ──
 const cA = (content: unknown[], extra: Record<string, unknown> = {}): unknown => ({
@@ -485,8 +490,8 @@ const xEvent = (payload: Record<string, unknown>): unknown => ({ type: 'event_ms
 const xRI = (payload: Record<string, unknown>): unknown => ({ type: 'response_item', timestamp: TS, payload })
 
 describe('Codex tool blocks (paired by call_id; both the input and arguments fields)', () => {
-  test('both custom_tool_call.input and function_call.arguments are honoured; outputs pair by call_id', () => {
-    const bs = blocks('codex', [
+  test('both custom_tool_call.input and function_call.arguments are honoured; outputs pair by call_id', async () => {
+    const bs = await codexBlocks([
       xRI({ type: 'custom_tool_call', id: 'r1', call_id: 'c1', name: 'exec', input: 'ls -la', status: 'completed' }),
       xRI({ type: 'custom_tool_call_output', call_id: 'c1', output: '3 files' }),
       xRI({ type: 'function_call', id: 'r2', call_id: 'c2', name: 'wait', arguments: '{"ms":100}' }),
@@ -504,8 +509,8 @@ describe('Codex tool blocks (paired by call_id; both the input and arguments fie
     expect(t3.output).toBeNull()
   })
 
-  test('spawn_agent yields a sub block: the unlinked label, with the sub-thread unattributed (ruled 2026-08-06)', () => {
-    const bs = blocks('codex', [
+  test('spawn_agent yields a sub block: the unlinked label, with the sub-thread unattributed (ruled 2026-08-06)', async () => {
+    const bs = await codexBlocks([
       xRI({ type: 'function_call', id: 'r1', call_id: 'c1', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"t1"}' }),
       xRI({ type: 'function_call_output', call_id: 'c1', output: '{"agent_id":"x"}' })
     ])
@@ -520,23 +525,23 @@ describe('Codex tool blocks (paired by call_id; both the input and arguments fie
 })
 
 describe('Codex reasoning blocks (reasoning.summary is a plaintext sub-heading; the body is encrypted and unobtainable)', () => {
-  test('a non-empty summary yields a reason block; an empty array yields none (64% are empty in the full enumeration)', () => {
-    const bs = blocks('codex', [
+  test('a non-empty summary yields a reason block; an empty array yields none (64% are empty in the full enumeration)', async () => {
+    const bs = await codexBlocks([
       xRI({ type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: '**compare the directories first**' }, { type: 'summary_text', text: 'then look at the differences' }], encrypted_content: 'gAAA…' }),
       xRI({ type: 'reasoning', id: 'r2', summary: [], encrypted_content: 'gAAA…' })
     ])
     expect(bs).toEqual([{ kind: 'reason', at: AT, titles: ['**compare the directories first**', 'then look at the differences'] }])
   })
 
-  test('event_msg/agent_reasoning is a mirror and yields no block (to avoid double counting)', () => {
-    expect(blocks('codex', [xEvent({ type: 'agent_reasoning', text: 'sub-heading' })])).toEqual([])
+  test('event_msg/agent_reasoning is a mirror and yields no block (to avoid double counting)', async () => {
+    expect(await codexBlocks([xEvent({ type: 'agent_reasoning', text: 'sub-heading' })])).toEqual([])
   })
 })
 
 describe('the Codex display allow-list and unknown traces', () => {
-  test('known noise leaves no trace: token_count / task_started / turn_context / world_state / the double-write mirrors', () => {
+  test('known noise leaves no trace: token_count / task_started / turn_context / world_state / the double-write mirrors', async () => {
     expect(
-      blocks('codex', [
+      await codexBlocks([
         xEvent({ type: 'token_count', info: {} }),
         xEvent({ type: 'task_started' }),
         xEvent({ type: 'thread_settings_applied' }),
@@ -548,11 +553,11 @@ describe('the Codex display allow-list and unknown traces', () => {
     ).toEqual([])
   })
 
-  test('a paginated turn: prose comes from the completed-item agent message, the item mirrors and the paginated top-level types leave no block and no trace (spec C8)', () => {
+  test('a paginated turn: prose comes from the completed-item agent message, the item mirrors and the paginated top-level types leave no block and no trace (spec C8)', async () => {
     // The item types come from the full enumeration of 2026-09-10 (60245 completed-item events); none but
     // the agent message yields a block — the tool renders once, from its response_item record, and the
     // MCP and web-search items render nothing on either format (a stated gap, spec C8)
-    const bs = blocks('codex', [
+    const bs = await codexBlocks([
       xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'Reasoning', id: 'i', summary_text: [], raw_content: [] }, started_at_ms: 1, completed_at_ms: 1 }),
       xRI({ type: 'custom_tool_call', call_id: 'c1', name: 'exec', input: 'ls' }),
       xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'CommandExecution', id: 'i', command: 'ls', status: 'completed' }, started_at_ms: 1, completed_at_ms: 1 }),
@@ -579,8 +584,8 @@ describe('the Codex display allow-list and unknown traces', () => {
     ])
   })
 
-  test('a non-string type is named by its JSON at every level, not as [object Object]', () => {
-    const bs = blocks('codex', [
+  test('a non-string type is named by its JSON at every level, not as [object Object]', async () => {
+    const bs = await codexBlocks([
       { type: { v: 1 }, timestamp: TS },
       xEvent({ type: ['e'] }),
       xEvent({ type: 'item_completed', item: { type: { i: 2 } } }),
@@ -591,8 +596,8 @@ describe('the Codex display allow-list and unknown traces', () => {
     ])
   })
 
-  test('unknown types at all three levels leave a trace: top level / the event_msg payload / the response_item payload', () => {
-    const bs = blocks('codex', [
+  test('unknown types at all three levels leave a trace: top level / the event_msg payload / the response_item payload', async () => {
+    const bs = await codexBlocks([
       { type: 'brand_new_top', timestamp: TS },
       xEvent({ type: 'shiny_event' }),
       xRI({ type: 'shiny_item' })
@@ -603,10 +608,199 @@ describe('the Codex display allow-list and unknown traces', () => {
   })
 })
 
+describe('what a Codex call shows', () => {
+  const call = (fields: Record<string, unknown>): unknown => xRI({ type: 'function_call', name: 'exec', ...fields })
+
+  test('its input, or its arguments when the input is null or absent: a string as written, any other value as indented JSON, none as nothing', async () => {
+    const bs = await codexBlocks([
+      call({ input: null, arguments: 'from the arguments' }),
+      call({ arguments: 'no input' }),
+      call({ input: false, arguments: 'not taken' }),
+      call({ input: 0, arguments: 'not taken' }),
+      call({ input: { cmd: 'ls', args: ['-l'] }, arguments: 'not taken' }),
+      call({ arguments: { q: 1 } }),
+      call({ input: null }),
+      call({})
+    ])
+    expect(bs.map((b) => b.kind === 'tool' && [b.input, b.summary])).toEqual([
+      ['from the arguments', 'from the arguments'],
+      ['no input', 'no input'],
+      ['false', 'false'],
+      ['0', '0'],
+      ['{\n  "cmd": "ls",\n  "args": [\n    "-l"\n  ]\n}', '{ "cmd": "ls", "args": [ "-l" ] }'],
+      ['{\n  "q": 1\n}', '{ "q": 1 }'],
+      ['', ''],
+      ['', '']
+    ])
+  })
+
+  test('the tool it names, or its type when it names none by a string', async () => {
+    const bs = await codexBlocks([
+      xRI({ type: 'custom_tool_call', input: 'i' }),
+      xRI({ type: 'function_call', name: 7, arguments: 'a' }),
+      xRI({ type: 'tool_search_call', name: null, arguments: 'q' })
+    ])
+    expect(bs.map((b) => b.kind === 'tool' && b.name)).toEqual(['custom_tool_call', 'function_call', 'tool_search_call'])
+  })
+
+  test('what it returned: the output of any of the three output types whose call_id is the one the call was last made with, the last of them, shown as an input is', async () => {
+    const out = (fields: Record<string, unknown>): unknown => xRI({ type: 'function_call_output', ...fields })
+    const bs = await codexBlocks([
+      out({ call_id: 'early', output: 'before its call' }),
+      call({ name: 'a', call_id: 'early' }),
+      call({ name: 'b', call_id: 'c1' }),
+      xRI({ type: 'custom_tool_call_output', call_id: 'c1', output: { lines: 2 } }),
+      call({ name: 'c', call_id: 'c2' }),
+      out({ call_id: 'c2', output: 'first' }),
+      out({ call_id: 'c2', output: 'second' }),
+      call({ name: 'd', call_id: 'c3' }),
+      call({ name: 'e', call_id: 'c3' }),
+      out({ call_id: 'c3', output: 'to the call made last' }),
+      call({ name: 'f' }),
+      out({ output: 'no id' }),
+      call({ name: 'g', call_id: 7 }),
+      out({ call_id: 7, output: 'an id that is no string' }),
+      out({ call_id: 'nobody', output: 'an id no call was made with' }),
+      call({ name: 'h', call_id: 'c4' }),
+      xRI({ type: 'tool_search_output', call_id: 'c4', output: null }),
+      call({ name: 'i', call_id: 'c5' }),
+      out({ call_id: 'c5' }),
+      call({ name: 'j', call_id: 'c6' }),
+      out({ call_id: 'c6', output: 42 }),
+      xRI({ type: 'custom_tool_call', name: 'spawn_agent', call_id: 's1', input: 'the task' }),
+      xRI({ type: 'custom_tool_call_output', call_id: 's1', output: { agent_id: 'x' } })
+    ])
+    expect(bs.map((b) => (b.kind === 'tool' ? [b.name, b.output] : b.kind === 'sub' ? [b.name, b.prompt, b.result] : b.kind))).toEqual([
+      ['a', null],
+      ['b', '{\n  "lines": 2\n}'],
+      ['c', 'second'],
+      ['d', null],
+      ['e', 'to the call made last'],
+      ['f', null],
+      ['g', null],
+      ['h', ''],
+      ['i', ''],
+      ['j', '42'],
+      ['spawn_agent', 'the task', '{\n  "agent_id": "x"\n}']
+    ])
+  })
+
+  test('a payload type every object answers to, __proto__ or constructor say, is no output type: it is traced, and fills in no call (spec C8)', async () => {
+    const bs = await codexBlocks([
+      call({ call_id: 'c1', arguments: 'ls' }),
+      xRI({ type: '__proto__', call_id: 'c1', output: 'not an output' }),
+      xRI({ type: 'constructor', call_id: 'c1', output: 'not an output' }),
+      xRI({ type: 'toString' })
+    ])
+    expect(bs).toEqual([
+      { kind: 'tool', at: AT, name: 'exec', summary: 'ls', input: 'ls', output: null, truncated: false },
+      { kind: 'unknown', count: 3, types: ['response_item/__proto__', 'response_item/constructor', 'response_item/toString'] }
+    ])
+  })
+})
+
+describe('Codex prose and reasoning', () => {
+  // White space as JavaScript's trim takes it, a byte order mark and an ideographic space among it
+  const blank = String.fromCharCode(0x20, 0xfeff, 0x0a, 0x3000, 0xa0)
+
+  test('an agent message is a text block as written, unless it is no string or only white space', async () => {
+    const bs = await codexBlocks([
+      xEvent({ type: 'agent_message', message: blank }),
+      xEvent({ type: 'agent_message', message: 7 }),
+      xEvent({ type: 'agent_message' }),
+      xEvent({ type: 'agent_message', message: ' as written\n' })
+    ])
+    expect(bs).toEqual([{ kind: 'text', role: 'assistant', at: AT, body: ' as written\n' }])
+  })
+
+  test("a completed agent message is its content's texts joined by a blank line, but those only white space, no string, or no object's", async () => {
+    const item = (content: unknown): string => JSON.stringify(xEvent({ type: 'item_completed', item: { type: 'AgentMessage', content } }))
+    const bs = await codexTurn([
+      item('no array'),
+      item([{ type: 'Text', text: 'one' }, 'a string', ['text'], { text: 3 }, { text: blank }, { type: 'Text', text: 'two' }]),
+      item([{ text: blank }]),
+      `{"type":"event_msg","timestamp":"${TS}","payload":{"type":"item_completed","item":{"type":"AgentMessage","content":[{"text":"first","text":"last"}]}}}`
+    ])
+    expect(bs).toEqual([
+      { kind: 'text', role: 'assistant', at: AT, body: 'one\n\ntwo' },
+      { kind: 'text', role: 'assistant', at: AT, body: 'last' }
+    ])
+  })
+
+  test("a reasoning's sub-headings are its summary's texts in order, but those only white space, no string, or no object's", async () => {
+    const bs = await codexBlocks([
+      xRI({ type: 'reasoning', summary: 'no array' }),
+      xRI({ type: 'reasoning', summary: [{ text: 'first' }, 'a string', { text: null }, { text: blank }, { type: 'summary_text', text: 'second' }] }),
+      xRI({ type: 'reasoning', summary: [{ text: blank }] }),
+      xRI({ type: 'reasoning' })
+    ])
+    expect(bs).toEqual([{ kind: 'reason', at: AT, titles: ['first', 'second'] }])
+  })
+})
+
+describe('a Codex line as the turn reads it', () => {
+  test('a payload or an item that is no object has no type, traced as undefined under what carries it, as a line that is an array is; of a repeated type the last counts', async () => {
+    const bs = await codexTurn([
+      JSON.stringify({ type: 'event_msg', timestamp: TS, payload: 'no object' }),
+      JSON.stringify({ type: 'response_item', timestamp: TS }),
+      JSON.stringify({ type: 'response_item', timestamp: TS, payload: [{ type: 'function_call', name: 'exec', arguments: 'ls' }] }),
+      JSON.stringify(xEvent({ type: 'item_completed', item: ['AgentMessage'] })),
+      JSON.stringify(['event_msg', { type: 'agent_message', message: 'in an array' }]),
+      `{"type":"brand_new","type":"event_msg","timestamp":"${TS}","payload":{"type":"task_started"}}`,
+      `{"type":"event_msg","type":"brand_new","timestamp":"${TS}"}`
+    ])
+    expect(bs).toEqual([
+      { kind: 'unknown', count: 6, types: ['event_msg/undefined', 'response_item/undefined', 'item_completed/undefined', 'undefined', 'brand_new'] }
+    ])
+  })
+
+  test('a line JSON.parse refuses, or one holding no object or array, gives nothing and leaves the others as they are', async () => {
+    const bs = await codexTurn(['{ bad line', '"a string"', '42', 'null', 'true', '', '   ', JSON.stringify(xEvent({ type: 'agent_message', message: 'kept' }))])
+    expect(bs).toEqual([{ kind: 'text', role: 'assistant', at: AT, body: 'kept' }])
+  })
+
+  test('of a repeated payload the last counts: one that is no object leaves the line none', async () => {
+    const bs = await codexTurn([
+      `{"type":"event_msg","timestamp":"${TS}","payload":{"type":"agent_message","message":"dropped"},"payload":"no object"}`,
+      `{"type":"event_msg","timestamp":"${TS}","payload":"no object","payload":{"type":"agent_message","message":"kept"}}`
+    ])
+    expect(bs).toEqual([
+      { kind: 'text', role: 'assistant', at: AT, body: 'kept' },
+      { kind: 'unknown', count: 1, types: ['event_msg/undefined'] }
+    ])
+  })
+
+  test("a block's time is its line's own timestamp, none when the line has no string one that reads as a date", async () => {
+    const say = (line: Record<string, unknown>, message: string, payload: Record<string, unknown> = {}): string =>
+      JSON.stringify({ type: 'event_msg', ...line, payload: { type: 'agent_message', message, ...payload } })
+    const bs = await codexTurn([say({}, 'a payload timed', { timestamp: TS }), say({ timestamp: AT }, 'a number'), say({ timestamp: 'no date' }, 'no date'), say({ timestamp: TS }, 'timed')])
+    expect(bs.map((b) => b.kind === 'text' && [b.body, b.at])).toEqual([['a payload timed', null], ['a number', null], ['no date', null], ['timed', AT]])
+  })
+
+  test('a text holding a lone surrogate keeps that code unit, and a call id holding one pairs by it', async () => {
+    // JSON escapes of two lone surrogates, as a line writes them
+    const lone = '\\' + 'ud800'
+    const other = '\\' + 'ud801'
+    const unit = String.fromCharCode(0xd800)
+    const ri = (payload: string): string => `{"type":"response_item","timestamp":"${TS}","payload":${payload}}`
+    const bs = await codexTurn([
+      `{"type":"event_msg","timestamp":"${TS}","payload":{"type":"agent_message","message":"a${lone}b"}}`,
+      ri(`{"type":"function_call","name":"exec","call_id":"c${lone}","arguments":"x${lone}"}`),
+      ri(`{"type":"function_call","name":"other","call_id":"c${other}","arguments":"y"}`),
+      ri(`{"type":"function_call_output","call_id":"c${lone}","output":"o${lone}"}`)
+    ])
+    expect(bs).toEqual([
+      { kind: 'text', role: 'assistant', at: AT, body: `a${unit}b` },
+      { kind: 'tool', at: AT, name: 'exec', summary: `x${unit}`, input: `x${unit}`, output: `o${unit}`, truncated: false },
+      { kind: 'tool', at: AT, name: 'other', summary: 'y', input: 'y', output: null, truncated: false }
+    ])
+  })
+})
+
 describe('bad lines and side attribution (ticket 05 behaviour preserved)', () => {
   test('a bad line only hurts itself; the sides do not cross over', async () => {
     expect(await claudeTurn([JSON.stringify(cA([{ type: 'text', text: 'good line' }])), '{ bad line'])).toHaveLength(1)
-    expect(blocks('codex', [cA([{ type: 'text', text: 'claude line' }])])).toEqual([{ kind: 'unknown', count: 1, types: ['assistant'] }])
+    expect(await codexBlocks([cA([{ type: 'text', text: 'claude line' }])])).toEqual([{ kind: 'unknown', count: 1, types: ['assistant'] }])
   })
 })
 
@@ -643,6 +837,18 @@ async function indexFile(file: string): Promise<QuestionRec[]> {
   return (await runParseJob({ kind: 'claude', file, projectKey: '', listed: true }))?.agg.questions ?? []
 }
 
+/** The question index the scan gives a Codex rollout, through the engine module */
+async function indexCodex(file: string): Promise<QuestionRec[]> {
+  const meta = { subagent: false, sessionId: null, parentId: null, forkedAt: null, paginated: false }
+  return (await runParseJob({ kind: 'codex', file, projectKey: '', meta, threadName: undefined }))?.agg.questions ?? []
+}
+
+/** A Codex turn of `file` by its question index record, read as the session page reads it: the blocks the engine module
+ * assembled */
+async function codexTurnOf(file: string, rec: QuestionRec): Promise<TurnBlock[]> {
+  return blocksOf(await readTurnOf('codex', file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] }))
+}
+
 const uLine = (t: string): string => JSON.stringify({ type: 'user', timestamp: TS, message: { role: 'user', content: t } })
 const aLine = (t: string): string => JSON.stringify(cA([{ type: 'text', text: t }]))
 
@@ -663,6 +869,29 @@ describe('the question index and the turn take the same tool calls as subagent d
     }
     const each = (kind: 'tool' | 'sub'): number[] => (kind === 'sub' ? [0, 1] : [1, 0])
     expect(judged).toEqual(NAMES.map(([name, kind]) => ({ name, counted: each(kind), shown: each(kind) })))
+  })
+
+  test('codex: a call of any of the three call types is counted as a subagent exactly when its turn shows it as one', async () => {
+    const CALLS: Array<[string, string | undefined, 'tool' | 'sub']> = [
+      ['function_call', 'spawn_agent', 'sub'],
+      ['custom_tool_call', 'spawn_agent', 'sub'],
+      ['tool_search_call', 'spawn_agent', 'sub'],
+      ['function_call', 'Spawn_agent', 'tool'],
+      ['function_call', 'spawn_agent ', 'tool'],
+      ['function_call', '', 'tool'],
+      ['function_call', undefined, 'tool']
+    ]
+    const judged: Array<{ type: string; name: string | undefined; counted: unknown; shown: unknown }> = []
+    for (const [type, name] of CALLS) {
+      const raw = [xEvent({ type: 'user_message', message: 'a question' }), xRI({ type, name, call_id: 'c1', arguments: '{}' })].map((o) => JSON.stringify(o)).join('\n') + '\n'
+      await withFile(raw, async (file) => {
+        const [rec] = await indexCodex(file)
+        const kinds = (await codexTurnOf(file, rec)).map((b) => b.kind)
+        judged.push({ type, name, counted: [rec[4], rec[5]], shown: [kinds.filter((k) => k === 'tool').length, kinds.filter((k) => k === 'sub').length] })
+      })
+    }
+    const each = (kind: 'tool' | 'sub'): number[] => (kind === 'sub' ? [0, 1] : [1, 0])
+    expect(judged).toEqual(CALLS.map(([type, name, kind]) => ({ type, name, counted: each(kind), shown: each(kind) })))
   })
 })
 

@@ -2,6 +2,8 @@
 // line in one pass that stops at the turn's end (session-view C2, #485). What it hands over is held to what the range
 // read gives the same ranges, decoded by Node (`readRanges`), which the turn read replaced: the question's text the
 // same, so that the revision tying a fetch to its question is unchanged, and the body's text split at its line feeds.
+// A Codex turn's body, which the module assembles, is seen as the read kept it through the observed-reads seam
+// (engine/src/seams.rs), but where a case reads the blocks.
 import { afterAll, afterEach, describe, expect, test, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -13,16 +15,26 @@ import { readRanges, type ByteRange } from './range-read'
 import { readColdRanges } from './cold-rollout'
 import { readTurn, type TurnRead } from './turn-read'
 import { threadEngineModule } from '../engine-module'
-import { TEST_ENGINE, type HoldSeam, type LineLimitSeam, type PanicSeam } from '../testing/engine'
+import { TEST_ENGINE, type HoldSeam, type LineLimitSeam, type ObservedBody, type ObservedReadsSeam, type PanicSeam } from '../testing/engine'
 
 const dir = mkdtempSync(join(tmpdir(), 'turn-read-'))
-afterAll(() => rmSync(dir, { recursive: true, force: true }))
+const observedReads = (): ObservedReadsSeam => threadEngineModule() as ObservedReadsSeam
+const observed: string[] = []
+afterAll(() => {
+  for (const file of observed.splice(0)) observedReads().seamObserveTurnReadsOf(file, false)
+  rmSync(dir, { recursive: true, force: true })
+})
 let files = 0
 
-/** A Codex rollout holding `content`, under a cold rollout's name and as its zstd stream when `cold` */
-function rolloutOf(content: Buffer, cold: boolean): string {
+/** A Codex rollout holding `content`, under a cold rollout's name and as its zstd stream when `cold`. Its turn reads hand
+ * over the lines they kept, through the observed-reads seam, or when `assembled` the blocks the module assembles. */
+function rolloutOf(content: Buffer, cold: boolean, assembled = false): string {
   const file = join(dir, `rollout-${files++}.jsonl${cold ? '.zst' : ''}`)
   writeFileSync(file, cold ? zstdCompressSync(content) : content)
+  if (!assembled) {
+    observedReads().seamObserveTurnReadsOf(file, true)
+    observed.push(file)
+  }
   return file
 }
 
@@ -79,8 +91,11 @@ function rollout(lines: Array<{ line: Buffer; question?: true }>): { content: Bu
   return { content: Buffer.concat(lines.flatMap(({ line }) => [line, Buffer.from('\n')])), turns }
 }
 
-/** The lines of the body a turn read handed over, of a side whose turns TypeScript assembles */
-const linesOf = (read: TurnRead): string[] | null => (read.body !== null && 'lines' in read.body ? read.body.lines : null)
+/** The lines of the body a turn read kept, as the observed-reads seam hands them over */
+const linesOf = (read: TurnRead): string[] | null => {
+  const body: object | null = read.body
+  return body !== null && 'keptLines' in body ? (body as ObservedBody).keptLines : null
+}
 
 /** The range read's text of a body split at its line feeds, the empty piece after a last line feed left off */
 const split = (text: string): string[] => {
@@ -246,10 +261,11 @@ describe('a turn read holds no allocation of the whole turn but a line of it (#4
       const module = { exports: {} }
       process.dlopen(module, process.argv[1])
       const [file, q, b] = [process.argv[2], JSON.parse(process.argv[3]), JSON.parse(process.argv[4])]
+      module.exports.seamObserveTurnReadsOf(file, true)
       const before = process.resourceUsage().maxRSS
       module.exports.readTurn('codex', file, q, b).then((read) => {
         const grewKiB = process.resourceUsage().maxRSS - before
-        console.log(JSON.stringify({ grewKiB, lines: read.lines.length, length: read.lines.reduce((n, l) => n + l.length, 0) }))
+        console.log(JSON.stringify({ grewKiB, lines: read.keptLines.length, length: read.keptLines.reduce((n, l) => n + l.length, 0) }))
       })`
     const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, file, JSON.stringify(question), JSON.stringify(body)], { encoding: 'utf8' })
     expect(run.stderr).toBe('')
@@ -302,6 +318,59 @@ describe('a Claude Code turn read, its blocks assembled, holds no allocation of 
   })
 })
 
+describe('a Codex turn read, its blocks assembled, holds no allocation of the whole turn but a line of it and its blocks (#496)', () => {
+  // As a Claude Code turn's (#494): the module holds the turn's lines and the blocks made of each as it is read and let
+  // go, and the main thread makes JavaScript's strings of the blocks. For these shapes the blocks hold nearly all of
+  // the text.
+  const MiB = 1024 * 1024
+  /** A line of a Codex rollout as `line` shapes it, but for the ordinal, so that its length is that of its fields */
+  const shaped = (type: string, payload: unknown): Buffer => Buffer.from(JSON.stringify({ timestamp: AT, type, payload }))
+  const call = (id: string): Buffer => shaped('response_item', { type: 'function_call', name: 'exec_command', arguments: '{"cmd":"cat log"}', call_id: id })
+  const output = (id: string, text: string): Buffer => shaped('response_item', { type: 'function_call_output', call_id: id, output: text })
+  /** The length of an output's text in a line of `size` bytes for the call `id`: the line less its shape around the text */
+  const textIn = (id: string, size: number): number => size - output(id, '').length
+  /** An output line of `size` bytes for the call `id` */
+  const outputOf = (id: string, size: number): Buffer => output(id, 'x'.repeat(textIn(id, size)))
+  const outputs = Array.from({ length: 62 }, (_, i) => [call(`call_${i}`), outputOf(`call_${i}`, MiB + 10_240)]).flat()
+  const shapes = [
+    {
+      shape: 'of call outputs in lines a little past a read',
+      lines: outputs,
+      // The call ids differ in length, and so do the shapes around the texts
+      expected: [62, Array.from({ length: 62 }, (_, i) => textIn(`call_${i}`, MiB + 10_240)).reduce((n, l) => n + l, 0)]
+    },
+    {
+      shape: 'of one answer in a line of half the limit and a little more',
+      lines: [shaped('event_msg', { type: 'agent_message', message: 'x'.repeat(32 * MiB + MiB / 2) })],
+      expected: [1, 32 * MiB + MiB / 2]
+    }
+  ]
+  test.each(shapes.flatMap((s) => [false, true].map((cold) => ({ ...s, cold }))))('a turn $shape grows a fresh process\'s peak by the text twice and a few MiB (cold $cold)', ({ lines, expected, cold }) => {
+    const { content, turns } = rollout([{ line: ask('q'), question: true }, ...lines.map((line) => ({ line }))])
+    const [{ question, body }] = turns
+    const bodyBytes = body.end - body.start
+    expect(bodyBytes).toBeGreaterThan(32 * MiB)
+    expect(bodyBytes).toBeLessThanOrEqual(64 * MiB)
+    const file = rolloutOf(content, cold, true)
+    // In a process of its own, so that the peak it reports is this read's alone
+    const script = `
+      const module = { exports: {} }
+      process.dlopen(module, process.argv[1])
+      const [file, q, b] = [process.argv[2], JSON.parse(process.argv[3]), JSON.parse(process.argv[4])]
+      const before = process.resourceUsage().maxRSS
+      module.exports.readTurn('codex', file, q, b).then((read) => {
+        const grewKiB = process.resourceUsage().maxRSS - before
+        const shown = read.blocks.reduce((n, b) => n + (b.kind === 'tool' ? b.output.length : b.body.length), 0)
+        console.log(JSON.stringify({ grewKiB, blocks: read.blocks.length, shown }))
+      })`
+    const run = spawnSync(process.execPath, ['-e', script, TEST_ENGINE.path, file, JSON.stringify(question), JSON.stringify(body)], { encoding: 'utf8' })
+    expect(run.stderr).toBe('')
+    const { grewKiB, blocks, shown } = JSON.parse(run.stdout) as { grewKiB: number; blocks: number; shown: number }
+    expect([blocks, shown]).toEqual(expected)
+    expect(grewKiB * 1024).toBeLessThan(2 * bodyBytes + 24 * MiB)
+  })
+})
+
 describe('a turn read that fails', () => {
   test('a panic while assembling the blocks of one Claude Code turn rejects that read alone: a read of another, started with it, is served', async () => {
     const { content, turns } = rollout([{ line: claudeAsk('q'), question: true }, { line: claudeSay('a') }])
@@ -312,6 +381,22 @@ describe('a turn read that fails', () => {
     seam.seamPanicWhileAssembling(hit)
     try {
       const [failed, spared] = await Promise.allSettled([readTurn('claude', hit, question, body), readTurn('claude', other, question, body)])
+      expect(failed.status === 'rejected' && String(failed.reason)).toMatch(/reading .* panicked/)
+      expect(spared.status === 'fulfilled' && spared.value.body).toEqual({ blocks: [{ kind: 'text', role: 'assistant', at: Date.parse(AT), body: 'a' }] })
+    } finally {
+      seam.seamPanicWhileAssembling(null)
+    }
+  })
+
+  test.each([false, true])('a panic while assembling the blocks of one Codex turn rejects that read alone: a read of another, started with it, is served (cold %s)', async (cold) => {
+    const { content, turns } = rollout([{ line: ask('q'), question: true }, { line: line('event_msg', { type: 'agent_message', message: 'a' }) }])
+    const [{ question, body }] = turns
+    const hit = rolloutOf(content, cold, true)
+    const other = rolloutOf(content, cold, true)
+    const seam = threadEngineModule() as PanicSeam
+    seam.seamPanicWhileAssembling(hit)
+    try {
+      const [failed, spared] = await Promise.allSettled([readTurn('codex', hit, question, body), readTurn('codex', other, question, body)])
       expect(failed.status === 'rejected' && String(failed.reason)).toMatch(/reading .* panicked/)
       expect(spared.status === 'fulfilled' && spared.value.body).toEqual({ blocks: [{ kind: 'text', role: 'assistant', at: Date.parse(AT), body: 'a' }] })
     } finally {

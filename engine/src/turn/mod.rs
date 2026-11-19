@@ -33,6 +33,9 @@ pub(crate) enum Block {
     Text { at: At, body: JsString },
     /// An assistant's thinking in plain text (`TurnThinkBlock`)
     Think { at: At, body: JsString },
+    /// A reasoning's plain-text sub-headings (`TurnReasonBlock`): its body is encrypted, never to be had (session-view
+    /// C6)
+    Reason { at: At, titles: Vec<JsString> },
     /// A tool call and what it returned (`TurnToolBlock`): `name` None for a call that names no tool, `output` None for
     /// one nothing was returned for
     Tool { at: At, name: Option<JsString>, summary: JsString, input: JsString, output: Option<JsString>, truncated: bool },

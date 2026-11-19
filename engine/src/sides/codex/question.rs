@@ -50,8 +50,8 @@ pub(super) fn shown(range: &str) -> Option<Units> {
 /// The three come from a full enumeration of the `response_item` types (278 files, 62,912 lines with a payload):
 /// message 10,311, reasoning 6,075, custom_tool_call 3,400, function_call 1,883, agent_message 54 and tool_search_call
 /// 25, each with its `*_output` counterpart. `tool_search_call` never appeared in a 120-file sample: it showed only
-/// when the whole set was read.
-const CALL_TYPES: [&str; 3] = ["custom_tool_call", "function_call", "tool_search_call"];
+/// when the whole set was read. A turn's blocks draw a call of these types as its tool, or its subagent (`turn.rs`).
+pub(super) const CALL_TYPES: [&str; 3] = ["custom_tool_call", "function_call", "tool_search_call"];
 
 /// The `function_call` name that dispatches a subagent (the real sample's namespace is `collaboration`)
 pub(super) const DISPATCH: &str = "spawn_agent";
