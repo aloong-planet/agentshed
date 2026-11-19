@@ -12,7 +12,7 @@ import { threadEngineModule } from '../engine-module'
 import type { HoldSeam, PanicSeam } from '../testing/engine'
 import { readColdRanges } from './cold-rollout'
 import { searchFullText } from './full-text'
-import { readRangeBuffers, type ByteRange } from './range-read'
+import type { ByteRange } from './range-read'
 import { searchQuestions } from './question-search'
 
 const dir = mkdtempSync(join(tmpdir(), 'question-search-'))
@@ -180,12 +180,13 @@ describe('the places a question search takes (session-view C2, D2b)', () => {
     expect(await Promise.all(reads.filter((_, k) => k !== 2 && k !== 3))).toEqual([ZEBRA, ZEBRA])
   }, HELD_CASE)
 
-  test('a plain file\'s question search never waits for a cold place, and runs on the thread pool the main process\'s reads of plain files run on: while four hold it, a file read waits (D2b)', async () => {
+  test('a plain file\'s question search never waits for a cold place, and runs on the thread pool the main process\'s reads of plain files run on, which a cold one\'s never takes: while four plain ones hold it, a file read waits (C2, D2b)', async () => {
     const cold = Array.from({ length: 4 }, () => rollout(true))
     const plain = Array.from({ length: 4 }, () => rollout(false))
     held([...cold, ...plain])
-    // Every cold place held, and every thread of the pool
-    const colds = cold.map((file) => readRangeBuffers(file, CODEX.questions))
+    // Every cold place held by a cold question search, and every thread of the pool by a plain one: a cold one that took
+    // a thread of the pool would keep a plain one from the gate
+    const colds = cold.map((file) => searchQuestions('codex', file, 'zebra', CODEX.questions))
     const plains = plain.map((file) => searchQuestions('codex', file, 'zebra', CODEX.questions))
     asked.push(Promise.allSettled([...colds, ...plains]))
     await expect.poll(() => seam().seamReadsHeld().sort(), AT_THE_GATE).toEqual([...cold, ...plain].sort())
@@ -195,6 +196,37 @@ describe('the places a question search takes (session-view C2, D2b)', () => {
     seam().seamReleaseReadsOf(plain[0])
     expect(await other).toEqual(CODEX.bytes)
     seam().seamReleaseReadsOf(null)
-    expect(await Promise.all(plains)).toEqual(Array(4).fill(ZEBRA))
+    expect(await Promise.all([...colds, ...plains])).toEqual(Array(8).fill(ZEBRA))
   }, HELD_CASE)
+})
+
+// A cold rollout's stream is decompressed once for every question a search asks for (session-view C2). The read panic
+// seam is named once the search's first read of the file waits at the hold seam's gate, which a read comes to after the
+// panic seam's check (engine/src/seams.rs, `before_range_read`): a second read of the file panics, and the search rejects.
+describe('how often a cold rollout\'s question search reads its stream (session-view C2)', () => {
+  test('once, however many questions it asks for', async () => {
+    const three = laid([
+      { line: codexLine('session_meta', { session_id: 's3', id: 's3', timestamp: AT, cwd: '/work/p', runtime_workspace_roots: [] }) },
+      { line: codexLine('event_msg', { type: 'user_message', message: 'where is the Zebra kept', images: [] }), question: true },
+      { line: codexLine('response_item', { type: 'message', id: 'm1', role: 'assistant', content: [{ type: 'output_text', text: 'past the giraffes' }], phase: 'final' }) },
+      { line: codexLine('event_msg', { type: 'user_message', message: 'no stripes here', images: [] }), question: true },
+      { line: codexLine('event_msg', { type: 'user_message', message: 'what does a zebra eat', images: [] }), question: true }
+    ])
+    const cold = rollout(true, three.bytes)
+    const seam = threadEngineModule() as HoldSeam & PanicSeam
+    seam.seamHoldReadsOf(cold)
+    try {
+      const search = searchQuestions('codex', cold, 'zebra', three.questions)
+      await expect.poll(() => seam.seamReadsHeld(), { timeout: 4000 }).toEqual([cold])
+      seam.seamPanicWhileReading(cold)
+      seam.seamReleaseReadsOf(cold)
+      expect(await search).toEqual([
+        { question: 0, text: 'where is the Zebra kept', hit: true },
+        { question: 2, text: 'what does a zebra eat', hit: true }
+      ])
+    } finally {
+      seam.seamPanicWhileReading(null)
+      seam.seamReleaseReadsOf(null)
+    }
+  })
 })
