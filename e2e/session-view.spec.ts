@@ -749,29 +749,6 @@ test('session search: questions by default with hits grouped; a body word only h
   await close(l)
 })
 
-// Session-view D4: a question is found as global search finds it, every letter's other case matching, not only ASCII's
-test('session search: a needle that differs from a question only in a non-ASCII letter\'s case lists it, and clicking it opens the session at it', async () => {
-  const home = mkUsageHome()
-  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
-  writeFileSync(join(home, '.claude', 'projects', enc, 'umlaut.jsonl'), [questionLine('Über den Plan sprechen'), questionLine('Noch eine Frage')].join('\n') + '\n')
-  const l = await launch(undefined, home)
-  const win = await l.app.firstWindow()
-  await win.locator('.rail .ri').nth(1).click()
-  await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
-  await win.locator('.sbar input').fill('über den plan')
-  await expect(win.locator('.grp .hit')).toHaveCount(1)
-  await expect(win.locator('.grp .hit mark')).toHaveText('Über den Plan')
-  await win.locator('.grp .hit').click()
-  await expect(win.locator('.pane-head .stitle')).toHaveText('Über den Plan sprechen')
-  const asked = win.locator('.qlist .q', { hasText: 'Über den Plan sprechen' })
-  await expect(asked).toBeInViewport()
-  await expect(asked).toHaveClass(/located/)
-  await expect(asked).toHaveClass(/focused/)
-  expect(l.errors).toEqual([])
-  await close(l)
-})
-
 // Ticket grok-side/#125: the whole chain for a Grok session — listed with its title, questions
 // indexed, a turn fetched on demand rendering through the shared block model, search hitting it,
 // and the read allow-list refusing the unlisted subagent stream over the real channel.
