@@ -33,6 +33,11 @@
 //!   body the side makes of them, so that a case can hold what a read kept to what it should, of a side whose turns the
 //!   module assembles as of any other. It observes the read: it is not the lines a side whose turns TypeScript assembles
 //!   hands over (`TurnBody::Lines`), and owes that path nothing.
+//! - The line-strings seam: a test reads a line through the read of a turn's lines every side's rules go through
+//!   (`turn::read_lines`), with rules of the seam's own that take each member of the line's object that is a string,
+//!   and sees each string as made, and whether it was made in the line's own buffer (`json::take`), so that a case can
+//!   hold the read to making the longest that is well formed there and copying the others (session-view C2). Where
+//!   the string lies cannot say so: the allocator may move the buffer as it gives room back.
 //! - The lowercase seam: a test lowers a text by the rule the full-text search's snippets lower strings by, so that a
 //!   test can hold it to JavaScript's `toLowerCase` over every code point (full-text.test.ts).
 //! - The JSON string seam: a test reads a text as one string value through the reader every line is read by, so that
@@ -406,6 +411,81 @@ pub(crate) mod observed_reads_seam {
     /// Whether the turn reads of `file` hand over the lines they kept
     pub(crate) fn observes(file: &str) -> bool {
         OBSERVED.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).iter().any(|named| named == file)
+    }
+}
+
+/// Called by `json::take` once it has made a string in a line's own buffer: in a build made for tests, it notes the
+/// string while the line-strings seam reads a line on this thread, and otherwise does nothing.
+pub(crate) fn taken(made: &str) {
+    #[cfg(feature = "test-seams")]
+    line_strings_seam::note(made);
+    #[cfg(not(feature = "test-seams"))]
+    let _ = made;
+}
+
+#[cfg(feature = "test-seams")]
+pub(crate) mod line_strings_seam {
+    use std::cell::RefCell;
+
+    use crate::json::{self, Str};
+    use crate::text::{JsString, Units};
+    use crate::turn::{self, At, Rules};
+
+    thread_local! {
+        /// Where each string `json::take` made lies, while the seam reads a line on this thread; None otherwise
+        static TAKEN: RefCell<Option<Vec<usize>>> = const { RefCell::new(None) };
+    }
+
+    /// Notes `made`, a string `json::take` made, while the seam reads a line on this thread
+    pub(crate) fn note(made: &str) {
+        TAKEN.with(|taken| {
+            if let Some(taken) = taken.borrow_mut().as_mut() {
+                taken.push(made.as_ptr() as usize);
+            }
+        });
+    }
+
+    /// Rules that take each member of a line's object that is a string, and keep each as made
+    #[derive(Default)]
+    struct Members {
+        made: Vec<(Units, bool)>,
+    }
+
+    impl Rules for Members {
+        /// How many strings the line gave
+        type Given = usize;
+
+        fn given<'a>(&mut self, text: &'a str, strings: &mut Vec<Str<'a>>) -> Option<(usize, At)> {
+            let read = json::line(text, |r| {
+                r.members(|_, r| {
+                    strings.extend(r.string_or_skip()?);
+                    Ok(())
+                })
+            });
+            matches!(read, Ok(json::Line::Object(()))).then_some((strings.len(), At::None))
+        }
+
+        fn apply(&mut self, given: usize, _: At, strings: &mut [Option<JsString>]) {
+            for i in 0..given {
+                let s = turn::made(strings, i);
+                let at = match &s {
+                    JsString::Utf8(t) => Some(t.as_ptr() as usize),
+                    JsString::Units(_) => None,
+                };
+                let taken = TAKEN.with(|taken| taken.borrow().as_ref().is_some_and(|taken| at.is_some_and(|at| taken.contains(&at))));
+                self.made.push((s.units().collect(), taken));
+            }
+        }
+    }
+
+    /// Each member of `line`'s object that is a string, as the read of a turn's lines makes it: its code units, and
+    /// whether it was made in the line's own buffer
+    pub(crate) fn made(line: String) -> Vec<(Units, bool)> {
+        TAKEN.with(|taken| *taken.borrow_mut() = Some(Vec::new()));
+        let mut members = Members::default();
+        turn::read_lines(vec![line], &mut members);
+        TAKEN.with(|taken| *taken.borrow_mut() = None);
+        members.made
     }
 }
 

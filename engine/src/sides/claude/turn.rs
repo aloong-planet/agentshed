@@ -183,38 +183,11 @@ where
     f(&mut Reader::new(text)).unwrap_or_default()
 }
 
-/// The blocks of a turn whose lines are `lines`, each line let go once it is read; `dispatches` the tool names whose
-/// call dispatches a subagent.
-///
-/// A line is read in two steps. While its text is read, what it gives the turn is noted with its strings still the
-/// line's (`Given`). Then the strings are made: the longest that is well formed in the line's own buffer, which it then
-/// holds alone (`json::take`), the others copied. That longest string, a tool's long return say, is so held once, in
-/// the line read or in the block that takes it as it is, never in both (session-view C2). Anything else a block is
-/// given from the line is a copy held beside the line until the line is let go: a tool's input or a dispatch's prompt,
-/// made as the line is read, say, or texts joined into one.
+/// The blocks of a turn whose lines are `lines`, each line let go once it is read (`turn::read_lines`), a tool's long
+/// return held once; `dispatches` the tool names whose call dispatches a subagent
 pub(super) fn blocks(lines: Vec<String>, dispatches: &[&str]) -> Vec<Block> {
-    let mut turn = Turn::default();
-    for line in lines {
-        let (given, at, mut strings, longest) = {
-            let parsed = match read(&line) {
-                Ok(json::Line::Object(l)) => l,
-                // An array has none of an object's fields
-                Ok(json::Line::Array) => Line::default(),
-                Ok(json::Line::Other) | Err(_) => continue,
-            };
-            let at = turn::at_of(parsed.timestamp);
-            let mut strings: Vec<Str<'_>> = Vec::new();
-            let given = turn.given(&parsed, &at, dispatches, &mut strings);
-            let longest = (0..strings.len()).filter(|&i| strings[i].is_well_formed()).max_by_key(|&i| strings[i].written_len());
-            let span = longest.map(|i| (i, strings[i].span(&line)));
-            let made: Vec<Option<JsString>> = strings.iter().enumerate().map(|(i, s)| (Some(i) != longest).then(|| s.text())).collect();
-            (given, at, made, span)
-        };
-        if let Some((i, span)) = longest {
-            strings[i] = Some(JsString::Utf8(json::take(line, span)));
-        }
-        turn.apply(given, at, &mut strings);
-    }
+    let mut turn = Turn { dispatches, ..Turn::default() };
+    turn::read_lines(lines, &mut turn);
     let mut out = turn.out;
     out.extend(turn.unknowns.block());
     out
@@ -242,30 +215,82 @@ enum Returns {
     Made(JsString),
 }
 
-/// A string of the line's, made: each is taken once
-fn made(strings: &mut [Option<JsString>], i: usize) -> JsString {
-    strings.get_mut(i).and_then(Option::take).unwrap_or_default()
-}
-
 /// A turn's blocks as its lines are read, with the calls a return pairs with by id
 #[derive(Default)]
-struct Turn {
+struct Turn<'d> {
+    /// The tool names whose call dispatches a subagent
+    dispatches: &'d [&'d str],
     out: Vec<Block>,
     tools: HashMap<JsString, usize>,
     subs: HashMap<JsString, usize>,
     unknowns: Unknowns,
 }
 
-impl Turn {
+impl turn::Rules for Turn<'_> {
+    type Given = Vec<Given>;
+
+    fn given<'a>(&mut self, text: &'a str, strings: &mut Vec<Str<'a>>) -> Option<(Vec<Given>, At)> {
+        let line = match read(text) {
+            Ok(json::Line::Object(l)) => l,
+            // An array has none of an object's fields
+            Ok(json::Line::Array) => Line::default(),
+            Ok(json::Line::Other) | Err(_) => return None,
+        };
+        let at = turn::at_of(line.timestamp);
+        let given = self.gives(&line, &at, strings);
+        Some((given, at))
+    }
+
+    fn apply(&mut self, given: Vec<Given>, at: At, strings: &mut [Option<JsString>]) {
+        for g in given {
+            match g {
+                Given::Think(i) => {
+                    let body = turn::made(strings, i);
+                    if !body.is_blank() {
+                        self.out.push(Block::Think { at: at.clone(), body });
+                    }
+                }
+                Given::Prose(texts) => {
+                    let body = JsString::join(texts.into_iter().map(|i| turn::made(strings, i)).collect(), "\n");
+                    if !body.is_blank() {
+                        self.out.push(Block::Text { at: at.clone(), body });
+                    }
+                }
+                Given::Call(id, block) => {
+                    let calls = if matches!(block, Block::Sub { .. }) { &mut self.subs } else { &mut self.tools };
+                    calls.insert(id, self.out.len());
+                    self.out.push(block);
+                }
+                Given::Return(at, returns) => {
+                    let text = match returns {
+                        Returns::String(i) => turn::made(strings, i),
+                        Returns::Lines(texts) => JsString::join(texts.into_iter().map(|i| turn::made(strings, i)).collect(), "\n"),
+                        Returns::Made(text) => text,
+                    };
+                    match self.out.get_mut(at) {
+                        Some(Block::Tool { output, truncated, .. }) => {
+                            *truncated = text.includes(TRUNCATED_MARK);
+                            *output = Some(text);
+                        }
+                        Some(Block::Sub { result, .. }) => *result = Some(text),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Turn<'_> {
     /// What `line` gives the turn, each string it gives by its place in `strings`
-    fn given<'a>(&mut self, line: &Line<'a>, at: &At, dispatches: &[&str], strings: &mut Vec<Str<'a>>) -> Vec<Given> {
+    fn gives<'a>(&mut self, line: &Line<'a>, at: &At, strings: &mut Vec<Str<'a>>) -> Vec<Given> {
         if line.sidechain {
             return Vec::new();
         }
         let kind = line.kind.map(|raw| reread(raw, turn::label)).unwrap_or_else(turn::undefined_label);
         let is = |name: &str| matches!(&kind, JsString::Utf8(k) if k.as_str() == name);
         if is("assistant") {
-            return line.segments.as_deref().map_or_else(Vec::new, |s| assistant(s, at, dispatches, strings));
+            return line.segments.as_deref().map_or_else(Vec::new, |s| assistant(s, at, self.dispatches, strings));
         }
         if is("user") {
             return line.segments.as_deref().map_or_else(Vec::new, |s| self.user(s, strings));
@@ -298,46 +323,6 @@ impl Turn {
             given.push(Given::Return(at, returns));
         }
         given
-    }
-
-    /// What a line gives, its strings made, into the turn's blocks: `at` the line's time
-    fn apply(&mut self, given: Vec<Given>, at: At, strings: &mut [Option<JsString>]) {
-        for g in given {
-            match g {
-                Given::Think(i) => {
-                    let body = made(strings, i);
-                    if !body.is_blank() {
-                        self.out.push(Block::Think { at: at.clone(), body });
-                    }
-                }
-                Given::Prose(texts) => {
-                    let body = JsString::join(texts.into_iter().map(|i| made(strings, i)).collect(), "\n");
-                    if !body.is_blank() {
-                        self.out.push(Block::Text { at: at.clone(), body });
-                    }
-                }
-                Given::Call(id, block) => {
-                    let calls = if matches!(block, Block::Sub { .. }) { &mut self.subs } else { &mut self.tools };
-                    calls.insert(id, self.out.len());
-                    self.out.push(block);
-                }
-                Given::Return(at, returns) => {
-                    let text = match returns {
-                        Returns::String(i) => made(strings, i),
-                        Returns::Lines(texts) => JsString::join(texts.into_iter().map(|i| made(strings, i)).collect(), "\n"),
-                        Returns::Made(text) => text,
-                    };
-                    match self.out.get_mut(at) {
-                        Some(Block::Tool { output, truncated, .. }) => {
-                            *truncated = text.includes(TRUNCATED_MARK);
-                            *output = Some(text);
-                        }
-                        Some(Block::Sub { result, .. }) => *result = Some(text),
-                        _ => {}
-                    }
-                }
-            }
-        }
     }
 }
 

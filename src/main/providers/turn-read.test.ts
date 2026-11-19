@@ -3,7 +3,8 @@
 // read gives the same ranges, decoded by Node (`readRanges`), which the turn read replaced: the question's text the
 // same, so that the revision tying a fetch to its question is unchanged, and the body's text split at its line feeds.
 // A Codex turn's body, which the module assembles, is seen as the read kept it through the observed-reads seam
-// (engine/src/seams.rs), but where a case reads the blocks.
+// (engine/src/seams.rs), but where a case reads the blocks; how the read of a turn's lines makes a line's strings, through
+// the line-strings seam.
 import { afterAll, afterEach, describe, expect, test, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -15,7 +16,7 @@ import { readRanges, type ByteRange } from './range-read'
 import { readColdRanges } from './cold-rollout'
 import { readTurn, type TurnRead } from './turn-read'
 import { threadEngineModule } from '../engine-module'
-import { TEST_ENGINE, type HoldSeam, type LineLimitSeam, type ObservedBody, type ObservedReadsSeam, type PanicSeam } from '../testing/engine'
+import { TEST_ENGINE, type HoldSeam, type LineLimitSeam, type LineStringsSeam, type ObservedBody, type ObservedReadsSeam, type PanicSeam } from '../testing/engine'
 
 const dir = mkdtempSync(join(tmpdir(), 'turn-read-'))
 const observedReads = (): ObservedReadsSeam => threadEngineModule() as ObservedReadsSeam
@@ -347,6 +348,22 @@ describe('a turn read of a side whose turns the engine module assembles, its blo
     const { grewKiB, blocks, shown } = JSON.parse(run.stdout) as { grewKiB: number; blocks: number; shown: number }
     expect([blocks, shown]).toEqual(expected)
     expect(grewKiB * 1024).toBeLessThan(2 * bodyBytes + 24 * MiB)
+  })
+})
+
+describe('the read of a turn\'s lines, which every side\'s rules go through, holds a line\'s longest string once (session-view C2)', () => {
+  test('of a line\'s strings, the longest that is well formed is made in the line\'s own buffer and the others are copied, a longer one holding a lone surrogate among them', () => {
+    const seam = threadEngineModule() as LineStringsSeam
+    // Written with an escape and a character of two bytes in each pair: 8000 bytes in the line
+    const long = '\u00e9\n'.repeat(2000)
+    // Written 9006 bytes long, its lone surrogate as an escape: longer, but not well formed
+    const lone = String.fromCharCode(0xd800) + 'y'.repeat(9000)
+    const line = JSON.stringify({ short: 'ab', long, n: 5, lone })
+    expect(seam.seamTurnLineStrings(line)).toEqual([
+      { text: 'ab', taken: false },
+      { text: long, taken: true },
+      { text: lone, taken: false }
+    ])
   })
 })
 

@@ -74,6 +74,14 @@ export interface ObservedBody {
   keptLines: string[]
 }
 
+/** The line-strings seam a build made for tests exports (engine/src/seams.rs) */
+export interface LineStringsSeam extends EngineModule {
+  /** Reads `line` through the read of a turn's lines every side's rules go through, with rules that take each member of
+   * its object that is a string: each string as made, in the order written, and whether it was made in the line's own
+   * buffer */
+  seamTurnLineStrings(line: string): Array<{ text: string; taken: boolean }>
+}
+
 /** The line-limit seam a build made for tests exports (engine/src/seams.rs) */
 export interface LineLimitSeam extends EngineModule {
   /** Holds the lines the line reader takes from `file` to `limit` bytes from now on, or, given null, to the reader's own

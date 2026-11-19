@@ -163,39 +163,11 @@ where
     f(&mut Reader::new(text)).unwrap_or_default()
 }
 
-/// The blocks of a turn whose lines are `lines`, each line let go once it is read; `dispatches` the tool names whose
-/// call dispatches a subagent.
-///
-/// A line is read in two steps, as a Claude Code turn's is (`sides/claude/turn.rs`). While its text is read, what it
-/// gives the turn is noted with its strings still the line's (`Given`). Then the strings are made: the longest that is
-/// well formed in the line's own buffer, which it then holds alone (`json::take`), the others copied. That longest
-/// string, a tool's long output say, is so held once, in the line read or in the block that takes it as it is, never
-/// in both (session-view C2). Anything else a block is given from the line is a copy held beside the line until the
-/// line is let go: a tool's input or a dispatch's prompt, made as the line is read, say, or texts joined into one.
+/// The blocks of a turn whose lines are `lines`, each line let go once it is read (`turn::read_lines`), a tool's long
+/// output held once; `dispatches` the tool names whose call dispatches a subagent
 pub(super) fn blocks(lines: Vec<String>, dispatches: &[&str]) -> Vec<Block> {
-    let mut turn = Turn::default();
-    for line in lines {
-        let (given, at, mut strings, longest) = {
-            let parsed = match read(&line) {
-                Ok(json::Line::Object(l)) => l,
-                // An array has none of an object's fields
-                Ok(json::Line::Array) => Line::default(),
-                Ok(json::Line::Other) | Err(_) => continue,
-            };
-            // `typeof timestamp === 'number' && Number.isFinite(timestamp) ? timestamp * 1000 : null`
-            let at = parsed.timestamp.filter(|t| t.is_finite()).map_or(At::None, |t| At::Ms(t * 1000.0));
-            let mut strings: Vec<Str<'_>> = Vec::new();
-            let Some(given) = turn.given(&parsed, &at, dispatches, &mut strings) else { continue };
-            let longest = (0..strings.len()).filter(|&i| strings[i].is_well_formed()).max_by_key(|&i| strings[i].written_len());
-            let span = longest.map(|i| (i, strings[i].span(&line)));
-            let made: Vec<Option<JsString>> = strings.iter().enumerate().map(|(i, s)| (Some(i) != longest).then(|| s.text())).collect();
-            (given, at, made, span)
-        };
-        if let Some((i, span)) = longest {
-            strings[i] = Some(JsString::Utf8(json::take(line, span)));
-        }
-        turn.apply(given, at, &mut strings);
-    }
+    let mut turn = Turn { dispatches, ..Turn::default() };
+    turn::read_lines(lines, &mut turn);
     turn.done()
 }
 
@@ -217,14 +189,11 @@ enum Given {
     Finished(usize, Option<usize>),
 }
 
-/// A string of the line's, made: each is taken once
-fn made(strings: &mut [Option<JsString>], i: usize) -> JsString {
-    strings.get_mut(i).and_then(Option::take).unwrap_or_default()
-}
-
 /// A turn's blocks as its lines are read, with the open blocks a chunk joins and the calls a later record pairs with
 #[derive(Default)]
-struct Turn {
+struct Turn<'d> {
+    /// The tool names whose call dispatches a subagent
+    dispatches: &'d [&'d str],
     out: Vec<Block>,
     /// The open prose block and the open thought, by their places among the blocks: the ones the next chunk of each kind
     /// joins
@@ -241,10 +210,87 @@ struct Turn {
     unknowns: Unknowns,
 }
 
-impl Turn {
+impl turn::Rules for Turn<'_> {
+    type Given = Given;
+
+    fn given<'a>(&mut self, text: &'a str, strings: &mut Vec<Str<'a>>) -> Option<(Given, At)> {
+        let line = match read(text) {
+            Ok(json::Line::Object(l)) => l,
+            // An array has none of an object's fields
+            Ok(json::Line::Array) => Line::default(),
+            Ok(json::Line::Other) | Err(_) => return None,
+        };
+        // `typeof timestamp === 'number' && Number.isFinite(timestamp) ? timestamp * 1000 : null`
+        let at = line.timestamp.filter(|t| t.is_finite()).map_or(At::None, |t| At::Ms(t * 1000.0));
+        let given = self.gives(&line, &at, strings)?;
+        Some((given, at))
+    }
+
+    fn apply(&mut self, given: Given, at: At, strings: &mut [Option<JsString>]) {
+        match given {
+            Given::Prose(text) => {
+                let text = text.map(|i| turn::made(strings, i)).unwrap_or_default();
+                self.thought = None;
+                if let Some(Block::Text { body, .. }) = self.prose.and_then(|i| self.out.get_mut(i)) {
+                    append(body, text);
+                } else {
+                    self.prose = Some(self.out.len());
+                    self.out.push(Block::Text { at, body: text });
+                }
+            }
+            Given::Thought(text) => {
+                let text = text.map(|i| turn::made(strings, i)).unwrap_or_default();
+                self.prose = None;
+                if let Some(Block::Think { body, .. }) = self.thought.and_then(|i| self.out.get_mut(i)) {
+                    append(body, text);
+                } else {
+                    self.thought = Some(self.out.len());
+                    self.out.push(Block::Think { at, body: text });
+                }
+            }
+            Given::Tool(id, block) => {
+                self.close();
+                if let Some(id) = id {
+                    self.tools.insert(id, self.out.len());
+                }
+                self.out.push(block);
+            }
+            Given::Dispatch(id, block) => {
+                self.close();
+                if let Some(id) = id {
+                    self.dispatched.insert(id);
+                }
+                self.unpaired.push_back(self.out.len());
+                self.out.push(block);
+            }
+            Given::Output(call, texts) => {
+                let text = JsString::join(texts.into_iter().map(|i| turn::made(strings, i)).collect(), "");
+                if let Some(Block::Tool { output, .. }) = self.out.get_mut(call) {
+                    *output = Some(text);
+                }
+            }
+            Given::Spawned(named, id) => {
+                let Some(sub) = self.unpaired.pop_front() else { return };
+                if let (Some(named), Some(Block::Sub { name, .. })) = (named, self.out.get_mut(sub)) {
+                    *name = Some(named);
+                }
+                if let Some(id) = id {
+                    self.subs.insert(id, sub);
+                }
+            }
+            Given::Finished(sub, text) => {
+                if let Some(Block::Sub { result, .. }) = self.out.get_mut(sub) {
+                    *result = text.map(|i| turn::made(strings, i));
+                }
+            }
+        }
+    }
+}
+
+impl Turn<'_> {
     /// What `line` gives the turn, each string it gives by its place in `strings`; `at` the line's time. None for a line
     /// that gives no block, a record traced as unknown among them.
-    fn given<'a>(&mut self, line: &Line<'a>, at: &At, dispatches: &[&str], strings: &mut Vec<Str<'a>>) -> Option<Given> {
+    fn gives<'a>(&mut self, line: &Line<'a>, at: &At, strings: &mut Vec<Str<'a>>) -> Option<Given> {
         let u = &line.update;
         let Some(kind) = u.kind else {
             let named = line.method.filter(|raw| !reread(raw, |r| Ok(r.kind()? == Kind::Null)));
@@ -263,7 +309,7 @@ impl Turn {
         }
         if kind.is("tool_call") {
             let id = u.id.map(|i| i.text());
-            if u.title.is_some_and(|t| dispatches.iter().any(|d| t.is(d))) {
+            if u.title.is_some_and(|t| self.dispatches.iter().any(|d| t.is(d))) {
                 return Some(Given::Dispatch(id, dispatch(u.input, at.clone())));
             }
             let name = u.tool.or(u.title).map(|n| n.text());
@@ -298,67 +344,6 @@ impl Turn {
             self.unknowns.note(JsString::from_units(label));
         }
         None
-    }
-
-    /// What a line gives, its strings made, into the turn's blocks: `at` the line's time
-    fn apply(&mut self, given: Given, at: At, strings: &mut [Option<JsString>]) {
-        match given {
-            Given::Prose(text) => {
-                let text = text.map(|i| made(strings, i)).unwrap_or_default();
-                self.thought = None;
-                if let Some(Block::Text { body, .. }) = self.prose.and_then(|i| self.out.get_mut(i)) {
-                    append(body, text);
-                } else {
-                    self.prose = Some(self.out.len());
-                    self.out.push(Block::Text { at, body: text });
-                }
-            }
-            Given::Thought(text) => {
-                let text = text.map(|i| made(strings, i)).unwrap_or_default();
-                self.prose = None;
-                if let Some(Block::Think { body, .. }) = self.thought.and_then(|i| self.out.get_mut(i)) {
-                    append(body, text);
-                } else {
-                    self.thought = Some(self.out.len());
-                    self.out.push(Block::Think { at, body: text });
-                }
-            }
-            Given::Tool(id, block) => {
-                self.close();
-                if let Some(id) = id {
-                    self.tools.insert(id, self.out.len());
-                }
-                self.out.push(block);
-            }
-            Given::Dispatch(id, block) => {
-                self.close();
-                if let Some(id) = id {
-                    self.dispatched.insert(id);
-                }
-                self.unpaired.push_back(self.out.len());
-                self.out.push(block);
-            }
-            Given::Output(call, texts) => {
-                let text = JsString::join(texts.into_iter().map(|i| made(strings, i)).collect(), "");
-                if let Some(Block::Tool { output, .. }) = self.out.get_mut(call) {
-                    *output = Some(text);
-                }
-            }
-            Given::Spawned(named, id) => {
-                let Some(sub) = self.unpaired.pop_front() else { return };
-                if let (Some(named), Some(Block::Sub { name, .. })) = (named, self.out.get_mut(sub)) {
-                    *name = Some(named);
-                }
-                if let Some(id) = id {
-                    self.subs.insert(id, sub);
-                }
-            }
-            Given::Finished(sub, text) => {
-                if let Some(Block::Sub { result, .. }) = self.out.get_mut(sub) {
-                    *result = text.map(|i| made(strings, i));
-                }
-            }
-        }
     }
 
     /// A call ends the open prose block and the open thought

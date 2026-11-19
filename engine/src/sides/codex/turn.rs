@@ -259,38 +259,11 @@ fn under(carrier: &str, label: JsString) -> JsString {
     JsString::join(vec![JsString::Utf8(carrier.to_owned()), label], "/")
 }
 
-/// The blocks of a turn whose lines are `lines`, each line let go once it is read; `dispatches` the tool names whose
-/// call dispatches a subagent.
-///
-/// A line is read in two steps, as a Claude Code turn's is (`sides/claude/turn.rs`). While its text is read, what it
-/// gives the turn is noted with its strings still the line's (`Given`). Then the strings are made: the longest that is
-/// well formed in the line's own buffer, which it then holds alone (`json::take`), the others copied. That longest
-/// string, a call's long output say, is so held once, in the line read or in the block that takes it as it is, never in
-/// both (session-view C2). Anything else a block is given from the line is a copy held beside the line until the line
-/// is let go: a call's input or output that is no string, made as the line is read, say, or texts joined into one.
+/// The blocks of a turn whose lines are `lines`, each line let go once it is read (`turn::read_lines`), a call's long
+/// output held once; `dispatches` the tool names whose call dispatches a subagent
 pub(super) fn blocks(lines: Vec<String>, dispatches: &[&str]) -> Vec<Block> {
-    let mut turn = Turn::default();
-    for line in lines {
-        let (given, at, mut strings, longest) = {
-            let parsed = match read(&line) {
-                Ok(json::Line::Object(l)) => l,
-                // An array has none of an object's fields
-                Ok(json::Line::Array) => Line::default(),
-                Ok(json::Line::Other) | Err(_) => continue,
-            };
-            let at = turn::at_of(parsed.timestamp);
-            let mut strings: Vec<Str<'_>> = Vec::new();
-            let given = turn.given(&parsed, dispatches, &mut strings);
-            let longest = (0..strings.len()).filter(|&i| strings[i].is_well_formed()).max_by_key(|&i| strings[i].written_len());
-            let span = longest.map(|i| (i, strings[i].span(&line)));
-            let made: Vec<Option<JsString>> = strings.iter().enumerate().map(|(i, s)| (Some(i) != longest).then(|| s.text())).collect();
-            (given, at, made, span)
-        };
-        if let Some((i, span)) = longest {
-            strings[i] = Some(JsString::Utf8(json::take(line, span)));
-        }
-        turn.apply(given, at, &mut strings);
-    }
+    let mut turn = Turn { dispatches, ..Turn::default() };
+    turn::read_lines(lines, &mut turn);
     let mut out = turn.out;
     out.extend(turn.unknowns.block());
     out
@@ -328,7 +301,7 @@ impl Text {
 
     fn made(self, strings: &mut [Option<JsString>]) -> JsString {
         match self {
-            Text::String(i) => made(strings, i),
+            Text::String(i) => turn::made(strings, i),
             Text::Made(text) => text,
         }
     }
@@ -345,81 +318,37 @@ fn places<'a>(strings: &mut Vec<Str<'a>>, texts: &Option<Vec<Str<'a>>>) -> Vec<u
     texts.iter().flatten().map(|&t| place(strings, t)).collect()
 }
 
-/// A string of the line's, made: each is taken once
-fn made(strings: &mut [Option<JsString>], i: usize) -> JsString {
-    strings.get_mut(i).and_then(Option::take).unwrap_or_default()
-}
-
 /// The texts at `places`, made, but those only white space
 fn kept(strings: &mut [Option<JsString>], places: Vec<usize>) -> Vec<JsString> {
-    places.into_iter().map(|i| made(strings, i)).filter(|t| !t.is_blank()).collect()
+    places.into_iter().map(|i| turn::made(strings, i)).filter(|t| !t.is_blank()).collect()
 }
 
 /// A turn's blocks as its lines are read, with the calls an output pairs with by id
 #[derive(Default)]
-struct Turn {
+struct Turn<'d> {
+    /// The tool names whose call dispatches a subagent
+    dispatches: &'d [&'d str],
     out: Vec<Block>,
     /// Each call id, with the place among the blocks of the call last made with it
     calls: HashMap<JsString, usize>,
     unknowns: Unknowns,
 }
 
-impl Turn {
-    /// What `line` gives the turn, each string it gives by its place in `strings`
-    fn given<'a>(&mut self, line: &Line<'a>, dispatches: &[&str], strings: &mut Vec<Str<'a>>) -> Given {
-        let top = label_of(line.kind);
-        let p = &line.payload;
-        if one_of(&["event_msg"], &top) {
-            let kind = label_of(p.kind);
-            if one_of(&["agent_message"], &kind) {
-                return p.message.map_or(Given::Nothing, |m| Given::Prose(vec![place(strings, m)]));
-            }
-            if one_of(&["item_completed"], &kind) {
-                let item = label_of(p.item.kind);
-                if one_of(&["AgentMessage"], &item) {
-                    return Given::Prose(places(strings, &p.item.content));
-                }
-                if !one_of(&ITEM_KNOWN, &item) {
-                    self.unknowns.note(under("item_completed", item));
-                }
-            } else if !one_of(&EVENT_KNOWN, &kind) {
-                self.unknowns.note(under("event_msg", kind));
-            }
-            return Given::Nothing;
-        }
-        if one_of(&["response_item"], &top) {
-            let kind = label_of(p.kind);
-            if one_of(&CALL_TYPES, &kind) {
-                // `input ?? arguments`: a null input is none
-                let input = p.input.filter(|v| !matches!(v, Value::Null)).or(p.arguments);
-                let name = p.name.map_or(kind, |n| n.text());
-                let sub = matches!(&name, JsString::Utf8(n) if dispatches.contains(&n.as_str()));
-                // An empty id is none (`if (callId)`): Codex writes one on a call a Chat Completions provider gave no
-                // id, and on an output answering a call it did not run
-                let id = p.call_id.filter(|id| !id.is_empty()).map(|id| id.text());
-                return Given::Call { id, name, sub, input: Text::of(input, strings) };
-            }
-            if one_of(&OUTPUT_TYPES, &kind) {
-                return match p.call_id.and_then(|id| self.calls.get(&id.text()).copied()) {
-                    Some(call) => Given::Output(call, Text::of(p.output, strings)),
-                    None => Given::Nothing,
-                };
-            }
-            if one_of(&["reasoning"], &kind) {
-                return Given::Reason(places(strings, &p.summary));
-            }
-            if !one_of(&RESPONSE_KNOWN, &kind) {
-                self.unknowns.note(under("response_item", kind));
-            }
-            return Given::Nothing;
-        }
-        if !one_of(&TOP_KNOWN, &top) {
-            self.unknowns.note(top);
-        }
-        Given::Nothing
+impl turn::Rules for Turn<'_> {
+    type Given = Given;
+
+    fn given<'a>(&mut self, text: &'a str, strings: &mut Vec<Str<'a>>) -> Option<(Given, At)> {
+        let line = match read(text) {
+            Ok(json::Line::Object(l)) => l,
+            // An array has none of an object's fields
+            Ok(json::Line::Array) => Line::default(),
+            Ok(json::Line::Other) | Err(_) => return None,
+        };
+        let at = turn::at_of(line.timestamp);
+        let given = self.gives(&line, strings);
+        Some((given, at))
     }
 
-    /// What a line gives, its strings made, into the turn's blocks: `at` the line's time
     fn apply(&mut self, given: Given, at: At, strings: &mut [Option<JsString>]) {
         match given {
             Given::Nothing => {}
@@ -456,5 +385,61 @@ impl Turn {
                 }
             }
         }
+    }
+}
+
+impl Turn<'_> {
+    /// What `line` gives the turn, each string it gives by its place in `strings`
+    fn gives<'a>(&mut self, line: &Line<'a>, strings: &mut Vec<Str<'a>>) -> Given {
+        let top = label_of(line.kind);
+        let p = &line.payload;
+        if one_of(&["event_msg"], &top) {
+            let kind = label_of(p.kind);
+            if one_of(&["agent_message"], &kind) {
+                return p.message.map_or(Given::Nothing, |m| Given::Prose(vec![place(strings, m)]));
+            }
+            if one_of(&["item_completed"], &kind) {
+                let item = label_of(p.item.kind);
+                if one_of(&["AgentMessage"], &item) {
+                    return Given::Prose(places(strings, &p.item.content));
+                }
+                if !one_of(&ITEM_KNOWN, &item) {
+                    self.unknowns.note(under("item_completed", item));
+                }
+            } else if !one_of(&EVENT_KNOWN, &kind) {
+                self.unknowns.note(under("event_msg", kind));
+            }
+            return Given::Nothing;
+        }
+        if one_of(&["response_item"], &top) {
+            let kind = label_of(p.kind);
+            if one_of(&CALL_TYPES, &kind) {
+                // `input ?? arguments`: a null input is none
+                let input = p.input.filter(|v| !matches!(v, Value::Null)).or(p.arguments);
+                let name = p.name.map_or(kind, |n| n.text());
+                let sub = matches!(&name, JsString::Utf8(n) if self.dispatches.contains(&n.as_str()));
+                // An empty id is none (`if (callId)`): Codex writes one on a call a Chat Completions provider gave no
+                // id, and on an output answering a call it did not run
+                let id = p.call_id.filter(|id| !id.is_empty()).map(|id| id.text());
+                return Given::Call { id, name, sub, input: Text::of(input, strings) };
+            }
+            if one_of(&OUTPUT_TYPES, &kind) {
+                return match p.call_id.and_then(|id| self.calls.get(&id.text()).copied()) {
+                    Some(call) => Given::Output(call, Text::of(p.output, strings)),
+                    None => Given::Nothing,
+                };
+            }
+            if one_of(&["reasoning"], &kind) {
+                return Given::Reason(places(strings, &p.summary));
+            }
+            if !one_of(&RESPONSE_KNOWN, &kind) {
+                self.unknowns.note(under("response_item", kind));
+            }
+            return Given::Nothing;
+        }
+        if !one_of(&TOP_KNOWN, &top) {
+            self.unknowns.note(top);
+        }
+        Given::Nothing
     }
 }

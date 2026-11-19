@@ -245,7 +245,9 @@ pub(crate) fn take(line: String, span: Span) -> String {
     }
     bytes.truncate(w);
     bytes.shrink_to_fit();
-    String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
+    let made = String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
+    crate::seams::taken(&made);
+    made
 }
 
 /// The code unit a `\u` escape's four hex digits write, checked when the string was read
