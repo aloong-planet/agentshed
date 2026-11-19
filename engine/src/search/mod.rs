@@ -4,9 +4,10 @@
 //! And a project's question search over one file (`questions`).
 //!
 //! A hit is every offset where the stream's bytes equal the needle's UTF-8 bytes once ASCII letters are folded, hits
-//! overlapping, as a search of the whole buffer for them would find them; the turn of a hit, the snippet of a turn's
-//! first body hit and the order they come back in are those the whole-file search worked out from that buffer, rule
-//! for rule (search-sessions.ts before #479).
+//! overlapping, as a search of the whole buffer for them would find them; the turn of a hit, the string a turn's first
+//! body hit takes its snippet from and the order they come back in are those the whole-file search worked out from
+//! that buffer, rule for rule (search-sessions.ts before #479). The snippet is cut from that string as D5 says, where
+//! the hit stands in it (`snippet`).
 
 mod questions;
 mod snippet;

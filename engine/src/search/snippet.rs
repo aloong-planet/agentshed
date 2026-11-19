@@ -1,12 +1,14 @@
-//! The snippet a turn's first body hit shows: the first string in the JSON value of the hit's line that holds the
-//! needle, cut to 20 code units before it and 60 after, as `extractSnippet` in search-sessions.ts cut it before #479,
-//! quirk for quirk. The line is decoded as `Buffer.toString('utf8')` decodes it, each invalid sequence becoming
-//! U+FFFD, and read by `JSON.parse`'s grammar: a line it would refuse gives no snippet. The strings are visited in the
-//! order that function's walk visited them: an array's elements in order, an object's values in `Object.values`'
-//! order, its array-index keys ascending and then its other keys in the order first written, a repeated key holding its
-//! first place with its last value. A string holds the needle when its `toLowerCase()` holds the needle's; the cut is
-//! made in the string itself at the offset found in the lowered one, and as long as the needle as typed, so a string
-//! that lowers to another length is cut where those offsets land in it.
+//! The snippet a turn's first body hit shows (session-view D5): the first string in the JSON value of the hit's line
+//! that holds the needle, the string `extractSnippet` in search-sessions.ts took before #479, cut to 20 characters
+//! before the hit and 60 after the needle. The line is decoded as `Buffer.toString('utf8')` decodes it, each invalid
+//! sequence becoming U+FFFD, and read by `JSON.parse`'s grammar: a line it would refuse gives no snippet. The strings
+//! are visited in the order that function's walk visited them: an array's elements in order, an object's values in
+//! `Object.values`' order, its array-index keys ascending and then its other keys in the order first written, a
+//! repeated key holding its first place with its last value. A string holds the needle when its `toLowerCase()` holds
+//! the needle's; the hit is the characters of the string whose lowercase that first match falls in, so a character
+//! that lowers to another length moves neither edge of the cut, where `extractSnippet` cut the string at the offsets
+//! it found in the lowered one. A character is one as `Array.from` counts it: a surrogate pair, never split, or any
+//! other code unit, a lone surrogate included.
 
 use std::collections::HashMap;
 
@@ -17,7 +19,7 @@ use crate::text::{self, Units};
 pub(super) fn snippet(line: &[u8], needle: &[u16]) -> Option<Units> {
     let text = text::line_text(line);
     let lowered = text::to_lower_case(needle);
-    let mut walk = Walk { needle: &lowered, typed: needle.len(), open: Vec::new(), settled: 0, root: None };
+    let mut walk = Walk { needle: &lowered, open: Vec::new(), settled: 0, root: None };
     let mut reader = Reader::new(&text);
     reader.events(|event| walk.event(event)).ok()?;
     reader.end().ok()?;
@@ -32,7 +34,6 @@ enum Open {
 
 struct Walk<'n> {
     needle: &'n [u16],
-    typed: usize,
     open: Vec<Open>,
     /// How many open arrays already hold what they found: a value inside one finds nothing that is used
     settled: usize,
@@ -51,7 +52,7 @@ impl Walk<'_> {
                 }
             }
             Event::String(s) => {
-                let found = if self.settled > 0 { None } else { cut(&s.units(), self.needle, self.typed) };
+                let found = if self.settled > 0 { None } else { cut(&s.units(), self.needle) };
                 self.value(found);
             }
             Event::Scalar(_) => self.value(None),
@@ -123,22 +124,72 @@ fn array_index(key: &[u16]) -> Option<u32> {
     u32::try_from(n).ok().filter(|&n| n != u32::MAX)
 }
 
-/// The snippet of `v` when its lowered text holds `needle`, the lowered needle, whose typed length is `typed`: 20 code
-/// units before the offset found and `typed` + 60 from it, with an ellipsis on each side cut
-fn cut(v: &[u16], needle: &[u16], typed: usize) -> Option<Units> {
+/// The snippet of `v` when its lowered text holds `needle`, the lowered needle: 20 characters before the hit and 60
+/// after it, where it stands in `v`, with an ellipsis on each side cut
+fn cut(v: &[u16], needle: &[u16]) -> Option<Units> {
     let idx = text::find(&text::to_lower_case(v), needle, 0)?;
-    let from = idx.saturating_sub(20);
-    let to = v.len().min(idx + typed + 60);
-    let start = from.min(v.len());
-    let mut out = Vec::with_capacity(to.saturating_sub(start) + 2);
+    let (start, end) = in_string(v, idx, idx + needle.len());
+    let from = back(v, start, 20);
+    let to = forward(v, end, 60);
+    let mut out = Vec::with_capacity(to - from + 2);
     if from > 0 {
         out.push(0x2026);
     }
-    if start < to {
-        out.extend_from_slice(&v[start..to]);
-    }
+    out.extend_from_slice(&v[from..to]);
     if to < v.len() {
         out.push(0x2026);
     }
     Some(out)
+}
+
+/// Where the units `idx..end` of `v`'s lowered text stand in `v`: from the start of the character whose lowercase holds
+/// the first of them to the end of the one whose lowercase holds the last. Each character's share of the lowered text
+/// is as long as what `char::to_lowercase` gives it, a capital sigma's final form included, as both of a sigma's
+/// lowercase forms are one unit long; a lone surrogate stays itself.
+fn in_string(v: &[u16], idx: usize, end: usize) -> (usize, usize) {
+    let (mut at, mut lowered) = (0, 0);
+    let mut start = None;
+    for c in char::decode_utf16(v.iter().copied()) {
+        let (units, lowers_to) = match c {
+            Ok(c) => (c.len_utf16(), c.to_lowercase().map(char::len_utf16).sum()),
+            Err(_) => (1, 1),
+        };
+        lowered += lowers_to;
+        if start.is_none() && lowered > idx {
+            start = Some(at);
+        }
+        at += units;
+        if let Some(start) = start.filter(|_| lowered >= end) {
+            return (start, at);
+        }
+    }
+    (start.unwrap_or(v.len()), v.len())
+}
+
+/// Whether a surrogate pair starts at `i`, a high surrogate followed by a low one: one character, as `Array.from`
+/// counts one, where any other code unit is one too
+fn pair_at(v: &[u16], i: usize) -> bool {
+    (0xd800..0xdc00).contains(&v[i]) && v.get(i + 1).is_some_and(|u| (0xdc00..0xe000).contains(u))
+}
+
+/// The offset `n` characters before `at` in `v`, or its start
+fn back(v: &[u16], mut at: usize, n: usize) -> usize {
+    for _ in 0..n {
+        if at == 0 {
+            break;
+        }
+        at -= if at >= 2 && pair_at(v, at - 2) { 2 } else { 1 };
+    }
+    at
+}
+
+/// The offset `n` characters after `at` in `v`, or its end
+fn forward(v: &[u16], mut at: usize, n: usize) -> usize {
+    for _ in 0..n {
+        if at >= v.len() {
+            break;
+        }
+        at += if pair_at(v, at) { 2 } else { 1 };
+    }
+    at
 }
