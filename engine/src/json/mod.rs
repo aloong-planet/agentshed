@@ -12,7 +12,10 @@
 //!
 //! Whitespace between tokens is the four `JSON.parse` allows: tab, line feed, carriage return and space.
 
-use crate::text::Units;
+use crate::text::{JsString, Units};
+
+mod stringify;
+pub(crate) use stringify::{Gap, stringify};
 
 /// The line is not JSON: `JSON.parse` would throw on it
 #[derive(Debug)]
@@ -39,6 +42,12 @@ impl<'a> Str<'a> {
     /// Whether the string is empty
     pub(crate) fn is_empty(&self) -> bool {
         self.raw.is_empty()
+    }
+
+    /// The string's text when the line writes it with no escape: valid UTF-8 holding no quote, backslash or control
+    /// character
+    pub(crate) fn plain(&self) -> Option<&'a [u8]> {
+        (!self.escaped).then_some(self.raw)
     }
 
     /// The string's code units, its escapes decoded
@@ -69,8 +78,7 @@ impl<'a> Str<'a> {
                 b't' => 0x09,
                 // `u`: checked as four hex digits when the string was read
                 _ => {
-                    let hex = &self.raw[i + 2..i + 6];
-                    let unit = hex.iter().fold(0u16, |v, &h| v * 16 + u16::from(hex_value(h).unwrap_or(0)));
+                    let unit = escaped_unit(&self.raw[i + 2..i + 6]);
                     i += 6;
                     out.push(unit);
                     continue;
@@ -81,6 +89,75 @@ impl<'a> Str<'a> {
         }
         out
     }
+
+    /// The string as JavaScript holds it, its escapes decoded: as UTF-8 unless an escape writes a lone surrogate
+    pub(crate) fn text(&self) -> JsString {
+        // The raw bytes are valid UTF-8: the line was decoded before it was read
+        fn plain(raw: &[u8]) -> std::borrow::Cow<'_, str> {
+            String::from_utf8_lossy(raw)
+        }
+        if !self.escaped {
+            return JsString::Utf8(plain(self.raw).into_owned());
+        }
+        let mut out = String::with_capacity(self.raw.len());
+        let mut i = 0;
+        while i < self.raw.len() {
+            if self.raw[i] != b'\\' {
+                let end = self.raw[i..].iter().position(|&b| b == b'\\').map_or(self.raw.len(), |p| i + p);
+                out.push_str(&plain(&self.raw[i..end]));
+                i = end;
+                continue;
+            }
+            let c = match self.raw[i + 1] {
+                b'"' => '"',
+                b'\\' => '\\',
+                b'/' => '/',
+                b'b' => '\u{8}',
+                b'f' => '\u{c}',
+                b'n' => '\n',
+                b'r' => '\r',
+                b't' => '\t',
+                // `u`: checked as four hex digits when the string was read
+                _ => {
+                    let unit = escaped_unit(&self.raw[i + 2..i + 6]);
+                    i += 6;
+                    let point = match unit {
+                        0xd800..=0xdbff => match self.raw.get(i..i + 6) {
+                            Some([b'\\', b'u', hex @ ..]) if (0xdc00..=0xdfff).contains(&escaped_unit(hex)) => {
+                                i += 6;
+                                0x10000 + ((u32::from(unit) - 0xd800) << 10) + (u32::from(escaped_unit(hex)) - 0xdc00)
+                            }
+                            _ => return JsString::Units(self.units()),
+                        },
+                        0xdc00..=0xdfff => return JsString::Units(self.units()),
+                        _ => u32::from(unit),
+                    };
+                    out.push(char::from_u32(point).expect("a code point outside the surrogates"));
+                    continue;
+                }
+            };
+            out.push(c);
+            i += 2;
+        }
+        JsString::Utf8(out)
+    }
+}
+
+/// The number a number's text, checked against the grammar, gives `JSON.parse`: the nearest double, infinite beyond the
+/// double range
+pub(crate) fn number_value(text: &[u8]) -> Read<f64> {
+    // An integer of up to 15 digits is exact as a double, and is most of what a line holds
+    if text.len() <= 15 && text.iter().all(u8::is_ascii_digit) {
+        return Ok(text.iter().fold(0u64, |v, &d| v * 10 + u64::from(d - b'0')) as f64);
+    }
+    // Rust's parse rounds correctly and gives an infinity beyond the range, as ECMA-262's StringToNumber does
+    let s = std::str::from_utf8(text).map_err(|_| Bad)?;
+    s.parse::<f64>().map_err(|_| Bad)
+}
+
+/// The code unit a `\u` escape's four hex digits write, checked when the string was read
+fn escaped_unit(hex: &[u8]) -> u16 {
+    hex.iter().fold(0u16, |v, &h| v * 16 + u16::from(hex_value(h).unwrap_or(0)))
 }
 
 fn hex_value(h: u8) -> Option<u8> {
@@ -331,14 +408,7 @@ impl<'a> Reader<'a> {
     /// A number, as `JSON.parse` gives it: the nearest double, infinite beyond the double range; the value here must be
     /// one
     pub(crate) fn number(&mut self) -> Read<f64> {
-        let text = self.number_text()?;
-        // An integer of up to 15 digits is exact as a double, and is most of what a line holds
-        if text.len() <= 15 && text.iter().all(u8::is_ascii_digit) {
-            return Ok(text.iter().fold(0u64, |v, &d| v * 10 + u64::from(d - b'0')) as f64);
-        }
-        // Rust's parse rounds correctly and gives an infinity beyond the range, as ECMA-262's StringToNumber does
-        let s = std::str::from_utf8(text).map_err(|_| Bad)?;
-        s.parse::<f64>().map_err(|_| Bad)
+        number_value(self.number_text()?)
     }
 
     fn literal(&mut self, word: &[u8]) -> Read<()> {
@@ -457,8 +527,8 @@ pub(crate) enum Event<'a> {
     /// The innermost open object or array closes
     Close,
     String(Str<'a>),
-    /// A number, `true`, `false` or `null`
-    Scalar,
+    /// A number, `true`, `false` or `null`: its text
+    Scalar(&'a [u8]),
 }
 
 impl<'a> Reader<'a> {
@@ -497,21 +567,18 @@ impl<'a> Reader<'a> {
                     }
                 }
                 Kind::String => on(Event::String(self.string()?)),
-                Kind::Number => {
-                    self.number_text()?;
-                    on(Event::Scalar);
-                }
+                Kind::Number => on(Event::Scalar(self.number_text()?)),
                 Kind::True => {
                     self.literal(b"true")?;
-                    on(Event::Scalar);
+                    on(Event::Scalar(b"true"));
                 }
                 Kind::False => {
                     self.literal(b"false")?;
-                    on(Event::Scalar);
+                    on(Event::Scalar(b"false"));
                 }
                 Kind::Null => {
                     self.literal(b"null")?;
-                    on(Event::Scalar);
+                    on(Event::Scalar(b"null"));
                 }
             }
             // After a value: close what it ends, or move to the next member or element

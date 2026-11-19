@@ -10,6 +10,7 @@ mod line;
 mod parse;
 mod question;
 mod title;
+mod turn;
 mod walk;
 
 use napi::sys::napi_value;
@@ -19,6 +20,7 @@ use self::entry::{Job, Parsed};
 use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
 use crate::text::{self, Units};
+use crate::turn::TurnBody;
 use crate::walk::Held;
 
 pub(crate) struct Claude;
@@ -52,6 +54,10 @@ impl Side for Claude {
 
     fn dispatches(&self) -> &'static [&'static str] {
         &question::DISPATCH
+    }
+
+    fn turn_body(&self, lines: Vec<String>) -> TurnBody {
+        TurnBody::Blocks(turn::blocks(lines, self.dispatches()))
     }
 
     fn walk(&self, js: &Js, roots: napi_value, _kept: &mut Kept, held: &mut Held, _tmp_parent: Option<&str>) -> Option<Result<Walked>> {

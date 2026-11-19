@@ -54,7 +54,7 @@ impl Walk<'_> {
                 let found = if self.settled > 0 { None } else { cut(&s.units(), self.needle, self.typed) };
                 self.value(found);
             }
-            Event::Scalar => self.value(None),
+            Event::Scalar(_) => self.value(None),
             Event::Close => {
                 let found = match self.open.pop() {
                     Some(Open::Array { found }) => {

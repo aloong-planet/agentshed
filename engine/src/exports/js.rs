@@ -2,7 +2,8 @@
 //! knows its job's and its entry's shape, and for the display copy's writer, which reads a whole value as
 //! `JSON.stringify` does (crate::display). Every value the module reads off JavaScript is read here, but for the
 //! arguments napi-rs converts at the call. Text crosses as UTF-16 code units both ways, so a lone surrogate in a string
-//! comes back as it went in; a value the module only hands back crosses as the JavaScript value itself.
+//! comes back as it went in, but for the text a `JsString` holds, which crosses as it is held, UTF-8 when it is well
+//! formed; a value the module only hands back crosses as the JavaScript value itself.
 
 use std::ffi::CString;
 use std::ptr;
@@ -11,7 +12,7 @@ use napi::sys::{self, napi_value};
 use napi::{Env, Error, Result, Status};
 
 use crate::question::Record;
-use crate::text::Units;
+use crate::text::{JsString, Units};
 
 fn check(status: sys::napi_status) -> Result<()> {
     if status == sys::Status::napi_ok { Ok(()) } else { Err(Error::from_status(Status::from(status))) }
@@ -247,6 +248,26 @@ impl Js {
     /// A string, or null for None
     pub(crate) fn text_or_null(&self, units: Option<&Units>) -> Result<napi_value> {
         units.map_or_else(|| self.null(), |u| self.text(u))
+    }
+
+    /// A string of UTF-8 text
+    pub(crate) fn text_utf8(&self, text: &str) -> Result<napi_value> {
+        let mut v = ptr::null_mut();
+        check(unsafe { sys::napi_create_string_utf8(self.env, text.as_ptr().cast(), text.len() as isize, &mut v) })?;
+        Ok(v)
+    }
+
+    /// The string a `JsString` holds, which is let go once JavaScript holds it
+    pub(crate) fn js_string(&self, s: JsString) -> Result<napi_value> {
+        match s {
+            JsString::Utf8(text) => self.text_utf8(&text),
+            JsString::Units(units) => self.text(&units),
+        }
+    }
+
+    /// The string a `JsString` holds, or null for None
+    pub(crate) fn js_string_or_null(&self, s: Option<JsString>) -> Result<napi_value> {
+        s.map_or_else(|| self.null(), |s| self.js_string(s))
     }
 
     /// A new object holding `members` in order. Each key is a name the module writes, never `__proto__`, so a plain

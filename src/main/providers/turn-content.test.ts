@@ -8,7 +8,7 @@ import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-f
 import { withIndexedTranscript } from '../testing/agy-transcript-index'
 import { readRanges } from './range-read'
 import { turnBlocks } from './turn-content'
-import { readTurnLines } from './turn-read'
+import { readTurn as readTurnOf, type TurnRead } from './turn-read'
 import type { TurnBlock } from '@shared/domain'
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -43,8 +43,22 @@ import type { TurnBlock } from '@shared/domain'
 const TS = '2026-08-01T10:00:00.000Z'
 const AT = Date.parse(TS)
 
-const blocks = (side: 'claude' | 'codex', objs: unknown[]): TurnBlock[] =>
+const blocks = (side: 'codex', objs: unknown[]): TurnBlock[] =>
   turnBlocks(side, objs.map((o) => JSON.stringify(o)))
+
+/** The blocks a turn read handed over of a side whose turns the engine module assembles */
+function blocksOf(read: TurnRead): TurnBlock[] {
+  if (read.body === null || !('blocks' in read.body)) throw new Error('the read handed over no blocks')
+  return read.body.blocks
+}
+
+/** A Claude Code turn whose body is `lines`, written as a session file of its own and read whole by the engine module,
+ * which assembles its blocks, as the session page reads a turn */
+const claudeTurn = (lines: string[]): Promise<TurnBlock[]> =>
+  withFile(lines.map((l) => `${l}\n`).join(''), async (file) => blocksOf(await readTurnOf('claude', file, { start: 0, end: 0 }, { start: 0, end: statSync(file).size })))
+
+/** `claudeTurn` of the lines `objs` written as JSON */
+const claudeBlocks = (objs: unknown[]): Promise<TurnBlock[]> => claudeTurn(objs.map((o) => JSON.stringify(o)))
 
 // ── Claude line builders ──
 const cA = (content: unknown[], extra: Record<string, unknown> = {}): unknown => ({
@@ -61,18 +75,18 @@ const cU = (content: unknown[], extra: Record<string, unknown> = {}): unknown =>
 })
 
 describe('Claude prose and thinking (ticket 05 behaviour preserved + the think block)', () => {
-  test('a text segment yields a prose block; several text segments on one line merge into one; whitespace yields nothing', () => {
-    expect(blocks('claude', [cA([{ type: 'text', text: 'answer one' }])])).toEqual([
+  test('a text segment yields a prose block; several text segments on one line merge into one; whitespace yields nothing', async () => {
+    expect(await claudeBlocks([cA([{ type: 'text', text: 'answer one' }])])).toEqual([
       { kind: 'text', role: 'assistant', at: AT, body: 'answer one' }
     ])
-    expect(blocks('claude', [cA([{ type: 'text', text: 'A' }, { type: 'text', text: 'B' }])])).toEqual([
+    expect(await claudeBlocks([cA([{ type: 'text', text: 'A' }, { type: 'text', text: 'B' }])])).toEqual([
       { kind: 'text', role: 'assistant', at: AT, body: 'A\nB' }
     ])
-    expect(blocks('claude', [cA([{ type: 'text', text: '  ' }])])).toEqual([])
+    expect(await claudeBlocks([cA([{ type: 'text', text: '  ' }])])).toEqual([])
   })
 
-  test('a thinking segment yields a think block, with the within-line order thinking → prose → tools', () => {
-    const bs = blocks('claude', [
+  test('a thinking segment yields a think block, with the within-line order thinking → prose → tools', async () => {
+    const bs = await claudeBlocks([
       cA([
         { type: 'thinking', thinking: 'thinking it over' },
         { type: 'text', text: 'the answer' },
@@ -85,8 +99,8 @@ describe('Claude prose and thinking (ticket 05 behaviour preserved + the think b
 })
 
 describe('Claude tool blocks (tool_use ↔ tool_result paired by id)', () => {
-  test('pairs the arguments with the return; a one-line summary; an output never fed back is null', () => {
-    const bs = blocks('claude', [
+  test('pairs the arguments with the return; a one-line summary; an output never fed back is null', async () => {
+    const bs = await claudeBlocks([
       cA([{ type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'ls -la' } }]),
       cU([{ type: 'tool_result', tool_use_id: 'tu1', content: '3 files in total' }]),
       cA([{ type: 'tool_use', id: 'tu2', name: 'Read', input: { file_path: '/a.ts' } }])
@@ -102,16 +116,16 @@ describe('Claude tool blocks (tool_use ↔ tool_result paired by id)', () => {
     expect(t2.output).toBeNull()
   })
 
-  test('when tool_result content is an array of segments, the text segments are joined', () => {
-    const bs = blocks('claude', [
+  test('when tool_result content is an array of segments, the text segments are joined', async () => {
+    const bs = await claudeBlocks([
       cA([{ type: 'tool_use', id: 'tu1', name: 'Grep', input: { pattern: 'x' } }]),
       cU([{ type: 'tool_result', tool_use_id: 'tu1', content: [{ type: 'text', text: 'hit 1' }, { type: 'text', text: 'hit 2' }] }])
     ])
     expect((bs[0] as Extract<TurnBlock, { kind: 'tool' }>).output).toBe('hit 1\nhit 2')
   })
 
-  test('the truncation criterion: a return containing a tool-results/ sidecar path → truncated, without pretending it is complete', () => {
-    const bs = blocks('claude', [
+  test('the truncation criterion: a return containing a tool-results/ sidecar path → truncated, without pretending it is complete', async () => {
+    const bs = await claudeBlocks([
       cA([{ type: 'tool_use', id: 'tu1', name: 'WebFetch', input: { url: 'https://x' } }]),
       cU([{ type: 'tool_result', tool_use_id: 'tu1', content: 'output saved to: /Users/x/.claude/projects/-p/s/tool-results/abc.txt\n\nPreview (first 2KB): …' }])
     ])
@@ -120,8 +134,8 @@ describe('Claude tool blocks (tool_use ↔ tool_result paired by id)', () => {
 })
 
 describe('Claude subagent blocks (dispatch + return + the unattributed label; no grouping without a sample)', () => {
-  test('the dispatch name comes from subagent_type; prompt and result pair up; unlinked is always true (measured: no join key)', () => {
-    const bs = blocks('claude', [
+  test('the dispatch name comes from subagent_type; prompt and result pair up; unlinked is always true (measured: no join key)', async () => {
+    const bs = await claudeBlocks([
       cA([{ type: 'tool_use', id: 'tu1', name: 'Agent', input: { description: 'check logs', prompt: 'check the logs', subagent_type: 'debugger' } }]),
       // A sidechain line within the turn: no stable reference chain to a dispatch, so it is neither
       // rendered nor grouped
@@ -140,22 +154,22 @@ describe('Claude subagent blocks (dispatch + return + the unattributed label; no
     expect(sub.unlinked).toBe(true)
   })
 
-  test('with no subagent_type the dispatch name falls back to the tool name; with nothing fed back, result is null', () => {
-    const bs = blocks('claude', [cA([{ type: 'tool_use', id: 'tu1', name: 'Task', input: { prompt: 'do the work' } }])])
+  test('with no subagent_type the dispatch name falls back to the tool name; with nothing fed back, result is null', async () => {
+    const bs = await claudeBlocks([cA([{ type: 'tool_use', id: 'tu1', name: 'Task', input: { prompt: 'do the work' } }])])
     const sub = bs[0] as Extract<TurnBlock, { kind: 'sub' }>
     expect(sub.name).toBe('Task')
     expect(sub.result).toBeNull()
   })
 
-  test('a sidechain line yields no block and no unknown count — a known type whose full transcript is in the source or a nested file', () => {
-    expect(blocks('claude', [cA([{ type: 'text', text: 'what the subagent said' }], { isSidechain: true, agentId: 'ag-x' })])).toEqual([])
+  test('a sidechain line yields no block and no unknown count — a known type whose full transcript is in the source or a nested file', async () => {
+    expect(await claudeBlocks([cA([{ type: 'text', text: 'what the subagent said' }], { isSidechain: true, agentId: 'ag-x' })])).toEqual([])
   })
 })
 
 describe('the Claude display allow-list and unknown traces (the whole 18-type top-level spectrum)', () => {
-  test('known noise is neither rendered nor traced: system / attachment / file-history-snapshot / mode and the rest', () => {
+  test('known noise is neither rendered nor traced: system / attachment / file-history-snapshot / mode and the rest', async () => {
     expect(
-      blocks('claude', [
+      await claudeBlocks([
         { type: 'system', subtype: 'compact_boundary', timestamp: TS },
         { type: 'attachment', attachment: { type: 'task_reminder' }, timestamp: TS },
         { type: 'file-history-snapshot', messageId: 'x', timestamp: TS },
@@ -165,8 +179,8 @@ describe('the Claude display allow-list and unknown traces (the whole 18-type to
     ).toEqual([])
   })
 
-  test('a new type outside the allow-list leaves a trace: the type name is named, the count accumulates, and it goes at the end of the block order', () => {
-    const bs = blocks('claude', [
+  test('a new type outside the allow-list leaves a trace: the type name is named, the count accumulates, and it goes at the end of the block order', async () => {
+    const bs = await claudeBlocks([
       cA([{ type: 'text', text: 'body' }]),
       { type: 'agent_snapshot', timestamp: TS },
       { type: 'agent_snapshot', timestamp: TS },
@@ -176,8 +190,8 @@ describe('the Claude display allow-list and unknown traces (the whole 18-type to
     expect(bs[bs.length - 1]).toEqual({ kind: 'unknown', count: 3, types: ['agent_snapshot', 'new_thing'] })
   })
 
-  test('a non-string type is named by its JSON, not as [object Object]', () => {
-    expect(blocks('claude', [{ type: { kind: 'x' }, timestamp: TS }])).toEqual([
+  test('a non-string type is named by its JSON, not as [object Object]', async () => {
+    expect(await claudeBlocks([{ type: { kind: 'x' }, timestamp: TS }])).toEqual([
       { kind: 'unknown', count: 1, types: ['{"kind":"x"}'] }
     ])
   })
@@ -307,8 +321,8 @@ describe('the Codex display allow-list and unknown traces', () => {
 })
 
 describe('bad lines and side attribution (ticket 05 behaviour preserved)', () => {
-  test('a bad line only hurts itself; the sides do not cross over', () => {
-    expect(turnBlocks('claude', [JSON.stringify(cA([{ type: 'text', text: 'good line' }])), '{ bad line'])).toHaveLength(1)
+  test('a bad line only hurts itself; the sides do not cross over', async () => {
+    expect(await claudeTurn([JSON.stringify(cA([{ type: 'text', text: 'good line' }])), '{ bad line'])).toHaveLength(1)
     expect(blocks('codex', [cA([{ type: 'text', text: 'claude line' }])])).toEqual([{ kind: 'unknown', count: 1, types: ['assistant'] }])
   })
 })
@@ -323,10 +337,19 @@ function withFile<T>(text: string, fn: (file: string) => Promise<T>): Promise<T>
   return fn(file).finally(() => rmSync(dir, { recursive: true, force: true }))
 }
 
+/** The lines a turn read handed over of a side whose turns TypeScript assembles */
+const linesHanded = (read: TurnRead): string[] => (read.body !== null && 'lines' in read.body ? read.body.lines : [])
+
 /** A turn of `file`, a session file of `side`, by its question index record, read as the session page reads it */
-async function readTurn(side: 'claude' | 'grok' | 'antigravity', file: string, rec: QuestionRec): Promise<{ lines: string[]; bytesRead: number }> {
-  const read = await readTurnLines(side, file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] })
-  return { lines: read.lines ?? [], bytesRead: read.bytesRead }
+async function readTurn(side: 'grok' | 'antigravity', file: string, rec: QuestionRec): Promise<{ lines: string[]; bytesRead: number }> {
+  const read = await readTurnOf(side, file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] })
+  return { lines: linesHanded(read), bytesRead: read.bytesRead }
+}
+
+/** A Claude Code turn of `file` by its question index record, read as the session page reads it: the blocks the engine
+ * module assembled */
+async function claudeTurnOf(file: string, rec: QuestionRec): Promise<TurnBlock[]> {
+  return blocksOf(await readTurnOf('claude', file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] }))
 }
 
 /** The lines of a range's text as the whole file's read gives it, the empty piece after its last line feed left off */
@@ -351,7 +374,7 @@ describe('the question index and the turn take the same tool calls as subagent d
       const raw = [uLine('a question'), JSON.stringify(cA([{ type: 'tool_use', id: 'tu1', name, input: { prompt: 'p' } }]))].join('\n') + '\n'
       await withFile(raw, async (file) => {
         const [rec] = await indexFile(file)
-        const kinds = turnBlocks('claude', (await readTurn('claude', file, rec)).lines).map((b) => b.kind)
+        const kinds = (await claudeTurnOf(file, rec)).map((b) => b.kind)
         judged.push({ name, counted: [rec[4], rec[5]], shown: [kinds.filter((k) => k === 'tool').length, kinds.filter((k) => k === 'sub').length] })
       })
     }
@@ -375,10 +398,10 @@ describe('a range fetch agrees with a full parse (the anchor)', () => {
       expect(recs).toHaveLength(2)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
       for (let i = 0; i < recs.length; i++) {
-        expect(turnBlocks('claude', (await readTurn('claude', file, recs[i])).lines)).toEqual(turnBlocks('claude', linesOf(whole.texts[i])))
+        expect(await claudeTurnOf(file, recs[i])).toEqual(await claudeTurn(linesOf(whole.texts[i])))
       }
       // The first turn: the tool is already paired (its output is in place)
-      const t = turnBlocks('claude', linesOf(whole.texts[0])).find((b) => b.kind === 'tool')
+      const t = (await claudeTurn(linesOf(whole.texts[0]))).find((b) => b.kind === 'tool')
       expect(t && t.kind === 'tool' && t.output).toBe('ok')
     })
   })
@@ -541,7 +564,7 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
   const read = (lines: readonly string[]): Promise<TurnBlock[]> =>
     withFile(transcriptText(lines), async (file) => {
       const body = { start: 0, end: statSync(file).size }
-      return turnBlocks('antigravity', (await readTurnLines('antigravity', file, { start: 0, end: 0 }, body)).lines ?? [])
+      return turnBlocks('antigravity', linesHanded(await readTurnOf('antigravity', file, { start: 0, end: 0 }, body)))
     })
   /** The turn of the lines after a question, `[from, to)` */
   const turn = (lines: readonly string[], from: number, to: number): Promise<TurnBlock[]> => read(lines.slice(from, to))

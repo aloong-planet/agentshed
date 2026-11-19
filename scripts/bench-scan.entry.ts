@@ -88,7 +88,7 @@ import { TokenEngine, runParseJob, sessionReadSource, type ParseRunner } from '.
 import { questionRevision, readSessionRanges, readSessionTurn, sourceIdentity } from '../src/main/source-identity'
 import { readTurnRanges, turnLimitBytes } from '../src/main/turn-limit'
 import { turnKeepBytes, turnKept } from '../src/main/turn-keep'
-import { turnBlocks } from '../src/main/providers/turn-content'
+import { bodyBlocks } from '../src/main/providers/turn-content'
 import { assertSessionTurn } from '../src/shared/validate'
 import { ParsePool } from '../src/main/parse-pool'
 import { ENGINE_BUILD, loadEngineModule, threadEngineModule, type EngineModule, type EngineSource } from '../src/main/engine-module'
@@ -857,8 +857,8 @@ async function turnFetch(args: string[]): Promise<void> {
   const read = await readTurnRanges((s, question, body) => readSessionTurn('claude', s, question, body), source, [rec[0], rec[1], rec[2]], TURN_LIMIT)
   questionRevision(identity, file, rec[0], rec[1], read.question)
   if (sourceIdentity(source) !== identity) throw new Error(`${file} changed during the read`)
-  if (read.lines === null) throw new Error(`the turn's body, ${read.bodyBytes} bytes, is over the turn limit`)
-  const turn: SessionTurn = { blocks: turnBlocks('claude', read.lines), bytesRead: read.bytesRead }
+  if (read.body === null) throw new Error(`the turn's body, ${read.bodyBytes} bytes, is over the turn limit`)
+  const turn: SessionTurn = { blocks: bodyBlocks('claude', read.body), bytesRead: read.bytesRead }
   if (!turnKept(read.bodyBytes, TURN_KEEP)) turn.unkept = true
   assertSessionTurn(turn)
   const ms = performance.now() - t0

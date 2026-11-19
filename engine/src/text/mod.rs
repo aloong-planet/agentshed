@@ -29,9 +29,77 @@ pub(crate) fn line_text_owned(bytes: Vec<u8>) -> String {
     String::from_utf8(bytes).unwrap_or_else(|refused| String::from_utf8_lossy(refused.as_bytes()).into_owned())
 }
 
+/// A string the module hands JavaScript, held at about its length in bytes: as UTF-8 when it is well formed, as nearly
+/// every string is, and as its UTF-16 code units when it holds a lone surrogate, which UTF-8 has no form of. Either way
+/// JavaScript is given the string it would hold itself.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum JsString {
+    Utf8(String),
+    Units(Units),
+}
+
+impl Default for JsString {
+    fn default() -> Self {
+        JsString::empty()
+    }
+}
+
+impl JsString {
+    /// The empty string
+    pub(crate) fn empty() -> Self {
+        JsString::Utf8(String::new())
+    }
+
+    /// The string of `units`, as UTF-8 when they are well formed
+    pub(crate) fn from_units(units: Units) -> Self {
+        match String::from_utf16(&units) {
+            Ok(text) => JsString::Utf8(text),
+            Err(_) => JsString::Units(units),
+        }
+    }
+
+    /// The string's code units, one at a time
+    pub(crate) fn units(&self) -> Box<dyn Iterator<Item = u16> + '_> {
+        match self {
+            JsString::Utf8(text) => Box::new(text.encode_utf16()),
+            JsString::Units(units) => Box::new(units.iter().copied()),
+        }
+    }
+
+    /// `!s.trim()`: whether the string is empty once its white space is trimmed
+    pub(crate) fn is_blank(&self) -> bool {
+        self.units().all(is_space)
+    }
+
+    /// `s.includes(needle)`, for a needle of ASCII text
+    pub(crate) fn includes(&self, needle: &str) -> bool {
+        match self {
+            JsString::Utf8(text) => text.contains(needle),
+            JsString::Units(units) => find(units, &self::units(needle), 0).is_some(),
+        }
+    }
+
+    /// `strings.join(separator)`, for a separator of ASCII text
+    pub(crate) fn join(strings: Vec<JsString>, separator: &str) -> JsString {
+        if strings.iter().all(|s| matches!(s, JsString::Utf8(_))) {
+            let texts: Vec<String> = strings.into_iter().map(|s| if let JsString::Utf8(text) = s { text } else { String::new() }).collect();
+            return JsString::Utf8(texts.join(separator));
+        }
+        let separator = self::units(separator);
+        let mut out = Units::new();
+        for (i, s) in strings.iter().enumerate() {
+            if i > 0 {
+                out.extend_from_slice(&separator);
+            }
+            out.extend(s.units());
+        }
+        JsString::Units(out)
+    }
+}
+
 /// Whether a code unit is in the set `String.prototype.trim` and the regular expression `\s` match: WhiteSpace and
 /// LineTerminator (ECMA-262 §12.2, §12.3), every member a single unit
-fn is_space(u: u16) -> bool {
+pub(crate) fn is_space(u: u16) -> bool {
     matches!(u, 0x09..=0x0d | 0x20 | 0xa0 | 0x1680 | 0x2000..=0x200a | 0x2028 | 0x2029 | 0x202f | 0x205f | 0x3000 | 0xfeff)
 }
 

@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readRanges, type ByteRange } from './range-read'
 import { readColdRanges } from './cold-rollout'
-import { readTurnLines } from './turn-read'
+import { readTurn, type TurnRead } from './turn-read'
 import { threadEngineModule } from '../engine-module'
 import { TEST_ENGINE, type HoldSeam, type LineLimitSeam, type PanicSeam } from '../testing/engine'
 
@@ -63,6 +63,9 @@ function rollout(lines: Array<{ line: Buffer; question?: true }>): { content: Bu
   return { content: Buffer.concat(lines.flatMap(({ line }) => [line, Buffer.from('\n')])), turns }
 }
 
+/** The lines of the body a turn read handed over, of a side whose turns TypeScript assembles */
+const linesOf = (read: TurnRead): string[] | null => (read.body !== null && 'lines' in read.body ? read.body.lines : null)
+
 /** The range read's text of a body split at its line feeds, the empty piece after a last line feed left off */
 const split = (text: string): string[] => {
   const pieces = text.split('\n')
@@ -92,10 +95,10 @@ describe('a turn read hands over what the range read gives the same ranges, plai
     const handed: string[] = []
     for (const { question, body } of turns) {
       const { texts } = await readRanges(plain, [question, body])
-      const read = await readTurnLines('codex', file, question, body)
+      const read = await readTurn('codex', file, question, body)
       expect(read.question).toBe(texts[0])
-      expect(read.lines).toEqual(split(texts[1]))
-      handed.push(read.question, ...(read.lines ?? []))
+      expect(linesOf(read)).toEqual(split(texts[1]))
+      handed.push(read.question, ...(linesOf(read) ?? []))
     }
     // The invalid bytes are inside the turns read, each replaced as the WHATWG decoder replaces it: one U+FFFD for the
     // lone byte, one for the cut sequence, two for the overlong form, three for the surrogate
@@ -144,9 +147,9 @@ describe('a turn read hands over what the range read gives the same ranges, plai
   ])('%s: the pieces are the range\'s text split at its line feeds, plain and cold', async (_what, content, question, body) => {
     for (const cold of [false, true]) {
       const { texts } = await readRanges(rolloutOf(content, false), [question, body])
-      const read = await readTurnLines('codex', rolloutOf(content, cold), question, body)
+      const read = await readTurn('codex', rolloutOf(content, cold), question, body)
       expect(read.question).toBe(texts[0])
-      expect(read.lines).toEqual(split(texts[1]))
+      expect(linesOf(read)).toEqual(split(texts[1]))
     }
   })
 })
@@ -165,7 +168,7 @@ describe('a turn read stops at the turn\'s end (session-view C2)', () => {
     expect(big.turns[0]).toEqual(small.turns[0])
     const expected = cold ? body.end : body.end - question.start
     for (const { content } of [small, big]) {
-      expect((await readTurnLines('codex', rolloutOf(content, cold), question, body)).bytesRead).toBe(expected)
+      expect((await readTurn('codex', rolloutOf(content, cold), question, body)).bytesRead).toBe(expected)
     }
   })
 
@@ -177,8 +180,8 @@ describe('a turn read stops at the turn\'s end (session-view C2)', () => {
     try {
       // The limit is passed by the line after the first turn only: a read that went on to it would fail
       expect(() => seam.seamEachLine(file, cold)).toThrow(/could not be read to its end/)
-      const read = await readTurnLines('codex', file, turns[0].question, turns[0].body)
-      expect(read.lines).toHaveLength(1)
+      const read = await readTurn('codex', file, turns[0].question, turns[0].body)
+      expect(linesOf(read)).toHaveLength(1)
     } finally {
       seam.seamLimitLinesOf(file, null)
     }
@@ -187,9 +190,9 @@ describe('a turn read stops at the turn\'s end (session-view C2)', () => {
   test.each([false, true])('with no body, as over the turn limit: the question alone is read, and no lines are handed over (cold %s)', async (cold) => {
     const { content, turns } = twoTurns(10)
     const { question } = turns[1]
-    const read = await readTurnLines('codex', rolloutOf(content, cold), question, null)
+    const read = await readTurn('codex', rolloutOf(content, cold), question, null)
     const { texts } = await readRanges(rolloutOf(content, false), [question])
-    expect(read).toEqual({ question: texts[0], lines: null, bytesRead: cold ? question.end : question.end - question.start })
+    expect(read).toEqual({ question: texts[0], body: null, bytesRead: cold ? question.end : question.end - question.start })
   })
 })
 
@@ -250,9 +253,9 @@ describe('a turn read that fails', () => {
     const seam = threadEngineModule() as PanicSeam
     seam.seamPanicWhileReading(hit)
     try {
-      const [failed, spared] = await Promise.allSettled([readTurnLines('codex', hit, question, body), readTurnLines('codex', other, question, body)])
+      const [failed, spared] = await Promise.allSettled([readTurn('codex', hit, question, body), readTurn('codex', other, question, body)])
       expect(failed.status === 'rejected' && String(failed.reason)).toMatch(/reading .* panicked/)
-      expect(spared.status === 'fulfilled' && spared.value.lines).toEqual([shown.toString('utf8')])
+      expect(spared.status === 'fulfilled' && linesOf(spared.value)).toEqual([shown.toString('utf8')])
     } finally {
       seam.seamPanicWhileReading(null)
     }
@@ -299,16 +302,16 @@ describe('the places turn reads take (session-view C2)', () => {
   const held = (files: string[]): void => {
     for (const file of files) seam().seamHoldReadsOf(file)
   }
-  const served = (outcomes: Array<PromiseSettledResult<{ lines: string[] | null }>>): unknown[] =>
-    outcomes.map((o) => o.status === 'fulfilled' && o.value.lines)
+  const served = (outcomes: Array<PromiseSettledResult<TurnRead>>): unknown[] =>
+    outcomes.map((o) => o.status === 'fulfilled' && linesOf(o.value))
 
   test('a cold rollout\'s turn read takes one of the four cold places its range reads take: a fifth cold read waits for one to be given up', async () => {
     const handed = watchHanded()
     const cold = Array.from({ length: 5 }, () => rolloutOf(content, true))
     held(cold)
-    const reads = [readTurnLines('codex', cold[0], question, body), readTurnLines('codex', cold[1], question, body),
-      readColdRanges(cold[2], [body]), readTurnLines('codex', cold[3], question, body)]
-    const fifth = readTurnLines('codex', cold[4], question, body)
+    const reads = [readTurn('codex', cold[0], question, body), readTurn('codex', cold[1], question, body),
+      readColdRanges(cold[2], [body]), readTurn('codex', cold[3], question, body)]
+    const fifth = readTurn('codex', cold[4], question, body)
     const outcomes = Promise.allSettled([...reads, fifth])
     asked.push(outcomes)
     expect(handed).toEqual(cold.slice(0, 4))
@@ -327,8 +330,8 @@ describe('the places turn reads take (session-view C2)', () => {
     const plain = Array.from({ length: 4 }, () => rolloutOf(content, false))
     held([...cold, ...plain])
     // Every cold place held, and every thread of the pool
-    const colds = cold.map((file) => readTurnLines('codex', file, question, body))
-    const plains = plain.map((file) => readTurnLines('codex', file, question, body))
+    const colds = cold.map((file) => readTurn('codex', file, question, body))
+    const plains = plain.map((file) => readTurn('codex', file, question, body))
     const outcomes = Promise.allSettled([...colds, ...plains])
     asked.push(outcomes)
     expect(handed).toEqual([...cold, ...plain])

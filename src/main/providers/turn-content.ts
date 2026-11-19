@@ -50,6 +50,7 @@ import type {
   TurnToolBlock
 } from '@shared/domain'
 import { threadEngineModule } from '../engine-module'
+import type { TurnBody } from './turn-read'
 
 /** The tool names whose call dispatches a subagent on the turn's side: the engine module's, which the question index
  * counts the turn's subagents by */
@@ -669,6 +670,12 @@ function antigravityAssemble(objs: Array<Record<string, unknown>>, dispatches: D
     // USER_INPUT: the question renders in its own row; an empty request renders nothing
   }
   return [...out, ...unknownBlock(u)]
+}
+
+/** A turn's body as its read hands it over (turn-read.ts) → its blocks: those the engine module assembled, of a side
+ * whose turns it assembles, or those its lines give */
+export function bodyBlocks(side: AgentSide, body: TurnBody): TurnBlock[] {
+  return 'blocks' in body ? body.blocks : turnBlocks(side, body.lines)
 }
 
 /**

@@ -20,6 +20,7 @@ use crate::group::{Builder, Decoded, Member};
 use crate::read::{Failed, Served, Stored, TurnRead};
 use crate::search::{Found, Turn};
 use crate::text::Units;
+use crate::turn::TurnBody;
 use crate::walk::Held;
 
 /// What side-free code asks of a side
@@ -42,6 +43,13 @@ pub(crate) trait Side: Sync {
     /// agent leaves no line of a turn's range out of it.
     fn kept_lines(&self, lines: &[String]) -> Vec<bool> {
         lines.iter().map(|_| true).collect()
+    }
+
+    /// What a turn's read hands over for its body, `lines` the lines the turn holds (`kept_lines`): its blocks, for a
+    /// side whose turns the module assembles, each line let go once it is read; by default the lines, for a side whose
+    /// turns TypeScript still assembles (ADR-0047)
+    fn turn_body(&self, lines: Vec<String>) -> TurnBody {
+        TurnBody::Lines(lines)
     }
 
     /// What a parse that panicked answers: the file's failed read, under the side's rule for a read that fails

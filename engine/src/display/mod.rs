@@ -11,6 +11,9 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 pub use json::stringify;
+/// QuoteJSONString and Number::toString as `JSON.stringify` writes them, which the turn's rules write a line's values by
+/// too (crate::json::stringify)
+pub(crate) use json::{write_number, write_string};
 
 /// Replaces `file` with `text`, atomically: the text goes to a temporary file beside it, which is then renamed over it.
 /// A write cut short leaves the previous copy whole (agents-overview, restart sequence item 6), and one that fails

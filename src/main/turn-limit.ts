@@ -4,6 +4,7 @@
 // what ties the fetch to the question the page showed after a rewrite. This limit does not bound it, and neither does the
 // line limit for every side: a Grok question is a run of lines, each within the line limit, the run itself unbounded.
 import type { ByteRange } from './providers/range-read'
+import type { TurnBody } from './providers/turn-read'
 import { rescanIntervalMs } from './rescan'
 
 /** 64 MiB, measured on the body alone: exactly this much is read, one byte more is not */
@@ -16,15 +17,15 @@ export function turnLimitBytes(env: string | undefined): number {
   return rescanIntervalMs(env, TURN_LIMIT_BYTES)
 }
 
-/** A turn's read (turn-read.ts): the question's text, the body's lines when a body was asked, how much was read */
-type ReadTurn = (source: string, question: ByteRange, body: ByteRange | null) => Promise<{ question: string; lines: string[] | null; bytesRead: number }>
+/** A turn's read (turn-read.ts): the question's text, the body when a body was asked, how much was read */
+type ReadTurn = (source: string, question: ByteRange, body: ByteRange | null) => Promise<{ question: string; body: TurnBody | null; bytesRead: number }>
 
 export type TurnRead =
-  | { question: string; lines: string[]; bodyBytes: number; bytesRead: number }
+  | { question: string; body: TurnBody; bodyBytes: number; bytesRead: number }
   /** Over the limit: only the question was read, and the body's length is what the reason shows */
-  | { question: string; lines: null; bodyBytes: number; bytesRead: number }
+  | { question: string; body: null; bodyBytes: number; bytesRead: number }
 
-/** A turn's question and, when its body is within the limit, the lines its body holds, in one read */
+/** A turn's question and, when its body is within the limit, its body, in one read */
 export async function readTurnRanges(
   read: ReadTurn,
   source: string,
@@ -35,8 +36,8 @@ export async function readTurnRanges(
   const bodyBytes = rec[2] - rec[1]
   if (bodyBytes > limit) {
     const { question: text, bytesRead } = await read(source, question, null)
-    return { question: text, lines: null, bodyBytes, bytesRead }
+    return { question: text, body: null, bodyBytes, bytesRead }
   }
-  const { question: text, lines, bytesRead } = await read(source, question, { start: rec[1], end: rec[2] })
-  return { question: text, lines: lines ?? [], bodyBytes, bytesRead }
+  const { question: text, body, bytesRead } = await read(source, question, { start: rec[1], end: rec[2] })
+  return { question: text, body: body ?? { lines: [] }, bodyBytes, bytesRead }
 }
