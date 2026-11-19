@@ -188,8 +188,10 @@ where
 ///
 /// A line is read in two steps. While its text is read, what it gives the turn is noted with its strings still the
 /// line's (`Given`). Then the strings are made: the longest that is well formed in the line's own buffer, which it then
-/// holds alone (`json::take`), the others copied. A line holding a long text, a tool's long return say, is so held
-/// once, in the line read or in its block, and never twice over (session-view C2).
+/// holds alone (`json::take`), the others copied. That longest string, a tool's long return say, is so held once, in
+/// the line read or in the block that takes it as it is, never in both (session-view C2). Anything else a block is
+/// given from the line is a copy held beside the line until the line is let go: a tool's input or a dispatch's prompt,
+/// made as the line is read, say, or texts joined into one.
 pub(super) fn blocks(lines: Vec<String>, dispatches: &[&str]) -> Vec<Block> {
     let mut turn = Turn::default();
     for line in lines {
