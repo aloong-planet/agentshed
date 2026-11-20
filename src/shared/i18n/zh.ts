@@ -546,6 +546,7 @@ export const zh = {
     skillBadName: '非法 skill 名',
     skillStaleTarget: '目标是失效项目(目录不存在)',
     skillTargetNotProject: '目标不是本 app 的项目',
+    skillTargetGlobalLibrary: '会改动全局库,已阻止,未安装或删除任何内容',
     skillMissingSource: (name: string) => `全局库无此 skill:${name}`,
     skillCopyMissing: '项目级副本不存在',
     skillConflict: '目标已有同名项目级 skill,已阻止不覆盖',

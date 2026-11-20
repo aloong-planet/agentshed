@@ -222,3 +222,53 @@ export function skillOpTarget(
   if (project === undefined) return { ok: false, code: ERR.skillTargetNotProject }
   return project.stale ? { ok: false, code: ERR.skillStaleTarget } : { ok: true }
 }
+
+/**
+ * Where a directory is, told by identity rather than by spelling (skill-install R4): one directory can be named by its
+ * own path, by its real path, through a link or in another letter case, and only its device and inode say it is the
+ * same one. The probe is the caller's (providers/install.ts, dirPlace and entryPlace); tests pass the same one against
+ * real directories.
+ */
+export interface DirPlace {
+  /** The nearest directory along the path that is there, by device and inode: the directory itself when it is there */
+  at: string
+  /** `at` and every directory holding it, along its path as written and along where that path really leads */
+  holders: readonly string[]
+  /** The segments below `at` that are not there yet; empty when the directory is there */
+  rest: readonly string[]
+}
+
+/** A segment not there yet, as a volume that ignores letter case would find it: `.CLAUDE` would be created as Claude's
+ * `.claude`. Folding on a volume that tells case apart only refuses more */
+const folded = (segment: string): string => segment.toUpperCase().toLowerCase()
+
+/** Whether `a` is `b` or lies inside it. A place the probe could not tell is inside nothing and holds nothing: a path it
+ * cannot look at, the operation cannot write or delete through either, and fails there (A10, B2) */
+function within(a: DirPlace | null, b: DirPlace | null): boolean {
+  if (a === null || b === null) return false
+  if (b.rest.length === 0) return a.holders.includes(b.at)
+  // `b` is not there yet, so nothing inside it is either: `a` would be created below the same directory, by the same
+  // segments
+  return a.at === b.at && b.rest.every((segment, i) => i < a.rest.length && folded(a.rest[i]) === folded(segment))
+}
+
+/**
+ * Whether a skill install or uninstall would change a global library (skill-install R4), judged after R3 has admitted
+ * its target: refused when a landing — the project skills directory written into or deleted from — is a library or lies
+ * inside one, and with it every copy in it, or when a copy — a landing and the skill's name — is a library or holds one.
+ * A landing is judged where it really leads, as the copy is written or deleted through it; a copy as the operation acts
+ * on it, the entry itself not followed, so a project's copy that is a link to a library stays deletable and only the
+ * link goes. A library is judged both ways: deleting a library that is itself a link would remove it too.
+ */
+export function skillOpLibrary(
+  op: { landings: readonly string[]; copies: readonly string[]; libraries: readonly string[] },
+  probe: { dir: (path: string) => DirPlace | null; entry: (path: string) => DirPlace | null }
+): { ok: true } | { ok: false; code: typeof ERR.skillTargetGlobalLibrary } {
+  const libraries = op.libraries.flatMap((l) => [probe.dir(l), probe.entry(l)])
+  const landings = op.landings.map((l) => probe.dir(l))
+  const copies = op.copies.map((c) => probe.entry(c))
+  const changes =
+    landings.some((l) => libraries.some((lib) => within(l, lib))) ||
+    copies.some((c) => libraries.some((lib) => within(lib, c)))
+  return changes ? { ok: false, code: ERR.skillTargetGlobalLibrary } : { ok: true }
+}

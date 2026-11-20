@@ -3,15 +3,15 @@
 // cleaning up on failure so nothing half-finished is left); uninstalling = deleting the project's copy.
 // The global library is read-only and is never written.
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync, statSync, type BigIntStats } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { PROJECT_SKILLS_DIR, type AgentSide, type ProjectEntry } from '@shared/domain'
 import { skillLandings } from '@shared/skill-landing'
-import type { ScanRoots } from './types'
+import { globalSkillsRoots, type ScanRoots } from './types'
 import { globalSkillEntry } from './skill-package'
 import { isAbsent } from './read-utils'
 import { compareNames } from './scan-order'
 import { ERR, type ErrorCode, type ErrorParams } from '@shared/errors'
-import { skillOpTarget } from '../security'
+import { skillOpLibrary, skillOpTarget, type DirPlace } from '../security'
 
 export interface InstallArgs {
   skillName: string
@@ -63,6 +63,38 @@ function dirsHolding(path: string): string[] {
     }
   }
   return ids
+}
+
+/** Where a directory is (security.ts, DirPlace), links followed: the nearest directory along the path that is there —
+ * the one the install would create the rest of the path in — and the segments below it. null when the path cannot be
+ * looked at */
+export function dirPlace(path: string): DirPlace | null {
+  const rest: string[] = []
+  let there = path
+  try {
+    while (isAbsent(there)) {
+      if (dirname(there) === there) return null
+      rest.unshift(basename(there))
+      there = dirname(there)
+    }
+    return { at: idOf(statSync(there, { bigint: true })), holders: dirsHolding(there), rest }
+  } catch {
+    return null
+  }
+}
+
+/** Where an entry is (security.ts, DirPlace), the entry itself not followed: a link is the link, which is what an
+ * uninstall deletes and what an install finds taken. null when the path cannot be looked at */
+export function entryPlace(path: string): DirPlace | null {
+  const holding = dirPlace(dirname(path))
+  if (holding === null) return null
+  try {
+    const at = idOf(lstatSync(path, { bigint: true }))
+    return { at, holders: [at, ...holding.holders], rest: [] }
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    return code === 'ENOENT' || code === 'ENOTDIR' ? { ...holding, rest: [...holding.rest, basename(path)] } : null
+  }
 }
 
 /**
@@ -195,14 +227,38 @@ export function installSkillToProject(roots: ScanRoots, args: InstallToProjectAr
   }))
 }
 
+/** Every global library, each once */
+function globalLibraries(roots: ScanRoots): string[] {
+  return [...new Set(Object.values(globalSkillsRoots(roots)).flat())]
+}
+
+/** Whether an operation on these project skills directories of a project, and on its copies of this name there, would
+ * change a global library (skill-install R4). Without a name, or with one that is not a single segment, only the
+ * directories are judged: such a name has no copy, and the operation refuses it */
+function libraryCheck(roots: ScanRoots, project: string, dirs: readonly string[], name?: string): ReturnType<typeof skillOpLibrary> {
+  const landings = dirs.map((d) => join(project, d))
+  const copies = name === undefined || badName(name) ? [] : landings.map((l) => join(l, name))
+  return skillOpLibrary({ landings, copies, libraries: globalLibraries(roots) }, { dir: dirPlace, entry: entryPlace })
+}
+
+/** A project's skills directories that are a global library or lie inside one (skill-install R4), relative to the
+ * project: the picker disables a target with a landing among them, and project detail offers no Uninstall in them */
+export function libraryDirs(roots: ScanRoots, project: string): string[] {
+  return [...new Set(Object.values(PROJECT_SKILLS_DIR))].filter((d) => !libraryCheck(roots, project, [d]).ok)
+}
+
 /**
- * The install the app calls (skill-install R3): into one of the projects the app lists, judged by skillOpTarget before
- * anything is written; a refused target is reported at every landing, as a target found gone is (A5).
+ * The install the app calls: into one of the projects the app lists, judged by skillOpTarget (skill-install R3), and
+ * never into a global library, judged by skillOpLibrary (R4), both before anything is written; a refusal is reported
+ * at every landing, as a target found gone is (A5).
  */
 export function installIntoListedProject(roots: ScanRoots, projects: readonly Pick<ProjectEntry, 'path' | 'stale'>[], args: InstallToProjectArgs): LandingResult[] {
+  const landings = skillLandings(args.sides)
+  const refused = (reason: ErrorCode): LandingResult[] => landings.map((l) => ({ dir: l.dir, loaders: l.loaders, result: { ok: false, reason } }))
   const target = skillOpTarget(projects, args.targetProjectPath)
-  if (target.ok) return installSkillToProject(roots, args)
-  return skillLandings(args.sides).map((l) => ({ dir: l.dir, loaders: l.loaders, result: { ok: false, reason: target.code } }))
+  if (!target.ok) return refused(target.code)
+  const library = libraryCheck(roots, args.targetProjectPath, landings.map((l) => l.dir), args.skillName)
+  return library.ok ? installSkillToProject(roots, args) : refused(library.code)
 }
 
 /**
@@ -237,9 +293,11 @@ export function uninstallSkill(args: UninstallArgs): OpResult {
   }
 }
 
-/** The uninstall the app calls (skill-install R3): from one of the projects the app lists, judged by skillOpTarget before
- * anything is deleted */
-export function uninstallFromListedProject(projects: readonly Pick<ProjectEntry, 'path' | 'stale'>[], args: UninstallArgs): OpResult {
+/** The uninstall the app calls: from one of the projects the app lists, judged by skillOpTarget (skill-install R3), and
+ * never from a global library, judged by skillOpLibrary (R4), both before anything is deleted */
+export function uninstallFromListedProject(roots: ScanRoots, projects: readonly Pick<ProjectEntry, 'path' | 'stale'>[], args: UninstallArgs): OpResult {
   const target = skillOpTarget(projects, args.targetProjectPath)
-  return target.ok ? uninstallSkill(args) : { ok: false, reason: target.code }
+  if (!target.ok) return { ok: false, reason: target.code }
+  const library = libraryCheck(roots, args.targetProjectPath, [PROJECT_SKILLS_DIR[args.side]], args.skillName)
+  return library.ok ? uninstallSkill(args) : { ok: false, reason: library.code }
 }

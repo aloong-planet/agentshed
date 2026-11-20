@@ -531,7 +531,7 @@ function checkInstallArgs(args: unknown): SkillInstallArgs {
 // (skill-install R3): the restored one until the first scan completes, which is the snapshot the renderer shows then
 const listedProjects = (): ProjectEntry[] => current?.projects ?? []
 handle(CMD.installSkill, (_e, args: unknown): SkillLandingResult[] => installIntoListedProject(realRoots(), listedProjects(), checkInstallArgs(args)))
-handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallFromListedProject(listedProjects(), checkSkillOpArgs(args)))
+handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallFromListedProject(realRoots(), listedProjects(), checkSkillOpArgs(args)))
 // The live projects of the current snapshot: the renderer names the skill, never the paths probed. Before the first
 // scan they are the restored snapshot's, or none without one, and the install itself still refuses a same name (A4)
 handle(CMD.skillHoldings, (_e, name: unknown): SkillHoldings => {

@@ -83,6 +83,9 @@ export const ERR = {
   skillStaleTarget: 'skill-stale-target',
   /** The target is not one of the app's projects, so nothing was installed or deleted */
   skillTargetNotProject: 'skill-target-not-project',
+  /** The install or uninstall would change a global library — its landing is one or inside one, or its copy is one, inside
+   * one or holds one — so nothing was installed or deleted (skill-install R4) */
+  skillTargetGlobalLibrary: 'skill-target-global-library',
   /** The global library has no such skill (params.name) */
   skillMissingSource: 'skill-missing-source',
   /** The project-level copy does not exist */

@@ -79,6 +79,19 @@ describe('errorText', () => {
     )
   })
 
+  // skill-install R4: the main process's refusal of an operation that would change a global library. Han by code point
+  // (check:lang): "would change the global library", "blocked", "nothing installed or deleted"
+  it('an operation that would change a global library', () => {
+    expect(errorText('en', appError(ERR.skillTargetGlobalLibrary))).toBe(
+      'Blocked: this would change a global library, and nothing was installed or deleted'
+    )
+    const zh = (...cps: number[]): string => String.fromCharCode(...cps)
+    expect(errorText('zh', appError(ERR.skillTargetGlobalLibrary))).toBe(
+      `${zh(0x4f1a, 0x6539, 0x52a8, 0x5168, 0x5c40, 0x5e93)},${zh(0x5df2, 0x963b, 0x6b62)},` +
+        zh(0x672a, 0x5b89, 0x88c5, 0x6216, 0x5220, 0x9664, 0x4efb, 0x4f55, 0x5185, 0x5bb9)
+    )
+  })
+
   // skill-install::REQ-004/AC-02, AC-03: the reason names the link by its path inside the skill. Han by code point
   // (check:lang): "link", "what it points to does not exist", "points back to", "itself", "nothing was installed"
   it('a link that leads nowhere and a link that leads back each name the link', () => {

@@ -469,7 +469,7 @@ describe('the install and uninstall the app calls, into one of its projects', ()
     const copy = join(proj, '.claude', 'skills', 'tidy')
     mkdirSync(copy, { recursive: true })
     writeFileSync(join(copy, 'SKILL.md'), '---\nname: tidy\n---\n')
-    expect(uninstallFromListedProject(listed(proj), { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason })
+    expect(uninstallFromListedProject(roots(), listed(proj), { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason })
     expect(readFileSync(join(copy, 'SKILL.md'), 'utf8')).toBe('---\nname: tidy\n---\n')
   })
 
@@ -477,7 +477,7 @@ describe('the install and uninstall the app calls, into one of its projects', ()
     const copy = join(proj, '.claude', 'skills', 'tidy')
     mkdirSync(copy, { recursive: true })
     writeFileSync(join(copy, 'SKILL.md'), '---\nname: tidy\n---\n')
-    expect(uninstallFromListedProject([other(), { path: proj, stale: false }], { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: true })
+    expect(uninstallFromListedProject(roots(), [other(), { path: proj, stale: false }], { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: true })
     expect(existsSync(copy)).toBe(false)
   })
 
@@ -502,5 +502,60 @@ describe('the install and uninstall the app calls, into one of its projects', ()
     ])
     expect(readFileSync(join(proj, '.claude', 'skills', 'tidy', 'SKILL.md'), 'utf8')).toContain('from claude')
     expect(readFileSync(join(proj, '.agents', 'skills', 'tidy', 'SKILL.md'), 'utf8')).toContain('from codex')
+  })
+})
+
+// skill-install R4 at the entries the app calls: an install or uninstall whose target R3 admits still never changes a
+// global library. The fixture's home is `dir`, its libraries the ones roots() names; each refusal row's operation would
+// otherwise go through, so only the judgement stands between the call and the library.
+describe('the install and uninstall the app calls, never into a global library', () => {
+  const library = 'skill-target-global-library'
+  const home = (): { path: string; stale: boolean }[] => [{ path: dir, stale: false }, { path: proj, stale: false }]
+
+  it('an uninstall from the home directory, listed as a project, is refused and Claude\'s library keeps the skill', () => {
+    const lib = mkGlobalSkill('claude', 'tidy')
+    expect(uninstallFromListedProject(roots(), home(), { skillName: 'tidy', side: 'claude', targetProjectPath: dir })).toEqual({ ok: false, reason: library })
+    expect(readFileSync(join(lib, 'SKILL.md'), 'utf8')).toContain('name: tidy')
+  })
+
+  it('an install for Antigravity alone into the home directory is refused at its landing, and Codex\'s library is left as it was', () => {
+    mkGlobalSkill('codex', 'other')
+    const agy = join(dir, '.gemini', 'antigravity-cli', 'skills', 'agyonly')
+    mkdirSync(agy, { recursive: true })
+    writeFileSync(join(agy, 'SKILL.md'), '---\nname: agyonly\n---\n')
+    const r = installIntoListedProject(roots(), home(), { skillName: 'agyonly', sides: ['antigravity'], targetProjectPath: dir })
+    expect(r).toEqual([{ dir: '.agents/skills', loaders: ['codex', 'antigravity'], result: { ok: false, reason: library } }])
+    expect(readdirSync(join(dir, '.agents', 'skills'))).toEqual(['other'])
+  })
+
+  it('an install with one landing that is a library is refused at every landing, and nothing is written at the others', () => {
+    mkGlobalSkill('claude', 'tidy')
+    mkGlobalSkill('codex', 'tidy')
+    mkdirSync(join(proj, '.claude'))
+    symlinkSync(join(dir, '.claude', 'skills'), join(proj, '.claude', 'skills'))
+    const r = installIntoListedProject(roots(), home(), { skillName: 'tidy', sides: ['claude', 'codex'], targetProjectPath: proj })
+    expect(r).toEqual([
+      { dir: '.claude/skills', loaders: ['claude'], result: { ok: false, reason: library } },
+      { dir: '.agents/skills', loaders: ['codex', 'antigravity'], result: { ok: false, reason: library } }
+    ])
+    expect(readdirSync(proj)).toEqual(['.claude'])
+  })
+
+  it('an uninstall whose copy is Claude\'s library, through a landing that leads to its parent, is refused and the library is left as it was', () => {
+    const lib = mkGlobalSkill('claude', 'tidy')
+    mkdirSync(join(proj, '.claude'))
+    symlinkSync(join(dir, '.claude'), join(proj, '.claude', 'skills'))
+    expect(uninstallFromListedProject(roots(), home(), { skillName: 'skills', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason: library })
+    expect(readFileSync(join(lib, 'SKILL.md'), 'utf8')).toContain('name: tidy')
+  })
+
+  it('an uninstall of a project\'s copy that is a link into a library deletes the link alone', () => {
+    const lib = mkGlobalSkill('claude', 'tidy')
+    mkdirSync(join(proj, '.claude', 'skills'), { recursive: true })
+    symlinkSync(lib, join(proj, '.claude', 'skills', 'tidy'))
+    expect(uninstallFromListedProject(roots(), home(), { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: true })
+    expect(readdirSync(join(proj, '.claude', 'skills'))).toEqual([])
+    expect(readdirSync(lib).sort()).toEqual(['SKILL.md', 'assets'])
+    expect(readFileSync(join(lib, 'SKILL.md'), 'utf8')).toContain('name: tidy')
   })
 })

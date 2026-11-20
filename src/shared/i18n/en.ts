@@ -445,6 +445,7 @@ export const en: Locale = {
     skillBadName: 'Invalid skill name',
     skillStaleTarget: 'The target is a stale project (its directory no longer exists)',
     skillTargetNotProject: 'The target is not one of the app’s projects',
+    skillTargetGlobalLibrary: 'Blocked: this would change a global library, and nothing was installed or deleted',
     skillMissingSource: (name) => `No such skill in the global library: ${name}`,
     skillCopyMissing: 'The project-level copy does not exist',
     skillConflict: 'Blocked: the target already has a project-level skill with this name, and nothing was overwritten',

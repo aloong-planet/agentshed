@@ -104,6 +104,8 @@ export function errorText(lang: Language, raw: unknown): string {
       return t.skillStaleTarget
     case ERR.skillTargetNotProject:
       return t.skillTargetNotProject
+    case ERR.skillTargetGlobalLibrary:
+      return t.skillTargetGlobalLibrary
     case ERR.skillMissingSource:
       return t.skillMissingSource(s(p, 'name'))
     case ERR.skillCopyMissing:
