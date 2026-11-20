@@ -208,3 +208,33 @@ pub(crate) fn read_lines(lines: Vec<String>, rules: &mut impl Rules) {
 pub(crate) fn made(strings: &mut [Option<JsString>], i: usize) -> JsString {
     strings.get_mut(i).and_then(Option::take).unwrap_or_default()
 }
+
+/// Notes `s` among a line's strings (`Rules::given`): its place there
+pub(crate) fn place<'a>(strings: &mut Vec<Str<'a>>, s: Str<'a>) -> usize {
+    strings.push(s);
+    strings.len() - 1
+}
+
+/// A tool's input or output, or a dispatch's prompt, as shown (`inputText`): nothing by default
+pub(crate) enum Text {
+    /// One of the line's strings
+    String(usize),
+    /// Made already: nothing, or a value shown as `JSON.stringify(v, null, 2)` writes it
+    Made(JsString),
+}
+
+impl Default for Text {
+    fn default() -> Self {
+        Text::Made(JsString::empty())
+    }
+}
+
+impl Text {
+    /// The text, one of the line's strings made (`made`)
+    pub(crate) fn made(self, strings: &mut [Option<JsString>]) -> JsString {
+        match self {
+            Text::String(i) => made(strings, i),
+            Text::Made(text) => text,
+        }
+    }
+}

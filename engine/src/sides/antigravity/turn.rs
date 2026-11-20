@@ -23,7 +23,7 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::json::{self, Kind, Read, Reader, Str};
 use crate::text::{self, JsString};
-use crate::turn::{self, At, Block, Unknowns};
+use crate::turn::{self, place, At, Block, Text, Unknowns};
 
 /// The five line types of the enumeration
 const KNOWN: [&str; 5] = ["USER_INPUT", "PLANNER_RESPONSE", "GENERIC", "SYSTEM_MESSAGE", "ERROR_MESSAGE"];
@@ -132,44 +132,15 @@ enum Made {
     Sub { name: JsString, prompt: Text },
 }
 
-/// A tool's input, or a dispatch's prompt, as shown (`inputText`)
-enum Text {
-    /// One of the line's strings
-    String(usize),
-    /// Made already: nothing, or a value shown as `JSON.stringify(v, null, 2)` writes it
-    Made(JsString),
-}
-
-impl Default for Text {
-    fn default() -> Self {
-        Text::Made(JsString::empty())
-    }
-}
-
-impl Text {
-    /// The value `args` here, as the line writes it, as shown
-    fn of<'a>(args: Option<&'a str>, strings: &mut Vec<Str<'a>>) -> Text {
-        let Some(raw) = args else { return Text::default() };
-        reread(raw, |r| {
-            Ok(match r.kind()? {
-                Kind::String => Text::String(place(strings, r.string()?)),
-                _ => Text::Made(turn::input_text(r)?),
-            })
+/// A tool's input, or a dispatch's prompt, as shown, from the value `args` here, as the line writes it (`inputText`)
+fn text_of<'a>(args: Option<&'a str>, strings: &mut Vec<Str<'a>>) -> Text {
+    let Some(raw) = args else { return Text::default() };
+    reread(raw, |r| {
+        Ok(match r.kind()? {
+            Kind::String => Text::String(place(strings, r.string()?)),
+            _ => Text::Made(turn::input_text(r)?),
         })
-    }
-
-    fn made(self, strings: &mut [Option<JsString>]) -> JsString {
-        match self {
-            Text::String(i) => turn::made(strings, i),
-            Text::Made(text) => text,
-        }
-    }
-}
-
-/// Notes `s` among the line's strings: its place there
-fn place<'a>(strings: &mut Vec<Str<'a>>, s: Str<'a>) -> usize {
-    strings.push(s);
-    strings.len() - 1
+    })
 }
 
 /// A turn's blocks as its lines are read, with the calls a later line pairs with
@@ -288,7 +259,7 @@ impl Turn<'_> {
     /// any other a tool, by its name when a string, its input its arguments as shown
     fn call<'a>(&self, c: &Call<'a>, strings: &mut Vec<Str<'a>>) -> Made {
         let Some(name) = c.name.filter(|n| self.dispatches.iter().any(|d| n.is(d))) else {
-            return Made::Tool { name: c.name.map(|n| n.text()), input: Text::of(c.args, strings) };
+            return Made::Tool { name: c.name.map(|n| n.text()), input: text_of(c.args, strings) };
         };
         let (mut type_name, mut prompt) = (None, None);
         if let Some(raw) = c.args {
@@ -307,7 +278,7 @@ impl Turn<'_> {
         }
         let prompt = match prompt {
             Some(p) => Text::String(place(strings, p)),
-            None => Text::of(c.args, strings),
+            None => text_of(c.args, strings),
         };
         Made::Sub { name: type_name.unwrap_or(name).text(), prompt }
     }

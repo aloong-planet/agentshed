@@ -25,7 +25,7 @@ use std::collections::HashMap;
 
 use crate::json::{self, Kind, Read, Reader, Str};
 use crate::text::JsString;
-use crate::turn::{self, At, Block, Unknowns};
+use crate::turn::{self, place, At, Block, Unknowns};
 
 /// The 18 top-level types of the enumeration
 const KNOWN: [&str; 18] = [
@@ -310,10 +310,7 @@ impl Turn<'_> {
             }
             let Some(id) = s.tool_use_id.map(|i| i.text()) else { continue };
             let Some(&at) = self.tools.get(&id).or_else(|| self.subs.get(&id)) else { continue };
-            let mut string = |s: Str<'a>| {
-                strings.push(s);
-                strings.len() - 1
-            };
+            let mut string = |s: Str<'a>| place(strings, s);
             let returns = match &s.content {
                 None => Returns::Made(JsString::empty()),
                 Some(Returned::String(text)) => Returns::String(string(*text)),
@@ -335,11 +332,9 @@ fn assistant<'a>(segments: &[Segment<'a>], at: &At, dispatches: &[&str], strings
         let kind = |name: &str| s.kind.is_some_and(|k| k.is(name));
         if let (true, Some(thinking)) = (kind("thinking"), s.thinking) {
             // A thinking that is only white space is no block, and nothing else either
-            strings.push(thinking);
-            given.push(Given::Think(strings.len() - 1));
+            given.push(Given::Think(place(strings, thinking)));
         } else if let (true, Some(text)) = (kind("text"), s.text) {
-            strings.push(text);
-            prose.push(strings.len() - 1);
+            prose.push(place(strings, text));
         } else if let (true, Some(id)) = (kind("tool_use"), s.id) {
             let name = s.name.map(|n| n.text());
             let dispatch = matches!(&name, Some(JsString::Utf8(n)) if dispatches.contains(&n.as_str()));

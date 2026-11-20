@@ -32,7 +32,7 @@ use std::collections::HashMap;
 use super::question::CALL_TYPES;
 use crate::json::{self, Kind, Read, Reader, Str};
 use crate::text::JsString;
-use crate::turn::{self, At, Block, Unknowns};
+use crate::turn::{self, place, At, Block, Text, Unknowns};
 
 /// The top-level types of the enumerations
 const TOP_KNOWN: [&str; 8] = [
@@ -282,35 +282,13 @@ enum Given {
     Output(usize, Text),
 }
 
-/// A tool's input or output as shown (`inputText`)
-enum Text {
-    /// One of the line's strings
-    String(usize),
-    /// Made already: nothing, or a value shown as `JSON.stringify(v, null, 2)` writes it
-    Made(JsString),
-}
-
-impl Text {
-    fn of<'a>(value: Option<Value<'a>>, strings: &mut Vec<Str<'a>>) -> Text {
-        match value {
-            None | Some(Value::Null) => Text::Made(JsString::empty()),
-            Some(Value::String(s)) => Text::String(place(strings, s)),
-            Some(Value::Other(raw)) => Text::Made(turn::input_text(&mut Reader::new(raw)).unwrap_or_default()),
-        }
+/// A tool's input or output as shown, from `value` (`inputText`)
+fn text_of<'a>(value: Option<Value<'a>>, strings: &mut Vec<Str<'a>>) -> Text {
+    match value {
+        None | Some(Value::Null) => Text::Made(JsString::empty()),
+        Some(Value::String(s)) => Text::String(place(strings, s)),
+        Some(Value::Other(raw)) => Text::Made(turn::input_text(&mut Reader::new(raw)).unwrap_or_default()),
     }
-
-    fn made(self, strings: &mut [Option<JsString>]) -> JsString {
-        match self {
-            Text::String(i) => turn::made(strings, i),
-            Text::Made(text) => text,
-        }
-    }
-}
-
-/// Notes `s` among the line's strings: its place there
-fn place<'a>(strings: &mut Vec<Str<'a>>, s: Str<'a>) -> usize {
-    strings.push(s);
-    strings.len() - 1
 }
 
 /// Notes each of `texts` among the line's strings: their places there
@@ -421,11 +399,11 @@ impl Turn<'_> {
                 // An empty id is none (`if (callId)`): Codex writes one on a call a Chat Completions provider gave no
                 // id, and on an output answering a call it did not run
                 let id = p.call_id.filter(|id| !id.is_empty()).map(|id| id.text());
-                return Given::Call { id, name, sub, input: Text::of(input, strings) };
+                return Given::Call { id, name, sub, input: text_of(input, strings) };
             }
             if one_of(&OUTPUT_TYPES, &kind) {
                 return match p.call_id.and_then(|id| self.calls.get(&id.text()).copied()) {
-                    Some(call) => Given::Output(call, Text::of(p.output, strings)),
+                    Some(call) => Given::Output(call, text_of(p.output, strings)),
                     None => Given::Nothing,
                 };
             }

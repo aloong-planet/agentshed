@@ -24,7 +24,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::json::{self, Kind, Read, Reader, Str};
 use crate::text::{self, JsString, Units};
-use crate::turn::{self, At, Block, Unknowns};
+use crate::turn::{self, place, At, Block, Unknowns};
 
 /// The ten state types of the enumeration, neither drawn nor traced
 const STATE: [&str; 10] = [
@@ -297,10 +297,7 @@ impl Turn<'_> {
             self.unknowns.note(named.map_or_else(|| JsString::Utf8(NO_UPDATE.to_owned()), |raw| reread(raw, turn::label)));
             return None;
         };
-        let mut string = |s: Str<'a>| {
-            strings.push(s);
-            strings.len() - 1
-        };
+        let mut string = |s: Str<'a>| place(strings, s);
         if kind.is("agent_message_chunk") {
             return Some(Given::Prose(u.text.map(&mut string)));
         }
