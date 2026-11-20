@@ -1418,6 +1418,14 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
   const toolBlock = (name: string | null, input: string, summary: string, output: string | null = null): TurnBlock =>
     ({ kind: 'tool', at, name, summary, input, output, truncated: false })
   const subBlock = (name: string, prompt: string, result: string | null = null): TurnBlock => ({ kind: 'sub', at, name, prompt, steps: [], result, unlinked: true })
+  // Characters beyond ASCII where the rules read, by code point: white space to `\s` of two and of three UTF-8 bytes, a
+  // character outside the Basic Multilingual Plane whose low sixteen bits are a space's, and lone surrogates, which
+  // put the string they are in into its UTF-16 code units
+  const NBSP = String.fromCharCode(0xa0)
+  const IDEOGRAPHIC_SPACE = String.fromCharCode(0x3000)
+  const ASTRAL = String.fromCodePoint(0x20020)
+  const LONE_HIGH = String.fromCharCode(0xd800)
+  const LONE_LOW = String.fromCharCode(0xdc00)
 
   // A string a rule asks to be other than blank, or a value to be a string, each where the rule asks it: an empty one
   // and one only white space (JavaScript's `trim` set) are blank, and an empty string is a string
@@ -1453,6 +1461,10 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
     { name: 'a result no call awaits gives nothing', lines: [result(1, { content: 'orphan' })], blocks: [] },
     { name: 'an echo writing its id after white space and a line feed pairs the message', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":\n\t "c1"'), message(3, framed('c1', 'hello'))], blocks: [subBlock('self', 'p', 'hello')] },
     { name: 'an echo writing an empty id, then the id, pairs by the id', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":"", "conversationId":  "c1"'), message(3, framed('c1', 'hello'))], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'an echo writing white space beyond ASCII before its id pairs the message', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, `"conversationId":${NBSP}${IDEOGRAPHIC_SPACE}"c1"`), message(3, framed('c1', 'hello'))], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'a sender ended by white space beyond ASCII is the run before it, a character outside the Basic Multilingual Plane within it', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, `"conversationId":  "c${ASTRAL}1"`), message(3, `<SYSTEM_MESSAGE>\n[Message] sender=c${ASTRAL}1${IDEOGRAPHIC_SPACE}content=hello\n</SYSTEM_MESSAGE>`)], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'an echo holding a lone surrogate, its id after white space beyond ASCII, pairs a message whose sender is well formed', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, `"conversationId":${IDEOGRAPHIC_SPACE}"c1", "name": "${LONE_HIGH}"`), message(3, framed('c1', 'hello'))], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'a message holding a lone surrogate pairs by its sender and is cut from its frame', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, framed('c1', `he${LONE_LOW}llo`))], blocks: [subBlock('self', 'p', `he${LONE_LOW}llo`)] },
     { name: 'a message from a conversation no echo created is no return', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, framed('c2', 'hello'))], blocks: [subBlock('self', 'p')] },
     { name: 'a message before its echo is no return', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), message(2, framed('c1', 'hello')), echo(3, '"conversationId":  "c1"')], blocks: [subBlock('self', 'p')] },
     { name: 'a sender written inside a word is none', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, '<SYSTEM_MESSAGE>\n[Message] timestamp=t xsender=c2 sender=c1 content=hello\n</SYSTEM_MESSAGE>')], blocks: [subBlock('self', 'p', 'hello')] },
