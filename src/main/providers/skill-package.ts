@@ -144,29 +144,40 @@ interface WalkedFile {
   mtimeMs: number
 }
 
-/** Whether the directory `outer` holds the path `inner`, at any depth. Not a prefix check: the path of the
- * filesystem root already ends in a separator. */
-export function holdsPath(outer: string, inner: string): boolean {
-  const rel = relative(outer, inner)
-  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`)
-}
-
 /** A stat-only walk (contents not read): enumeration and the inline stats share one set of
  * extension / junk-directory rules. A package's depth is unbounded, so the walk does not enter a directory it is
  * already inside, whichever route leads there, nor one holding the package: entering it would list the same files
- * again at each level (skills-view::REQ-003/AC-05). `root` is a real path; `realDir` is the real path of `dir`. */
+ * again at each level (skills-view::REQ-003/AC-05). A directory is known by its device and inode, not its path: a
+ * real path does not reduce every spelling of one directory to one (letter case on a volume that ignores it, a
+ * firmlink such as /System/Volumes/Data). The skill install's walk tells directories apart the same way (install.ts,
+ * idOf and dirsHolding), there failing where this skips. `root` is a real path. */
 function walkFiles(root: string): WalkedFile[] {
   const files: WalkedFile[] = []
+  const idOf = (path: string): string | null => {
+    try {
+      const st = statSync(path, { bigint: true })
+      return `${st.dev}:${st.ino}`
+    } catch {
+      return null
+    }
+  }
+  // The package's directory and every directory holding it
+  const holding = new Set<string>()
+  for (let d = root; ; d = dirname(d)) {
+    const id = idOf(d)
+    if (id !== null) holding.add(id)
+    if (dirname(d) === d) break
+  }
   const inside = new Set<string>()
 
-  function walk(dir: string, realDir: string): void {
+  function walk(dir: string, dirId: string): void {
     let entries
     try {
       entries = readdirSync(dir, { withFileTypes: true })
     } catch {
       return
     }
-    inside.add(realDir)
+    inside.add(dirId)
     for (const e of entries) {
       if (SKILL_SKIP_DIR_NAMES.has(e.name)) continue
       const abs = join(dir, e.name)
@@ -178,26 +189,20 @@ function walkFiles(root: string): WalkedFile[] {
         continue
       }
       if (st.isDirectory()) {
-        let realChild = join(realDir, e.name)
-        if (e.isSymbolicLink()) {
-          try {
-            realChild = realpathSync(abs)
-          } catch {
-            continue
-          }
-        }
-        if (inside.has(realChild) || holdsPath(realChild, root)) continue
-        walk(abs, realChild)
+        const childId = idOf(abs)
+        if (childId === null || inside.has(childId) || holding.has(childId)) continue
+        walk(abs, childId)
         continue
       }
       if (!st.isFile()) continue
       if (!isTextFile(e.name)) continue
       files.push({ rel: relPosix(root, abs), abs, bytes: st.size, mtimeMs: st.mtimeMs })
     }
-    inside.delete(realDir)
+    inside.delete(dirId)
   }
 
-  walk(root, root)
+  const rootId = idOf(root)
+  if (rootId !== null) walk(root, rootId)
   return files
 }
 

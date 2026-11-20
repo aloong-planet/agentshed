@@ -162,7 +162,7 @@ both pages and on every side whose plugins expand)
 **Cross-cutting regression points**
 - R1 The IPC contract (`validate`) must be extended along with any new domain type field.
 - R2 Existing skill install/uninstall is unaffected: it touches only the global library and the
-  project's skills directory; plugin entries have two lines of defence (no button + a level guard).
+  project's skills directory; plugin entries have no install/uninstall entry point (G3).
 - R3 Plugins are read once per scan and consumed in three places (plugins / the Skills join / MCP) to
   avoid duplicate directory scans; package root registration and stats happen in that same pass.
 - R4 Snapshot size discipline as in skills-view: each skill carries only aggregate stats and its

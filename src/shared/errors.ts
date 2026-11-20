@@ -89,6 +89,10 @@ export const ERR = {
   skillConflict: 'skill-conflict',
   /** The copy failed and was cleaned up */
   skillCopyFailed: 'skill-copy-failed',
+  /** A symlink in the skill leads nowhere, so nothing was installed (params.link is its path inside the skill) */
+  skillLinkLeadsNowhere: 'skill-link-leads-nowhere',
+  /** A symlink in the skill leads back into it, so nothing was installed (params.link is its path inside the skill) */
+  skillLinkLeadsBack: 'skill-link-leads-back',
   /** The delete failed, perhaps part way: a directory's contents go before it (params.path is the copy) */
   skillDeleteFailed: 'skill-delete-failed',
 

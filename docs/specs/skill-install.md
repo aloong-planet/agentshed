@@ -11,16 +11,16 @@ skill.
 
 ## Solution
 
-Make the global library the only install source and **land a copy** into the chosen project (a
-symlinked source lands as a real file), so the project's copy is self-contained; a project-level copy
-can be uninstalled. The global library itself is read-only.
+Make the global library the only install source and **land a copy** into the chosen project (every
+symlink in the skill lands as a real file or directory), so the project's copy is self-contained; a
+project-level copy can be uninstalled. The global library itself is read-only.
 
 ## User Stories
 
 1. As a user, I want to pick the target project straight from a global library entry, so that I do
    not have to remember either side's directory structure.
-2. As a user, I want the install to be a full copy with symlinked sources dereferenced, so that the
-   project's copy is self-contained and editing does not follow through to the global library.
+2. As a user, I want the install to be a full copy holding no symlink (skill-install::REQ-004), so that
+   the project's copy is self-contained and editing does not follow through to the global library.
 3. As a user, I want to be blocked rather than overwritten when the target already has a
    project-level skill of the same name, so that my customised version is not silently wiped.
 4. As a user, I want nothing half-finished left behind on interruption or failure, so that the next
@@ -38,7 +38,7 @@ can be uninstalled. The global library itself is read-only.
 - A2 Installing on the Codex side → lands in `.agents/skills/`; on the Grok side → `.grok/skills/`;
   on the Antigravity side → `.agents/skills/`, the same directory as Codex's
   (skill-install::REQ-001). A side's skill never lands in a directory that side does not load.
-- A3 The source is a symlink → **dereferenced and copied as a real directory** (ADR-0004).
+- A3 The source, or anything in it at any depth, is a symlink → skill-install::REQ-004.
 - A4 The target already has a project-level skill of the same name → conflict, blocked with a notice,
   not overwritten.
 - A5 The target project directory does not exist (a stale project) → the picker lists it disabled
@@ -46,15 +46,16 @@ can be uninstalled. The global library itself is read-only.
   drawn — is refused with a notice. A directory that cannot be reached is not stale
   ([projects-list](projects-list.md) A6): the picker offers it and the install fails as A10.
 - A6 The source is missing from the global library → missing-source, and **no half-finished directory
-  is left** (copy to a temporary name first, then rename; clean up on failure).
+  is left** (ADR-0004).
 - A7 A skill name containing path traversal (`../` and so on) → refused.
 - A8 The intersection of the skill's available sides and the project's sides is empty → a notice that
   the project does not belong to that side, no install.
 - A9 Several target directories qualify → install to each, each reporting its own success or failure;
   Codex and Antigravity qualifying together are one directory and one landing (skill-install::REQ-001).
-- A10 The copy fails (a project that cannot be written or reached, a source file that cannot be read, a full disk) →
-  one failure notice naming the skill, the project and the side or shared directory, saying the copy
-  failed and was cleaned up, in the current UI language. It carries no system error; that goes to the log.
+- A10 The copy fails (a project that cannot be written or reached, a source file or a symlink's target that
+  cannot be read, a full disk) → one failure notice naming the skill, the project and the side or shared
+  directory, saying the copy failed and was cleaned up, in the current UI language. It carries no system
+  error; that goes to the log.
 - A11 "Install to…" is offered on each row of the Agents page's Skills section and opens a target
   project picker sorted by activity; each target row shows where the skill would land.
 - A12 The picker stays open while it is looked through: scrolling its list reaches targets below the
@@ -63,7 +64,8 @@ can be uninstalled. The global library itself is read-only.
   — in each of those the row it was opened from has moved or gone.
 
 **Sequence B: uninstall**
-- B1 Deletes the project-level copy; **the global library is unaffected**.
+- B1 Deletes the project-level copy; **the global library is unaffected**. A symlink in the copy is deleted
+  as a link, and what it points to is left in place (measured, Electron 43).
 - B2 The target does not exist → report an error rather than throwing (the UI shows a failure notice).
 - B3 Name traversal → refused.
 - B4 The confirmation dialog must show the full path to be deleted (the user can see what is going).
@@ -71,15 +73,13 @@ can be uninstalled. The global library itself is read-only.
   copy's path, in the current UI language, saying it could not be fully deleted: a directory's contents go
   before the directory itself, so the copy can be empty already and gone from the list (measured
   2026-11-05). It carries no system error; that goes to the log. The empty directory still holds the name,
-  so a later install of that skill is blocked by A4 until the directory is removed; left so, since it
-  takes a read-only parent over a writable copy, and the same-name check is not worth loosening for it.
+  so a later install of that skill is blocked by A4 until the directory is removed.
 - B6 Uninstall is offered on a project-level entry in project detail's Skills section, behind a
   confirmation (B4).
 
 **Cross-cutting**
 - R1 Install and uninstall touch only the global library and the project's skills directory, and
-  nothing else (plugin entries have no install/uninstall entry point, plus a level guard as a second
-  line of defence).
+  nothing else (plugin entries have no install/uninstall entry point).
 - R2 An operation triggers no rescan at all, and none is needed: a project's detail — the view an
   install or uninstall changes — is read when the project is opened, and the snapshot holds nothing
   an operation could make stale. Uninstall, which happens with that view already on screen,
@@ -142,6 +142,34 @@ Choosing a tagged project installs nothing in any of its landings, a free one in
 until its own arrive, never the previous opening's; a target untagged meanwhile is still refused at
 install time (A4).
 
+## Links in the skill
+
+### skill-install::REQ-004 The project's copy holds no symlink
+
+Applies to: every landing of an install (A9).
+
+- skill-install::REQ-004/AC-01: Every symlink in the skill, at any depth and the skill's own entry
+  included, lands as a real file or directory holding what it points to, wherever that is, inside the
+  skill's directory or outside it. The project's copy holds no symlink at any depth, so writing into it
+  changes nothing in the global library or behind a link (ADR-0004).
+- skill-install::REQ-004/AC-02: A symlink in the skill that leads nowhere (what it points to does not
+  exist, or it is one of a chain of links that never reaches a file or a directory) fails the install:
+  nothing lands (A6), and the failure notice is A10's with its reason replaced: it names the link's path
+  inside the skill and says the link leads nowhere and nothing was installed.
+- skill-install::REQ-004/AC-03: A symlink to a directory the copy is already inside, by whatever route,
+  to a directory that holds the skill (its library entry or its real directory), or to the copy being
+  landed or a directory holding it (the project and its skills directory included), fails the install as
+  AC-02 does, its notice saying the link leads back into the skill. A directory holds them along their
+  paths as written and where a link on those paths leads.
+
+Failure modes and boundaries: the install stops at the first problem met in path order, paths inside the
+skill compared segment by segment in byte order, and its notice is that problem's: AC-02's or AC-03's for a
+link of their kind, A10's for a file or directory that cannot be read. A project that cannot be written
+fails before the skill is read, and one inside the skill's own directory, by whatever route, before
+anything is written (A10). An entry that is neither a file nor a directory (a pipe, a socket, a device),
+behind a link or not, is left out of the copy, whose contents are otherwise intact (A1), and its path
+inside the skill goes to the log; the install succeeds.
+
 ## Implementation Decisions
 
 - **Landing method**: see ADR-0004 (land by copy; copy to a temporary name in the same directory
@@ -158,3 +186,6 @@ install time (A4).
 - Checking for divergence between copies when uninstalling (the project's git state is the user's to
   handle).
 - Version management and update notifications.
+- Finding or rewriting a project-level copy that already holds a symlink (one copied by hand, or landed by
+  a build that kept the links below a skill's own entry): the app writes to a project's copy only to
+  install or uninstall it, and uninstalling it (B1) and installing again lands a copy without one.

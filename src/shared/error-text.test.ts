@@ -69,6 +69,22 @@ describe('errorText', () => {
     expect(errorText('zh', del)).toBe('未能完全删除 /p/.claude/skills/tidy')
   })
 
+  // skill-install::REQ-004/AC-02, AC-03: the reason names the link by its path inside the skill. Han by code point
+  // (check:lang): "link", "what it points to does not exist", "points back to", "itself", "nothing was installed"
+  it('a link that leads nowhere and a link that leads back each name the link', () => {
+    const nowhere = appError(ERR.skillLinkLeadsNowhere, { link: 'notes/gone.md' })
+    const back = appError(ERR.skillLinkLeadsBack, { link: 'refs/up' })
+    expect(errorText('en', nowhere)).toBe('The link notes/gone.md leads nowhere, so nothing was installed')
+    expect(errorText('en', back)).toBe('The link refs/up leads back into the skill, so nothing was installed')
+    const zh = (...cps: number[]): string => String.fromCharCode(...cps)
+    const link = zh(0x94fe, 0x63a5)
+    const nothing = zh(0x672a, 0x5b89, 0x88c5, 0x4efb, 0x4f55, 0x5185, 0x5bb9)
+    expect(errorText('zh', nowhere)).toBe(
+      `${link} notes/gone.md ${zh(0x6307, 0x5411, 0x7684, 0x76ee, 0x6807, 0x4e0d, 0x5b58, 0x5728)},${nothing}`
+    )
+    expect(errorText('zh', back)).toBe(`${link} refs/up ${zh(0x6307, 0x56de)} skill ${zh(0x81ea, 0x8eab)},${nothing}`)
+  })
+
   it('a landing\'s failure notice uses each language\'s punctuation', () => {
     expect(dictOf('en').agents.landingFailed('tidy', 'proj', 'claude', 'Copy failed and was cleaned up')).toBe('tidy → proj (claude): Copy failed and was cleaned up')
     expect(dictOf('zh').agents.landingFailed('tidy', 'proj', 'claude', '复制失败,已清理')).toBe('tidy → proj(claude):复制失败,已清理')

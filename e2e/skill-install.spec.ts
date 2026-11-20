@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect } from '@playwright/test'
@@ -400,6 +400,62 @@ test('the install-to popover sits next to its button, and its targets can be cli
   await win.locator('.side .row').first().click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   await expect(win.locator('.sk', { hasText: installedName })).toHaveCount(1)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/** The paths inside a directory, at any depth, that are symlinks */
+function linksBelow(root: string, rel = ''): string[] {
+  return readdirSync(join(root, rel), { withFileTypes: true }).flatMap((e) => {
+    const path = rel === '' ? e.name : `${rel}/${e.name}`
+    if (e.isSymbolicLink()) return [path]
+    return e.isDirectory() ? linksBelow(root, path) : []
+  })
+}
+
+// skill-install::REQ-004/AC-01 under the app's own Node: whether a link below a skill's own entry survives a copy
+// depends on the Node version (Electron 43's Node 24 and Node 22 keep it as a link where Node 26.13 dereferences it;
+// issue #509); then AC-02's notice, whose link reaches the toast as a parameter of the failure
+test('an install lands a copy holding no symlink at any depth, and a link that leads nowhere is named in the notice', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-links-'))
+  const target = join(home, 'target-proj')
+  mkdirSync(target)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [target]: {} } }))
+  const outside = join(home, 'outside')
+  mkdirSync(join(outside, 'dir'), { recursive: true })
+  writeFileSync(join(outside, 'note.md'), 'outside note')
+  writeFileSync(join(outside, 'dir', 'g.txt'), 'outside dir file')
+  const linked = join(home, '.claude', 'skills', 'linked-skill')
+  mkdirSync(join(linked, 'sub', 'deep'), { recursive: true })
+  writeFileSync(join(linked, 'SKILL.md'), '---\ndescription: linked\n---\n\nbody\n')
+  symlinkSync(join(outside, 'note.md'), join(linked, 'sub', 'deep', 'flink'))
+  symlinkSync(join(outside, 'dir'), join(linked, 'sub', 'deep', 'dlink'))
+  const dangling = join(home, '.claude', 'skills', 'dangling-skill')
+  mkdirSync(join(dangling, 'notes'), { recursive: true })
+  writeFileSync(join(dangling, 'SKILL.md'), '---\ndescription: dangling\n---\n\nbody\n')
+  symlinkSync(join(dangling, 'notes', 'was-here.md'), join(dangling, 'notes', 'gone.md'))
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const install = async (skill: string): Promise<void> => {
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+    await win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: new RegExp(`^${skill}$`) }) }).locator('.ins').click()
+    await win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: /^target-proj$/ }) }).click()
+  }
+  await install('linked-skill')
+  await expect(win.locator('.toast.ok')).toHaveText('Installed linked-skill → target-proj (claude)')
+  const copy = join(target, '.claude', 'skills', 'linked-skill')
+  expect(linksBelow(copy)).toEqual([])
+  expect(readFileSync(join(copy, 'sub', 'deep', 'flink'), 'utf8')).toBe('outside note')
+  expect(readFileSync(join(copy, 'sub', 'deep', 'dlink', 'g.txt'), 'utf8')).toBe('outside dir file')
+  await expect(win.locator('.toast')).toHaveCount(0)
+
+  await install('dangling-skill')
+  await expect(win.locator('.toast.err')).toHaveText(
+    'dangling-skill → target-proj (claude): The link notes/gone.md leads nowhere, so nothing was installed'
+  )
+  expect(readdirSync(join(target, '.claude', 'skills'))).toEqual(['linked-skill'])
 
   expect(l.errors).toEqual([])
   await close(l)
