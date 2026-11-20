@@ -159,14 +159,16 @@ Applies to: every landing of an install (A9).
 - skill-install::REQ-004/AC-03: A symlink to a directory the copy is already inside, by whatever route,
   to a directory that holds the skill (its library entry or its real directory), or to the copy being
   landed or a directory holding it (the project and its skills directory included), fails the install as
-  AC-02 does, its notice saying the link leads back into the skill.
+  AC-02 does, its notice saying the link leads back into the skill. A directory holds them along their
+  paths as written and where a link on those paths leads.
 
 Failure modes and boundaries: the install stops at the first problem met in path order, paths inside the
 skill compared segment by segment in byte order, and its notice is that problem's: AC-02's or AC-03's for a
-link of their kind, A10's for a file or directory that cannot be read. A project that cannot be written,
-or one inside the skill's own directory, fails before the skill is read (A10). An entry that is neither a
-file nor a directory (a pipe, a socket, a device), behind a link or not, is left out of the copy, whose
-contents are otherwise intact (A1), and its path inside the skill goes to the log; the install succeeds.
+link of their kind, A10's for a file or directory that cannot be read. A project that cannot be written
+fails before the skill is read, and one inside the skill's own directory, by whatever route, before
+anything is written (A10). An entry that is neither a file nor a directory (a pipe, a socket, a device),
+behind a link or not, is left out of the copy, whose contents are otherwise intact (A1), and its path
+inside the skill goes to the log; the install succeeds.
 
 ## Implementation Decisions
 
