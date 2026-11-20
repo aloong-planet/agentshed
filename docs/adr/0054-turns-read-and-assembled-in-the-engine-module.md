@@ -61,3 +61,9 @@ assembled by the module deep-equal to the TypeScript assembly's. `pnpm bench:sca
 assembly in TypeScript against in the module: the three largest Antigravity turns (7.9, 5.6 and 3.3 KB of body) took
 6, 6 and 5 ms to their blocks against 5, 5 and 5 ms, the main process peaking at 27.2, 27.2 and 27.2 MB against 27.5,
 27.2 and 27.1 MB; a constructed 67.1 MB turn took 205 ms against 210 ms and peaked at 282.4 MB against 153.6 MB.
+
+#499, 2026-11-20, Electron 43.2.0, with the line read #498 made one for every side: every Claude Code, Codex and Grok
+turn on this machine within the limit (10,656, 6,055 and 467 turns; 167,224, 97,841 and 16,574 blocks) assembled by
+the module deep-equal to the TypeScript assembly's. `pnpm bench:scan turn`, medians of five, the module before that
+change against after it, on turns of the sizes #494, #496 and #497 measured: none took longer or peaked higher by more
+than 2%.
