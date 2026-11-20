@@ -315,6 +315,9 @@ async function doScan(): Promise<Snapshot> {
  * the wrapper makes "a new handler
  * is validated automatically" the default, so forgetting to wire one up, or to name its guard, fails
  * compilation rather than silently leaving it undefended.
+ * A guard throws before the handler runs, as the sender check does, and the page gets the same refusal as from a handler
+ * that rejects: Electron's invoke awaits the listener inside a try and replies with what it caught either way, logging
+ * `Error occurred in handler for '<channel>'` (read from the bundled framework, 2026-11-21).
  */
 const handle: Register = (channel, guard, run) => {
   ipcMain.handle(channel, (e, raw: unknown) => {
