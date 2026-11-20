@@ -72,14 +72,13 @@ verified**.
   Clipboard API.
 - **A project page takes any directory** (item 27): `getProjectDetail` reads the directory the page names, returns its
   instruction files' text and registers it as an opened project, and nothing judges it against the projects the
-  snapshot lists, as `skillOpTarget` does for an install (item 22). Reported with #515; whether it gets an issue is the
-  project owner's decision.
+  snapshot lists, as `skillOpTarget` does for an install (item 22). Destination: #526.
 - **A skill package's root is decided by functions that probe the disk themselves** (item 26): `resolveSkillRoot`,
   `isUnderKnownSkillRoots` and `resolvePluginSkillRoot` call the file system rather than take a probe, so the decision
-  is not a pure function, and their unit tests run against real directories. Reported with #515, as above.
+  is not a pure function, and their unit tests run against real directories. Destination: #527.
 - **The read registry's unit tests send no other spelling of a registered path** (item 25): skills-view C9 refuses
   prefix traversal and encoding variants, which exact matching refuses by construction, but no case pins it as the
-  session allow-list's cases do (item 23). Reported with #515, as above.
+  session allow-list's cases do (item 23). Destination: #521.
 - **A plugin listing can keep its registration one scan too long** (item 25): `retireAfterScan` judges the saved reads
   in the order they were first saved, so a listing saved before the project page that alone held its root keeps its
   registration until a later scan. Destination: #521.
