@@ -36,9 +36,19 @@ import { ERR } from '../src/shared/errors'
 const DAY = 86_400_000
 /** A moment `days` days and `min` minutes before now, an hour past the day boundary so "N days ago" holds */
 const ago = (days: number, min = 0): Date => new Date(Date.now() - days * DAY - 3_600_000 + min * 60_000)
+/** A moment `min` minutes after the local midnight that begins the day `days` days back, before it when negative */
+function sinceMidnight(days: number, min: number): Date {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  d.setHours(0, 0, 0, 0)
+  return new Date(d.getTime() + min * 60_000)
+}
 
-/** A Claude session in a real session's line shape (a parent/uuid chain) */
-function claude(home: string, cwd: string, name: string, questions: string[], days: number): string {
+/**
+ * A Claude session in a real session's line shape (a parent/uuid chain). Question k is asked at `at(k)` and answered a
+ * minute later.
+ */
+function claude(home: string, cwd: string, name: string, questions: string[], days: number, at = (k: number): Date => ago(days, k * 2)): string {
   const dir = join(home, '.claude', 'projects', cwd.replace(/[^a-zA-Z0-9]/g, '-'))
   mkdirSync(dir, { recursive: true })
   let parent: string | null = null
@@ -46,8 +56,8 @@ function claude(home: string, cwd: string, name: string, questions: string[], da
     const u = `${name}-${k}`
     const a = `${name}-${k}a`
     const out = [
-      JSON.stringify({ parentUuid: parent, isSidechain: false, type: 'user', message: { role: 'user', content: q }, uuid: u, timestamp: ago(days, k * 2).toISOString(), cwd, sessionId: name }),
-      JSON.stringify({ parentUuid: u, isSidechain: false, type: 'assistant', message: { role: 'assistant', model: 'claude-fable-5', content: [{ type: 'text', text: 'Done.' }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }, uuid: a, timestamp: ago(days, k * 2 + 1).toISOString(), cwd, sessionId: name })
+      JSON.stringify({ parentUuid: parent, isSidechain: false, type: 'user', message: { role: 'user', content: q }, uuid: u, timestamp: at(k).toISOString(), cwd, sessionId: name }),
+      JSON.stringify({ parentUuid: u, isSidechain: false, type: 'assistant', message: { role: 'assistant', model: 'claude-fable-5', content: [{ type: 'text', text: 'Done.' }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }, uuid: a, timestamp: new Date(at(k).getTime() + 60_000).toISOString(), cwd, sessionId: name })
     ]
     parent = a
     return out
@@ -69,7 +79,8 @@ const LONG = `notarize ${'the release build, the helper tools and every nested f
 
 /**
  * The global search home. "notarize" hits 10 questions in 6 sessions of 5 projects; the letter x hits only the
- * 150 questions of one session (no other fixture text holds an x). 30 listed sessions in 27 projects.
+ * 150 questions of one session (no other fixture text holds an x). Those straddle a local midnight 20 days back whatever
+ * the hour: xenon 1-20 fall on the earlier day and xenon 21-150 on the later. 30 listed sessions in 27 projects.
  */
 function mkHome(): { home: string; files: Record<string, string>; paths: Record<string, string> } {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gs-home-'))
@@ -99,7 +110,8 @@ function mkHome(): { home: string; files: Record<string, string>; paths: Record<
     'line one about notarize\nline two',
     LONG
   ], 20)
-  files.many = claude(home, paths.target, 'many', Array.from({ length: 150 }, (_, k) => `xenon ${k + 1}`), 20)
+  // Every two minutes, never on the boundary: xenon 20 is asked 90 seconds before midnight and xenon 21 30 seconds after
+  files.many = claude(home, paths.target, 'many', Array.from({ length: 150 }, (_, k) => `xenon ${k + 1}`), 20, (k) => sinceMidnight(20, (k - 20) * 2 + 0.5))
   files.stale = claude(home, paths.stale, 'stale-1', ['Notarize the stale build'], 10)
   files.twinA = claude(home, paths.twinA, 'twin-a', ['twin asks to notarize'], 15)
   files.twinB = claude(home, paths.twinB, 'twin-b', ['twin asks to notarize'], 16)
@@ -425,24 +437,26 @@ test('a located question is scrolled to once, on arrival; the position is then t
     expect(await top()).toBe(0)
 
     // Reopening a folded day puts the located row back on the page, which is not an arrival. The fixture's questions
-    // can straddle midnight, so its day is found from the row.
-    const day = await win.locator('.daygrp').evaluateAll((groups) =>
-      groups.findIndex((g) => [...g.querySelectorAll('.q .txt')].some((t) => t.textContent === 'xenon 37'))
-    )
-    const dayHead = win.locator('.dayhd').nth(day)
+    // straddle a local midnight, so xenon 37 is on the later day, the page's last. Its header goes to the body's bottom
+    // edge first: folding the last day with its header higher up shortens the page under the reader, the browser pulls
+    // the page back to its new end, and on reopening its scroll anchoring returns the reader to the place before the
+    // fold, so no one position would hold through both clicks (#517)
+    await expect(win.locator('.dayhd')).toHaveText([/ · 20 questions$/, / · 130 questions$/])
+    const dayHead = win.locator('.dayhd').nth(1)
+    await dayHead.evaluate((el) => el.scrollIntoView({ block: 'end' }))
+    const reading = await top()
     await dayHead.click()
     const row = win.locator('.qlist .q', { hasText: 'xenon 37' })
     await expect(row).toHaveCount(0)
-    await dayHead.scrollIntoViewIfNeeded()
-    const folded = await top()
+    expect(await top()).toBe(reading)
     await dayHead.click()
     await expect(row).toHaveCount(1)
-    expect(await top()).toBe(folded)
+    expect(await top()).toBe(reading)
 
     // A rescan brings a question in by transfusion, at the far end of oldest first, and nothing moves
     appendQuestion(files.many, 'xenon newcomer')
     await expect(win.locator('.qlist .q', { hasText: 'xenon newcomer' })).toHaveCount(1, { timeout: 15000 })
-    expect(await top()).toBe(folded)
+    expect(await top()).toBe(reading)
     expect(l.errors).toEqual([])
   } finally {
     await close(l, home)
