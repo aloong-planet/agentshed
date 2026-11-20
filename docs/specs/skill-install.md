@@ -84,6 +84,11 @@ project-level copy can be uninstalled. The global library itself is read-only.
   install or uninstall changes — is read when the project is opened, and the snapshot holds nothing
   an operation could make stale. Uninstall, which happens with that view already on screen,
   refetches it in place.
+- R3 An install or uninstall goes only into a project the app's snapshot lists, named by the exact path it
+  is listed under: any other target, another spelling of a listed path included, is refused with a notice
+  that it is not one of the app's projects, and nothing is written or deleted (R1). A target the snapshot
+  lists as stale is refused with A5's notice, even if its directory is back. Before the first scan
+  completes, the snapshot is the restored one the window shows.
 
 ## The shared skills directory
 

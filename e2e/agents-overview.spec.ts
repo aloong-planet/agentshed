@@ -10,6 +10,7 @@ import { launch, close, launchAppearance, launchWindow, closeWindow, type Window
 import { effectiveDark } from './support/colors'
 import { closeApp } from './close-app'
 import { mkLinkHome, CLAUDE_LINE, card, countOf, toAgents, toProjects, dropdown, toggle, rows, chooseSide } from './support/side-link'
+import { skillRow } from './support/skill-row'
 
 /** A day key (YYYY-MM-DD) in local time — the form a bar's data-day carries */
 function dayKey(d: Date): string {
@@ -589,7 +590,7 @@ test('the agents page with Antigravity\'s components: card counts, Skills, Subag
 
   // Skills: one row per name, the copy agy uses
   await tab('Skills').click()
-  const row = (name: string) => win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  const row = (name: string) => skillRow(win, name)
   await expect(row('release-notes')).toHaveCount(1)
   // The list is on screen, so a built-in row would be too: one read, not a retried absence
   expect(await row('agy-customizations').count()).toBe(0)

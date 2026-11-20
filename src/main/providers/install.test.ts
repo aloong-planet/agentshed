@@ -10,7 +10,7 @@ import { basename, dirname, join, relative } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { installSkill, uninstallSkill } from './install'
+import { installIntoListedProject, installSkill, uninstallFromListedProject, uninstallSkill } from './install'
 import type { ScanRoots } from './types'
 import { ERR } from '@shared/errors'
 
@@ -436,5 +436,56 @@ describe('uninstallSkill', () => {
   it('name traversal is refused', () => {
     const r = uninstallSkill({ skillName: '../../etc', side: 'claude', targetProjectPath: proj })
     expect(r.ok).toBe(false)
+  })
+})
+
+// skill-install R3 at the entries the app calls: the target goes through skillOpTarget's judgement against the
+// projects the app lists before anything is written or deleted, and a refusal is reported rather than thrown. Each
+// refusal row has a target directory that is really there and a skill that would land or a copy that would go, so
+// only the judgement stands between the call and the disk.
+describe('the install and uninstall the app calls, into one of its projects', () => {
+  const other = (): { path: string; stale: boolean } => ({ path: join(dir, 'work', 'p0'), stale: false })
+  const refusals: [string, (target: string) => { path: string; stale: boolean }[], string][] = [
+    ['a directory the app does not list', () => [other()], ERR.skillTargetNotProject],
+    ['a project the app lists as stale, its directory there again', (target) => [other(), { path: target, stale: true }], ERR.skillStaleTarget]
+  ]
+
+  it.each(refusals)('an uninstall from %s is refused and deletes nothing', (_what, listed, reason) => {
+    const copy = join(proj, '.claude', 'skills', 'tidy')
+    mkdirSync(copy, { recursive: true })
+    writeFileSync(join(copy, 'SKILL.md'), '---\nname: tidy\n---\n')
+    expect(uninstallFromListedProject(listed(proj), { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason })
+    expect(readFileSync(join(copy, 'SKILL.md'), 'utf8')).toBe('---\nname: tidy\n---\n')
+  })
+
+  it('an uninstall from a listed project deletes its copy', () => {
+    const copy = join(proj, '.claude', 'skills', 'tidy')
+    mkdirSync(copy, { recursive: true })
+    writeFileSync(join(copy, 'SKILL.md'), '---\nname: tidy\n---\n')
+    expect(uninstallFromListedProject([other(), { path: proj, stale: false }], { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({ ok: true })
+    expect(existsSync(copy)).toBe(false)
+  })
+
+  it.each(refusals)('an install into %s is refused at every landing and writes nothing', (_what, listed, reason) => {
+    mkGlobalSkill('claude', 'tidy')
+    mkGlobalSkill('codex', 'tidy')
+    const r = installIntoListedProject(roots(), listed(proj), { skillName: 'tidy', sides: ['claude', 'codex', 'antigravity'], targetProjectPath: proj })
+    expect(r).toEqual([
+      { dir: '.claude/skills', loaders: ['claude'], result: { ok: false, reason } },
+      { dir: '.agents/skills', loaders: ['codex', 'antigravity'], result: { ok: false, reason } }
+    ])
+    expect(readdirSync(proj)).toEqual([])
+  })
+
+  it('an install into a listed project lands at every landing', () => {
+    mkGlobalSkill('claude', 'tidy', 'from claude')
+    mkGlobalSkill('codex', 'tidy', 'from codex')
+    const r = installIntoListedProject(roots(), [other(), { path: proj, stale: false }], { skillName: 'tidy', sides: ['claude', 'codex', 'antigravity'], targetProjectPath: proj })
+    expect(r).toEqual([
+      { dir: '.claude/skills', loaders: ['claude'], result: { ok: true } },
+      { dir: '.agents/skills', loaders: ['codex', 'antigravity'], result: { ok: true } }
+    ])
+    expect(readFileSync(join(proj, '.claude', 'skills', 'tidy', 'SKILL.md'), 'utf8')).toContain('from claude')
+    expect(readFileSync(join(proj, '.agents', 'skills', 'tidy', 'SKILL.md'), 'utf8')).toContain('from codex')
   })
 })

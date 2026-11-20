@@ -81,6 +81,8 @@ export const ERR = {
   skillBadName: 'skill-bad-name',
   /** The target is a stale project (its directory does not exist) */
   skillStaleTarget: 'skill-stale-target',
+  /** The target is not one of the app's projects, so nothing was installed or deleted */
+  skillTargetNotProject: 'skill-target-not-project',
   /** The global library has no such skill (params.name) */
   skillMissingSource: 'skill-missing-source',
   /** The project-level copy does not exist */

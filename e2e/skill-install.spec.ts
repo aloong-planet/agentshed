@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect } from '@playwright/test'
 import { mkAgyComponentsHome } from './support/homes'
-import { launch, close } from './support/launch'
+import { launch, close, launchWindow, type WindowLaunched } from './support/launch'
+import { skillRow } from './support/skill-row'
+import { closeApp } from './close-app'
 
 // skill-install's failure notices: one notice, naming the skill and the project, in the current UI language, with no
 // system error. The directories go read-only with the lists already on screen, as a user's would
@@ -137,7 +139,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
   const win = await l.app.firstWindow()
   const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
   await tab('Skills').click()
-  const row = (name: string) => win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  const row = (name: string) => skillRow(win, name)
   const target = (name: string) => win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: new RegExp(`^${name}$`) }) })
 
   // The picker for an Antigravity-only skill: the shared directory is one mark naming both loaders, on the project
@@ -459,4 +461,78 @@ test('an install lands a copy holding no symlink at any depth, and a link that l
 
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+// skill-install R3 at the IPC boundary (#403): the page names the target of an install or uninstall, so one that names
+// a directory the app does not list as a project is answered with a refusal and nothing on disk changes. The home
+// directory is the sharpest such target, its .claude/skills being the global library. The page opens both
+// directories' details first, which makes any directory readable, so that only the app's own projects can admit them.
+test('an install or uninstall outside the app\'s projects is refused, even into a directory whose details were opened', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-optarget-'))
+  const proj = join(home, 'proj')
+  const stray = join(home, 'stray')
+  mkdirSync(proj)
+  mkdirSync(stray)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const library = join(home, '.claude', 'skills', 'tidy')
+  mkdirSync(library, { recursive: true })
+  writeFileSync(join(library, 'SKILL.md'), '---\ndescription: tidy\n---\nglobal\n')
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  // The first scan has landed: the app lists proj, so a refusal below is the guard's and not an empty list's
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row', { hasText: 'proj' })).toBeVisible()
+  for (const dir of [home, stray]) await win.evaluate((p) => window.agentshed.getProjectDetail(p), dir)
+
+  expect(await win.evaluate((p) => window.agentshed.uninstallSkill({ skillName: 'tidy', side: 'claude', targetProjectPath: p }), home))
+    .toEqual({ ok: false, reason: 'skill-target-not-project' })
+  expect(readFileSync(join(library, 'SKILL.md'), 'utf8')).toContain('global')
+  expect(await win.evaluate((p) => window.agentshed.installSkill({ skillName: 'tidy', sides: ['claude'], targetProjectPath: p }), stray))
+    .toEqual([{ dir: '.claude/skills', loaders: ['claude'], result: { ok: false, reason: 'skill-target-not-project' } }])
+  expect(readdirSync(stray)).toEqual([])
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// skill-install R3 before the first scan: the projects the app lists then are the restored snapshot's, the ones the
+// renderer draws. An install into one of them goes ahead while the scan is held, and a project registered since the
+// last launch, which no snapshot lists yet, is refused.
+test('while the first scan is held, an install goes into a restored project and one into a project registered since is refused', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-optarget-restored-'))
+  const proj = join(home, 'proj')
+  const later = join(home, 'later-proj')
+  mkdirSync(proj)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const library = join(home, '.claude', 'skills', 'alpha')
+  mkdirSync(library, { recursive: true })
+  writeFileSync(join(library, 'SKILL.md'), '---\ndescription: alpha\n---\nglobal\n')
+  const first = await launchWindow(home)
+  let second: WindowLaunched | undefined
+  try {
+    await first.win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+    await expect(skillRow(first.win, 'alpha')).toBeVisible()
+    await closeApp(first.app)
+    mkdirSync(later)
+    writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {}, [later]: {} } }))
+
+    second = await launchWindow(home, { AGENTSHED_SCAN_DELAY_MS: '20000' }, first.userData)
+    const { win } = second
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+    await skillRow(win, 'alpha').locator('.ins').click()
+    await win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: /^proj$/ }) }).click()
+    await expect(win.locator('.toast.ok')).toHaveText('Installed alpha → proj (claude)')
+    expect(readFileSync(join(proj, '.claude', 'skills', 'alpha', 'SKILL.md'), 'utf8')).toContain('global')
+    expect(await win.evaluate((p) => window.agentshed.installSkill({ skillName: 'alpha', sides: ['claude'], targetProjectPath: p }), later))
+      .toEqual([{ dir: '.claude/skills', loaders: ['claude'], result: { ok: false, reason: 'skill-target-not-project' } }])
+    expect(readdirSync(later)).toEqual([])
+    expect(await win.locator('.startup-display-hint').getAttribute('data-state'), 'the first scan is still held').not.toBe('ready')
+    expect(first.errors).toEqual([])
+    expect(second.errors).toEqual([])
+  } finally {
+    if (second) await closeApp(second.app).catch(() => {})
+    rmSync(first.userData, { recursive: true, force: true })
+    rmSync(home, { recursive: true, force: true })
+  }
 })

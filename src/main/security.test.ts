@@ -228,3 +228,43 @@ describe('sessionRevealTarget (showing a session\'s record file in Finder)', () 
 
   afterAll(() => rmSync(root, { recursive: true, force: true }))
 })
+
+// skill-install R3: a skill install or uninstall goes only into one of the app's projects, named by its exact
+// path, and a project the app lists as stale is refused as stale. The target arrives from the renderer, so anything
+// that is not exactly a listed path is refused, whatever directory it would reach.
+import { skillOpTarget } from './security'
+
+describe('skillOpTarget (which directory a skill install or uninstall may go into)', () => {
+  const nfc = '/Users/x/work/café'.normalize('NFC')
+  const projects = [
+    { path: '/Users/x/work/alpha', stale: false },
+    { path: '/Users/x/work/beta', stale: false },
+    { path: '/Users/x/work/beta/nested', stale: false },
+    { path: nfc, stale: false },
+    { path: '/Users/x/work/gone', stale: true }
+  ]
+
+  const admitted = { ok: true }
+  const notProject = { ok: false, code: ERR.skillTargetNotProject }
+  it.each([
+    ['admits a listed project that is not stale, by its exact path', projects, '/Users/x/work/beta', admitted],
+    ['admits a listed project inside another listed project', projects, '/Users/x/work/beta/nested', admitted],
+    ['refuses a directory no project has as not one of the app\'s projects', projects, '/Users/x/work/gamma', notProject],
+    ['refuses the home directory as not one of the app\'s projects', projects, '/Users/x', notProject],
+    ['refuses the parent of a project as not one of the app\'s projects', projects, '/Users/x/work', notProject],
+    ['refuses a directory inside a project that is not itself listed as not one of the app\'s projects', projects, '/Users/x/work/alpha/src', notProject],
+    ['refuses a project with a trailing separator as not one of the app\'s projects', projects, '/Users/x/work/alpha/', notProject],
+    ['refuses a .. segment leading to a listed project as not one of the app\'s projects', projects, '/Users/x/work/alpha/../beta', notProject],
+    ['refuses a .. segment leading out of a project as not one of the app\'s projects', projects, '/Users/x/work/alpha/..', notProject],
+    ['refuses a project in another letter case as not one of the app\'s projects', projects, '/Users/x/work/ALPHA', notProject],
+    ['refuses a prefix lookalike of a project as not one of the app\'s projects', projects, '/Users/x/work/alpha2', notProject],
+    ['refuses a project spelled in another Unicode normalisation as not one of the app\'s projects', projects, nfc.normalize('NFD'), notProject],
+    ['refuses a relative spelling of a project as not one of the app\'s projects', projects, 'work/alpha', notProject],
+    ['refuses an empty path as not one of the app\'s projects', projects, '', notProject],
+    ['refuses the root directory as not one of the app\'s projects', projects, '/', notProject],
+    ['refuses any path, when the app lists no project, as not one of the app\'s projects', [], '/Users/x/work/alpha', notProject],
+    ['refuses a project the app lists as stale as stale', projects, '/Users/x/work/gone', { ok: false, code: ERR.skillStaleTarget }]
+  ])('%s', (_what, listed, target, expected) => {
+    expect(skillOpTarget(listed, target)).toEqual(expected)
+  })
+})

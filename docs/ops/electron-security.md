@@ -11,6 +11,8 @@ verified**.
 - Partial re-pass: **2026-11-05**, for launch inputs (ADR-0042) — item 21 added
 - Partial re-pass: **2026-11-06**, item 21 again (ADR-0042 amended): a switch after whitespace got past the guard of
   v0.1.0-beta.7, so arguments are now compared as given
+- Partial re-pass: **2026-11-20**, item 22 added: a page could name any directory as the target of a skill install or
+  uninstall, the global library included
 - When to redo: changing the main process's window / session / protocol / IPC configuration, the main process
   reading a new environment variable or switch, upgrading Electron's major version, introducing a new
   "render someone else's content" capability, or adding a packaging platform
@@ -38,13 +40,14 @@ verified**.
 | **19** | Fuses | ✅ **7 of them** (including disabling `grantFileProtocolExtraPrivileges`) | `electron-builder.yml electronFuses`; `scripts/check-fuses.mjs` validates by **reading the built binary** |
 | 20 | No raw API exposure in preload | ✅ Exposes wrapper functions, discarding `IpcRendererEvent` in callbacks | `preload/index.ts` (verified, no changes needed) |
 | **21** | No launch input steers a packaged build (beyond the official list) | ✅ Exit code 64 before anything loads, on any argument other than the exact spelling of an accepted one, the development server's URL or an `AGENTSHED_*` seam in any case | `launch-inputs.ts` (decision) and `launch-guard.ts` (first import of main); unit tests cover the bypass vectors; the packaging asset launches the built app in both profiles |
+| **22** | No page names where the main process writes or deletes (beyond the official list) | ✅ A skill install or uninstall, the only calls that write or delete at a path the page gives, goes only into a project the main process's snapshot lists, by its exact path (skill-install R3) | `security.ts skillOpTarget` (decision), called through `install.ts` by the two handlers in `index.ts`; unit tests cover the bypass vectors; e2e has a page ask to uninstall from the home directory and install into an unlisted one |
 
 ## The gates put in place (the tools are unreliable — these are the defence)
 
 | Layer | Content |
 |---|---|
-| Unit tests | `src/main/security.test.ts` (15 cases: navigation allow/deny, external-link allow-list, IPC sender, four CSP profiles), `src/main/app-protocol.test.ts` (7 cases: path resolution and encoded traversal) |
-| e2e | The packaged build's URL must be `app://`; clicking a link inside a document leaves **the window URL unchanged**; a full pass through the new sections produces no main-process errors |
+| Unit tests | `src/main/security.test.ts` (navigation allow/deny, external-link allow-list, IPC sender, the CSP profiles, the session read allow-list, the skill install and uninstall target), `src/main/app-protocol.test.ts` (7 cases: path resolution and encoded traversal) |
+| e2e | The packaged build's URL must be `app://`; clicking a link inside a document leaves **the window URL unchanged**; a full pass through the new sections produces no main-process errors; a page's skill install or uninstall outside the app's projects is refused |
 | Packaging | `node scripts/check-fuses.mjs` reads the Electron Framework binary's fuse wire and compares it against the expected values in `electron-builder.yml`. Every packaging also launches the built app with inputs it must refuse, and with only its settings directory (`build/mac-packaging.cjs`) |
 
 ## Backlog (outside the current change surface, destination already assigned)

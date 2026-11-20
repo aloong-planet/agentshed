@@ -21,7 +21,7 @@ import {
   type ListSkillFilesArgs,
   type ListSkillFilesResult
 } from '@shared/ipc'
-import type { CappedText, ProjectFigures, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import type { CappedText, ProjectEntry, ProjectFigures, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import { AGENT_SIDES, assertSnapshot, assertProjectFigures, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { searchProjectSessions } from './providers/search-sessions'
@@ -36,7 +36,7 @@ import { ENGINE_BUILD, engineModulePath, threadEngineModule } from './engine-mod
 import { settleForQuit } from './quit'
 import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
-import { installSkillToProject, skillHoldings, uninstallSkill } from './providers/install'
+import { installIntoListedProject, skillHoldings, uninstallFromListedProject } from './providers/install'
 import { APP_HOST, registerAppProtocol } from './app-protocol'
 import { realRoots } from './roots'
 import {
@@ -527,10 +527,13 @@ function checkInstallArgs(args: unknown): SkillInstallArgs {
   }
   return { skillName: a.skillName, sides: a.sides, targetProjectPath: a.targetProjectPath }
 }
-handle(CMD.installSkill, (_e, args: unknown): SkillLandingResult[] => installSkillToProject(realRoots(), checkInstallArgs(args)))
-handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallSkill(checkSkillOpArgs(args)))
+// The renderer names the target of an install or uninstall, so it goes only into a project the current snapshot lists
+// (skill-install R3): the restored one until the first scan completes, which is the snapshot the renderer shows then
+const listedProjects = (): ProjectEntry[] => current?.projects ?? []
+handle(CMD.installSkill, (_e, args: unknown): SkillLandingResult[] => installIntoListedProject(realRoots(), listedProjects(), checkInstallArgs(args)))
+handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallFromListedProject(listedProjects(), checkSkillOpArgs(args)))
 // The live projects of the current snapshot: the renderer names the skill, never the paths probed. Before the first
-// scan there is nothing to probe, and the install itself still refuses a same name (A4)
+// scan they are the restored snapshot's, or none without one, and the install itself still refuses a same name (A4)
 handle(CMD.skillHoldings, (_e, name: unknown): SkillHoldings => {
   if (typeof name !== 'string') throw appError(ERR.badArgs, { channel: 'skillHoldings' })
   return skillHoldings((current?.projects ?? []).filter((p) => !p.stale).map((p) => p.path), name)
