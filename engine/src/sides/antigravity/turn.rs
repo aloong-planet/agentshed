@@ -1,5 +1,6 @@
-//! An Antigravity CLI turn's blocks (session-view::REQ-004/AC-04 to AC-06, C3, C8, In-turn blocks), assembled from the
-//! lines the turn holds as the session page draws them. Each line is a step of the conversation's full transcript; the
+//! An Antigravity CLI turn's blocks (session-view::REQ-004/AC-04, session-view::REQ-004/AC-05,
+//! session-view::REQ-004/AC-06, C3, C8, In-turn blocks), assembled from the lines the turn holds as the session page
+//! draws them. Each line is a step of the conversation's full transcript; the
 //! fields read here are the turn's own, read as JavaScript's property access on the parsed line reads them: a value of
 //! another kind than a rule takes is undefined to it, an array has none of an object's fields, and of a repeated key the
 //! last value counts, as `JSON.parse` keeps it. A line `JSON.parse` would refuse, or one holding no object or array, is

@@ -728,8 +728,7 @@ Applies to: opening an Antigravity session, expanding its turns and searching it
 - session-view::REQ-004/AC-04: Inside a turn, an assistant-response line's text is prose and its
   thinking renders as a thinking block: agy's thinking is plain text (measured), so this side's
   thinking block has content (C6). Each tool call — its name and arguments — pairs with the result line
-  that follows it, in order: the format carries no call id, and each measured call is followed by
-  exactly one result line. A result line's text is the call's return, a failed or still-running call's
+  that follows it, in order. A result line's text is the call's return, a failed or still-running call's
   included.
 - session-view::REQ-004/AC-05: A tool call named `invoke_subagent` is a subagent block (C3). Its
   arguments are the dispatch; its return is the message the dispatched conversation sends back — the
@@ -866,8 +865,9 @@ Applies to: a conversation made by agy's `/fork`, or by switching the custom age
   **On-demand answer fetching**: a turn's range can only come from the application's own index, held
   where the scan runs (ADR-0043; the renderer cannot supply byte ranges), with the same allow-list
   check first; the payload carries the
-  bytes read as evidence of "nothing was read whole". The engine module (ADR-0054) reads the turn: the question's
-  bytes, and the body's lines with the lines REQ-004/AC-03 drops left out on the reading thread. The turn
+  bytes read as evidence of "nothing was read whole". The engine module (ADR-0054) reads the turn — the question's
+  bytes, and the body's lines with the lines REQ-004/AC-03 drops left out — and assembles the body's blocks
+  (Normalising the sides). The turn
   limit (C2) is decided from that range before the turn's body is read. A turn refused under it retires a copy saved
   or retained under its key, in both processes. The keep size (C2) is decided from the
   same range: a turn over it is not saved, and retires a copy saved under its key; its payload carries a mark by which

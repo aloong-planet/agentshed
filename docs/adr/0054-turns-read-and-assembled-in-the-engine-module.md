@@ -22,16 +22,14 @@ We adopt **option 1**.
 - **The read**: the module reads each turn the session page expands, its question's range and its body's, in one pass
   that stops at the turn's end, a line at a time, leaving out the lines the turn does not hold by its side's line rules.
 - **The assembly**: the module assembles the turn's blocks by its side's rules as part of the read, so that a panic
-  there fails that read alone, and hands the blocks over in place of the lines. The sides move in one at a time, a
-  side's turns assembled in one place at any time (ADR-0047): until the last has, the others' turns are handed over
-  as their lines and assembled in TypeScript.
+  there fails that read alone, and hands the blocks over in place of the lines.
 
 ## Consequences
 
-- Positive: a turn's fetch peaks lower and is no slower than with the assembly in TypeScript (Sources).
+- Positive: a turn's fetch is no slower, within 5%, than with the assembly in TypeScript, and a turn near the limit
+  peaks about half as high (Sources).
 - Negative: a turn's assembly exists only as rewritten in Rust, so a slip there draws a turn wrongly, with no other
   implementation to show the difference.
-- Negative: until every side has moved, turns are assembled in Rust for some sides and in TypeScript for others.
 - Neutral: the blocks the session page draws are the ones the TypeScript assembly drew, but where that assembly broke
   session-view C8 (Sources).
 
@@ -57,3 +55,9 @@ module deep-equal to the TypeScript assembly's. `pnpm bench:scan turn`, medians 
 against in the module: the three largest Grok turns (10.0, 5.1 and 4.4 MB of body) took 13, 18 and 9 ms to their
 blocks against 8, 9 and 5 ms, the main process peaking at 49.9, 45.7 and 37.1 MB against 39.0, 32.9 and 33.6 MB; a
 constructed 67.1 MB turn took 218 ms against 201 ms and peaked at 282.5 MB against 153.8 MB.
+
+#498, 2026-11-20, Electron 43.2.0, every Antigravity CLI conversation on this machine: all 23 turns (56 blocks)
+assembled by the module deep-equal to the TypeScript assembly's. `pnpm bench:scan turn`, medians of five, the
+assembly in TypeScript against in the module: the three largest Antigravity turns (7.9, 5.6 and 3.3 KB of body) took
+6, 6 and 5 ms to their blocks against 5, 5 and 5 ms, the main process peaking at 27.2, 27.2 and 27.2 MB against 27.5,
+27.2 and 27.1 MB; a constructed 67.1 MB turn took 205 ms against 210 ms and peaked at 282.4 MB against 153.6 MB.
