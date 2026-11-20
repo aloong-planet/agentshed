@@ -94,6 +94,13 @@ a retried "does not appear" check cannot prove absence.
 - A scratch home, or any other directory standing in for an agent's data root in a bench or a check on real
   data, holds no link, symbolic or hard, to real data at any depth, a link a copy carried over included (the
   reason is in the header of `scripts/bench-scan.entry.ts`).
+- What a Node file-system call does with a symlink counts only as shown on Electron's own Node: measured under
+  `ELECTRON_RUN_AS_NODE=1`, or kept by a case that runs there (an e2e case, or a unit case running its script under
+  Electron as `src/main/providers/full-text.test.ts` does), never by a vitest run alone (postmortem
+  `2026-11-20-a-copy-that-kept-the-links-below-its-entry`).
+- A walk that follows directory links tells the directories it must not enter, those it is inside and those holding
+  what it walks, by device and inode, never by path, real path included, and gathers those holders along each path it
+  starts from, both as given and where it really leads (postmortem `2026-11-20-a-copy-that-kept-the-links-below-its-entry`).
 - Application code reads a token cache entry only through `CacheEntries` (`src/main/providers/token-stats.ts`), which hands
   out a well-formed entry or none, and never opens the token store or the JSON cache it replaced itself; `pnpm lint` fails
   when a file under `src/` other than the engine, the tests and the test helpers in `src/main/testing/` names
