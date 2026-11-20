@@ -128,7 +128,7 @@ already legible is noise.
 - B2 **Names only present globally**: that side's global layer is listed as usual (level=global) and is
   previewable; there is no "shadowed" row to click.
 - B3 **Names only present in the project**: only the project-level entry is listed, previewable and
-  uninstallable (as before).
+  uninstallable where [skill-install](skill-install.md) B6 offers Uninstall.
 - B4 The list shows **no** `shadows` / `shadowed` / `coexists` badges for skills (the same-name
   global row does not appear, so those badges have nothing to attach to), and the project skill
   entry carries no such fields (never persisted; subagents' identically named fields are unaffected,
@@ -363,7 +363,7 @@ Applies to: the project detail page's Skills section.
   between the Codex groups and the Antigravity groups (ADR-0049). The badges name both sides that
   load the directory, whatever the project is registered on.
 - skills-view::REQ-002/AC-02: Its entries are project-level: each is previewable (B5) and uninstallable
-  ([skill-install::REQ-002](skill-install.md)).
+  ([skill-install::REQ-002](skill-install.md)) where [skill-install](skill-install.md) B6 offers Uninstall.
 - skills-view::REQ-002/AC-03: B1 holds for both of its owners: a name in the shared directory hides the
   same name in Codex's global group and in Antigravity's global group.
 - skills-view::REQ-002/AC-04: Antigravity's global group follows the shared group, listing

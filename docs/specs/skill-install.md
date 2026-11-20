@@ -87,17 +87,17 @@ project-level copy can be uninstalled. The global library itself is read-only.
   that it is not one of the app's projects, and nothing is written or deleted (R1). A target the snapshot
   lists as stale is refused with A5's notice, even if its directory is back. Before the first scan
   completes, the snapshot is the restored one the window shows.
-- R4 An install or uninstall never changes a global library. The main process refuses, writing and deleting nothing
-  (R1), one whose landing (the project skills directory it writes into or deletes from) is a global library or lies
-  inside one, or whose copy (the skill's entry in that directory) is a global library or holds one; an install is
-  refused at every landing. The global libraries are `~/.claude/skills`, `~/.agents/skills` (Codex's),
-  `~/.grok/skills` and Antigravity's three ([skills-view::REQ-001/AC-01](skills-view.md)). Directories are
-  compared as the same directory however they are reached: another spelling, a link on the way, another letter case
-  on a volume that ignores it. A directory not yet created is judged where it would be created, its missing segments
-  compared ignoring letter case. The copy is judged as the operation acts on it, not followed, so a project's copy
-  that is a link into a library is uninstalled as the link alone (B1); a library that is itself a link is judged both
-  as the link and as where it leads. R4 is judged after R3 and before every other check, so a request it refuses
-  gets its refusal in place of any other's (A4, A6, A7, A10, B2, skill-install::REQ-004).
+- R4 An install or uninstall never changes a global library. Whatever the request came through, the app refuses,
+  writing and deleting nothing (R1), one whose landing (the project skills directory it writes into or deletes from)
+  is a global library or lies inside one, or whose copy (the skill's entry in that directory) is a global library or
+  holds one; an install is refused at every landing. The global libraries are `~/.claude/skills`, `~/.agents/skills`
+  (Codex's), `~/.grok/skills` and Antigravity's three ([skills-view::REQ-001/AC-01](skills-view.md)). Directories
+  are compared as the same directory however they are reached: another spelling, a link on the way, another letter
+  case on a volume that ignores it. A directory not yet created is judged where it would be created, its missing
+  segments compared ignoring letter case. The copy is judged as the operation acts on it, not followed, so a
+  project's copy that is a link into a library is uninstalled as the link alone (B1); a library that is itself a
+  link is judged both as the link and as where it leads. R4 is judged after R3 and before every other check, so a
+  request it refuses gets its refusal in place of any other's (A4, A6, A7, A10, B2, skill-install::REQ-004).
 
 ## The shared skills directory
 
