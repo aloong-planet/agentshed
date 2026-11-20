@@ -285,8 +285,9 @@ not a packaged build.
 - F9 The plain launch in the packaging check is killed at its limit. It has its own temporary settings directory, so it
   touches no real settings and meets no running copy's single-instance lock.
 - F10 `--type` naming a process type is read by Chromium before any JavaScript, so it never reaches the guard and no exit 64
-  comes. Started by hand, such a process has no parent to talk to and crashes, with or without the guard; alone or beside a
-  switch that opens a port or names a program, it opens no port and runs no program (measured). An empty `--type=` does reach
+  comes. Started by hand as `gpu-process`, `renderer`, `utility`, `zygote`, `browser` or an unknown name, such a process has
+  no parent to talk to and crashes, with or without the guard; alone or beside a switch that opens a port or names a program,
+  it opens no port and runs no program (measured; the other process types are not measured). An empty `--type=` does reach
   the guard, and is refused.
 - F11 An argument close to an accepted one: a switch after leading whitespace, which Chromium trims away before it reads the
   switch; `--user-data-dir` with no value, in another case, or after one dash; a `-psn_` token after whitespace. Each is refused,
