@@ -3,7 +3,8 @@
 // read gives the same ranges, decoded by Node (`readRanges`), which the turn read replaced: the question's text the
 // same, so that the revision tying a fetch to its question is unchanged, and the body's text split at its line feeds.
 // A Codex turn's body, which the module assembles, is seen as the read kept it through the observed-reads seam
-// (engine/src/seams.rs), but where a case reads the blocks.
+// (engine/src/seams.rs), but where a case reads the blocks; how the read of a turn's lines makes a line's strings, through
+// the line-strings seam.
 import { afterAll, afterEach, describe, expect, test, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -15,7 +16,7 @@ import { readRanges, type ByteRange } from './range-read'
 import { readColdRanges } from './cold-rollout'
 import { readTurn, type TurnRead } from './turn-read'
 import { threadEngineModule } from '../engine-module'
-import { TEST_ENGINE, type HoldSeam, type LineLimitSeam, type ObservedBody, type ObservedReadsSeam, type PanicSeam } from '../testing/engine'
+import { TEST_ENGINE, type HoldSeam, type LineLimitSeam, type LineStringsSeam, type ObservedBody, type ObservedReadsSeam, type PanicSeam } from '../testing/engine'
 
 const dir = mkdtempSync(join(tmpdir(), 'turn-read-'))
 const observedReads = (): ObservedReadsSeam => threadEngineModule() as ObservedReadsSeam
@@ -77,6 +78,24 @@ const grokOutput = (id: string, text: string): Buffer =>
 /** A Grok update stream holding `content` */
 function grokFile(content: Buffer): string {
   const file = join(dir, `grok-${files++}.jsonl`)
+  writeFileSync(file, content)
+  return file
+}
+
+// Lines shaped as agy writes a conversation's transcript (as turn-content.test.ts builds them): a step per line, each
+// step after the one before, a question a user-input line's request block, an answer a response's prose, a call a
+// response's tool call, and its result the line after it. A call's steps follow from its id, one of those `returns`
+// gives (t0, t1, …), so that a line built again to be measured is the same line.
+const agyLine = (step: number, type: string, extra: Record<string, unknown>): Buffer =>
+  Buffer.from(JSON.stringify({ step_index: step, source: 'MODEL', type, status: 'DONE', created_at: '2026-11-12T09:36:03Z', ...extra }))
+const agyAsk = (text: string): Buffer => agyLine(0, 'USER_INPUT', { source: 'USER_EXPLICIT', content: `<USER_REQUEST>\n${text}\n</USER_REQUEST>` })
+const agySay = (text: string): Buffer => agyLine(1, 'PLANNER_RESPONSE', { content: text })
+const agyCallStep = (id: string): number => 2 * Number(id.slice(1)) + 1
+const agyCall = (id: string): Buffer => agyLine(agyCallStep(id), 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: `cat ${id}.log` } }] })
+const agyResult = (id: string, text: string): Buffer => agyLine(agyCallStep(id) + 1, 'GENERIC', { content: text })
+/** An Antigravity conversation's transcript holding `content` */
+function agyFile(content: Buffer): string {
+  const file = join(dir, `transcript-${files++}.jsonl`)
   writeFileSync(file, content)
   return file
 }
@@ -322,7 +341,9 @@ describe('a turn read of a side whose turns the engine module assembles, its blo
       ]
     }),
     { side: 'grok' as const, shape: 'of tool outputs in lines a little past a read', file: grokFile, ask: grokAsk('q'), ...returns(grokCall, grokOutput, 62, MiB + 10_240) },
-    { side: 'grok' as const, shape: 'of one prose chunk in a line of half the limit and a little more', file: grokFile, ask: grokAsk('q'), lines: [grokSay('x'.repeat(half))], shown: [1, half] }
+    { side: 'grok' as const, shape: 'of one prose chunk in a line of half the limit and a little more', file: grokFile, ask: grokAsk('q'), lines: [grokSay('x'.repeat(half))], shown: [1, half] },
+    { side: 'antigravity' as const, shape: 'of tool results in lines a little past a read', file: agyFile, ask: agyAsk('q'), ...returns(agyCall, agyResult, 62, MiB + 10_240) },
+    { side: 'antigravity' as const, shape: 'of one answer in a line of half the limit and a little more', file: agyFile, ask: agyAsk('q'), lines: [agySay('x'.repeat(half))], shown: [1, half] }
   ]
   test.each(shapes)('$side: a turn $shape grows a fresh process\'s peak by the text twice and a few MiB', ({ side, file: fileOf, ask, lines, shown: expected }) => {
     const { content, turns } = rollout([{ line: ask, question: true }, ...lines.map((line) => ({ line }))])
@@ -347,6 +368,22 @@ describe('a turn read of a side whose turns the engine module assembles, its blo
     const { grewKiB, blocks, shown } = JSON.parse(run.stdout) as { grewKiB: number; blocks: number; shown: number }
     expect([blocks, shown]).toEqual(expected)
     expect(grewKiB * 1024).toBeLessThan(2 * bodyBytes + 24 * MiB)
+  })
+})
+
+describe('the read of a turn\'s lines, which every side\'s rules go through, holds a line\'s longest string once (session-view C2)', () => {
+  test('of a line\'s strings, the longest that is well formed is made in the line\'s own buffer and the others are copied, a longer one holding a lone surrogate among them', () => {
+    const seam = threadEngineModule() as LineStringsSeam
+    // Written with an escape and a character of two bytes in each pair: 8000 bytes in the line
+    const long = '\u00e9\n'.repeat(2000)
+    // Written 9006 bytes long, its lone surrogate as an escape: longer, but not well formed
+    const lone = String.fromCharCode(0xd800) + 'y'.repeat(9000)
+    const line = JSON.stringify({ short: 'ab', long, n: 5, lone })
+    expect(seam.seamTurnLineStrings(line)).toEqual([
+      { text: 'ab', taken: false },
+      { text: long, taken: true },
+      { text: lone, taken: false }
+    ])
   })
 })
 

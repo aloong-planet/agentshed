@@ -17,7 +17,7 @@ use crate::sides::Side;
 use crate::display::{stringify, write_atomically};
 use crate::exports::js::Js;
 use crate::search::{Question, Questions, Turn};
-use crate::turn::{At, Block, TurnBody};
+use crate::turn::{At, Block};
 
 /// The question `text` holds, as the session page and both searches show it: `text` is a question's range in a session
 /// file of the side `kind`, as the question index recorded it, read; null when it holds no question
@@ -25,13 +25,6 @@ use crate::turn::{At, Block, TurnBody};
 pub fn question_text<'env>(env: &'env Env, kind: String, text: String) -> Result<Unknown<'env>> {
     let answer = Js::new(env).text_or_null(side(&kind)?.question_text(&text).as_ref())?;
     unsafe { Unknown::from_napi_value(env.raw(), answer) }
-}
-
-/// The tool names whose call dispatches a subagent on the side `kind`, which a turn draws as one: the names its question
-/// index counts a turn's subagents by
-#[napi(catch_unwind)]
-pub fn dispatches(kind: String) -> Result<Vec<String>> {
-    Ok(side(&kind)?.dispatches().iter().map(|name| (*name).to_owned()).collect())
 }
 
 /// A range of a session file, `[start, end)` in the offsets its question index records
@@ -88,11 +81,11 @@ pub fn read_ranges<'env>(env: &'env Env, kind: String, file: String, ranges: Vec
 /// into the stream the read went from where it started
 type Turned = (Vec<u8>, Handed, u64);
 
-/// What a turn's read hands over for its body: the body its side makes of the lines the turn holds (`Side::turn_body`),
-/// or, in a build made for tests, those lines as the read kept them, unassembled, when the observed-reads seam names
-/// the file (`seams.rs`)
+/// What a turn's read hands over for its body: the blocks its side assembles of the lines the turn holds
+/// (`Side::turn_body`), or, in a build made for tests, those lines as the read kept them, unassembled, when the
+/// observed-reads seam names the file (`seams.rs`)
 enum Handed {
-    Body(TurnBody),
+    Blocks(Vec<Block>),
     #[cfg(feature = "test-seams")]
     Kept(Vec<String>),
 }
@@ -103,11 +96,11 @@ fn handed(side: &dyn Side, file: &str, lines: Vec<String>) -> Handed {
     if crate::seams::observed_reads_seam::observes(file) {
         return Handed::Kept(lines);
     }
-    Handed::Body(side.turn_body(file, lines))
+    Handed::Blocks(side.turn_body(file, lines))
 }
 
 /// Reads a turn of the session file `file` with `side` (`Side::read_turn`), drops the lines the turn does not hold
-/// (the side's `kept_lines`) and makes the body of the rest (`handed`, by the side's `turn_body`): the side's assembly
+/// (the side's `kept_lines`) and assembles the blocks of the rest (`handed`, by the side's `turn_body`): the side's assembly
 /// of its blocks runs inside the read's panic catch, so that a panic fails that read alone; or why the turn was not
 /// read, as the promise rejects with it
 fn turned(side: &dyn Side, file: &str, question: (u64, u64), body: Option<(u64, u64)>) -> std::result::Result<Turned, String> {
@@ -126,8 +119,8 @@ fn turned(side: &dyn Side, file: &str, question: (u64, u64), body: Option<(u64, 
 }
 
 /// A turn's read as its promise settles with it, made on the main process's thread: `{ question, bytesRead }` with the
-/// body's `blocks`, or its `lines` (in a build made for tests, its `keptLines` under the observed-reads seam), each
-/// block's strings let go as JavaScript is handed them. A conversion that panics rejects the read.
+/// body's `blocks` (in a build made for tests, its `keptLines` under the observed-reads seam), each block's strings let
+/// go as JavaScript is handed them. A conversion that panics rejects the read.
 struct TurnValue {
     file: String,
     turned: Turned,
@@ -150,8 +143,7 @@ impl ToNapiValue for TurnValue {
             let js = Js::new(&Env::from_raw(env));
             let question = unsafe { Buffer::to_napi_value(env, Buffer::from(question)) }?;
             let body = match body {
-                Handed::Body(TurnBody::Blocks(blocks)) => ("blocks", js.array(blocks.into_iter().map(|block| block_value(&js, block)))?),
-                Handed::Body(TurnBody::Lines(lines)) => ("lines", unsafe { Vec::<String>::to_napi_value(env, lines) }?),
+                Handed::Blocks(blocks) => ("blocks", js.array(blocks.into_iter().map(|block| block_value(&js, block)))?),
                 #[cfg(feature = "test-seams")]
                 Handed::Kept(lines) => ("keptLines", unsafe { Vec::<String>::to_napi_value(env, lines) }?),
             };
@@ -215,11 +207,11 @@ fn at_value(js: &Js, at: At) -> Result<napi_value> {
 /// own reads of plain files run, so that it is one of the four plain reads at once session-view D2b bounds them to, as
 /// the range read it replaced was. The body is read line by line, each line decoded as it is whole, and the lines the
 /// turn does not hold (the side's `kept_lines`) are dropped on the reading thread, so that no allocation holds the
-/// whole body but a line of it; of a side whose turns the module assembles, the blocks are assembled there too, each
-/// line let go once it is read (`Side::turn_body`). The promise settles with the question's bytes and the body's
-/// blocks or lines, or rejects when the file cannot be read as far as the turn goes, what it read is not whole, or the
-/// read or its assembly panicked. A thread that cannot be started throws, before any promise is handed out.
-#[napi(catch_unwind, ts_return_type = "Promise<{ question: Buffer; bytesRead: number } & ({ blocks: object[] } | { lines: string[] })>")]
+/// whole body but a line of it, and the blocks are assembled there too, each line let go once it is read
+/// (`Side::turn_body`). The promise settles with the question's bytes and the body's blocks, or rejects when the file
+/// cannot be read as far as the turn goes, what it read is not whole, or the read or its assembly panicked. A thread
+/// that cannot be started throws, before any promise is handed out.
+#[napi(catch_unwind, ts_return_type = "Promise<{ question: Buffer; bytesRead: number; blocks: object[] }>")]
 pub fn read_turn<'env>(env: &'env Env, kind: String, file: String, question: ByteRange, body: Option<ByteRange>) -> Result<Unknown<'env>> {
     let side = side(&kind)?;
     let question = (question.start as u64, question.end as u64);

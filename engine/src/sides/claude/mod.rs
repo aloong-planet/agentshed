@@ -20,7 +20,7 @@ use self::entry::{Job, Parsed};
 use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
 use crate::text::{self, Units};
-use crate::turn::TurnBody;
+use crate::turn::Block;
 use crate::walk::Held;
 
 pub(crate) struct Claude;
@@ -52,13 +52,9 @@ impl Side for Claude {
         question::shown(range)
     }
 
-    fn dispatches(&self) -> &'static [&'static str] {
-        &question::DISPATCH
-    }
-
-    fn turn_body(&self, file: &str, lines: Vec<String>) -> TurnBody {
+    fn turn_body(&self, file: &str, lines: Vec<String>) -> Vec<Block> {
         crate::seams::before_turn_assembly(file);
-        TurnBody::Blocks(turn::blocks(lines, self.dispatches()))
+        turn::blocks(lines, &question::DISPATCH)
     }
 
     fn walk(&self, js: &Js, roots: napi_value, _kept: &mut Kept, held: &mut Held, _tmp_parent: Option<&str>) -> Option<Result<Walked>> {

@@ -39,5 +39,5 @@ export async function readTurnRanges(
     return { question: text, body: null, bodyBytes, bytesRead }
   }
   const { question: text, body, bytesRead } = await read(source, question, { start: rec[1], end: rec[2] })
-  return { question: text, body: body ?? { lines: [] }, bodyBytes, bytesRead }
+  return { question: text, body: body ?? { blocks: [] }, bodyBytes, bytesRead }
 }

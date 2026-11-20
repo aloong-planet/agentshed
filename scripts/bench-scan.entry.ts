@@ -59,11 +59,12 @@
 //                 stall during it, and the main process's footprint before it and at its peak, worker threads
 //                 included, read with macOS `footprint` as token-stats::QR-004 reads memory (macOS only).
 //   turn-index <side> <dir>
-//                 the turns of a side (claude, codex or grok) the turn mode measures: every session of the side under
-//                 the home, walked and indexed by the engine module's parse as a scan indexes it, and of their turns the
-//                 three of plain files whose bodies are the largest within the turn limit, and the largest of a cold
-//                 rollout when there is one; and a session of the side written into <dir>, one question and a body of
-//                 tool calls and their results a little under the limit. Prints each as the turn mode's arguments.
+//                 the turns of a side (claude, codex, grok or antigravity) the turn mode measures: every session of the
+//                 side under the home, walked and indexed by the engine module's parse as a scan indexes it, and of their
+//                 turns the three of plain files whose bodies are the largest within the turn limit, and the largest of a
+//                 cold rollout when there is one; and a session of the side written into <dir>, one question and a body
+//                 of tool calls and their results a little under the limit. Prints each as the turn mode's arguments, an
+//                 Antigravity turn's file its conversation's transcript, which its turns are read from.
 //   turn <side> <file> <question start> <question end> <turn end>
 //                 the turn fetch the session page makes as it expands a turn of the side (getSessionTurn in
 //                 src/main/index.ts), from the turn's question index record as turn-index printed it: the turn read,
@@ -89,7 +90,6 @@ import { TokenEngine, runParseJob, sessionReadSource, type ParseRunner } from '.
 import { questionRevision, readSessionRanges, readSessionTurn, sourceIdentity } from '../src/main/source-identity'
 import { readTurnRanges, turnLimitBytes } from '../src/main/turn-limit'
 import { turnKeepBytes, turnKept } from '../src/main/turn-keep'
-import { bodyBlocks } from '../src/main/providers/turn-content'
 import { assertSessionTurn } from '../src/shared/validate'
 import { ParsePool } from '../src/main/parse-pool'
 import { ENGINE_BUILD, loadEngineModule, threadEngineModule, type EngineModule, type EngineSource } from '../src/main/engine-module'
@@ -98,6 +98,9 @@ import { startScans } from '../src/main/scan-client'
 import { UsageArchive } from '../src/main/providers/archive'
 import type { ScanRoots } from '../src/main/providers/types'
 import { isColdRollout } from '../src/main/providers/cold-rollout'
+import { agyTranscriptPath } from '../src/main/providers/antigravity'
+import { encodeTrajectoryMetadata, writeConversation } from '../src/main/testing/agy-fixture'
+import { transcriptFile } from '../src/main/testing/agy-transcript-fixture'
 import { searchProjectSessions } from '../src/main/providers/search-sessions'
 import type { QuestionRec } from '../src/main/providers/question-index'
 import { realRoots } from '../src/main/roots'
@@ -773,7 +776,7 @@ interface IndexedTurn {
 const bodyBytes = (t: IndexedTurn): number => t.rec[2] - t.rec[1]
 
 /** The sides the turn mode measures */
-type TurnSide = 'claude' | 'codex' | 'grok'
+type TurnSide = 'claude' | 'codex' | 'grok' | 'antigravity'
 
 /** The turn mode's arguments for a turn of `side` */
 const turnArgs = (side: TurnSide, t: IndexedTurn): string => `turn ${side} ${t.file} ${t.rec.join(' ')}`
@@ -786,13 +789,14 @@ function indexedTurns(file: string, questions: readonly QuestionRec[]): IndexedT
 /** What the turn mode measures of a side */
 interface TurnSideBench {
   /** The scan root holding the side's sessions */
-  root: 'claudeHome' | 'codexHome' | 'grokHome'
+  root: 'claudeHome' | 'codexHome' | 'grokHome' | 'antigravityHome'
   /** Every turn of the side's sessions in `walk`, as the engine module's parse indexes them for a scan, and how many
    * sessions there were */
   turns(walk: SessionWalk): Promise<{ sessions: number; turns: IndexedTurn[] }>
-  /** A session of one question whose body is a little under the turn limit, written into `dir`: its lines, the body's
-   * after the question's */
-  nearLimit(dir: string): { file: string; lines: string[] }
+  /** A session of one question whose body is a little under the turn limit, written into `dir`: the file its turns are
+   * read from and its lines, the body's after the question's; and for an Antigravity conversation, its database, which
+   * this writes and the walk lists */
+  nearLimit(dir: string): { file: string; lines: string[]; conversation?: string }
 }
 
 /** A run of tool calls and their results, each result about a MiB of output the shape a long build log has, quotes,
@@ -905,17 +909,59 @@ const TURN_SIDES: Record<TurnSide, TurnSideBench> = {
       mkdirSync(session, { recursive: true })
       return { file: join(session, 'updates.jsonl'), lines }
     }
+  },
+  antigravity: {
+    root: 'antigravityHome',
+    async turns(walk) {
+      const turns: IndexedTurn[] = []
+      for (const s of walk.antigravity) {
+        const transcript = agyTranscriptPath(s.file)
+        const parsed = await runParseJob({ kind: 'antigravity', file: s.file, transcript })
+        if (parsed !== null && parsed.agg.kind === 'antigravity') turns.push(...indexedTurns(transcript, parsed.agg.questions))
+      }
+      return { sessions: walk.antigravity.length, turns }
+    },
+    nearLimit(dir) {
+      // As agy writes a transcript (MEASURED_TRANSCRIPT in src/main/testing/agy-transcript-fixture.ts): a line per step,
+      // the question's request block, then each response's prose and its one call, and the call's result line
+      const line = (step: number, source: string, type: string, rest: Record<string, unknown>): string =>
+        JSON.stringify({ step_index: step, source, type, status: 'DONE', created_at: '2026-11-20T10:00:00Z', ...rest }) + '\n'
+      const lines = nearLimitLines(
+        line(0, 'USER_EXPLICIT', 'USER_INPUT', {
+          content: '<USER_REQUEST>\nWhy does the nightly build fail?\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nThe current local time is: 2026-11-20T18:00:00+08:00.\n</ADDITIONAL_METADATA>'
+        }),
+        (i) =>
+          line(2 * i + 1, 'MODEL', 'PLANNER_RESPONSE', {
+            input_tokens: 7784,
+            cache_read_tokens: 0,
+            output_tokens: 67,
+            content: `Reading log ${i}.`,
+            tool_calls: [{ name: 'run_command', args: { CommandLine: `cat build-${i}.log`, IsDaemon: false, WaitMsBeforeAsync: 5000, toolSummary: `Read build log ${i}` } }]
+          }),
+        (i, text) =>
+          line(2 * i + 2, 'MODEL', 'GENERIC', {
+            content: `Created At: 2026-11-20T18:00:01+08:00\nCompleted At: 2026-11-20T18:00:01+08:00\nCommand exited with code 0.\n\nCommand output:\n${text}`
+          })
+      )
+      // agy's own layout: the conversation's database under conversations/, its transcript under brain/
+      const id = '3f2a9c41-7d5e-4b8a-9c1f-0e6d2b4a8c73'
+      mkdirSync(join(dir, 'conversations'), { recursive: true })
+      const { file: conversation } = writeConversation(join(dir, 'conversations'), id, encodeTrajectoryMetadata({ folders: ['/srv/ci'], conversationId: id }))
+      const file = transcriptFile(dir, id)
+      mkdirSync(dirname(file), { recursive: true })
+      return { file, lines, conversation }
+    }
   }
 }
 
 function turnSide(name: string | undefined): TurnSide {
-  if (name === 'claude' || name === 'codex' || name === 'grok') return name
+  if (name === 'claude' || name === 'codex' || name === 'grok' || name === 'antigravity') return name
   throw new Error(`the turn modes measure the sides ${Object.keys(TURN_SIDES).join(' and ')}, not "${name ?? ''}"`)
 }
 
 /** The session `bench` writes into `dir`, indexed: its one turn, checked to be a little under the turn limit */
 async function writeNearLimitTurn(bench: TurnSideBench, dir: string): Promise<IndexedTurn> {
-  const { file, lines } = bench.nearLimit(dir)
+  const { file, lines, conversation } = bench.nearLimit(dir)
   writeFileSync(file, lines.join(''))
   const walk: SessionWalk = { claude: [], codex: [], grok: [], antigravity: [], held: { claude: [], codex: [], grok: [], antigravity: [] } }
   if (bench.root === 'claudeHome') walk.claude.push({ file, dir, nested: false })
@@ -923,7 +969,11 @@ async function writeNearLimitTurn(bench: TurnSideBench, dir: string): Promise<In
     const meta = threadEngineModule().sessionMeta('codex', file)
     if (meta === null) throw new Error(`${file} gives no Codex session`)
     walk.codex.push(meta)
-  } else walk.grok.push({ file, cwd: '/srv/ci', subagent: false, mtimeMs: statSync(file).mtimeMs })
+  } else if (bench.root === 'grokHome') walk.grok.push({ file, cwd: '/srv/ci', subagent: false, mtimeMs: statSync(file).mtimeMs })
+  else {
+    if (conversation === undefined) throw new Error(`${file} was written with no conversation database`)
+    walk.antigravity.push({ file: conversation, cwd: '/srv/ci', subagent: false, mtimeMs: statSync(file).mtimeMs })
+  }
   const { turns: [turn, ...more] } = await bench.turns(walk)
   if (!turn || more.length > 0) throw new Error(`${file} should index as one turn`)
   if (bodyBytes(turn) > TURN_LIMIT || bodyBytes(turn) < TURN_LIMIT - 1024 * 1024)
@@ -979,7 +1029,7 @@ async function turnFetch(args: string[]): Promise<void> {
   questionRevision(identity, file, rec[0], rec[1], read.question)
   if (sourceIdentity(source) !== identity) throw new Error(`${file} changed during the read`)
   if (read.body === null) throw new Error(`the turn's body, ${read.bodyBytes} bytes, is over the turn limit`)
-  const turn: SessionTurn = { blocks: bodyBlocks(side, read.body), bytesRead: read.bytesRead }
+  const turn: SessionTurn = { blocks: read.body.blocks, bytesRead: read.bytesRead }
   if (!turnKept(read.bodyBytes, TURN_KEEP)) turn.unkept = true
   assertSessionTurn(turn)
   const ms = performance.now() - t0

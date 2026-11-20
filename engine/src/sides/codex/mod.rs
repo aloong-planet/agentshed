@@ -25,7 +25,7 @@ use crate::exports::js::Js;
 use crate::question::Record;
 use crate::read::{Failed, Served};
 use crate::text::{self, Units};
-use crate::turn::TurnBody;
+use crate::turn::Block;
 use crate::walk::Held;
 
 pub(crate) struct Codex;
@@ -56,10 +56,6 @@ impl Side for Codex {
         question::shown(range)
     }
 
-    fn dispatches(&self) -> &'static [&'static str] {
-        std::slice::from_ref(&question::DISPATCH)
-    }
-
     fn read_ranges(&self, file: &str, ranges: &[(u64, u64)]) -> Option<std::result::Result<Served, Failed>> {
         Some(cold::ranges(file, ranges))
     }
@@ -76,9 +72,9 @@ impl Side for Codex {
         cold::turn(file, question, body)
     }
 
-    fn turn_body(&self, file: &str, lines: Vec<String>) -> TurnBody {
+    fn turn_body(&self, file: &str, lines: Vec<String>) -> Vec<Block> {
         crate::seams::before_turn_assembly(file);
-        TurnBody::Blocks(turn::blocks(lines, self.dispatches()))
+        turn::blocks(lines, std::slice::from_ref(&question::DISPATCH))
     }
 
     fn full_text(&self, file: &str, needle: &[u16], turns: &[crate::search::Turn]) -> std::result::Result<crate::search::Found, Failed> {

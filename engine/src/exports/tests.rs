@@ -111,6 +111,21 @@ mod seam {
         seams::observed_reads_seam::observe(file, observed);
     }
 
+    /// A string of a line's, as the read of a turn's lines made it (`seams.rs`)
+    #[napi(object)]
+    pub struct SeamLineString {
+        pub text: napi::bindgen_prelude::Utf16String,
+        /// Whether it was made in the line's own buffer
+        pub taken: bool,
+    }
+
+    /// Reads `line` through the read of a turn's lines every side's rules go through, with rules that take each member
+    /// of its object that is a string, and answers with each, as made (`seams.rs`)
+    #[napi(catch_unwind)]
+    pub fn seam_turn_line_strings(line: String) -> Vec<SeamLineString> {
+        seams::line_strings_seam::made(line).into_iter().map(|(text, taken)| SeamLineString { text: text.into(), taken }).collect()
+    }
+
     /// Lowers `text` by the rule the full-text search's snippets lower strings by, `toLowerCase`'s (`seams.rs`)
     #[napi(catch_unwind)]
     pub fn seam_to_lower_case(text: napi::bindgen_prelude::Utf16String) -> napi::bindgen_prelude::Utf16String {

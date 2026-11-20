@@ -7,7 +7,6 @@ import { runParseJob } from './token-stats'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { withIndexedTranscript } from '../testing/agy-transcript-index'
 import { readRanges } from './range-read'
-import { turnBlocks } from './turn-content'
 import { readTurn as readTurnOf, type TurnRead } from './turn-read'
 import type { TurnBlock } from '@shared/domain'
 
@@ -51,7 +50,7 @@ function blocksOf(read: TurnRead): TurnBlock[] {
 
 /** A turn of `side`, a side whose turns the engine module assembles, whose body is `lines`, written as a session file of
  * its own and read whole by the engine module, which assembles its blocks, as the session page reads a turn */
-const engineTurn = (side: 'claude' | 'codex' | 'grok', lines: string[]): Promise<TurnBlock[]> =>
+const engineTurn = (side: 'claude' | 'codex' | 'grok' | 'antigravity', lines: string[]): Promise<TurnBlock[]> =>
   withFile(lines.map((l) => `${l}\n`).join(''), async (file) => blocksOf(await readTurnOf(side, file, { start: 0, end: 0 }, { start: 0, end: statSync(file).size })))
 
 /** A Claude Code turn whose body is `lines` (`engineTurn`) */
@@ -797,19 +796,16 @@ function withFile<T>(text: string, fn: (file: string) => Promise<T>): Promise<T>
   return fn(file).finally(() => rmSync(dir, { recursive: true, force: true }))
 }
 
-/** The lines a turn read handed over of a side whose turns TypeScript assembles */
-const linesHanded = (read: TurnRead): string[] => (read.body !== null && 'lines' in read.body ? read.body.lines : [])
-
-/** A turn of `file`, a session file of `side`, by its question index record, read as the session page reads it */
-async function readTurn(side: 'antigravity', file: string, rec: QuestionRec): Promise<{ lines: string[]; bytesRead: number }> {
-  const read = await readTurnOf(side, file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] })
-  return { lines: linesHanded(read), bytesRead: read.bytesRead }
-}
-
 /** A turn of `file`, a session file of `side`, a side whose turns the engine module assembles, by its question index
  * record, read as the session page reads it */
-const engineTurnRead = (side: 'claude' | 'codex' | 'grok', file: string, rec: QuestionRec): Promise<TurnRead> =>
+const engineTurnRead = (side: 'claude' | 'codex' | 'grok' | 'antigravity', file: string, rec: QuestionRec): Promise<TurnRead> =>
   readTurnOf(side, file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] })
+
+/** An Antigravity turn of `file`, a conversation's transcript, by its question index record (`engineTurnRead`): the
+ * blocks the engine module assembled */
+async function agyTurnOf(file: string, rec: QuestionRec): Promise<TurnBlock[]> {
+  return blocksOf(await engineTurnRead('antigravity', file, rec))
+}
 
 /** A Claude Code turn of `file` by its question index record (`engineTurnRead`): the blocks the engine module assembled */
 async function claudeTurnOf(file: string, rec: QuestionRec): Promise<TurnBlock[]> {
@@ -900,6 +896,24 @@ describe('the question index and the turn take the same tool calls as subagent d
       await withFile(raw, async (file) => {
         const [rec] = await indexGrokFile(file)
         const kinds = blocksOf(await engineTurnRead('grok', file, rec)).map((b) => b.kind)
+        judged.push({ name, counted: [rec[4], rec[5]], shown: [kinds.filter((k) => k === 'tool').length, kinds.filter((k) => k === 'sub').length] })
+      })
+    }
+    const each = (kind: 'tool' | 'sub'): number[] => (kind === 'sub' ? [0, 1] : [1, 0])
+    expect(judged).toEqual(NAMES.map(([name, kind]) => ({ name, counted: each(kind), shown: each(kind) })))
+  })
+
+  test('antigravity: a call is counted as a subagent exactly when its turn shows it as one', async () => {
+    const NAMES: Array<[string, 'tool' | 'sub']> = [['invoke_subagent', 'sub'], ['Invoke_subagent', 'tool'], ['invoke_subagent ', 'tool'], ['run_command', 'tool'], ['', 'tool']]
+    const judged: Array<{ name: string; counted: unknown; shown: unknown }> = []
+    for (const [name] of NAMES) {
+      // A question and one response making the call, shaped as the measured transcripts' lines are
+      const text = transcriptText([
+        JSON.stringify({ step_index: 0, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: '2026-10-28T08:09:56Z', content: '<USER_REQUEST>\na question\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nThe current local time is: 2026-10-28T16:09:56+08:00.\n</ADDITIONAL_METADATA>' }),
+        JSON.stringify({ step_index: 1, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:09:56Z', tool_calls: [{ name, args: { TypeName: 'self', Prompt: 'p' } }] })
+      ])
+      await withIndexedTranscript(text, async ({ questions: [rec], transcript }) => {
+        const kinds = (await agyTurnOf(transcript, rec)).map((b) => b.kind)
         judged.push({ name, counted: [rec[4], rec[5]], shown: [kinds.filter((k) => k === 'tool').length, kinds.filter((k) => k === 'sub').length] })
       })
     }
@@ -1288,12 +1302,9 @@ describe('the Grok block model (ticket #125)', () => {
 describe('the Antigravity block model (session-view::REQ-004)', () => {
   const T = MEASURED_TRANSCRIPT
   /** A turn of these lines, as the session page reads it: written as a transcript, the whole of it the turn's body, read
-   * through the turn read, which leaves out the lines a rewind undid */
+   * through the turn read, which leaves out the lines a rewind undid, and assembled by the engine module */
   const read = (lines: readonly string[]): Promise<TurnBlock[]> =>
-    withFile(transcriptText(lines), async (file) => {
-      const body = { start: 0, end: statSync(file).size }
-      return turnBlocks('antigravity', linesHanded(await readTurnOf('antigravity', file, { start: 0, end: 0 }, body)))
-    })
+    withFile(transcriptText(lines), async (file) => blocksOf(await readTurnOf('antigravity', file, { start: 0, end: 0 }, { start: 0, end: statSync(file).size })))
   /** The turn of the lines after a question, `[from, to)` */
   const turn = (lines: readonly string[], from: number, to: number): Promise<TurnBlock[]> => read(lines.slice(from, to))
   const field = (line: string, key: string): unknown => (JSON.parse(line) as Record<string, unknown>)[key]
@@ -1385,16 +1396,109 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
     expect(bs.map((b) => b.kind === 'tool' && [b.name, b.output])).toEqual([['run_command', 'redone']])
   })
 
+  // Derived lines, of shapes no measured transcript shows, each written as the measured lines are; every block they give
+  // is at their time
+  const DERIVED_AT = '2026-10-28T08:06:23Z'
+  const at = Date.UTC(2026, 9, 28, 8, 6, 23)
+  const line = (step: number, type: unknown, extra: Record<string, unknown> = {}): string =>
+    JSON.stringify({ step_index: step, source: 'MODEL', type, status: 'DONE', created_at: DERIVED_AT, ...extra })
+  const response = (step: number, extra: Record<string, unknown>): string => line(step, 'PLANNER_RESPONSE', extra)
+  const result = (step: number, extra: Record<string, unknown>): string => line(step, 'GENERIC', extra)
+  const message = (step: number, content: unknown): string => line(step, 'SYSTEM_MESSAGE', { source: 'SYSTEM', content })
+  /** A system message's content as agy frames it (the measured dispatch's), from `sender` with `body` */
+  const framed = (sender: string, body: string): string =>
+    'The following is a <SYSTEM_MESSAGE> not actually sent by the user. It is provided by the system as important information to pay attention to.\n\n' +
+    `<SYSTEM_MESSAGE>\n[Message] timestamp=2026-10-28T08:10:17Z sender=${sender} priority=MESSAGE_PRIORITY_HIGH content=${body}\n</SYSTEM_MESSAGE>`
+  const dispatch = (step: number, args?: unknown): string => response(step, { tool_calls: [args === undefined ? { name: 'invoke_subagent' } : { name: 'invoke_subagent', args }] })
+  /** A dispatch's result, echoing the conversation it created as `written` writes its id (the measured echo's shape) */
+  const echo = (step: number, written: string): string =>
+    result(step, { content: `Created At: 2026-10-28T16:10:00+08:00\nCompleted At: 2026-10-28T16:10:01+08:00\nCreated the following subagent:\n{\n  ${written},\n  "logAbsoluteUri":  "file:///x"\n}` })
+  const textBlock = (body: string, when: number | null = at): TurnBlock => ({ kind: 'text', role: 'assistant', at: when, body })
+  const thinkBlock = (body: string): TurnBlock => ({ kind: 'think', at, body })
+  const toolBlock = (name: string | null, input: string, summary: string, output: string | null = null): TurnBlock =>
+    ({ kind: 'tool', at, name, summary, input, output, truncated: false })
+  const subBlock = (name: string, prompt: string, result: string | null = null): TurnBlock => ({ kind: 'sub', at, name, prompt, steps: [], result, unlinked: true })
+  // Characters beyond ASCII where the rules read, by code point: white space to `\s` of two and of three UTF-8 bytes, a
+  // character outside the Basic Multilingual Plane whose low sixteen bits are a space's, and lone surrogates, which
+  // put the string they are in into its UTF-16 code units
+  const NBSP = String.fromCharCode(0xa0)
+  const IDEOGRAPHIC_SPACE = String.fromCharCode(0x3000)
+  const ASTRAL = String.fromCodePoint(0x20020)
+  const LONE_HIGH = String.fromCharCode(0xd800)
+  const LONE_LOW = String.fromCharCode(0xdc00)
+
+  // A string a rule asks to be other than blank, or a value to be a string, each where the rule asks it: an empty one
+  // and one only white space (JavaScript's `trim` set) are blank, and an empty string is a string
+  test.each([
+    { name: 'a thinking empty gives no think block', lines: [response(1, { thinking: '', content: 'a' })], blocks: [textBlock('a')] },
+    { name: 'a thinking only white space gives none', lines: [response(1, { thinking: ' \n\t\u00a0\ufeff\u2028', content: 'a' })], blocks: [textBlock('a')] },
+    { name: 'a prose empty gives no text block', lines: [response(1, { thinking: 't', content: '' })], blocks: [thinkBlock('t')] },
+    { name: 'a prose only white space gives none', lines: [response(1, { thinking: 't', content: ' \r\n\u3000' })], blocks: [thinkBlock('t')] },
+    { name: 'an error line whose error is empty gives nothing, its content not taken in its place', lines: [line(1, 'ERROR_MESSAGE', { error: '', content: 'boom' })], blocks: [] },
+    { name: 'an error line whose error is only white space gives nothing', lines: [line(1, 'ERROR_MESSAGE', { error: ' \n', content: 'boom' })], blocks: [] },
+    { name: 'an error line with no error and an empty content gives nothing', lines: [line(1, 'ERROR_MESSAGE', { content: '' })], blocks: [] },
+    { name: 'an error line with no error gives its content', lines: [line(1, 'ERROR_MESSAGE', { content: 'boom' })], blocks: [textBlock('boom')] },
+    { name: 'an error line whose error is no string gives its content', lines: [line(1, 'ERROR_MESSAGE', { error: 5, content: 'boom' })], blocks: [textBlock('boom')] },
+    { name: 'an empty line and a line only white space among the lines give nothing and leave no trace', lines: [response(1, { content: 'a' }), '', ' \t ', response(2, { content: 'b' })], blocks: [textBlock('a'), textBlock('b')] }
+  ])('blank or empty: $name', async ({ lines, blocks }) => {
+    expect(await read(lines)).toEqual(blocks)
+  })
+
+  test.each([
+    { name: 'a call that is no object is a tool naming none, its input nothing', lines: [response(1, { tool_calls: ['x', 5, null, ['a']] })], blocks: [toolBlock(null, '', ''), toolBlock(null, '', ''), toolBlock(null, '', ''), toolBlock(null, '', '')] },
+    { name: 'a call\'s name that is no string names none', lines: [response(1, { tool_calls: [{ name: 5, args: { Path: '/x' } }] })], blocks: [toolBlock(null, '{\n  "Path": "/x"\n}', '{ "Path": "/x" }')] },
+    { name: 'arguments that are a string are shown as written', lines: [response(1, { tool_calls: [{ name: 'run_command', args: 'ls  -la\n/tmp' }] })], blocks: [toolBlock('run_command', 'ls  -la\n/tmp', 'ls -la /tmp')] },
+    { name: 'arguments null, or none, are nothing', lines: [response(1, { tool_calls: [{ name: 'run_command', args: null }, { name: 'read_file' }] })], blocks: [toolBlock('run_command', '', ''), toolBlock('read_file', '', '')] },
+    { name: 'arguments that are an array are its JSON, two spaces deep', lines: [response(1, { tool_calls: [{ name: 'run_command', args: [1, { a: 'b' }] }] })], blocks: [toolBlock('run_command', '[\n  1,\n  {\n    "a": "b"\n  }\n]', '[ 1, { "a": "b" } ]')] },
+    { name: 'a dispatch naming no type is named by its tool', lines: [dispatch(1, { Prompt: 'p' })], blocks: [subBlock('invoke_subagent', 'p')] },
+    { name: 'a dispatch whose type and prompt are empty is named and asked by them', lines: [dispatch(1, { TypeName: '', Prompt: '' })], blocks: [subBlock('', '')] },
+    { name: 'a dispatch whose prompt is no string is asked by its arguments as shown', lines: [dispatch(1, { TypeName: 'self', Prompt: 5 })], blocks: [subBlock('self', '{\n  "TypeName": "self",\n  "Prompt": 5\n}')] },
+    { name: 'a dispatch whose arguments are a string is asked by them', lines: [dispatch(1, 'go')], blocks: [subBlock('invoke_subagent', 'go')] },
+    { name: 'a dispatch with no arguments is asked nothing', lines: [dispatch(1)], blocks: [subBlock('invoke_subagent', '')] },
+    { name: 'a result whose content is no string gives its error', lines: [response(1, { tool_calls: [{ name: 'run_command', args: {} }] }), result(2, { content: 5, error: 'boom' })], blocks: [toolBlock('run_command', '{}', '{}', 'boom')] },
+    { name: 'a result whose content is empty gives it, not its error', lines: [response(1, { tool_calls: [{ name: 'run_command', args: {} }] }), result(2, { content: '', error: 'x' })], blocks: [toolBlock('run_command', '{}', '{}', '')] },
+    { name: 'a result with neither gives nothing', lines: [response(1, { tool_calls: [{ name: 'run_command', args: {} }] }), result(2, {})], blocks: [toolBlock('run_command', '{}', '{}', '')] },
+    { name: 'a result no call awaits gives nothing', lines: [result(1, { content: 'orphan' })], blocks: [] },
+    { name: 'an echo writing its id after white space and a line feed pairs the message', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":\n\t "c1"'), message(3, framed('c1', 'hello'))], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'an echo writing an empty id, then the id, pairs by the id', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":"", "conversationId":  "c1"'), message(3, framed('c1', 'hello'))], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'an echo writing white space beyond ASCII before its id pairs the message', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, `"conversationId":${NBSP}${IDEOGRAPHIC_SPACE}"c1"`), message(3, framed('c1', 'hello'))], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'a sender ended by white space beyond ASCII is the run before it, a character outside the Basic Multilingual Plane within it', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, `"conversationId":  "c${ASTRAL}1"`), message(3, `<SYSTEM_MESSAGE>\n[Message] sender=c${ASTRAL}1${IDEOGRAPHIC_SPACE}content=hello\n</SYSTEM_MESSAGE>`)], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'an echo holding a lone surrogate, its id after white space beyond ASCII, pairs a message whose sender is well formed', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, `"conversationId":${IDEOGRAPHIC_SPACE}"c1", "name": "${LONE_HIGH}"`), message(3, framed('c1', 'hello'))], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'a message holding a lone surrogate pairs by its sender and is cut from its frame', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, framed('c1', `he${LONE_LOW}llo`))], blocks: [subBlock('self', 'p', `he${LONE_LOW}llo`)] },
+    { name: 'a message from a conversation no echo created is no return', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, framed('c2', 'hello'))], blocks: [subBlock('self', 'p')] },
+    { name: 'a message before its echo is no return', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), message(2, framed('c1', 'hello')), echo(3, '"conversationId":  "c1"')], blocks: [subBlock('self', 'p')] },
+    { name: 'a sender written inside a word is none', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, '<SYSTEM_MESSAGE>\n[Message] timestamp=t xsender=c2 sender=c1 content=hello\n</SYSTEM_MESSAGE>')], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'an empty sender is passed over for the next', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, '<SYSTEM_MESSAGE>\n[Message] timestamp=t sender= sender=c1 content=hello\n</SYSTEM_MESSAGE>')], blocks: [subBlock('self', 'p', 'hello')] },
+    { name: 'a message with no [Message] header returns its whole content', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, 'sender=c1 hello')], blocks: [subBlock('self', 'p', 'sender=c1 hello')] },
+    { name: 'a content= written inside a word does not start the body', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, '<SYSTEM_MESSAGE>\n[Message] sender=c1 xcontent=no content=yes\n</SYSTEM_MESSAGE>')], blocks: [subBlock('self', 'p', 'yes')] },
+    { name: 'the body runs from the header line\'s first content= to the first close', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, '<SYSTEM_MESSAGE>\n[Message] sender=c1 content=a content=b\nline 2\n</SYSTEM_MESSAGE>\n</SYSTEM_MESSAGE>')], blocks: [subBlock('self', 'p', 'a content=b\nline 2')] },
+    { name: 'a message whose body is not closed returns its whole content', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, '<SYSTEM_MESSAGE>\n[Message] sender=c1 content=hello')], blocks: [subBlock('self', 'p', '<SYSTEM_MESSAGE>\n[Message] sender=c1 content=hello')] },
+    { name: 'an empty body is a return, and a second joins it', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, framed('c1', '')), message(4, framed('c1', 'again'))], blocks: [subBlock('self', 'p', '\n\nagain')] },
+    { name: 'a message whose content is no string is none', lines: [dispatch(1, { TypeName: 'self', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), message(3, 5)], blocks: [subBlock('self', 'p')] },
+    { name: 'two dispatches echoing one conversation: the later takes its messages', lines: [dispatch(1, { TypeName: 'a', Prompt: 'p' }), echo(2, '"conversationId":  "c1"'), dispatch(3, { TypeName: 'b', Prompt: 'p' }), echo(4, '"conversationId":  "c1"'), message(5, framed('c1', 'hello'))], blocks: [subBlock('a', 'p'), subBlock('b', 'p', 'hello')] },
+    { name: 'a type that is no string is traced by its JSON, each in the order first met', lines: [line(1, 5), line(2, null), line(3, { a: 1 }), line(4, true), line(5, 5)], blocks: [{ kind: 'unknown', count: 5, types: ['5', 'null', '{"a":1}', 'true'] }] },
+    { name: 'a line with no type, and an array, are traced as undefined', lines: ['[1,2]', JSON.stringify({ step_index: 1, source: 'MODEL', status: 'DONE' })], blocks: [{ kind: 'unknown', count: 2, types: ['undefined'] }] },
+    { name: 'a type written with an escape is that type', lines: ['{"step_index":1,"source":"MODEL","type":"PLANNER\\u005fRESPONSE","status":"DONE","created_at":"2026-10-28T08:06:23Z","content":"hi"}'], blocks: [textBlock('hi')] },
+    { name: 'of a repeated key the last counts', lines: ['{"step_index":1,"source":"MODEL","type":"GENERIC","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-10-28T08:06:23Z","content":"hi","content":"there"}'], blocks: [textBlock('there')] },
+    { name: 'a question\'s line gives nothing and leaves no trace', lines: [line(1, 'USER_INPUT', { source: 'USER_EXPLICIT', content: '<USER_REQUEST>\nq\n</USER_REQUEST>' })], blocks: [] },
+    { name: 'a thinking or prose that is no string, and calls that are no array, give nothing', lines: [response(1, { thinking: 5, content: ['a'], tool_calls: { name: 'run_command' } })], blocks: [] },
+    { name: 'a time that is no string, no date, or none is none', lines: [response(1, { created_at: 5, content: 'a' }), response(2, { created_at: 'soon', content: 'b' }), JSON.stringify({ step_index: 3, type: 'PLANNER_RESPONSE', content: 'c' })], blocks: [textBlock('a', null), textBlock('b', null), textBlock('c', null)] },
+    { name: 'a date in a form JavaScript\'s Date.parse alone reads is read as it reads it', lines: [response(1, { created_at: 'Wed, 28 Oct 2026 08:06:23 GMT', content: 'a' })], blocks: [textBlock('a')] },
+    { name: 'a lone surrogate is kept', lines: [response(1, { thinking: `${String.fromCharCode(0xdc00)}t`, content: `${String.fromCharCode(0xd800)}x` })], blocks: [thinkBlock(`${String.fromCharCode(0xdc00)}t`), textBlock(`${String.fromCharCode(0xd800)}x`)] }
+  ])('derived: $name', async ({ lines, blocks }) => {
+    expect(await read(lines)).toEqual(blocks)
+  })
+
   test('the turn read == the whole-file path, and one turn reads far below the file (AC-02)', async () => {
     const pad = JSON.stringify({ step_index: 22, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-10-28T08:20:20Z', content: 'y'.repeat(2 * 1024 * 1024) })
     await withIndexedTranscript(transcriptText([...T.main, pad]), async ({ questions: recs, transcript: file }) => {
       expect(recs).toHaveLength(4)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
       for (let i = 0; i < recs.length; i++) {
-        expect(turnBlocks('antigravity', (await readTurn('antigravity', file, recs[i])).lines)).toEqual(turnBlocks('antigravity', linesOf(whole.texts[i])))
+        expect(await agyTurnOf(file, recs[i])).toEqual(await engineTurn('antigravity', linesOf(whole.texts[i])))
       }
-      expect(turnBlocks('antigravity', linesOf(whole.texts[0])).map((b) => b.kind)).toEqual(['tool', 'think', 'text'])
-      const one = await readTurn('antigravity', file, recs[0])
+      expect((await engineTurn('antigravity', linesOf(whole.texts[0]))).map((b) => b.kind)).toEqual(['tool', 'think', 'text'])
+      const one = await engineTurnRead('antigravity', file, recs[0])
       expect(one.bytesRead).toBeLessThan(20_000)
       expect(statSync(file).size).toBeGreaterThan(2 * 1024 * 1024)
     })

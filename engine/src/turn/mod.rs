@@ -1,21 +1,13 @@
 //! A turn's body as the session page draws it (session-view, In-turn blocks): the blocks a side's rules assemble from
-//! the lines the turn holds, and the rules those share — a block's time, a tool's input and its one-line summary, how a
-//! value is named in the trace of unknown types, and the trace itself (session-view C8). What a side's lines mean is the
-//! side's own (`sides/<side>/turn.rs`). A side whose turns the module does not assemble hands over the lines instead,
-//! which TypeScript assembles; the sides move into the module one at a time, each side's turns assembled by one of the
-//! two at any time (ADR-0054, ADR-0047).
+//! the lines the turn holds, the read of those lines every side's rules go through (`read_lines`), and the rules the
+//! sides share — a block's time, a tool's input and its one-line summary, how a value is named in the trace of unknown
+//! types, and the trace itself (session-view C8). What a side's lines mean is the side's own (`sides/<side>/turn.rs`).
+//! Every side's turns are assembled here (ADR-0054).
 
 use std::collections::HashSet;
 
 use crate::json::{self, Gap, Kind, Read, Reader, Str};
 use crate::text::{self, JsString, Units};
-
-/// What a turn's read hands over for its body: the blocks, for a side the module assembles; the lines the turn holds,
-/// for a side TypeScript assembles
-pub(crate) enum TurnBody {
-    Blocks(Vec<Block>),
-    Lines(Vec<String>),
-}
 
 /// A block's time, as `Date.parse` reads the line's timestamp: none when the line has no string timestamp or the
 /// string gives NaN. A string `text::date_parse` does not read is handed over as it is, and read by JavaScript's own
@@ -171,5 +163,78 @@ impl Unknowns {
     /// The trace's block, at the end of the turn's blocks, when a line of an unknown type was met
     pub(crate) fn block(self) -> Option<Block> {
         (self.count > 0).then_some(Block::Unknown { count: self.count, types: self.types })
+    }
+}
+
+/// A side's rules for the lines of a turn, as the read of its lines hands each line to them (`read_lines`)
+pub(crate) trait Rules {
+    /// What a line gives the turn, a string it gives by its place among the line's strings
+    type Given;
+
+    /// What the line `text` gives the turn, and the line's time: each string it gives noted in `strings`, still the
+    /// line's. None for a line that gives the turn nothing.
+    fn given<'a>(&mut self, text: &'a str, strings: &mut Vec<Str<'a>>) -> Option<(Self::Given, At)>;
+
+    /// What a line gave, its strings made (each taken once, `made`), into the turn's blocks: `at` the line's time
+    fn apply(&mut self, given: Self::Given, at: At, strings: &mut [Option<JsString>]);
+}
+
+/// Reads a turn's lines, `lines`, into a side's `rules`, each line let go once it is read.
+///
+/// A line is read in two steps. While its text is read, what it gives the turn is noted with its strings still the
+/// line's (`Rules::given`). Then the strings are made: the longest that is well formed in the line's own buffer, which
+/// it then holds alone (`json::take`), the others copied. That longest string, a tool's long output say, is so held
+/// once, in the line read or in the block that takes it as it is, never in both (session-view C2). Anything else a
+/// block is given from the line is a copy held beside the line until the line is let go: a tool's input or a dispatch's
+/// prompt, made as the line is read, say, or texts joined into one.
+pub(crate) fn read_lines(lines: Vec<String>, rules: &mut impl Rules) {
+    for line in lines {
+        let (given, at, mut strings, longest) = {
+            let mut noted: Vec<Str<'_>> = Vec::new();
+            let Some((given, at)) = rules.given(&line, &mut noted) else { continue };
+            let longest = (0..noted.len()).filter(|&i| noted[i].is_well_formed()).max_by_key(|&i| noted[i].written_len());
+            let span = longest.map(|i| (i, noted[i].span(&line)));
+            let made: Vec<Option<JsString>> = noted.iter().enumerate().map(|(i, s)| (Some(i) != longest).then(|| s.text())).collect();
+            (given, at, made, span)
+        };
+        if let Some((i, span)) = longest {
+            strings[i] = Some(JsString::Utf8(json::take(line, span)));
+        }
+        rules.apply(given, at, &mut strings);
+    }
+}
+
+/// The string at `i` among a line's strings, made: each is taken once
+pub(crate) fn made(strings: &mut [Option<JsString>], i: usize) -> JsString {
+    strings.get_mut(i).and_then(Option::take).unwrap_or_default()
+}
+
+/// Notes `s` among a line's strings (`Rules::given`): its place there
+pub(crate) fn place<'a>(strings: &mut Vec<Str<'a>>, s: Str<'a>) -> usize {
+    strings.push(s);
+    strings.len() - 1
+}
+
+/// A tool's input or output, or a dispatch's prompt, as shown (`inputText`): nothing by default
+pub(crate) enum Text {
+    /// One of the line's strings
+    String(usize),
+    /// Made already: nothing, or a value shown as `JSON.stringify(v, null, 2)` writes it
+    Made(JsString),
+}
+
+impl Default for Text {
+    fn default() -> Self {
+        Text::Made(JsString::empty())
+    }
+}
+
+impl Text {
+    /// The text, one of the line's strings made (`made`)
+    pub(crate) fn made(self, strings: &mut [Option<JsString>]) -> JsString {
+        match self {
+            Text::String(i) => made(strings, i),
+            Text::Made(text) => text,
+        }
     }
 }

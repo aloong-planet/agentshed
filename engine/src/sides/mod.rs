@@ -20,7 +20,7 @@ use crate::group::{Builder, Decoded, Member};
 use crate::read::{Failed, Served, Stored, TurnRead};
 use crate::search::{Found, Turn};
 use crate::text::Units;
-use crate::turn::TurnBody;
+use crate::turn::Block;
 use crate::walk::Held;
 
 /// What side-free code asks of a side
@@ -34,10 +34,6 @@ pub(crate) trait Side: Sync {
     /// range holds no question.
     fn question_text(&self, range: &str) -> Option<Units>;
 
-    /// The tool names whose call dispatches a subagent, which the session page's turn draws as one (session-view C3):
-    /// the names the side's question index counts a turn's subagents by
-    fn dispatches(&self) -> &'static [&'static str];
-
     /// Which of a turn's lines the turn holds, one flag per line: `lines` are the lines of the turn's range as the side's
     /// question index recorded it, as its read hands them over (`read::turn`). By default every line, for a side whose
     /// agent leaves no line of a turn's range out of it.
@@ -45,13 +41,9 @@ pub(crate) trait Side: Sync {
         lines.iter().map(|_| true).collect()
     }
 
-    /// What a turn's read of the session file `file` hands over for its body, `lines` the lines the turn holds
-    /// (`kept_lines`): its blocks, for a side whose turns the module assembles, each line let go once it is read; by
-    /// default the lines, for a side whose turns TypeScript still assembles (ADR-0047)
-    fn turn_body(&self, file: &str, lines: Vec<String>) -> TurnBody {
-        let _ = file;
-        TurnBody::Lines(lines)
-    }
+    /// The blocks of a turn of the session file `file`, `lines` the lines the turn holds (`kept_lines`), each line let go
+    /// once it is read: a call the side's question index counts as a subagent's dispatch drawn as one (session-view C3)
+    fn turn_body(&self, file: &str, lines: Vec<String>) -> Vec<Block>;
 
     /// What a parse that panicked answers: the file's failed read, under the side's rule for a read that fails
     /// (token-stats, Scans and the window). By default the answer for a file that cannot be read, null.
