@@ -7,7 +7,6 @@ import { runParseJob } from './token-stats'
 import { MEASURED_TRANSCRIPT, transcriptText } from '../testing/agy-transcript-fixture'
 import { withIndexedTranscript } from '../testing/agy-transcript-index'
 import { readRanges } from './range-read'
-import { turnBlocks } from './turn-content'
 import { readTurn as readTurnOf, type TurnRead } from './turn-read'
 import type { TurnBlock } from '@shared/domain'
 
@@ -51,7 +50,7 @@ function blocksOf(read: TurnRead): TurnBlock[] {
 
 /** A turn of `side`, a side whose turns the engine module assembles, whose body is `lines`, written as a session file of
  * its own and read whole by the engine module, which assembles its blocks, as the session page reads a turn */
-const engineTurn = (side: 'claude' | 'codex' | 'grok', lines: string[]): Promise<TurnBlock[]> =>
+const engineTurn = (side: 'claude' | 'codex' | 'grok' | 'antigravity', lines: string[]): Promise<TurnBlock[]> =>
   withFile(lines.map((l) => `${l}\n`).join(''), async (file) => blocksOf(await readTurnOf(side, file, { start: 0, end: 0 }, { start: 0, end: statSync(file).size })))
 
 /** A Claude Code turn whose body is `lines` (`engineTurn`) */
@@ -797,25 +796,16 @@ function withFile<T>(text: string, fn: (file: string) => Promise<T>): Promise<T>
   return fn(file).finally(() => rmSync(dir, { recursive: true, force: true }))
 }
 
-/** The lines a turn read handed over of a side whose turns TypeScript assembles */
-const linesHanded = (read: TurnRead): string[] => (read.body !== null && 'lines' in read.body ? read.body.lines : [])
-
-/** A turn of `file`, a session file of `side`, by its question index record, read as the session page reads it */
-async function readTurn(side: 'antigravity', file: string, rec: QuestionRec): Promise<{ lines: string[]; bytesRead: number }> {
-  const read = await readTurnOf(side, file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] })
-  return { lines: linesHanded(read), bytesRead: read.bytesRead }
-}
-
-/** An Antigravity turn of `file`, a conversation's transcript, by its question index record, read as the session page
- * reads it: its blocks */
-async function agyTurnOf(file: string, rec: QuestionRec): Promise<TurnBlock[]> {
-  return turnBlocks('antigravity', (await readTurn('antigravity', file, rec)).lines)
-}
-
 /** A turn of `file`, a session file of `side`, a side whose turns the engine module assembles, by its question index
  * record, read as the session page reads it */
-const engineTurnRead = (side: 'claude' | 'codex' | 'grok', file: string, rec: QuestionRec): Promise<TurnRead> =>
+const engineTurnRead = (side: 'claude' | 'codex' | 'grok' | 'antigravity', file: string, rec: QuestionRec): Promise<TurnRead> =>
   readTurnOf(side, file, { start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] })
+
+/** An Antigravity turn of `file`, a conversation's transcript, by its question index record (`engineTurnRead`): the
+ * blocks the engine module assembled */
+async function agyTurnOf(file: string, rec: QuestionRec): Promise<TurnBlock[]> {
+  return blocksOf(await engineTurnRead('antigravity', file, rec))
+}
 
 /** A Claude Code turn of `file` by its question index record (`engineTurnRead`): the blocks the engine module assembled */
 async function claudeTurnOf(file: string, rec: QuestionRec): Promise<TurnBlock[]> {
@@ -1312,12 +1302,9 @@ describe('the Grok block model (ticket #125)', () => {
 describe('the Antigravity block model (session-view::REQ-004)', () => {
   const T = MEASURED_TRANSCRIPT
   /** A turn of these lines, as the session page reads it: written as a transcript, the whole of it the turn's body, read
-   * through the turn read, which leaves out the lines a rewind undid */
+   * through the turn read, which leaves out the lines a rewind undid, and assembled by the engine module */
   const read = (lines: readonly string[]): Promise<TurnBlock[]> =>
-    withFile(transcriptText(lines), async (file) => {
-      const body = { start: 0, end: statSync(file).size }
-      return turnBlocks('antigravity', linesHanded(await readTurnOf('antigravity', file, { start: 0, end: 0 }, body)))
-    })
+    withFile(transcriptText(lines), async (file) => blocksOf(await readTurnOf('antigravity', file, { start: 0, end: 0 }, { start: 0, end: statSync(file).size })))
   /** The turn of the lines after a question, `[from, to)` */
   const turn = (lines: readonly string[], from: number, to: number): Promise<TurnBlock[]> => read(lines.slice(from, to))
   const field = (line: string, key: string): unknown => (JSON.parse(line) as Record<string, unknown>)[key]
@@ -1496,10 +1483,10 @@ describe('the Antigravity block model (session-view::REQ-004)', () => {
       expect(recs).toHaveLength(4)
       const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
       for (let i = 0; i < recs.length; i++) {
-        expect(turnBlocks('antigravity', (await readTurn('antigravity', file, recs[i])).lines)).toEqual(turnBlocks('antigravity', linesOf(whole.texts[i])))
+        expect(await agyTurnOf(file, recs[i])).toEqual(await engineTurn('antigravity', linesOf(whole.texts[i])))
       }
-      expect(turnBlocks('antigravity', linesOf(whole.texts[0])).map((b) => b.kind)).toEqual(['tool', 'think', 'text'])
-      const one = await readTurn('antigravity', file, recs[0])
+      expect((await engineTurn('antigravity', linesOf(whole.texts[0]))).map((b) => b.kind)).toEqual(['tool', 'think', 'text'])
+      const one = await engineTurnRead('antigravity', file, recs[0])
       expect(one.bytesRead).toBeLessThan(20_000)
       expect(statSync(file).size).toBeGreaterThan(2 * 1024 * 1024)
     })

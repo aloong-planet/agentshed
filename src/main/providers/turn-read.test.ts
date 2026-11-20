@@ -82,6 +82,24 @@ function grokFile(content: Buffer): string {
   return file
 }
 
+// Lines shaped as agy writes a conversation's transcript (as turn-content.test.ts builds them): a step per line, each
+// step after the one before, a question a user-input line's request block, an answer a response's prose, a call a
+// response's tool call, and its result the line after it. A call's steps follow from its id, one of those `returns`
+// gives (t0, t1, …), so that a line built again to be measured is the same line.
+const agyLine = (step: number, type: string, extra: Record<string, unknown>): Buffer =>
+  Buffer.from(JSON.stringify({ step_index: step, source: 'MODEL', type, status: 'DONE', created_at: '2026-11-12T09:36:03Z', ...extra }))
+const agyAsk = (text: string): Buffer => agyLine(0, 'USER_INPUT', { source: 'USER_EXPLICIT', content: `<USER_REQUEST>\n${text}\n</USER_REQUEST>` })
+const agySay = (text: string): Buffer => agyLine(1, 'PLANNER_RESPONSE', { content: text })
+const agyCallStep = (id: string): number => 2 * Number(id.slice(1)) + 1
+const agyCall = (id: string): Buffer => agyLine(agyCallStep(id), 'PLANNER_RESPONSE', { tool_calls: [{ name: 'run_command', args: { CommandLine: `cat ${id}.log` } }] })
+const agyResult = (id: string, text: string): Buffer => agyLine(agyCallStep(id) + 1, 'GENERIC', { content: text })
+/** An Antigravity conversation's transcript holding `content` */
+function agyFile(content: Buffer): string {
+  const file = join(dir, `transcript-${files++}.jsonl`)
+  writeFileSync(file, content)
+  return file
+}
+
 /** Bytes that are not valid UTF-8, each a different case of the decoder's replacement: a lone continuation byte, a
  * sequence cut short, an overlong form, a surrogate's encoding */
 const INVALID = [Buffer.from([0xff]), Buffer.from([0xe4, 0xb8]), Buffer.from([0xc0, 0xaf]), Buffer.from([0xed, 0xa0, 0x80])]
@@ -323,7 +341,9 @@ describe('a turn read of a side whose turns the engine module assembles, its blo
       ]
     }),
     { side: 'grok' as const, shape: 'of tool outputs in lines a little past a read', file: grokFile, ask: grokAsk('q'), ...returns(grokCall, grokOutput, 62, MiB + 10_240) },
-    { side: 'grok' as const, shape: 'of one prose chunk in a line of half the limit and a little more', file: grokFile, ask: grokAsk('q'), lines: [grokSay('x'.repeat(half))], shown: [1, half] }
+    { side: 'grok' as const, shape: 'of one prose chunk in a line of half the limit and a little more', file: grokFile, ask: grokAsk('q'), lines: [grokSay('x'.repeat(half))], shown: [1, half] },
+    { side: 'antigravity' as const, shape: 'of tool results in lines a little past a read', file: agyFile, ask: agyAsk('q'), ...returns(agyCall, agyResult, 62, MiB + 10_240) },
+    { side: 'antigravity' as const, shape: 'of one answer in a line of half the limit and a little more', file: agyFile, ask: agyAsk('q'), lines: [agySay('x'.repeat(half))], shown: [1, half] }
   ]
   test.each(shapes)('$side: a turn $shape grows a fresh process\'s peak by the text twice and a few MiB', ({ side, file: fileOf, ask, lines, shown: expected }) => {
     const { content, turns } = rollout([{ line: ask, question: true }, ...lines.map((line) => ({ line }))])

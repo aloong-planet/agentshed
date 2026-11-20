@@ -12,6 +12,7 @@ mod parse;
 mod proto;
 mod titles;
 mod transcript;
+mod turn;
 mod usage;
 mod walk;
 
@@ -26,6 +27,7 @@ use self::walk::Attributions;
 use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
 use crate::text::{self, Units};
+use crate::turn::TurnBody;
 use crate::walk::Held;
 
 pub(crate) struct Antigravity;
@@ -56,6 +58,11 @@ impl Side for Antigravity {
     /// The lines a rewind left behind (session-view::REQ-004/AC-03)
     fn kept_lines(&self, lines: &[String]) -> Vec<bool> {
         transcript::kept_in(lines)
+    }
+
+    fn turn_body(&self, file: &str, lines: Vec<String>) -> TurnBody {
+        crate::seams::before_turn_assembly(file);
+        TurnBody::Blocks(turn::blocks(lines, self.dispatches()))
     }
 
     /// A panic while a conversation was parsed is its failed read (token-stats, Scans and the window), judged as
