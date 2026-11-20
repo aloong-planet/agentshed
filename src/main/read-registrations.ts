@@ -28,8 +28,10 @@ export type Retiring =
   | { kind: Exclude<SavedRead['kind'], 'projectDetail' | 'skillFiles'> }
 
 /** After a scan has replaced its own registration: a project page's registration goes with a project the scan no
- * longer lists live, and a package listing's with a project, plugin root or global skill gone. In the reads' order, so
- * a plugin root that only a retired page registered retires the listings from it in the same pass */
+ * longer lists live, and a package listing's with a project, plugin root or global skill gone. One pass in the reads'
+ * order, the order they were first saved in: a plugin root that only a retired page registered retires the listings
+ * from it saved after that page in the same pass, while one saved before that page keeps its registration until a
+ * later pass */
 export function retireAfterScan(registry: ReadRegistry, reads: Iterable<Retiring>,
   snap: { projects: readonly Pick<ProjectEntry, 'path' | 'stale'>[]; global: { skills: readonly Pick<GlobalSkill, 'name' | 'sides'>[] } }): void {
   for (const r of reads) {

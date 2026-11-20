@@ -82,3 +82,26 @@ test('two sides\' plugins bundling one skill name: two rows, and filtering keeps
   expect(l.errors).toEqual([])
   await close(l)
 })
+
+// plugins-view H8 on listSkillFiles (#405): a package root is admitted only when a scan or a project page registered
+// it, judged after the handler's delay; a directory laid out as a plugin package and installed nowhere is refused over
+// the real channel, though its skill would list
+test('a plugin package root nothing registered is refused over the real channel', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-stray-plugin-'))
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: {} }))
+  const root = join(home, 'stray-plugin')
+  mkdirSync(join(root, 'skills', 'probe'), { recursive: true })
+  writeFileSync(join(root, 'skills', 'probe', 'SKILL.md'), '---\ndescription: probe\n---\nUnregistered body\n')
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.waitForLoadState('domcontentloaded')
+  const listed = await win.evaluate(async (pluginRoot) => {
+    try { return JSON.stringify(await window.agentshed.listSkillFiles({ side: 'claude', name: 'probe', scope: 'plugin', pluginRoot })) } catch (e) { return (e as Error).message }
+  }, root)
+  expect(listed).toContain('plugin-root-not-registered')
+  // The one handler error is that refusal
+  expect(l.errors).toHaveLength(1)
+  expect(l.errors[0]).toContain('plugin-root-not-registered')
+  await close(l)
+})

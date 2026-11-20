@@ -298,6 +298,22 @@ test('the IPC surface: a path outside the allow-list is refused over the real ch
   await close(l)
 })
 
+// session-view R1 on the freshness check (#405): its handler has no recheck of its own, so only the channel's guard,
+// run by the registration wrapper, refuses a path outside the allow-list; without it the path would be answered
+test('the freshness check refuses a path outside the allow-list over the real channel instead of answering it', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.waitForLoadState('domcontentloaded')
+  const answer = await win.evaluate(async (path) => {
+    try { return String(await window.agentshed.sessionFresh(path)) } catch (e) { return (e as Error).message }
+  }, '/etc/hosts')
+  expect(answer).toContain('session-not-whitelisted')
+  // The one handler error is that refusal
+  expect(l.errors).toHaveLength(1)
+  expect(l.errors[0]).toContain('session-not-whitelisted')
+  await close(l)
+})
+
 // Ticket 04: the ellipsis is CSS display-layer truncation while the data side holds the full text (a
 // corollary of spec D2a).
 // Confirmed with a question longer than one line: the DOM text = the full text, and the render box is

@@ -1,9 +1,16 @@
 // Each channel's guard against every input it refuses (#405). The expected codes and parameters are written as the
 // strings that cross IPC, not as ERR's constants, so a code renamed in errors.ts shows here as the refusal it changes.
 //
-// Gap: that a handler runs its guard before anything it does, the disk included, is the registration wrapper's
-// wiring in index.ts, which unit tests do not load (ADR-0038). The e2e cases that send a refused request over real
-// IPC carry it, session-view's IPC surface case first.
+// Gap: what calls these is index.ts's wiring, which unit tests do not load (ADR-0038); e2e cases carry it, each
+// sending over real IPC a request that only the wiring under test refuses:
+// - the registration wrapper running a channel's guard before its handler: global-search's keyword over the limit,
+//   lifecycle's restored session replaced by a link (revealSessionFile), and session-view's sessionFresh outside the
+//   allow-list. session-view's IPC surface case does not tell it apart: getSessionPage's own recheck refuses the same.
+// - admitMemoryFile after readMemoryFile's delay: lifecycle's restored memory file replaced by a link.
+// - admitSkillPackage after listSkillFiles' delay: plugins-view's unregistered plugin root and skills-view's project
+//   whose page was never opened.
+// Not driven: the six listedSession rechecks after an await, which need a scan to drop the file from the allow-list
+// while the handler waits (AGENTSHED_FETCH_DELAY_MS holds getSessionPage); the file was listed a moment before.
 import { afterAll, describe, expect, it } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -176,17 +183,19 @@ const badArgs = (channel: string, field?: string): AppError => ({ code: 'bad-arg
 
 describe('searchSessionsArgs', () => {
   const valid = { path: '/p', needle: 'x', fullText: false }
-  it.each([42, '', undefined])('refuses the path %j first', (path) => {
-    expect(refusal(() => searchSessionsArgs({ path, needle: 42, fullText: 'no' }, state()))).toEqual(badArgs('searchSessions', 'path'))
+  it.each([
+    ['a path that is not a string', { path: 42, needle: 42, fullText: 'no' }],
+    ['an empty path', { path: '', needle: 42, fullText: 'no' }],
+    ['no path', { needle: 42, fullText: 'no' }],
+    ['no arguments', null]
+  ])('refuses %s as the path, before the rest', (_what, raw) => {
+    expect(refusal(() => searchSessionsArgs(raw, state()))).toEqual(badArgs('searchSessions', 'path'))
   })
   it.each([42, needle(201)])('refuses the needle %j before fullText', (n) => {
     expect(refusal(() => searchSessionsArgs({ ...valid, needle: n, fullText: 'no' }, state()))).toEqual(badArgs('searchSessions', 'needle'))
   })
   it.each(['no', undefined, 1])('refuses fullText %j', (fullText) => {
     expect(refusal(() => searchSessionsArgs({ ...valid, fullText }, state()))).toEqual(badArgs('searchSessions', 'fullText'))
-  })
-  it('refuses missing arguments as the path', () => {
-    expect(refusal(() => searchSessionsArgs(null, state()))).toEqual(badArgs('searchSessions', 'path'))
   })
   it('admits a needle of the limit\'s length', () => {
     expect(searchSessionsArgs({ path: '/p', needle: needle(200), fullText: true }, state())).toEqual({ path: '/p', needle: needle(200), fullText: true })
