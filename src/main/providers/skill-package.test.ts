@@ -1,12 +1,12 @@
-// Gap: the walk's catch around resolving a directory link has no trigger short of the link vanishing between that
-// call and the stat before it, so no test drives it; driving it would need the filesystem injected.
+// Gap: the walk's catch around identifying a directory, the package's own and those holding it included, has no
+// trigger short of the directory vanishing after it was resolved or listed, so no test drives it; driving it would
+// need the filesystem injected.
 import { execFileSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
-  holdsPath,
   listSkillPackageFiles,
   resolveSkillRoot,
   resolvePluginSkillRoot,
@@ -43,17 +43,6 @@ function mkPack(root: string, files: Record<string, string>): void {
     writeFileSync(abs, body)
   }
 }
-
-describe('holdsPath', () => {
-  it('a directory holds what is below it, the filesystem root included, and nothing else', () => {
-    expect(holdsPath('/', '/a/b')).toBe(true)
-    expect(holdsPath('/a', '/a/b/c')).toBe(true)
-    expect(holdsPath('/a', '/a/..x/b')).toBe(true)
-    expect(holdsPath('/a', '/a')).toBe(false)
-    expect(holdsPath('/a/b', '/a/bc')).toBe(false)
-    expect(holdsPath('/a/b', '/a')).toBe(false)
-  })
-})
 
 describe('listSkillPackageFiles', () => {
   // The nested paths are shapes real packages hold (skills-view::REQ-003/AC-01, C4)
@@ -269,6 +258,30 @@ describe('listSkillPackageFiles', () => {
       symlinkSync('../shared-docs', join(pack, 'shared'))
       symlinkSync('docs', join(pack, 'alias'))
       expect(listed(pack)).toEqual(['SKILL.md', 'alias/a.md', 'docs/a.md', 'shared/x/y/z.md'])
+    })
+
+    // "Whichever route": the same links spelled in another letter case, on a volume that ignores letter case (macOS's
+    // default, not the Linux of CI, where that spelling leads nowhere)
+    describe.skipIf(!existsSync(tmpdir().toUpperCase()))('on a volume that ignores letter case', () => {
+      it.each([
+        { what: 'a link back to a directory the walk is inside', make: (): string => {
+          const pack = join(dir, 'self-link')
+          mkPack(pack, { 'SKILL.md': '# s\n', 'refs/a.md': 'a\n' })
+          symlinkSync(join(pack, 'REFS'), join(pack, 'refs', 'up'))
+          return pack
+        }, expected: ['SKILL.md', 'refs/a.md'] },
+        { what: 'a link to a directory containing the package', make: (): string => {
+          const pack = join(dir, 'skills', 'pack')
+          mkPack(pack, { 'SKILL.md': '# s\n' })
+          mkPack(join(dir, 'skills', 'sibling'), { 'SKILL.md': '# other\n' })
+          symlinkSync(join(dir, 'SKILLS'), join(pack, 'up'))
+          return pack
+        }, expected: ['SKILL.md'] }
+      ])('$what, spelled in another letter case, repeats no file', ({ make, expected }) => {
+        const pack = make()
+        expect(listed(pack)).toEqual(expected)
+        expect(statSkillPackage(pack)!.files).toBe(expected.length)
+      })
     })
   })
 })
