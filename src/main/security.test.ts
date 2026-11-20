@@ -323,6 +323,15 @@ describe('skillOpLibrary (an install or uninstall that would change a global lib
   const toLinked = mk('to-linked')
   mk('to-linked', '.claude')
   link(at('linked', '.claude'), 'to-linked', '.claude', 'skills')
+  // A home whose Claude library is a link to a directory elsewhere, and a project whose skills directory leads to the
+  // directory above that one
+  const far = mk('far')
+  mk('far', '.claude')
+  mk('dot', 'skills', 'tidy')
+  link(at('dot', 'skills'), 'far', '.claude', 'skills')
+  const above = mk('above')
+  mk('above', '.claude')
+  link(root, 'above', '.claude', 'skills')
 
   const rootsOf = (h: string): ScanRoots => ({
     claudeHome: join(h, '.claude'),
@@ -351,6 +360,8 @@ describe('skillOpLibrary (an install or uninstall that would change a global lib
     ['admits a project whose name extends a library\'s', home, [join(home, '.agents', 'skills-old', '.claude', 'skills'), join(home, '.agents', 'skills-old', '.agents', 'skills')], [join(home, '.agents', 'skills-old', '.claude', 'skills', 'tidy')], admitted],
     ['refuses a copy that is a library, through a landing that leads to the library\'s parent', home, [join(toClaude, '.claude', 'skills')], [join(toClaude, '.claude', 'skills', 'skills')], refused],
     ['refuses a copy that is a library that is itself a link', linked, [join(toLinked, '.claude', 'skills')], [join(toLinked, '.claude', 'skills', 'skills')], refused],
+    ['refuses a project inside where a library that is itself a link leads', far, [at('dot', 'skills', 'tidy', '.claude', 'skills')], [], refused],
+    ['refuses a copy that would hold where a library that is itself a link leads', far, [join(above, '.claude', 'skills')], [join(above, '.claude', 'skills', 'dot')], refused],
     ['refuses an install whose copy would hold a library', home, [join(atHome, '.claude', 'skills'), join(atHome, '.agents', 'skills')], [join(atHome, '.claude', 'skills', '.claude'), join(atHome, '.agents', 'skills', '.claude')], refused],
     ['refuses a copy that would hold a library not there yet, named in another letter case', bare, [join(atBare, '.claude', 'skills')], [join(atBare, '.claude', 'skills', '.CLAUDE')], refused],
     ['admits a copy that is itself a link to a library, which is deleted as the link alone', home, [join(own, '.claude', 'skills')], [join(own, '.claude', 'skills', 'borrowed')], admitted]
