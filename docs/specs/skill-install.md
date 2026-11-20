@@ -153,14 +153,17 @@ Applies to: every landing of an install (A9).
   skill's directory or outside it. The project's copy holds no symlink at any depth, so writing into it
   changes nothing in the global library or behind a link (ADR-0004).
 - skill-install::REQ-004/AC-02: A symlink in the skill that leads nowhere (what it points to does not
-  exist) fails the install: nothing lands (A6), and the failure notice is A10's with its reason replaced:
-  it names the link's path inside the skill and says the link leads nowhere and nothing was installed.
+  exist, or it is one of a chain of links that never reaches a file or a directory) fails the install:
+  nothing lands (A6), and the failure notice is A10's with its reason replaced: it names the link's path
+  inside the skill and says the link leads nowhere and nothing was installed.
 - skill-install::REQ-004/AC-03: A symlink to a directory the copy is already inside, by whatever route,
   or to a directory that holds the skill, fails the install as AC-02 does, its notice saying the link
   leads back into the skill.
 
-Failure modes and boundaries: with several links of AC-02's or AC-03's kind, the notice names the first
-in path order, paths inside the skill compared segment by segment in byte order.
+Failure modes and boundaries: the install stops at the first problem met in path order, paths inside the
+skill compared segment by segment in byte order, and its notice is that problem's: AC-02's or AC-03's for a
+link of their kind, A10's for a file or directory that cannot be read. A project that cannot be written
+fails before the skill is read (A10).
 
 ## Implementation Decisions
 
