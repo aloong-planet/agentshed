@@ -228,3 +228,47 @@ describe('sessionRevealTarget (showing a session\'s record file in Finder)', () 
 
   afterAll(() => rmSync(root, { recursive: true, force: true }))
 })
+
+// skill-install R3: a skill install or uninstall goes only into one of the app's projects, named by its exact
+// path, and a project the app lists as stale is refused as stale. The target arrives from the renderer, so anything
+// that is not exactly a listed path is refused, whatever directory it would reach.
+import { skillOpTarget } from './security'
+
+describe('skillOpTarget (which directory a skill install or uninstall may go into)', () => {
+  const nfc = '/Users/x/work/café'.normalize('NFC')
+  const projects = [
+    { path: '/Users/x/work/alpha', stale: false },
+    { path: '/Users/x/work/beta', stale: false },
+    { path: '/Users/x/work/beta/nested', stale: false },
+    { path: nfc, stale: false },
+    { path: '/Users/x/work/gone', stale: true }
+  ]
+
+  it('admits a listed project that is not stale, by its exact path, a project inside another included', () => {
+    expect(skillOpTarget(projects, '/Users/x/work/beta')).toEqual({ ok: true })
+    expect(skillOpTarget(projects, '/Users/x/work/beta/nested')).toEqual({ ok: true })
+  })
+
+  it.each([
+    ['a directory no project has', projects, '/Users/x/work/gamma'],
+    ['the home directory', projects, '/Users/x'],
+    ['the parent of a project', projects, '/Users/x/work'],
+    ['a directory inside a project that is not itself listed', projects, '/Users/x/work/alpha/src'],
+    ['a project with a trailing separator', projects, '/Users/x/work/alpha/'],
+    ['a .. segment leading to a listed project', projects, '/Users/x/work/alpha/../beta'],
+    ['a .. segment leading out of a project', projects, '/Users/x/work/alpha/..'],
+    ['a project in another letter case', projects, '/Users/x/work/ALPHA'],
+    ['a prefix lookalike of a project', projects, '/Users/x/work/alpha2'],
+    ['a project spelled in another Unicode normalisation', projects, nfc.normalize('NFD')],
+    ['a relative spelling of a project', projects, 'work/alpha'],
+    ['an empty path', projects, ''],
+    ['the root directory', projects, '/'],
+    ['any path, when the app lists no project', [], '/Users/x/work/alpha']
+  ])('refuses %s as not one of the app\'s projects', (_what, listed, target) => {
+    expect(skillOpTarget(listed, target)).toEqual({ ok: false, code: ERR.skillTargetNotProject })
+  })
+
+  it('refuses a project the app lists as stale as stale', () => {
+    expect(skillOpTarget(projects, '/Users/x/work/gone')).toEqual({ ok: false, code: ERR.skillStaleTarget })
+  })
+})

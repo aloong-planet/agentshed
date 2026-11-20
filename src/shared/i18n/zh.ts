@@ -545,6 +545,7 @@ export const zh = {
     linkOutOfScope: '链接目标不在可读范围',
     skillBadName: '非法 skill 名',
     skillStaleTarget: '目标是失效项目(目录不存在)',
+    skillTargetNotProject: '目标不是本 app 的项目',
     skillMissingSource: (name: string) => `全局库无此 skill:${name}`,
     skillCopyMissing: '项目级副本不存在',
     skillConflict: '目标已有同名项目级 skill,已阻止不覆盖',

@@ -14,6 +14,7 @@
 import { shell } from 'electron'
 import type { WebContents } from 'electron'
 import { ERR, appError } from '@shared/errors'
+import type { ProjectEntry } from '@shared/domain'
 
 /** Whether this is the app's own address (the only basis for admitting navigation). Pass
  * ELECTRON_RENDERER_URL in dev and undefined in prod */
@@ -204,4 +205,20 @@ export function sessionRevealTarget(
   if (!o.exists(file)) return { ok: false, code: ERR.sessionFileUnreadable }
   if (o.restored && !o.regular(file)) return { ok: false, code: ERR.sessionNotWhitelisted }
   return { ok: true, file }
+}
+
+/**
+ * Which directory a skill install or uninstall may go into (skill-install R3): only one of the app's projects,
+ * named by the exact path the app lists it under, so that a renderer cannot point the copy or the recursive delete at
+ * the global library, a project's parent or any other directory. Matching is exact, as for the session allow-list
+ * above: another spelling of a project is refused, never let through. A project the app lists as stale is refused as
+ * stale, the notice an install into it already gives once its directory is found gone.
+ */
+export function skillOpTarget(
+  projects: readonly Pick<ProjectEntry, 'path' | 'stale'>[],
+  target: string
+): { ok: true } | { ok: false; code: typeof ERR.skillTargetNotProject | typeof ERR.skillStaleTarget } {
+  const project = projects.find((p) => p.path === target)
+  if (project === undefined) return { ok: false, code: ERR.skillTargetNotProject }
+  return project.stale ? { ok: false, code: ERR.skillStaleTarget } : { ok: true }
 }

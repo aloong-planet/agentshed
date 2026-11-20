@@ -4,13 +4,14 @@
 // The global library is read-only and is never written.
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync, statSync, type BigIntStats } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { PROJECT_SKILLS_DIR, type AgentSide } from '@shared/domain'
+import { PROJECT_SKILLS_DIR, type AgentSide, type ProjectEntry } from '@shared/domain'
 import { skillLandings } from '@shared/skill-landing'
 import type { ScanRoots } from './types'
 import { globalSkillEntry } from './skill-package'
 import { isAbsent } from './read-utils'
 import { compareNames } from './scan-order'
 import { ERR, type ErrorCode, type ErrorParams } from '@shared/errors'
+import { skillOpTarget } from '../security'
 
 export interface InstallArgs {
   skillName: string
@@ -194,6 +195,16 @@ export function installSkillToProject(roots: ScanRoots, args: InstallToProjectAr
 }
 
 /**
+ * The install the app calls (skill-install R3): into one of the projects the app lists, judged by skillOpTarget before
+ * anything is written; a refused target is reported at every landing, as a target found gone is (A5).
+ */
+export function installIntoListedProject(roots: ScanRoots, projects: readonly Pick<ProjectEntry, 'path' | 'stale'>[], args: InstallToProjectArgs): LandingResult[] {
+  const target = skillOpTarget(projects, args.targetProjectPath)
+  if (target.ok) return installSkillToProject(roots, args)
+  return skillLandings(args.sides).map((l) => ({ dir: l.dir, loaders: l.loaders, result: { ok: false, reason: target.code } }))
+}
+
+/**
  * Which project skills directories of which projects already hold an entry of this name — the same test as the
  * same-name block (A4), so the picker's "Same name installed" tag and the refusal at install time agree
  * (skill-install::REQ-003/AC-02). A name that is not a single segment holds nowhere and gets an empty answer.
@@ -223,4 +234,11 @@ export function uninstallSkill(args: UninstallArgs): OpResult {
     console.error('[skill-install] delete failed:', err)
     return { ok: false, reason: ERR.skillDeleteFailed, params: { path: target } }
   }
+}
+
+/** The uninstall the app calls (skill-install R3): from one of the projects the app lists, judged by skillOpTarget before
+ * anything is deleted */
+export function uninstallFromListedProject(projects: readonly Pick<ProjectEntry, 'path' | 'stale'>[], args: UninstallArgs): OpResult {
+  const target = skillOpTarget(projects, args.targetProjectPath)
+  return target.ok ? uninstallSkill(args) : { ok: false, reason: target.code }
 }
