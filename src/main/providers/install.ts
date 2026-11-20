@@ -41,34 +41,42 @@ interface LinkProblem {
 }
 
 /**
+ * A directory by its device and inode, not its path: one directory can be spelled several ways that a real path does
+ * not reduce to one, in letter case on a volume that ignores it or through a firmlink such as /System/Volumes/Data, and
+ * a link back by another spelling would be entered and copied again (AC-03, "by whatever route"). The skills view's
+ * package walk tells directories apart the same way (skill-package.ts, walkFiles), there to skip and here to fail.
+ */
+function idOf(st: BigIntStats): string {
+  return `${st.dev}:${st.ino}`
+}
+
+/** A directory and every directory holding it, along its path as written and along where that path really leads: a
+ * link on the way, the project's `.claude` or the library's own directory, leads somewhere else */
+function dirsHolding(path: string): string[] {
+  const ids: string[] = []
+  for (const start of [path, realpathSync(path)]) {
+    for (let d = start; ; d = dirname(d)) {
+      ids.push(idOf(statSync(d, { bigint: true })))
+      if (dirname(d) === d) break
+    }
+  }
+  return ids
+}
+
+/**
  * Copy a skill to `to`, every symlink in it at any depth landing as what it points to, so the project's copy holds no
  * link and is self-contained (skill-install::REQ-004/AC-01). Not `cpSync`: under Electron 43's Node its `dereference`
  * follows only the top-level link and keeps every link below it as a link. It stops at a link that fails the install,
- * answering it; whatever cannot be read throws (A10), as does a project inside the skill's own directory.
+ * answering it; whatever cannot be read throws (A10).
  */
 function copySkill(source: string, to: string): LinkProblem | null {
   const root = realpathSync(source)
-  // A directory by its device and inode, not its path: one directory can be spelled several ways that a real path does
-  // not reduce to one, in letter case on a volume that ignores it or through a firmlink such as /System/Volumes/Data,
-  // and a link back by another spelling would be entered and copied again (AC-03, "by whatever route")
-  const idOf = (st: BigIntStats): string => `${st.dev}:${st.ino}`
-  const dirsUpFrom = (path: string): string[] => {
-    const ids: string[] = []
-    for (let d = path; ; d = dirname(d)) {
-      ids.push(idOf(statSync(d, { bigint: true })))
-      if (dirname(d) === d) return ids
-    }
-  }
   const rootId = idOf(statSync(root, { bigint: true }))
-  // The project's skills directory and those holding it. A project inside the skill's own directory would have the
-  // walk reach the copy it is writing with no link to name: it fails before the copy starts (A10)
-  const landing = dirsUpFrom(dirname(to))
-  if (landing.includes(rootId)) throw new Error(`the project is inside the skill's directory, ${root}`)
   mkdirSync(to)
   // Where a directory link leads back into the skill (AC-03): the skill's real directory and its library entry's
   // directory (the entry can be a link) and the directories holding them, and the copy being written and those holding
   // it, and the directories the walk is inside. Entering one would copy the skill into itself without end
-  const back = new Set([...dirsUpFrom(root), ...dirsUpFrom(dirname(source)), idOf(statSync(to, { bigint: true })), ...landing])
+  const back = new Set([...dirsHolding(root), ...dirsHolding(dirname(source)), idOf(statSync(to, { bigint: true })), ...dirsHolding(dirname(to))])
   const inside = new Set<string>()
   function walk(dir: string, dirId: string, into: string, rel: string): LinkProblem | null {
     inside.add(dirId)
@@ -133,6 +141,13 @@ export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {
 
   const tmp = join(targetBase, `.${skillName}.installing-${process.pid}`)
   try {
+    // A project inside the skill's own directory, by whatever route: creating its skills directory would write into the
+    // global library, and the walk would reach the copy it is writing with no link to name. It fails before anything is
+    // written (A10), judged from the nearest part of the skills directory's path already there
+    let there = targetBase
+    while (isAbsent(there)) there = dirname(there)
+    if (dirsHolding(there).includes(idOf(statSync(source, { bigint: true }))))
+      throw new Error(`the project is inside the skill's directory, ${realpathSync(source)}`)
     mkdirSync(targetBase, { recursive: true })
     const problem = copySkill(source, tmp)
     if (problem !== null) {

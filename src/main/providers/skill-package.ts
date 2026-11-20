@@ -149,7 +149,8 @@ interface WalkedFile {
  * already inside, whichever route leads there, nor one holding the package: entering it would list the same files
  * again at each level (skills-view::REQ-003/AC-05). A directory is known by its device and inode, not its path: a
  * real path does not reduce every spelling of one directory to one (letter case on a volume that ignores it, a
- * firmlink such as /System/Volumes/Data). `root` is a real path. */
+ * firmlink such as /System/Volumes/Data). The skill install's walk tells directories apart the same way (install.ts,
+ * idOf and dirsHolding), there failing where this skips. `root` is a real path. */
 function walkFiles(root: string): WalkedFile[] {
   const files: WalkedFile[] = []
   const idOf = (path: string): string | null => {
