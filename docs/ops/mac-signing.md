@@ -28,6 +28,10 @@ The asset checks `electron-builder.yml` at run time, before building, against th
 provider (`publish`), the feed the app reads: without it electron-builder detects none in a git worktree and writes no
 update metadata, without a word.
 
+It also fails before building when `electronFuses` sets a key it cannot map to a fuse, or when the fuse wire's layout
+cannot be loaded from the `@electron/fuses` electron-builder depends on: a fuse it cannot check must not ship as if it
+had been.
+
 ## This project's values
 
 | What | Value |
