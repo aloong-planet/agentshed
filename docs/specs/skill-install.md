@@ -47,7 +47,7 @@ project-level copy can be uninstalled. The global library itself is read-only.
   ([projects-list](projects-list.md) A6): the picker offers it and the install fails as A10.
 - A6 The source is missing from the global library → missing-source, and **no half-finished directory
   is left** (ADR-0004).
-- A7 A skill name containing path traversal (`../` and so on) → refused.
+- A7 A skill name that is not a single directory name (empty, `.`, or holding `/`, `\` or `..`) → refused.
 - A8 The intersection of the skill's available sides and the project's sides is empty → a notice that
   the project does not belong to that side, no install.
 - A9 Several target directories qualify → install to each, each reporting its own success or failure;
@@ -60,14 +60,13 @@ project-level copy can be uninstalled. The global library itself is read-only.
   project picker sorted by activity; each target row shows where the skill would land.
 - A12 The picker stays open while it is looked through: scrolling its list reaches targets below the
   fold, and resizing the window moves it along with its button rather than closing it. It closes
-  when a target is picked, when the page behind it scrolls, or when typing starts in its filter box
-  — in each of those the row it was opened from has moved or gone.
+  when a target is picked, when the page behind it scrolls, or when typing starts in its filter box.
 
 **Sequence B: uninstall**
 - B1 Deletes the project-level copy; **the global library is unaffected**. A symlink in the copy is deleted
   as a link, and what it points to is left in place (measured, Electron 43).
 - B2 The target does not exist → report an error rather than throwing (the UI shows a failure notice).
-- B3 Name traversal → refused.
+- B3 A name A7 refuses → refused.
 - B4 The confirmation dialog must show the full path to be deleted (the user can see what is going).
 - B5 The delete fails (a directory that cannot be written) → one failure notice naming the skill and the
   copy's path, in the current UI language, saying it could not be fully deleted: a directory's contents go
@@ -75,20 +74,30 @@ project-level copy can be uninstalled. The global library itself is read-only.
   2026-11-05). It carries no system error; that goes to the log. The empty directory still holds the name,
   so a later install of that skill is blocked by A4 until the directory is removed.
 - B6 Uninstall is offered on a project-level entry in project detail's Skills section, behind a
-  confirmation (B4).
+  confirmation (B4), except an entry in a project skills directory that is a global library or lies inside one
+  (R4), which is listed with no Uninstall.
 
 **Cross-cutting**
 - R1 Install and uninstall touch only the global library and the project's skills directory, and
   nothing else (plugin entries have no install/uninstall entry point).
-- R2 An operation triggers no rescan at all, and none is needed: a project's detail — the view an
-  install or uninstall changes — is read when the project is opened, and the snapshot holds nothing
-  an operation could make stale. Uninstall, which happens with that view already on screen,
+- R2 An operation triggers no rescan. Uninstall, which happens with project detail already on screen,
   refetches it in place.
 - R3 An install or uninstall goes only into a project the app's snapshot lists, named by the exact path it
   is listed under: any other target, another spelling of a listed path included, is refused with a notice
   that it is not one of the app's projects, and nothing is written or deleted (R1). A target the snapshot
   lists as stale is refused with A5's notice, even if its directory is back. Before the first scan
   completes, the snapshot is the restored one the window shows.
+- R4 An install or uninstall never changes a global library. The main process refuses, writing and deleting nothing
+  (R1), one whose landing (the project skills directory it writes into or deletes from) is a global library or lies
+  inside one, or whose copy (the skill's entry in that directory) is a global library or holds one; an install is
+  refused at every landing. The global libraries are `~/.claude/skills`, `~/.agents/skills` (Codex's),
+  `~/.grok/skills` and Antigravity's three ([skills-view::REQ-001/AC-01](skills-view.md)). Directories are
+  compared as the same directory however they are reached: another spelling, a link on the way, another letter case
+  on a volume that ignores it. A directory not yet created is judged where it would be created, its missing segments
+  compared ignoring letter case. The copy is judged as the operation acts on it, not followed, so a project's copy
+  that is a link into a library is uninstalled as the link alone (B1); a library that is itself a link is judged both
+  as the link and as where it leads. R4 is judged after R3 and before every other check, so a request it refuses
+  gets its refusal in place of any other's (A4, A6, A7, A10, B2, skill-install::REQ-004).
 
 ## The shared skills directory
 
@@ -138,14 +147,19 @@ Applies to: every row of the "Install to…" picker.
 - skill-install::REQ-003/AC-02: A project where a landing directory of this skill already holds a skill of
   the same name carries a "Same name installed" tag; choosing it shows the existing blocked notice (A4)
   and installs nothing.
+- skill-install::REQ-003/AC-03: A project with a landing that is a global library or lies inside one (R4) is
+  listed disabled and labelled "Global library, disabled"; it cannot be chosen. The label takes the place of
+  AC-02's tag, and AC-01's label takes its place.
 
 Failure modes and boundaries: a project that turns stale or gains the same name after the picker was
 drawn is caught by A5's and A4's refusals at install time; a project whose landings include the
 shared skills directory is tagged when that directory holds the name (skill-install::REQ-001/AC-03).
 Choosing a tagged project installs nothing in any of its landings, a free one included (AC-02's
-"installs nothing"). The tags belong to one opening of the picker: a reopened picker draws none
-until its own arrive, never the previous opening's; a target untagged meanwhile is still refused at
-install time (A4).
+"installs nothing"). The tags and library labels belong to one opening of the picker: until this opening's
+answers arrive, a row is neither tagged nor disabled for a library, never drawn from the previous opening's;
+meanwhile a same name is still refused at install time (A4), and so is a library landing (R4). A project whose
+landings are clear but whose copy would be a library or hold one is not disabled, and R4 refuses it at install
+time.
 
 ## Links in the skill
 
@@ -177,12 +191,16 @@ inside the skill goes to the log; the install succeeds.
 
 ## Implementation Decisions
 
-- **Landing method**: see ADR-0004 (land by copy; copy to a temporary name in the same directory
-  first, then rename, cleaning up on failure).
+- **Landing method**: ADR-0004.
 - **Notices**: an install's or uninstall's success and failure notices differ only in their colour;
   their text carries no mark such as ✓ or ⚠. A failed uninstall's notice names the skill whatever
   the reason. A landing's failure notice and the same-name notice share one sentence shape, with
   each language's own punctuation.
+- **The detail's library directories** (B6): project detail carries the project skills directories R4 refuses.
+
+  | Field | Type | Meaning | Written by an earlier version |
+  |---|---|---|---|
+  | `libraryDirs` | list of strings | Each project skills directory of the project, relative to it (`.claude/skills`, `.agents/skills`, `.grok/skills`), that is a global library or lies inside one | Absent from a saved project page: read as every project skills directory, so the page offers no Uninstall until the live read replaces it |
 
 ## Out of Scope
 
