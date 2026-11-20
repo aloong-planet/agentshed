@@ -5,13 +5,14 @@
 import { describe, expect, it } from 'vitest'
 import type { ByteRange } from './providers/range-read'
 import type { TurnBody } from './providers/turn-read'
+import type { TurnBlock } from '@shared/domain'
 import { readTurnRanges, turnLimitBytes } from './turn-limit'
 
 type Asked = { question: ByteRange; body: ByteRange | null }
 type Read = (source: string, question: ByteRange, body: ByteRange | null) => Promise<{ question: string; body: TurnBody | null; bytesRead: number }>
 
 /** A turn read that records what it was asked for and answers the question with as many dots as its range is long,
- * capped, and a body asked for with one line of them */
+ * capped, and a body asked for with one block of prose of them */
 function recordingRead(): { read: Read; asked: Asked[] } {
   const asked: Asked[] = []
   const dots = (r: ByteRange): string => '.'.repeat(Math.min(8, r.end - r.start))
@@ -19,8 +20,8 @@ function recordingRead(): { read: Read; asked: Asked[] } {
     asked,
     read: (_source, question, body) => {
       asked.push({ question: { ...question }, body: body && { ...body } })
-      const lines = body && [dots(body)]
-      return Promise.resolve({ question: dots(question), body: lines && { lines }, bytesRead: dots(question).length + (lines?.[0].length ?? 0) })
+      const blocks: TurnBlock[] | null = body && [{ kind: 'text', role: 'assistant', at: null, body: dots(body) }]
+      return Promise.resolve({ question: dots(question), body: blocks && { blocks }, bytesRead: dots(question).length + (body ? dots(body).length : 0) })
     }
   }
 }
@@ -41,7 +42,7 @@ describe('readTurnRanges', () => {
     const { read, asked } = recordingRead()
     const got = await readTurnRanges(read, 'source', [100, 140, 140 + 67_108_864], 67_108_864)
     expect(asked).toEqual([{ question: { start: 100, end: 140 }, body: { start: 140, end: 140 + 67_108_864 } }])
-    expect(got).toEqual({ question: '........', body: { lines: ['........'] }, bodyBytes: 67_108_864, bytesRead: 16 })
+    expect(got).toEqual({ question: '........', body: { blocks: [{ kind: 'text', role: 'assistant', at: null, body: '........' }] }, bodyBytes: 67_108_864, bytesRead: 16 })
   })
 
   it('reads only the question of a turn whose body is one byte over, and never a byte past the question', async () => {

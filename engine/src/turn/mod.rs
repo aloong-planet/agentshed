@@ -2,20 +2,12 @@
 //! the lines the turn holds, the read of those lines every side's rules go through (`read_lines`), and the rules the
 //! sides share — a block's time, a tool's input and its one-line summary, how a value is named in the trace of unknown
 //! types, and the trace itself (session-view C8). What a side's lines mean is the side's own (`sides/<side>/turn.rs`).
-//! A side whose turns the module does not assemble hands over the lines instead, which TypeScript assembles; the sides
-//! move into the module one at a time, each side's turns assembled by one of the two at any time (ADR-0054, ADR-0047).
+//! Every side's turns are assembled here (ADR-0054).
 
 use std::collections::HashSet;
 
 use crate::json::{self, Gap, Kind, Read, Reader, Str};
 use crate::text::{self, JsString, Units};
-
-/// What a turn's read hands over for its body: the blocks, for a side the module assembles; the lines the turn holds,
-/// for a side TypeScript assembles
-pub(crate) enum TurnBody {
-    Blocks(Vec<Block>),
-    Lines(Vec<String>),
-}
 
 /// A block's time, as `Date.parse` reads the line's timestamp: none when the line has no string timestamp or the
 /// string gives NaN. A string `text::date_parse` does not read is handed over as it is, and read by JavaScript's own

@@ -30,9 +30,8 @@
 //!   such a line costs, without writing a file of hundreds of MiB.
 //! - The observed-reads seam: a test names a file, and each read of one of its turns hands over, for its body, the
 //!   lines the read kept — once the side's `kept_lines` has left out those the turn does not hold — in place of the
-//!   body the side makes of them, so that a case can hold what a read kept to what it should, of a side whose turns the
-//!   module assembles as of any other. It observes the read: it is not the lines a side whose turns TypeScript assembles
-//!   hands over (`TurnBody::Lines`), and owes that path nothing.
+//!   blocks the side assembles of them, so that a case can hold what a read kept to what it should. It observes the
+//!   read: no read made outside a test hands over lines.
 //! - The line-strings seam: a test reads a line through the read of a turn's lines every side's rules go through
 //!   (`turn::read_lines`), with rules of the seam's own that take each member of the line's object that is a string,
 //!   and sees each string as made, and whether it was made in the line's own buffer (`json::take`), so that a case can

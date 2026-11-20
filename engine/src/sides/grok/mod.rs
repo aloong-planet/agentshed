@@ -20,7 +20,7 @@ use self::entry::{Job, Parsed};
 use super::{Kept, Side, Walked};
 use crate::exports::js::Js;
 use crate::text::{self, Units};
-use crate::turn::TurnBody;
+use crate::turn::Block;
 use crate::walk::Held;
 
 pub(crate) struct Grok;
@@ -53,13 +53,9 @@ impl Side for Grok {
         question::shown(range)
     }
 
-    fn dispatches(&self) -> &'static [&'static str] {
-        std::slice::from_ref(&question::DISPATCH)
-    }
-
-    fn turn_body(&self, file: &str, lines: Vec<String>) -> TurnBody {
+    fn turn_body(&self, file: &str, lines: Vec<String>) -> Vec<Block> {
         crate::seams::before_turn_assembly(file);
-        TurnBody::Blocks(turn::blocks(lines, self.dispatches()))
+        turn::blocks(lines, std::slice::from_ref(&question::DISPATCH))
     }
 
     /// Every session under Grok's data root, `roots.grokHome`
