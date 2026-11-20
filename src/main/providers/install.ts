@@ -2,13 +2,14 @@
 // into the project-level directory (landing in a temporary directory first, then renaming,
 // cleaning up on failure so nothing half-finished is left); uninstalling = deleting the project's copy.
 // The global library is read-only and is never written.
-import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { PROJECT_SKILLS_DIR, type AgentSide } from '@shared/domain'
 import { skillLandings } from '@shared/skill-landing'
 import type { ScanRoots } from './types'
-import { globalSkillEntry } from './skill-package'
+import { globalSkillEntry, holdsPath } from './skill-package'
 import { isAbsent } from './read-utils'
+import { compareNames } from './scan-order'
 import { ERR, type ErrorCode, type ErrorParams } from '@shared/errors'
 
 export interface InstallArgs {
@@ -33,6 +34,69 @@ function projectSkillsDir(side: AgentSide, projectPath: string): string {
   return join(projectPath, PROJECT_SKILLS_DIR[side])
 }
 
+/** A symlink in the skill that fails the install, and its path inside the skill (skill-install::REQ-004/AC-02, AC-03) */
+interface LinkProblem {
+  reason: typeof ERR.skillLinkLeadsNowhere | typeof ERR.skillLinkLeadsBack
+  link: string
+}
+
+/**
+ * Copy a skill to `to`, every symlink in it at any depth landing as what it points to, so the project's copy holds no
+ * link and is self-contained (skill-install::REQ-004/AC-01). Not `cpSync`: under Electron 43's Node its `dereference`
+ * follows only the top-level link and keeps every link below it as a link. It stops at a link that fails the install,
+ * answering it; whatever cannot be read throws (A10).
+ */
+function copySkill(source: string, to: string): LinkProblem | null {
+  const root = realpathSync(source)
+  // The real paths of the directories the walk is inside: a directory link to one of them, or to a directory holding
+  // the skill, would copy the skill into itself without end. The skills view's package walk applies the same test
+  // (skill-package.ts, walkFiles), there to skip and here to fail
+  const inside = new Set<string>()
+  function walk(dir: string, realDir: string, into: string, rel: string): LinkProblem | null {
+    inside.add(realDir)
+    mkdirSync(into)
+    // In byte order, whatever order the directory lists in: the first link that fails is the one met first in path
+    // order, segment by segment (REQ-004's failure modes)
+    for (const name of readdirSync(dir).sort(compareNames)) {
+      const abs = join(dir, name)
+      const path = rel === '' ? name : `${rel}/${name}`
+      const entry = lstatSync(abs)
+      let st = entry
+      if (entry.isSymbolicLink()) {
+        try {
+          st = statSync(abs)
+        } catch (err) {
+          // What it points to is gone, runs through a file, or is a chain of links that never reaches a file or a
+          // directory. One it may not look at is not gone: the copy fails on it (A10)
+          if (isAbsent(abs) || (err as NodeJS.ErrnoException).code === 'ELOOP')
+            return { reason: ERR.skillLinkLeadsNowhere, link: path }
+          throw err
+        }
+      }
+      if (st.isDirectory()) {
+        const realChild = entry.isSymbolicLink() ? realpathSync(abs) : join(realDir, name)
+        if (inside.has(realChild) || holdsPath(realChild, root)) return { reason: ERR.skillLinkLeadsBack, link: path }
+        const problem = walk(abs, realChild, join(into, name), path)
+        if (problem !== null) return problem
+      } else if (st.isFile()) copyFileSync(abs, join(into, name))
+      // A pipe, a socket or a device, behind a link or not: reading a pipe would block the main process
+      else console.warn('[skill-install] skipped, neither a file nor a directory:', path)
+    }
+    inside.delete(realDir)
+    return null
+  }
+  return walk(source, root, to, '')
+}
+
+/** Remove a temporary copy; a cleanup failure does not cascade */
+function discard(tmp: string): void {
+  try {
+    rmSync(tmp, { recursive: true, force: true })
+  } catch {
+    // A cleanup failure does not cascade
+  }
+}
+
 export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {
   const { skillName, side, targetProjectPath } = args
   if (badName(skillName)) return { ok: false, reason: ERR.skillBadName }
@@ -51,17 +115,15 @@ export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {
   const tmp = join(targetBase, `.${skillName}.installing-${process.pid}`)
   try {
     mkdirSync(targetBase, { recursive: true })
-    // dereference: a symlinked source lands as a real file (so the project is self-contained and does not
-    // depend on the global library continuing to exist)
-    cpSync(source, tmp, { recursive: true, dereference: true })
+    const problem = copySkill(source, tmp)
+    if (problem !== null) {
+      discard(tmp)
+      return { ok: false, reason: problem.reason, params: { link: problem.link } }
+    }
     renameSync(tmp, target)
     return { ok: true }
   } catch (err) {
-    try {
-      rmSync(tmp, { recursive: true, force: true })
-    } catch {
-      // A cleanup failure does not cascade
-    }
+    discard(tmp)
     // The notice names no cause, so the system's own words go to the log
     console.error('[skill-install] copy failed:', err)
     return { ok: false, reason: ERR.skillCopyFailed }

@@ -110,6 +110,10 @@ export function errorText(lang: Language, raw: unknown): string {
       return t.skillConflict
     case ERR.skillCopyFailed:
       return t.skillCopyFailed
+    case ERR.skillLinkLeadsNowhere:
+      return t.skillLinkLeadsNowhere(s(p, 'link'))
+    case ERR.skillLinkLeadsBack:
+      return t.skillLinkLeadsBack(s(p, 'link'))
     case ERR.skillDeleteFailed:
       return t.skillDeleteFailed(s(p, 'path'))
     case ERR.registryProjectsInvalid:

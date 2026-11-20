@@ -549,6 +549,8 @@ export const zh = {
     skillCopyMissing: '项目级副本不存在',
     skillConflict: '目标已有同名项目级 skill,已阻止不覆盖',
     skillCopyFailed: '复制失败,已清理',
+    skillLinkLeadsNowhere: (link: string) => `链接 ${link} 指向的目标不存在,未安装任何内容`,
+    skillLinkLeadsBack: (link: string) => `链接 ${link} 指回 skill 自身,未安装任何内容`,
     skillDeleteFailed: (path: string) => `未能完全删除 ${path}`,
     registryProjectsInvalid: '注册表的 projects 键缺失或不是对象',
     registryUnreadable: (path: string) => `注册表不可读:${path}`,

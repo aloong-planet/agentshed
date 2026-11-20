@@ -448,6 +448,8 @@ export const en: Locale = {
     skillCopyMissing: 'The project-level copy does not exist',
     skillConflict: 'Blocked: the target already has a project-level skill with this name, and nothing was overwritten',
     skillCopyFailed: 'Copy failed and was cleaned up',
+    skillLinkLeadsNowhere: (link) => `The link ${link} leads nowhere, so nothing was installed`,
+    skillLinkLeadsBack: (link) => `The link ${link} leads back into the skill, so nothing was installed`,
     skillDeleteFailed: (path) => `It could not be fully deleted: ${path}`,
     registryProjectsInvalid: 'The registry’s projects key is missing or not an object',
     registryUnreadable: (path) => `The registry cannot be read: ${path}`,
