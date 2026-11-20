@@ -4,7 +4,7 @@ import type { CappedText, ProjectDetail, ProjectStats, SessionPage, SessionTurn,
 import type { ListSkillFilesArgs, ListSkillFilesResult } from './ipc'
 import { validateProjectDetail, validateProjectStats, validateSessionPage, validateSessionTurn, validateSnapshot, AGENT_SIDES } from './validate'
 import { sessionIdFromPath } from './session-resume'
-import { emptyTotals, type AgentSide } from './domain'
+import { emptyTotals, PROJECT_SKILLS_DIR, type AgentSide } from './domain'
 
 export type SavedRead =
   | { kind: 'projectDetail'; path: string; data: ProjectDetail }
@@ -81,7 +81,9 @@ const pathed = (file: string, saved: unknown): unknown => (saved === null ? null
  * instruction entries carried their paths — `configs` held the two files' contents and a settings summary —
  * restores with each file at its place in the project, the only place the project's own two files live, and
  * without the summary (project-detail::REQ-002/AC-02). One saved while the page listed the project's documents
- * restores without the list (ADR-0051). A session page saved
+ * restores without the list (ADR-0051). One saved before it carried the project's skills directories in a global library
+ * restores as if every one were, offering no Uninstall until the live read says which are (skill-install R4). A session
+ * page saved
  * before the session ID was kept restores with the ID its path holds — Claude Code's and Grok's — and none for
  * Codex, whose ID is in its record, until the live page replaces it (session-view::CON-003). Only an absent field
  * is filled in: a present but malformed one is left for validation to drop. */
@@ -106,6 +108,7 @@ function upgradeSavedRead(v: unknown): unknown {
       data = { ...data }
       delete data.artifacts
     }
+    if (!('libraryDirs' in data)) data = { ...data, libraryDirs: [...new Set(Object.values(PROJECT_SKILLS_DIR))] }
     return data === v.data ? v : { ...v, data }
   }
   if (v.kind === 'sessionPage' && !('sessionId' in v.data) && typeof v.data.file === 'string' && AGENT_SIDES.has(String(v.data.side)))

@@ -146,6 +146,7 @@ export const zh = {
       `${skill} → ${project}(${where}):${reason}`,
     /** The install picker's row tags (skill-install::REQ-003) */
     pickStale: '失效,禁用',
+    pickLibrary: '全局库,禁用',
     pickHasSame: '已装同名',
     grokBorrowHint: 'Grok 运行时会读取 Claude Code 的全局 skills / subagents / plugins / MCP;这些借入组件归属 Claude 侧,不并入 Grok 的清单',
     skillsHint: '合并单列 · 点行展开包内文件 · 点文件预览 · 无跨侧 diff · 插件只读',
@@ -546,6 +547,7 @@ export const zh = {
     skillBadName: '非法 skill 名',
     skillStaleTarget: '目标是失效项目(目录不存在)',
     skillTargetNotProject: '目标不是本 app 的项目',
+    skillTargetGlobalLibrary: '会改动全局库,已阻止,未安装或删除任何内容',
     skillMissingSource: (name: string) => `全局库无此 skill:${name}`,
     skillCopyMissing: '项目级副本不存在',
     skillConflict: '目标已有同名项目级 skill,已阻止不覆盖',

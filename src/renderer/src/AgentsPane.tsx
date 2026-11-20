@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_FULL_NAME, SIDE_ORDER, type SideBadgeClass } from './side-badge'
 import { InstructionsSection } from './InstructionsSection'
 import type { AgentSide, GlobalSkill, ProjectEntry, Snapshot } from '@shared/domain'
-import type { SkillHoldings } from '@shared/ipc'
+import type { SkillHoldings, SkillLibraryDirs } from '@shared/ipc'
 import { skillLandings, type SkillLanding } from '@shared/skill-landing'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
 import { sliceUsage, type UsageWindow } from '@shared/usage'
@@ -254,6 +254,10 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
   // probes its own project list; the renderer names only the skill). Until it answers, no row is tagged and the
   // install itself still refuses a same name (A4)
   const [held, setHeld] = useState<{ skill: string; holdings: SkillHoldings } | null>(null)
+  // Which projects' skills directories are a global library or lie inside one, asked at the same moment (it probes the
+  // same list). Until it answers, no row is disabled for it and the install itself still refuses one (skill-install R4,
+  // skill-install::REQ-003/AC-03)
+  const [libs, setLibs] = useState<{ skill: string; dirs: SkillLibraryDirs } | null>(null)
   const openSkill = openFor?.skill ?? null
   useEffect(() => {
     if (openSkill === null) return
@@ -263,6 +267,12 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
         if (live) setHeld({ skill: openSkill, holdings })
       },
       () => {} // The tag is advisory: without it a same-name install is still refused at install time
+    )
+    window.agentshed.skillLibraryDirs().then(
+      (dirs) => {
+        if (live) setLibs({ skill: openSkill, dirs })
+      },
+      () => {} // Without it the row stays enabled, and the install is still refused at install time
     )
     return () => {
       live = false
@@ -297,6 +307,9 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
   // A landing that already holds the name: the same test the install refuses by (A4)
   const heldIn = (skill: GlobalSkill, project: ProjectEntry): string[] =>
     held?.skill === skill.name ? (held.holdings[project.path] ?? []) : []
+  // A landing that is a global library or lies inside one: the same test the install refuses by (R4)
+  const libraryIn = (skill: GlobalSkill, project: ProjectEntry): string[] =>
+    libs?.skill === skill.name ? (libs.dirs[project.path] ?? []) : []
   /** A landing's place in a notice: its side, or for the shared directory the directory itself */
   const where = (l: { dir: string; loaders: AgentSide[] }): string => (l.loaders.length > 1 ? l.dir : l.loaders[0])
 
@@ -380,9 +393,13 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                       e.stopPropagation()
                       trigger.current = e.currentTarget
                       const opening = openFor?.skill !== s.name
-                      // A new opening draws no tags until its own arrive, never the previous opening's — an
-                      // untagged target that does hold the name is still refused at install time (A4)
-                      if (opening) setHeld(null)
+                      // A new opening draws no tags or library labels until its own arrive, never the previous
+                      // opening's — an untagged target that does hold the name is still refused at install time (A4),
+                      // and an enabled one with a library landing (R4)
+                      if (opening) {
+                        setHeld(null)
+                        setLibs(null)
+                      }
                       setOpenFor(opening ? popAt(s.name, e.currentTarget) : null)
                     }}
                   >
@@ -406,13 +423,17 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                 {targets.map((p) => {
                   const lands = landingsIn(s, p)
                   const has = lands.some((l) => heldIn(s, p).includes(l.dir))
+                  const library = lands.some((l) => libraryIn(s, p).includes(l.dir))
                   return (
                     // A stale project cannot be chosen; one that went stale after this was drawn is refused at
-                    // install time (A5)
-                    <button className="pop-p" key={p.path} disabled={p.stale} onClick={() => void install(s, p)}>
+                    // install time (A5). Nor can one the install would change a global library through, any of its
+                    // landings refusing the whole install (R4)
+                    <button className="pop-p" key={p.path} disabled={p.stale || library} onClick={() => void install(s, p)}>
                       <span className="t">{p.name}</span>
                       {p.stale ? (
                         <span className="pop-why">{t.agents.pickStale}</span>
+                      ) : library ? (
+                        <span className="pop-why">{t.agents.pickLibrary}</span>
                       ) : has ? (
                         <span className="pop-have">{t.agents.pickHasSame}</span>
                       ) : null}

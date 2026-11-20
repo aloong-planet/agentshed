@@ -25,6 +25,7 @@ import { readProjectMemory } from './memory'
 import { readAntigravityPlugins, readProjectPlugins } from './plugins'
 import { fmField, readInstructionFile, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
+import { libraryDirs } from './install'
 
 /** G1 (the detail page's rule): the bundled skills of this project's effectively enabled plugins →
  * namespaced entries (level=plugin, not taking part in shadowing), each on its plugin's own side (G4). agy has no
@@ -76,7 +77,8 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
       claudeMd: readInstructionFile(join(projectPath, 'CLAUDE.md')),
       agentsMd: readInstructionFile(join(projectPath, 'AGENTS.md'))
     },
-    stats: null
+    stats: null,
+    libraryDirs: libraryDirs(roots, [projectPath])[projectPath]
   }
 }
 

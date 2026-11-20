@@ -45,6 +45,9 @@ export const CMD = {
   /** Which landing directories of the snapshot's live projects already hold a skill name (the install picker's
    * "Same name installed" tag, skill-install::REQ-003/AC-02); read-only, the project paths are the main process's own */
   skillHoldings: 'agentshed:skill-holdings',
+  /** Which project skills directories of the snapshot's live projects are a global library or lie inside one (the install
+   * picker's disabled row, skill-install R4); read-only, the project paths are the main process's own */
+  skillLibraryDirs: 'agentshed:skill-library-dirs',
   /** Uninstall a project-level skill copy */
   uninstallSkill: 'agentshed:uninstall-skill',
   /** Read the app's preferences (theme, UI language and so on) */
@@ -141,6 +144,9 @@ export interface SkillLandingResult {
 
 /** Project path → the project skills directories (relative) already holding the name */
 export type SkillHoldings = Record<string, string[]>
+
+/** Project path → its project skills directories (relative) that are a global library or lie inside one */
+export type SkillLibraryDirs = Record<string, string[]>
 
 /** Enumerate a skill package: from the global library, project level, or a plugin package
  * (plugins-view H8) */

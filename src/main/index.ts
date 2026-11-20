@@ -18,6 +18,7 @@ import {
   type SkillInstallArgs,
   type SkillLandingResult,
   type SkillHoldings,
+  type SkillLibraryDirs,
   type ListSkillFilesArgs,
   type ListSkillFilesResult
 } from '@shared/ipc'
@@ -36,7 +37,7 @@ import { ENGINE_BUILD, engineModulePath, threadEngineModule } from './engine-mod
 import { settleForQuit } from './quit'
 import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
-import { installIntoListedProject, skillHoldings, uninstallFromListedProject } from './providers/install'
+import { installIntoListedProject, libraryDirs, skillHoldings, uninstallFromListedProject } from './providers/install'
 import { APP_HOST, registerAppProtocol } from './app-protocol'
 import { realRoots } from './roots'
 import {
@@ -531,12 +532,17 @@ function checkInstallArgs(args: unknown): SkillInstallArgs {
 // (skill-install R3): the restored one until the first scan completes, which is the snapshot the renderer shows then
 const listedProjects = (): ProjectEntry[] => current?.projects ?? []
 handle(CMD.installSkill, (_e, args: unknown): SkillLandingResult[] => installIntoListedProject(realRoots(), listedProjects(), checkInstallArgs(args)))
-handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallFromListedProject(listedProjects(), checkSkillOpArgs(args)))
+handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallFromListedProject(realRoots(), listedProjects(), checkSkillOpArgs(args)))
 // The live projects of the current snapshot: the renderer names the skill, never the paths probed. Before the first
 // scan they are the restored snapshot's, or none without one, and the install itself still refuses a same name (A4)
 handle(CMD.skillHoldings, (_e, name: unknown): SkillHoldings => {
   if (typeof name !== 'string') throw appError(ERR.badArgs, { channel: 'skillHoldings' })
   return skillHoldings((current?.projects ?? []).filter((p) => !p.stale).map((p) => p.path), name)
+})
+// The same live projects, probed for the skills directories an install would change a global library through
+// (skill-install R4); the install itself still refuses one the picker has not yet disabled
+handle(CMD.skillLibraryDirs, (): SkillLibraryDirs => {
+  return libraryDirs(realRoots(), (current?.projects ?? []).filter((p) => !p.stale).map((p) => p.path))
 })
 
 function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {

@@ -78,11 +78,11 @@ test('a failed uninstall and a failed install each show one notice in a sentence
   await close(l)
 })
 
-// skill-install::REQ-003/AC-02: the "Same name installed" tag is the target's state at this opening of the picker.
-// Found in #325's code review — a reopened picker first drew the tags of its previous opening, until the fresh ones
-// arrived. The stale tag lasts one round trip, so a retried assertion cannot see it: an observer in the page records
-// whether a tag is ever drawn after the reopening.
-test('the install picker\'s same-name tag is this opening\'s: reopened after the copy is gone, it is not drawn', async () => {
+// skill-install::REQ-003/AC-02 and AC-03: the "Same name installed" tag and the global library label are the target's
+// state at this opening of the picker. Found in code review, the tag in #325's and the label in #514's — a reopened
+// picker first drew its previous opening's, until the fresh answer arrived. That lasts one round trip, so a retried
+// assertion cannot see it: an observer in the page records whether either is ever drawn after the reopening.
+test('the install picker\'s same-name tag and library label are this opening\'s: reopened after the copy and the link are gone, neither is drawn', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-held-'))
   const proj = join(home, 'proj')
   const copy = join(proj, '.claude', 'skills', 'tidy')
@@ -90,25 +90,36 @@ test('the install picker\'s same-name tag is this opening\'s: reopened after the
   writeFileSync(join(copy, 'SKILL.md'), '---\ndescription: tidy, the project copy\n---\nproject\n')
   mkdirSync(join(home, '.claude', 'skills', 'tidy'), { recursive: true })
   writeFileSync(join(home, '.claude', 'skills', 'tidy', 'SKILL.md'), '---\ndescription: tidy\n---\nglobal\n')
-  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  // A project whose Claude skills directory is a link to Claude's library
+  const linked = join(home, 'linked')
+  mkdirSync(join(linked, '.claude'), { recursive: true })
+  symlinkSync(join(home, '.claude', 'skills'), join(linked, '.claude', 'skills'))
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {}, [linked]: {} } }))
 
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const ins = win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: /^tidy$/ }) }).locator('.ins')
   const target = win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: /^proj$/ }) })
-  // The tag is drawn while the project holds the name
+  const linkedRow = win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: /^linked$/ }) })
+  // The tag is drawn while the project holds the name, and the label while the other's skills directory is the library
   await ins.click()
   await expect(target.locator('.pop-have')).toHaveText('Same name installed')
+  await expect(linkedRow.locator('.pop-why')).toHaveText('Global library, disabled')
   await ins.click()
   await expect(win.locator('.pop')).toHaveCount(0)
-  // The copy goes; from here on no tag may be drawn, not even for a moment
+  // The copy goes, and the link gives way to a directory of the project's own; from here on neither the tag nor the
+  // label may be drawn, not even for a moment
   rmSync(copy, { recursive: true })
+  rmSync(join(linked, '.claude', 'skills'))
+  mkdirSync(join(linked, '.claude', 'skills'))
   await win.evaluate(() => {
-    const w = window as unknown as { tagDrawn: boolean }
+    const w = window as unknown as { tagDrawn: boolean; labelDrawn: boolean }
     w.tagDrawn = false
+    w.labelDrawn = false
     new MutationObserver(() => {
       if (document.querySelector('.pop .pop-have') !== null) w.tagDrawn = true
+      if (document.querySelector('.pop .pop-why') !== null) w.labelDrawn = true
     }).observe(document.body, { childList: true, subtree: true })
   })
   await ins.click()
@@ -116,6 +127,12 @@ test('the install picker\'s same-name tag is this opening\'s: reopened after the
   await expect(win.locator('.toast.ok')).toHaveText('Installed tidy → proj (claude)')
   expect(readFileSync(join(copy, 'SKILL.md'), 'utf8')).toContain('global')
   expect(await win.evaluate(() => (window as unknown as { tagDrawn: boolean }).tagDrawn)).toBe(false)
+  expect(await win.evaluate(() => (window as unknown as { labelDrawn: boolean }).labelDrawn)).toBe(false)
+  // and the project whose link went is chosen as any other
+  await ins.click()
+  await linkedRow.click()
+  await expect(win.locator('.toast.ok', { hasText: '→ linked' })).toHaveText('Installed tidy → linked (claude)')
+  expect(readFileSync(join(linked, '.claude', 'skills', 'tidy', 'SKILL.md'), 'utf8')).toContain('global')
 
   // This home has no Antigravity CLI: neither its plugin group nor its MCP group is drawn (plugins-view, settled
   // boundaries; agents-overview::REQ-003 boundaries). Each read follows the Claude group's heading on the same render
@@ -491,6 +508,72 @@ test('an install or uninstall outside the app\'s projects is refused, even into 
   expect(await win.evaluate((p) => window.agentshed.installSkill({ skillName: 'tidy', sides: ['claude'], targetProjectPath: p }), stray))
     .toEqual([{ dir: '.claude/skills', loaders: ['claude'], result: { ok: false, reason: 'skill-target-not-project' } }])
   expect(readdirSync(stray)).toEqual([])
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// skill-install R4, skill-install::REQ-003/AC-03 and B6: the home directory listed as a project, its .claude/skills
+// being Claude's library and its .agents/skills Codex's, shows its skills and offers neither an install into it nor an
+// uninstall from it, while a project beside it does as before; and a page that asks anyway is refused, with nothing
+// written or deleted.
+test('the home directory listed as a project offers no install or uninstall, and a page asking anyway is refused', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-library-'))
+  const homeName = home.slice(home.lastIndexOf('/') + 1)
+  const proj = join(home, 'proj')
+  const own = join(proj, '.claude', 'skills', 'own-skill')
+  mkdirSync(own, { recursive: true })
+  writeFileSync(join(own, 'SKILL.md'), '---\ndescription: own\n---\n')
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [home]: {}, [proj]: {} } }))
+  const library = join(home, '.claude', 'skills', 'tidy')
+  mkdirSync(library, { recursive: true })
+  writeFileSync(join(library, 'SKILL.md'), '---\ndescription: tidy\n---\nglobal\n')
+  const codex = join(home, '.agents', 'skills', 'other')
+  mkdirSync(codex, { recursive: true })
+  writeFileSync(join(codex, 'SKILL.md'), '---\ndescription: other\n---\n')
+  // A skill in Antigravity's own library alone: installed for agy alone, it would land in the shared directory
+  const agy = join(home, '.gemini', 'antigravity-cli', 'skills', 'agy-only')
+  mkdirSync(agy, { recursive: true })
+  writeFileSync(join(agy, 'SKILL.md'), '---\ndescription: agy\n---\n')
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const target = (name: RegExp) => win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: name }) })
+
+  // The picker: the home directory is listed, labelled and disabled once the main process has answered; a forced click
+  // on it does nothing, and the project beside it is chosen as before
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await skillRow(win, 'tidy').locator('.ins').click()
+  await expect(target(new RegExp(`^${homeName}$`)).locator('.pop-why')).toHaveText('Global library, disabled')
+  await expect(target(new RegExp(`^${homeName}$`))).toBeDisabled()
+  await expect(target(/^proj$/)).toBeEnabled()
+  await expect(target(/^proj$/).locator('.pop-why')).toHaveCount(0)
+  await target(new RegExp(`^${homeName}$`)).click({ force: true })
+  await target(/^proj$/).click()
+  await expect(win.locator('.toast.ok')).toHaveText('Installed tidy → proj (claude)')
+  expect(await win.locator('.toast').count()).toBe(1)
+  expect(readFileSync(join(library, 'SKILL.md'), 'utf8')).toContain('global')
+
+  // Project detail: the home directory's project-level skills, Claude's and the shared directory's, are listed with no
+  // Uninstall; the project beside it offers one on its own skill
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: homeName }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const detailRow = (name: string) => win.locator('.pane-body .sk', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  for (const name of ['tidy', 'other']) {
+    await expect(detailRow(name)).toBeVisible()
+    await expect(detailRow(name).locator('.ins')).toHaveCount(0)
+  }
+  await win.locator('.side .row', { hasText: /^proj/ }).click()
+  await expect(detailRow('own-skill').locator('.ins')).toBeVisible()
+
+  // A page that asks anyway
+  expect(await win.evaluate((p) => window.agentshed.uninstallSkill({ skillName: 'tidy', side: 'claude', targetProjectPath: p }), home))
+    .toEqual({ ok: false, reason: 'skill-target-global-library' })
+  expect(readFileSync(join(library, 'SKILL.md'), 'utf8')).toContain('global')
+  expect(await win.evaluate((p) => window.agentshed.installSkill({ skillName: 'agy-only', sides: ['antigravity'], targetProjectPath: p }), home))
+    .toEqual([{ dir: '.agents/skills', loaders: ['codex', 'antigravity'], result: { ok: false, reason: 'skill-target-global-library' } }])
+  expect(readdirSync(join(home, '.agents', 'skills'))).toEqual(['other'])
 
   expect(l.errors).toEqual([])
   await close(l)

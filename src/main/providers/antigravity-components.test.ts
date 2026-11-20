@@ -310,6 +310,7 @@ describe('installing into the shared skills directory (skill-install::REQ-001)',
     mkdirSync(c)
     expect(skillHoldings([a, b, c], 'n')).toEqual({ [a]: ['.agents/skills'], [b]: ['.claude/skills'], [c]: [] })
     expect(skillHoldings([a, b], '../n')).toEqual({})
+    expect(skillHoldings([a, b], '.')).toEqual({})
   })
 })
 

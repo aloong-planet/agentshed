@@ -268,3 +268,111 @@ describe('skillOpTarget (which directory a skill install or uninstall may go int
     expect(skillOpTarget(listed, target)).toEqual(expected)
   })
 })
+
+// skill-install R4: an install or uninstall never changes a global library — its landing is never a library or inside
+// one, and its copy is never a library, inside one or holding one — whatever spelling, link or letter case names it,
+// and a library not there yet is judged where it would be created. Real directories stand in for the disk; the
+// decision is given the probes the install gives it. Every row's target would pass R3: only this decision stands
+// between it and the disk.
+import { skillOpLibrary } from './security'
+import { dirPlace, entryPlace } from './providers/install'
+import { globalSkillsRoots, type ScanRoots } from './providers/types'
+import { mkdirSync } from 'node:fs'
+
+describe('skillOpLibrary (an install or uninstall that would change a global library)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'agentshed-library-'))
+  const at = (...p: string[]): string => join(root, ...p)
+  const mk = (...p: string[]): string => {
+    mkdirSync(at(...p), { recursive: true })
+    return at(...p)
+  }
+  const link = (target: string, ...p: string[]): string => {
+    symlinkSync(target, at(...p))
+    return at(...p)
+  }
+  // A home with Claude's and Codex's libraries there, one with no library there yet, and one whose Claude library is
+  // itself a link
+  const home = mk('home')
+  mk('home', '.claude', 'skills', 'tidy')
+  mk('home', '.agents', 'skills', 'tdd')
+  mk('home', '.agents', 'skills', 'other')
+  mk('home', '.agents', 'skills-old')
+  const bare = mk('bare')
+  const linked = mk('linked')
+  mk('linked', '.claude', 'library')
+  link(at('linked', '.claude', 'library'), 'linked', '.claude', 'skills')
+  // Projects outside every home
+  const toHome = link(home, 'to-home')
+  const libLink = mk('lib-link')
+  mk('lib-link', '.claude')
+  link(at('home', '.claude', 'skills'), 'lib-link', '.claude', 'skills')
+  const toTdd = link(at('home', '.agents', 'skills', 'tdd'), 'to-tdd')
+  const own = mk('own')
+  mk('own', '.claude', 'skills', 'mine')
+  link(at('home', '.claude', 'skills'), 'own', '.claude', 'skills', 'borrowed')
+  const fresh = mk('fresh')
+  const toClaude = mk('to-claude')
+  mk('to-claude', '.claude')
+  link(at('home', '.claude'), 'to-claude', '.claude', 'skills')
+  const atHome = mk('at-home')
+  mk('at-home', '.claude')
+  link(home, 'at-home', '.claude', 'skills')
+  const atBare = mk('at-bare')
+  mk('at-bare', '.claude')
+  link(bare, 'at-bare', '.claude', 'skills')
+  const toLinked = mk('to-linked')
+  mk('to-linked', '.claude')
+  link(at('linked', '.claude'), 'to-linked', '.claude', 'skills')
+  // A home whose Claude library is a link to a directory elsewhere, and a project whose skills directory leads to the
+  // directory above that one
+  const far = mk('far')
+  mk('far', '.claude')
+  mk('dot', 'skills', 'tidy')
+  link(at('dot', 'skills'), 'far', '.claude', 'skills')
+  const above = mk('above')
+  mk('above', '.claude')
+  link(root, 'above', '.claude', 'skills')
+
+  const rootsOf = (h: string): ScanRoots => ({
+    claudeHome: join(h, '.claude'),
+    claudeConfigFile: join(h, '.claude.json'),
+    codexHome: join(h, '.codex'),
+    geminiHome: join(h, '.gemini'),
+    grokHome: join(h, '.grok'),
+    antigravityHome: join(h, '.gemini', 'antigravity-cli'),
+    agentsSkillsDir: join(h, '.agents', 'skills')
+  })
+  const judge = (h: string, landings: string[], copies: string[]) =>
+    skillOpLibrary({ landings, copies, libraries: Object.values(globalSkillsRoots(rootsOf(h))).flat() }, { dir: dirPlace, entry: entryPlace })
+  const refused = { ok: false, code: 'skill-target-global-library' }
+  const admitted = { ok: true }
+
+  it.each([
+    ['refuses the home directory, by its own path, at Claude\'s landing', home, [join(home, '.claude', 'skills')], [], refused],
+    ['refuses the home directory through a link to it', home, [join(toHome, '.claude', 'skills')], [], refused],
+    ['refuses the home directory at the shared skills directory, Codex\'s library', home, [join(home, '.agents', 'skills')], [], refused],
+    ['refuses the home directory at a library not there yet, judged where it would be created', bare, [join(bare, '.agents', 'skills')], [], refused],
+    ['refuses a project whose skills directory is a link to a library', home, [join(libLink, '.claude', 'skills')], [], refused],
+    ['refuses a project inside a library\'s skill', home, [join(home, '.agents', 'skills', 'tdd', '.claude', 'skills')], [], refused],
+    ['refuses a project that is a link to a library\'s skill, seen only where it really leads', home, [join(toTdd, '.claude', 'skills')], [], refused],
+    ['admits a project with a skills directory of its own', home, [join(own, '.claude', 'skills')], [join(own, '.claude', 'skills', 'mine')], admitted],
+    ['admits a project with no skills directory yet', home, [join(fresh, '.claude', 'skills'), join(fresh, '.agents', 'skills')], [join(fresh, '.claude', 'skills', 'tidy'), join(fresh, '.agents', 'skills', 'tidy')], admitted],
+    ['admits a project whose name extends a library\'s', home, [join(home, '.agents', 'skills-old', '.claude', 'skills'), join(home, '.agents', 'skills-old', '.agents', 'skills')], [join(home, '.agents', 'skills-old', '.claude', 'skills', 'tidy')], admitted],
+    ['refuses a copy that is a library, through a landing that leads to the library\'s parent', home, [join(toClaude, '.claude', 'skills')], [join(toClaude, '.claude', 'skills', 'skills')], refused],
+    ['refuses a copy that is a library that is itself a link', linked, [join(toLinked, '.claude', 'skills')], [join(toLinked, '.claude', 'skills', 'skills')], refused],
+    ['refuses a project inside where a library that is itself a link leads', far, [at('dot', 'skills', 'tidy', '.claude', 'skills')], [], refused],
+    ['refuses a copy that would hold where a library that is itself a link leads', far, [join(above, '.claude', 'skills')], [join(above, '.claude', 'skills', 'dot')], refused],
+    ['refuses an install whose copy would hold a library', home, [join(atHome, '.claude', 'skills'), join(atHome, '.agents', 'skills')], [join(atHome, '.claude', 'skills', '.claude'), join(atHome, '.agents', 'skills', '.claude')], refused],
+    ['refuses a copy that would hold a library not there yet, named in another letter case', bare, [join(atBare, '.claude', 'skills')], [join(atBare, '.claude', 'skills', '.CLAUDE')], refused],
+    ['admits a copy that is itself a link to a library, which is deleted as the link alone', home, [join(own, '.claude', 'skills')], [join(own, '.claude', 'skills', 'borrowed')], admitted]
+  ])('%s', (_what, h, landings, copies, expected) => {
+    expect(judge(h, landings, copies)).toEqual(expected)
+  })
+
+  // On a volume that ignores letter case (macOS's default, not the Linux of CI, where that spelling is another directory)
+  it.skipIf(!existsSync(at('HOME')))('refuses the home directory spelled in another letter case', () => {
+    expect(judge(home, [at('HOME', '.claude', 'skills')], [])).toEqual(refused)
+  })
+
+  afterAll(() => rmSync(root, { recursive: true, force: true }))
+})
