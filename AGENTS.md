@@ -91,6 +91,9 @@ a retried "does not appear" check cannot prove absence.
   enforces the NUL case.
 - A figure about reading files from the main process, its worker threads included, counts only when measured
   under Electron with `pnpm bench:scan` (the chunk-size reasoning is at `CHUNK` in `engine/src/read/mod.rs`).
+- A scratch home, or any other directory standing in for an agent's data root in a bench or a check on real
+  data, holds no link, symbolic or hard, to real data at any depth, a link a copy carried over included (the
+  reason is in the header of `scripts/bench-scan.entry.ts`).
 - Application code reads a token cache entry only through `CacheEntries` (`src/main/providers/token-stats.ts`), which hands
   out a well-formed entry or none, and never opens the token store or the JSON cache it replaced itself; `pnpm lint` fails
   when a file under `src/` other than the engine, the tests and the test helpers in `src/main/testing/` names

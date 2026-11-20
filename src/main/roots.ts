@@ -1,7 +1,7 @@
 // The real data roots in production (tests do not come through here; fixtures are injected via ScanRoots).
-// AGENTSHED_HOME_OVERRIDE: an e2e-only injection point — a fixture directory stands in for home,
-// so the whole chain (IPC and allow-lists included) can be asserted deterministically against seeded
-// data. Never set in production.
+// AGENTSHED_HOME_OVERRIDE: an injection point for e2e and `pnpm bench:scan` — a fixture directory or a
+// scratch home stands in for home, so the whole chain (IPC and allow-lists included) can be asserted
+// deterministically against seeded data, or measured against a copy. Never set in production.
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { ScanRoots } from './providers/types'
