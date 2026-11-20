@@ -18,6 +18,7 @@ import {
   type SkillInstallArgs,
   type SkillLandingResult,
   type SkillHoldings,
+  type SkillLibraryDirs,
   type ListSkillFilesArgs,
   type ListSkillFilesResult
 } from '@shared/ipc'
@@ -36,7 +37,7 @@ import { ENGINE_BUILD, engineModulePath, threadEngineModule } from './engine-mod
 import { settleForQuit } from './quit'
 import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
-import { installIntoListedProject, skillHoldings, uninstallFromListedProject } from './providers/install'
+import { installIntoListedProject, libraryDirs, skillHoldings, uninstallFromListedProject } from './providers/install'
 import { APP_HOST, registerAppProtocol } from './app-protocol'
 import { realRoots } from './roots'
 import {
@@ -537,6 +538,12 @@ handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallFromListedProject(rea
 handle(CMD.skillHoldings, (_e, name: unknown): SkillHoldings => {
   if (typeof name !== 'string') throw appError(ERR.badArgs, { channel: 'skillHoldings' })
   return skillHoldings((current?.projects ?? []).filter((p) => !p.stale).map((p) => p.path), name)
+})
+// The same live projects, probed for the skills directories an install would change a global library through
+// (skill-install R4); the install itself still refuses one the picker has not yet disabled
+handle(CMD.skillLibraryDirs, (): SkillLibraryDirs => {
+  const roots = realRoots()
+  return Object.fromEntries((current?.projects ?? []).filter((p) => !p.stale).map((p) => [p.path, libraryDirs(roots, p.path)]))
 })
 
 function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {

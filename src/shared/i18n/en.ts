@@ -101,6 +101,7 @@ export const en: Locale = {
       `Installed ${skill} → ${project}’s shared directory (by copy; loaded by ${sides})`,
     landingFailed: (skill, project, where, reason) => `${skill} → ${project} (${where}): ${reason}`,
     pickStale: 'Stale, disabled',
+    pickLibrary: 'Global library, disabled',
     pickHasSame: 'Same name installed',
     grokBorrowHint: 'Grok reads Claude Code’s global skills / subagents / plugins / MCP at runtime; those borrowed components belong to the Claude side and do not join Grok’s lists',
     skillsHint: 'Merged into one list · click a row for package files · click a file to preview · no cross-side diff · plugins are read-only',

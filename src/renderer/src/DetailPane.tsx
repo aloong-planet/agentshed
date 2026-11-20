@@ -635,7 +635,8 @@ function SkillsTab({
               key={`${s.side}-${s.level}-${s.name}`}
               s={s}
               projectPath={detail.path}
-              onUninstall={s.level === 'project' ? () => setConfirm(s) : undefined}
+              // A project-level skill in a global library, or inside one, is shown with no Uninstall (skill-install R4)
+              onUninstall={s.level === 'project' && !detail.libraryDirs.includes(PROJECT_SKILLS_DIR[s.side]) ? () => setConfirm(s) : undefined}
             />
           ))}
         </div>

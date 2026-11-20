@@ -11,6 +11,7 @@ import {
   type SkillInstallArgs,
   type SkillLandingResult,
   type SkillHoldings,
+  type SkillLibraryDirs,
   type Prefs,
   type AppearanceMode,
   type AppearanceTheme,
@@ -55,13 +56,14 @@ function checked(snap: unknown): Snapshot {
   return snap as Snapshot
 }
 
-/** The picker's holdings: project path → directory names. Anything else is a broken contract, not "nothing held" */
-function checkedHoldings(raw: unknown): SkillHoldings {
+/** The picker's holdings or library directories: project path → directory names. Anything else is a broken contract,
+ * not "nothing held" or "no library" */
+function checkedProjectDirs(raw: unknown, path: 'skillHoldings' | 'skillLibraryDirs'): Record<string, string[]> {
   const ok =
     typeof raw === 'object' && raw !== null && !Array.isArray(raw) &&
     Object.values(raw).every((dirs) => Array.isArray(dirs) && dirs.every((d) => typeof d === 'string'))
-  if (!ok) throw appError(ERR.contractType, { path: 'skillHoldings', expect: 'Record<string,string[]>' })
-  return raw as SkillHoldings
+  if (!ok) throw appError(ERR.contractType, { path, expect: 'Record<string,string[]>' })
+  return raw as Record<string, string[]>
 }
 
 function checkedPrefs(raw: unknown): Prefs {
@@ -204,7 +206,9 @@ const api = {
   installSkill: (args: SkillInstallArgs): Promise<SkillLandingResult[]> =>
     ipcRenderer.invoke(CMD.installSkill, args) as Promise<SkillLandingResult[]>,
   skillHoldings: async (skillName: string): Promise<SkillHoldings> =>
-    checkedHoldings(await ipcRenderer.invoke(CMD.skillHoldings, skillName)),
+    checkedProjectDirs(await ipcRenderer.invoke(CMD.skillHoldings, skillName), 'skillHoldings'),
+  skillLibraryDirs: async (): Promise<SkillLibraryDirs> =>
+    checkedProjectDirs(await ipcRenderer.invoke(CMD.skillLibraryDirs), 'skillLibraryDirs'),
   uninstallSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
     ipcRenderer.invoke(CMD.uninstallSkill, args) as Promise<SkillOpResult>,
   listSkillFiles: (args: ListSkillFilesArgs): Promise<ListSkillFilesResult> =>

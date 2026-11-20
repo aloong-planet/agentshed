@@ -496,6 +496,72 @@ test('an install or uninstall outside the app\'s projects is refused, even into 
   await close(l)
 })
 
+// skill-install R4: the home directory listed as a project, its .claude/skills being Claude's library and its
+// .agents/skills Codex's, shows its skills and offers neither an install into it nor an uninstall from it, while a
+// project beside it does as before; and a page that asks anyway is refused, with nothing written or deleted.
+test('the home directory listed as a project offers no install or uninstall, and a page asking anyway is refused', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-library-'))
+  const homeName = home.slice(home.lastIndexOf('/') + 1)
+  const proj = join(home, 'proj')
+  const own = join(proj, '.claude', 'skills', 'own-skill')
+  mkdirSync(own, { recursive: true })
+  writeFileSync(join(own, 'SKILL.md'), '---\ndescription: own\n---\n')
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [home]: {}, [proj]: {} } }))
+  const library = join(home, '.claude', 'skills', 'tidy')
+  mkdirSync(library, { recursive: true })
+  writeFileSync(join(library, 'SKILL.md'), '---\ndescription: tidy\n---\nglobal\n')
+  const codex = join(home, '.agents', 'skills', 'other')
+  mkdirSync(codex, { recursive: true })
+  writeFileSync(join(codex, 'SKILL.md'), '---\ndescription: other\n---\n')
+  // A skill in Antigravity's own library alone: installed for agy alone, it would land in the shared directory
+  const agy = join(home, '.gemini', 'antigravity-cli', 'skills', 'agy-only')
+  mkdirSync(agy, { recursive: true })
+  writeFileSync(join(agy, 'SKILL.md'), '---\ndescription: agy\n---\n')
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
+  const target = (name: RegExp) => win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: name }) })
+
+  // The picker: the home directory is listed, labelled and disabled once the main process has answered; a forced click
+  // on it does nothing, and the project beside it is chosen as before
+  await tab('Skills').click()
+  await skillRow(win, 'tidy').locator('.ins').click()
+  await expect(target(new RegExp(`^${homeName}$`)).locator('.pop-why')).toHaveText('Global library, disabled')
+  await expect(target(new RegExp(`^${homeName}$`))).toBeDisabled()
+  await expect(target(/^proj$/)).toBeEnabled()
+  await expect(target(/^proj$/).locator('.pop-why')).toHaveCount(0)
+  await target(new RegExp(`^${homeName}$`)).click({ force: true })
+  await target(/^proj$/).click()
+  await expect(win.locator('.toast.ok')).toHaveText('Installed tidy → proj (claude)')
+  expect(await win.locator('.toast').count()).toBe(1)
+  expect(readFileSync(join(library, 'SKILL.md'), 'utf8')).toContain('global')
+
+  // Project detail: the home directory's project-level skills, Claude's and the shared directory's, are listed with no
+  // Uninstall; the project beside it offers one on its own skill
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: homeName }).click()
+  await tab('Skills').click()
+  const detailRow = (name: string) => win.locator('.pane-body .sk', { has: win.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+  for (const name of ['tidy', 'other']) {
+    await expect(detailRow(name)).toBeVisible()
+    await expect(detailRow(name).locator('.ins')).toHaveCount(0)
+  }
+  await win.locator('.side .row', { hasText: /^proj/ }).click()
+  await expect(detailRow('own-skill').locator('.ins')).toBeVisible()
+
+  // A page that asks anyway
+  expect(await win.evaluate((p) => window.agentshed.uninstallSkill({ skillName: 'tidy', side: 'claude', targetProjectPath: p }), home))
+    .toEqual({ ok: false, reason: 'skill-target-global-library' })
+  expect(readFileSync(join(library, 'SKILL.md'), 'utf8')).toContain('global')
+  expect(await win.evaluate((p) => window.agentshed.installSkill({ skillName: 'agy-only', sides: ['antigravity'], targetProjectPath: p }), home))
+    .toEqual([{ dir: '.agents/skills', loaders: ['codex', 'antigravity'], result: { ok: false, reason: 'skill-target-global-library' } }])
+  expect(readdirSync(join(home, '.agents', 'skills'))).toEqual(['other'])
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // skill-install R3 before the first scan: the projects the app lists then are the restored snapshot's, the ones the
 // renderer draws. An install into one of them goes ahead while the scan is held, and a project registered since the
 // last launch, which no snapshot lists yet, is refused.

@@ -275,7 +275,8 @@ function okDetail(): Record<string, unknown> {
     ],
     mcp: [{ name: 'figma', enabled: null }],
     configs: { claudeMd: null, agentsMd: null },
-    stats: null
+    stats: null,
+    libraryDirs: ['.agents/skills']
   }
 }
 
@@ -320,11 +321,15 @@ describe('validateProjectDetail — refusing, and pointing at the field path', (
   })
 
   it('a missing top-level array — forgetting to sync a new section surfaces at the boundary', () => {
-    for (const k of ['skills', 'subagents', 'plugins', 'mcp']) {
+    for (const k of ['skills', 'subagents', 'plugins', 'mcp', 'libraryDirs']) {
       const r = bad((d) => { delete d[k] })
       expect(r.ok, `a missing ${k} should be refused`).toBe(false)
       expect(errOf(r)).toContain(k)
     }
+  })
+
+  it('a library directory that is not a string (skill-install R4)', () => {
+    expect(errOf(bad((d) => { d.libraryDirs = ['.claude/skills', 7] }))).toBe('detail.libraryDirs')
   })
 
   it('an invalid enum value', () => {

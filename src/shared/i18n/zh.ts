@@ -146,6 +146,7 @@ export const zh = {
       `${skill} → ${project}(${where}):${reason}`,
     /** The install picker's row tags (skill-install::REQ-003) */
     pickStale: '失效,禁用',
+    pickLibrary: '全局库,禁用',
     pickHasSame: '已装同名',
     grokBorrowHint: 'Grok 运行时会读取 Claude Code 的全局 skills / subagents / plugins / MCP;这些借入组件归属 Claude 侧,不并入 Grok 的清单',
     skillsHint: '合并单列 · 点行展开包内文件 · 点文件预览 · 无跨侧 diff · 插件只读',

@@ -426,6 +426,25 @@ it('restores a project detail saved before instruction entries carried their pat
   ])
 })
 
+// skill-install R4 across an update: a project page saved before it carried which of its skills directories are a
+// global library restores as if every one were, so it offers no Uninstall until the live read says which are; one saved
+// after carries its own, and a malformed one is still dropped.
+it('restores a project detail saved before it carried its library directories as if every one were', () => {
+  const root = dir()
+  const saved = (path: string, extra: Record<string, unknown>) => ({ kind: 'projectDetail', path, data: {
+    path, skills: [], subagents: [], memory: { main: null, mainFile: null, topics: [] }, plugins: [], mcp: [],
+    configs: { claudeMd: null, agentsMd: null }, stats: null, ...extra
+  } })
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
+    ...emptyDisplayData(), reads: [saved('/w/before', {}), saved('/w/after', { libraryDirs: [] }), saved('/w/bad', { libraryDirs: '.claude/skills' })]
+  } }))
+  const reads = new DisplayStore(root).get().reads
+  expect(reads.map((r) => (r.kind === 'projectDetail' ? [r.path, r.data.libraryDirs] : null))).toEqual([
+    ['/w/before', ['.claude/skills', '.agents/skills', '.grok/skills']],
+    ['/w/after', []]
+  ])
+})
+
 // The read path across the retirement of the project's document list: a display cache saved before it — the shape of
 // this machine's on 2026-11-14 — registers memory files and documents under one key, `artifacts`, and saves a read of
 // either as `artifactContent`. The scan's registration held only the memory files the snapshot lists (Codex's outside
@@ -471,7 +490,9 @@ it('restores the memory files a display cache saved before the document list wen
   expect(restored.reads).toEqual([
     { kind: 'projectDetail', path: '/w/p', data: {
       path: '/w/p', skills: [], subagents: [], plugins: [], mcp: [], configs: { claudeMd: null, agentsMd: null }, stats: null,
-      memory: { main: text('# Index'), mainFile: memoryFile(main), topics: [memoryFile(fresh), memoryFile(topic)] }
+      memory: { main: text('# Index'), mainFile: memoryFile(main), topics: [memoryFile(fresh), memoryFile(topic)] },
+      // Saved before the page carried its library directories, too (skill-install R4)
+      libraryDirs: ['.claude/skills', '.agents/skills', '.grok/skills']
     } },
     { kind: 'memoryContent', file: topic, data: text('Saved topic') },
     { kind: 'memoryContent', file: fresh, data: text('Saved fresh topic') },
@@ -752,7 +773,7 @@ function stats(rows: UsageRow[]): ProjectStats {
 function detail(path: string, side: AgentSide | null, s: ProjectStats | null): ProjectDetail {
   return {
     path, subagents: [], memory: { main: null, mainFile: null, topics: [] }, plugins: [], mcp: [],
-    configs: { claudeMd: null, agentsMd: null }, stats: s,
+    configs: { claudeMd: null, agentsMd: null }, stats: s, libraryDirs: [],
     skills: side === null ? [] : [{ name: 's', description: null, level: 'project', side, symlink: false, pkg: null,
       origin: 'disk', pluginName: null, pluginRoot: null, pluginSkillName: null }]
   }

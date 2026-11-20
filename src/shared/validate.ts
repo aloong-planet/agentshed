@@ -572,6 +572,9 @@ export function validateProjectDetail(v: unknown): ValidateResult {
     const r = validateProjectStats(v['stats'])
     if (!r.ok) return r
   }
+  const libraryDirs = v['libraryDirs']
+  if (!Array.isArray(libraryDirs) || !libraryDirs.every((d) => typeof d === 'string'))
+    return failType('detail.libraryDirs', 'string[]')
   return { ok: true }
 }
 

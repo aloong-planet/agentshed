@@ -680,6 +680,9 @@ export interface ProjectDetail {
   /** The overview tab's data: the project's figures from the last completed scan, attached by the main process; null
    * when that scan holds none for it. The page draws the window's own over them (project-detail::REQ-005) */
   stats: ProjectStats | null
+  /** The project's skills directories (relative) that are a global library or lie inside one: their skills are shown
+   * with no Uninstall (skill-install R4) */
+  libraryDirs: string[]
 }
 
 /** The overview snapshot: one scan's complete output (extended incrementally by tickets 02–07) */
