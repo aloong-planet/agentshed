@@ -11,8 +11,8 @@ Declared in `capabilities.toml` under `macos-distribution.profiles`:
 
 | Command | Profile | What it does |
 |---|---|---|
-| `pnpm dist:mac:local` | local | Checks for the Developer ID identity, then one electron-builder call builds and signs the `.app`, the DMG and the ZIP of the app (with the update metadata); never notarizes, even with Apple credentials loaded. Launches the built app to check the inputs it must refuse. Policy §1, §3, §6 |
-| `pnpm dist:mac:release` | release | Checks the identity and the Apple credentials before building; the same call notarizes and staples the `.app` through the `afterSign` hook before its DMG and ZIP are built; then launches the app to check the inputs it must refuse, checks the ZIP's app and the update metadata, and signs, notarizes, staples and gates the DMG. Policy §3, §6, §7 |
+| `pnpm dist:mac:local` | local | Checks for the Developer ID identity, then one electron-builder call builds and signs the `.app`, the DMG and the ZIP of the app (with the update metadata); never notarizes, even with Apple credentials loaded. Reads the built app's Electron fuses back and fails on one that differs from `electronFuses`, then launches the built app to check the inputs it must refuse. Policy §1, §3, §6 |
+| `pnpm dist:mac:release` | release | Checks the identity and the Apple credentials before building; the same call notarizes and staples the `.app` through the `afterSign` hook before its DMG and ZIP are built; then reads the app's fuses back as the local profile does, launches the app to check the inputs it must refuse, checks the ZIP's app and the update metadata, and signs, notarizes, staples and gates the DMG. Policy §3, §6, §7 |
 
 Both run `build/mac-packaging.cjs`, the electron-scaffold packaging asset, with its tests in
 `build/mac-packaging.test.cjs` (run by `pnpm test:scripts`, part of `pnpm verify` and of CI). **The two files
@@ -74,9 +74,15 @@ MP=$(mktemp -d) && hdiutil attach -readonly -nobrowse -mountpoint "$MP" "$DMG"
 codesign --verify --deep --strict --verbose=2 "$MP/Agentshed.app"
 xcrun stapler validate "$MP/Agentshed.app"       # release only
 /usr/libexec/PlistBuddy -c "Print LSMinimumSystemVersion" "$MP/Agentshed.app/Contents/Info.plist"   # 12.0
+FUSES=$(node -p "require('path').join(require('path').dirname(require.resolve('@electron/fuses/package.json', { paths: [require.resolve('app-builder-lib/package.json', { paths: [require.resolve('electron-builder/package.json')] })] })), 'dist/bin.js')")
+node "$FUSES" read --app "$MP/Agentshed.app"     # each fuse against electronFuses in electron-builder.yml
 hdiutil detach "$MP"
-node scripts/check-fuses.mjs                     # the Electron fuses of the built app
 ```
+
+The fuse lines come from the CLI of the `@electron/fuses` that electron-builder flips the fuses with, resolved through
+electron-builder's dependencies (run from the repository root). Compare each with `electronFuses` in
+`electron-builder.yml`: this runbook keeps no copy of the expected values. Its 1.8.0 CLI prints the ninth fuse, which
+`electronFuses` does not set, as `undefined`.
 
 The ZIP's app, and the metadata against the ZIP (policy §7); the ZIP itself is never written to:
 

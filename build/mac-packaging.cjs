@@ -25,6 +25,12 @@
 // certificate comes from the login keychain or, in CI, from CSC_LINK. The YAML parser is the js-yaml that
 // electron-builder itself depends on.
 //
+// Both profiles read every built app's Electron fuses back from its framework binary right after the build, before any
+// signature, launch or DMG check, and fail on any fuse that differs from `electronFuses` in electron-builder.yml, in
+// any slice (electron-security.md, item 19). `electronFuses` is the only source of the expected values; without it,
+// nothing is checked and the log says so. The wire's layout comes from the @electron/fuses electron-builder flips the
+// fuses with, resolved as js-yaml is.
+//
 // Both profiles launch the built app and require it to refuse launch inputs with exit code 64 (macos-signing.md,
 // section 6; electron-security.md, item 21). The app must implement that refusal: this file only checks it.
 
@@ -39,14 +45,19 @@ const DMG_ARTIFACT_NAME = '${productName}-${version}-mac-${arch}.dmg'
 // electron-builder takes no zip-specific options, so the ZIP is named by the mac-wide pattern
 const ZIP_ARTIFACT_NAME = '${productName}-${version}-mac-${arch}.${ext}'
 
+/** A module from electron-builder's dependency tree, resolved from the app-builder-lib electron-builder depends on */
+function fromBuilderTree(id, resolve) {
+  const builderLib = path.dirname(resolve('app-builder-lib/package.json', { paths: [path.dirname(resolve('electron-builder/package.json'))] }))
+  return require(resolve(id, { paths: [builderLib] }))
+}
+
 /**
  * The js-yaml electron-builder depends on, resolved through electron-builder's own dependency tree so the project
  * needs no YAML parser of its own. `resolve` is injectable for tests.
  */
 function yamlParser(resolve = require.resolve) {
   try {
-    const builderLib = path.dirname(resolve('app-builder-lib/package.json', { paths: [path.dirname(resolve('electron-builder/package.json'))] }))
-    return require(resolve('js-yaml', { paths: [builderLib] }))
+    return fromBuilderTree('js-yaml', resolve)
   } catch (error) {
     throw new Error(
       'cannot load js-yaml through electron-builder (electron-builder → app-builder-lib → js-yaml); ' +
@@ -54,6 +65,40 @@ function yamlParser(resolve = require.resolve) {
       { cause: error }
     )
   }
+}
+
+// @electron/fuses keeps the sentinel and the state bytes in this module, which its index does not re-export
+const FUSES_CONSTANTS = '@electron/fuses/dist/constants'
+
+/**
+ * The fuse wire's layout, from the @electron/fuses electron-builder flips the fuses with, resolved through
+ * electron-builder's own dependency tree as js-yaml is: the sentinel each wire follows, the state bytes and the option
+ * indices. A module that moved, or no longer holds what is read from it, fails here, named. `resolve` is injectable
+ * for tests.
+ */
+function fusesLibrary(resolve = require.resolve) {
+  const load = (id) => {
+    try {
+      return fromBuilderTree(id, resolve)
+    } catch (error) {
+      throw new Error(
+        `cannot load ${id} through electron-builder (electron-builder → app-builder-lib → @electron/fuses), which the fuse check reads ` +
+          `the fuse wire's layout from (${error instanceof Error ? error.message : String(error)})`,
+        { cause: error }
+      )
+    }
+  }
+  const { SENTINEL, FuseState } = load(FUSES_CONSTANTS)
+  if (typeof SENTINEL !== 'string' || typeof FuseState?.ENABLE !== 'number' || typeof FuseState?.DISABLE !== 'number') {
+    throw new Error(`${FUSES_CONSTANTS} does not hold SENTINEL and FuseState as the fuse check reads them`)
+  }
+  const { FuseV1Options } = load('@electron/fuses')
+  for (const [key, option] of Object.entries(FUSE_OPTIONS)) {
+    if (typeof FuseV1Options?.[option] !== 'number') {
+      throw new Error(`@electron/fuses has no FuseV1Options.${option}, which the fuse check maps electronFuses.${key} to`)
+    }
+  }
+  return { sentinel: Buffer.from(SENTINEL), states: FuseState, options: FuseV1Options }
 }
 
 /** The architectures of the macOS DMG target in electron-builder.yml, in config order. */
@@ -95,6 +140,36 @@ function resolveLayout(config, packageJsonText) {
     throw new Error(`with the zip target, electron-builder.yml must set dmg.writeUpdateInfo: false (found: ${config.dmg.writeUpdateInfo ?? 'nothing'})`)
   }
   return { productName: config.productName, version, outputDir, arches, zip }
+}
+
+// The electronFuses keys that set a fuse, with the @electron/fuses option each one sets, as app-builder-lib's
+// generateFuseConfig maps them; resetAdHocDarwinSignature is a key that sets none (it re-signs after the flip)
+const FUSE_OPTIONS = {
+  runAsNode: 'RunAsNode',
+  enableCookieEncryption: 'EnableCookieEncryption',
+  enableNodeOptionsEnvironmentVariable: 'EnableNodeOptionsEnvironmentVariable',
+  enableNodeCliInspectArguments: 'EnableNodeCliInspectArguments',
+  enableEmbeddedAsarIntegrityValidation: 'EnableEmbeddedAsarIntegrityValidation',
+  onlyLoadAppFromAsar: 'OnlyLoadAppFromAsar',
+  loadBrowserProcessSpecificV8Snapshot: 'LoadBrowserProcessSpecificV8Snapshot',
+  grantFileProtocolExtraPrivileges: 'GrantFileProtocolExtraPrivileges'
+}
+const NOT_FUSES = ['resetAdHocDarwinSignature']
+
+/**
+ * The fuses electron-builder.yml's electronFuses sets, each with the option it sets and the value it sets it to, in
+ * config order. A key set to null or left out sets nothing, as electron-builder skips it. A key this file cannot map
+ * fails here, before the build: a fuse that cannot be checked must not be shipped as if it had been.
+ */
+function configuredFuses(config) {
+  return Object.entries(config?.electronFuses ?? {})
+    .filter(([key, value]) => value != null && !NOT_FUSES.includes(key))
+    .map(([key, value]) => {
+      if (!Object.hasOwn(FUSE_OPTIONS, key)) {
+        throw new Error(`electron-builder.yml sets electronFuses.${key}, which mac-packaging.cjs cannot map to a fuse, so it could not check that the build applied it`)
+      }
+      return { key, option: FUSE_OPTIONS[key], enabled: Boolean(value) }
+    })
 }
 
 /**
@@ -187,6 +262,53 @@ function findBuiltApps({ outputDir, productName, arches, run }) {
   const missing = arches.filter((arch) => !byArch.has(arch))
   if (missing.length > 0) throw new Error(`no built app for ${missing.join(', ')} under ${outputDir}`)
   return arches.map((arch) => ({ arch, app: byArch.get(arch) }))
+}
+
+// The binary electron-builder flips an app's fuses in, at @electron/fuses' path for an .app (on a real app, a symlink
+// into the framework's Versions directory)
+const frameworkBinary = (app) => path.join(app, 'Contents', 'Frameworks', 'Electron Framework.framework', 'Electron Framework')
+const FUSE_WIRE_VERSION = 1
+
+/**
+ * Reads each built app's fuses back from its Electron Framework binary and fails unless every fuse electronFuses sets has
+ * the state it sets in every slice: the wire follows a sentinel in each slice, and a universal binary has two. The
+ * config is no proof that the fuses were applied; only the built binary is. Every difference is reported together;
+ * a wire that cannot be read as electron-builder writes it fails at once.
+ */
+function checkFuses(apps, { fuses, library, log = console.log }) {
+  if (fuses.length === 0) {
+    log('[mac] electron-builder.yml sets no electronFuses, so no fuse is checked')
+    return
+  }
+  const { sentinel, states, options } = library
+  const differences = []
+  for (const { app } of apps) {
+    const file = frameworkBinary(app)
+    const bytes = fs.readFileSync(file)
+    const wires = []
+    for (let at = bytes.indexOf(sentinel); at !== -1; at = bytes.indexOf(sentinel, at + sentinel.length)) wires.push(at + sentinel.length)
+    if (wires.length === 0) throw new Error(`no fuse wire in ${file}, so none of the fuses electronFuses sets can have been applied`)
+    const found = differences.length
+    wires.forEach((wire, n) => {
+      const slice = `${n + 1} of ${wires.length}`
+      if (bytes[wire] !== FUSE_WIRE_VERSION) {
+        throw new Error(`fuse wire ${slice} in ${file} is version ${bytes[wire]}; the fuse check reads version ${FUSE_WIRE_VERSION}`)
+      }
+      const length = bytes[wire + 1]
+      for (const { key, option, enabled } of fuses) {
+        const index = options[option]
+        const expected = enabled ? states.ENABLE : states.DISABLE
+        const state = index < length ? bytes[wire + 2 + index] : null
+        if (state === expected) continue
+        const shown = state === null ? `not in the wire (it has ${length} fuses)` : (states[state] ?? `byte ${state}`)
+        differences.push(`${app}: ${option} (electronFuses.${key}) in slice ${slice} is ${shown}, expected ${states[expected]}`)
+      }
+    })
+    if (differences.length === found) log(`[mac] ${app}: every fuse electronFuses sets is as set (slices read: ${wires.length})`)
+  }
+  if (differences.length > 0) {
+    throw new Error(`the fuses of the built apps differ from electronFuses in electron-builder.yml:\n${differences.map((line) => `  ${line}`).join('\n')}`)
+  }
 }
 
 /**
@@ -460,12 +582,13 @@ function submitForNotarization(file, { credentials, run, writeError }) {
  * notarization stays off; the release profile notarizes each .app through the afterSign hook instead, after signing
  * and before that arch's DMG is built. Signatures, and in release the stapled tickets, are confirmed on the result.
  */
-function packageMac({ profile, env, run, outputDir, productName, version, arches, zip = false, hookPath, launch = launchApp, hostArch = process.arch, log = console.log }) {
+function packageMac({ profile, env, run, outputDir, productName, version, arches, zip = false, fuses = [], hookPath, launch = launchApp, hostArch = process.arch, log = console.log }) {
   if (profile !== 'local' && profile !== 'release') throw new Error(`unknown profile: ${profile}`)
   const release = profile === 'release'
-  // Both checks come before the build: the hook would otherwise fail only after minutes of packing
+  // These checks come before the build: without them the packaging would fail on the same cause only after minutes of packing
   if (release) readCredentials(env)
   certificateSource(env, run)
+  const fuseLayout = fuses.length > 0 ? fusesLibrary() : null
 
   // Anything an earlier run left must not pass for this run's output: the builder could fail to write a DMG
   // without an error, a local package must never sit next to a log claiming it was notarized, and a leftover
@@ -497,6 +620,8 @@ function packageMac({ profile, env, run, outputDir, productName, version, arches
   ])
 
   const apps = findBuiltApps({ outputDir, productName, arches, run })
+  // electron-builder flips the fuses just before it signs, and nothing after the build writes the framework binary
+  checkFuses(apps, { fuses, library: fuseLayout, log })
   const teams = new Map()
   for (const { arch, app } of apps) {
     const display = run('codesign', ['--display', '--verbose=4', app])
@@ -746,7 +871,8 @@ function main(argv, env = process.env, root = process.cwd()) {
   }
   const configFile = path.join(root, 'electron-builder.yml')
   if (!fs.existsSync(configFile)) throw new Error(`run from the project root: no electron-builder.yml in ${root}`)
-  const layout = resolveLayout(yamlParser().load(fs.readFileSync(configFile, 'utf8')), fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
+  const config = yamlParser().load(fs.readFileSync(configFile, 'utf8'))
+  const layout = resolveLayout(config, fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
   const outputDir = path.join(root, layout.outputDir)
 
   if (command === 'notarize-dmg') {
@@ -770,10 +896,11 @@ function main(argv, env = process.env, root = process.cwd()) {
     return ids
   }
 
+  const fuses = configuredFuses(config)
   // electron-builder resolves the hook relative to the project root, wherever this file was copied to
   const hookPath = path.relative(root, __filename)
   if (hookPath.startsWith('..') || path.isAbsolute(hookPath)) throw new Error(`this script must live inside the project: ${__filename}`)
-  const result = packageMac({ profile: command, env, run: runStep, ...layout, outputDir, hookPath })
+  const result = packageMac({ profile: command, env, run: runStep, ...layout, outputDir, fuses, hookPath })
   console.log(`[mac] ${command} packaging done for ${layout.arches.join(', ')}`)
   return result
 }
@@ -783,10 +910,13 @@ module.exports = {
   assertDmgSignature,
   certificateSource,
   checkArtifactSet,
+  checkFuses,
   checkLaunchInputs,
   configuredArches,
+  configuredFuses,
   findBuiltApps,
   findMountedApp,
+  fusesLibrary,
   launchApp,
   main,
   notarizeDmg,
