@@ -69,6 +69,16 @@ describe('errorText', () => {
     expect(errorText('zh', del)).toBe('未能完全删除 /p/.claude/skills/tidy')
   })
 
+  // skill-install R3: a target that is not one of the app's projects is named as such, never as A5's stale project.
+  // Han by code point (check:lang): "the target is not this app's project"
+  it('a target that is not one of the app\'s projects', () => {
+    expect(errorText('en', appError(ERR.skillTargetNotProject))).toBe('The target is not one of the app’s projects')
+    const zh = (...cps: number[]): string => String.fromCharCode(...cps)
+    expect(errorText('zh', appError(ERR.skillTargetNotProject))).toBe(
+      `${zh(0x76ee, 0x6807, 0x4e0d, 0x662f, 0x672c)} app ${zh(0x7684, 0x9879, 0x76ee)}`
+    )
+  })
+
   // skill-install::REQ-004/AC-02, AC-03: the reason names the link by its path inside the skill. Han by code point
   // (check:lang): "link", "what it points to does not exist", "points back to", "itself", "nothing was installed"
   it('a link that leads nowhere and a link that leads back each name the link', () => {

@@ -244,31 +244,27 @@ describe('skillOpTarget (which directory a skill install or uninstall may go int
     { path: '/Users/x/work/gone', stale: true }
   ]
 
-  it('admits a listed project that is not stale, by its exact path, a project inside another included', () => {
-    expect(skillOpTarget(projects, '/Users/x/work/beta')).toEqual({ ok: true })
-    expect(skillOpTarget(projects, '/Users/x/work/beta/nested')).toEqual({ ok: true })
-  })
-
+  const admitted = { ok: true }
+  const notProject = { ok: false, code: ERR.skillTargetNotProject }
   it.each([
-    ['a directory no project has', projects, '/Users/x/work/gamma'],
-    ['the home directory', projects, '/Users/x'],
-    ['the parent of a project', projects, '/Users/x/work'],
-    ['a directory inside a project that is not itself listed', projects, '/Users/x/work/alpha/src'],
-    ['a project with a trailing separator', projects, '/Users/x/work/alpha/'],
-    ['a .. segment leading to a listed project', projects, '/Users/x/work/alpha/../beta'],
-    ['a .. segment leading out of a project', projects, '/Users/x/work/alpha/..'],
-    ['a project in another letter case', projects, '/Users/x/work/ALPHA'],
-    ['a prefix lookalike of a project', projects, '/Users/x/work/alpha2'],
-    ['a project spelled in another Unicode normalisation', projects, nfc.normalize('NFD')],
-    ['a relative spelling of a project', projects, 'work/alpha'],
-    ['an empty path', projects, ''],
-    ['the root directory', projects, '/'],
-    ['any path, when the app lists no project', [], '/Users/x/work/alpha']
-  ])('refuses %s as not one of the app\'s projects', (_what, listed, target) => {
-    expect(skillOpTarget(listed, target)).toEqual({ ok: false, code: ERR.skillTargetNotProject })
-  })
-
-  it('refuses a project the app lists as stale as stale', () => {
-    expect(skillOpTarget(projects, '/Users/x/work/gone')).toEqual({ ok: false, code: ERR.skillStaleTarget })
+    ['admits a listed project that is not stale, by its exact path', projects, '/Users/x/work/beta', admitted],
+    ['admits a listed project inside another listed project', projects, '/Users/x/work/beta/nested', admitted],
+    ['refuses a directory no project has as not one of the app\'s projects', projects, '/Users/x/work/gamma', notProject],
+    ['refuses the home directory as not one of the app\'s projects', projects, '/Users/x', notProject],
+    ['refuses the parent of a project as not one of the app\'s projects', projects, '/Users/x/work', notProject],
+    ['refuses a directory inside a project that is not itself listed as not one of the app\'s projects', projects, '/Users/x/work/alpha/src', notProject],
+    ['refuses a project with a trailing separator as not one of the app\'s projects', projects, '/Users/x/work/alpha/', notProject],
+    ['refuses a .. segment leading to a listed project as not one of the app\'s projects', projects, '/Users/x/work/alpha/../beta', notProject],
+    ['refuses a .. segment leading out of a project as not one of the app\'s projects', projects, '/Users/x/work/alpha/..', notProject],
+    ['refuses a project in another letter case as not one of the app\'s projects', projects, '/Users/x/work/ALPHA', notProject],
+    ['refuses a prefix lookalike of a project as not one of the app\'s projects', projects, '/Users/x/work/alpha2', notProject],
+    ['refuses a project spelled in another Unicode normalisation as not one of the app\'s projects', projects, nfc.normalize('NFD'), notProject],
+    ['refuses a relative spelling of a project as not one of the app\'s projects', projects, 'work/alpha', notProject],
+    ['refuses an empty path as not one of the app\'s projects', projects, '', notProject],
+    ['refuses the root directory as not one of the app\'s projects', projects, '/', notProject],
+    ['refuses any path, when the app lists no project, as not one of the app\'s projects', [], '/Users/x/work/alpha', notProject],
+    ['refuses a project the app lists as stale as stale', projects, '/Users/x/work/gone', { ok: false, code: ERR.skillStaleTarget }]
+  ])('%s', (_what, listed, target, expected) => {
+    expect(skillOpTarget(listed, target)).toEqual(expected)
   })
 })
