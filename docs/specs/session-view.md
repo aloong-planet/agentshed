@@ -1,8 +1,6 @@
 # Session view
 
-> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0053 (saved display pages, and the turns they keep) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module) · ADR-0052 (a project's search in the engine module)
-
-> Successful display payloads persist independently of the accounting index (ADR-0053).
+> Related: ADR-0038 (test layers) · ADR-0001 (the IPC contract, structured errors) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer) · ADR-0053 (saved display pages, and the turns they keep) · ADR-0018 (icons) · ADR-0037 (Antigravity CLI side) · ADR-0043 (a scan runs on a worker thread) · ADR-0045 (the token engine as one Rust module) · ADR-0054 (the turn read and its assembly in the engine module) · ADR-0052 (a project's search in the engine module)
 
 ## Problem Statement
 
@@ -279,17 +277,17 @@ hands the command over; it never runs it.
 
 **Sequence G: the Grok side** (full enumeration of its update types, 2026-08-16)
 - G1 A question = the run of user_message_chunk records sharing one promptIndex; chunks concatenate
-  **raw** (a long question splits mid-word), and a prompt opening with an injected
-  `<system-reminder>` notice is the harness speaking — it starts no question (A3a).
-- G2 The title takes summary.json's own name first (the Codex thread_name priority rule), falling
-  back to the first indexed question — the same source as the question set.
+  **raw**, and a prompt opening with an injected `<system-reminder>` notice starts no question (A3a).
+- G2 The title takes summary.json's own name first, falling back to the first indexed question — the
+  same source as the question set.
 - G3 One assistant message can split across agent_message_chunk records mid-word with state records
   between the fragments, so prose and thought chunks merge raw and the ten enumerated state types
   neither render nor break the merge; anything outside the enumeration leaves the unknown trace.
 - G4 Tool calls pair with their updates by toolCallId. A spawn_subagent dispatch is a sub block:
-  name from the paired subagent_spawned, result from the in-turn subagent_finished output — never
-  the "started in background" echo — and its internal steps stay unattributed (the child stream is
-  not read; the read allow-list admits listed streams only, so a subagent stream is refused).
+  name from the paired subagent_spawned, result from the in-turn subagent_finished output, or that
+  record's error when the output is not a non-empty string — never the "started in background" echo —
+  and its internal steps stay unattributed (the child stream is not read; the read allow-list admits
+  listed streams only, so a subagent stream is refused).
 - G5 No fork mechanism exists on this side: nothing is stripped and forkState is always none.
 
 **Sequence D: search**
