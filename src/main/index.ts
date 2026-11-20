@@ -1,5 +1,5 @@
 import './launch-guard'
-import { ReadRegistry } from './read-registrations'
+import { ReadRegistry, retireAfterDetail, retireAfterScan } from './read-registrations'
 import { DisplayStore, engineWrite } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, readSessionRanges, readSessionTurn, recordFileBytes, regularTarget } from './source-identity'
 import { readTurnRanges, TURN_LIMIT_SEAM, turnLimitBytes } from './turn-limit'
@@ -12,18 +12,13 @@ import { join } from 'node:path'
 import {
   CMD,
   EVT,
-  type SearchSessionsArgs,
-  type SessionTurnArgs,
-  type SkillOpArgs,
-  type SkillInstallArgs,
   type SkillLandingResult,
   type SkillHoldings,
   type SkillLibraryDirs,
-  type ListSkillFilesArgs,
   type ListSkillFilesResult
 } from '@shared/ipc'
 import type { CappedText, ProjectEntry, ProjectFigures, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
-import { AGENT_SIDES, assertSnapshot, assertProjectFigures, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
+import { assertSnapshot, assertProjectFigures, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { searchProjectSessions } from './providers/search-sessions'
 import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
@@ -44,10 +39,30 @@ import {
   assertTrustedSender,
   installCsp,
   installNavigationGuards,
-  installPermissionGuards,
-  sessionReadTarget,
-  sessionRevealTarget
+  installPermissionGuards
 } from './security'
+import {
+  admitMemoryFile,
+  admitSkillPackage,
+  checkedByPrefsHandlers,
+  copyTextArgs,
+  globalSearchArgs,
+  installSkillArgs,
+  listSkillFilesArgs,
+  listedSession,
+  listedSessionArg,
+  memoryFileArg,
+  noArgs,
+  projectDetailArgs,
+  revealSessionArg,
+  searchSessionsArgs,
+  sessionTurnArgs,
+  skillFileArg,
+  skillHoldingsArgs,
+  uninstallSkillArgs,
+  type GuardState,
+  type Register
+} from './ipc-guards'
 import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
 import { refusedLaunch } from './refused-launch'
@@ -56,7 +71,7 @@ import { createPrefsHandlers } from './prefs-handlers'
 import { buildMenuTemplate } from './app-menu'
 import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
-import { APP_VERSION_ARG, KEPT_TURNS_ARG, LANG_ARG, SEARCH_NEEDLE_MAX, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
+import { APP_VERSION_ARG, KEPT_TURNS_ARG, LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
 import { IDLE_UPDATE, parseSettingsCheck, parseUpdateNotice, parseUpdateState, type CheckOutcome, type SettingsCheck, type UpdateNotice, type UpdateState } from '@shared/update'
 import { UpdateController } from './update-controller'
@@ -269,12 +284,7 @@ async function doScan(): Promise<Snapshot> {
         pluginRoots: [...snap.global.plugins.flatMap(p => p.installPath ? [p.installPath] : []),
           ...snap.global.codexPlugins.flatMap(p => p.root ? [p.root] : []),
           ...snap.global.antigravityPlugins.map(p => p.root)], projects: [], skillFiles: [] })
-      for (const r of savedReads.values()) {
-        if (r.kind === 'projectDetail' && !snap.projects.some(p => p.path === r.path && !p.stale)) readRegistry.remove(`project:${r.path}`)
-        if (r.kind === 'skillFiles' && ((r.args.scope === 'project' && !snap.projects.some(p => p.path === r.args.projectPath && !p.stale)) ||
-          (r.args.scope === 'plugin' && !readRegistry.admission('pluginRoots', r.args.pluginRoot ?? '')) ||
-          (r.args.scope === 'global' && !snap.global.skills.some(skill => skill.name === r.args.name && skill.sides.includes(r.args.side))))) readRegistry.remove(savedReadKey(r))
-      }
+      retireAfterScan(readRegistry, savedReads.values(), snap)
       current = snap
       firstScanComplete = true
       liveScanReady()
@@ -299,34 +309,38 @@ async function doScan(): Promise<Snapshot> {
 
 /**
  * The single entry point for IPC registration (#17): every handler goes through this wrapper, which
- * validates the sender before executing.
+ * validates the sender, then judges the request by the channel's guard from ./ipc-guards (#405), before
+ * executing on what the guard admitted.
  * A wrapper rather than a line inside each handler — **doing it one by one inevitably misses one**, and
  * the wrapper makes "a new handler
- * is validated automatically" the default, so forgetting to wire one up fails compilation rather than
- * silently leaving it undefended.
+ * is validated automatically" the default, so forgetting to wire one up, or to name its guard, fails
+ * compilation rather than silently leaving it undefended.
+ * A guard throws before the handler runs, as the sender check does, and the page gets the same refusal as from a handler
+ * that rejects: Electron's invoke awaits the listener inside a try and replies with what it caught either way, logging
+ * `Error occurred in handler for '<channel>'` (read from the bundled framework, 2026-11-21).
  */
-function handle<T>(
-  channel: string,
-  fn: (e: Electron.IpcMainInvokeEvent, arg: unknown) => T
-): void {
-  ipcMain.handle(channel, (e, arg: unknown) => {
+const handle: Register = (channel, guard, run) => {
+  ipcMain.handle(channel, (e, raw: unknown) => {
     assertTrustedSender(e.senderFrame?.url, process.env['ELECTRON_RENDERER_URL'])
-    return fn(e, arg)
+    return run(guard(raw, guardState()))
   })
 }
+/** What a guard judges against, as it is at this moment: a scan can replace an allow-list across an await */
+function guardState(): GuardState {
+  return { sessions: sessionWhitelist, sessionsRestored: !firstScanComplete, registry: readRegistry, regular: regularTarget, exists: existsSync }
+}
 
-handle(CMD.getStartup, () => ({ display: { ...(displayStore?.get() ?? emptyDisplayData()), snapshot: current, reads: [...savedReads.values()] }, status: startupStatus }))
-handle(CMD.takeArchiveNotice, () => {
+handle(CMD.getStartup, noArgs, () => ({ display: { ...(displayStore?.get() ?? emptyDisplayData()), snapshot: current, reads: [...savedReads.values()] }, status: startupStatus }))
+handle(CMD.takeArchiveNotice, noArgs, () => {
   if (archiveNotice !== 'due') return false
   archiveNotice = 'taken'
   return true
 })
-handle(CMD.getSnapshot, async () => {
+handle(CMD.getSnapshot, noArgs, async () => {
   if (current) return current
   return doScan()
 })
-handle(CMD.getProjectDetail, async (_e, path: unknown) => {
-  if (typeof path !== 'string' || path === '') throw appError(ERR.badArgs, { channel: 'getProjectDetail', field: 'path' })
+handle(CMD.getProjectDetail, projectDetailArgs, async (path) => {
   if (!firstScanComplete) await firstLiveScan
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
   const detail = readProjectDetail(realRoots(), path)
@@ -342,22 +356,17 @@ handle(CMD.getProjectDetail, async (_e, path: unknown) => {
     // Antigravity's, which are global and read again for the page (a plugin installed since the last scan included)
     projects: [path], pluginRoots: [...detail.plugins.flatMap(p => p.installPath ? [p.installPath] : []),
       ...detail.skills.flatMap(s => s.origin === 'plugin' && s.side === 'antigravity' && s.pluginRoot ? [s.pluginRoot] : [])], skillFiles: [] })
-  for (const r of savedReads.values()) if (r.kind === 'skillFiles' && ((r.args.scope === 'project' && r.args.projectPath === path &&
-    !detail.skills.some(skill => skill.level === 'project' && skill.name === r.args.name && skill.side === r.args.side)) ||
-    (r.args.scope === 'plugin' && !readRegistry.admission('pluginRoots', r.args.pluginRoot ?? '')))) readRegistry.remove(savedReadKey(r))
+  retireAfterDetail(readRegistry, savedReads.values(), path, detail)
   remember({ kind: 'projectDetail', path, data: detail })
   return detail
 })
-handle(CMD.getSessionPage, async (_e, raw: unknown) => {
-  // The allow-list comes first: an invalid path is not even stat-ed (fail-closed; the pure judging
-  // function is in security.ts)
-  const file = sessionReadTarget(sessionWhitelist, raw)
-  if (!file) throw appError(ERR.sessionNotWhitelisted)
+// The allow-list comes first: the guard refuses an invalid path before it is even stat-ed (fail-closed)
+handle(CMD.getSessionPage, listedSessionArg, async (file) => {
   if (!firstScanComplete) await firstLiveScan
-  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  listedSession(guardState(), file)
   if (!scans) throw appError(ERR.engineNotReady)
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
-  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  listedSession(guardState(), file)
   // The ranges are in the session file, or in an Antigravity conversation's transcript, derived from the admitted path
   const source = sessionReadSource(realRoots(), file)
   const identity = sourceIdentity(source)
@@ -372,7 +381,7 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     // process emits no user-facing natural language
     return { revision: questionRevision(identity, file, rec[0], rec[1], texts[idx]), i: idx + 1, text, at: rec[3], tools: rec[4], subagents: rec[5] }
   })
-  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  listedSession(guardState(), file)
   if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
   const page: SessionPage = {
     revision: pageRevision(identity, q.questions),
@@ -394,27 +403,18 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   remember({ kind: 'sessionPage', file, data: page })
   return page
 })
-handle(CMD.sessionFresh, (_e, raw: unknown) => {
-  // The same allow-list comes first (fail-closed); the predicate is read-only and triggers no rebuild
-  const file = sessionReadTarget(sessionWhitelist, raw)
-  if (!file) throw appError(ERR.sessionNotWhitelisted)
-  return regularTarget(file) && scans ? scans.isFresh(file) : false
-})
-handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
-  const a = raw as SessionTurnArgs
-  const file = sessionReadTarget(sessionWhitelist, a?.file)
-  if (!file) throw appError(ERR.sessionNotWhitelisted)
-  if (a?.revision !== undefined && typeof a.revision !== 'string') throw appError(ERR.badArgs, { channel: 'getSessionTurn', field: 'revision' })
-  if (typeof a?.i !== 'number' || !Number.isInteger(a.i) || a.i < 0)
-    throw appError(ERR.badArgs, { channel: 'getSessionTurn', field: 'i' })
+// The same allow-list comes first (fail-closed); the predicate is read-only and triggers no rebuild
+handle(CMD.sessionFresh, listedSessionArg, (file) => regularTarget(file) && scans ? scans.isFresh(file) : false)
+handle(CMD.getSessionTurn, sessionTurnArgs, async (a) => {
+  const file = a.file
   if (!firstScanComplete) await firstLiveScan
-  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  listedSession(guardState(), file)
   if (!scans) throw appError(ERR.engineNotReady)
   // The range comes from the application's own index (sessionQuestions rebuilds the single file when
   // the signature does not match),
   // and a byte range from the renderer is not accepted — all this channel can fetch is "the turn of a
   // given question"
-  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  listedSession(guardState(), file)
   const readStarted = performance.now()
   const source = sessionReadSource(realRoots(), file)
   const identity = sourceIdentity(source)
@@ -427,7 +427,7 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   const read = await readTurnRanges((s, question, body) => readSessionTurn(q.side, s, question, body), source, rec, TURN_LIMIT_BYTES)
   const revision = questionRevision(identity, file, rec[0], rec[1], read.question)
   if (a.revision !== undefined && a.revision !== revision) throw appError(ERR.sessionNotIndexed)
-  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  listedSession(guardState(), file)
   if (sourceIdentity(source) !== identity) throw appError(ERR.sessionNotIndexed)
   if (read.body === null) {
     // A turn kept before it grew past the limit can no longer be kept either: its copy leaves with the reason
@@ -446,12 +446,7 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   else if (savedReads.delete(savedReadKey(saved))) persistDisplay()
   return turn
 })
-handle(CMD.searchSessions, async (_e, raw: unknown) => {
-  const a = raw as SearchSessionsArgs
-  if (typeof a?.path !== 'string' || a.path === '') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'path' })
-  if (typeof a?.needle !== 'string' || a.needle.length > SEARCH_NEEDLE_MAX)
-    throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'needle' })
-  if (typeof a?.fullText !== 'boolean') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'fullText' })
+handle(CMD.searchSessions, searchSessionsArgs, async (a) => {
   if (!scans) throw appError(ERR.engineNotReady)
   // The session set comes from the main process's own statistics (the renderer cannot supply file
   // paths); an unregistered project is naturally empty
@@ -460,23 +455,19 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
   assertSearchResult(r)
   return r
 })
-handle(CMD.readSearchQuestions, async () => {
+handle(CMD.readSearchQuestions, noArgs, async () => {
   if (!questionCorpus) throw appError(ERR.engineNotReady)
   await questionCorpus.load()
 })
-handle(CMD.globalSearch, async (_e, needle: unknown) => {
-  // The keyword's length limit is the project search's (global-search S4)
-  if (typeof needle !== 'string' || needle.length > SEARCH_NEEDLE_MAX) throw appError(ERR.badArgs, { channel: 'globalSearch', field: 'needle' })
+handle(CMD.globalSearch, globalSearchArgs, async (needle) => {
   if (!questionCorpus) throw appError(ERR.engineNotReady)
   const r = await questionCorpus.search(needle)
   assertGlobalSearchResult(r)
   return r
 })
-handle(CMD.readMemoryFile, async (_e, file: unknown) => {
-  if (typeof file !== 'string' || !readRegistry.admission('memoryFiles', file)) throw appError(ERR.memoryFileNotWhitelisted)
+handle(CMD.readMemoryFile, memoryFileArg, async (file) => {
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
-  if (!readRegistry.admission('memoryFiles', file)) throw appError(ERR.memoryFileNotWhitelisted)
-  if (readRegistry.admission('memoryFiles', file) === 'restored' && !regularTarget(file)) throw appError(ERR.memoryFileNotWhitelisted)
+  admitMemoryFile(guardState(), file)
   let raw: string
   try {
     raw = readFileSync(file, 'utf8')
@@ -491,93 +482,39 @@ handle(CMD.readMemoryFile, async (_e, file: unknown) => {
   remember({ kind: 'memoryContent', file, data: text })
   return text
 })
-handle(CMD.copyText, (_e, text: unknown) => {
-  if (typeof text !== 'string' || text === '')
-    throw appError(ERR.badArgs, { channel: 'copyText', field: 'text' })
+handle(CMD.copyText, copyTextArgs, (text) => {
   clipboard.writeText(text)
 })
 
-// Before the first scan the allow-list is the restored one, whose entries are shown only while regular files
-handle(CMD.revealSessionFile, (_e, raw: unknown) => {
-  const r = sessionRevealTarget(sessionWhitelist, raw, { restored: !firstScanComplete, exists: existsSync, regular: (f) => regularTarget(f) })
-  if (!r.ok) throw appError(r.code)
-  shell.showItemInFolder(r.file)
+handle(CMD.revealSessionFile, revealSessionArg, (file) => {
+  shell.showItemInFolder(file)
 })
 
-function checkSkillOpArgs(args: unknown): SkillOpArgs {
-  const a = args as SkillOpArgs
-  if (
-    typeof a?.skillName !== 'string' ||
-    !AGENT_SIDES.has(a?.side) ||
-    typeof a?.targetProjectPath !== 'string'
-  ) {
-    throw appError(ERR.badArgs, { channel: 'skillOp' })
-  }
-  return a
-}
-function checkInstallArgs(args: unknown): SkillInstallArgs {
-  const a = args as SkillInstallArgs
-  if (
-    typeof a?.skillName !== 'string' ||
-    typeof a?.targetProjectPath !== 'string' ||
-    !Array.isArray(a?.sides) ||
-    a.sides.length === 0 ||
-    !a.sides.every((s) => AGENT_SIDES.has(s))
-  ) {
-    throw appError(ERR.badArgs, { channel: 'installSkill' })
-  }
-  return { skillName: a.skillName, sides: a.sides, targetProjectPath: a.targetProjectPath }
-}
 // The renderer names the target of an install or uninstall, so it goes only into a project the current snapshot lists
 // (skill-install R3): the restored one until the first scan completes, which is the snapshot the renderer shows then
 const listedProjects = (): ProjectEntry[] => current?.projects ?? []
-handle(CMD.installSkill, (_e, args: unknown): SkillLandingResult[] => installIntoListedProject(realRoots(), listedProjects(), checkInstallArgs(args)))
-handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallFromListedProject(realRoots(), listedProjects(), checkSkillOpArgs(args)))
+handle(CMD.installSkill, installSkillArgs, (args): SkillLandingResult[] => installIntoListedProject(realRoots(), listedProjects(), args))
+handle(CMD.uninstallSkill, uninstallSkillArgs, (args) => uninstallFromListedProject(realRoots(), listedProjects(), args))
 // The live projects of the current snapshot: the renderer names the skill, never the paths probed. Before the first
 // scan they are the restored snapshot's, or none without one, and the install itself still refuses a same name (A4)
-handle(CMD.skillHoldings, (_e, name: unknown): SkillHoldings => {
-  if (typeof name !== 'string') throw appError(ERR.badArgs, { channel: 'skillHoldings' })
+handle(CMD.skillHoldings, skillHoldingsArgs, (name): SkillHoldings => {
   return skillHoldings((current?.projects ?? []).filter((p) => !p.stale).map((p) => p.path), name)
 })
 // The same live projects, probed for the skills directories an install would change a global library through
 // (skill-install R4); the install itself still refuses one the picker has not yet disabled
-handle(CMD.skillLibraryDirs, (): SkillLibraryDirs => {
+handle(CMD.skillLibraryDirs, noArgs, (): SkillLibraryDirs => {
   return libraryDirs(realRoots(), (current?.projects ?? []).filter((p) => !p.stale).map((p) => p.path))
 })
 
-function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {
-  const a = args as ListSkillFilesArgs
-  if (
-    typeof a?.name !== 'string' ||
-    !AGENT_SIDES.has(a?.side) ||
-    (a?.scope !== 'global' && a?.scope !== 'project' && a?.scope !== 'plugin')
-  ) {
-    throw appError(ERR.badArgs, { channel: 'listSkillFiles' })
-  }
-  if (a.scope === 'project' && typeof a.projectPath !== 'string') {
-    throw appError(ERR.badArgs, { channel: 'listSkillFiles', field: 'projectPath' })
-  }
-  if (a.scope === 'plugin' && typeof a.pluginRoot !== 'string') {
-    throw appError(ERR.badArgs, { channel: 'listSkillFiles', field: 'pluginRoot' })
-  }
-  return a
-}
-handle(CMD.listSkillFiles, async (_e, args: unknown): Promise<ListSkillFilesResult> => {
-  const a = checkListSkillFilesArgs(args)
+handle(CMD.listSkillFiles, listSkillFilesArgs, async (a): Promise<ListSkillFilesResult> => {
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
+  // The package's root is admitted after the delay, against the registrations of that moment (H8, fail-closed)
+  admitSkillPackage(guardState(), a)
   let root: string | null
   if (a.scope === 'plugin') {
-    // H8: the package root must hit the scan's registration set (fail-closed); the skill name is
-    // sanitised inside the resolver
-    if (!readRegistry.admission('pluginRoots', a.pluginRoot as string)) {
-      throw appError(ERR.pluginRootNotRegistered)
-    }
-    if (readRegistry.admission('pluginRoots', a.pluginRoot as string) === 'restored' && !regularTarget(a.pluginRoot as string, true)) throw appError(ERR.pluginRootNotRegistered)
+    // The skill name is sanitised inside the resolver
     root = resolvePluginSkillRoot(a.pluginRoot as string, a.name)
   } else {
-    if (a.scope === 'project' && !readRegistry.admission('projects', a.projectPath as string)) {
-      throw appError(ERR.projectNotOpened)
-    }
     // The container check (C9, applied to the entry point before resolution) happens inside
     // resolveSkillRoot
     root = resolveSkillRoot({
@@ -598,14 +535,10 @@ handle(CMD.listSkillFiles, async (_e, args: unknown): Promise<ListSkillFilesResu
   remember(read)
   return result
 })
-handle(CMD.readSkillFile, (_e, args: unknown): CappedText => {
-  const a = args as { absPath?: unknown }
-  if (typeof a?.absPath !== 'string' || !a.absPath) throw appError(ERR.badArgs, { channel: 'readSkillFile', field: 'absPath' })
-  if (!readRegistry.admission('skillFiles', a.absPath)) throw appError(ERR.skillFileNotWhitelisted)
+handle(CMD.readSkillFile, skillFileArg, (absPath): CappedText => {
   try {
-    if (readRegistry.admission('skillFiles', a.absPath) === 'restored' && !regularTarget(a.absPath)) throw appError(ERR.skillFileUnreadable)
-    const text = readSkillFileText(a.absPath)
-    remember({ kind: 'skillContent', file: a.absPath, data: text })
+    const text = readSkillFileText(absPath)
+    remember({ kind: 'skillContent', file: absPath, data: text })
     return text
   } catch {
     throw appError(ERR.skillFileUnreadable)
@@ -617,12 +550,12 @@ handle(CMD.readSkillFile, (_e, args: unknown): CappedText => {
 // `store` is passed as a getter rather than an instance: prefsStore is only assigned at whenReady, while
 // the channels are registered right now.
 const prefsHandlers = createPrefsHandlers({ store: () => prefsStore, theme: nativeTheme })
-handle(CMD.getPrefs, async () => {
+handle(CMD.getPrefs, noArgs, async () => {
   if (PREFS_DELAY_MS > 0) await new Promise((r) => setTimeout(r, PREFS_DELAY_MS))
   return prefsHandlers.getPrefs()
 })
-handle(CMD.setTheme, (_e, theme: unknown) => prefsHandlers.setTheme(theme))
-handle(CMD.setLanguage, (_e, language: unknown) => {
+handle(CMD.setTheme, checkedByPrefsHandlers, (theme) => prefsHandlers.setTheme(theme))
+handle(CMD.setLanguage, checkedByPrefsHandlers, (language) => {
   try {
     return prefsHandlers.setLanguage(language)
   } finally {
@@ -632,16 +565,16 @@ handle(CMD.setLanguage, (_e, language: unknown) => {
     applyMenu()
   }
 })
-handle(CMD.setTrendSpan, (_e, span: unknown) => prefsHandlers.setTrendSpan(span))
-handle(CMD.setMode, (_e, mode: unknown) => prefsHandlers.setMode(mode))
+handle(CMD.setTrendSpan, checkedByPrefsHandlers, (span) => prefsHandlers.setTrendSpan(span))
+handle(CMD.setMode, checkedByPrefsHandlers, (mode) => prefsHandlers.setMode(mode))
 // App updates (app-update): the controller owns the lifecycle; these only read it and pass on the click
-handle(CMD.getUpdateState, (): UpdateState => updates?.state() ?? IDLE_UPDATE)
-handle(CMD.installUpdate, () => {
+handle(CMD.getUpdateState, noArgs, (): UpdateState => updates?.state() ?? IDLE_UPDATE)
+handle(CMD.installUpdate, noArgs, () => {
   updates?.install()
 })
-handle(CMD.checkForUpdates, (): Promise<CheckOutcome> => settingsChecks?.check() ?? Promise.resolve({ kind: 'unavailable' }))
-handle(CMD.getSettingsCheck, (): SettingsCheck => settingsChecks?.state() ?? { checking: false, outcome: null })
-handle(CMD.setAutoCheckUpdates, (_e, on: unknown) => prefsHandlers.setAutoCheckUpdates(on))
+handle(CMD.checkForUpdates, noArgs, (): Promise<CheckOutcome> => settingsChecks?.check() ?? Promise.resolve({ kind: 'unavailable' }))
+handle(CMD.getSettingsCheck, noArgs, (): SettingsCheck => settingsChecks?.state() ?? { checking: false, outcome: null })
+handle(CMD.setAutoCheckUpdates, checkedByPrefsHandlers, (on) => prefsHandlers.setAutoCheckUpdates(on))
 const PRELOAD = join(__dirname, '../preload/index.cjs')
 
 /** Rebuild the application menu in the currently effective language; must be called again after a

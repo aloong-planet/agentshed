@@ -3,7 +3,9 @@
 // end-to-end evidence —
 // the e2e "IPC surface" case sends an invalid path over real IPC via page.evaluate and asserts the handler
 // refuses it
-// (mutation-checked: removing the guard from the handler turns it red). Still missing are
+// (mutation-checked then; since #405 the guard runs in index.ts's registration wrapper, the handler's own recheck
+// refuses the same paths, and the e2e cases that tell a lost guard apart are named in ipc-guards.test.ts's header).
+// Still missing are
 // unit-level behaviour tests for the exit assertSessionPage
 // and the !scans line (there is no IPC harness, the same kind of gap getProjectDetail already
 // has); the former is backed by the preload's second validation, and the latter is a self-harming path in

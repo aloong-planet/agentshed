@@ -16,6 +16,9 @@ verified**.
 - Partial re-pass: **2026-11-21**, item 22 again, and item 17 for one new IPC channel: an install or uninstall into a
   listed project could still land in a global library, through a project that is the home directory, lies inside a
   library or has a skills directory leading into one
+- Partial re-pass: **2026-11-21**, items 17 and 22 again (#405): each IPC channel's argument check and admission moved
+  out of `index.ts` into `ipc-guards.ts`, and the `handle()` wrapper now takes the channel's guard; every request is
+  refused or admitted as before
 - When to redo: changing the main process's window / session / protocol / IPC configuration, the main process
   reading a new environment variable or switch, upgrading Electron's major version, introducing a new
   "render someone else's content" capability, or adding a packaging platform
@@ -38,7 +41,7 @@ verified**.
 | **14** | Restrict new windows | ✅ Unconditional deny, allow-listed URLs handed to the system browser | As above |
 | **15** | openExternal validated | ✅ `new URL()` + **a protocol allow-list** | `externalOpenTarget`; unit tests cover casing / userinfo / dangerous protocols |
 | 16 | Stay on a current Electron | ✅ **43.2.0** (upgraded from 35.7.5 on 2026-08-02) | Full verify + packaging + fuse validation re-run after the upgrade. **Correction**: the fuse wire grew from 8 to 9 (Electron 41 appended `wasmTrapHandlers` at index 8), but the first 8 **did not move**, so the 6 assertions still hold; fuses.json5 states explicitly that it is "append-only, never reordered", so reading by index is safe long-term |
-| **17** | IPC sender validation | ✅ Every handler goes through the `handle()` wrapper | `index.ts handle()` + `assertTrustedSender`; **the wrapper guarantees a new handler is validated automatically** |
+| **17** | IPC sender validation | ✅ Every handler goes through the `handle()` wrapper | `index.ts handle()` + `assertTrustedSender`; **the wrapper guarantees a new handler is validated automatically**, and it takes the channel's argument guard from `ipc-guards.ts`, so a registration with no guard fails typecheck |
 | **18** | Avoid file:// | ✅ The renderer page runs on `app://bundle` | `app-protocol.ts`; unit tests cover encoded traversal; e2e asserts the packaged build's URL starts with `app://` |
 | **19** | Fuses | ✅ **7 of them** (including disabling `grantFileProtocolExtraPrivileges`) | `electron-builder.yml electronFuses`; `scripts/check-fuses.mjs` validates by **reading the built binary** |
 | 20 | No raw API exposure in preload | ✅ Exposes wrapper functions, discarding `IpcRendererEvent` in callbacks | `preload/index.ts` (verified, no changes needed) |
@@ -49,7 +52,7 @@ verified**.
 
 | Layer | Content |
 |---|---|
-| Unit tests | `src/main/security.test.ts` (navigation allow/deny, external-link allow-list, IPC sender, the CSP profiles, the session read allow-list, the skill install and uninstall target, the global libraries an install or uninstall must not change), `src/main/app-protocol.test.ts` (7 cases: path resolution and encoded traversal) |
+| Unit tests | `src/main/security.test.ts` (navigation allow/deny, external-link allow-list, IPC sender, the CSP profiles, the session read allow-list, the skill install and uninstall target, the global libraries an install or uninstall must not change), `src/main/ipc-guards.test.ts` (each IPC channel's argument check and admission, against every input it refuses; a registration with no guard or an inline check fails typecheck), `src/main/app-protocol.test.ts` (7 cases: path resolution and encoded traversal) |
 | e2e | The packaged build's URL must be `app://`; clicking a link inside a document leaves **the window URL unchanged**; a full pass through the new sections produces no main-process errors; a page's skill install or uninstall outside the app's projects, or into a global library, is refused |
 | Packaging | `node scripts/check-fuses.mjs` reads the Electron Framework binary's fuse wire and compares it against the expected values in `electron-builder.yml`. Every packaging also launches the built app with inputs it must refuse, and with only its settings directory (`build/mac-packaging.cjs`) |
 

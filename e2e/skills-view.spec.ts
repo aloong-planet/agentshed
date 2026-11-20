@@ -925,3 +925,26 @@ test('reopening a skill file table (query layer): first expand is slow, reopenin
   expect(l.errors).toEqual([])
   await close(l)
 })
+
+// skills-view C9 on listSkillFiles (#405): a project's package is listed only from a project whose page was opened,
+// judged after the handler's delay; a project Claude registered, with a skill in its own skills directory, is refused
+// over the real channel until then
+test('a project package is refused over the real channel while the project\'s page has not been opened', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-unopened-'))
+  const proj = join(home, 'never-opened')
+  mkdirSync(join(proj, '.claude', 'skills', 'probe'), { recursive: true })
+  writeFileSync(join(proj, '.claude', 'skills', 'probe', 'SKILL.md'), '---\ndescription: probe\n---\nUnopened body\n')
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.waitForLoadState('domcontentloaded')
+  const listed = await win.evaluate(async (projectPath) => {
+    try { return JSON.stringify(await window.agentshed.listSkillFiles({ side: 'claude', name: 'probe', scope: 'project', projectPath })) } catch (e) { return (e as Error).message }
+  }, proj)
+  expect(listed).toContain('project-not-opened')
+  // The one handler error is that refusal
+  expect(l.errors).toHaveLength(1)
+  expect(l.errors[0]).toContain('project-not-opened')
+  await close(l)
+})
