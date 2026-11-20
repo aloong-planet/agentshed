@@ -77,6 +77,11 @@
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
+// A scratch home holds no link into real data at any depth. A write through a link, symbolic or hard, lands in the
+// real file; `rescan --grow` writes into the home it scans; and macOS's `rm -rf` on a link to a directory, written
+// with a trailing slash, deletes the real directory. `cp -R` keeps a symbolic link as a link, and so does Node's
+// `cpSync` for every link below its source, `dereference: true` included (Node 24), while an agent's data directory
+// can hold many: a copy is taken with `cp -RL`.
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
