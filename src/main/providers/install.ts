@@ -232,19 +232,43 @@ function globalLibraries(roots: ScanRoots): string[] {
   return [...new Set(Object.values(globalSkillsRoots(roots)).flat())]
 }
 
+type Probe = (path: string) => DirPlace | null
+const PROBES = { dir: dirPlace, entry: entryPlace }
+
 /** Whether an operation on these project skills directories of a project, and on its copies of this name there, would
  * change a global library (skill-install R4). Without a name, or with one that is not a single segment, only the
  * directories are judged: such a name has no copy, and the operation refuses it */
-function libraryCheck(roots: ScanRoots, project: string, dirs: readonly string[], name?: string): ReturnType<typeof skillOpLibrary> {
+function libraryCheck(
+  roots: ScanRoots,
+  project: string,
+  dirs: readonly string[],
+  name?: string,
+  probe: { dir: Probe; entry: Probe } = PROBES
+): ReturnType<typeof skillOpLibrary> {
   const landings = dirs.map((d) => join(project, d))
   const copies = name === undefined || badName(name) ? [] : landings.map((l) => join(l, name))
-  return skillOpLibrary({ landings, copies, libraries: globalLibraries(roots) }, { dir: dirPlace, entry: entryPlace })
+  return skillOpLibrary({ landings, copies, libraries: globalLibraries(roots) }, probe)
 }
 
-/** A project's skills directories that are a global library or lie inside one (skill-install R4), relative to the
+/** The probes, each path probed once while they are kept: the libraries do not depend on the project, so one call
+ * judging many projects probes them once rather than again for every project and directory */
+function probedOnce(): { dir: Probe; entry: Probe } {
+  const once = (probe: Probe): Probe => {
+    const seen = new Map<string, DirPlace | null>()
+    return (path) => {
+      if (!seen.has(path)) seen.set(path, probe(path))
+      return seen.get(path) ?? null
+    }
+  }
+  return { dir: once(PROBES.dir), entry: once(PROBES.entry) }
+}
+
+/** Each project's skills directories that are a global library or lie inside one (skill-install R4), relative to the
  * project: the picker disables a target with a landing among them, and project detail offers no Uninstall in them */
-export function libraryDirs(roots: ScanRoots, project: string): string[] {
-  return [...new Set(Object.values(PROJECT_SKILLS_DIR))].filter((d) => !libraryCheck(roots, project, [d]).ok)
+export function libraryDirs(roots: ScanRoots, projects: readonly string[]): Record<string, string[]> {
+  const probe = probedOnce()
+  const dirs = [...new Set(Object.values(PROJECT_SKILLS_DIR))]
+  return Object.fromEntries(projects.map((p) => [p, dirs.filter((d) => !libraryCheck(roots, p, [d], undefined, probe).ok)]))
 }
 
 /**

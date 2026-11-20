@@ -542,8 +542,7 @@ handle(CMD.skillHoldings, (_e, name: unknown): SkillHoldings => {
 // The same live projects, probed for the skills directories an install would change a global library through
 // (skill-install R4); the install itself still refuses one the picker has not yet disabled
 handle(CMD.skillLibraryDirs, (): SkillLibraryDirs => {
-  const roots = realRoots()
-  return Object.fromEntries((current?.projects ?? []).filter((p) => !p.stale).map((p) => [p.path, libraryDirs(roots, p.path)]))
+  return libraryDirs(realRoots(), (current?.projects ?? []).filter((p) => !p.stale).map((p) => p.path))
 })
 
 function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {

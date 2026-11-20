@@ -78,7 +78,7 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
       agentsMd: readInstructionFile(join(projectPath, 'AGENTS.md'))
     },
     stats: null,
-    libraryDirs: libraryDirs(roots, projectPath)
+    libraryDirs: libraryDirs(roots, [projectPath])[projectPath]
   }
 }
 

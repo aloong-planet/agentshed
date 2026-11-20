@@ -255,7 +255,8 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
   // install itself still refuses a same name (A4)
   const [held, setHeld] = useState<{ skill: string; holdings: SkillHoldings } | null>(null)
   // Which projects' skills directories are a global library or lie inside one, asked at the same moment (it probes the
-  // same list). Until it answers, no row is disabled for it and the install itself still refuses one (skill-install R4)
+  // same list). Until it answers, no row is disabled for it and the install itself still refuses one (skill-install R4,
+  // skill-install::REQ-003/AC-03)
   const [libs, setLibs] = useState<{ skill: string; dirs: SkillLibraryDirs } | null>(null)
   const openSkill = openFor?.skill ?? null
   useEffect(() => {
@@ -392,9 +393,13 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                       e.stopPropagation()
                       trigger.current = e.currentTarget
                       const opening = openFor?.skill !== s.name
-                      // A new opening draws no tags until its own arrive, never the previous opening's — an
-                      // untagged target that does hold the name is still refused at install time (A4)
-                      if (opening) setHeld(null)
+                      // A new opening draws no tags or library labels until its own arrive, never the previous
+                      // opening's — an untagged target that does hold the name is still refused at install time (A4),
+                      // and an enabled one with a library landing (R4)
+                      if (opening) {
+                        setHeld(null)
+                        setLibs(null)
+                      }
                       setOpenFor(opening ? popAt(s.name, e.currentTarget) : null)
                     }}
                   >
