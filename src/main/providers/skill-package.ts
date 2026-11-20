@@ -111,7 +111,8 @@ export function resolveSkillRoot(args: ResolveSkillRootArgs): string | null {
  * existence and symlink following (the same discipline as resolveSkillRoot).
  */
 export function resolvePluginSkillRoot(pluginRoot: string, name: string): string | null {
-  if (!name || name.includes('..') || name.includes('/') || name.includes('\\') || name.includes(':'))
+  // "." would name the package's whole skills directory, not one skill in it
+  if (!name || name === '.' || name.includes('..') || name.includes('/') || name.includes('\\') || name.includes(':'))
     return null
   const entry = join(pluginRoot, 'skills', name)
   if (!existsSync(entry)) return null

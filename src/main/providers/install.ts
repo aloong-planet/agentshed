@@ -26,9 +26,10 @@ export type OpResult =
   // `reason` was already a language-independent enum; this change removed the Chinese message alongside it.
   | { ok: false; reason: ErrorCode; params?: ErrorParams }
 
-/** A skill name may only be a single-segment directory name (closing path traversal) */
+/** A skill name may only be a single-segment directory name (closing path traversal). "." is not one: joined to a
+ * directory it names that directory, the global library as a source and the project's skills directory as a copy */
 function badName(name: string): boolean {
-  return name === '' || name.includes('/') || name.includes('\\') || name.includes('..')
+  return name === '' || name === '.' || name.includes('/') || name.includes('\\') || name.includes('..')
 }
 
 function projectSkillsDir(side: AgentSide, projectPath: string): string {

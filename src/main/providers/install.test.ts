@@ -278,6 +278,14 @@ describe('installSkill', () => {
     const r = installSkill(roots(), { skillName: '../evil', side: 'claude', targetProjectPath: proj })
     expect(r.ok).toBe(false)
   })
+
+  // skill-install A7: "." is not a single directory name either. Joined to a directory it names that directory, so the
+  // install's source would be the global library itself and its copy the project's skills directory
+  it('a skill named "." is refused as an invalid name, and nothing is written', () => {
+    mkGlobalSkill('claude', 'tidy')
+    expect(installSkill(roots(), { skillName: '.', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason: ERR.skillBadName })
+    expect(readdirSync(proj)).toEqual([])
+  })
 })
 
 // skill-install::REQ-004/AC-03, "by whatever route": a link back spelled in another letter case, on a volume that
@@ -436,6 +444,13 @@ describe('uninstallSkill', () => {
   it('name traversal is refused', () => {
     const r = uninstallSkill({ skillName: '../../etc', side: 'claude', targetProjectPath: proj })
     expect(r.ok).toBe(false)
+  })
+
+  // skill-install B3: the copy "." names is the project's whole skills directory of that side, every skill in it
+  it('a skill named "." is refused as an invalid name, and nothing is deleted', () => {
+    mkdirSync(join(proj, '.claude', 'skills', 'tidy'), { recursive: true })
+    expect(uninstallSkill({ skillName: '.', side: 'claude', targetProjectPath: proj })).toEqual({ ok: false, reason: ERR.skillBadName })
+    expect(readdirSync(join(proj, '.claude', 'skills'))).toEqual(['tidy'])
   })
 })
 

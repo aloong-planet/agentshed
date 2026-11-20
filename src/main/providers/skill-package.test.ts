@@ -301,6 +301,11 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
     expect(isUnderKnownSkillRoots(abs!, r)).toBe(true)
     expect(resolveSkillRoot({ side: 'claude', name: '../x', scope: 'global', roots: r })).toBeNull()
     expect(resolveSkillRoot({ side: 'claude', name: 'plug:x', scope: 'global', roots: r })).toBeNull()
+    // "." names the skills directory itself, the library or the project's, never one skill in it
+    const project = join(dir, 'proj-dot')
+    mkdirSync(join(project, '.claude', 'skills', 'tdd'), { recursive: true })
+    expect(resolveSkillRoot({ side: 'claude', name: '.', scope: 'global', roots: r })).toBeNull()
+    expect(resolveSkillRoot({ side: 'claude', name: '.', scope: 'project', projectPath: project, roots: r })).toBeNull()
   })
 
   it('a symlinked entry point: admitted even when the target is outside every known root (the container check applies to the entry point before resolution)', () => {
@@ -360,6 +365,7 @@ describe('resolvePluginSkillRoot(plugins-view H8)', () => {
     expect(abs).toBeTruthy()
     expect(listSkillPackageFiles(abs!).files.map((f) => f.path)).toEqual(['SKILL.md'])
     expect(resolvePluginSkillRoot(root, '../escape')).toBeNull()
+    expect(resolvePluginSkillRoot(root, '.')).toBeNull()
     expect(resolvePluginSkillRoot(root, 'a/b')).toBeNull()
     expect(resolvePluginSkillRoot(root, '')).toBeNull()
     expect(resolvePluginSkillRoot(root, 'gone')).toBeNull()
