@@ -2,12 +2,12 @@
 // into the project-level directory (landing in a temporary directory first, then renaming,
 // cleaning up on failure so nothing half-finished is left); uninstalling = deleting the project's copy.
 // The global library is read-only and is never written.
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync, statSync, type BigIntStats } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { PROJECT_SKILLS_DIR, type AgentSide } from '@shared/domain'
 import { skillLandings } from '@shared/skill-landing'
 import type { ScanRoots } from './types'
-import { globalSkillEntry, holdsPath } from './skill-package'
+import { globalSkillEntry } from './skill-package'
 import { isAbsent } from './read-utils'
 import { compareNames } from './scan-order'
 import { ERR, type ErrorCode, type ErrorParams } from '@shared/errors'
@@ -44,27 +44,44 @@ interface LinkProblem {
  * Copy a skill to `to`, every symlink in it at any depth landing as what it points to, so the project's copy holds no
  * link and is self-contained (skill-install::REQ-004/AC-01). Not `cpSync`: under Electron 43's Node its `dereference`
  * follows only the top-level link and keeps every link below it as a link. It stops at a link that fails the install,
- * answering it; whatever cannot be read throws (A10).
+ * answering it; whatever cannot be read throws (A10), as does a project inside the skill's own directory.
  */
 function copySkill(source: string, to: string): LinkProblem | null {
   const root = realpathSync(source)
-  // The real paths of the directories the walk is inside: a directory link to one of them, or to a directory holding
-  // the skill, would copy the skill into itself without end. The skills view's package walk applies the same test
-  // (skill-package.ts, walkFiles), there to skip and here to fail
+  // A directory by its device and inode, not its path: one directory can be spelled several ways that a real path does
+  // not reduce to one, in letter case on a volume that ignores it or through a firmlink such as /System/Volumes/Data,
+  // and a link back by another spelling would be entered and copied again (AC-03, "by whatever route")
+  const idOf = (st: BigIntStats): string => `${st.dev}:${st.ino}`
+  const dirsUpFrom = (path: string): string[] => {
+    const ids: string[] = []
+    for (let d = path; ; d = dirname(d)) {
+      ids.push(idOf(statSync(d, { bigint: true })))
+      if (dirname(d) === d) return ids
+    }
+  }
+  const rootId = idOf(statSync(root, { bigint: true }))
+  // The project's skills directory and those holding it. A project inside the skill's own directory would have the
+  // walk reach the copy it is writing with no link to name: it fails before the copy starts (A10)
+  const landing = dirsUpFrom(dirname(to))
+  if (landing.includes(rootId)) throw new Error(`the project is inside the skill's directory, ${root}`)
+  mkdirSync(to)
+  // Where a directory link leads back into the skill (AC-03): the skill's real directory and its library entry's
+  // directory (the entry can be a link) and the directories holding them, and the copy being written and those holding
+  // it, and the directories the walk is inside. Entering one would copy the skill into itself without end
+  const back = new Set([...dirsUpFrom(root), ...dirsUpFrom(dirname(source)), idOf(statSync(to, { bigint: true })), ...landing])
   const inside = new Set<string>()
-  function walk(dir: string, realDir: string, into: string, rel: string): LinkProblem | null {
-    inside.add(realDir)
-    mkdirSync(into)
+  function walk(dir: string, dirId: string, into: string, rel: string): LinkProblem | null {
+    inside.add(dirId)
     // In byte order, whatever order the directory lists in: the first link that fails is the one met first in path
     // order, segment by segment (REQ-004's failure modes)
     for (const name of readdirSync(dir).sort(compareNames)) {
       const abs = join(dir, name)
       const path = rel === '' ? name : `${rel}/${name}`
-      const entry = lstatSync(abs)
+      const entry = lstatSync(abs, { bigint: true })
       let st = entry
       if (entry.isSymbolicLink()) {
         try {
-          st = statSync(abs)
+          st = statSync(abs, { bigint: true })
         } catch (err) {
           // What it points to is gone, runs through a file, or is a chain of links that never reaches a file or a
           // directory. One it may not look at is not gone: the copy fails on it (A10)
@@ -74,18 +91,20 @@ function copySkill(source: string, to: string): LinkProblem | null {
         }
       }
       if (st.isDirectory()) {
-        const realChild = entry.isSymbolicLink() ? realpathSync(abs) : join(realDir, name)
-        if (inside.has(realChild) || holdsPath(realChild, root)) return { reason: ERR.skillLinkLeadsBack, link: path }
-        const problem = walk(abs, realChild, join(into, name), path)
+        const childId = idOf(st)
+        if (inside.has(childId) || back.has(childId)) return { reason: ERR.skillLinkLeadsBack, link: path }
+        mkdirSync(join(into, name))
+        const problem = walk(abs, childId, join(into, name), path)
         if (problem !== null) return problem
       } else if (st.isFile()) copyFileSync(abs, join(into, name))
-      // A pipe, a socket or a device, behind a link or not: reading a pipe would block the main process
+      // A pipe, a socket or a device, behind a link or not: reading a pipe would block the main process. Skipped and
+      // logged (REQ-004's failure modes)
       else console.warn('[skill-install] skipped, neither a file nor a directory:', path)
     }
-    inside.delete(realDir)
+    inside.delete(dirId)
     return null
   }
-  return walk(source, root, to, '')
+  return walk(source, rootId, to, '')
 }
 
 /** Remove a temporary copy; a cleanup failure does not cascade */

@@ -414,9 +414,9 @@ function linksBelow(root: string, rel = ''): string[] {
   })
 }
 
-// skill-install::REQ-004/AC-01 under Electron, whose Node keeps a link below a skill's own entry as a link where
-// the Node the unit tests run on dereferences it (issue #509); then AC-02's notice, whose link reaches the toast as a
-// parameter of the failure
+// skill-install::REQ-004/AC-01 under the app's own Node: whether a link below a skill's own entry survives a copy
+// depends on the Node version (Electron 43's Node 24 and Node 22 keep it as a link where Node 26.13 dereferences it;
+// issue #509); then AC-02's notice, whose link reaches the toast as a parameter of the failure
 test('an install lands a copy holding no symlink at any depth, and a link that leads nowhere is named in the notice', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-links-'))
   const target = join(home, 'target-proj')

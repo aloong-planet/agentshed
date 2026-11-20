@@ -1,7 +1,11 @@
 // Ticket 06: install and uninstall — landing by copy (dereferenced), blocking same names, refusing stale
 // projects, cleaning up on failure, and the uninstall guards.
+// Gaps: telling a directory that holds the skill, its library entry or the landing stats each one, all resolved a
+// moment before, so that stat fails only on one vanishing in between and no test drives its throw; and a link to the
+// copy being written would need that copy's temporary name, which nothing outside the install knows, so the copy's
+// own place among the directories that lead back (skill-install::REQ-004/AC-03) is not driven either.
 import { chmodSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync, existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, dirname, join, relative } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -66,8 +70,9 @@ describe('installSkill', () => {
     expect(existsSync(join(proj, '.agents', 'skills', 'decision-form', 'SKILL.md'))).toBe(true)
   })
 
-  // skill-install::REQ-004/AC-01, A1, R1: the skill's own entry is a link, and below it a file link and a directory link
-  // lead out of the skill and a directory link leads to a directory inside it
+  // skill-install::REQ-004/AC-01, A1, R1: the skill's own entry is a link, relative as the library's entries are, and
+  // below it a file link and a directory link lead out of the skill and a directory link leads to a directory inside
+  // it, the first and the last relative
   it('every symlink in the skill, at any depth, lands as what it points to, and writing into the copy changes nothing behind it', () => {
     const real = join(dir, 'library-real', 'linked')
     mkdirSync(join(real, 'sub', 'deep'), { recursive: true })
@@ -78,11 +83,11 @@ describe('installSkill', () => {
     mkdirSync(join(outside, 'dir'), { recursive: true })
     writeFileSync(join(outside, 'note.md'), 'outside note')
     writeFileSync(join(outside, 'dir', 'g.txt'), 'outside dir file')
-    symlinkSync(join(outside, 'note.md'), join(real, 'sub', 'deep', 'flink'))
+    symlinkSync(relative(join(real, 'sub', 'deep'), join(outside, 'note.md')), join(real, 'sub', 'deep', 'flink'))
     symlinkSync(join(outside, 'dir'), join(real, 'sub', 'deep', 'dlink'))
-    symlinkSync(join(real, 'refs', 'inner'), join(real, 'refs', 'inner-link'))
+    symlinkSync('inner', join(real, 'refs', 'inner-link'))
     mkdirSync(join(dir, '.claude', 'skills'), { recursive: true })
-    symlinkSync(real, join(dir, '.claude', 'skills', 'linked'))
+    symlinkSync(relative(join(dir, '.claude', 'skills'), real), join(dir, '.claude', 'skills', 'linked'))
 
     expect(installSkill(roots(), { skillName: 'linked', side: 'claude', targetProjectPath: proj })).toEqual({ ok: true })
     const target = join(proj, '.claude', 'skills', 'linked')
@@ -103,17 +108,13 @@ describe('installSkill', () => {
     expect(readFileSync(join(real, 'refs', 'inner', 'i.txt'), 'utf8')).toBe('inner')
   })
 
-  // skill-install::REQ-004/AC-02, AC-03, A6. Leading nowhere: what the link points to is gone, runs through a file, or is
-  // a chain of links that never reaches a file or a directory, whose first link in path order is named. Leading back:
-  // to a directory the copy is inside, by the skill's own path or by the library entry when that is a link itself, or
-  // to the directory holding the library. Of several, the first in path order is named, segment by segment in byte order
-  // (REQ-004's failure modes): `a-b` comes before `a/z` as whole strings, and `a1` before `B1` in a locale's order
+  // skill-install::REQ-004/AC-02, AC-03, A6. Leading nowhere: what the link points to is gone (B1's), runs through a
+  // file, or is a chain of links that never reaches a file or a directory, whose first link in path order is named.
+  // Leading back: to a directory the copy is inside; to a directory above the skill's real directory or above its
+  // library entry, each holding only that one; to the project being installed into. Of several, the first in path
+  // order is named, segment by segment in byte order (REQ-004's failure modes): `a-b` comes before `a/z` as whole
+  // strings, and `a1` before `B1` in a locale's order
   it.each([
-    { what: 'a link to a target that is gone', reason: ERR.skillLinkLeadsNowhere, link: 'notes/gone.md', make: (): void => {
-      const skill = mkGlobalSkill('claude', 'tidy')
-      mkdirSync(join(skill, 'notes'))
-      symlinkSync(join(skill, 'notes', 'was-here.md'), join(skill, 'notes', 'gone.md'))
-    } },
     { what: 'a link to a target through a file', reason: ERR.skillLinkLeadsNowhere, link: 'refs/through-file', make: (): void => {
       const skill = mkGlobalSkill('claude', 'tidy')
       mkdirSync(join(skill, 'refs'))
@@ -129,20 +130,26 @@ describe('installSkill', () => {
     { what: 'a link to a directory the copy is inside', reason: ERR.skillLinkLeadsBack, link: 'refs/deep/up', make: (): void => {
       const skill = mkGlobalSkill('claude', 'tidy')
       mkdirSync(join(skill, 'refs', 'deep'), { recursive: true })
-      symlinkSync(join(skill, 'refs'), join(skill, 'refs', 'deep', 'up'))
+      symlinkSync('..', join(skill, 'refs', 'deep', 'up'))
     } },
-    { what: 'a link to the skill by its linked library entry', reason: ERR.skillLinkLeadsBack, link: 'refs/via-entry', make: (): void => {
-      const real = mkGlobalSkill('codex', 'tidy-real')
-      const entry = join(dir, '.claude', 'skills', 'tidy')
+    { what: 'a link to a directory two levels above the skill\'s real directory alone', reason: ERR.skillLinkLeadsBack, link: 'refs/above-real', make: (): void => {
+      const real = mkGlobalSkill('codex', 'tidy')
       mkdirSync(join(dir, '.claude', 'skills'), { recursive: true })
-      symlinkSync(real, entry)
+      symlinkSync('../../.agents/skills/tidy', join(dir, '.claude', 'skills', 'tidy'))
       mkdirSync(join(real, 'refs'))
-      symlinkSync(entry, join(real, 'refs', 'via-entry'))
+      symlinkSync(join(dir, '.agents'), join(real, 'refs', 'above-real'))
     } },
-    { what: 'a link to the directory holding the library', reason: ERR.skillLinkLeadsBack, link: 'refs/home', make: (): void => {
+    { what: 'a link to a directory two levels above the library entry alone', reason: ERR.skillLinkLeadsBack, link: 'refs/above-entry', make: (): void => {
+      const real = mkGlobalSkill('codex', 'tidy')
+      mkdirSync(join(dir, '.claude', 'skills'), { recursive: true })
+      symlinkSync('../../.agents/skills/tidy', join(dir, '.claude', 'skills', 'tidy'))
+      mkdirSync(join(real, 'refs'))
+      symlinkSync(join(dir, '.claude'), join(real, 'refs', 'above-entry'))
+    } },
+    { what: 'a link to the project being installed into', reason: ERR.skillLinkLeadsBack, link: 'refs/proj', make: (): void => {
       const skill = mkGlobalSkill('claude', 'tidy')
       mkdirSync(join(skill, 'refs'))
-      symlinkSync(dir, join(skill, 'refs', 'home'))
+      symlinkSync(proj, join(skill, 'refs', 'proj'))
     } },
     { what: 'bad links a-b and a/z', reason: ERR.skillLinkLeadsBack, link: 'a/z', make: (): void => {
       const skill = mkGlobalSkill('claude', 'tidy')
@@ -165,8 +172,25 @@ describe('installSkill', () => {
     expect(readdirSync(join(proj, '.claude', 'skills'))).toEqual([])
   })
 
-  // Not in the spec (left to the implementation, alignment record): a pipe, socket or device is skipped, behind a link
-  // or not, since reading a pipe would block the main process; each one skipped goes to the log
+  // skill-install A10 and REQ-004's failure modes: a project inside the skill's own directory fails before the copy
+  // starts, so not on the link that leads nowhere that a walk of the skill would meet first
+  it('a project inside the skill\'s own directory is the failed copy, before anything is copied', () => {
+    const skill = mkGlobalSkill('claude', 'tidy')
+    symlinkSync(join(skill, 'gone'), join(skill, 'a'))
+    const inner = join(skill, 'work', 'p1')
+    mkdirSync(inner, { recursive: true })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(installSkill(roots(), { skillName: 'tidy', side: 'claude', targetProjectPath: inner })).toEqual({ ok: false, reason: ERR.skillCopyFailed })
+      expect(logged.mock.calls).toEqual([['[skill-install] copy failed:', expect.any(Error)]])
+    } finally {
+      logged.mockRestore()
+    }
+    expect(readdirSync(join(inner, '.claude', 'skills'))).toEqual([])
+  })
+
+  // skill-install::REQ-004's failure modes: a pipe, socket or device is skipped, behind a link or not, since reading a
+  // pipe would block the main process; each one skipped goes to the log
   it('an entry neither a file nor a directory is skipped, and logged by its path inside the skill', () => {
     const skill = mkGlobalSkill('claude', 'tidy')
     execFileSync('mkfifo', [join(skill, 'pipe')])
@@ -218,6 +242,29 @@ describe('installSkill', () => {
   it('a skill name containing path traversal → refused', () => {
     const r = installSkill(roots(), { skillName: '../evil', side: 'claude', targetProjectPath: proj })
     expect(r.ok).toBe(false)
+  })
+})
+
+// skill-install::REQ-004/AC-03, "by whatever route": a link back spelled in another letter case, on a volume that
+// ignores letter case (macOS's default, not the Linux of CI, where that spelling leads nowhere)
+describe.skipIf(!existsSync(tmpdir().toUpperCase()))('installSkill, on a volume that ignores letter case', () => {
+  it.each([
+    { what: 'a link to a directory the copy is inside', link: 'refs/deep/up', make: (skill: string): void => {
+      mkdirSync(join(skill, 'refs', 'deep'), { recursive: true })
+      symlinkSync(join(skill, 'REFS'), join(skill, 'refs', 'deep', 'up'))
+    } },
+    { what: 'a link to the directory holding the library', link: 'refs/home', make: (skill: string): void => {
+      mkdirSync(join(skill, 'refs'))
+      symlinkSync(join(dirname(dir), basename(dir).toUpperCase()), join(skill, 'refs', 'home'))
+    } }
+  ])('$what, spelled in another letter case: the install fails naming that link', ({ link, make }) => {
+    make(mkGlobalSkill('claude', 'tidy'))
+    expect(installSkill(roots(), { skillName: 'tidy', side: 'claude', targetProjectPath: proj })).toEqual({
+      ok: false,
+      reason: ERR.skillLinkLeadsBack,
+      params: { link }
+    })
+    expect(readdirSync(join(proj, '.claude', 'skills'))).toEqual([])
   })
 })
 
