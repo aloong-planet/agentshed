@@ -101,10 +101,15 @@ Scope: the gap tests. No shipped file changes, and no e2e case is moved, edited 
 ### test-layers::CON-006 Moving a case only moves it (direct acceptance)
 
 Scope: moving e2e cases and helpers to meet ADR-0041. `playwright test --list` names the same cases before and after,
-and the text of each case and helper is unchanged, apart from `export`, import lines and comments that name the old
-location. Two helpers that land in one file under one name are the exception. Copies that differ only in a temporary
-directory's name or in their options become one, and helpers that do different things take distinct names, at their call
-sites too.
+and the text of each case and helper is unchanged, apart from `export`, import lines, comments that name the old
+location and these exceptions:
+
+- Two helpers that land in one file under one name. Copies that differ only in a temporary directory's name, in their
+  options or in the names of their own parameters become one, which keeps one copy's parameter names, and helpers that
+  do different things take distinct names, at their call sites too.
+- A helper that reads a variable of the case that defined it, such as the case's window, takes that variable as a
+  parameter when it moves, and a call to it changes only by passing that variable.
+- A helper that moves into `e2e/support/` may take a name that says what it finds or does, at its call sites too.
 
 ## Failure modes and boundaries
 

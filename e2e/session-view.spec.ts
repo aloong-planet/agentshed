@@ -17,6 +17,7 @@ import { mkUsageHome, mkEmptyProjectHome, questionLine } from './support/homes'
 import { closeApp } from './close-app'
 import { launch, close, makeUserData, startApp } from './support/launch'
 import { holdStoreWrites } from './support/token-store'
+import { searchGroup } from './support/search-group'
 
 /**
  * Ticket 03b: the fixture home for a Codex fork.
@@ -1921,12 +1922,11 @@ test('Antigravity sessions: AG rows and forks, a fork\'s page with its banner, h
   // Global search: the fork's group wears AG and the fork pill; the parent's question hits too
   await win.locator('.rail .ri').nth(2).click()
   await win.locator('.gsearch .sbar input').fill('simplest')
-  const card = (title: string) => win.locator('.gsearch .grp', { has: win.locator('.gh .t', { hasText: title }) })
-  await expect(card(forkTitle).locator('.hit')).toHaveCount(1)
-  await expect(card(forkTitle).locator('.gh .badge.ag')).toHaveText('AG')
-  await expect(card(forkTitle).locator('.gh .pill.fork')).toHaveCount(1)
-  await expect(card('Explaining Calc.py Functionality').locator('.hit')).toHaveText(/In one short sentence, which test in test_calc\.py is the simplest\?/)
-  await expect(card('Explaining Calc.py Functionality').locator('.gh .pill')).toHaveCount(0)
+  await expect(searchGroup(win, forkTitle).locator('.hit')).toHaveCount(1)
+  await expect(searchGroup(win, forkTitle).locator('.gh .badge.ag')).toHaveText('AG')
+  await expect(searchGroup(win, forkTitle).locator('.gh .pill.fork')).toHaveCount(1)
+  await expect(searchGroup(win, 'Explaining Calc.py Functionality').locator('.hit')).toHaveText(/In one short sentence, which test in test_calc\.py is the simplest\?/)
+  await expect(searchGroup(win, 'Explaining Calc.py Functionality').locator('.gh .pill')).toHaveCount(0)
   // The rewind's undone question is not searched: the no-hit line, read once it has replaced the results
   await win.locator('.gsearch .sbar input').fill('exactly one word')
   await expect(win.locator('.gsearch .pane-body .shead')).toContainText('No hits.')

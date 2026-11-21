@@ -31,6 +31,8 @@ import { join } from 'node:path'
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp } from './close-app'
 import { launchWindow as launch, closeWindow as close } from './support/launch'
+import { projectRow } from './support/project-row'
+import { searchGroup } from './support/search-group'
 import { ERR } from '../src/shared/errors'
 
 const DAY = 86_400_000
@@ -202,11 +204,10 @@ test('the global search page: the rail item, typing, results grouped by project,
     await expect(win.locator('.gsearch .ph', { hasText: 'target-proj' }).locator('.pc')).toHaveText('1 session · 5 hits')
 
     // The cards (US-001/AC-06): side badge, title, fork markers, hit count
-    const card = (title: string) => win.locator('.gsearch .grp', { has: win.locator('.gh .t', { hasText: title }) })
-    await expect(card('Child asks to notarize the fork').locator('.pill.fork')).toContainText('fork')
-    await expect(card('Child asks to notarize the fork').locator('.badge.cx')).toBeVisible()
-    await expect(card('Orphan asks to notarize too').locator('.pill.forkq')).toContainText('uncertain strip')
-    const t1 = card('How do I notarize the app?')
+    await expect(searchGroup(win, 'Child asks to notarize the fork').locator('.pill.fork')).toContainText('fork')
+    await expect(searchGroup(win, 'Child asks to notarize the fork').locator('.badge.cx')).toBeVisible()
+    await expect(searchGroup(win, 'Orphan asks to notarize too').locator('.pill.forkq')).toContainText('uncertain strip')
+    const t1 = searchGroup(win, 'How do I notarize the app?')
     await expect(t1.locator('.badge.cl')).toBeVisible()
     await expect(t1.locator('.gh .d')).toHaveText('5 hits')
     // The rows: original turn numbers, every occurrence marked, relative time
@@ -802,7 +803,6 @@ test('a return onto a stale project\'s note keeps the landing: the next project,
   const { home } = mkHome()
   const l = await launch(home, { AGENTSHED_RESCAN_MS: '250' })
   const { win } = l
-  const row = (name: string) => win.locator('.side .row', { hasText: name })
   const header = win.locator('.pane-head h1')
   const note = win.locator('.stale-note')
   const dirOf = (n: number): string => join(home, 'work', `filler-${n}`)
@@ -818,22 +818,22 @@ test('a return onto a stale project\'s note keeps the landing: the next project,
     // The back control, with the project gone stale under the session: the list hiding its row says the scan has arrived
     async (n: number): Promise<void> => {
       await win.locator('.rail .ri').nth(1).click()
-      await row(`filler-${n}`).click()
+      await projectRow(win, `filler-${n}`).click()
       await expect(header).toHaveText(`filler-${n}`)
       await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
       await win.locator('.pane-body .card .se', { hasText: `filler question ${n}` }).click()
       await expect(win.locator('.pane-head .stitle')).toHaveText(`filler question ${n}`)
       rmSync(dirOf(n), { recursive: true })
-      await expect(row(`filler-${n}`)).toHaveCount(0)
+      await expect(projectRow(win, `filler-${n}`)).toHaveCount(0)
       await win.locator('.pane-head .sback').click()
     },
     // A selection in the list, from another project's session
     async (n: number): Promise<void> => {
       rmSync(dirOf(n), { recursive: true })
       await openHit(win, 'notarize', 'How do I notarize the app?')
-      await expect(row(`filler-${n}`)).toHaveCount(0)
+      await expect(projectRow(win, `filler-${n}`)).toHaveCount(0)
       await win.locator('.side input[type="checkbox"]').check()
-      await row(`filler-${n}`).click()
+      await projectRow(win, `filler-${n}`).click()
     }
   ]
   try {
@@ -844,7 +844,7 @@ test('a return onto a stale project\'s note keeps the landing: the next project,
         await expect(header).toHaveText(`filler-${n}`)
         await expect(note).toBeVisible()
         if (scanBringsItBack) mkdirSync(dirOf(n))
-        else await row('target-proj').click()
+        else await projectRow(win, 'target-proj').click()
         await expect(header).toHaveText(scanBringsItBack ? `filler-${n}` : 'target-proj')
         await expect(note).toHaveCount(0)
         await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
