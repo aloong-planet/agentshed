@@ -4,6 +4,12 @@ import { join } from 'node:path'
 import { settingsJson } from '../../src/main/testing/agy-fixture'
 import { localDayOffset } from './dates'
 
+/** Write `text` to `path`, making the directories above it first (the fixture homes here, agents-overview, plugins-view) */
+export const writeWithDirs = (path: string, text: string): void => {
+  mkdirSync(join(path, '..'), { recursive: true })
+  writeFileSync(path, text)
+}
+
 /**
  * Build a fixture home with usage on both sides: Claude (→ the Anthropic segment) + Codex (→ the OpenAI
  * segment).
@@ -218,12 +224,8 @@ export function mkAgyComponentsHome(): { home: string; agOnly: string; all: stri
   const cfg = join(home, '.gemini', 'config')
   mkdirSync(join(agy, 'conversations'), { recursive: true })
   writeFileSync(join(agy, 'settings.json'), settingsJson([agOnly, all]))
-  const file = (path: string, text: string): void => {
-    mkdirSync(join(path, '..'), { recursive: true })
-    writeFileSync(path, text)
-  }
   const skill = (base: string, name: string, description: string, body: string): void =>
-    file(join(base, name, 'SKILL.md'), `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`)
+    writeWithDirs(join(base, name, 'SKILL.md'), `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`)
   // agy's three global directories, in the order it prefers a same-name copy
   skill(join(agy, 'skills'), 'release-notes', 'Draft release notes from git log', 'Release notes, the CLI copy')
   skill(join(cfg, 'skills'), 'release-notes', 'config copy', 'Release notes, the config copy')
@@ -235,39 +237,39 @@ export function mkAgyComponentsHome(): { home: string; agOnly: string; all: stri
   skill(join(agy, 'builtin', 'skills'), 'agy-customizations', 'built in', 'Built-in body')
   // The official flutter plugin as agy installed it, and a second plugin agy disabled
   const flutter = join(cfg, 'plugins', 'flutter')
-  file(join(flutter, 'plugin.json'), JSON.stringify({ name: 'flutter', displayName: 'Dart and Flutter', version: '1.0.6', license: 'BSD-3-Clause' }))
+  writeWithDirs(join(flutter, 'plugin.json'), JSON.stringify({ name: 'flutter', displayName: 'Dart and Flutter', version: '1.0.6', license: 'BSD-3-Clause' }))
   skill(join(flutter, 'skills'), 'dart-add-unit-test', 'Write and organize unit tests', 'Dart unit tests, the plugin copy')
-  file(join(flutter, 'agents', 'a11y_agent.md'), '---\nname: flutter_a11y_agent\ndescription: "Audits Flutter code for accessibility."\ntools:\n  - view_file\n  - grep_search\nmainAgent: true\nsubagent: true\n---\n\n# Persona\n')
-  file(join(flutter, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'dart-mcp-server': { command: 'dart', args: ['mcp-server'] } } }))
-  file(join(flutter, 'rules', 'flutter-hot-reload.md'), '---\ntrigger: glob\n---\nrule\n')
+  writeWithDirs(join(flutter, 'agents', 'a11y_agent.md'), '---\nname: flutter_a11y_agent\ndescription: "Audits Flutter code for accessibility."\ntools:\n  - view_file\n  - grep_search\nmainAgent: true\nsubagent: true\n---\n\n# Persona\n')
+  writeWithDirs(join(flutter, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'dart-mcp-server': { command: 'dart', args: ['mcp-server'] } } }))
+  writeWithDirs(join(flutter, 'rules', 'flutter-hot-reload.md'), '---\ntrigger: glob\n---\nrule\n')
   const gdocs = join(cfg, 'plugins', 'gdocs')
-  file(join(gdocs, 'plugin.json'), JSON.stringify({ name: 'gdocs', version: '0.0.3' }))
+  writeWithDirs(join(gdocs, 'plugin.json'), JSON.stringify({ name: 'gdocs', version: '0.0.3' }))
   skill(join(gdocs, 'skills'), 'draft-doc', 'Draft a doc', 'Draft doc, readable while disabled')
-  file(join(gdocs, 'mcp_config.json'), JSON.stringify({ mcpServers: { docs: { command: 'gdocs-mcp' } } }))
+  writeWithDirs(join(gdocs, 'mcp_config.json'), JSON.stringify({ mcpServers: { docs: { command: 'gdocs-mcp' } } }))
   const fromOfficial = (name: string, version: string): object => ({
     installedFrom: { id: `antigravity-plugins-official/plugin/${name}`, marketplace: 'antigravity-plugins-official', version }
   })
-  file(join(cfg, 'config.json'), JSON.stringify({ plugins: { flutter: fromOfficial('flutter', '1.0.6'), gdocs: { ...fromOfficial('gdocs', '0.0.3'), enabled: false } } }))
-  file(join(cfg, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'sqlite-explorer': { command: 'node', args: ['/usr/local/bin/sqlite-mcp-server.js'] }, github: { serverUrl: 'https://api.githubcopilot.com/mcp/', disabled: true } } }))
+  writeWithDirs(join(cfg, 'config.json'), JSON.stringify({ plugins: { flutter: fromOfficial('flutter', '1.0.6'), gdocs: { ...fromOfficial('gdocs', '0.0.3'), enabled: false } } }))
+  writeWithDirs(join(cfg, 'mcp_config.json'), JSON.stringify({ mcpServers: { 'sqlite-explorer': { command: 'node', args: ['/usr/local/bin/sqlite-mcp-server.js'] }, github: { serverUrl: 'https://api.githubcopilot.com/mcp/', disabled: true } } }))
   // Global subagents: both forms, one not usable as a main agent, one Claude defines too
-  file(join(cfg, 'agents', 'sample-flat.md'), '---\nname: sample-flat\ndescription: Sample global subagent (flat file form).\n---\nYou answer in one sentence.\n')
-  file(join(cfg, 'agents', 'sample-reviewer', 'agent.md'), '---\nname: sample-reviewer\ndescription: Sample global subagent (directory form).\nsubagent: true\nmainAgent: false\n---\nYou review diffs.\n')
-  file(join(cfg, 'agents', 'code-reviewer', 'agent.md'), '---\nname: code-reviewer\ndescription: agy reviewer\ntools:\n  - view_file\n  - grep_search\n---\nAntigravity reviewer persona.\n')
-  file(join(home, '.claude', 'agents', 'code-reviewer.md'), '---\ndescription: Review code\ntools: Read, Grep\n---\nClaude reviewer persona.\n')
+  writeWithDirs(join(cfg, 'agents', 'sample-flat.md'), '---\nname: sample-flat\ndescription: Sample global subagent (flat file form).\n---\nYou answer in one sentence.\n')
+  writeWithDirs(join(cfg, 'agents', 'sample-reviewer', 'agent.md'), '---\nname: sample-reviewer\ndescription: Sample global subagent (directory form).\nsubagent: true\nmainAgent: false\n---\nYou review diffs.\n')
+  writeWithDirs(join(cfg, 'agents', 'code-reviewer', 'agent.md'), '---\nname: code-reviewer\ndescription: agy reviewer\ntools:\n  - view_file\n  - grep_search\n---\nAntigravity reviewer persona.\n')
+  writeWithDirs(join(home, '.claude', 'agents', 'code-reviewer.md'), '---\ndescription: Review code\ntools: Read, Grep\n---\nClaude reviewer persona.\n')
   // agy-demo: the shared skills directory (one name agy's global library holds too), a project-level subagent, and the
   // project MCP file agy was not observed to load
   skill(join(agOnly, '.agents', 'skills'), 'commit-style', 'This repository\'s commit style', 'Commit style, the project copy')
   skill(join(agOnly, '.agents', 'skills'), 'demo-skill', 'Project-level sample skill', 'Explain calc.py briefly.')
-  file(join(agOnly, '.agents', 'agents', 'demo-agent', 'agent.md'), '---\nname: demo-agent\ndescription: Project-level sample subagent.\nsubagent: true\n---\nYou explain calc.py.\n')
-  file(join(agOnly, '.agents', 'mcp_config.json'), JSON.stringify({ mcpServers: { 'demo-stdio': { command: '/usr/bin/true', disabled: true } } }))
+  writeWithDirs(join(agOnly, '.agents', 'agents', 'demo-agent', 'agent.md'), '---\nname: demo-agent\ndescription: Project-level sample subagent.\nsubagent: true\n---\nYou explain calc.py.\n')
+  writeWithDirs(join(agOnly, '.agents', 'mcp_config.json'), JSON.stringify({ mcpServers: { 'demo-stdio': { command: '/usr/bin/true', disabled: true } } }))
   // transfer: a Claude project-level skill, and in the shared directory one name of its own and one (tdd) Claude's and
   // agy's global libraries hold too
   skill(join(all, '.claude', 'skills'), 'ui-design', 'UI review rules', 'UI design, the project copy')
   skill(join(all, '.agents', 'skills'), 'changelog-entry', 'Add a changelog entry', 'Changelog entry, the shared copy')
   skill(join(all, '.agents', 'skills'), 'tdd', 'The project TDD', 'TDD, the shared project copy')
   // transfer's own Claude and Codex subagents, so project detail heads each side's project group by its directory
-  file(join(all, '.claude', 'agents', 'proj-claude.md'), '---\ndescription: Project Claude helper\n---\nClaude project persona.\n')
-  file(join(all, '.codex', 'agents', 'proj-codex.toml'), 'name = "proj-codex"\ndescription = "Project Codex helper"\ndeveloper_instructions = "You help."\n')
+  writeWithDirs(join(all, '.claude', 'agents', 'proj-claude.md'), '---\ndescription: Project Claude helper\n---\nClaude project persona.\n')
+  writeWithDirs(join(all, '.codex', 'agents', 'proj-codex.toml'), 'name = "proj-codex"\ndescription = "Project Codex helper"\ndeveloper_instructions = "You help."\n')
   return { home, agOnly, all, stale }
 }
 

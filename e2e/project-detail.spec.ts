@@ -10,6 +10,7 @@ import { mkUsageHome } from './support/homes'
 import { closeApp } from './close-app'
 import { launch, launchWindow, close, makeUserData, startApp, failOnMainErrors, type WindowLaunched } from './support/launch'
 import { scansLanded } from './support/waits'
+import { projectRow } from './support/project-row'
 
 const mainErrors = failOnMainErrors()
 
@@ -146,7 +147,6 @@ test('the tab a project opens on: another project keeps it, through a page with 
   const win = await l.app.firstWindow()
   const agents = win.locator('.rail .ri').nth(0)
   const projects = win.locator('.rail .ri').nth(1)
-  const row = (name: string) => win.locator('.side .row', { hasText: name })
   const selected = win.locator('.pane-head .tabs .tab.on')
   const select = async (tab: string): Promise<void> => {
     await win.locator('.pane-head .tabs .tab', { hasText: tab }).click()
@@ -177,22 +177,22 @@ test('the tab a project opens on: another project keeps it, through a page with 
   }
   const toTheNote = async (project: string): Promise<void> => {
     await win.locator('.side input[type="checkbox"]').check()
-    await row(project).click()
+    await projectRow(win, project).click()
     await expect(win.locator('.det-title h1')).toHaveText(project)
     await expect(win.locator('.stale-note')).toBeVisible()
   }
 
   // The first selection
   await projects.click()
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Overview')
 
   // Another project takes over the page on screen, its tab and Overview's window (token-stats G11). A click on the project's
   // own row first leaves the tab alone: the header's change orders the read behind both clicks, which that row alone could not
   await chooseWindow('Today')
   await select('Skills')
-  await row('alpha').click()
-  await row('beta').click()
+  await projectRow(win, 'alpha').click()
+  await projectRow(win, 'beta').click()
   await pageIs('beta', 'Skills')
   await select('Overview')
   await expect(selectedWindow).toHaveText('Today')
@@ -214,28 +214,28 @@ test('the tab a project opens on: another project keeps it, through a page with 
   // before it
   await select('Skills')
   await toTheNote('ghost')
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Skills')
   await select('Sessions')
   await toTheNote('ghost')
-  await row('beta').click()
+  await projectRow(win, 'beta').click()
   await pageIs('beta', 'Sessions')
 
   // Two such pages in a row change nothing
   await select('Memory')
   await toTheNote('ghost')
   await toTheNote('phantom')
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Memory')
 
   // Overview's window goes through such a page the same way (token-stats G11)
   await select('Overview')
   await chooseWindow('Today')
   await toTheNote('ghost')
-  await row('beta').click()
+  await projectRow(win, 'beta').click()
   await pageIs('beta', 'Overview')
   await expect(selectedWindow).toHaveText('Today')
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Overview')
 
   // Leaving by the rail or a side card's project count while on a note page: coming back is not switching projects, so the
@@ -247,11 +247,11 @@ test('the tab a project opens on: another project keeps it, through a page with 
     await toTheNote('ghost')
     await comeBack()
     await expect(win.locator('.stale-note')).toBeVisible()
-    await row('beta').click()
+    await projectRow(win, 'beta').click()
     await pageIs('beta', 'Overview')
     await expect(selectedWindow).toHaveText('Total · all history')
   }
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Overview')
 
   // Coming back from a session lands on Sessions (T8), once: leaving by the rail or by a side card's project count and
@@ -300,18 +300,18 @@ test('the tab a project opens on: another project keeps it, through a page with 
 
   // With the landed page on screen another project takes it over, and its tab; leaving by the rail starts on Overview
   await backFromTheSession()
-  await row('beta').click()
+  await projectRow(win, 'beta').click()
   await pageIs('beta', 'Sessions')
   await leaveByTheRailAndComeBack()
   await pageIs('beta', 'Overview')
 
   // A project selected in the list from a session page lands on Sessions, once. This one has none yet, and the tab says so.
   // With that page on screen another project keeps the tab, and leaving by the rail starts on Overview
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await expect(win.locator('.det-title h1')).toHaveText('alpha')
   await chooseWindow('Today')
   await openTheSession()
-  await row('beta').click()
+  await projectRow(win, 'beta').click()
   await pageIs('beta', 'Sessions')
   await expect(win.locator('.pane-body .none')).toHaveText(
     'No sessions in this project yet. They appear automatically once any agent side has a conversation in this directory.'
@@ -319,14 +319,14 @@ test('the tab a project opens on: another project keeps it, through a page with 
   await select('Overview')
   await expect(selectedWindow).toHaveText('Today')
   await select('Sessions')
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Sessions')
   await leaveByTheRailAndComeBack()
   await pageIs('alpha', 'Overview')
 
   // So does the session's own project, its row clicked with the session on screen
   await openTheSession()
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Sessions')
   await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
   await throughTheSideCard()
@@ -355,9 +355,9 @@ test('the tab a project opens on: another project keeps it, through a page with 
     await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
   }
   await openFromTheCard()
-  await row('beta').click()
+  await projectRow(win, 'beta').click()
   await pageIs('beta', 'Sessions')
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Sessions')
   await select('Overview')
   await openFromTheCard()
@@ -372,14 +372,14 @@ test('the tab a project opens on: another project keeps it, through a page with 
 
   // The project on screen leaves the snapshot (S7): that state has no tabs either, so selecting another project clears the
   // message and opens on the tab from before it
-  await row('beta').click()
+  await projectRow(win, 'beta').click()
   await pageIs('beta', 'Sessions')
   await select('Overview')
   await chooseWindow('Today')
   await select('Skills')
   register(alpha, ghost, phantom)
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Skills')
   await expect(win.locator('.detail .empty')).toHaveCount(0)
   await select('Overview')
@@ -390,7 +390,7 @@ test('the tab a project opens on: another project keeps it, through a page with 
   await toTheNote('phantom')
   register(alpha, ghost)
   await expect(win.locator('.detail .empty')).toContainText('not in the snapshot')
-  await row('alpha').click()
+  await projectRow(win, 'alpha').click()
   await pageIs('alpha', 'Instructions')
 
   expect(l.errors).toEqual([])
