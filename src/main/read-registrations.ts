@@ -28,7 +28,7 @@ type Listing = { side: AgentSide; name: string } & ({ scope: 'global' } | { scop
 
 /** What a registration's owner names: the scan, a project page by its path, a package listing by its arguments, or
  * nothing this build reads (an owner of another form, or a key that is not exactly one listing's as `savedReadKey`
- * writes it, a side this build knows included) */
+ * writes it: a side this build knows, a name, and only the path its scope takes) */
 function ownerOf(owner: string): { kind: 'scan' } | { kind: 'page'; path: string } | { kind: 'listing'; args: Listing } | { kind: 'unknown' } {
   if (owner === 'scan') return { kind: 'scan' }
   if (owner.startsWith('project:')) return { kind: 'page', path: owner.slice('project:'.length) }
