@@ -7,7 +7,7 @@
 While checking a fix on the notarized v0.1.0-beta.6, the build was started with `--remote-debugging-port` to drive it, and it
 opened the port. The check worked, and that was the finding: the fuses had been read as closing this. Trying a few more inputs
 found worse. `--gpu-launcher` ran the program it named, and `ELECTRON_RENDERER_URL` loaded a page of the launcher's choosing in
-the window, with the preload's whole API (the table is in ADR-0042). Whatever the user had granted the app, code arriving
+the window, with the preload's whole API. Whatever the user had granted the app, code arriving
 this way held too.
 
 ## Why no test caught it
