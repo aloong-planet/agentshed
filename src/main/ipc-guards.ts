@@ -140,8 +140,10 @@ export const copyTextArgs: Guard<string> = guard((text) => {
  * name that is not one path segment is refused there */
 export const installSkillArgs: Guard<SkillInstallArgs> = guard((args) => {
   const a = args as SkillInstallArgs
-  // The copy is what is checked and passed on: `every` skips a hole in the page's list, which the copy fills
-  const sides = Array.isArray(a?.sides) ? Array.from(a.sides) : []
+  // The copy is what is checked and passed on: `every` skips a hole in the page's list, which the copy fills. A page
+  // names each side once at most (skillLandings), so a longer list, a few bytes on the wire when sparse however long, is
+  // refused before it is copied
+  const sides = Array.isArray(a?.sides) && a.sides.length <= AGENT_SIDES.size ? Array.from(a.sides) : []
   if (
     typeof a?.skillName !== 'string' ||
     typeof a?.targetProjectPath !== 'string' ||

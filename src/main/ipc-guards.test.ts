@@ -133,9 +133,6 @@ describe('projectDetailArgs', () => {
   it.each([42, null, undefined, {}, ''])('refuses %j as bad arguments for path', (raw) => {
     expect(refusal(() => projectDetailArgs(raw, state()))).toEqual({ code: 'bad-args', params: { channel: 'getProjectDetail', field: 'path' } })
   })
-  it('admits a directory the snapshot of this moment lists as a project', () => {
-    expect(projectDetailArgs('/p', listing())).toBe('/p')
-  })
   it('refuses a directory the snapshot does not list as not listed, before any probe of the disk', () => {
     let probes = 0
     const probe = (): boolean => { probes++; return true }
@@ -151,9 +148,6 @@ const notListed = { code: 'session-not-whitelisted', params: {} }
 describe('listedSessionArg', () => {
   it.each([42, null, undefined, '', '/s/b.jsonl', '/s/x/../a.jsonl'])('refuses %j as not in the allow-list', (raw) => {
     expect(refusal(() => listedSessionArg(raw, listed()))).toEqual(notListed)
-  })
-  it('admits a listed session as the allow-list spells it', () => {
-    expect(listedSessionArg(SESSION, listed())).toBe(SESSION)
   })
 })
 
@@ -226,17 +220,14 @@ describe('globalSearchArgs', () => {
   it.each([42, null, needle(201)])('refuses %j', (raw) => {
     expect(refusal(() => globalSearchArgs(raw, state()))).toEqual(badArgs('globalSearch', 'needle'))
   })
-  it.each([needle(200), ''])('admits %j', (raw) => {
-    expect(globalSearchArgs(raw, state())).toBe(raw)
+  it('admits an empty keyword', () => {
+    expect(globalSearchArgs('', state())).toBe('')
   })
 })
 
 describe('copyTextArgs', () => {
   it.each([42, null, ''])('refuses %j', (raw) => {
     expect(refusal(() => copyTextArgs(raw, state()))).toEqual(badArgs('copyText', 'text'))
-  })
-  it('admits text', () => {
-    expect(copyTextArgs('x', state())).toBe('x')
   })
 })
 
@@ -276,6 +267,8 @@ describe('installSkillArgs', () => {
     ['an unknown side', { ...valid, sides: ['claude', 'vim'] }],
     // Structured clone keeps a hole (measured under Electron 43, #538), and no check would have looked at its place
     ['sides with a hole', { ...valid, sides: Object.assign([], { 1: 'claude' }) }],
+    // A sparse list crosses in a few bytes whatever its length, and a copy of this one would not fit in an array
+    ['more sides than there are, sent sparse', { ...valid, sides: Object.assign([], { [2 ** 32 - 2]: 'claude' }) }],
     ['no arguments', undefined]
   ])('refuses %s', (_what, raw) => {
     expect(refusal(() => installSkillArgs(raw, state()))).toEqual(badArgs('installSkill'))
@@ -301,9 +294,6 @@ describe('uninstallSkillArgs', () => {
 describe('skillHoldingsArgs', () => {
   it.each([42, null, undefined])('refuses %j', (raw) => {
     expect(refusal(() => skillHoldingsArgs(raw, state()))).toEqual(badArgs('skillHoldings'))
-  })
-  it('admits a name', () => {
-    expect(skillHoldingsArgs('tidy', state())).toBe('tidy')
   })
 })
 
@@ -425,8 +415,9 @@ const GUARDS: Record<GuardName, Takes> = {
   copyTextArgs: { takes: 'a primitive', sends: 'x' },
   installSkillArgs: {
     takes: 'an object',
-    sends: { skillName: 'tidy', sides: ['claude', 'codex'], targetProjectPath: '/p' },
-    returns: { skillName: 'tidy', sides: ['claude', 'codex'], targetProjectPath: '/p' }
+    // Every side, the longest list a page sends
+    sends: { skillName: 'tidy', sides: ['claude', 'codex', 'grok', 'antigravity'], targetProjectPath: '/p' },
+    returns: { skillName: 'tidy', sides: ['claude', 'codex', 'grok', 'antigravity'], targetProjectPath: '/p' }
   },
   uninstallSkillArgs: {
     takes: 'an object',
@@ -488,7 +479,7 @@ describe('what every guard returns', () => {
     expect(refusal(() => run(name)([row.sends], at()))).not.toBeNull()
     expect(refusal(() => run(name)({ value: row.sends }, at()))).not.toBeNull()
   })
-  it('noArgs returns nothing, whatever the page sends', () => {
-    expect(noArgs({ file: '/x' }, state())).toBeUndefined()
+  it.each(taking('nothing'))('%s returns nothing, whatever the page sends', (name) => {
+    expect(run(name)({ file: '/x' }, state())).toBeUndefined()
   })
 })
