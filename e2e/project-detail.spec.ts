@@ -754,7 +754,10 @@ test('a project document is not readable: its link in the instructions shows the
 // scan is still held, so by the guard against the restored snapshot; A and B, asked for before the scan, pass that guard
 // and wait for it, and only A is answered, as the recheck judges against the scan's snapshot. B's memory topic, read
 // through its page's registration in the first launch, is not readable after its refusal: no registration was made.
-test('a project\'s detail is answered only for a directory the snapshot of that moment lists, the restored one until the first scan and the scan\'s after it, and nothing of a refused one reaches the page or the registrations', async () => {
+// A's skill package, listed in the first launch, still reads after the scan and A's page: neither retires the listing of
+// a project still listed whose page still shows the skill (agents-overview::CON-002/AC-03). A listing, unlike a memory
+// topic, is registered by no scan, so only its restored registration admits it.
+test('a project\'s detail is answered only for a directory the snapshot of that moment lists, the restored one until the first scan and the scan\'s after it, and nothing of a refused one reaches the page or the registrations, while the listed one keeps its package listing', async () => {
   mainErrors.allow(/project-not-listed/)
   mainErrors.allow(/memory-file-not-whitelisted/)
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-admission-'))
@@ -763,6 +766,8 @@ test('a project\'s detail is answered only for a directory the snapshot of that 
     mkdirSync(dir)
     writeFileSync(join(dir, 'CLAUDE.md'), `# ${text}\n`)
   }
+  mkdirSync(join(a, '.claude', 'skills', 'tidy'), { recursive: true })
+  writeFileSync(join(a, '.claude', 'skills', 'tidy', 'SKILL.md'), '---\ndescription: tidy\n---\nA skill body\n')
   const memDir = join(home, '.claude', 'projects', b.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
   mkdirSync(memDir, { recursive: true })
   const topic = join(memDir, 'topic.md')
@@ -778,11 +783,17 @@ test('a project\'s detail is answered only for a directory the snapshot of that 
     try { return (await window.agentshed.readMemoryFile(f)).text } catch (e) { return `refused: ${(e as Error).message}` }
   }, topic)
   const status = (win: Page): Promise<string> => win.evaluate(async () => (await window.agentshed.getStartup()).status)
+  const readSkillFile = (win: Page, file: string): Promise<string> => win.evaluate(async (f) => {
+    try { return (await window.agentshed.readSkillFile({ absPath: f })).text } catch (e) { return `refused: ${(e as Error).message}` }
+  }, file)
   try {
     app = (await startApp({ userData, home, errors: mainErrors.errors })).app
     let win = await app.firstWindow()
     await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
     expect(await detail(win, a)).toContain('A instructions')
+    const listed = await win.evaluate(async (p) => (await window.agentshed.listSkillFiles({ side: 'claude', name: 'tidy', scope: 'project', projectPath: p })).files.map(f => f.absPath), a)
+    expect(listed).toHaveLength(1)
+    const [skillFile] = listed
     expect(await detail(win, b)).toContain('B instructions')
     expect(await readTopic(win), 'B\'s page registered its memory topic').toBe('B topic\n')
     await closeApp(app)
@@ -802,8 +813,52 @@ test('a project\'s detail is answered only for a directory the snapshot of that 
     expect(ofB).toContain('project-not-listed')
     expect(ofB).not.toContain('B instructions')
     expect(await readTopic(win)).toContain('memory-file-not-whitelisted')
+    expect(await readSkillFile(win, skillFile), 'the scan and A\'s page keep A\'s listing').toContain('A skill body')
   } finally {
     if (app) await closeApp(app)
+    rmSync(userData, { recursive: true, force: true })
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+// agents-overview::CON-002/AC-03, skills-view C8: a project page's read is the authoritative enumeration of that
+// project's skills, so its pass retires the listing of a skill the page no longer shows, and only that one. No scan
+// would: the project is still listed. The removed skill's file is refused by the guard; a listing still registered
+// would instead let the read through to fail on the missing file.
+test('a project page read again retires the listing of a skill it no longer shows and keeps the other\'s: the removed skill\'s file is refused, the kept one\'s still reads', async () => {
+  mainErrors.allow(/skill-file-not-whitelisted/)
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-page-pass-'))
+  const proj = join(home, 'demo-proj')
+  const skills = join(proj, '.claude', 'skills')
+  for (const name of ['kept', 'removed']) {
+    mkdirSync(join(skills, name), { recursive: true })
+    writeFileSync(join(skills, name, 'SKILL.md'), `---\ndescription: ${name}\n---\n${name} body\n`)
+  }
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const userData = makeUserData()
+  const { app } = await startApp({ userData, home, errors: mainErrors.errors })
+  try {
+    const win = await app.firstWindow()
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
+    const shown = (): Promise<string[]> => win.evaluate(async (p) =>
+      (await window.agentshed.getProjectDetail(p)).skills.filter(s => s.level === 'project').map(s => s.name), proj)
+    const list = (name: string): Promise<string[]> => win.evaluate(async ([n, p]) =>
+      (await window.agentshed.listSkillFiles({ side: 'claude', name: n, scope: 'project', projectPath: p })).files.map(f => f.absPath), [name, proj])
+    const read = (file: string): Promise<string> => win.evaluate(async (f) => {
+      try { return (await window.agentshed.readSkillFile({ absPath: f })).text } catch (e) { return `refused: ${(e as Error).message}` }
+    }, file)
+    expect(await shown()).toEqual(['kept', 'removed'])
+    const [kept, removed] = [await list('kept'), await list('removed')]
+    expect(kept).toHaveLength(1)
+    expect(removed).toHaveLength(1)
+    expect(await read(removed[0])).toContain('removed body')
+
+    rmSync(join(skills, 'removed'), { recursive: true })
+    expect(await shown(), 'the page read again').toEqual(['kept'])
+    expect(await read(removed[0])).toContain('skill-file-not-whitelisted')
+    expect(await read(kept[0]), 'the page still shows it').toContain('kept body')
+  } finally {
+    await closeApp(app)
     rmSync(userData, { recursive: true, force: true })
     rmSync(home, { recursive: true, force: true })
   }

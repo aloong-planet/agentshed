@@ -327,12 +327,20 @@ describe('listSkillFilesArgs', () => {
     expect(refusal(() => listSkillFilesArgs({ name: 'tidy', side: 'claude', scope: 'plugin', projectPath: '/p' }, state())))
       .toEqual(badArgs('listSkillFiles', 'pluginRoot'))
   })
-  it('admits each scope', () => {
-    expect(listSkillFilesArgs({ name: 'tidy', side: 'codex', scope: 'global' }, state())).toEqual({ name: 'tidy', side: 'codex', scope: 'global' })
-    expect(listSkillFilesArgs({ name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }, state()))
-      .toEqual({ name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' })
-    expect(listSkillFilesArgs({ name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }, state()))
-      .toEqual({ name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' })
+  // A path the scope does not take would go into the listing's registration key (savedReadKey), which retiring then
+  // cannot read as a listing's
+  it.each([
+    ['a global package', { name: 'tidy', side: 'codex', scope: 'global' }, { name: 'tidy', side: 'codex', scope: 'global' }],
+    ['a global package sent with a project and a plugin root', { name: 'tidy', side: 'codex', scope: 'global', projectPath: '/p', pluginRoot: '/r' },
+      { name: 'tidy', side: 'codex', scope: 'global' }],
+    ['a project package', { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }, { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }],
+    ['a project package sent with a plugin root', { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p', pluginRoot: '/r' },
+      { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }],
+    ['a plugin package', { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }, { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }],
+    ['a plugin package sent with a project', { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r', projectPath: '/p' },
+      { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }]
+  ])('admits %s, passing on only the path its scope takes', (_what, raw, admitted) => {
+    expect(listSkillFilesArgs(raw, state())).toStrictEqual(admitted)
   })
 })
 

@@ -165,7 +165,9 @@ export const skillHoldingsArgs: Guard<string> = guard((name) => {
   return name
 })
 
-/** The package's shape; whether its root may be read is admitSkillPackage's, after the handler's delay */
+/** The package's shape; whether its root may be read is admitSkillPackage's, after the handler's delay. Only the path
+ * its scope takes is passed on: the listing's registration is keyed by these arguments (savedReadKey), and retiring
+ * reads that key as a listing's only when it holds no other path */
 export const listSkillFilesArgs: Guard<ListSkillFilesArgs> = guard((args) => {
   const a = args as ListSkillFilesArgs
   if (
@@ -181,7 +183,10 @@ export const listSkillFilesArgs: Guard<ListSkillFilesArgs> = guard((args) => {
   if (a.scope === 'plugin' && typeof a.pluginRoot !== 'string') {
     throw appError(ERR.badArgs, { channel: 'listSkillFiles', field: 'pluginRoot' })
   }
-  return a
+  const named = { side: a.side, name: a.name }
+  if (a.scope === 'project') return { ...named, scope: a.scope, projectPath: a.projectPath }
+  if (a.scope === 'plugin') return { ...named, scope: a.scope, pluginRoot: a.pluginRoot }
+  return { ...named, scope: a.scope }
 })
 
 /**
