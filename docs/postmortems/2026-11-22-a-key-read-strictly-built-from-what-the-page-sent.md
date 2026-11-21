@@ -53,5 +53,6 @@ drop.
 - **Every guard returns a value rebuilt from what it checked.** #538 brought `searchSessionsArgs` and
   `uninstallSkillArgs` in line, and `installSkillArgs` now checks and passes on its own copy of the sides list. The one
   exception is the preference setters' pass-through, whose setters refuse an object or an array. `ipc-guards.test.ts`
-  sends every guard a stray field at every level and fails on a guard with no row saying what it takes; AGENTS.md
-  states the rule under Engineering.
+  sends each guard that takes an object a stray field at every level, sends each that takes a primitive that primitive in
+  an array and in an object, and fails on a guard with no row saying what it takes; AGENTS.md states the rule under
+  Engineering.
