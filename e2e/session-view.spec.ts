@@ -4,6 +4,18 @@
 // alike, since one component carries both (the drawer switches files only from preview mode, through a link
 // in the preview, so "the new file opens in preview" holds without the reset ever being exercised). Add a
 // case when a path to either appears — a hit list beside an open session, or a file switch from raw mode.
+//
+// Known gaps of the located-question and hit-row cases, recorded rather than faked:
+//   - A hit row with no width yet (session-view's hit-row failure item) is unreachable: the search page and the
+//     Sessions tab unmount when left, and no hit row is mounted hidden. Re-test once a page keeps hit rows mounted
+//     while hidden: show it and assert its rows are judged.
+//   - A new focus for a session page already on screen has no route today: the page unmounts off Projects, and a hit is
+//     only clicked off it or from the project page it replaces. Re-test once a hit can be clicked beside an open session
+//     page: the page relocates to the new row, once.
+//   - The hit-row case's "in view" measure lays out an ellipsis probe in the row and compares overflow, as the
+//     component does, so a mis-measured ellipsis common to both would not show; its independent anchor is the
+//     window sized from the highlight's own box and an ellipsis measured another way, on a canvas given the row's
+//     font (the highlight left 1–2px inside that ellipsis from the edge).
 import { appendFileSync, chmodSync, mkdtempSync, mkdirSync, readFileSync, statSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
@@ -15,9 +27,10 @@ import { MEASURED_TRANSCRIPT, MEASURED_TRANSCRIPT_ID, transcriptFile, writeTrans
 import { localDayOffset } from './support/dates'
 import { mkUsageHome, mkEmptyProjectHome, questionLine } from './support/homes'
 import { closeApp } from './close-app'
-import { launch, close, makeUserData, startApp } from './support/launch'
+import { launch, close, launchWindow, closeWindow, makeUserData, startApp } from './support/launch'
 import { holdStoreWrites } from './support/token-store'
 import { searchGroup } from './support/search-group'
+import { claude, appendQuestion, mkHome, searchItem, box, body, NOTARIZE_HEADER, clickSearchSessions } from './support/search-home'
 
 /**
  * Ticket 03b: the fixture home for a Codex fork.
@@ -766,6 +779,281 @@ test('session search: questions by default with hits grouped; a body word only h
   await close(l)
 })
 
+/** The session page's scrolling body */
+const sessionBody = (win: Page) => win.locator('.pane-body').filter({ has: win.locator('.qlist') })
+const sessionTop = (win: Page): Promise<number> => sessionBody(win).evaluate((el) => el.scrollTop)
+
+/**
+ * The page has arrived at 'xenon 37', which newest first puts far below the fold, so being in view means it was scrolled
+ * to. A real wheel away then holds across two ticks of the display clock, with the bar still on its row.
+ * Returns where it holds.
+ */
+async function wheelAwayFromLocated(win: Page): Promise<number> {
+  const located = win.locator('.qlist .q.focused')
+  await expect(located.locator('.txt')).toHaveText('xenon 37', { timeout: 10000 })
+  await expect(located).toBeInViewport()
+  const entered = await sessionTop(win)
+  expect(entered).toBeGreaterThan(1000)
+  const at = await sessionBody(win).boundingBox()
+  await win.mouse.move((at?.x ?? 0) + 200, (at?.y ?? 0) + 200)
+  await win.mouse.wheel(0, -600)
+  await expect.poll(() => sessionTop(win)).toBe(entered - 600)
+  await win.waitForTimeout(2200)
+  expect(await sessionTop(win)).toBe(entered - 600)
+  await expect(located).toHaveCount(1)
+  return entered - 600
+}
+
+test('a located question is scrolled to once, on arrival; the position is then the reader\'s through the display clock, a row click, the sort, a folded day and a rescan (session-view D4)', async () => {
+  const { home, files } = mkHome()
+  const l = await launchWindow(home, { AGENTSHED_RESCAN_MS: '1500' })
+  const { win } = l
+  const located = win.locator('.qlist .q.focused')
+  const top = (): Promise<number> => sessionTop(win)
+  try {
+    await searchItem(win).click()
+    await box(win).fill('xenon')
+    await expect(body(win).locator('.hit')).toHaveCount(150, { timeout: 15000 })
+    await body(win).locator('.hit', { hasText: 'xenon 37' }).click()
+    const away = await wheelAwayFromLocated(win)
+
+    // Expanding a question in view moves attention on, and not the position
+    const other = win.locator('.qlist .q', { hasText: 'xenon 57' })
+    await expect(other).toBeInViewport()
+    await other.click()
+    await expect(other).toHaveClass(/\bopen\b/)
+    await expect(located).toHaveCount(0)
+    expect(await top()).toBe(away)
+
+    // The sort at the top of the page: the list turns over under it, and the page stays at the top
+    await sessionBody(win).evaluate((el) => { el.scrollTop = 0 })
+    await expect.poll(top).toBe(0)
+    await win.locator('.qbar .seg button', { hasText: 'Oldest first' }).click()
+    await expect(win.locator('.qlist .q .txt').first()).toHaveText('xenon 1')
+    expect(await top()).toBe(0)
+
+    // Reopening a folded day puts the located row back on the page, which is not an arrival. The fixture's questions
+    // straddle a local midnight, so xenon 37 is on the later day, the page's last. Its header goes to the body's bottom
+    // edge first: folding the last day with its header higher up shortens the page under the reader, the browser pulls
+    // the page back to its new end, and on reopening its scroll anchoring returns the reader to the place before the
+    // fold, so no one position would hold through both clicks (#517)
+    await expect(win.locator('.dayhd')).toHaveText([/ · 20 questions$/, / · 130 questions$/])
+    const dayHead = win.locator('.dayhd').nth(1)
+    await dayHead.evaluate((el) => el.scrollIntoView({ block: 'end' }))
+    const reading = await top()
+    await dayHead.click()
+    const row = win.locator('.qlist .q', { hasText: 'xenon 37' })
+    await expect(row).toHaveCount(0)
+    expect(await top()).toBe(reading)
+    await dayHead.click()
+    await expect(row).toHaveCount(1)
+    expect(await top()).toBe(reading)
+
+    // A rescan brings a question in by transfusion, at the far end of oldest first, and nothing moves
+    appendQuestion(files.many, 'xenon newcomer')
+    await expect(win.locator('.qlist .q', { hasText: 'xenon newcomer' })).toHaveCount(1, { timeout: 15000 })
+    expect(await top()).toBe(reading)
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+test('a located question from a project\'s Sessions tab: the page arrives once, and the reader can scroll away from it (session-view D4)', async () => {
+  const { home } = mkHome()
+  const l = await launchWindow(home)
+  const { win } = l
+  try {
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'target-proj' }).click()
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+    await win.locator('.sbar input').fill('xenon')
+    await win.locator('.grp .hit', { hasText: 'xenon 37' }).click()
+    await wheelAwayFromLocated(win)
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+test('a located question a saved page does not have yet is scrolled to when its refresh brings it in (session-view D4, P4)', async () => {
+  const { home, files } = mkHome()
+  const l = await launchWindow(home, { AGENTSHED_RESCAN_MS: '5000', AGENTSHED_FETCH_DELAY_MS: '1500' })
+  const { win } = l
+  try {
+    // Going through the session once leaves its page in the cache
+    await searchItem(win).click()
+    await box(win).fill('xenon')
+    await expect(body(win).locator('.hit')).toHaveCount(150, { timeout: 15000 })
+    await body(win).locator('.hit', { hasText: 'xenon 37' }).click()
+    await expect(win.locator('.qlist .q')).toHaveCount(150, { timeout: 10000 })
+    await searchItem(win).click()
+
+    // The session grows, and the search sees it before the page does
+    for (let k = 1; k <= 40; k++) appendQuestion(files.many, `zircon ${k}`)
+    await box(win).fill('zircon')
+    await expect(body(win).locator('.hit')).toHaveCount(40, { timeout: 15000 })
+    await body(win).locator('.hit').filter({ has: win.locator('.t', { hasText: /^zircon 1$/ }) }).click()
+
+    // The saved page opens at once without the row; the refresh brings it in, 40 newer rows down, and it is scrolled to
+    await expect(win.locator('.qlist .q')).toHaveCount(150, { timeout: 700 })
+    const located = win.locator('.qlist .q.focused')
+    await expect(located.locator('.txt')).toHaveText('zircon 1', { timeout: 10000 })
+    await expect(located).toBeInViewport()
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+/** A hit row's text, and whether its first highlighted occurrence lies wholly in view: inside the text box, and
+ *  short of the ellipsis when the row overflows (the ellipsis measured in the row's own font) */
+async function hitRows(scope: ReturnType<Page['locator']>): Promise<{ text: string; inView: boolean }[]> {
+  return scope.locator('.hit .t').evaluateAll((els) =>
+    els.map((el) => {
+      const mark = el.querySelector('mark')
+      const box = el.getBoundingClientRect()
+      const probe = document.createElement('span')
+      probe.textContent = '…'
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap'
+      el.appendChild(probe)
+      const ellipsis = probe.getBoundingClientRect().width
+      probe.remove()
+      const end = el.scrollWidth > el.clientWidth ? box.right - ellipsis : box.right
+      const r = mark?.getBoundingClientRect()
+      return { text: el.textContent ?? '', inView: !!r && r.left >= box.left - 0.5 && r.right <= end + 0.5 }
+    })
+  )
+}
+
+test('a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, a keyword under the ellipsis counted out of view, judged again on a resize and when shown again — in global search and in a project\'s Sessions tab (session-view::REQ-002)', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gs-rows-'))
+  const dir = join(home, 'work', 'rows-proj')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [dir]: {} } }))
+  // The keyword 216 characters in; at the start; 66 characters in; and a 40-character keyword 108 characters in
+  const FAR = 'Background for the planning call, '.repeat(6) + 'and now the quokka question itself'
+  const NEAR = 'quokka at the very start of a short question'
+  const MID = 'A middle-length question that mentions the zebu herd and then the quokka once more'
+  const LONG_KEY = 'quokka-routing-table-for-the-narrow-rows'
+  const WITH_LONG_KEY = `Notes on the deployment window, the on-duty handover and the rollback rules for the cluster, then later the ${LONG_KEY} entry`
+  // A question in a real one's shape (most real questions hold CJK, many line breaks and runs of spaces): its
+  // keyword, its own, about 100 characters in
+  const CJK = '\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\n   \u7136\u540e\u770b wombat \u7684\u95ee\u9898'
+  claude(home, dir, 'rows-1', [FAR, NEAR, MID, WITH_LONG_KEY, CJK], 1)
+  const l = await launchWindow(home)
+  const { win } = l
+  try {
+    // Global search at the window's default size (E1)
+    await searchItem(win).click()
+    await box(win).fill('quokka')
+    await expect(body(win).locator('.hit')).toHaveCount(4)
+    await expect.poll(async () => (await hitRows(body(win))).map((r) => [r.text.slice(0, 30), r.inView])).toEqual([
+      ['…g call, and now the quokka qu', true],
+      [NEAR.slice(0, 30), true],
+      [MID.slice(0, 30), true],
+      [WITH_LONG_KEY.slice(0, 30), true]
+    ])
+    await win.screenshot({ path: 'e2e-out/hit-rows-global-search.png' })
+
+    // A question in a real one's shape: global search shows it on one line, its line break and run of spaces read as
+    // one space, and the 20 characters before the keyword are counted on the text as shown (E8)
+    await box(win).fill('wombat')
+    await expect(body(win).locator('.hit')).toHaveCount(1)
+    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: '\u2026\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c \u7136\u540e\u770b wombat \u7684\u95ee\u9898', inView: true })
+
+    // A new keyword on the same row judges it again, both ways: the row stays mounted (its mark survives) while a
+    // keyword in view leaves it at its beginning and one far in moves it (E7). "call" lies 28 characters in, so a row
+    // that kept its moved start would show a 20-character window rather than its beginning. The whole list is read,
+    // so the single row the previous keyword left cannot answer for this one
+    await box(win).fill('call')
+    await expect.poll(async () => await hitRows(body(win))).toEqual([{ text: FAR, inView: true }])
+    await body(win).locator('.hit').first().evaluate((el) => { el.setAttribute('data-e2e-same-row', '1') })
+    await box(win).fill('quokka question')
+    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: '…g call, and now the quokka question itself', inView: true })
+    await box(win).fill('call')
+    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: FAR, inView: true })
+    await expect(body(win).locator('.hit[data-e2e-same-row="1"]')).toHaveCount(1)
+    await box(win).fill('quokka')
+    await expect(body(win).locator('.hit')).toHaveCount(4)
+
+    // Left for another page and shown again: the rows are drawn anew and judged anew (E5)
+    await win.locator('.rail .ri').nth(1).click()
+    await searchItem(win).click()
+    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: expect.stringMatching(/^…g call, and now the quokka question itself/), inView: true })
+
+    // A project's own Sessions tab, by question (E2)
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row').first().click()
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+    await win.locator('.sbar input').fill('quokka')
+    const tab = win.locator('.pane-body')
+    await expect(tab.locator('.hit')).toHaveCount(4)
+    await expect.poll(async () => (await hitRows(tab)).slice(0, 2).map((r) => [r.text.slice(0, 30), r.inView])).toEqual([
+      ['…g call, and now the quokka qu', true],
+      [NEAR.slice(0, 30), true]
+    ])
+
+    // The narrowest window the app allows: the middle question's keyword falls past the cut, and its row moves (E3)
+    await l.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 700))
+    await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(800)
+    await expect.poll(async () => (await hitRows(tab))[2]).toEqual({ text: '…u herd and then the quokka once more', inView: true })
+    expect((await hitRows(tab)).every((r) => r.inView)).toBe(true)
+
+    // A 40-character keyword: 20 characters before it do not fit beside it, so the row starts at the keyword (E4)
+    await win.locator('.sbar input').fill(LONG_KEY)
+    await expect(tab.locator('.hit')).toHaveCount(1)
+    await expect.poll(async () => (await hitRows(tab))[0]).toEqual({ text: `…${LONG_KEY} entry`, inView: true })
+    await win.screenshot({ path: 'e2e-out/hit-rows-long-keyword-800.png' })
+
+    // Widened again: the middle question's row, moved at 800px, returns to its own beginning (E3). The tab draws
+    // its results a moment after typing, so the moved row is awaited at 800px before the window widens
+    await win.locator('.sbar input').fill('quokka')
+    await expect(tab.locator('.hit')).toHaveCount(4)
+    await expect.poll(async () => (await hitRows(tab))[2]).toEqual({ text: '…u herd and then the quokka once more', inView: true })
+    await l.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1400, 900))
+    await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(1400)
+    await expect.poll(async () => (await hitRows(tab))[2]).toEqual({ text: MID, inView: true })
+    expect((await hitRows(tab))[1].text).toBe(NEAR)
+
+    // A keyword ending under the ellipsis is out of view (E6). In global search, size the window so that the fourth
+    // question's highlight (its box, padding included, which is what is judged) ends 1.5px less than the ellipsis's
+    // width before its row's right edge: inside the ellipsis by 1.5px, so the row has to move, and outside an
+    // ellipsis measured 3px short (13px measured as 10px in this font on macOS). The ellipsis is measured on a
+    // canvas given the row's font, not as the component and the helper measure it. The text box grows one pixel per
+    // pixel of window, so the width follows from one measurement of the row unmoved; the keyword lies far enough in
+    // that the width falls well inside the window's range (800px up to the 1100px it opens at) whatever the font
+    await searchItem(win).click()
+    await expect(body(win).locator('.hit')).toHaveCount(4)
+    await expect.poll(async () => (await hitRows(body(win)))[3]).toEqual({ text: WITH_LONG_KEY, inView: true })
+    const m = await body(win).locator('.hit .t').nth(3).evaluate((el) => {
+      const box = el.getBoundingClientRect()
+      const cs = getComputedStyle(el)
+      const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+      return {
+        markEnd: (el.querySelector('mark') as HTMLElement).getBoundingClientRect().right - box.left,
+        boxW: box.width,
+        winW: window.innerWidth,
+        ellipsis: ctx.measureText('\u2026').width,
+        canvasFont: ctx.font,
+        fontSize: cs.fontSize
+      }
+    })
+    // A canvas that rejects a font keeps its default 10px one, the very fault E6 guards against
+    expect(m.canvasFont, "the canvas took the row's font").toContain(m.fontSize)
+    const width = Math.round(m.winW - m.boxW + m.markEnd + m.ellipsis - 1.5)
+    expect(width, `the window E6 needs (${JSON.stringify(m)}) lies within the app's range`).toBeGreaterThanOrEqual(800)
+    expect(width, `the window E6 needs (${JSON.stringify(m)}) lies within the app's range`).toBeLessThan(1100)
+    await l.app.evaluate(({ BrowserWindow }, w) => BrowserWindow.getAllWindows()[0].setSize(w, 900), width)
+    await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(width)
+    await expect.poll(async () => (await hitRows(body(win)))[3]).toEqual({ text: '…ter, then later the quokka-routing-table-for-the-narrow-rows entry', inView: true })
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
 // Ticket grok-side/#125: the whole chain for a Grok session — listed with its title, questions
 // indexed, a turn fetched on demand rendering through the shared block model, search hitting it,
 // and the read allow-list refusing the unlisted subagent stream over the real channel.
@@ -955,6 +1243,44 @@ test('opening a session then returning to the project before it arrives (query l
 
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+test('Search Sessions… chosen while a hit\'s session is still on its way keeps the search page, and the session page is kept for later (US-004/AC-01, session-view P8 through P10)', async () => {
+  const { home } = mkHome()
+  const l = await launchWindow(home, { AGENTSHED_FETCH_DELAY_MS: '1500' })
+  const { app, win } = l
+  try {
+    const cdp = await win.context().newCDPSession(win)
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+    await searchItem(win).click()
+    await box(win).fill('notarize')
+    await expect(body(win).locator('.shead').first()).toContainText(NOTARIZE_HEADER, { timeout: 15000 })
+    // Left alone, a hit's jump lands once its session page has arrived, past the delay; how long it took sets the
+    // wait below
+    const clicked = Date.now()
+    await body(win).locator('.hit', { hasText: 'Notarize the stale build' }).click()
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(win.locator('.pane-head .stitle')).toHaveText('Notarize the stale build', { timeout: 10000 })
+    const landing = Date.now() - clicked
+
+    // A hit in a session not seen yet, and the item chosen while the search page holds: past the delay the search
+    // page is still there, its box focused, and no session page was drawn
+    await searchItem(win).click()
+    await body(win).locator('.hit', { hasText: 'How do I notarize the app?' }).click()
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(box(win)).not.toBeFocused()
+    await clickSearchSessions(app)
+    await win.waitForTimeout(landing + 1000)
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(box(win)).toBeFocused()
+    await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+    // The page that arrived meanwhile is kept: the same hit now opens at once (session-view P8)
+    await body(win).locator('.hit', { hasText: 'How do I notarize the app?' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('How do I notarize the app?', { timeout: 700 })
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
 })
 
 test('an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive', async () => {
@@ -1550,7 +1876,7 @@ test('the session page header: the session ID, copying it and the resume command
   const gts = Math.floor(localDayOffset(4).getTime() / 1000)
   writeFileSync(grokFile, JSON.stringify({ timestamp: gts, method: '_x.ai/session/update', params: { sessionId: 's', update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Grok resume question' }, _meta: { promptIndex: 0 } } } }) + '\n')
 
-  // The stale project: a parent and its fork replaying the parent's question (global-search.spec.ts's shape)
+  // The stale project: a parent and its fork replaying the parent's question (mkHome's shape in support/search-home.ts)
   const PARENT = '019fb0c0-aaaa-7af3-af7d-8505cedf1ec3'
   const CHILD = '019fb0c0-bbbb-7af3-af7d-8505cedf1ec3'
   const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
