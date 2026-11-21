@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { settingsJson } from '../../src/main/testing/agy-fixture'
 import { localDayOffset } from './dates'
 
-/** Write `text` to `path`, making the directories above it first (the fixture homes here, agents-overview, plugins-view) */
+// Shared by the fixture homes here, agents-overview and plugins-view
 export const writeWithDirs = (path: string, text: string): void => {
   mkdirSync(join(path, '..'), { recursive: true })
   writeFileSync(path, text)
