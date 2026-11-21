@@ -37,6 +37,8 @@ export const ERR = {
   pluginRootNotRegistered: 'plugin-root-not-registered',
   /** The project detail page has not been opened yet */
   projectNotOpened: 'project-not-opened',
+  /** The directory is not one the snapshot lists as a project */
+  projectNotListed: 'project-not-listed',
   /** The skill package is unavailable or not under an allowed root */
   skillPackageUnavailable: 'skill-package-unavailable',
   /** The skill file path is not allow-listed */

@@ -49,6 +49,7 @@ import {
   globalSearchArgs,
   installSkillArgs,
   listSkillFilesArgs,
+  listedProject,
   listedSession,
   listedSessionArg,
   memoryFileArg,
@@ -327,7 +328,7 @@ const handle: Register = (channel, guard, run) => {
 }
 /** What a guard judges against, as it is at this moment: a scan can replace an allow-list across an await */
 function guardState(): GuardState {
-  return { sessions: sessionWhitelist, sessionsRestored: !firstScanComplete, registry: readRegistry, regular: regularTarget, exists: existsSync }
+  return { sessions: sessionWhitelist, sessionsRestored: !firstScanComplete, projects: current?.projects ?? [], registry: readRegistry, regular: regularTarget, exists: existsSync }
 }
 
 handle(CMD.getStartup, noArgs, () => ({ display: { ...(displayStore?.get() ?? emptyDisplayData()), snapshot: current, reads: [...savedReads.values()] }, status: startupStatus }))
@@ -343,6 +344,8 @@ handle(CMD.getSnapshot, noArgs, async () => {
 handle(CMD.getProjectDetail, projectDetailArgs, async (path) => {
   if (!firstScanComplete) await firstLiveScan
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
+  // The recheck of project-detail::CON-001/AC-02, after the waits and before anything is read or registered
+  listedProject(guardState(), path)
   const detail = readProjectDetail(realRoots(), path)
   detail.stats = perProjectStats.get(mergeKey(path)) ?? null
   // Exit validation: contract drift throws at the boundary rather than rendering as undefined (the same

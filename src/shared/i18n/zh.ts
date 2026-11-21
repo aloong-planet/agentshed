@@ -527,6 +527,7 @@ export const zh = {
     memoryFileUnreadable: '该文件已不可读(被移动或删除?)',
     pluginRootNotRegistered: '插件包根不在登记集,请等待扫描完成',
     projectNotOpened: '项目未打开,请先打开项目详情',
+    projectNotListed: '目录不是本 app 的项目',
     skillPackageUnavailable: 'skill 包不可用或不在允许根下',
     skillFileNotWhitelisted: 'skill 文件路径不在白名单',
     skillFileUnreadable: 'skill 文件不可读',

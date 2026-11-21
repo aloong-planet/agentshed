@@ -284,6 +284,30 @@ while its page copy restores; that page then shows its copy's figures until the 
 and never another project's. The same holds whenever the window holds no figures at all — none saved,
 and no scan completed yet.
 
+## Constraints
+
+### project-detail::CON-001 Which directories a project's detail is asked for and read for
+
+Applies to: every request for a project's detail, and every package listing from a project's own
+skills directory ([skills-view](skills-view.md) C9).
+
+- project-detail::CON-001/AC-01: The main process reads a project's detail only for a directory its
+  snapshot lists as a project, compared exactly as the snapshot spells the path, a stale project
+  included. Another spelling of a listed project's directory is refused as any other directory is.
+- project-detail::CON-001/AC-02: A request is judged against the snapshot of the moment it arrives —
+  the restored one until the first scan completes, the latest scan's after it — and again against the
+  snapshot of the moment its files would be read.
+- project-detail::CON-001/AC-03: A refused request gets its own error and nothing else: none of the
+  directory's files is read, nothing of it joins the allow-list (R1), and the project does not count
+  as opened.
+- project-detail::CON-001/AC-04: A project counts as opened, for a package listing from it, only while
+  the snapshot of that moment lists it, whether its page was opened in this run or restored from the
+  last launch.
+- project-detail::CON-001/AC-05: The window asks for a project's detail only for a directory its own
+  snapshot lists, by AC-01's rule. A snapshot that no longer lists the project on screen refetches
+  nothing for it, the exception to T3: its page leaves for the not-in-snapshot state (S7), and if the
+  project comes back its page is a cached visit (T2).
+
 ## Implementation Decisions
 
 - **The query layer** (ADR-0028): a failed fetch is not retried, so failures surface at once.
