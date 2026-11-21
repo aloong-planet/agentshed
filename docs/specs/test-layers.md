@@ -104,8 +104,9 @@ Scope: moving e2e cases and helpers to meet ADR-0041. `playwright test --list` n
 and the text of each case and helper is unchanged, apart from `export`, import lines, comments that name the old
 location and these exceptions:
 
-- Two helpers that land in one file under one name. Copies that differ only in a temporary directory's name or in their
-  options become one, and helpers that do different things take distinct names, at their call sites too.
+- Two helpers that land in one file under one name. Copies that differ only in a temporary directory's name, in their
+  options or in the names of their own parameters become one, which keeps one copy's parameter names, and helpers that
+  do different things take distinct names, at their call sites too.
 - A helper that reads a variable of the case that defined it, such as the case's window, takes that variable as a
   parameter when it moves, and a call to it changes only by passing that variable.
 - A helper that moves into `e2e/support/` may take a name that says what it finds or does, at its call sites too.
