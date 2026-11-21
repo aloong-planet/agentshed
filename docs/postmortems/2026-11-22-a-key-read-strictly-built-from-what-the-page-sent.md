@@ -45,7 +45,8 @@ drop.
 ## What it settled
 
 - **The guard rebuilds its result.** `listSkillFilesArgs` now returns side, name, scope and only the path its scope
-  takes, built from what it checked, as `sessionTurnArgs` and `installSkillArgs` already did.
+  takes, built from what it checked, as `sessionTurnArgs` already did, and `installSkillArgs` did except for its sides
+  list (#538).
 - **Its case sends a stray path.** Each scope is sent with and without one, and compared with `toStrictEqual`. The case
   failed on the guard that passed its argument on.
 - **No other reader relied on the stray field.** A typecheck with the arguments narrowed per scope found the two
