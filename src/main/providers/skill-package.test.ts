@@ -342,6 +342,18 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
     expect(resolveSkillRoot({ side: 'codex', name: 'dangling', scope: 'global', roots: r })).toBeNull()
   })
 
+  it.skipIf(process.getuid?.() === 0)('an entry in a library that cannot be entered is not judged inside it: the disk\'s answer to an entry it cannot look at refuses (C9 fail-closed)', () => {
+    const r = roots()
+    const library = join(r.claudeHome, 'skills')
+    mkdirSync(join(library, 'tdd'), { recursive: true })
+    chmodSync(library, 0o000)
+    try {
+      expect(isUnderKnownSkillRoots(join(library, 'tdd'), r)).toBe(false)
+    } finally {
+      chmodSync(library, 0o755) // The temp directory's cleanup cannot read into it otherwise
+    }
+  })
+
   it('isUnderKnownSkillRoots: outside a package, a skills root itself, and anything not a direct subdirectory are all refused (C9 fail-closed)', () => {
     const r = roots()
     mkdirSync(join(r.claudeHome, 'skills', 'tdd', 'references'), { recursive: true })
