@@ -115,6 +115,9 @@ a retried "does not appear" check cannot prove absence.
 - A feature's e2e cases go in `e2e/<feature slug>.spec.ts`, or `e2e/<feature slug>-<sub-topic>.spec.ts` for a
   split, and a case about how the app starts, refreshes or keeps its cache in `e2e/lifecycle.spec.ts` (ADR-0041).
 - Shared e2e helpers live in `e2e/support/` (ADR-0041).
+- A moment of an e2e fixture that a day-grouped assertion (a per-day figure, a fold, a day count) reads comes from a local
+  midnight or from the local noon of `localDayOffset`, or is the current time itself, never an offset of the current
+  time (the reason is in the header of `e2e/support/dates.ts`).
 - Every workflow action is pinned as `owner/repo@<40-hex commit> # v<x.y.z>`, at the same commit in every
   workflow; `scripts/workflow-actions.test.mjs` enforces the form.
 - Every function the engine module exports catches a panic (`#[napi(catch_unwind)]`), and an export is named `seam_…`
