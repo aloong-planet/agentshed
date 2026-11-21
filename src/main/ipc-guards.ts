@@ -4,6 +4,11 @@
 // not admitted. A guard is made only in this module: `Guard` is branded, so a registration cannot pass an inline check,
 // and one that passes none fails typecheck (ipc-guards.test.ts holds both lines).
 //
+// What a guard returns it builds from what it checked, never the object the page sent or an array or object inside it,
+// so a field the page adds reaches no key, registration, write or delete (postmortem
+// 2026-11-22-a-key-read-strictly-built-from-what-the-page-sent). checkedByPrefsHandlers, the preference setters'
+// pass-through, is the one exception; ipc-guards.test.ts fails on a guard with no row saying what it takes.
+//
 // A handler that awaits judges again with the state of that moment, as a scan may have replaced the allow-list in
 // between: the rechecks below take the state they judge, and the handler builds it again for each.
 import { ERR, appError } from '@shared/errors'
@@ -50,8 +55,9 @@ function guard<A>(check: (raw: unknown, at: GuardState) => A): Guard<A> {
 /** A channel that takes no argument: whatever the page sends is ignored, as it always was */
 export const noArgs: Guard<void> = guard(() => undefined)
 
-/** The preference setters pass the value on: createPrefsHandlers checks it and refuses with invalid-pref
- * (prefs-handlers.test.ts), and setLanguage rebuilds the menu even then */
+/** The preference setters pass the value on, the one guard that does: createPrefsHandlers checks it and refuses with
+ * invalid-pref anything outside its fixed set, an object or an array included (prefs-handlers.test.ts), and setLanguage
+ * rebuilds the menu even then */
 export const checkedByPrefsHandlers: Guard<unknown> = guard((raw) => raw)
 
 /** A directory the snapshot lists as a project (project-detail::CON-001/AC-01, AC-03; the rule is isListedProject's) */
@@ -102,7 +108,7 @@ export const searchSessionsArgs: Guard<SearchSessionsArgs> = guard((raw) => {
   if (typeof a?.needle !== 'string' || a.needle.length > SEARCH_NEEDLE_MAX)
     throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'needle' })
   if (typeof a?.fullText !== 'boolean') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'fullText' })
-  return a
+  return { path: a.path, needle: a.needle, fullText: a.fullText }
 })
 
 /** The keyword's length limit is the project search's (global-search S4) */
@@ -134,16 +140,17 @@ export const copyTextArgs: Guard<string> = guard((text) => {
  * name that is not one path segment is refused there */
 export const installSkillArgs: Guard<SkillInstallArgs> = guard((args) => {
   const a = args as SkillInstallArgs
+  // The copy is what is checked and passed on: `every` skips a hole in the page's list, which the copy fills
+  const sides = Array.isArray(a?.sides) ? Array.from(a.sides) : []
   if (
     typeof a?.skillName !== 'string' ||
     typeof a?.targetProjectPath !== 'string' ||
-    !Array.isArray(a?.sides) ||
-    a.sides.length === 0 ||
-    !a.sides.every((s) => AGENT_SIDES.has(s))
+    sides.length === 0 ||
+    !sides.every((s) => AGENT_SIDES.has(s))
   ) {
     throw appError(ERR.badArgs, { channel: 'installSkill' })
   }
-  return { skillName: a.skillName, sides: a.sides, targetProjectPath: a.targetProjectPath }
+  return { skillName: a.skillName, sides, targetProjectPath: a.targetProjectPath }
 })
 
 /** An uninstall's shape only, as for an install (uninstallFromListedProject decides the rest) */
@@ -156,7 +163,7 @@ export const uninstallSkillArgs: Guard<SkillOpArgs> = guard((args) => {
   ) {
     throw appError(ERR.badArgs, { channel: 'skillOp' })
   }
-  return a
+  return { skillName: a.skillName, side: a.side, targetProjectPath: a.targetProjectPath }
 })
 
 /** The page names the skill, never the paths probed */
