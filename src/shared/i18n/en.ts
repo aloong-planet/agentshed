@@ -426,6 +426,7 @@ export const en: Locale = {
     pluginRootNotRegistered:
       'This plugin package root is not registered — wait for the scan to finish',
     projectNotOpened: 'The project is not open — open the project details first',
+    projectNotListed: 'The directory is not one of the app’s projects',
     skillPackageUnavailable: 'The skill package is unavailable or outside the allowed roots',
     skillFileNotWhitelisted: 'This skill file path is not in the allowed list',
     skillFileUnreadable: 'The skill file cannot be read',

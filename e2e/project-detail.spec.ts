@@ -1,10 +1,13 @@
+// Not observable: that no file of a directory refused under project-detail::CON-001/AC-03 is read, as a read leaves nothing an
+// e2e case can see. The admission case below shows that nothing of it reaches the page or the registrations, and the
+// guard and the recheck run before the reader in index.ts. Add a check when a seam reports what the reader opened.
 // Also not driven: the tab row over a failed detail fetch on a page drawn after a stale project's note (project-detail T10).
 // The row draws before that branch and reads no fetch result. Add a case when a seam can make the project detail read fail:
 // select a normal project from a note page on a tab other than Overview, and read that tab over an empty body.
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { localDayOffset } from './support/dates'
 import { mkUsageHome } from './support/homes'
 import { closeApp } from './close-app'
@@ -597,6 +600,66 @@ test('a project document is not readable: its link in the instructions shows the
     expect(await read(context)).toContain('memory-file-not-whitelisted')
   } finally {
     await closeApp(app)
+    rmSync(userData, { recursive: true, force: true })
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+// project-detail::CON-001/AC-02, AC-03 over the real channel. The first launch saves A's and B's pages; the second, its first scan held,
+// restores a snapshot listing both and then scans one listing only A. A directory neither lists is refused while the
+// scan is still held, so by the guard against the restored snapshot; A and B, asked for before the scan, pass that guard
+// and wait for it, and only A is answered, as the recheck judges against the scan's snapshot. B's memory topic, read
+// through its page's registration in the first launch, is not readable after its refusal: no registration was made.
+test('a project\'s detail is answered only for a directory the snapshot of that moment lists, the restored one until the first scan and the scan\'s after it, and nothing of a refused one reaches the page or the registrations', async () => {
+  mainErrors.allow(/project-not-listed/)
+  mainErrors.allow(/memory-file-not-whitelisted/)
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-admission-'))
+  const [a, b, stray] = ['proj-a', 'proj-b', 'stray'].map((name) => join(home, name))
+  for (const [dir, text] of [[a, 'A instructions'], [b, 'B instructions'], [stray, 'Stray instructions']]) {
+    mkdirSync(dir)
+    writeFileSync(join(dir, 'CLAUDE.md'), `# ${text}\n`)
+  }
+  const memDir = join(home, '.claude', 'projects', b.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
+  mkdirSync(memDir, { recursive: true })
+  const topic = join(memDir, 'topic.md')
+  writeFileSync(topic, 'B topic\n')
+  const registry = join(home, '.claude.json')
+  writeFileSync(registry, JSON.stringify({ projects: { [a]: {}, [b]: {} } }))
+  const userData = makeUserData()
+  let app: ElectronApplication | undefined
+  const detail = (win: Page, dir: string): Promise<string> => win.evaluate(async (p) => {
+    try { return JSON.stringify(await window.agentshed.getProjectDetail(p)) } catch (e) { return `refused: ${(e as Error).message}` }
+  }, dir)
+  const readTopic = (win: Page): Promise<string> => win.evaluate(async (f) => {
+    try { return (await window.agentshed.readMemoryFile(f)).text } catch (e) { return `refused: ${(e as Error).message}` }
+  }, topic)
+  const status = (win: Page): Promise<string> => win.evaluate(async () => (await window.agentshed.getStartup()).status)
+  try {
+    app = (await startApp({ userData, home, errors: mainErrors.errors })).app
+    let win = await app.firstWindow()
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
+    expect(await detail(win, a)).toContain('A instructions')
+    expect(await detail(win, b)).toContain('B instructions')
+    expect(await readTopic(win), 'B\'s page registered its memory topic').toBe('B topic\n')
+    await closeApp(app)
+    app = undefined
+
+    writeFileSync(registry, JSON.stringify({ projects: { [a]: {} } }))
+    app = (await startApp({ userData, home, errors: mainErrors.errors, env: { AGENTSHED_SCAN_DELAY_MS: '8000' } })).app
+    win = await app.firstWindow()
+    expect(await status(win), 'the first scan is held').not.toBe('ready')
+    const answers = [detail(win, a), detail(win, b)]
+    const refused = await detail(win, stray)
+    expect(refused).toContain('project-not-listed')
+    expect(refused).not.toContain('Stray instructions')
+    expect(await status(win), 'refused before the first scan completed, so by the guard').not.toBe('ready')
+    const [ofA, ofB] = await Promise.all(answers)
+    expect(ofA).toContain('A instructions')
+    expect(ofB).toContain('project-not-listed')
+    expect(ofB).not.toContain('B instructions')
+    expect(await readTopic(win)).toContain('memory-file-not-whitelisted')
+  } finally {
+    if (app) await closeApp(app)
     rmSync(userData, { recursive: true, force: true })
     rmSync(home, { recursive: true, force: true })
   }

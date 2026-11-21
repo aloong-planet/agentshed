@@ -3,7 +3,9 @@
 // returning to the Projects dimension (spec project-detail T9, T11).
 import { QueryClient } from '@tanstack/react-query'
 import { keepTurnsWithin, releaseTurnsNotKept } from './display-queries'
+import type { ProjectEntry } from '@shared/domain'
 import { KEPT_TURNS_UNITS } from '@shared/kept-turns'
+import { isListedProject } from '@shared/listed-project'
 
 /** retry: false — a failed fetch surfaces at once rather than being retried silently (T10). No
  * override of staleTime (library default 0, which is exactly "every mount revalidates", T2) or
@@ -30,9 +32,14 @@ export function createQueryClient(keptTurnsUnits = KEPT_TURNS_UNITS): QueryClien
  * Every automatic rescan marks these stale, so a page on screen refreshes by transfusion and one revisited
  * later revalidates (the AGENTS.md invariant on page switches); global search's
  * results among them, which also retries a failed search (global-search REQ-003/AC-02, REQ-004/AC-01).
+ * A project's detail is asked for again only while the new snapshot lists the project (project-detail::CON-001/AC-05):
+ * the page of one it dropped is still mounted when this runs, so its detail is only marked stale.
  */
-export function invalidateOnSnapshot(client: QueryClient): void {
-  for (const name of ['projectDetail', 'sessionPage', 'turnContent', 'memoryContent', 'skillContent', 'skillFiles', 'globalSearch']) {
+export function invalidateOnSnapshot(client: QueryClient, projects: readonly Pick<ProjectEntry, 'path'>[]): void {
+  const listed = (key: readonly unknown[]): boolean => isListedProject(projects, key[1] as string)
+  void client.invalidateQueries({ queryKey: ['projectDetail'], predicate: (q) => listed(q.queryKey) })
+  void client.invalidateQueries({ queryKey: ['projectDetail'], predicate: (q) => !listed(q.queryKey), refetchType: 'none' })
+  for (const name of ['sessionPage', 'turnContent', 'memoryContent', 'skillContent', 'skillFiles', 'globalSearch']) {
     void client.invalidateQueries({ queryKey: [name] })
   }
 }

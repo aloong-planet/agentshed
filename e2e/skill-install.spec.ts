@@ -482,9 +482,10 @@ test('an install lands a copy holding no symlink at any depth, and a link that l
 
 // skill-install R3 at the IPC boundary (#403): the page names the target of an install or uninstall, so one that names
 // a directory the app does not list as a project is answered with a refusal and nothing on disk changes. The home
-// directory is the sharpest such target, its .claude/skills being the global library. The page opens both
-// directories' details first, which makes any directory readable, so that only the app's own projects can admit them.
-test('an install or uninstall outside the app\'s projects is refused, even into a directory whose details were opened', async () => {
+// directory is the sharpest such target, its .claude/skills being the global library. The page asks for both
+// directories' details first, and those are refused too (project-detail::CON-001/AC-01), so neither directory is admitted by
+// anything a page can open.
+test('an install or uninstall outside the app\'s projects is refused, as is a request for its details', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-optarget-'))
   const proj = join(home, 'proj')
   const stray = join(home, 'stray')
@@ -500,7 +501,12 @@ test('an install or uninstall outside the app\'s projects is refused, even into 
   // The first scan has landed: the app lists proj, so a refusal below is the guard's and not an empty list's
   await win.locator('.rail .ri').nth(1).click()
   await expect(win.locator('.side .row', { hasText: 'proj' })).toBeVisible()
-  for (const dir of [home, stray]) await win.evaluate((p) => window.agentshed.getProjectDetail(p), dir)
+  for (const dir of [home, stray]) {
+    const detail = await win.evaluate(async (p) => {
+      try { return JSON.stringify(await window.agentshed.getProjectDetail(p)) } catch (e) { return (e as Error).message }
+    }, dir)
+    expect(detail).toContain('project-not-listed')
+  }
 
   expect(await win.evaluate((p) => window.agentshed.uninstallSkill({ skillName: 'tidy', side: 'claude', targetProjectPath: p }), home))
     .toEqual({ ok: false, reason: 'skill-target-not-project' })
@@ -509,7 +515,9 @@ test('an install or uninstall outside the app\'s projects is refused, even into 
     .toEqual([{ dir: '.claude/skills', loaders: ['claude'], result: { ok: false, reason: 'skill-target-not-project' } }])
   expect(readdirSync(stray)).toEqual([])
 
-  expect(l.errors).toEqual([])
+  // The handler errors are the two detail refusals
+  expect(l.errors).toHaveLength(2)
+  for (const error of l.errors) expect(error).toContain('project-not-listed')
   await close(l)
 })
 

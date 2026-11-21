@@ -15,6 +15,8 @@ import {
   type SkillInstallArgs,
   type SkillOpArgs
 } from '@shared/ipc'
+import type { ProjectEntry } from '@shared/domain'
+import { isListedProject } from '@shared/listed-project'
 import { AGENT_SIDES } from '@shared/validate'
 import type { ReadRegistry } from './read-registrations'
 import { sessionReadTarget, sessionRevealTarget } from './security'
@@ -32,6 +34,9 @@ export interface GuardState {
   sessions: ReadonlySet<string>
   /** Whether that allow-list is still the restored one */
   sessionsRestored: boolean
+  /** The projects the snapshot of this moment lists: the restored one's until the first scan, the last scan's after it,
+   * none without either */
+  projects: readonly Pick<ProjectEntry, 'path'>[]
   registry: Pick<ReadRegistry, 'admission'>
   /** Whether a path is a regular file, or with `directory` a directory, never following a link */
   regular: (file: string, directory?: boolean) => boolean
@@ -49,10 +54,17 @@ export const noArgs: Guard<void> = guard(() => undefined)
  * (prefs-handlers.test.ts), and setLanguage rebuilds the menu even then */
 export const checkedByPrefsHandlers: Guard<unknown> = guard((raw) => raw)
 
-export const projectDetailArgs: Guard<string> = guard((path) => {
+/** A directory the snapshot lists as a project (project-detail::CON-001/AC-01, AC-03; the rule is isListedProject's) */
+export const projectDetailArgs: Guard<string> = guard((path, at) => {
   if (typeof path !== 'string' || path === '') throw appError(ERR.badArgs, { channel: 'getProjectDetail', field: 'path' })
+  listedProject(at, path)
   return path
 })
+
+/** The recheck after an await: the directory is still one the snapshot of that moment lists (project-detail::CON-001/AC-02) */
+export function listedProject(at: GuardState, dir: string): void {
+  if (!isListedProject(at.projects, dir)) throw appError(ERR.projectNotListed)
+}
 
 /** A session the allow-list holds, judged before the file is touched (session-view R1; the rule is sessionReadTarget's) */
 export const listedSessionArg: Guard<string> = guard((raw, at) => {
@@ -175,8 +187,9 @@ export const listSkillFilesArgs: Guard<ListSkillFilesArgs> = guard((args) => {
 /**
  * Whether a package's root may be read (plugins-view H8, skills-view C9): a plugin package root the scan or a project
  * page registered, a restored registration only while it is a directory (agents-overview::CON-002); a project's package
- * only from a project whose page was opened. A global package, and the container check of every package that is not a
- * plugin's, are resolveSkillRoot's, which the skill name also passes through.
+ * only from a project whose page was opened, while the snapshot lists it (project-detail::CON-001/AC-04). A global
+ * package, and the container check of every package that is not a plugin's, are resolveSkillRoot's, which the skill
+ * name also passes through.
  */
 export function admitSkillPackage(at: GuardState, a: ListSkillFilesArgs): void {
   if (a.scope === 'plugin') {
@@ -184,8 +197,9 @@ export function admitSkillPackage(at: GuardState, a: ListSkillFilesArgs): void {
     if (at.registry.admission('pluginRoots', a.pluginRoot as string) === 'restored' && !at.regular(a.pluginRoot as string, true)) {
       throw appError(ERR.pluginRootNotRegistered)
     }
-  } else if (a.scope === 'project' && !at.registry.admission('projects', a.projectPath as string)) {
-    throw appError(ERR.projectNotOpened)
+  } else if (a.scope === 'project') {
+    if (!at.registry.admission('projects', a.projectPath as string)) throw appError(ERR.projectNotOpened)
+    listedProject(at, a.projectPath as string)
   }
 }
 
