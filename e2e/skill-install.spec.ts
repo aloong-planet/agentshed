@@ -5,6 +5,7 @@ import { test, expect } from '@playwright/test'
 import { mkAgyComponentsHome } from './support/homes'
 import { launch, close, launchWindow, type WindowLaunched } from './support/launch'
 import { skillRow } from './support/skill-row'
+import { paneTab } from './support/pane-tab'
 import { closeApp } from './close-app'
 
 // skill-install's failure notices: one notice, naming the skill and the project, in the current UI language, with no
@@ -31,12 +32,11 @@ test('a failed uninstall and a failed install each show one notice in a sentence
   writeFileSync(join(copy, 'SKILL.md'), '---\ndescription: beta\n---\n\nbody\n')
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
-  const tab = (name: string) => win.locator('.pane-head .tabs .tab', { hasText: name })
 
   // The uninstall. Its copy's contents are gone by the time the delete fails on the directory, so "not fully" is the truth
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row', { hasText: 'holder-proj' }).click()
-  await tab('Skills').click()
+  await paneTab(win, 'Skills').click()
   const row = win.locator('.pane-body .sk', { has: win.locator('.nm', { hasText: /^beta-skill$/ }) })
   await expect(row).toBeVisible()
   chmodSync(skills, 0o555)
@@ -50,7 +50,7 @@ test('a failed uninstall and a failed install each show one notice in a sentence
   // The install, in English and again in Chinese
   const install = async (skill: string = 'alpha-skill'): Promise<void> => {
     await win.locator('.rail .ri').nth(0).click()
-    await tab('Skills').click()
+    await paneTab(win, 'Skills').click()
     await win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: new RegExp(`^${skill}$`) }) }).locator('.ins').click()
     await win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: /^target-proj$/ }) }).click()
   }
@@ -154,14 +154,12 @@ test('the shared skills directory: one install target, stale and same-name rows,
   const { home, agOnly, all, stale } = mkAgyComponentsHome()
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
-  const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
-  await tab('Skills').click()
-  const row = (name: string) => skillRow(win, name)
+  await paneTab(win, 'Skills').click()
   const target = (name: string) => win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: new RegExp(`^${name}$`) }) })
 
   // The picker for an Antigravity-only skill: the shared directory is one mark naming both loaders, on the project
   // agy alone registered as on the one every side registered (skill-install::REQ-001/AC-01)
-  await row('release-notes').locator('.ins').click()
+  await skillRow(win, 'release-notes').locator('.ins').click()
   await expect(win.locator('.pop .pop-p')).toHaveCount(3)
   await expect(target('agy-demo').locator('.pop-lands > *')).toHaveCount(1)
   await expect(target('agy-demo').locator('.pop-shared .badge')).toHaveText(['CX', 'AG'])
@@ -186,7 +184,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
   // A project whose shared directory already holds the name is tagged; choosing it shows the blocked notice and
   // installs nothing — in no landing (skill-install::REQ-003/AC-02)
   await expect(win.locator('.toast')).toHaveCount(0) // Wait the success out, so the next notice is fresh
-  await row('commit-style').locator('.ins').click()
+  await skillRow(win, 'commit-style').locator('.ins').click()
   await expect(target('agy-demo').locator('.pop-have')).toHaveText('Same name installed')
   await target('agy-demo').click()
   await expect(win.locator('.toast.err')).toHaveText(
@@ -196,7 +194,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
   // tdd into the project every side registered: two landings — Claude's directory and the shared one, which already
   // holds tdd. The tag stops both: Claude's directory, free on its own, is not written either
   await expect(win.locator('.toast')).toHaveCount(0)
-  await row('tdd').locator('.ins').click()
+  await skillRow(win, 'tdd').locator('.ins').click()
   await expect(target('transfer').locator('.pop-lands > .badge')).toHaveText(['CC'])
   await expect(target('transfer').locator('.pop-shared .badge')).toHaveText(['CX', 'AG'])
   await expect(target('transfer').locator('.pop-have')).toHaveText('Same name installed')
@@ -208,7 +206,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
   // Whether a project offers the shared directory follows the skill's sides it is registered on (A8): a Codex-only
   // skill on the Antigravity-only project lands nowhere — no mark, and the existing notice (skill-install::REQ-001/AC-02)
   await expect(win.locator('.toast')).toHaveCount(0)
-  await row('decision-form').locator('.ins').click()
+  await skillRow(win, 'decision-form').locator('.ins').click()
   await expect(target('agy-demo').locator('.pop-lands > *')).toHaveCount(0)
   await expect(target('transfer').locator('.pop-shared .badge')).toHaveText(['CX', 'AG'])
   await target('agy-demo').click()
@@ -219,7 +217,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
   // headed with both loaders whatever the registration (skills-view::REQ-002/AC-01, AC-04)
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row', { hasText: 'agy-demo' }).click()
-  await tab('Skills').click()
+  await paneTab(win, 'Skills').click()
   const headings = win.locator('.pane-body .grp-t')
   await expect(headings).toHaveCount(5)
   await expect(headings.nth(0)).toHaveText('Global level · Claude(1)')
@@ -259,7 +257,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
 
   // Subagents: the project-level group, then the global ones; Antigravity rows carry no shadowing
   // (subagents-view::REQ-001/AC-05)
-  await tab('Subagents').click()
+  await paneTab(win, 'Subagents').click()
   await expect(headings).toHaveText([
     'Effective view · project level shadows on both Claude and Codex · click a row for the full definition',
     'Project level · .agents/agents(1)',
@@ -270,18 +268,18 @@ test('the shared skills directory: one install target, stale and same-name rows,
   expect(await win.locator('.pane-body .it.row-btn .pill.shadow').count()).toBe(0)
 
   // Plugins: agy's, labelled as taking effect globally (plugins-view::REQ-001/AC-05)
-  await tab('Plugins').click()
+  await paneTab(win, 'Plugins').click()
   await expect(win.locator('.it.row-btn', { hasText: 'flutter' }).locator('.ds')).toHaveText(
     'In effect globally · from antigravity-plugins-official'
   )
   // MCP: agy's global and plugin servers; the project's own file nowhere (project-detail::REQ-002/AC-03)
-  await tab('MCP').click()
+  await paneTab(win, 'MCP').click()
   await expect(win.locator('.pane-body .it .nm')).toHaveText(['sqlite-explorer', 'github', 'flutter_dart-mcp-server'])
   expect(await win.locator('.pane-body', { hasText: 'demo-stdio' }).count()).toBe(0)
 
   // The project every side registered: the shared group still sits between the Codex and the Antigravity groups
   await win.locator('.side .row', { hasText: 'transfer' }).click()
-  await tab('Skills').click()
+  await paneTab(win, 'Skills').click()
   await expect(headings.nth(0)).toHaveText('Project level · .claude/skills(1)')
   await expect(headings.nth(2)).toHaveText('Global level · Codex(1)')
   await expect(headings.nth(3)).toContainText('Shared · .agents/skills')
@@ -289,7 +287,7 @@ test('the shared skills directory: one install target, stale and same-name rows,
   // The shared directory's tdd hides agy's: release-notes and commit-style remain
   await expect(headings.nth(4)).toHaveText('Global level · Antigravity(2)')
   // Its Subagents: each side's project group headed by the directory that side reads, then the global groups
-  await tab('Subagents').click()
+  await paneTab(win, 'Subagents').click()
   await expect(headings).toHaveText([
     'Effective view · project level shadows on both Claude and Codex · click a row for the full definition',
     'Project level · .claude/agents(1)',

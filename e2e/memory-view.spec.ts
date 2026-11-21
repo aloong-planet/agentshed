@@ -16,6 +16,7 @@ import { join } from 'node:path'
 import { test, expect } from '@playwright/test'
 import { closeApp } from './close-app'
 import { startApp } from './support/launch'
+import { paneTab } from './support/pane-tab'
 import { ERR } from '../src/shared/errors'
 import { headingLadder, expectLadder, codeStyle, contentLineHeight, tableStyle, expectTableStyle, listIndent, expectCodeStyle } from './support/markdown-styles'
 import { pixelAt, paintedBackground, rgb, near } from './support/colors'
@@ -125,7 +126,6 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
   const { app, errors } = await startApp({ userData, home })
   const win = await app.firstWindow()
-  const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
   await app.evaluate(({ shell }) => {
     const opened: string[] = []
     ;(globalThis as unknown as { __opened: string[] }).__opened = opened
@@ -137,7 +137,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
 
   // (1) The Subagents tab: the same name on both sides merges onto one row, clicking it opens the drawer
   // directly, and the drawer switches sides
-  await tab('Subagents').click()
+  await paneTab(win, 'Subagents').click()
   const row = win.locator('.it.row-btn', { hasText: 'code-reviewer' })
   await expect(row).toHaveCount(1)
   await row.click()
@@ -149,7 +149,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
 
   // (2) Global Plugins: F3's first half — not enabled at the user layer; expanding gives category tabs,
   // with Skills by default and Hooks visible on switching
-  await tab('Plugins').click()
+  await paneTab(win, 'Plugins').click()
   const plugRow = win.locator('.it.row-btn', { hasText: 'superpowers@official' })
   await expect(plugRow).toContainText('Not enabled')
   await plugRow.click()
@@ -159,7 +159,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
 
   // (3) Global Memory: a row expands its file list, and clicking a file reads it on demand through the
   // allow-list into the file drawer (memory-view::US-001)
-  await tab('Memory').click()
+  await paneTab(win, 'Memory').click()
   const memRow = win.locator('.it.row-btn', { hasText: 'demo-proj' })
   await memRow.click()
   const memFile = (name: string) => win.locator('.sub-list .it.row-btn', { hasText: name })

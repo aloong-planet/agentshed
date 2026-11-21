@@ -12,6 +12,7 @@ import { localDayOffset } from './support/dates'
 import { mkUsageHome } from './support/homes'
 import { launch, close, launchWithLangs, launchWindow, closeWindow } from './support/launch'
 import { mkLinkHome, CLAUDE_LINE, card, countOf, toAgents, toProjects, dropdown, toggle, rows, chooseSide } from './support/side-link'
+import { paneTab } from './support/pane-tab'
 
 // This used to be one if/else: with real projects it took branch A, without them branch B. The
 // consequence was **undefined coverage**
@@ -203,14 +204,13 @@ test('a project behind a directory that cannot be entered keeps a normal row and
   chmodSync(locked, 0o000)
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
-  const tab = (name: string) => win.locator('.pane-head .tabs .tab', { hasText: name })
 
   // The plugin section marks the deleted project's record alone (plugins-view E2)
-  await tab('Plugins').click()
+  await paneTab(win, 'Plugins').click()
   await expect(win.locator('.pane-body .chip')).toHaveText(['project · blocked-proj', 'project · gone-proj(project stale)'])
 
   // The picker offers it, and the install is attempted and fails as a copy, not as a stale target (skill-install A5, A10)
-  await tab('Skills').click()
+  await paneTab(win, 'Skills').click()
   await win.locator('.sk-card > .rel', { has: win.locator('.nm', { hasText: /^alpha-skill$/ }) }).locator('.ins').click()
   const pick = (name: string) => win.locator('.pop .pop-p', { has: win.locator('.t', { hasText: new RegExp(`^${name}$`) }) })
   await expect(pick('gone-proj')).toBeDisabled()
@@ -230,25 +230,25 @@ test('a project behind a directory that cannot be entered keeps a normal row and
   await expect(win.locator('.pane-head h1')).toHaveText('blocked-proj')
   await expect(win.locator('.pane-head .stale-tag')).toHaveCount(0)
   await expect(win.locator('.stale-note')).toHaveCount(0)
-  await tab('Instructions').click()
+  await paneTab(win, 'Instructions').click()
   await expect(win.locator('.pane-body .instructions-path')).toHaveText([join(proj, 'CLAUDE.md')])
   await expect(win.locator('.pane-body .md .none')).toHaveText('The file cannot be read (permissions or I/O error)')
-  await tab('Sessions').click()
+  await paneTab(win, 'Sessions').click()
   const session = win.locator('.pane-body .card .se')
   await expect(session).toHaveText([/A question from the agent side/])
 
   // The sections with nothing to read stay as they are, and each reads whole, so that nothing is drawn beside its words
-  await tab('Skills').click()
+  await paneTab(win, 'Skills').click()
   await expect(win.locator('.pane-body')).toHaveText('Global level · Claude(1)alpha-skillCCGlobal1 file · 33 B')
-  await tab('Subagents').click()
+  await paneTab(win, 'Subagents').click()
   await expect(win.locator('.pane-body')).toHaveText('No subagent definitions at project or global level')
-  await tab('MCP').click()
+  await paneTab(win, 'MCP').click()
   await expect(win.locator('.pane-body')).toHaveText('Project level · .mcp.json (enabled/disabled comes from project settings)This project has no .mcp.json; see the Agents page for global MCP')
-  await tab('Memory').click()
+  await paneTab(win, 'Memory').click()
   await expect(win.locator('.pane-body')).toHaveText('No automatic memory in this project yet')
 
   // Its resume command carries no warning: session-view::US-001/AC-08's is for a directory that is gone
-  await tab('Sessions').click()
+  await paneTab(win, 'Sessions').click()
   await session.click()
   await win.locator('.pane-head .sact[data-act="resume"]').hover()
   const tip = win.locator('[data-testid="session-tip"]')
