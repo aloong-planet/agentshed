@@ -287,7 +287,10 @@ not a packaged build.
 - F10 `--type` naming a process type is read by Chromium before any JavaScript, so it never reaches the guard and no exit 64
   comes. Started by hand as `gpu-process`, `renderer`, `utility`, `zygote`, `browser` or an unknown name, such a process has
   no parent to talk to and crashes, with or without the guard; alone or beside a switch that opens a port or names a program,
-  it opens no port and runs no program (measured; the other process types are not measured). An empty `--type=` does reach
+  it opens no port and runs no program (measured). `--type=relauncher --- <program>` (with `--type=relauncher` first) instead
+  runs the program named after `---`, before any JavaScript, on a direct start, through `open`, and through the main or a
+  helper executable; macOS holds the caller, or through `open` the program itself, responsible for it, not the signed app, so
+  it gains none of the app's granted permissions — an accepted trade-off (measured; ADR-0042). An empty `--type=` does reach
   the guard, and is refused.
 - F11 An argument close to an accepted one: a switch after leading whitespace, which Chromium trims away before it reads the
   switch; `--user-data-dir` with no value, in another case, or after one dash; a `-psn_` token after whitespace. Each is refused,

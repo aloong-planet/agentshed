@@ -413,10 +413,17 @@ const LAUNCH_ENV = ['HOME', 'PATH', 'TMPDIR', 'USER', 'LOGNAME', 'LANG']
  * build (or to crash it), and a made-up one that only an allow-list refuses, since Chromium's switches are no fixed list.
  * The port switch after a space is there because Chromium trims each argument before it reads it, so a guard that takes an
  * argument for a switch by its leading dash lets it through (measured: the port opened).
- * An empty --type reaches the main process as any other launch does; with a process type's name, --type never reaches it,
- * because Chromium reads that first, and a build started that way by hand crashes with or without a guard, so it is not
- * tried. The variable is the URL the common Electron templates load in development; a project's own test seams are its
- * own unit tests' to cover.
+ * An empty --type reaches the main process as any other launch does and is refused; with a process type's name, --type
+ * never reaches the guard, because Chromium reads that first. The gpu-process, renderer, utility, zygote, browser and
+ * unknown names crash with or without a guard. The relauncher type (the one app.relaunch() starts) is the exception:
+ * `--type=relauncher --- <program>` (with --type=relauncher first) runs the program after `---`, on a direct start,
+ * through `open`, and through the main executable or a helper executable (all measured); but macOS holds the caller, or
+ * the program itself, responsible for it, not the signed app, so it inherits none of the app's granted permissions and
+ * crosses no privilege boundary. This check starts the process directly, as the caller does, so it cannot catch that
+ * path; whether the relauncher is closed is the project's own decision, recorded in its security ledger per the
+ * launch-input item (a known risk unless the project adds its own mitigation), so no --type input is tried here. The
+ * variable is the URL the common Electron templates load in development; a project's own test seams are its own unit
+ * tests' to cover.
  */
 function launchInputs(program) {
   const named = (input) => ({ name: input.split('=')[0], args: [input] })
