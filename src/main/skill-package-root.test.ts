@@ -3,12 +3,11 @@
 // wired in providers/skill-package.ts, whose real-directory cases (there and in antigravity-components.test.ts) are the
 // wiring check.
 //
-// An entry that is a link at one probe and not at the next is the entry seen as itself (a link) and followed (where it
-// leads): the case below gives an entry outside every skills directory that leads into one. A link swapped between two
-// probes of one path has no case of its own. The container check asks where the entry's directory really leads, and
-// for an entry the decision picks, that directory is spelled as the library it is compared with, so a swap there only
-// changes where both lead, and a link the entry itself becomes is followed wherever it leads (A6). A case could only
-// pin whether the decision remembers a probe's first answer, which is not a rule of the boundary.
+// An entry that is a link at one probe and not at the next has its case below, on a disk that changes between the
+// probes. No breakage turns that case red alone: no probe tells whether an entry is a link, so no judgement turns on it.
+// The container check reads the entry's directory, and the root is wherever the entry leads once followed (A6). Its reds
+// are those of the A6 baseline and of the entry outside every skills directory that links into one; the ticket asks for
+// a case per vector all the same.
 import { basename, dirname, join, normalize } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import {
@@ -104,6 +103,14 @@ const scopes = [
   ['plugin', fromPlugin, plugin]
 ] as const
 
+/** Probes on a disk that changes between them: whether a path is there is answered as `before` holds it, and where it
+ * really leads as `after` does */
+const swapped = (before: SkillRootProbes, after: SkillRootProbes): SkillRootProbes => ({
+  exists: before.exists,
+  entryThere: before.entryThere,
+  realPath: after.realPath
+})
+
 /** A probe answering null for one path and as the disk does for every other */
 const unresolvable = (probes: SkillRootProbes, path: string): SkillRootProbes => ({
   ...probes,
@@ -114,6 +121,18 @@ describe('skillPackageRoot and pluginSkillPackageRoot (where a skill package may
   it('admits a skill in a global library and returns where its entry really leads (C9, A6)', () => {
     const probes = disk([...libraries, '/repo/tdd', '/repo/tdd/SKILL.md'], { '/h/.claude/skills/tdd': '/repo/tdd' })
     expect(global('tdd', probes)).toBe('/repo/tdd')
+  })
+
+  it('admits a skill in a global library that is itself a link, judged by where the library and the entry\'s directory really lead (A1, C9)', () => {
+    const probes = disk(
+      [
+        ...libraries.filter((library) => library !== '/h/.claude/skills'),
+        '/h/dotfiles/claude-skills/tdd',
+        '/h/dotfiles/claude-skills/tdd/SKILL.md'
+      ],
+      { '/h/.claude/skills': '/h/dotfiles/claude-skills' }
+    )
+    expect(global('tdd', probes)).toBe('/h/dotfiles/claude-skills/tdd')
   })
 
   it('admits a skill in a skills directory of the project it is listed for', () => {
@@ -193,5 +212,29 @@ describe('inKnownSkillsDir (the container check, judged where the entry is)', ()
 
   it('refuses a directory below a package', () => {
     expect(inKnownSkillsDir('/h/.claude/skills/tdd/references', roots, undefined, home)).toBe(false)
+  })
+
+  it.each([
+    [
+      'in a library it opens where the link leads, as a link there from the start would (A6)',
+      () => global('tdd', swapped(home, disk([...libraries, '/e/tdd', '/e/tdd/SKILL.md'], { '/h/.claude/skills/tdd': '/e/tdd' }))),
+      '/e/tdd'
+    ],
+    [
+      'outside every skills directory it stays refused, though the link leads into one',
+      () =>
+        inKnownSkillsDir(
+          '/e/tdd',
+          roots,
+          undefined,
+          swapped(
+            disk([...libraries, '/h/.claude/skills/tdd', '/e/tdd']),
+            disk([...libraries, '/h/.claude/skills/tdd'], { '/e/tdd': '/h/.claude/skills/tdd' })
+          )
+        ),
+      false
+    ]
+  ])('judges an entry that is a directory when looked for and a link once followed where it is: %s', (_what, judge, expected) => {
+    expect(judge()).toBe(expected)
   })
 })
