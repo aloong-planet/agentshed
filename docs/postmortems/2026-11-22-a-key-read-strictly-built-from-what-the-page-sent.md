@@ -50,7 +50,8 @@ drop.
   failed on the guard that passed its argument on.
 - **No other reader relied on the stray field.** A typecheck with the arguments narrowed per scope found the two
   readers of a path their scope does not take: the key, and the container check for a global package's root.
-- **A guard should return a value rebuilt from what it checked.** This is the lesson, not yet how every guard is
-  written: the preference setters pass their value on, and the setters themselves admit only primitives.
-  `searchSessionsArgs` and `uninstallSkillArgs` return the object they were given; their handlers read named fields
-  only, and nothing is keyed, registered or persisted from them. Bringing these guards in line is left to a follow-up.
+- **Every guard returns a value rebuilt from what it checked.** #538 brought `searchSessionsArgs` and
+  `uninstallSkillArgs` in line, and `installSkillArgs` now checks and passes on its own copy of the sides list. The one
+  exception is the preference setters' pass-through, whose setters refuse an object or an array. `ipc-guards.test.ts`
+  sends every guard a stray field at every level and fails on a guard with no row saying what it takes; AGENTS.md
+  states the rule under Engineering.

@@ -91,6 +91,9 @@ a retried "does not appear" check cannot prove absence.
   wrapper in `src/main/index.ts`, and `index.ts` holds none; `pnpm lint` fails on a registration under `src/` that skips
   the wrapper, on an admission or bad-args check in `index.ts` and on a cast to `Guard` outside `ipc-guards.ts` (the
   reason is in the header of `ipc-guards.ts`, the wrapper's comment and item 17 of `docs/ops/electron-security.md`).
+- Every IPC guard returns a value built from what it checked, sharing no object or array with what the page sent; the
+  one exception is the preference setters' pass-through `checkedByPrefsHandlers`, and `ipc-guards.test.ts` fails on a
+  guard with no row saying what it takes (postmortem `2026-11-22-a-key-read-strictly-built-from-what-the-page-sent`).
 - Non-printing characters are written as escapes in source, never as raw bytes; `pnpm check:nul`
   enforces the NUL case.
 - A figure about reading files from the main process, its worker threads included, counts only when measured
