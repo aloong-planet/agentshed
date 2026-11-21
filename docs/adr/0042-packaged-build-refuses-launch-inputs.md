@@ -31,6 +31,9 @@ argument differs by platform.
 9. Read an argument as Chromium might, by a leading dash or by copying its trimming and platform prefixes — rejected:
    Chromium trims whitespace first, so a dash test lets a switch after a space or a tab through, and a copy of its
    reading fails at the next difference nobody has read.
+10. Close the relauncher rather than accept it — rejected: no Electron fuse toggles it, wrapping the main executable
+   misses the helper path it also runs through, and wrapping all five executables or patching Electron is a native shim
+   to sign and notarize in every packaging.
 
 ## Decision
 
@@ -49,10 +52,9 @@ contract with that check, so a crash never passes for a refusal.
   `--enable-logging`, so checking or diagnosing one beyond its exit, window and files takes a build of its tag.
 - Negative: an argument the app has no use for, such as a file path, is refused too; were a future macOS to add one to
   every launch the app would not open, and the packaging check, which starts the process directly, would not show it.
-- Neutral: `--type` naming a process type is read by Chromium before any of our code runs, so it gets no exit 64: the
-  measured non-relauncher names crash and run no program, while `--type=relauncher --- <program>` runs the program past
-  the guard. We accept the relauncher, because macOS holds the caller or the program itself responsible for it, not the
-  signed app, so it gains none of our granted permissions and crosses no privilege boundary (mac-distribution F10).
+- Neutral: a `--type` naming a process type is read before any of our code, so the guard never reaches it; we accept the
+  relauncher, whose program answers to the caller or to itself, not the signed app, crossing no privilege boundary
+  (mac-distribution F10).
 - Neutral: names compare in any case, as Windows reads the environment, so on macOS this refuses only names nobody
   sets.
 - Neutral: a bundle copy with its executable renamed would read as unpackaged (not measured), but its signature would
@@ -61,8 +63,8 @@ contract with that check, so a crash never passes for a refusal.
 ## Sources
 
 Measured on notarized v0.1.0-beta.5, beta.6 and beta.9 (macOS 26, Electron 43.2.0): the debugging switches,
-`--gpu-launcher`, `ELECTRON_RENDERER_URL` (trusted IPC and the preload's 41 methods) and eleven `AGENTSHED_*` seams
-each steered the build; `removeSwitch` left a top-of-main switch in force; `open` and the updater's relaunch pass
-nothing; and `--type=relauncher --- <program>` ran the program, held responsible to the caller or to itself.
+`--gpu-launcher`, `ELECTRON_RENDERER_URL` and eleven `AGENTSHED_*` seams
+each steered the build; `removeSwitch` left a top-of-main switch in force; `open` passes only what it is given, and the updater's relaunch
+nothing; and `--type=relauncher --- <program>` ran the program.
 beta.7's bypass: the 2026-11-06 postmortem. Chromium's `base/command_line.cc`; Node's Windows environment-name docs;
 electron-scaffold's `electron-security.md` item 21 and `macos-signing.md` section 6.

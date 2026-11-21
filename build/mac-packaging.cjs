@@ -421,7 +421,7 @@ const LAUNCH_ENV = ['HOME', 'PATH', 'TMPDIR', 'USER', 'LOGNAME', 'LANG']
  * the program itself, responsible for it, not the signed app, so it inherits none of the app's granted permissions and
  * crosses no privilege boundary. This check starts the process directly, as the caller does, so it cannot catch that
  * path; whether the relauncher is closed is the project's own decision, recorded in its security ledger per the
- * launch-input item (a known risk unless the project adds its own mitigation), so no --type input is tried here. The
+ * launch-input item (a known risk unless the project adds its own mitigation), so no --type naming a process type is tried here. The
  * variable is the URL the common Electron templates load in development; a project's own test seams are its own unit
  * tests' to cover.
  */
