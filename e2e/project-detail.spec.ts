@@ -8,9 +8,10 @@ import { test, expect, type Page } from '@playwright/test'
 import { localDayOffset } from './support/dates'
 import { mkUsageHome } from './support/homes'
 import { closeApp } from './close-app'
-import { launch, launchWindow, close, makeUserData, startApp, failOnMainErrors, type WindowLaunched } from './support/launch'
+import { launch, launchWindow, close, closeWindow, makeUserData, startApp, failOnMainErrors, type WindowLaunched } from './support/launch'
 import { scansLanded } from './support/waits'
 import { projectRow } from './support/project-row'
+import { mkHome, box, exits, openHit, clickSearchSessions } from './support/search-home'
 
 const mainErrors = failOnMainErrors()
 
@@ -424,6 +425,149 @@ test('the tab a project opens on: another project keeps it, through a page with 
   await expect(freshWin.locator('.pane-head .tabs .tab.on')).toHaveText('Overview')
   expect(fresh.errors).toEqual([])
   await close(fresh)
+})
+
+test('a return overtaken while it is held on its fetch draws no page, so the next page starts on Overview, by each way out (project-detail::REQ-004/AC-02)', async () => {
+  const { home } = mkHome()
+  const l = await launchWindow(home, { AGENTSHED_FETCH_DELAY_MS: '1000' })
+  const { win, app } = l
+  // Each way uses a project not yet fetched, because a fetched one is not held
+  const rail = (i: number) => win.locator('.rail .ri').nth(i)
+  const toAgents = async (): Promise<void> => {
+    await rail(0).click()
+    await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+  }
+  const ways: { keyword: string; text: string; name: string; leave: () => Promise<void>; back: () => Promise<void> }[] = [
+    {
+      keyword: 'notarize',
+      text: 'How do I notarize the app?',
+      name: 'target-proj',
+      leave: toAgents,
+      back: () => rail(1).click()
+    },
+    {
+      keyword: 'notarize',
+      text: 'Child asks to notarize the fork',
+      name: 'fork-proj',
+      leave: async () => {
+        await clickSearchSessions(app)
+        await expect(box(win)).toBeVisible()
+      },
+      back: () => rail(1).click()
+    },
+    {
+      keyword: 'notarize',
+      text: 'twin asks to notarize',
+      name: 'twin',
+      back: () => rail(1).click(),
+      leave: async () => {
+        await app.evaluate(({ Menu }) => {
+          const walk = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
+            for (const i of items) {
+              if (i.accelerator === 'CmdOrCtrl+,') return i
+              const found = i.submenu ? walk(i.submenu.items) : null
+              if (found) return found
+            }
+            return null
+          }
+          const item = walk(Menu.getApplicationMenu()?.items ?? [])
+          if (!item) throw new Error('no Settings item in the application menu')
+          ;(item.click as () => void)()
+        })
+        await expect(win.locator('.settings-sec-t').first()).toBeVisible()
+      }
+    },
+    {
+      // The card clears nothing itself: this is the way that needs the clear on leaving
+      keyword: 'filler question 21',
+      text: 'filler question 21',
+      name: 'filler-21',
+      leave: toAgents,
+      back: () => win.locator('.pane-head .stats .stat', { has: win.locator('.badge.cl') }).locator('.s .stat-link').click()
+    }
+  ]
+  try {
+    for (const way of ways) {
+      await openHit(win, way.keyword, way.text)
+      // The exit holds the session page on its fetch
+      await exits(win).nth(1).click()
+      await expect(win.locator('.pane-head .stitle')).toBeVisible()
+      await way.leave()
+      // The held return lands with no page on the stage. Past the fetch delay; coming back sooner reads the same
+      await win.waitForTimeout(1300)
+      await way.back()
+      await expect(win.locator('.pane-head h1')).toHaveText(way.name)
+      await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Overview')
+    }
+
+    // The rail's own item is no way out: the return draws its page, on Sessions (T8)
+    await openHit(win, 'filler question 22', 'filler question 22')
+    await exits(win).nth(1).click()
+    await expect(win.locator('.pane-head .stitle')).toBeVisible()
+    await rail(1).click()
+    await expect(win.locator('.pane-head h1')).toHaveText('filler-22')
+    await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
+  } finally {
+    await closeWindow(l, home)
+  }
+})
+
+test('a return onto a stale project\'s note keeps the landing: the next project, or that one when a scan brings it back, opens on Sessions, by the back control and by a selection in the list (project-detail::REQ-004/AC-02, session-view P3)', async () => {
+  const { home } = mkHome()
+  const l = await launchWindow(home, { AGENTSHED_RESCAN_MS: '250' })
+  const { win } = l
+  const header = win.locator('.pane-head h1')
+  const note = win.locator('.stale-note')
+  const dirOf = (n: number): string => join(home, 'work', `filler-${n}`)
+  // Each round takes a filler project of its own, so none waits on a scan to undo the round before
+  const waysOntoTheNote = [
+    // A hit's way on into its project, which reads "Go to <project>" for a stale one
+    async (n: number): Promise<void> => {
+      rmSync(dirOf(n), { recursive: true })
+      await openHit(win, `filler question ${n}`, `filler question ${n}`)
+      await expect(exits(win)).toHaveText(['Back to search results', `Go to filler-${n}`])
+      await exits(win).nth(1).click()
+    },
+    // The back control, with the project gone stale under the session: the list hiding its row says the scan has arrived
+    async (n: number): Promise<void> => {
+      await win.locator('.rail .ri').nth(1).click()
+      await projectRow(win, `filler-${n}`).click()
+      await expect(header).toHaveText(`filler-${n}`)
+      await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+      await win.locator('.pane-body .card .se', { hasText: `filler question ${n}` }).click()
+      await expect(win.locator('.pane-head .stitle')).toHaveText(`filler question ${n}`)
+      rmSync(dirOf(n), { recursive: true })
+      await expect(projectRow(win, `filler-${n}`)).toHaveCount(0)
+      await win.locator('.pane-head .sback').click()
+    },
+    // A selection in the list, from another project's session
+    async (n: number): Promise<void> => {
+      rmSync(dirOf(n), { recursive: true })
+      await openHit(win, 'notarize', 'How do I notarize the app?')
+      await expect(projectRow(win, `filler-${n}`)).toHaveCount(0)
+      await win.locator('.side input[type="checkbox"]').check()
+      await projectRow(win, `filler-${n}`).click()
+    }
+  ]
+  try {
+    let n = 11
+    for (const ontoTheNote of waysOntoTheNote) {
+      for (const scanBringsItBack of [false, true]) {
+        await ontoTheNote(n)
+        await expect(header).toHaveText(`filler-${n}`)
+        await expect(note).toBeVisible()
+        if (scanBringsItBack) mkdirSync(dirOf(n))
+        else await projectRow(win, 'target-proj').click()
+        await expect(header).toHaveText(scanBringsItBack ? `filler-${n}` : 'target-proj')
+        await expect(note).toHaveCount(0)
+        await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
+        n++
+      }
+    }
+    expect(l.errors).toEqual([])
+  } finally {
+    await closeWindow(l, home)
+  }
 })
 
 /**
