@@ -1,6 +1,6 @@
 # ADR-0042: A packaged build refuses every launch input outside an allow-list, and the packaging proves it
 
-- Status: Accepted (2026-11-06)
+- Status: Accepted (2026-11-21)
 
 ## Context
 
@@ -31,16 +31,18 @@ argument differs by platform.
 9. Read an argument as Chromium might, by a leading dash or by copying its trimming and platform prefixes — rejected:
    Chromium trims whitespace first, so a dash test lets a switch after a space or a tab through, and a copy of its
    reading fails at the next difference nobody has read.
+10. Close the relauncher rather than accept it — rejected: no Electron fuse toggles it, wrapping the main executable
+   misses the helper path it also runs through, and wrapping all five executables or patching Electron is a native shim
+   to sign and notarize in every packaging.
 
 ## Decision
 
-We choose **option 1**. In a packaged build, before anything loads, the main process exits with code 64, showing
-nothing, when the launch carries an argument other than the exact spelling of `--user-data-dir=<path>` or a `-psn_`
-token, or an environment variable, its name in any case, that is the development server's URL or an `AGENTSHED_*` test
-seam (mac-distribution::CON-008). `--user-data-dir` stays because it only moves the settings, letting a packaged
-build start without the real ones. Every packaging proves the refusal on the built app
-(mac-distribution::CON-008/AC-05) through electron-scaffold's packaging asset, so no project using it can ship this
-door, and the exit code is the contract with that check, so a crash never passes for a refusal.
+We choose **option 1**. In a packaged build, before anything loads, the main process exits with code 64 showing
+nothing on any argument but the exact `--user-data-dir=<path>` or a `-psn_` token, or on a development-server or
+`AGENTSHED_*` environment variable in any case (mac-distribution::CON-008). `--user-data-dir` stays because it only
+moves the settings, letting a packaged build start without the real ones. Every packaging proves the refusal on the
+built app through electron-scaffold's packaging asset (mac-distribution::CON-008/AC-05), and the exit code is the
+contract with that check, so a crash never passes for a refusal.
 
 ## Consequences
 
@@ -50,8 +52,9 @@ door, and the exit code is the contract with that check, so a crash never passes
   `--enable-logging`, so checking or diagnosing one beyond its exit, window and files takes a build of its tag.
 - Negative: an argument the app has no use for, such as a file path, is refused too; were a future macOS to add one to
   every launch the app would not open, and the packaging check, which starts the process directly, would not show it.
-- Neutral: `--type` naming a process type crashes before any of our code runs, with or without the guard, so it gets
-  no exit 64 (mac-distribution F10).
+- Neutral: a `--type` naming a process type is read before any of our code, so the guard never reaches it; we accept the
+  relauncher, whose program answers to the caller or to itself, not the signed app, crossing no privilege boundary
+  (mac-distribution F10).
 - Neutral: names compare in any case, as Windows reads the environment, so on macOS this refuses only names nobody
   sets.
 - Neutral: a bundle copy with its executable renamed would read as unpackaged (not measured), but its signature would
@@ -59,11 +62,9 @@ door, and the exit code is the contract with that check, so a crash never passes
 
 ## Sources
 
-Measured on notarized v0.1.0-beta.5 and beta.6 (macOS 26, Electron 43.2.0): `--remote-debugging-port` (one dash or two,
-also through the helper executable) and `--remote-debugging-pipe` opened a channel that drives the window,
-`--gpu-launcher=<program>` ran it, `ELECTRON_RENDERER_URL=<url>` loaded the URL with trusted IPC and the preload's 41
-methods, an empty `--type=` beside the port switch opened the port, and eleven `AGENTSHED_*` seams were read, one
-replacing the update source; `removeSwitch` closed the port, but `--js-flags=--expose-gc` removed at the top of main
-left `gc` exposed. beta.7's bypass: the 2026-11-06 postmortem. `open` passes only what it is given, and the updater's
-relaunch nothing (macOS 26). Chromium's `base/command_line.cc`; Node's documentation of Windows environment names;
+Measured on notarized v0.1.0-beta.5, beta.6 and beta.9 (macOS 26, Electron 43.2.0): the debugging switches,
+`--gpu-launcher`, `ELECTRON_RENDERER_URL` and eleven `AGENTSHED_*` seams
+each steered the build; `removeSwitch` left a top-of-main switch in force; `open` passes only what it is given, and the updater's relaunch
+nothing; and `--type=relauncher --- <program>` ran the program.
+beta.7's bypass: the 2026-11-06 postmortem. Chromium's `base/command_line.cc`; Node's Windows environment-name docs;
 electron-scaffold's `electron-security.md` item 21 and `macos-signing.md` section 6.
