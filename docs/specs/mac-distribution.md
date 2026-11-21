@@ -256,13 +256,15 @@ not a packaged build.
 - D4 macOS 11 or older: the app does not open there (mac-distribution::REQ-001/AC-04). The README and
   the landing page say "macOS 12 or later".
 
-**Sequence E: local packaging (regression)**
+**Sequence E: packaging**
 
-- E1 `pnpm dist:mac:local` on the developer's Mac still produces a Developer ID–signed package that
+- E1 `pnpm dist:mac:local` on the developer's Mac produces a Developer ID–signed package that
   is never notarized. It fails when the signing identity is missing, and on a machine with Apple
   credentials loaded it still never submits to Apple.
 - E2 The packaged app keeps the Electron fuses and the other security settings of the packaging
-  configuration (docs/ops/electron-security.md).
+  configuration (docs/ops/electron-security.md). Every packaging, in either profile, reads the fuses back from each app
+  it built and fails when one differs from the packaging configuration, or when the configuration sets one the check
+  cannot read (mac-distribution::US-002/AC-03).
 
 **Sequence F: launching a packaged build**
 
@@ -270,23 +272,23 @@ not a packaged build.
   (mac-distribution::CON-008/AC-01).
 - F2 `--`, and an argument with no leading dash such as a file path, are refused. No launch of the app carries one: Finder,
   the Dock and `open` pass none, and neither does the updater's relaunch (ADR-0042).
-- F3 A `-psn_` argument, which older macOS launches carried: accepted. It is not a Chromium switch, and refusing it would
-  stop the app opening.
+- F3 A `-psn_` argument, which older macOS launches carried: accepted.
 - F4 A launch through a symlink, named `electron` or anything else, or of a helper executable run directly: each still reads
   as packaged, and refuses.
 - F5 Someone starts the installed app from a terminal with an `AGENTSHED_*` variable exported: refused, and the sentence names
   the variable, so the reason is on their screen.
 - F6 A new test seam without the `AGENTSHED_` prefix would not be refused (`AGENTS.md` holds the constraint).
 - F7 A macOS that added an argument of its own to every launch would have every launch refused, and the packaging check would
-  not show it, because it starts the process directly (ADR-0042). Checking a package by hand includes a launch through `open`.
+  not show it, because it starts the process directly (ADR-0042).
 - F8 A packaging on a machine that cannot run a built architecture: that app is reported and left out of the launch check. When
   no built app can run there, the packaging fails rather than passing unchecked.
 - F9 The plain launch in the packaging check is killed at its limit. It has its own temporary settings directory, so it
   touches no real settings and meets no running copy's single-instance lock.
 - F10 `--type` naming a process type is read by Chromium before any JavaScript, so it never reaches the guard and no exit 64
-  comes. Started by hand, such a process has no parent to talk to and crashes, with or without the guard: measured for
-  `gpu-process`, `renderer`, `utility`, `zygote`, `browser` and an unknown name, each alone and beside the switches that open a
-  port or name a program, and none opened a port or ran a program. An empty `--type=` does reach the guard, and is refused.
+  comes. Started by hand as `gpu-process`, `renderer`, `utility`, `zygote`, `browser` or an unknown name, such a process has
+  no parent to talk to and crashes, with or without the guard; alone or beside a switch that opens a port or names a program,
+  it opens no port and runs no program (measured; the other process types are not measured). An empty `--type=` does reach
+  the guard, and is refused.
 - F11 An argument close to an accepted one: a switch after leading whitespace, which Chromium trims away before it reads the
   switch; `--user-data-dir` with no value, in another case, or after one dash; a `-psn_` token after whitespace. Each is refused,
   since only the exact spelling passes (mac-distribution::CON-008/AC-01).
