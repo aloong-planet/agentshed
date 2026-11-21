@@ -87,6 +87,10 @@ a retried "does not appear" check cannot prove absence.
 
 - The decision layer of every host security guard is a pure function whose unit tests cover the bypass
   vectors; the per-item state is in `docs/ops/electron-security.md`.
+- A channel's argument check and admission is a guard in `src/main/ipc-guards.ts`, registered through the `handle()`
+  wrapper in `src/main/index.ts`, and `index.ts` holds none; `pnpm lint` fails on a registration under `src/` that skips
+  the wrapper, on an admission or bad-args check in `index.ts` and on a cast to `Guard` outside `ipc-guards.ts` (the
+  reason is in the header of `ipc-guards.ts`, the wrapper's comment and item 17 of `docs/ops/electron-security.md`).
 - Non-printing characters are written as escapes in source, never as raw bytes; `pnpm check:nul`
   enforces the NUL case.
 - A figure about reading files from the main process, its worker threads included, counts only when measured

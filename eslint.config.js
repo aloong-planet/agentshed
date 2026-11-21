@@ -28,6 +28,83 @@ import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 
+// `no-restricted-syntax` under src/. A config object that sets a rule replaces the options an earlier one gave it rather
+// than adding to them, so the four objects that set it below match disjoint files, and each lists every selector that
+// holds for its files. They match each extension a source file could take, not .ts and .tsx alone: a .js file added
+// beside the TypeScript would otherwise be linted with none of them, and a .jsx file not linted at all.
+const sourceExts = '{ts,tsx,mts,cts,js,jsx,mjs,cjs}'
+
+// One way to a token cache entry (CacheEntries in src/main/providers/token-stats.ts): the type check keeps a
+// reader off the store's rows, and this keeps application code from opening the token store, or the JSON cache
+// the upgrade imports, for itself, where an entry read as the file holds it fails on a corrupt one. A test, and
+// the helpers under src/main/testing/, seed and corrupt them on purpose.
+const tokenCache = [{
+  selector:
+    'Literal[value=/token-cache\\.json|token-store\\.sqlite/], TemplateElement[value.raw=/token-cache\\.json|token-store\\.sqlite/]',
+  message: 'Read the token cache through TokenEngine or rowsFromStoreSnapshot (src/main/providers/token-stats.ts), never its files.'
+}]
+
+// The IPC boundary (#405, #520): a channel registers only through handle() in src/main/index.ts, with its guard from
+// src/main/ipc-guards.ts, and index.ts holds no argument check or admission of its own. The reason is in that module's
+// header, the comment on handle() and item 17 of docs/ops/electron-security.md. Typecheck refuses a registration with
+// no guard or with an inline check; these refuse the forms it lets through, and scripts/eslint-ipc-rules.test.mjs runs
+// each one. What they cannot see: a name built at run time (`electron[name]`, `'ipc-' + kind`); a Guard made without
+// naming it, by a cast to a type that names Guard only through another name (an alias, `typeof noArgs`,
+// `Parameters<Register>[1]`) or to `never`, by a `@ts-expect-error` over a registration, or by a guard's type copied
+// onto a check (`Object.assign(check, noArgs)`, no cast at all); and a check in index.ts that names neither `admission`
+// nor the bad-args error.
+const IPC = 'An IPC channel registers only through handle() in src/main/index.ts, with its guard from src/main/ipc-guards.ts.'
+// Any use of the name: a call of any of its methods, an alias, the value passed on, a destructured key, the member of a
+// namespace, default or dynamic import
+const ipcMainName = 'Identifier[name="ipcMain"]'
+const ipcMainAnywhere = [{ selector: ipcMainName, message: IPC }]
+// index.ts imports it from 'electron' and calls `ipcMain.handle` once, inside handle(): the top-level
+// `const handle: Register` arrow, as its body's only statement. A second statement there, whatever it is, takes the
+// exemption away, so a second call cannot hide beside the first.
+const ipcMainBesidesHandle = [{
+  selector: `${ipcMainName}:not(${[
+    'ImportDeclaration[source.value="electron"] > ImportSpecifier[imported.name="ipcMain"][local.name="ipcMain"] > Identifier',
+    'Program > VariableDeclaration[kind="const"] > VariableDeclarator[id.name="handle"][id.typeAnnotation.typeAnnotation.typeName.name="Register"]' +
+      ' > ArrowFunctionExpression.init > BlockStatement.body > ExpressionStatement:first-child:last-child > CallExpression.expression' +
+      ' > MemberExpression.callee[computed=false][property.name="handle"] > Identifier.object'
+  ].join(', ')})`,
+  message: IPC
+}]
+// The other doors a page's messages come in by: `ipcMain` as a computed key, the `ipc` of a WebContents or WebFrameMain
+// (an IpcMain scoped to it) or of a ServiceWorkerMain, the `ipc-message` events a WebContents receives them by, the
+// internal `-ipc-` events of a Session, on which Electron's own dispatch (lib/browser/ipc-dispatch.ts) receives every
+// one of them first, and a MessageChannelMain, a channel of its own whose one port the main process would listen on
+// after handing the page the other by `postMessage`. The last is refused by name in any form: in Electron 43.2.0 a
+// MessagePortMain reaches the main process only from a `new MessageChannelMain()` or in the `ports` of an IPC event,
+// which that dispatch makes on `-ipc-ports`.
+const ipcOtherWays = [{
+  selector: [
+    'Literal[value="ipcMain"]', 'TemplateElement[value.raw="ipcMain"]',
+    'MemberExpression > Identifier.property[name="ipc"]', 'ObjectPattern > Property > Identifier.key[name="ipc"]',
+    'Literal[value="ipc"]', 'TemplateElement[value.raw="ipc"]',
+    'Literal[value=/^ipc-message(-sync)?$/]', 'TemplateElement[value.raw=/^ipc-message(-sync)?$/]',
+    'Literal[value=/^-ipc-/]', 'TemplateElement[value.raw=/^-ipc-/]',
+    'Identifier[name="MessageChannelMain"]', 'Literal[value="MessageChannelMain"]', 'TemplateElement[value.raw="MessageChannelMain"]'
+  ].join(', '),
+  message: IPC
+}]
+// The read registry's `admission` and the bad-args error, by name, key or code
+const indexHoldsNone = [{
+  selector: [
+    'Identifier[name=/^(admission|badArgs)$/]',
+    'Literal[value=/^(admission|badArgs|bad-args)$/]', 'TemplateElement[value.raw=/^(admission|badArgs|bad-args)$/]'
+  ].join(', '),
+  message: 'src/main/index.ts holds no argument check or admission: each is a guard in src/main/ipc-guards.ts.'
+}]
+// A cast whose type names Guard (alone, qualified, in a union or a type argument), and an import that renames it
+const guardCast = [{
+  selector: [
+    ':matches(TSAsExpression, TSTypeAssertion) > .typeAnnotation Identifier[name="Guard"]',
+    'ImportSpecifier[imported.name="Guard"][local.name!="Guard"]'
+  ].join(', '),
+  message: 'A Guard is made only in src/main/ipc-guards.ts: nothing else casts to it or renames it.'
+}]
+
 export default defineConfig(
   // Whatever git ignores is not linted: build output, test reports, local scratch files. ESLint does not
   // read .gitignore on its own, and a directory missing from a hand-kept list is linted in a working
@@ -81,19 +158,25 @@ export default defineConfig(
     rules: { 'no-restricted-imports': 'off' }
   },
   {
-    // One way to a token cache entry (CacheEntries in src/main/providers/token-stats.ts): the type check keeps a
-    // reader off the store's rows, and this keeps application code from opening the token store, or the JSON cache
-    // the upgrade imports, for itself, where an entry read as the file holds it fails on a corrupt one. A test, and
-    // the helpers under src/main/testing/, seed and corrupt them on purpose.
-    files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/**/*.test.{ts,tsx}', 'src/main/testing/**', 'src/main/providers/token-stats.ts'],
-    rules: {
-      'no-restricted-syntax': ['error', {
-        selector:
-          'Literal[value=/token-cache\\.json|token-store\\.sqlite/], TemplateElement[value.raw=/token-cache\\.json|token-store\\.sqlite/]',
-        message: 'Read the token cache through TokenEngine or rowsFromStoreSnapshot (src/main/providers/token-stats.ts), never its files.'
-      }]
-    }
+    files: [`src/**/*.${sourceExts}`],
+    ignores: [
+      `src/**/*.test.${sourceExts}`, 'src/main/testing/**', 'src/main/providers/token-stats.ts', 'src/main/ipc-guards.ts', 'src/main/index.ts'
+    ],
+    rules: { 'no-restricted-syntax': ['error', ...ipcMainAnywhere, ...ipcOtherWays, ...guardCast, ...tokenCache] }
+  },
+  {
+    // The token cache is theirs to open (above); a test needs no cast to Guard, so none is exempt
+    files: [`src/**/*.test.${sourceExts}`, `src/main/testing/**/*.${sourceExts}`, 'src/main/providers/token-stats.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...ipcMainAnywhere, ...ipcOtherWays, ...guardCast] }
+  },
+  {
+    // Where every Guard is made
+    files: ['src/main/ipc-guards.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...ipcMainAnywhere, ...ipcOtherWays, ...tokenCache] }
+  },
+  {
+    files: ['src/main/index.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...ipcMainBesidesHandle, ...ipcOtherWays, ...indexHoldsNone, ...guardCast, ...tokenCache] }
   },
   {
     files: ['src/renderer/**/*.{ts,tsx}'],
