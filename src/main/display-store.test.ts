@@ -5,14 +5,14 @@ import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import { emptySnapshot, emptyTokenStats, zeroBySide } from '@shared/domain'
 import type { AgentSide, ProjectDetail, ProjectStats, SessionPage, SessionTurn, Snapshot, UsageRow } from '@shared/domain'
-import { emptyDisplayData, type DisplayData, type SavedRead } from '@shared/display-data'
+import { emptyDisplayData, savedReadKey, type DisplayData, type SavedRead } from '@shared/display-data'
 import { AGENT_SIDES } from '@shared/validate'
 import { errorText } from '@shared/error-text'
 import { ERR, appError } from '@shared/errors'
 import { loadEngineModule } from './engine-module'
 import { TEST_ENGINE } from './testing/engine'
 import { DisplayStore, engineWrite, type DisplayWrite } from './display-store'
-import { ReadRegistry } from './read-registrations'
+import { ReadRegistry, retireAfterScan } from './read-registrations'
 const dirs: string[] = []
 afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }) })
 function dir(): string { const d = mkdtempSync(join(tmpdir(), 'agentshed-display-')); dirs.push(d); return d }
@@ -827,6 +827,32 @@ it('agents-overview::REQ-005: restores what a newer build saved without the side
     ['projectDetail', '/w/p'], ['sessionPage', '/s/claude.jsonl'], ['turnContent', '/s/claude.jsonl'], ['skillFiles', 'claude'],
     ['memoryContent', '/w/p/a.md']
   ])
+})
+
+// The ways found of a registration restoring without its saved read. Each keeps its paths only until the first scan,
+// which judges it by its owner: the listing's key names a side this build does not know, and the page's project is gone
+it.each<[string, SavedRead, { owner: string; kind: 'skillFiles' | 'memoryFiles'; path: string }]>([
+  ['a skill file listing of that side, from a root the scan holds',
+    { kind: 'skillFiles', args: { side: RENAMED, name: 's', scope: 'plugin', pluginRoot: '/plug' }, data: { files: [] } },
+    { owner: `["skillFiles","${NEWER}","s","plugin",null,"/plug"]`, kind: 'skillFiles', path: '/plug/s/SKILL.md' }],
+  ['a project page naming that side', { kind: 'projectDetail', path: '/w/g', data: detail('/w/g', RENAMED, null) },
+    { owner: 'project:/w/g', kind: 'memoryFiles', path: '/w/g/memory/a.md' }]
+])('agents-overview::REQ-005, CON-002/AC-03: %s restores its registration and not its read, and the first scan retires the registration', (_way, read, left) => {
+  const root = dir()
+  const kept = { owner: 'project:/w/p', memoryFiles: ['/w/p/memory/a.md'], skillFiles: [], projects: ['/w/p'], pluginRoots: [] }
+  const registration = { owner: left.owner, memoryFiles: [], skillFiles: [], projects: [], pluginRoots: [], [left.kind]: [left.path] }
+  const saved = { ...savedByANewerBuild({ ...emptyDisplayData(), reads: [{ kind: 'projectDetail', path: '/w/p', data: detail('/w/p', null, null) }, read] }),
+    registrations: [kept, registration] }
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: saved }))
+  const restored = new DisplayStore(root).get()
+  expect(restored.reads.map(savedReadKey)).toEqual(['["projectDetail","/w/p"]'])
+  expect(restored.registrations.map((r) => r.owner)).toEqual(['project:/w/p', left.owner])
+  const registry = new ReadRegistry(restored.registrations)
+  expect(registry.admission(left.kind, left.path)).toBe('restored')
+  registry.replace({ owner: 'scan', memoryFiles: [], skillFiles: [], projects: [], pluginRoots: ['/plug'] })
+  retireAfterScan(registry, { projects: [{ path: '/w/p', stale: false }], global: { skills: [] } })
+  expect(registry.admission(left.kind, left.path)).toBeNull()
+  expect(registry.admission('memoryFiles', '/w/p/memory/a.md')).toBe('restored')
 })
 
 // Each value position of a snapshot where a side is named, the side in that one position alone (besides the records
