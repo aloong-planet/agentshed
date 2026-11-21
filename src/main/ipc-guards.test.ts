@@ -4,13 +4,20 @@
 // Gap: what calls these is index.ts's wiring, which unit tests do not load (ADR-0038); e2e cases carry it, each
 // sending over real IPC a request that only the wiring under test refuses:
 // - the registration wrapper running a channel's guard before its handler: global-search's keyword over the limit,
-//   lifecycle's restored session replaced by a link (revealSessionFile), and session-view's sessionFresh outside the
-//   allow-list. session-view's IPC surface case does not tell it apart: getSessionPage's own recheck refuses the same.
+//   lifecycle's restored session replaced by a link (revealSessionFile), session-view's sessionFresh outside the
+//   allow-list, and project-detail's admission case, whose directory neither snapshot lists is refused while the first
+//   scan is held. session-view's IPC surface case does not tell it apart: getSessionPage's own recheck refuses the same.
 // - admitMemoryFile after readMemoryFile's delay: lifecycle's restored memory file replaced by a link.
+// - listedProject after getProjectDetail's wait for the first scan: project-detail's admission case, whose project only
+//   the restored snapshot lists.
 // - admitSkillPackage after listSkillFiles' delay: plugins-view's unregistered plugin root and skills-view's project
 //   whose page was never opened.
 // Not driven: the six listedSession rechecks after an await, which need a scan to drop the file from the allow-list
-// while the handler waits (AGENTSHED_FETCH_DELAY_MS holds getSessionPage); the file was listed a moment before.
+// while the handler waits (AGENTSHED_FETCH_DELAY_MS holds getSessionPage); the file was listed a moment before. Nor
+// admitSkillPackage's check that the snapshot still lists the project, which needs a project registration the snapshot
+// no longer lists: a scan retires that registration through the project's saved page (retireAfterScan), so one is left
+// only by a page an earlier build saved for an unlisted directory, or by a saved page that did not restore beside its
+// registration. The projects it judges by are the guard state's, which the admission case carries.
 import { afterAll, describe, expect, it } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -45,6 +52,7 @@ import {
 const state = (o: Partial<GuardState> = {}): GuardState => ({
   sessions: new Set(),
   sessionsRestored: false,
+  projects: [],
   registry: new ReadRegistry(),
   regular: () => true,
   exists: () => true,
@@ -111,12 +119,24 @@ describe('a channel that takes no argument, and the preference setters', () => {
   })
 })
 
+// project-detail::CON-001/AC-01, AC-02, AC-03 at the guard and the recheck. Which directories count as listed is
+// isListedProject's (shared/listed-project.test.ts). The guard judges through listedProject, the handler's recheck after
+// its wait, so these cases hold both to it, against the state they are given.
+const listing = (): GuardState => state({ projects: [{ path: '/p' }] })
+const projectNotListed = { code: 'project-not-listed', params: {} }
+
 describe('projectDetailArgs', () => {
   it.each([42, null, undefined, {}, ''])('refuses %j as bad arguments for path', (raw) => {
     expect(refusal(() => projectDetailArgs(raw, state()))).toEqual({ code: 'bad-args', params: { channel: 'getProjectDetail', field: 'path' } })
   })
-  it('admits a path', () => {
-    expect(projectDetailArgs('/p', state())).toBe('/p')
+  it('admits a directory the snapshot of this moment lists as a project', () => {
+    expect(projectDetailArgs('/p', listing())).toBe('/p')
+  })
+  it('refuses a directory the snapshot does not list as not listed, before any probe of the disk', () => {
+    let probes = 0
+    const probe = (): boolean => { probes++; return true }
+    expect(refusal(() => projectDetailArgs('/q', state({ projects: [{ path: '/p' }], regular: probe, exists: probe })))).toEqual(projectNotListed)
+    expect(probes).toBe(0)
   })
 })
 
@@ -329,12 +349,19 @@ describe('admitSkillPackage', () => {
     expect(refusal(() => admitSkillPackage(state({ registry: restored({ pluginRoots: [dir] }), ...disk }), plugin(dir)))).toBeNull()
     expect(refusal(() => admitSkillPackage(state({ registry: live({ pluginRoots: [dirLink] }), ...disk }), plugin(dirLink)))).toBeNull()
   })
-  it('refuses a project package from a project whose page was not opened', () => {
-    expect(refusal(() => admitSkillPackage(state({ registry: live({ projects: ['/p'] }) }), project('/q')))).toEqual({ code: 'project-not-opened', params: {} })
+  // project-detail::CON-001/AC-04. Which snapshot is that moment's, the restored one or the latest scan's, is the guard
+  // state index.ts builds, which project-detail's admission case carries: at this layer a restored registration before
+  // the first scan and one after it are judged against the same list.
+  it.each([
+    ['admits a package from a project whose page was opened this launch, which the snapshot lists', live({ projects: ['/p'] }), '/p', null],
+    ['admits a package from a project with a restored registration, which the snapshot lists', restored({ projects: ['/p'] }), '/p', null],
+    ['refuses a package from a project with a restored registration, which the snapshot no longer lists', restored({ projects: ['/gone'] }), '/gone', projectNotListed],
+    ['refuses a package from a project whose page was opened this launch, which the snapshot no longer lists', live({ projects: ['/gone'] }), '/gone', projectNotListed],
+    ['refuses a package from a project the snapshot lists whose page was not opened', live({ projects: ['/q'] }), '/p', { code: 'project-not-opened', params: {} }]
+  ])('%s', (_what, registry, projectPath, expected) => {
+    expect(refusal(() => admitSkillPackage(state({ registry, projects: [{ path: '/p' }] }), project(projectPath)))).toEqual(expected)
   })
-  it('admits a project package from an opened page, restored or live, and a global package', () => {
-    expect(refusal(() => admitSkillPackage(state({ registry: live({ projects: ['/p'] }) }), project('/p')))).toBeNull()
-    expect(refusal(() => admitSkillPackage(state({ registry: restored({ projects: ['/p'] }) }), project('/p')))).toBeNull()
+  it('admits a global package', () => {
     expect(refusal(() => admitSkillPackage(state(), { name: 'tidy', side: 'claude', scope: 'global' }))).toBeNull()
   })
 })

@@ -66,6 +66,8 @@ export function errorText(lang: Language, raw: unknown): string {
       return t.pluginRootNotRegistered
     case ERR.projectNotOpened:
       return t.projectNotOpened
+    case ERR.projectNotListed:
+      return t.projectNotListed
     case ERR.skillPackageUnavailable:
       return t.skillPackageUnavailable
     case ERR.skillFileNotWhitelisted:

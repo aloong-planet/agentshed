@@ -257,7 +257,7 @@ export function App(): JSX.Element {
       setStartup('ready')
       setSnap(s)
       setFigures(windowFigures(scanned, true))
-      invalidateOnSnapshot(queryClient)
+      invalidateOnSnapshot(queryClient, s.projects)
       tellArchiveFailure()
     })
     tellArchiveFailure()

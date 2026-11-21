@@ -177,8 +177,9 @@ already legible is noise.
 - C9 Path security: a readable path must be **an exact path registered by this enumeration**; prefix
   traversal, encoding variants and out-of-package paths are refused. The container check applies to
   **the entry point before resolution**: a skill entry point must be a single-segment entry under a
-  known agent skills root (each side's global library skills directory, or an opened project's
-  project-level skills directory) — fail-closed; a plugin-sourced entry's package root follows the
+  known agent skills root (each side's global library skills directory, or the project-level skills
+  directory of an opened project, [project-detail::CON-001/AC-04](project-detail.md)) — fail-closed;
+  a plugin-sourced entry's package root follows the
   scan registration set (plugins-view spec H8); when the entry point is a symlink, **its target is
   unconstrained** and is followed only during enumeration and reading (A6).
 
