@@ -34,7 +34,6 @@ import {
   globalSearchArgs,
   installSkillArgs,
   listSkillFilesArgs,
-  listedProject,
   listedSession,
   listedSessionArg,
   memoryFileArg,
@@ -121,7 +120,8 @@ describe('a channel that takes no argument, and the preference setters', () => {
 })
 
 // project-detail::CON-001/AC-01, AC-02, AC-03 at the guard and the recheck. Which directories count as listed is
-// isListedProject's (shared/listed-project.test.ts); these cases hold that both judge by it, against the state they are given.
+// isListedProject's (shared/listed-project.test.ts). The guard judges through listedProject, the handler's recheck after
+// its wait, so these cases hold both to it, against the state they are given.
 const listing = (): GuardState => state({ projects: [{ path: '/p' }] })
 const projectNotListed = { code: 'project-not-listed', params: {} }
 
@@ -137,15 +137,6 @@ describe('projectDetailArgs', () => {
     const probe = (): boolean => { probes++; return true }
     expect(refusal(() => projectDetailArgs('/q', state({ projects: [{ path: '/p' }], regular: probe, exists: probe })))).toEqual(projectNotListed)
     expect(probes).toBe(0)
-  })
-})
-
-describe('listedProject, the recheck after an await', () => {
-  it('refuses a directory the snapshot of that moment no longer lists', () => {
-    expect(refusal(() => listedProject(state({ projects: [{ path: '/other' }] }), '/p'))).toEqual(projectNotListed)
-  })
-  it('admits one it still lists', () => {
-    expect(refusal(() => listedProject(listing(), '/p'))).toBeNull()
   })
 })
 

@@ -80,14 +80,20 @@ describe('invalidateOnSnapshot (every automatic rescan)', () => {
     const client = createQueryClient()
     let asked = 0
     const counted = (): Promise<{ ok: true }> => { asked++; return detail() }
+    const listed = await watched(client, projectDetailQueryKey('/p'), detail)
     const first = await watched(client, projectDetailQueryKey('/gone'), counted)
-    invalidateOnSnapshot(client, [])
+    invalidateOnSnapshot(client, [{ path: '/p' }])
+    // The snapshot's refetches have run once the listed project's has, so one for the dropped project would be counted
+    // here, before its page is shown again, rather than joined by the page
+    await expect.poll(listed.calls).toBe(2)
+    await expect.poll(() => client.getQueryState(projectDetailQueryKey('/gone'))?.fetchStatus).toBe('idle')
     first.stop()
     const again = await watched(client, projectDetailQueryKey('/gone'), counted)
     await expect.poll(() => asked).toBeGreaterThanOrEqual(2)
     await expect.poll(() => client.getQueryState(projectDetailQueryKey('/gone'))?.fetchStatus).toBe('idle')
     expect(asked, 'the drop asked for nothing, the page shown again asked once').toBe(2)
     again.stop()
+    listed.stop()
   })
 })
 
