@@ -50,7 +50,7 @@ drop.
   failed on the guard that passed its argument on.
 - **No other reader relied on the stray field.** A typecheck with the arguments narrowed per scope found the two
   readers of a path their scope does not take: the key, and the container check for a global package's root.
-- **Guards still returning their input are left to a follow-up.** The preference setters pass their value on, and the
-  setters themselves admit only primitives. `searchSessionsArgs` and `uninstallSkillArgs` return the object they were
-  given; their handlers read named fields only, and nothing is keyed, registered or persisted from them. The follow-up
-  is for every guard to return a value rebuilt from what it checked.
+- **A guard should return a value rebuilt from what it checked.** This is the lesson, not yet how every guard is
+  written: the preference setters pass their value on, and the setters themselves admit only primitives.
+  `searchSessionsArgs` and `uninstallSkillArgs` return the object they were given; their handlers read named fields
+  only, and nothing is keyed, registered or persisted from them. Bringing these guards in line is left to a follow-up.
