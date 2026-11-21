@@ -77,6 +77,10 @@ const cases = [
   })),
   { name: 'the WebContents ipc-message-sync event, as a template', file: PROBE, message: IPC,
     lines: [...CONTENTS, 'contents.on(`ipc-message-sync`, () => {}) // reported'] },
+  { name: 'a MessageChannelMain, by name or as a key', file: PROBE, message: IPC,
+    lines: ["import * as electron from 'electron'", "import { MessageChannelMain } from 'electron' // reported",
+      'const { port1, port2 } = new MessageChannelMain() // reported', "new electron['MessageChannelMain']() // reported",
+      'new electron[`MessageChannelMain`]() // reported'] },
   // Form 1, in each kind of file under src/, and in a file of each other extension a source file could take
   ...['src/renderer/src/ipc-probe.tsx', TEST_TS, 'src/main/testing/ipc-probe.ts', 'src/main/providers/token-stats.ts', GUARDS_TS,
     ...['mts', 'cts', 'js', 'jsx', 'mjs', 'cjs'].map((ext) => `src/main/ipc-probe.${ext}`), 'src/main/ipc-probe.test.js', 'src/main/testing/ipc-probe.js'

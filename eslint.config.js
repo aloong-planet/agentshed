@@ -67,16 +67,18 @@ const ipcMainBesidesHandle = [{
   ].join(', ')})`,
   message: IPC
 }]
-// The other doors to the messages ipcMain receives: `ipcMain` as a computed key, the `ipc` of a WebContents or
-// WebFrameMain (an IpcMain scoped to it) or of a ServiceWorkerMain, and the `ipc-message` events a WebContents receives
-// them by. A MessagePortMain is a channel of its own that these do not see: a `new MessageChannelMain()` whose other
-// port goes to the page by `postMessage`.
+// The other doors a page's messages come in by: `ipcMain` as a computed key, the `ipc` of a WebContents or WebFrameMain
+// (an IpcMain scoped to it) or of a ServiceWorkerMain, the `ipc-message` events a WebContents receives them by, and a
+// MessageChannelMain, a channel of its own whose one port the main process would listen on after handing the page the
+// other by `postMessage`. In Electron 43.2.0 a MessagePortMain reaches the main process only from a
+// `new MessageChannelMain()` or in the `ports` of an IPC event these refuse, so any use of that name is refused.
 const ipcOtherWays = [{
   selector: [
     'Literal[value="ipcMain"]', 'TemplateElement[value.raw="ipcMain"]',
     'MemberExpression > Identifier.property[name="ipc"]', 'ObjectPattern > Property > Identifier.key[name="ipc"]',
     'Literal[value="ipc"]', 'TemplateElement[value.raw="ipc"]',
-    'Literal[value=/^ipc-message(-sync)?$/]', 'TemplateElement[value.raw=/^ipc-message(-sync)?$/]'
+    'Literal[value=/^ipc-message(-sync)?$/]', 'TemplateElement[value.raw=/^ipc-message(-sync)?$/]',
+    'Identifier[name="MessageChannelMain"]', 'Literal[value="MessageChannelMain"]', 'TemplateElement[value.raw="MessageChannelMain"]'
   ].join(', '),
   message: IPC
 }]
