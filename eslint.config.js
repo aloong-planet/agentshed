@@ -30,7 +30,9 @@ import globals from 'globals'
 
 // `no-restricted-syntax` under src/. A config object that sets a rule replaces the options an earlier one gave it rather
 // than adding to them, so the four objects that set it below match disjoint files, and each lists every selector that
-// holds for its files.
+// holds for its files. They match each extension a source file could take, not .ts and .tsx alone: a .js file added
+// beside the TypeScript would otherwise be linted with none of them, and a .jsx file not linted at all.
+const sourceExts = '{ts,tsx,mts,cts,js,jsx,mjs,cjs}'
 
 // One way to a token cache entry (CacheEntries in src/main/providers/token-stats.ts): the type check keeps a
 // reader off the store's rows, and this keeps application code from opening the token store, or the JSON cache
@@ -65,8 +67,10 @@ const ipcMainBesidesHandle = [{
   ].join(', ')})`,
   message: IPC
 }]
-// The other ways to a page's messages: `ipcMain` as a computed key, the `ipc` of a WebContents, WebFrameMain or
-// ServiceWorkerMain, and the `ipc-message` events a WebContents receives them by
+// The other doors to the messages ipcMain receives: `ipcMain` as a computed key, the `ipc` of a WebContents or
+// WebFrameMain (an IpcMain scoped to it) or of a ServiceWorkerMain, and the `ipc-message` events a WebContents receives
+// them by. A MessagePortMain is a channel of its own that these do not see: a `new MessageChannelMain()` whose other
+// port goes to the page by `postMessage`.
 const ipcOtherWays = [{
   selector: [
     'Literal[value="ipcMain"]', 'TemplateElement[value.raw="ipcMain"]',
@@ -146,15 +150,15 @@ export default defineConfig(
     rules: { 'no-restricted-imports': 'off' }
   },
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: [`src/**/*.${sourceExts}`],
     ignores: [
-      'src/**/*.test.{ts,tsx}', 'src/main/testing/**', 'src/main/providers/token-stats.ts', 'src/main/ipc-guards.ts', 'src/main/index.ts'
+      `src/**/*.test.${sourceExts}`, 'src/main/testing/**', 'src/main/providers/token-stats.ts', 'src/main/ipc-guards.ts', 'src/main/index.ts'
     ],
     rules: { 'no-restricted-syntax': ['error', ...ipcMainAnywhere, ...ipcOtherWays, ...guardCast, ...tokenCache] }
   },
   {
     // The token cache is theirs to open (above); a test needs no cast to Guard, so none is exempt
-    files: ['src/**/*.test.{ts,tsx}', 'src/main/testing/**/*.{ts,tsx}', 'src/main/providers/token-stats.ts'],
+    files: [`src/**/*.test.${sourceExts}`, `src/main/testing/**/*.${sourceExts}`, 'src/main/providers/token-stats.ts'],
     rules: { 'no-restricted-syntax': ['error', ...ipcMainAnywhere, ...ipcOtherWays, ...guardCast] }
   },
   {

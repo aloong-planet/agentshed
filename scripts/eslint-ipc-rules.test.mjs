@@ -1,8 +1,8 @@
 // The lint rules on the IPC boundary (#520, eslint.config.js): each way past handle() and the guards that a selector
 // can see is reported, by the repository's own config, at the line that takes it, and handle() itself and the module
 // that makes every Guard are not. A selector edited to look narrower (a method left out, a block's list missing one
-// group) turns a row here red. The snippets are linted as files under src/ that need not exist; type information is off
-// for them (no rule here reads it), so a snippet needs no tsconfig entry.
+// group, a block's files missing an extension) turns a row here red. The snippets are linted as files under src/ that
+// need not exist; type information is off for them (no rule here reads it), so a snippet needs no tsconfig entry.
 //
 // Gap: the snippets are not the repository's code. That every file under src/ passes is `pnpm lint`'s own run; what no
 // selector can see is listed above the rules in eslint.config.js.
@@ -77,13 +77,14 @@ const cases = [
   })),
   { name: 'the WebContents ipc-message-sync event, as a template', file: PROBE, message: IPC,
     lines: [...CONTENTS, 'contents.on(`ipc-message-sync`, () => {}) // reported'] },
-  // Form 1, in each kind of file under src/
-  ...['src/renderer/src/ipc-probe.tsx', TEST_TS, 'src/main/testing/ipc-probe.ts', 'src/main/providers/token-stats.ts', GUARDS_TS].map((file) => ({
+  // Form 1, in each kind of file under src/, and in a file of each other extension a source file could take
+  ...['src/renderer/src/ipc-probe.tsx', TEST_TS, 'src/main/testing/ipc-probe.ts', 'src/main/providers/token-stats.ts', GUARDS_TS,
+    ...['mts', 'cts', 'js', 'jsx', 'mjs', 'cjs'].map((ext) => `src/main/ipc-probe.${ext}`), 'src/main/ipc-probe.test.js', 'src/main/testing/ipc-probe.js'
+  ].map((file) => ({
     name: `ipcMain in ${file}`, file, message: IPC, lines: ["import { ipcMain } from 'electron' // reported"]
   })),
   ...[TEST_TS, GUARDS_TS].map((file) => ({ name: `a WebContents' ipc in ${file}`, file, message: IPC, lines: [...CONTENTS, "contents.ipc.on('x', () => {}) // reported"] })),
-  // Form 1, in src/main/index.ts: handle() alone
-  { name: 'handle() as index.ts writes it is not reported', file: INDEX_TS, message: IPC, lines: WRAPPER },
+  // Form 1, in src/main/index.ts: handle() alone, which each row starting with WRAPPER finds unreported
   { name: 'ipcMain.handle at the top of index.ts', file: INDEX_TS, message: IPC, lines: [...WRAPPER, "ipcMain.handle('x', () => {}) // reported"] },
   { name: 'ipcMain.on at the top of index.ts', file: INDEX_TS, message: IPC, lines: [...WRAPPER, "ipcMain.on('x', () => {}) // reported"] },
   { name: "another method inside handle()'s body", file: INDEX_TS, message: IPC,
@@ -121,6 +122,7 @@ const cases = [
     'const g = <Guard<string>>check // reported',
     "const g = check as guards.Guard<string> // reported",
     'const g = check as Guard<string> | undefined // reported',
+    'const table = { a: check } as Record<string, Guard<unknown>> // reported',
     "import type { Guard as G } from './ipc-guards' // reported"
   ].map((line) => ({ name: `a cast in application code: ${line.replace(' // reported', '')}`, file: PROBE, message: GUARD, lines: [line] })),
   ...[TEST_TS, INDEX_TS].map((file) => ({ name: `a cast in ${file}`, file, message: GUARD, lines: ['const g = check as Guard<string> // reported'] })),
