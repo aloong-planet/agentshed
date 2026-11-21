@@ -1876,7 +1876,7 @@ test('the session page header: the session ID, copying it and the resume command
   const gts = Math.floor(localDayOffset(4).getTime() / 1000)
   writeFileSync(grokFile, JSON.stringify({ timestamp: gts, method: '_x.ai/session/update', params: { sessionId: 's', update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Grok resume question' }, _meta: { promptIndex: 0 } } } }) + '\n')
 
-  // The stale project: a parent and its fork replaying the parent's question (global-search.spec.ts's shape)
+  // The stale project: a parent and its fork replaying the parent's question (mkHome's shape in support/search-home.ts)
   const PARENT = '019fb0c0-aaaa-7af3-af7d-8505cedf1ec3'
   const CHILD = '019fb0c0-bbbb-7af3-af7d-8505cedf1ec3'
   const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
