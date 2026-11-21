@@ -1,11 +1,11 @@
-// The lint rules on the IPC boundary (#520, eslint.config.js): each way past handle() and the guards that a selector
-// can see is reported, by the repository's own config, at the line that takes it, and handle() itself and the module
-// that makes every Guard are not. A selector edited to look narrower (a method left out, a block's list missing one
-// group, a block's files missing an extension) turns a row here red. The snippets are linted as files under src/ that
-// need not exist; type information is off for them (no rule here reads it), so a snippet needs no tsconfig entry.
+// The lint rules on the IPC boundary (#520, eslint.config.js): each form they refuse is reported, by the repository's
+// own config, at the line that takes it, and handle() itself and the module that makes every Guard are not. A selector
+// edited to look narrower (a method left out, a block's list missing one group, a block's files missing an extension)
+// turns a row here red. The snippets are linted as files under src/ that need not exist; type information is off for
+// them (no rule here reads it), so a snippet needs no tsconfig entry.
 //
-// Gap: the snippets are not the repository's code. That every file under src/ passes is `pnpm lint`'s own run; what no
-// selector can see is listed above the rules in eslint.config.js.
+// Gap: the snippets are not the repository's code. That every file under src/ passes is `pnpm lint`'s own run; what
+// the rules do not see is listed above them in eslint.config.js.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
@@ -77,13 +77,18 @@ const cases = [
   })),
   { name: 'the WebContents ipc-message-sync event, as a template', file: PROBE, message: IPC,
     lines: [...CONTENTS, 'contents.on(`ipc-message-sync`, () => {}) // reported'] },
+  { name: "a Session's internal -ipc- events", file: PROBE, message: IPC,
+    lines: ["import { session } from 'electron'", 'const s = session.defaultSession as NodeJS.EventEmitter',
+      "s.on('-ipc-invoke', () => {}) // reported", 's.on(`-ipc-ports`, () => {}) // reported'] },
   { name: 'a MessageChannelMain, by name or as a key', file: PROBE, message: IPC,
     lines: ["import * as electron from 'electron'", "import { MessageChannelMain } from 'electron' // reported",
       'const { port1, port2 } = new MessageChannelMain() // reported', "new electron['MessageChannelMain']() // reported",
       'new electron[`MessageChannelMain`]() // reported'] },
-  // Form 1, in each kind of file under src/, and in a file of each other extension a source file could take
-  ...['src/renderer/src/ipc-probe.tsx', TEST_TS, 'src/main/testing/ipc-probe.ts', 'src/main/providers/token-stats.ts', GUARDS_TS,
-    ...['mts', 'cts', 'js', 'jsx', 'mjs', 'cjs'].map((ext) => `src/main/ipc-probe.${ext}`), 'src/main/ipc-probe.test.js', 'src/main/testing/ipc-probe.js'
+  // Form 1, in each kind of file under src/, and in a file of each extension a source file could take, for application
+  // code, tests and test helpers alike
+  ...['src/renderer/src/ipc-probe.tsx', 'src/main/providers/token-stats.ts', GUARDS_TS,
+    ...['mts', 'cts', 'js', 'jsx', 'mjs', 'cjs'].map((ext) => `src/main/ipc-probe.${ext}`),
+    ...['ts', 'tsx', 'mts', 'cts', 'js', 'jsx', 'mjs', 'cjs'].flatMap((ext) => [`src/main/ipc-probe.test.${ext}`, `src/main/testing/ipc-probe.${ext}`])
   ].map((file) => ({
     name: `ipcMain in ${file}`, file, message: IPC, lines: ["import { ipcMain } from 'electron' // reported"]
   })),
@@ -91,8 +96,11 @@ const cases = [
   // Form 1, in src/main/index.ts: handle() alone, which each row starting with WRAPPER finds unreported
   { name: 'ipcMain.handle at the top of index.ts', file: INDEX_TS, message: IPC, lines: [...WRAPPER, "ipcMain.handle('x', () => {}) // reported"] },
   { name: 'ipcMain.on at the top of index.ts', file: INDEX_TS, message: IPC, lines: [...WRAPPER, "ipcMain.on('x', () => {}) // reported"] },
-  { name: "another method inside handle()'s body", file: INDEX_TS, message: IPC,
-    lines: [...WRAPPER.slice(0, 3), "  ipcMain.on(channel, () => run(guard)) // reported", ...WRAPPER.slice(3)] },
+  { name: "another method as handle()'s body", file: INDEX_TS, message: IPC,
+    lines: [...WRAPPER.slice(0, 3), `${WRAPPER[3].replace('ipcMain.handle(', 'ipcMain.on(')} // reported`, ...WRAPPER.slice(4)] },
+  { name: "a second statement in handle()'s body", file: INDEX_TS, message: IPC,
+    lines: [...WRAPPER.slice(0, 3), `${WRAPPER[3]} // reported`, ...WRAPPER.slice(4, 7),
+      "  ipcMain.handle(channel + ':unchecked', (_e, raw: unknown) => run(guard(raw, guardState()))) // reported", WRAPPER[7]] },
   { name: 'ipcMain imported under another name in index.ts', file: INDEX_TS, message: IPC,
     lines: ["import { ipcMain as m } from 'electron' // reported", "m.handle('x', () => {})"] },
   { name: 'ipcMain passed on in index.ts', file: INDEX_TS, message: IPC, lines: [...WRAPPER, 'const m = ipcMain // reported', "m.handle('x', () => {})"] },

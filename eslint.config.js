@@ -48,36 +48,42 @@ const tokenCache = [{
 // src/main/ipc-guards.ts, and index.ts holds no argument check or admission of its own. The reason is in that module's
 // header, the comment on handle() and item 17 of docs/ops/electron-security.md. Typecheck refuses a registration with
 // no guard or with an inline check; these refuse the forms it lets through, and scripts/eslint-ipc-rules.test.mjs runs
-// each one. What they cannot see: a name built at run time (`electron[name]`, `'ipc-' + kind`); a cast to a type that
-// names Guard only through another name (an alias, `typeof noArgs`, `Parameters<Register>[1]`) or to `never`, or a
-// `@ts-expect-error` over a registration; and a check in index.ts that names neither `admission` nor the bad-args error.
+// each one. What they cannot see: a name built at run time (`electron[name]`, `'ipc-' + kind`); a Guard made without
+// naming it, by a cast to a type that names Guard only through another name (an alias, `typeof noArgs`,
+// `Parameters<Register>[1]`) or to `never`, by a `@ts-expect-error` over a registration, or by a guard's type copied
+// onto a check (`Object.assign(check, noArgs)`, no cast at all); and a check in index.ts that names neither `admission`
+// nor the bad-args error.
 const IPC = 'An IPC channel registers only through handle() in src/main/index.ts, with its guard from src/main/ipc-guards.ts.'
 // Any use of the name: a call of any of its methods, an alias, the value passed on, a destructured key, the member of a
 // namespace, default or dynamic import
 const ipcMainName = 'Identifier[name="ipcMain"]'
 const ipcMainAnywhere = [{ selector: ipcMainName, message: IPC }]
 // index.ts imports it from 'electron' and calls `ipcMain.handle` once, inside handle(): the top-level
-// `const handle: Register` arrow, as its body's statement
+// `const handle: Register` arrow, as its body's only statement. A second statement there, whatever it is, takes the
+// exemption away, so a second call cannot hide beside the first.
 const ipcMainBesidesHandle = [{
   selector: `${ipcMainName}:not(${[
     'ImportDeclaration[source.value="electron"] > ImportSpecifier[imported.name="ipcMain"][local.name="ipcMain"] > Identifier',
     'Program > VariableDeclaration[kind="const"] > VariableDeclarator[id.name="handle"][id.typeAnnotation.typeAnnotation.typeName.name="Register"]' +
-      ' > ArrowFunctionExpression.init > BlockStatement.body > ExpressionStatement > CallExpression.expression' +
+      ' > ArrowFunctionExpression.init > BlockStatement.body > ExpressionStatement:first-child:last-child > CallExpression.expression' +
       ' > MemberExpression.callee[computed=false][property.name="handle"] > Identifier.object'
   ].join(', ')})`,
   message: IPC
 }]
 // The other doors a page's messages come in by: `ipcMain` as a computed key, the `ipc` of a WebContents or WebFrameMain
-// (an IpcMain scoped to it) or of a ServiceWorkerMain, the `ipc-message` events a WebContents receives them by, and a
-// MessageChannelMain, a channel of its own whose one port the main process would listen on after handing the page the
-// other by `postMessage`. In Electron 43.2.0 a MessagePortMain reaches the main process only from a
-// `new MessageChannelMain()` or in the `ports` of an IPC event these refuse, so any use of that name is refused.
+// (an IpcMain scoped to it) or of a ServiceWorkerMain, the `ipc-message` events a WebContents receives them by, the
+// internal `-ipc-` events of a Session, on which Electron's own dispatch (lib/browser/ipc-dispatch.ts) receives every
+// one of them first, and a MessageChannelMain, a channel of its own whose one port the main process would listen on
+// after handing the page the other by `postMessage`. The last is refused by name in any form: in Electron 43.2.0 a
+// MessagePortMain reaches the main process only from a `new MessageChannelMain()` or in the `ports` of an IPC event,
+// which that dispatch makes on `-ipc-ports`.
 const ipcOtherWays = [{
   selector: [
     'Literal[value="ipcMain"]', 'TemplateElement[value.raw="ipcMain"]',
     'MemberExpression > Identifier.property[name="ipc"]', 'ObjectPattern > Property > Identifier.key[name="ipc"]',
     'Literal[value="ipc"]', 'TemplateElement[value.raw="ipc"]',
     'Literal[value=/^ipc-message(-sync)?$/]', 'TemplateElement[value.raw=/^ipc-message(-sync)?$/]',
+    'Literal[value=/^-ipc-/]', 'TemplateElement[value.raw=/^-ipc-/]',
     'Identifier[name="MessageChannelMain"]', 'Literal[value="MessageChannelMain"]', 'TemplateElement[value.raw="MessageChannelMain"]'
   ].join(', '),
   message: IPC
