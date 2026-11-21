@@ -46,8 +46,9 @@ const tokenCache = [{
 // src/main/ipc-guards.ts, and index.ts holds no argument check or admission of its own. The reason is in that module's
 // header, the comment on handle() and item 17 of docs/ops/electron-security.md. Typecheck refuses a registration with
 // no guard or with an inline check; these refuse the forms it lets through, and scripts/eslint-ipc-rules.test.mjs runs
-// each one. What they cannot see: a name built at run time (`electron[name]`, `'ipc-' + kind`), and a cast to a type
-// that names Guard only through another name (an alias, `typeof noArgs`, `Parameters<Register>[1]`) or to `never`.
+// each one. What they cannot see: a name built at run time (`electron[name]`, `'ipc-' + kind`); a cast to a type that
+// names Guard only through another name (an alias, `typeof noArgs`, `Parameters<Register>[1]`) or to `never`, or a
+// `@ts-expect-error` over a registration; and a check in index.ts that names neither `admission` nor the bad-args error.
 const IPC = 'An IPC channel registers only through handle() in src/main/index.ts, with its guard from src/main/ipc-guards.ts.'
 // Any use of the name: a call of any of its methods, an alias, the value passed on, a destructured key, the member of a
 // namespace, default or dynamic import
