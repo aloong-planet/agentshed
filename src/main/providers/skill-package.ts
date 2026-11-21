@@ -2,10 +2,18 @@
 // any depth; symlinks are followed unless they lead back on themselves; the caller registers the exact
 // allow-list.
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { basename, dirname, join, relative, sep } from 'node:path'
-import { PROJECT_SKILLS_DIR, type AgentSide } from '@shared/domain'
-import { globalSkillsRoots, type ScanRoots } from './types'
+import { dirname, join, relative, sep } from 'node:path'
+import type { AgentSide } from '@shared/domain'
+import type { ScanRoots } from './types'
 import type { CappedText } from '@shared/domain'
+import {
+  firstGlobalSkillEntry,
+  inKnownSkillsDir,
+  pluginSkillPackageRoot,
+  skillPackageRoot,
+  type ResolveSkillRootArgs,
+  type SkillRootProbes
+} from '../skill-package-root'
 
 export const SKILL_TEXT_EXTS = new Set([
   'md',
@@ -57,70 +65,40 @@ export interface SkillPackageListing {
   files: SkillFileMeta[]
 }
 
-export type SkillPackageScope = 'global' | 'project'
-
-export interface ResolveSkillRootArgs {
-  side: AgentSide
-  name: string
-  scope: SkillPackageScope
-  projectPath?: string
-  roots: ScanRoots
+/** The disk's own answers to the skill package root decision (skill-package-root.ts). An error is the refusing answer:
+ * an entry that cannot be looked at is not there, and a path whose real path cannot be told leads nowhere */
+const diskProbes: SkillRootProbes = {
+  exists: existsSync,
+  entryThere: (path) => {
+    try {
+      lstatSync(path)
+      return true
+    } catch {
+      return false
+    }
+  },
+  realPath: (path) => {
+    try {
+      return realpathSync(path)
+    } catch {
+      return null
+    }
+  }
 }
 
-/**
- * Where a side's global library keeps a skill: the first of that side's directories holding it as a skill (a SKILL.md
- * inside) — the copy the list shows and the side itself uses (skills-view::REQ-001/AC-01) — else the first holding the
- * entry at all, so a package broken after the scan still opens and reports its missing SKILL.md (C5). null when none
- * does. The name is the caller's to validate.
- */
+/** firstGlobalSkillEntry against the disk */
 export function globalSkillEntry(roots: ScanRoots, side: AgentSide, name: string): string | null {
-  const entries = globalSkillsRoots(roots)[side].map((dir) => join(dir, name))
-  return entries.find((e) => existsSync(join(e, 'SKILL.md'))) ?? entries.find((e) => existsSync(e)) ?? null
+  return firstGlobalSkillEntry(roots, side, name, diskProbes)
 }
 
+/** skillPackageRoot against the disk */
 export function resolveSkillRoot(args: ResolveSkillRootArgs): string | null {
-  const { side, name, scope, projectPath, roots } = args
-  if (!name || name.includes('..') || name.includes('/') || name.includes('\\')) return null
-  if (name.includes(':')) return null // A plugin namespace; not previewable in v1
-  let root: string
-  if (scope === 'global') {
-    const entry = globalSkillEntry(roots, side, name)
-    if (entry === null) return null
-    root = entry
-  } else {
-    if (typeof projectPath !== 'string' || !projectPath) return null
-    root = join(projectPath, PROJECT_SKILLS_DIR[side], name)
-  }
-  if (!existsSync(root)) return null
-  // The container check applies to **the entry point before resolution** (C9); symlinks are only
-  // followed afterwards
-  if (!isUnderKnownSkillRoots(root, roots, projectPath)) return null
-  try {
-    // Follow the symlink to the real directory
-    return realpathSync(root)
-  } catch {
-    return null
-  }
+  return skillPackageRoot(args, diskProbes)
 }
 
-/**
- * Resolving a plugin skill's package root (plugins-view H8): the entry point = skills/<name> under the
- * plugin's package root.
- * Whether the package root is in the scan's registration set is validated at the handler layer
- * (fail-closed); this only handles name sanitising,
- * existence and symlink following (the same discipline as resolveSkillRoot).
- */
+/** pluginSkillPackageRoot against the disk */
 export function resolvePluginSkillRoot(pluginRoot: string, name: string): string | null {
-  // "." would name the package's whole skills directory, not one skill in it
-  if (!name || name === '.' || name.includes('..') || name.includes('/') || name.includes('\\') || name.includes(':'))
-    return null
-  const entry = join(pluginRoot, 'skills', name)
-  if (!existsSync(entry)) return null
-  try {
-    return realpathSync(entry)
-  } catch {
-    return null
-  }
+  return pluginSkillPackageRoot(pluginRoot, name, diskProbes)
 }
 
 function isTextFile(name: string): boolean {
@@ -257,45 +235,11 @@ export function readSkillFileText(absPath: string): CappedText {
     : { text: raw, truncated: false }
 }
 
-/**
- * The container check applies to **the entry point before resolution**: the entry point must be a
- * single-segment entry under a known skills root.
- * The entry point may be a symlink and its target is unconstrained (A6) — it is only followed during
- * enumeration and reading.
- * The judgement uses realpath(dirname(entry)) and **does not resolve the last segment**: resolving the
- * whole path first turns the parent directory
- * into the symlink target's parent, so a symlink-installed skill whose target is outside the root would
- * be wrongly refused (a 2026-08-07 bug).
- */
+/** inKnownSkillsDir against the disk */
 export function isUnderKnownSkillRoots(
   entryAbs: string,
   roots: ScanRoots,
   projectPath?: string
 ): boolean {
-  try {
-    lstatSync(entryAbs)
-  } catch {
-    return false
-  }
-  const name = basename(entryAbs)
-  if (!name || name === '.' || name === '..') return false
-  let realParent: string
-  try {
-    realParent = realpathSync(dirname(entryAbs))
-  } catch {
-    return false
-  }
-  const allowed: string[] = Object.values(globalSkillsRoots(roots)).flat()
-  if (projectPath) {
-    for (const sub of Object.values(PROJECT_SKILLS_DIR)) allowed.push(join(projectPath, sub))
-  }
-  for (const base of allowed) {
-    if (!existsSync(base)) continue
-    try {
-      if (realpathSync(base) === realParent) return true
-    } catch {
-      /* */
-    }
-  }
-  return false
+  return inKnownSkillsDir(entryAbs, roots, projectPath, diskProbes)
 }
