@@ -1,8 +1,9 @@
 import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { test, expect } from '@playwright/test'
-import { launch, close } from './support/launch'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
+import { closeApp } from './close-app'
+import { launch, close, startApp, makeUserData, failOnMainErrors } from './support/launch'
 import { scansLanded, errorToastsAdded } from './support/waits'
 import { headingLadder, expectLadder, codeStyle, contentLineHeight, tableStyle, expectTableStyle, listIndent, expectCodeStyle } from './support/markdown-styles'
 
@@ -947,4 +948,89 @@ test('a project package is refused over the real channel while the project\'s pa
   expect(l.errors).toHaveLength(1)
   expect(l.errors[0]).toContain('project-not-opened')
   await close(l)
+})
+
+// skills-view C8 over the real channel: a current authoritative enumeration replaces a package listing's registration
+// of its files (agents-overview::CON-002/AC-03). A file is refused by the guard (skill-file-not-whitelisted) only once
+// a pass has retired its listing; a listing still registered lets the read through.
+const mainErrors = failOnMainErrors()
+const listProjectSkill = (win: Page, projectPath: string, name: string): Promise<string[]> => win.evaluate(async ([p, n]) =>
+  (await window.agentshed.listSkillFiles({ side: 'claude', name: n, scope: 'project', projectPath: p })).files.map(f => f.absPath), [projectPath, name])
+const readSkillFile = (win: Page, file: string): Promise<string> => win.evaluate(async (f) => {
+  try { return (await window.agentshed.readSkillFile({ absPath: f })).text } catch (e) { return `refused: ${(e as Error).message}` }
+}, file)
+
+// A project page's read is the authoritative enumeration of that project's skills, so its pass retires the listing of a
+// skill the page no longer shows, and only that one. No scan would: the project is still listed. The removed skill's
+// file is refused by the guard; a listing still registered would instead let the read through to fail on the missing
+// file.
+test('a project page read again retires the listing of a skill it no longer shows and keeps the other\'s: the removed skill\'s file is refused, the kept one\'s still reads', async () => {
+  mainErrors.allow(/skill-file-not-whitelisted/)
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-page-pass-'))
+  const proj = join(home, 'demo-proj')
+  const skills = join(proj, '.claude', 'skills')
+  for (const name of ['kept', 'removed']) {
+    mkdirSync(join(skills, name), { recursive: true })
+    writeFileSync(join(skills, name, 'SKILL.md'), `---\ndescription: ${name}\n---\n${name} body\n`)
+  }
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const userData = makeUserData()
+  const { app } = await startApp({ userData, home, errors: mainErrors.errors })
+  try {
+    const win = await app.firstWindow()
+    await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
+    const shown = (): Promise<string[]> => win.evaluate(async (p) =>
+      (await window.agentshed.getProjectDetail(p)).skills.filter(s => s.level === 'project').map(s => s.name), proj)
+    expect(await shown()).toEqual(['kept', 'removed'])
+    const [kept, removed] = [await listProjectSkill(win, proj, 'kept'), await listProjectSkill(win, proj, 'removed')]
+    expect(kept).toHaveLength(1)
+    expect(removed).toHaveLength(1)
+    expect(await readSkillFile(win, removed[0])).toContain('removed body')
+
+    rmSync(join(skills, 'removed'), { recursive: true })
+    expect(await shown(), 'the page read again').toEqual(['kept'])
+    expect(await readSkillFile(win, removed[0])).toContain('skill-file-not-whitelisted')
+    expect(await readSkillFile(win, kept[0]), 'the page still shows it').toContain('kept body')
+  } finally {
+    await closeApp(app)
+    rmSync(userData, { recursive: true, force: true })
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+// A listing restored at launch, of a project still listed whose page still shows the skill, keeps its registration
+// through the first scan and through the page's read: neither replaces it. Unlike a memory topic, which the scan
+// registers itself for every listed project, a listing is registered by no scan, so only its restored registration
+// admits the file.
+test('a package listing restored at launch still reads after the first scan and after its project\'s page is read again, while the project is listed and the page shows the skill', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-restored-listing-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(join(proj, '.claude', 'skills', 'tidy'), { recursive: true })
+  writeFileSync(join(proj, '.claude', 'skills', 'tidy', 'SKILL.md'), '---\ndescription: tidy\n---\nTidy body\n')
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const userData = makeUserData()
+  let app: ElectronApplication | undefined
+  const scanned = (win: Page) => expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
+  const readPage = (win: Page): Promise<string> => win.evaluate(async (p) => (await window.agentshed.getProjectDetail(p)).path, proj)
+  try {
+    app = (await startApp({ userData, home, errors: mainErrors.errors })).app
+    let win = await app.firstWindow()
+    await scanned(win)
+    expect(await readPage(win)).toBe(proj)
+    const listed = await listProjectSkill(win, proj, 'tidy')
+    expect(listed).toHaveLength(1)
+    await closeApp(app)
+    app = undefined
+
+    app = (await startApp({ userData, home, errors: mainErrors.errors })).app
+    win = await app.firstWindow()
+    await scanned(win)
+    expect(await readSkillFile(win, listed[0]), 'the first scan keeps it').toContain('Tidy body')
+    expect(await readPage(win)).toBe(proj)
+    expect(await readSkillFile(win, listed[0]), 'the page read again keeps it').toContain('Tidy body')
+  } finally {
+    if (app) await closeApp(app)
+    rmSync(userData, { recursive: true, force: true })
+    rmSync(home, { recursive: true, force: true })
+  }
 })

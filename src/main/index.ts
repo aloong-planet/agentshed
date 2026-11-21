@@ -285,7 +285,7 @@ async function doScan(): Promise<Snapshot> {
         pluginRoots: [...snap.global.plugins.flatMap(p => p.installPath ? [p.installPath] : []),
           ...snap.global.codexPlugins.flatMap(p => p.root ? [p.root] : []),
           ...snap.global.antigravityPlugins.map(p => p.root)], projects: [], skillFiles: [] })
-      retireAfterScan(readRegistry, savedReads.values(), snap)
+      retireAfterScan(readRegistry, snap)
       current = snap
       firstScanComplete = true
       liveScanReady()
@@ -359,7 +359,7 @@ handle(CMD.getProjectDetail, projectDetailArgs, async (path) => {
     // Antigravity's, which are global and read again for the page (a plugin installed since the last scan included)
     projects: [path], pluginRoots: [...detail.plugins.flatMap(p => p.installPath ? [p.installPath] : []),
       ...detail.skills.flatMap(s => s.origin === 'plugin' && s.side === 'antigravity' && s.pluginRoot ? [s.pluginRoot] : [])], skillFiles: [] })
-  retireAfterDetail(readRegistry, savedReads.values(), path, detail)
+  retireAfterDetail(readRegistry, path, detail)
   remember({ kind: 'projectDetail', path, data: detail })
   return detail
 })

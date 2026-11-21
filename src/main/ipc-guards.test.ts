@@ -15,9 +15,10 @@
 // Not driven: the six listedSession rechecks after an await, which need a scan to drop the file from the allow-list
 // while the handler waits (AGENTSHED_FETCH_DELAY_MS holds getSessionPage); the file was listed a moment before. Nor
 // admitSkillPackage's check that the snapshot still lists the project, which needs a project registration the snapshot
-// no longer lists: a scan retires that registration through the project's saved page (retireAfterScan), so one is left
-// only by a page an earlier build saved for an unlisted directory, or by a saved page that did not restore beside its
-// registration. The projects it judges by are the guard state's, which the admission case carries.
+// no longer lists: a scan retires that registration by its owner (retireAfterScan), whether or not its saved page
+// restored, so one is left only until the first scan: one an earlier build left for a directory its snapshot did not
+// list, or one beside a saved snapshot that did not restore. The projects it judges by are the guard state's, which the
+// admission case carries.
 import { afterAll, describe, expect, it } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -326,12 +327,20 @@ describe('listSkillFilesArgs', () => {
     expect(refusal(() => listSkillFilesArgs({ name: 'tidy', side: 'claude', scope: 'plugin', projectPath: '/p' }, state())))
       .toEqual(badArgs('listSkillFiles', 'pluginRoot'))
   })
-  it('admits each scope', () => {
-    expect(listSkillFilesArgs({ name: 'tidy', side: 'codex', scope: 'global' }, state())).toEqual({ name: 'tidy', side: 'codex', scope: 'global' })
-    expect(listSkillFilesArgs({ name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }, state()))
-      .toEqual({ name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' })
-    expect(listSkillFilesArgs({ name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }, state()))
-      .toEqual({ name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' })
+  // A path the scope does not take would go into the listing's registration key (savedReadKey), which retiring then
+  // cannot read as a listing's
+  it.each([
+    ['a global package', { name: 'tidy', side: 'codex', scope: 'global' }, { name: 'tidy', side: 'codex', scope: 'global' }],
+    ['a global package sent with a project and a plugin root', { name: 'tidy', side: 'codex', scope: 'global', projectPath: '/p', pluginRoot: '/r' },
+      { name: 'tidy', side: 'codex', scope: 'global' }],
+    ['a project package', { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }, { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }],
+    ['a project package sent with a plugin root', { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p', pluginRoot: '/r' },
+      { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }],
+    ['a plugin package', { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }, { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }],
+    ['a plugin package sent with a project', { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r', projectPath: '/p' },
+      { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }]
+  ])('admits %s, passing on only the path its scope takes', (_what, raw, admitted) => {
+    expect(listSkillFilesArgs(raw, state())).toStrictEqual(admitted)
   })
 })
 
