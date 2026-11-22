@@ -1,13 +1,16 @@
 // The page's colours in a browser, in each language (landing-page::REQ-006, Failure D1): what the page paints itself
 // with in the light and the dark appearance, the page recolouring when the system appearance changes, the screenshots
 // staying light, and the GitHub button beside Download. That the stylesheet's tokens are the app's is the palette
-// test's (palette.test.ts); here each part of the page must show its token's value as the stylesheet declares it for
-// the appearance the browser has.
+// test's (palette.test.ts); here the page must paint with them as the stylesheet declares them for the appearance the
+// browser has: every colour of its text, grounds and drawn borders one token's value, the same token in both
+// appearances, and the parts listed in ROLES their role's token.
 //
 // Not checked here: that the screenshots were taken in the light appearance, a fact of the files as retaken from the
 // app rather than of the page. Nor is the showcase's screenshot drawn the same in both appearances: the showcase turns its
 // steps as the page scrolls, so its screenshots are compared by source and filter, and by what is drawn only where
-// the steps are stacked, below 760px.
+// the steps are stacked, below 760px. Nor are shadows (--shadow, --icon-shadow), which are not single colours, or the
+// colours of parts only other download states put on the page, the GitHub button beside Download aside. A part added
+// to the stylesheet later is held to the palette by the every-colour case, but to its role only once ROLES lists it.
 import { afterAll, beforeAll, describe, inject, test, vi } from 'vitest'
 import { LOCALES, PAGE_PATH, ui, type Locale } from '../src/i18n/ui'
 import { FEATURE_SHOTS } from '../src/shots'
@@ -65,7 +68,8 @@ function computed(asked: { selector: string; properties: string[] }[]): string[]
 }
 
 const BORDER = ['border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color']
-/** What paints each part of the page: every element the selector finds has each property in the token's colour */
+/** The parts the palette names by role, one or more of each: every element the selector finds has each property in
+ * the token's colour */
 const ROLES: { selector: string; properties: string[]; token: string }[] = [
   // The ground, the alternate sections and the cards on them
   { selector: 'body', properties: ['background-color'], token: '--bg' },
@@ -96,16 +100,90 @@ const ROLES: { selector: string; properties: string[]; token: string }[] = [
   { selector: '.lang a.on', properties: ['background-color'], token: '--accent-soft' }
 ]
 
+/** The colour tokens, those the stylesheet writes as six-digit hex in the light appearance */
+const COLOUR_TOKENS = [...DECLARED.light].flatMap(([token, value]) => (/^#[0-9a-f]{6}$/.test(value) ? [token] : []))
+/** Each colour token's light and dark values, as `light>dark`: what a colour drawn with a token is in the two appearances */
+const PAIRS = new Map(COLOUR_TOKENS.map((token) => [`${declared(token, 'light')}>${declared(token, 'dark')}`, token]))
+
+interface Painted {
+  /** The element, as its tag, classes and place among the body's elements, and its ::before or ::after */
+  part: string
+  property: string
+  /** The computed value */
+  value: string
+}
+/** Every colour each element of the body paints itself with: its text, its ground and the colours of a gradient
+ * ground, and each border side it draws; its ::before and ::after where they are drawn too; runs in the page */
+function painted(): Painted[] {
+  const found: Painted[] = []
+  for (const [n, el] of [document.body, ...document.body.querySelectorAll('*')].entries()) {
+    const name = `${el.tagName.toLowerCase()}${[...el.classList].map((c) => `.${c}`).join('')} #${n}`
+    for (const pseudo of [null, '::before', '::after']) {
+      const style = getComputedStyle(el, pseudo)
+      if (pseudo && (style.content === 'none' || style.content === 'normal')) continue
+      const part = name + (pseudo ?? '')
+      const read = (property: string, value: string) => found.push({ part, property, value })
+      read('color', style.color)
+      read('background-color', style.backgroundColor)
+      for (const stop of style.backgroundImage.match(/(?:rgba?|color)\([^)]*\)/g) ?? []) read('background-image', stop)
+      for (const side of ['top', 'right', 'bottom', 'left']) {
+        const drawn = style.getPropertyValue(`border-${side}-style`) !== 'none' && parseFloat(style.getPropertyValue(`border-${side}-width`)) > 0
+        if (drawn) read(`border-${side}-color`, style.getPropertyValue(`border-${side}-color`))
+      }
+    }
+  }
+  return found
+}
+
+type Colour = { hex: string; alpha: number } | 'nothing' | { unread: string }
+/** A computed colour as six-digit hex and its alpha; nothing where it is fully transparent; any other form unread */
+function colour(computed: string): Colour {
+  const rgb = /^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/.exec(computed)
+  const srgb = /^color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?\)$/.exec(computed)
+  const match = rgb ?? srgb
+  if (!match) return { unread: computed }
+  const alpha = Number(match[4] ?? 1)
+  if (alpha === 0) return 'nothing'
+  const channels = match.slice(1, 4).map((c) => (rgb ? Number(c) : Math.round(Number(c) * 255)))
+  return { hex: `#${channels.map((c) => c.toString(16).padStart(2, '0')).join('')}`, alpha }
+}
+const said = (c: Colour) => (c === 'nothing' ? c : 'unread' in c ? c.unread : c.alpha === 1 ? c.hex : `${c.hex} at ${c.alpha}`)
+
 // landing-page::REQ-006 (the app's palette, in light and dark, following the system appearance), Failure D1 (light and
 // dark both carry the palette)
-describe("each part of the page shows its token's colour as the stylesheet declares it for the system appearance", () => {
-  test('every token the parts take is declared apart in the two appearances, so that each case tells them apart', ({ expect }) => {
-    const same = [...new Set(ROLES.map((r) => r.token))].filter((token) => declared(token, 'light') === declared(token, 'dark'))
+describe('the page paints with the palette as the stylesheet declares it for the system appearance', () => {
+  test('every colour token is declared apart in the two appearances, so that no colour written once passes for one', ({ expect }) => {
+    expect(COLOUR_TOKENS, "the colour tokens, the roles' among them").toEqual(expect.arrayContaining([...new Set(ROLES.map((r) => r.token))]))
+    const same = COLOUR_TOKENS.filter((token) => declared(token, 'light') === declared(token, 'dark'))
     expect(same, 'tokens with one value in both appearances').toEqual([])
   })
 
+  // Read in two visits, one in each appearance, so that no transition is caught half way
+  test.for(LOCALES.map((locale) => ({ name: locale, locale })))('every colour on the page, light and dark: $name', { timeout: CASE_LIMIT }, async ({ locale }, { expect }) => {
+    const [light, dark] = await Promise.all(SCHEMES.map((colorScheme) => visit(browser, inject('builtSite'), open(locale, colorScheme), (page) => page.evaluate(painted))))
+    const where = (p: Painted) => `${p.part} ${p.property}`
+    expect(dark.map(where), 'the parts and what they paint, dark against light').toEqual(light.map(where))
+    // One line for each pair of colours outside the palette, naming the first parts that paint it
+    const outside = new Map<string, string[]>()
+    let tokens = 0
+    for (const [i, p] of light.entries()) {
+      const [l, d] = [colour(p.value), colour(dark[i].value)]
+      if (l === 'nothing' && d === 'nothing') continue
+      const token = l !== 'nothing' && d !== 'nothing' && 'hex' in l && 'hex' in d && l.alpha === d.alpha && PAIRS.get(`${l.hex}>${d.hex}`)
+      if (token) {
+        tokens++
+        continue
+      }
+      const pair = `light ${said(l)}, dark ${said(d)}`
+      outside.set(pair, [...(outside.get(pair) ?? []), where(p)])
+    }
+    expect(tokens, 'colours painted with a token').toBeGreaterThan(0)
+    const wrong = [...outside].map(([pair, parts]) => `${pair}: ${parts.slice(0, 3).join('; ')}${parts.length > 3 ? ` and ${parts.length - 3} more` : ''}`)
+    expect(wrong, "colours that are no token's in both appearances").toEqual([])
+  })
+
   const cases = LOCALES.flatMap((locale) => SCHEMES.map((colorScheme) => ({ name: `${locale}/${colorScheme}`, locale, colorScheme })))
-  test.for(cases)('$name', { timeout: CASE_LIMIT }, async ({ locale, colorScheme }, { expect }) => {
+  test.for(cases)('the parts by role: $name', { timeout: CASE_LIMIT }, async ({ locale, colorScheme }, { expect }) => {
     const found = await visit(browser, inject('builtSite'), open(locale, colorScheme), (page) => page.evaluate(computed, ROLES))
     const wrong = ROLES.flatMap(({ selector, properties, token }, i) => {
       const elements = found[i]

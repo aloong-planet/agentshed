@@ -4,16 +4,17 @@
 // gets (landing-page::REQ-001/AC-04).
 //
 // Not covered here, by the seam the owner chose: the features section's pinned showcase and how the scroll
-// turns its steps (landing-page::REQ-004, Failures C1–C3 and C5–C7), and YouTube's own playback. They are measured in a browser
+// turns its steps (landing-page::REQ-004, Failures C1–C3 and C5–C7), what the page looks like in light and dark
+// (landing-page::REQ-006, Failure D1), and YouTube's own playback. They are measured in a browser
 // against the built site, and the measurement record is kept with the ticket's evidence, until they have cases in the
 // site's browser harness (`test/support/browser.ts`). The layout across widths (landing-page::QR-001/AC-01) has its
 // cases there, in `test/landing-page-layout.test.ts`. So do the header's layout (landing-page::REQ-003,
 // REQ-012/AC-02, AC-03), in `test/landing-page-header.test.ts`; the space held for the screenshots and for the
 // download count's line, and the view kept when a download state lands (landing-page::REQ-005/AC-03, REQ-011/AC-01,
-// Failure A7), in `test/landing-page-late-content.test.ts`; the walkthrough before and after activation
-// (landing-page::REQ-009/AC-02), in `test/landing-page-video.test.ts`; and what the page looks like in light and dark,
-// switching between them and the screenshots staying light (landing-page::REQ-006, Failure D1), in
-// `test/landing-page-colours.test.ts`.
+// Failure A7), in `test/landing-page-late-content.test.ts`; and the walkthrough before and after activation
+// (landing-page::REQ-009/AC-02), in `test/landing-page-video.test.ts`.
+// What the page looks like in light and dark, switching between them and the screenshots staying light
+// (landing-page::REQ-006, Failure D1), has its cases there too, in `test/landing-page-colours.test.ts`.
 // Host HTTP status and query/fragment preservation require a Cloudflare Pages runtime browser check;
 // this suite checks the emitted redirect fallback and host configuration, not the host itself.
 import { readdirSync, readFileSync } from 'node:fs'

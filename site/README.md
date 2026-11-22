@@ -85,9 +85,10 @@ theme also selects website checks because the palette test reads it. See [CI rou
   checks the header (landing-page::REQ-003, REQ-012/AC-02, AC-03); `test/landing-page-late-content.test.ts` the
   space held for the screenshots and the download count's line, and the view kept when a download state lands
   (landing-page::REQ-005/AC-03, REQ-011/AC-01, Failure A7); `test/landing-page-video.test.ts` the walkthrough, in
-  jsdom and in the browser (landing-page::REQ-009/AC-02); `test/landing-page-colours.test.ts` the page's colours
-  in both appearances, its recolouring when the system appearance changes, the screenshots staying light and the
-  GitHub button beside Download (landing-page::REQ-006, Failure D1).
+  jsdom and in the browser (landing-page::REQ-009/AC-02).
+  `test/landing-page-colours.test.ts` checks the page's colours there, in both appearances: every colour it paints
+  a palette token's, the parts the palette names their role's, its recolouring when the system appearance changes,
+  the screenshots staying light and the GitHub button beside Download (landing-page::REQ-006, Failure D1).
 - `test/apply-download.test.ts` and `test/init-download.test.ts` apply the download states to that build's
   pages, the second through the page's script with a fake network. The reads' tests answer through an injected
   fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the
