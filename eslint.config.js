@@ -105,6 +105,22 @@ const guardCast = [{
   message: 'A Guard is made only in src/main/ipc-guards.ts: nothing else casts to it or renames it.'
 }]
 
+// One way into a browser for the site's cases: visit() in site/test/support/browser.ts (the reason is in its header).
+// Nothing else under site/ imports Playwright, by an import, a re-export, a dynamic import() or require(), types
+// included. What it cannot see: a module name built at run time.
+const SITE_BROWSER = 'Open the site in a browser through visit() in site/test/support/browser.ts.'
+const playwrightModule = '^(@playwright/|playwright(-core)?($|/))'
+// A selector's regex ends at the first slash, escaped or not, so the slash is written as \x2F there
+const playwrightInSelector = `/${playwrightModule.replaceAll('/', '\\x2F')}/`
+const playwrightLoaded = [{
+  selector: [
+    `ImportExpression > Literal.source[value=${playwrightInSelector}]`,
+    `ImportExpression > TemplateLiteral.source > TemplateElement[value.raw=${playwrightInSelector}]`,
+    `CallExpression[callee.name="require"] > Literal[value=${playwrightInSelector}]`
+  ].join(', '),
+  message: SITE_BROWSER
+}]
+
 export default defineConfig(
   // Whatever git ignores is not linted: build output, test reports, local scratch files. ESLint does not
   // read .gitignore on its own, and a directory missing from a hand-kept list is linted in a working
@@ -156,6 +172,17 @@ export default defineConfig(
   {
     files: ['e2e/support/launch.ts'],
     rules: { 'no-restricted-imports': 'off' }
+  },
+  {
+    files: [`site/**/*.${sourceExts}`],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ regex: playwrightModule, message: SITE_BROWSER }] }],
+      'no-restricted-syntax': ['error', ...playwrightLoaded]
+    }
+  },
+  {
+    files: ['site/test/support/browser.ts'],
+    rules: { 'no-restricted-imports': 'off', 'no-restricted-syntax': 'off' }
   },
   {
     files: [`src/**/*.${sourceExts}`],

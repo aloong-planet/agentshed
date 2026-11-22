@@ -1,8 +1,9 @@
 // The browser harness's own check: no browser case reaches the network. A request the harness has no answer for
 // is refused inside the browser, and the visit fails naming it, also when the case has failed on its own first; a
 // visit whose every request is answered does not.
+// The browser settings a case gives (a motion preference, scripts off) reach the page it visits.
 import { afterAll, beforeAll, expect, inject, test } from 'vitest'
-import { launch, visit, type Browser, type Visit } from './browser'
+import { launch, visit, type Browser, type Page, type Visit } from './browser'
 import { COUNT_URL, POINTER_URL, RELEASES_API, statistics } from './stand-ins'
 
 let browser: Browser
@@ -60,4 +61,30 @@ test("a case that fails after a request with no stand-in fails naming the reques
   )
   expect(String(error)).toContain(STRAY)
   expect(String((error as Error).cause)).toContain('the case gave up waiting')
+})
+
+test('a visit that asks for reduced motion gets it, and one that does not gets no preference', async () => {
+  const site = inject('builtSite')
+  const reduced = (page: Page) => page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
+  expect(await visit(browser, site, { ...listPage, reducedMotion: 'reduce' }, reduced)).toBe(true)
+  expect(await visit(browser, site, listPage, reduced)).toBe(false)
+})
+
+test("a visit with scripts off runs none of the page's scripts", async () => {
+  const site = inject('builtSite')
+  // No stand-ins: the page's scripts make reads, so a visit that runs them fails naming the reads. Each half waits until
+  // the page's requests have settled, so that a read is refused before the visit ends rather than after
+  const unread: Visit = { ...listPage, reads: {} }
+  const settled = (page: Page): Promise<void> => page.waitForLoadState('networkidle', { timeout: 5_000 })
+  const error: unknown = await visit(browser, site, unread, settled).then(
+    () => expect.unreachable('the page ran its scripts, made its reads with no stand-in, and the visit passed'),
+    (e: unknown) => e
+  )
+  expect(String(error)).toContain(COUNT_URL)
+  // Scripts off: the page asks for nothing, and its styles see a browser without scripting
+  const scripting = await visit(browser, site, { ...unread, scripts: false }, async (page) => {
+    await settled(page)
+    return page.evaluate(() => matchMedia('(scripting: none)').matches)
+  })
+  expect(scripting).toBe(true)
 })

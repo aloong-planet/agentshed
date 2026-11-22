@@ -6,6 +6,10 @@
 //
 // A browser starts in well under a second, so each test file starts its own (`launch` in a `beforeAll`); each visit
 // gets a browser context of its own, so no state carries from one case to the next.
+//
+// Every site browser case opens the build through `visit`, and `pnpm lint:site` fails on an import of Playwright
+// anywhere else under `site/`: a page opened past it would reach the network, and a read the page newly makes would
+// go unanswered with no case failing.
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright'
@@ -27,6 +31,10 @@ export interface Visit {
   colorScheme: 'light' | 'dark'
   /** The answers to the page's reads, by URL */
   reads: Record<string, Answer>
+  /** The browser's motion preference; no preference if not given */
+  reducedMotion?: 'reduce' | 'no-preference'
+  /** Whether the browser runs the page's scripts; it does if not given */
+  scripts?: boolean
 }
 
 export const launch = (): Promise<Browser> => chromium.launch()
@@ -49,7 +57,9 @@ const TYPES: Record<string, string> = {
 export async function visit<T>(browser: Browser, site: string, options: Visit, run: (page: Page) => Promise<T>): Promise<T> {
   const context = await browser.newContext({
     viewport: { width: options.width, height: options.height ?? 800 },
-    colorScheme: options.colorScheme
+    colorScheme: options.colorScheme,
+    reducedMotion: options.reducedMotion ?? 'no-preference',
+    javaScriptEnabled: options.scripts ?? true
   })
   const unanswered: string[] = []
   try {

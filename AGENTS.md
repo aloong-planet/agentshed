@@ -119,6 +119,8 @@ a retried "does not appear" check cannot prove absence.
   unloaded run is a defect.
 - An e2e case starts its app through `startApp` (`e2e/support/launch.ts`); `pnpm lint` fails on any other static import of
   Playwright's Electron launcher under `e2e/` (test-layers::US-004).
+- A site browser case loads the build through `visit()` (`site/test/support/browser.ts`); `pnpm lint:site` fails on any
+  other import of Playwright under `site/` (the reason is in that file's header).
 - A feature's e2e cases go in `e2e/<feature slug>.spec.ts`, or `e2e/<feature slug>-<sub-topic>.spec.ts` for a
   split, and a case about how the app starts, refreshes or keeps its cache in `e2e/lifecycle.spec.ts` (ADR-0041).
 - Shared e2e helpers live in `e2e/support/` (ADR-0041).
