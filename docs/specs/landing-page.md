@@ -1,6 +1,7 @@
 # Landing page
 
 > Related: [ADR-0050](../adr/0050-landing-page-in-this-repository.md) · [ADR-0031](../adr/0031-macos-release-line.md) ·
+> [ADR-0055](../adr/0055-download-count.md) ·
 > [mac-distribution](mac-distribution.md) (the releases and the pointer it reads) ·
 > [app-update](app-update.md) (the update button its install steps mention)
 
@@ -10,7 +11,8 @@ People who have never seen the repository need a place that says what Agentshed 
 download it. The README is written for people already on GitHub. Releases come in two kinds, and for a
 while only pre-releases will exist: the first release is `v0.1.0-beta`, and the R2 mirror holds formal
 releases only. So the page has to offer whichever release exists, say plainly when that is a test
-version, and keep doing so release after release without being edited.
+version, and keep doing so release after release without being edited. A visitor weighing an app they have
+never heard of also looks for a sign that other people download it.
 
 ## Solution
 
@@ -20,8 +22,8 @@ one long page (form "L1"): header, hero with the download, a scroll-linked featu
 install steps, a download section and a footer. The visitor's browser decides what to offer. It reads
 the R2 latest pointer for a formal release. Failing that, it reads GitHub's public releases API, which
 gives the latest formal release if there is one and otherwise the newest pre-release. Failing both, it
-offers GitHub's release list. A release therefore never needs a site change. The screenshots are real
-app screenshots.
+offers GitHub's release list. A release therefore never needs a site change. The download section also says
+how many times the app has been downloaded. The screenshots are real app screenshots.
 
 ## User Stories
 
@@ -188,6 +190,31 @@ and the same list with the section's Chinese label in Chinese.
 In both languages, the existing footer copyright line links the author name "aloongplanet" to
 `https://aloongplanet.com` in a new tab, with the existing footer layout and styling.
 
+### landing-page::REQ-011 The download count
+
+- landing-page::REQ-011/AC-01: Below its download row, the download section shows one line with the
+  download count: "Downloads so far: N" in English and its Chinese counterpart, N being the count floored
+  to a whole number and grouped as the page's language groups numbers. The line's space is held from the
+  first render, so nothing on the page moves when its text appears.
+- landing-page::REQ-011/AC-02: The count is the sum, over every published release, formal or pre-release,
+  of its disk image's downloads: on GitHub, the download count GitHub reports for the DMG asset; on the
+  download host, the bytes the DMG was served in successful `GET` requests from visitors (status 200 or 206)
+  divided by the DMG's size. Drafts, the update ZIPs, their blockmaps, the update metadata, the latest
+  pointer and the statistics file count for nothing. A download is an event: nothing is de-duplicated
+  between the two sources or between visitors.
+- landing-page::REQ-011/AC-03: The count never goes down. A DMG asset deleted from GitHub keeps the last
+  count read for it, and a DMG removed from the bucket keeps the bytes it was served.
+- landing-page::REQ-011/AC-04: The count is brought up to date every hour, over the download host's
+  traffic up to the last full hour, and published as the statistics file `stats/downloads.json` on the
+  download host.
+- landing-page::REQ-011/AC-05: The line stays empty, and the rest of the page is unaffected, when the
+  statistics file is absent, cannot be fetched (the network, CORS, the time limit, an answer other than
+  2xx), is not JSON, has a `schemaVersion` other than 1, or holds a total, GitHub share or R2 share that is
+  negative or not finite, a total above 9007199254740991, or a total that differs from the sum of the two
+  shares by more than 0.000001. Without scripts the line stays empty.
+- landing-page::REQ-011/AC-06: The read of the statistics file never changes or delays the download the
+  page offers, in any of the four states, whether it succeeds, fails or is still pending.
+
 ## Quality Requirements
 
 ### landing-page::QR-001 Layout holds across widths, languages and appearances
@@ -214,10 +241,11 @@ two languages (ADR-0035).
 
 ### landing-page::CON-003 What the page reads (direct acceptance)
 
-Applies to: the visitor's browser. The page reads the R2 latest pointer and GitHub's public releases
-API, and no other source, to decide what download to offer. The walkthrough additionally loads
-YouTube only after the visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
-since they never reach it (mac-distribution::CON-004).
+Applies to: the visitor's browser. To decide what download to offer, the page reads the R2 latest pointer
+and GitHub's public releases API, and no other source. Its only other read is the statistics file, for
+the download count (landing-page::REQ-011). The walkthrough additionally loads YouTube only after the
+visitor activates its poster (REQ-009). Pre-releases are never looked for on R2, since they never reach it
+(mac-distribution::CON-004).
 
 ## Failure modes and boundaries
 
@@ -285,6 +313,8 @@ since they never reach it (mac-distribution::CON-004).
   owner's data (landing-page::REQ-005/AC-01). Retaking them is the only way to change what they show, so the
   overview and project screenshots keep showing the Instructions section's former name and place until they are
   next retaken.
+- E3 The statistics file is external data too. Only its validated total (landing-page::REQ-011/AC-05)
+  reaches the page, as the number in the count's text; nothing else it holds is inserted into the page.
 
 **Sequence F: watching the walkthrough in either language**
 
@@ -297,6 +327,27 @@ since they never reach it (mac-distribution::CON-004).
   “Watch on YouTube” stays reachable, as do the site's download links. Direct playback also requires
   YouTube access. Reloading the page restores the poster.
 - F5 Resize or use a phone → poster and player fit the same responsive 16:9 area, without horizontal overflow.
+
+**The download count**
+
+- G1 A statistics file that exists in the bucket but cannot be read, is not JSON, has a `schemaVersion`
+  other than 1 or does not match the statistics file's fields (Implementation Decisions) → the run fails
+  and writes nothing. The count starts over only when the bucket holds no such object.
+- G2 A run in which any read fails or answers what the run cannot validate (GitHub's releases, the bucket's
+  listing, the analytics or their limits) → it writes nothing and the cursor stays where it was; the next
+  run counts the hours this one missed.
+- G3 A cursor older than the oldest full hour the analytics still hold, after the workflow was stopped or
+  its runs kept failing → every run fails, until a manual run that accepts the gap resumes from the oldest
+  full hour the analytics hold and records the skipped hours in `r2Gaps`. Those hours are never counted.
+- G4 No DMG mirrored yet, while only pre-releases exist → the download host's share is zero and the run
+  succeeds.
+- G5 A mirrored DMG whose size in the bucket differs from the size the statistics file recorded for it →
+  the run fails.
+- G6 The project's own downloads count like anyone's: the release workflow reads each mirrored DMG back
+  once per formal release ([mac-distribution::REQ-003](mac-distribution.md)), and that read counts as one
+  download.
+- G7 The page served from any origin other than the landing page's, such as a Pages preview → the
+  count's line stays empty ([mac-distribution::REQ-004/AC-03](mac-distribution.md)).
 
 ## Implementation Decisions
 
@@ -315,7 +366,8 @@ since they never reach it (mac-distribution::CON-004).
   (mac-distribution Failure A2); any other entry is passed over. The newest by publication date is taken,
   the latest formal release first and the newest pre-release otherwise; the answer's order is not relied
   on. A release's DMG counts only once its upload has finished.
-- **Both reads** give up after five seconds (Failure A5) and send no header that needs a CORS preflight.
+- **Every read** (the pointer, GitHub and the statistics file) gives up after five seconds (Failure A5) and
+  sends no header that needs a CORS preflight.
   Every link is built from the validated version, never taken from an answer (Failure E1).
 - **Applying a state** replaces, in place and as text, the hero's download block (the button, the pill on
   the platform line, the note or the link beneath it) and the download section's line and row; the list
@@ -347,11 +399,35 @@ since they never reach it (mac-distribution::CON-004).
   taken from a window narrowed to 984pt, so that the pane reflows into the 920pt cut; the memory cut
   expands a project with only a few memory files, so that other projects stay in view. The English session
   retake uses a 1240pt window so the session pane fits the 920pt cut without truncating its right edge.
+- **The collection** is a scheduled workflow in this repository, one run at a time (ADR-0055). A DMG is an
+  asset or object named `Agentshed-<version>-mac-<arch>.dmg`, the packaged name. A run reads the previous
+  statistics file from the bucket itself, never through the download host's cache; GitHub's releases, every
+  page, drafts skipped; the bucket's listing under `releases/`; and Cloudflare's `httpRequestsAdaptiveGroups`
+  for the zone, filtered to the download host as `clientRequestHTTPHost`, method `GET`, status 200 or 206,
+  `clientRequestPath` under `/releases/` and `requestSource` `eyeball`, summing `edgeResponseBytes` by
+  `clientRequestPath`. It first reads the dataset's `notOlderThan` and `maxDuration` from the analytics'
+  `settings`, queries from the cursor to the last full hour in ranges no wider than `maxDuration`, and on a
+  first run starts at the oldest full hour `notOlderThan` allows. Only after every read has succeeded does it
+  write the new file, as `application/json` with `public, max-age=300`. A run without its credentials fails.
+- **The statistics file** is JSON with these fields; the page reads `schemaVersion` and `summary` only.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `schemaVersion` | number | `1`. A file with another value shows no count (landing-page::REQ-011/AC-05) and fails the run (Failure G1) |
+| `updatedAt` | string, ISO 8601 UTC | When the run that wrote the file read its sources |
+| `r2Cursor` | string, ISO 8601 UTC, on the hour | The download host's traffic before this hour is counted, and none after it |
+| `r2Gaps` | array of `{ from, to }`, each ISO 8601 UTC on the hour | The ranges a manual run accepted as never counted (Failure G3); empty when there are none |
+| `summary.total` | number | `summary.sources.github` plus `summary.sources.r2`, unrounded |
+| `summary.sources.github` | number | The sum of `downloads` over `github.assets` |
+| `summary.sources.r2` | number | The sum of `bytes` divided by `size` over `r2.objects`, unrounded |
+| `github.assets` | object keyed by GitHub's asset ID | `{ name, downloads }`: the DMG's file name and the highest count read for it |
+| `r2.objects` | object keyed by the object's key in the bucket | `{ name, size, bytes }`: the DMG's file name, its size in bytes and the bytes it was served in counted requests |
 
 ## Out of Scope
 
 - Retaking the screenshots only because the Instructions section changed its name and place (E2).
-- Download statistics (deferred, ADR-0050 option 5).
+- A count per release, per period or per source on the page: the figure answers one question, how many
+  times Agentshed has been downloaded (ADR-0055).
 - More than two languages (ADR-0050 option 2).
 - A copy of the page in mainland China (ADR-0050 option 4).
 - A version constant built into the site (rejected in favour of reading at run time).

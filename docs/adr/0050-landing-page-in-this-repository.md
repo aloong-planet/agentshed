@@ -1,6 +1,6 @@
 # ADR-0050: The landing page is a `site/` project in this repository, in Chinese and English
 
-- Status: Accepted (2026-10-19)
+- Status: Accepted (2026-11-22)
 
 ## Context
 
@@ -19,7 +19,6 @@ set here.
    links per language, and a separate repository must keep versions and links in step across repositories.
 4. A second copy of the landing page on the Aliyun ECS with the ICP filing number — rejected: it speeds up only the
    page, not the download, on a server short of memory. Restart condition: the page loads too slowly in mainland China.
-5. Download statistics on the landing page — deferred, reason not recorded, and kept as an open issue.
 
 ## Decision
 

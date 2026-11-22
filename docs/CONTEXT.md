@@ -18,6 +18,7 @@ library. This file is the domain glossary; the invariants are in `AGENTS.md`.
   - Interface: Rail, Transfusion, Supported language, Language preference, Effective language,
     Source language, Appearance, Theme, Theme variable classes
   - Updates: App update, Update check
+  - Releases: Download count
 - **Flagged ambiguities**
 
 ## Language
@@ -291,6 +292,13 @@ _Avoid_: update (bare — it also reads as a rescan or a transfusion), upgrade
 **Update check**:
 Asking the release source whether an app update exists for this installation (app-update spec).
 _Avoid_: refresh, sync, polling
+
+### Releases
+
+**Download count**:
+How many times Agentshed's disk image has been downloaded, from GitHub and from the download host, over
+every published release (landing-page spec). An app update's download of its ZIP is not one of them.
+_Avoid_: downloads (bare — the updater downloads too), install count (an install is never observed)
 
 ## Flagged ambiguities
 
