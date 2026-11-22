@@ -403,20 +403,20 @@ visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
   version, optionally with a pre-release suffix, and `<arch>` one of `arm64`, `x64` and `universal`. A run
   reads the previous statistics file from the bucket itself, never through the download host's cache; GitHub's
   releases, every page, drafts skipped; the bucket's listing under `releases/`; and Cloudflare's
-  `httpRequestsAdaptiveGroups` for the zone, filtered to the download host as `clientRequestHTTPHost`, method
-  `GET`, status 200 or 206, `clientRequestPath` under `/releases/` and `requestSource` `eyeball`, summing
-  `edgeResponseBytes` by `clientRequestPath`. It first reads the dataset's `notOlderThan`, `maxDuration` and
-  `maxPageSize` from the analytics' `settings`, queries from the cursor to the hour
+  `httpRequestsAdaptiveGroups` for the zone, filtered to the download host as `clientRequestHTTPHost`, to the
+  method and statuses landing-page::REQ-011/AC-02 counts, to `clientRequestPath` under `/releases/` and to
+  `requestSource` `eyeball`, summing `edgeResponseBytes` by `clientRequestPath`. It first reads the dataset's
+  `notOlderThan`, `maxDuration` and `maxPageSize` from the analytics' `settings`, queries from the cursor to the hour
   landing-page::REQ-011/AC-04 counts to, in ranges no wider than `maxDuration`, each asking for `maxPageSize`
   rows, and on a first run starts at the oldest full hour `notOlderThan` allows. A range answered with a full
   page fails the run, and so does an analytics answer that carries `errors`, even with HTTP 200, or that is
-  not for exactly one zone. Only after every read has succeeded does it write the new file, as
-  `application/json` with `public, max-age=300`. A run without its credentials fails.
+  not for exactly one zone. It writes the new file (Failure G2) as `application/json` with
+  `public, max-age=300`. A run without its credentials fails.
 - **The statistics file** is JSON with these fields; the page reads `schemaVersion` and `summary` only.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `schemaVersion` | number | `1`. A file with another value shows no count (landing-page::REQ-011/AC-05) and fails the run (Failure G1) |
+| `schemaVersion` | number | `1`; another value: landing-page::REQ-011/AC-05, Failure G1 |
 | `updatedAt` | string, ISO 8601 UTC | When the run that wrote the file read its sources |
 | `r2Cursor` | string, ISO 8601 UTC, on the hour | The download host's traffic before this hour is counted, and none after it |
 | `r2Gaps` | array of `{ from, to }`, each ISO 8601 UTC on the hour | The ranges a manual run accepted as never counted (Failure G3); empty when there are none |
