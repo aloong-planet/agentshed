@@ -113,18 +113,23 @@ describe('the navigation is shown at 760px and wider, and hidden below', () => {
   })
 })
 
-// landing-page::REQ-012/AC-02 (the wide window)
-describe("on a wide window the trail takes the navigation links' size, grey and hover colour, 10px apart", () => {
-  const cases = LOCALES.flatMap((locale) => (['light', 'dark'] as const).map((colorScheme) => ({ name: `${locale}/${colorScheme}`, locale, colorScheme })))
-  test.for(cases)('$name', { timeout: CASE_LIMIT }, async ({ locale, colorScheme }, { expect }) => {
-    const trail = await visit(browser, inject('builtSite'), open(locale, 1280, colorScheme), async (page) => {
+// landing-page::REQ-012/AC-02 (a window wider than the narrow one: 1280px, and 401px, just past the narrow window's edge)
+describe("in a window wider than 400px the trail takes the navigation links' size, grey and hover colour, 10px apart", () => {
+  const cases = LOCALES.flatMap((locale) => [
+    ...(['light', 'dark'] as const).map((colorScheme) => ({ name: `${locale}/1280/${colorScheme}`, locale, width: 1280, colorScheme })),
+    { name: `${locale}/401/light`, locale, width: 401, colorScheme: 'light' as const }
+  ])
+  test.for(cases)('$name', { timeout: CASE_LIMIT }, async ({ locale, width, colorScheme }, { expect }) => {
+    const trail = await visit(browser, inject('builtSite'), open(locale, width, colorScheme), async (page) => {
       const [home, sep, brand, link] = await page.evaluate(looks, ['.crumbs-home', '.crumbs-sep', '.brand', '.nav-links a'])
       const colour = async (selector: string) => {
         await page.hover(selector, { timeout: WAIT })
         return (await page.evaluate(looks, [selector]))[0].color
       }
-      const linkHover = await colour('.nav-links a')
       const homeHover = await colour('.crumbs-home')
+      // Below 760px the links are hidden and cannot be hovered: their hover colour is taken in a wide window
+      await page.setViewportSize({ width: 1280, height: 800 })
+      const linkHover = await colour('.nav-links a')
       return { home, sep, brand, link, linkHover, homeHover }
     })
     const { home, sep, brand, link } = trail
@@ -142,23 +147,31 @@ describe("on a wide window the trail takes the navigation links' size, grey and 
 describe('in a window 400px wide or narrower the trail goes small on its own line, in the same header', () => {
   const cases = LOCALES.flatMap((locale) => [400, 320].map((width) => ({ name: `${locale}/${width}`, locale, width })))
   test.for(cases)('$name', { timeout: CASE_LIMIT }, async ({ locale, width }, { expect }) => {
-    const SELECTORS = ['.crumbs-home', '.crumbs-sep', '.crumbs-up', '.crumbs li:has(.brand)', '.site-header', '.bar', '.lang']
+    const SELECTORS = ['.crumbs-home', '.crumbs-sep', '.crumbs-up', '.crumbs li:has(.brand)', '.crumbs', '.site-header', '.bar', '.lang']
     const { narrow, wide } = await visit(browser, inject('builtSite'), open(locale, width), async (page) => {
       const narrow = await page.evaluate(looks, SELECTORS)
       // The same page in a wide window, to compare the header with
       await page.setViewportSize({ width: 1280, height: 800 })
       return { narrow, wide: await page.evaluate(looks, SELECTORS) }
     })
-    const [home, sep, trailLine, brandLine, header, bar, toggle] = narrow
-    const [, , , , wideHeader, wideBar, wideToggle] = wide
+    const [home, sep, trailLine, brandLine, crumbs, header, bar, toggle] = narrow
+    const [, , , , , wideHeader, wideBar, wideToggle] = wide
     const px = (value: string): number => parseFloat(value)
     // landing-page::REQ-012/AC-02
     expect.soft(sep.left - home.right, 'between "aloong planet" and "/"').toBeCloseTo(4, 0)
     // landing-page::REQ-012/AC-03
     expect.soft([px(home.fontSize), px(sep.fontSize)], 'the font size of "aloong planet" and "/"').toEqual([11, 11])
-    expect.soft(px(home.lineHeight) / px(home.fontSize), 'the line height of "aloong planet", to its size').toBeCloseTo(1.3, 2)
+    const ratio = (look: Look): string => (px(look.lineHeight) / px(look.fontSize)).toFixed(2)
+    expect.soft([ratio(home), ratio(sep)], 'the line height of "aloong planet" and "/", to their size').toEqual(['1.30', '1.30'])
     expect.soft(brandLine.top - trailLine.bottom, "from the trail's line to the brand's").toBeCloseTo(1, 0)
+    // The same header: as tall as in the wide window, and the trail's two lines inside it. The bar's height is set,
+    // so a trail too tall for it spills out of the header rather than making it taller
     expect.soft(header.bottom - header.top, "the header's height").toBeCloseTo(wideHeader.bottom - wideHeader.top, 0)
+    const spill = [
+      ...(crumbs.top < header.top - TOLERANCE ? [`starts ${(header.top - crumbs.top).toFixed(1)}px above it`] : []),
+      ...(crumbs.bottom > header.bottom + TOLERANCE ? [`ends ${(crumbs.bottom - header.bottom).toFixed(1)}px below it`] : [])
+    ]
+    expect.soft(spill, 'the trail, against the header').toEqual([])
     // The toggle at the right: as far from the end of the bar's content as in the wide window
     const fromEnd = (b: Look, t: Look): number => b.right - px(b.paddingRight) - t.right
     expect.soft(fromEnd(bar, toggle), "the language toggle's distance from the header's right edge").toBeCloseTo(fromEnd(wideBar, wideToggle), 0)
