@@ -87,6 +87,20 @@ test('another writer coming in just before a put is there when its precondition 
   assert.equal(binding.peek('stats/downloads-shadow.json').text, 'theirs')
 })
 
+test('a failing call rejects with its error and changes nothing, while the calls it does not name go through', async () => {
+  const error = new Error('the round trip failed')
+  const binding = r2Binding({
+    objects: { 'stats/a.json': 'a', 'stats/b.json': 'b' },
+    failing: { get: (key) => (key === 'stats/a.json' ? error : undefined), put: () => error, list: (prefix) => (prefix === 'releases/' ? error : undefined) }
+  })
+  await assert.rejects(binding.get('stats/a.json'), error)
+  assert.equal(await (await binding.get('stats/b.json')).text(), 'b')
+  await assert.rejects(binding.put('stats/b.json', 'c'), error)
+  assert.equal(binding.peek('stats/b.json').text, 'b')
+  await assert.rejects(binding.list({ prefix: 'releases/' }), error)
+  assert.deepEqual((await binding.list({ prefix: 'stats/' })).objects.map(({ key }) => key), ['stats/a.json', 'stats/b.json'])
+})
+
 test('a call settles only after the caller has gone on', async () => {
   const binding = r2Binding({ objects: { 'stats/downloads.json': '{}' } })
   const order = []

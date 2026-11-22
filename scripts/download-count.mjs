@@ -19,7 +19,7 @@ export async function main(env, { run, fetch, now, log = console.log }) {
   for (const name of SETTINGS) {
     if (!env[name]) throw new Error(`${name} is not set`)
   }
-  const statistics = await collect({
+  const { statistics } = await collect({
     bucket: awsBucket({ bucket: env.R2_BUCKET, endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, run }),
     fetch,
     now: now(),

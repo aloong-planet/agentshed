@@ -17,7 +17,9 @@
 // Every call settles on a later macrotask, as a binding's call does after its round trip: a call not awaited has not
 // happened when the caller goes on. `write` is another writer's unconditional put, and `beforePut` runs just before
 // each put is evaluated, where another writer may come in between the caller's read and its write; `unlisted` keys
-// are left out of every listing while get still answers them, as a listing that misses an object would.
+// are left out of every listing while get still answers them, as a listing that misses an object would; `failing`
+// makes a call reject, as a binding's call does when its round trip fails: for each of get, put and list, a function
+// of the call's key (the prefix for list) answering the error, or nothing for a call that goes through.
 //
 // Gap: the docs are the only source. Whether the real runtime enforces etagMatches and If-None-Match: * on put, and how
 // its pages are cut, was not observed; the Worker's first runs in production are that check (docs/ops/download-count.md).
@@ -38,8 +40,12 @@ const later = (call) => new Promise((resolve, reject) => {
  * A bucket holding `objects` (key -> text, or { text, size, httpMetadata } for an object whose size is not its text's,
  * such as a DMG never read)
  */
-export function r2Binding({ objects = {}, pageSize = MAX_LIMIT, unlisted = [], beforePut } = {}) {
+export function r2Binding({ objects = {}, pageSize = MAX_LIMIT, unlisted = [], beforePut, failing = {} } = {}) {
   const store = new Map()
+  const fails = (call, key) => {
+    const error = failing[call]?.(key)
+    if (error) throw error
+  }
   let uploads = 0
   const save = (key, value) => {
     const { text = '', size = byteLength(text), httpMetadata = {} } = typeof value === 'string' ? { text: value } : value
@@ -67,17 +73,20 @@ export function r2Binding({ objects = {}, pageSize = MAX_LIMIT, unlisted = [], b
 
   const binding = {
     get: (key) => later(() => {
+      fails('get', key)
       const object = store.get(key)
       if (object === undefined) return null
       return { ...meta(object), httpMetadata: { ...object.httpMetadata }, text: async () => object.text }
     }),
     put: (key, value, { onlyIf, httpMetadata } = {}) => later(() => {
       beforePut?.(key, binding)
+      fails('put', key)
       if (typeof value !== 'string') throw new Error('the stand-in stores text only')
       if (!holds(key, onlyIf)) return null
       return meta(save(key, { text: value, httpMetadata }))
     }),
     list: ({ prefix = '', cursor, limit = MAX_LIMIT } = {}) => later(() => {
+      fails('list', prefix)
       if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) throw new RangeError(`limit ${limit} is not 1 to ${MAX_LIMIT}`)
       const after = cursor === undefined ? null : atob(cursor)
       const keys = [...store.keys()].filter((key) => key.startsWith(prefix) && !unlisted.includes(key) && (after === null || key > after)).sort()
