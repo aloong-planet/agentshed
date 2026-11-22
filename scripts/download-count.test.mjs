@@ -1,7 +1,11 @@
 // The download count's collection (landing-page::REQ-011, Failures G1-G6, Implementation Decisions "The collection"
-// and "The statistics file"): the pure rules that merge each source into the statistics file, the plan of the
-// analytics ranges, and a run driven through its seams, with the bucket, GitHub and Cloudflare's analytics standing in
-// at the system boundary and the clock fixed.
+// and "The statistics file"): the core's pure rules that merge each source into the statistics file and plan the
+// analytics ranges, a run of the core driven through its seams, with the bucket, GitHub and Cloudflare's analytics
+// standing in at the system boundary and the clock fixed, and the entry point that runs the core through aws-cli.
+//
+// The core (download-count-core.mjs) awaits the bucket it is given, so the bucket standing in for it answers each
+// call on a later turn of the event loop, as an asynchronous binding would: a call the core does not await has not
+// happened when the run goes on. The cases through the aws-cli adapter answer at once, as aws-cli does in the workflow.
 //
 // GitHub's answer is the repository's real one (scripts/fixtures/github-releases.json: `gh api
 // 'repos/aloong-planet/agentshed/releases?per_page=100'`, 2026-11-22, nine pre-releases, trimmed to the fields a
@@ -10,13 +14,17 @@
 // Gaps: nothing here reaches R2, GitHub or Cloudflare. The analytics' answers are shaped from Cloudflare's documented
 // schema and the query Transfer runs hourly on the same zone; aws-cli's output for a listing is shaped from its source
 // (the JSON formatter applied to `--query '{objects: Contents}'`), since aws-cli could not run on the machine that
-// wrote these tests. The workflow's first runs are those checks (docs/ops/download-count.md).
+// wrote these tests. The workflow's first runs are those checks (docs/ops/download-count.md). A global only Node has
+// (`process`, `Buffer`), used by the core, would fail only in a runtime without Node; every case here runs the core in
+// Node, so the first run of the core in such a runtime is that check.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
+import ts from 'typescript'
 import { awsBucket } from './lib/r2-bucket.mjs'
-import { collect, main, isDmg, mergeGitHub, mergeR2, planRanges, summarize, validateStatistics } from './download-count.mjs'
+import { collect, isDmg, mergeGitHub, mergeR2, planRanges, summarize, validateStatistics } from './download-count-core.mjs'
+import { main } from './download-count.mjs'
 
 const REAL_RELEASES = JSON.parse(readFileSync(new URL('./fixtures/github-releases.json', import.meta.url), 'utf8'))
 
@@ -340,7 +348,8 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 /**
  * The run's world: the release bucket as objects by key, GitHub's releases answered 100 to a page, and Cloudflare's
  * analytics answering the settings and, for a range, the rows of each hour in it (`traffic`: hour -> [{ path, bytes }]).
- * `requests` records what was asked, in order.
+ * `answer` replaces an answer, or throws for a call that fails; `requests` records what was asked, in order. The
+ * bucket is `store`, as the core is given it, and `syncStore`, the same bucket answering at once, as aws-cli does.
  */
 function world({ objects = {}, releases = REAL_RELEASES, limits = LIMITS, traffic = {}, answer = {} } = {}) {
   const bucket = new Map(Object.entries(objects))
@@ -369,10 +378,11 @@ function world({ objects = {}, releases = REAL_RELEASES, limits = LIMITS, traffi
     }
     throw new Error(`unexpected request: ${url}`)
   }
-  const store = {
+  const syncStore = {
     list: (prefix) => {
       requests.push({ to: 'list', prefix })
-      return [...bucket].filter(([key]) => key.startsWith(prefix)).map(([key, object]) => ({ key, size: object.size ?? Buffer.byteLength(object.text) }))
+      return answer.list?.(prefix) ??
+        [...bucket].filter(([key]) => key.startsWith(prefix)).map(([key, object]) => ({ key, size: object.size ?? Buffer.byteLength(object.text) }))
     },
     getText: (key) => {
       requests.push({ to: 'get', key })
@@ -382,10 +392,23 @@ function world({ objects = {}, releases = REAL_RELEASES, limits = LIMITS, traffi
     },
     putText: (key, text, headers) => {
       requests.push({ to: 'put', key })
+      answer.put?.(key)
       bucket.set(key, { text, ...headers })
     }
   }
-  return { bucket, store, fetch, requests }
+  // Each call settles on a later macrotask: one queued as a microtask would still run before the core's next step,
+  // awaited or not
+  const later = (call) => (...args) => new Promise((resolve, reject) => {
+    setImmediate(() => {
+      try {
+        resolve(call(...args))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+  const store = { list: later(syncStore.list), getText: later(syncStore.getText), putText: later(syncStore.putText) }
+  return { bucket, store, syncStore, fetch, requests }
 }
 
 const RUN = { repository: 'aloong-planet/agentshed', githubToken: 'gh-token', analyticsToken: 'cf-token', zone: 'zone-tag', host: 'dl.agentshed.aloongplanet.com', acceptGap: false }
@@ -473,14 +496,21 @@ test("GitHub's releases are read page after page with the workflow's token, unti
 
 const text = (body, status = 200) => new Response(body, { status })
 const zoneAnswer = (zone) => json({ data: { viewer: { zones: [zone] } }, errors: null })
+/** A bucket whose listing of one prefix fails; the listing of any other is the bucket's */
+const failingList = (failed) => (prefix) => {
+  if (prefix === failed) throw new Error(`the listing of ${prefix} failed: InternalError`)
+}
 
 // Failures G1, G2 and G5 through a run: each read that fails or answers what the run cannot validate fails the run
-// before anything is written, the previous file and its cursor untouched
+// before anything is written, the previous file and its cursor untouched. A listing that fails reads as no listing,
+// never as an empty bucket, which would start the count over or drop the DMGs not yet recorded
 test('a run in which any read fails, or answers what the run cannot validate, writes nothing', async () => {
   // Its cursor an hour before the last full hour, so that the run has one range of traffic to read
   const previousFile = { text: `${JSON.stringify({ ...writtenFile(), r2Cursor: '2026-11-22T08:00:00Z' }, null, 2)}\n` }
   const mirrored = { 'stats/downloads.json': previousFile, [DMG_KEY]: { size: 1000 } }
   const cases = [
+    ['the listing of the statistics file failing', { answer: { list: failingList('stats/downloads.json') } }, /the listing of stats\/downloads\.json failed/],
+    ['the listing under releases/ failing', { answer: { list: failingList('releases/') } }, /the listing of releases\/ failed/],
     ['the statistics file that cannot be read', { answer: { get: () => { throw new Error('aws s3api failed (exit 255)\nAccessDenied') } } }, /AccessDenied/],
     ['the statistics file that is not JSON', { objects: { ...mirrored, 'stats/downloads.json': { text: '{"schemaVersion": 1,' } } }, /the statistics file in the bucket is not JSON/],
     ['the statistics file of another schema', { objects: { ...mirrored, 'stats/downloads.json': { text: JSON.stringify({ ...writtenFile(), schemaVersion: 2 }) } } }, /has schemaVersion 2, not 1/],
@@ -538,6 +568,12 @@ test('a run whose bucket listing fails, or answers what cannot be read, writes n
       assert.equal(w.bucket.get('stats/downloads.json'), before, `${prefix} ${label}`)
     }
   }
+})
+
+// A write that fails fails the run, which is then reported, never taken for a count published
+test("a run whose write of the statistics file fails fails with the bucket's error", async () => {
+  const { store, fetch } = world({ answer: { put: () => { throw new Error('the write of stats/downloads.json failed: AccessDenied') } } })
+  await assert.rejects(collect({ ...RUN, bucket: store, fetch, now: NOW }), /the write of stats\/downloads\.json failed: AccessDenied/)
 })
 
 test('after a failed run, the next run counts the hours the failed one missed', async () => {
@@ -640,21 +676,21 @@ const ENV = {
   DOWNLOAD_HOST: 'https://dl.agentshed.aloongplanet.com'
 }
 
-/** aws-cli as the entry point drives it, answering from a world's bucket */
-function awsOf({ store }) {
+/** aws-cli as the entry point drives it, answering at once from a world's bucket */
+function awsOf({ syncStore }) {
   const calls = []
   const run = (args) => {
     calls.push(args)
     const prefix = args[args.indexOf('--prefix') + 1]
     if (args[1] === 'list-objects-v2') {
-      const objects = store.list(prefix).map(({ key, size }) => ({ Key: key, Size: size }))
+      const objects = syncStore.list(prefix).map(({ key, size }) => ({ Key: key, Size: size }))
       return { stdout: JSON.stringify({ objects: objects.length ? objects : null }) }
     }
     if (args[1] === 'get-object') {
-      writeFileSync(args.at(-1), store.getText(args[args.indexOf('--key') + 1]))
+      writeFileSync(args.at(-1), syncStore.getText(args[args.indexOf('--key') + 1]))
       return { stdout: '{}' }
     }
-    store.putText(args[3].slice('s3://agentshed-releases/'.length), readFileSync(args[2], 'utf8'), {
+    syncStore.putText(args[3].slice('s3://agentshed-releases/'.length), readFileSync(args[2], 'utf8'), {
       cacheControl: args[args.indexOf('--cache-control') + 1],
       contentType: args[args.indexOf('--content-type') + 1]
     })
@@ -704,4 +740,13 @@ test('the script run as a process exits with a failure when it cannot count', ()
   const result = spawnSync(process.execPath, [new URL('./download-count.mjs', import.meta.url).pathname], { env: {}, encoding: 'utf8' })
   assert.equal(result.status, 1)
   assert.match(result.stderr, /\[download-count\] R2_ACCOUNT_ID is not set/)
+})
+
+// The core runs where neither Node's modules nor the files beside it are: TypeScript's parser lists a module's
+// imports of every form, as the five of the sample show
+test('the core imports nothing, neither a module of Node nor a file', () => {
+  const imports = (source) => ts.preProcessFile(source, true, true).importedFiles.map(({ fileName }) => fileName)
+  const sample = "import a from 'node:url'\nimport './b.mjs'\nexport * from './c.mjs'\nconst d = await import('node:fs')\nconst e = require('node:os')\n"
+  assert.deepEqual(imports(sample), ['node:url', './b.mjs', './c.mjs', 'node:fs', 'node:os'])
+  assert.deepEqual(imports(readFileSync(new URL('./download-count-core.mjs', import.meta.url), 'utf8')), [])
 })
