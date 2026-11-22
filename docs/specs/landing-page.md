@@ -157,8 +157,8 @@ Releases and the copyright line.
 ### landing-page::REQ-006 Copy (direct acceptance)
 
 The copy is in Chinese and English only. Where the page refers to the agents Agentshed reads, it names
-examples without presenting them as the complete set ("Claude Code, Codex and other coding agents"),
-so a new agent side does not make it untrue. The page uses the app's own palette, in light and dark,
+examples without presenting them as the complete set ("Claude Code, Codex and other coding agents").
+The page uses the app's own palette, in light and dark,
 following the visitor's system appearance.
 
 ### landing-page::REQ-007 The hero's heading (direct acceptance)
@@ -183,7 +183,7 @@ and the same list with the section's Chinese label in Chinese.
 - landing-page::REQ-009/AC-03: “Watch on YouTube” remains available below the frame. Without site scripts,
   the poster is also a direct YouTube link. Modified clicks keep normal link behavior.
 - landing-page::REQ-009/AC-04: The video is hosted on YouTube. Only the poster and the published video's
-  link ship in the website repository; the approved narration and music are unchanged.
+  link ship in the website repository; the narration and music are the ones the owner approved.
 
 ### landing-page::REQ-010 Author homepage (direct acceptance)
 
@@ -214,6 +214,18 @@ In both languages, the existing footer copyright line links the author name "alo
   shares by more than 0.000001. Without scripts the line stays empty.
 - landing-page::REQ-011/AC-06: The read of the statistics file never changes or delays the download the
   page offers, in any of the four states, whether it succeeds, fails or is still pending.
+
+### landing-page::REQ-012 Back to the aloong planet homepage
+
+- landing-page::REQ-012/AC-01: The header's left end shows, in order, "aloong planet", the separator "/"
+  and the brand. "aloong planet" is a link that opens `https://aloongplanet.com/` in the current tab; the
+  "/" is not a link and assistive technology does not read it; the brand keeps its link. Both languages
+  show "aloong planet", untranslated.
+- landing-page::REQ-012/AC-02: "aloong planet" and "/" take the size and grey of the header's navigation
+  links, with 10px between each of the three ("aloong planet", "/", the brand). Hovering "aloong planet"
+  turns it the navigation links' hover colour.
+- landing-page::REQ-012/AC-03: In a window 400px wide or narrower, "aloong planet /" shrinks to 11px on its
+  own line above the brand; the header keeps its height and the language toggle stays at the right.
 
 ## Quality Requirements
 
@@ -440,6 +452,8 @@ visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
   no Intel, Windows or Linux download.
 - Keeping the hero's heading and paragraph word for word the same as the README's opening (the owner
   does not need the two to match).
+- The homepage's Apps and Agents menus in the header: the header only links back to the homepage
+  (landing-page::REQ-012).
 
 ## Further Notes
 
