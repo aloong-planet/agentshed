@@ -59,6 +59,11 @@ export interface Dictionary {
     formal: { hero: string; every: string; line: string; download: string; github: string }
     /** The test state (landing-page::REQ-002/AC-03): only a pre-release exists */
     test: { hero: string; pill: string; note: string; line: string; button: string }
+    /**
+     * The download count's line below the row (landing-page::REQ-011/AC-01): {count} is the count, grouped as the
+     * page's language groups numbers. A label rather than a sentence, so no plural form is needed in either language
+     */
+    count: string
   }
   footer: { github: string; releases: string; copyright: string; author: string }
 }
@@ -125,6 +130,7 @@ const zh: Dictionary = {
     title: '下载',
     label: 'macOS · Apple Silicon',
     labelSub: 'macOS 12 及以上，M 系列芯片',
+    count: '当前已有 {count} 次下载',
     list: {
       hero: '前往 GitHub 下载 Agentshed',
       line: '暂时读不到版本信息，可前往 GitHub 下载',
@@ -210,6 +216,7 @@ const en: Dictionary = {
     title: 'Download',
     label: 'macOS · Apple Silicon',
     labelSub: 'macOS 12 or later, M-series chips',
+    count: 'Downloads so far: {count}',
     list: {
       hero: 'Download Agentshed from GitHub',
       line: 'Version details can’t be loaded right now — download from GitHub',

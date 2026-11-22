@@ -27,6 +27,7 @@ apply.
 |---|---|---|
 | `releases/v<version>/Agentshed-<version>-mac-<arch>.dmg` | `application/x-apple-diskimage` | `public, max-age=31536000, immutable`: a version's URL never changes content |
 | `latest.json` | `application/json` | `public, max-age=300`: it moves with every formal release |
+| `stats/downloads.json` | `application/json` | `public, max-age=300`: the download count's statistics file, rewritten every hour (`docs/ops/download-count.md`) |
 
 `latest.json` is what the landing page reads (mac-distribution::REQ-004/AC-02, landing-page::REQ-001):
 
@@ -95,6 +96,15 @@ This is the evidence for mac-distribution::REQ-004/AC-03:
 | preflight `PUT` | `https://agentshed.aloongplanet.com` | 403 |
 
 The raw output is kept with the ticket's records.
+
+On 2026-11-22 the statistics file was checked the same way, before its first run (so the bucket did not hold it
+yet), with `GET` and each origin on `https://dl.agentshed.aloongplanet.com/stats/downloads.json`. This is the evidence
+for landing-page Failure G7: a page served from any other origin, such as a Pages preview, shows no count.
+
+| Request | Origin | Answer |
+|---|---|---|
+| `GET` | `https://agentshed.aloongplanet.com` | 404 (no file yet), `access-control-allow-origin: https://agentshed.aloongplanet.com`, `vary: Origin` |
+| `GET` | `https://example.com` | 404, `vary: Origin`, no CORS header |
 
 ## Not yet observed
 

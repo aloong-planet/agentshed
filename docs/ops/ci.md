@@ -97,6 +97,8 @@ To end it, set `enabled = false` under `[docs-auto-merge]`.
 
 Message language remains separate and also runs when the PR title/body is edited; that edit does not
 restart product tests. Release still runs on release tags and manual dispatch, with its existing gates.
+Download count runs every hour and on manual dispatch, never on a pull request
+([its runbook](download-count.md)).
 
 Cloudflare Pages deployment is separate; its build watch paths and preview/production branches are
 configured in Cloudflare. The declared settings are in [the website README](../../site/README.md#deploying-cloudflare-pages).

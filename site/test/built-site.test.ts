@@ -127,6 +127,24 @@ describe('the download as served: the list state', () => {
     for (const b of [hero, ...buttons]) expect(text(b)).not.toMatch(/\d+\.\d+/)
   })
 
+  // landing-page::REQ-011/AC-01, AC-05: below the card, its space held by its style, empty until its read fills it
+  test.each(LOCALES)('%s: the download count’s line sits right below the download card, served empty', (locale) => {
+    const line = pages[locale].querySelector('#download .dl')?.nextElementSibling
+    expect(line?.matches('p.dl-count[data-download-count]')).toBe(true)
+    expect(line?.textContent).toBe('')
+    expect(line?.nextElementSibling).toBeNull()
+  })
+
+  // landing-page::CON-003, Failure G7: the built page reads the statistics file on the download host; the dev
+  // server's own path to it is chosen only under the dev server
+  test('the built script reads the statistics file on the download host, never the dev server’s path', () => {
+    const built = files()
+      .filter((f) => /\.(js|html)$/.test(f))
+      .map((f) => [f, readFileSync(join(outDir, f), 'utf8')] as const)
+    expect(built.filter(([, body]) => body.includes('dl.agentshed.aloongplanet.com') && body.includes('/stats/downloads.json')).length).toBeGreaterThan(0)
+    expect(built.filter(([, body]) => body.includes('__download-count')).map(([f]) => f)).toEqual([])
+  })
+
   test('the English list state reads as the spec’s', () => {
     expect(text(pages.en.querySelector('.hero .cta a.btn'))).toBe('Download Agentshed from GitHub')
     expect(text(pages.en.querySelector('.hero .cta .meta'))).toBe('macOS 12 or later · Apple Silicon')
@@ -298,10 +316,11 @@ describe('two languages', () => {
     return value && typeof value === 'object' ? Object.values(value).flatMap(leaves) : []
   }
 
-  test.each(LOCALES)('%s: every string of the language’s copy is on its page, but the copy of the states a read brings', (locale) => {
-    // The formal and test states' copy appears only once a read brings that state: the apply check holds it
-    const { formal, test: testState, ...served } = ui[locale].download
-    expect(leaves(formal).length + leaves(testState).length).toBeGreaterThan(5)
+  test.each(LOCALES)('%s: every string of the language’s copy is on its page, but the copy a read brings', (locale) => {
+    // The formal and test states' copy appears only once a read brings that state: the apply check holds it. The
+    // download count's line is served empty and filled by its read (landing-page::REQ-011/AC-05)
+    const { formal, test: testState, count, ...served } = ui[locale].download
+    expect(leaves(formal).length + leaves(testState).length + leaves(count).length).toBeGreaterThan(6)
     const page = words(pages[locale])
     const missing = leaves({ ...ui[locale], download: served }).filter((s) => !page.includes(s.replace(/\s+/g, ' ')))
     expect(missing).toEqual([])

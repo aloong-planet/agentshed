@@ -62,6 +62,7 @@ const t = ui[locale]
     <script>
       import { initHeroVideo } from '../scripts/hero-video'
       import { initDownload } from '../scripts/download'
+      import { COUNT_URL, DEV_COUNT_PATH } from '../download-count'
       import { initFeatures } from '../scripts/features'
       import { initLanguageSwitch } from '../scripts/language-switch'
       initHeroVideo()
@@ -70,7 +71,7 @@ const t = ui[locale]
       initLanguageSwitch()
       // Should anything fail before a state is shown, the page stays in the list state it was served in, which is a
       // valid way to download
-      initDownload(document, (url, init) => fetch(url, init)).catch(() => undefined)
+      initDownload(document, (url, init) => fetch(url, init), import.meta.env.DEV ? DEV_COUNT_PATH : COUNT_URL).catch(() => undefined)
     </script>
   </body>
 </html>
