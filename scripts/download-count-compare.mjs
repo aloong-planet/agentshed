@@ -3,11 +3,10 @@
 // shadow file and appends the comparison to the comparison record, which it alone writes. The rules here read and
 // write no file; the workflow's entry (download-count.mjs) reads the three files and writes the record.
 import { hourOf, isUtc, shaped } from './download-count-core.mjs'
-import { SHADOW_KEY } from './download-count-worker.mjs'
+import { SHA256, SHADOW_KEY } from './download-count-worker.mjs'
 
 export const COMPARISONS_KEY = 'stats/shadow-comparisons.json'
 
-const SHA256 = /^[0-9a-f]{64}$/
 const COMMIT = /^[0-9a-f]{40}$/
 const FIELDS = ['at', 'workflowRunId', 'workflowCommit', 'workflowCoreSha256', 'workerScheduledTime', 'workerCoreSha256', 'r2Cursor', 'status', 'checks', 'r2BytesSinceSeed']
 const CHECKS = ['r2Bytes', 'githubAssets', 'core']

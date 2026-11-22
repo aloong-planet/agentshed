@@ -755,6 +755,8 @@ test('a comparison that cannot be made or recorded leaves the comparison record 
     ['the shadow file cannot be read', { 'stats/shadow-comparisons.json': record }, failingGet('stats/downloads-shadow.json', 'aws s3api failed (exit 255)\r\nAn error occurred (InternalError)'),
       'aws s3api failed (exit 255)%0D%0AAn error occurred (InternalError)'],
     ['the shadow file is not a statistics file', { 'stats/downloads-shadow.json': { text: asText({ ...SHADOW, schemaVersion: 2 }) }, 'stats/shadow-comparisons.json': record }, null, 'stats/downloads-shadow.json has schemaVersion 2, not 1'],
+    ['the run record cannot be read', { 'stats/shadow-comparisons.json': record }, failingGet('stats/worker-runs.json', 'aws s3api failed (exit 255)\nAn error occurred (AccessDenied)'),
+      'aws s3api failed (exit 255)%0AAn error occurred (AccessDenied)'],
     ['the run record is not one', { 'stats/worker-runs.json': { text: asText({ schemaVersion: 1, seed: SEED, runs: [{ ...WORKER_RUN, written: 'yes' }] }) } }, null, 'the run record has a run that is not one: entry 0'],
     ['no run ID', { 'stats/shadow-comparisons.json': record }, null, 'the comparison record has a comparison that is not one: entry 0', { GITHUB_RUN_ID: undefined }]
   ]

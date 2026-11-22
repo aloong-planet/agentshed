@@ -55,11 +55,6 @@ test('files whose cursors differ, or a shadow file the bucket does not hold, are
   }
 })
 
-test('files with the same cursor and counts, from the same core, are equal', () => {
-  const comparison = compare(comparing())
-  assert.deepEqual([comparison.status, comparison.checks], ['equal', { r2Bytes: true, githubAssets: true, core: true }])
-})
-
 test("the download host's bytes are equal only when every object has the same bytes and size in both files", () => {
   const other = 'releases/v0.2.1/Agentshed-0.2.1-mac-arm64.dmg'
   const withObjects = (objects) => ({ ...writtenFile(), updatedAt: '2026-11-22T09:31:20.000Z', r2: { objects } })

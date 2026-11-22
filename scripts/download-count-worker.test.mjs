@@ -310,7 +310,9 @@ test('a shadow run accepts a stale cursor only when ACCEPT_GAP_FROM is that curs
   const stale = asText({ ...writtenFile(), r2Cursor: '2026-10-01T00:00:00Z', r2Gaps: [] })
   const cases = [
     ['the cursor', '2026-10-01T00:00:00Z', null],
-    ['another hour', '2026-10-02T00:00:00Z', /the cursor 2026-10-01T00:00:00Z is older than 2026-10-22T10:00:00Z/],
+    // The remedy it names is one the Worker has: a run that accepts the gap, not a manual run
+    ['another hour', '2026-10-02T00:00:00Z',
+      /^Error: the cursor 2026-10-01T00:00:00Z is older than 2026-10-22T10:00:00Z, the oldest full hour the analytics hold; a run that accepts the gap resumes from there \(docs\/ops\/download-count\.md\)$/],
     ['empty', '', /is older than/],
     ['unset', undefined, /is older than/]
   ]

@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { awsBucket, runAws } from './lib/r2-bucket.mjs'
-import { collect, validateStatistics } from './download-count-core.mjs'
+import { collect, validateStatistics, WRITE_OPTIONS } from './download-count-core.mjs'
 import { appendComparison, compare, COMPARISONS_KEY, validateComparisons } from './download-count-compare.mjs'
 import { RUNS_KEY, SHADOW_KEY, validateRuns } from './download-count-worker.mjs'
 
@@ -54,7 +54,7 @@ async function recordComparison({ bucket, env, at, statistics }) {
     shadow,
     runs
   })
-  await bucket.putText(COMPARISONS_KEY, `${JSON.stringify(appendComparison(record, comparison), null, 2)}\n`, { cacheControl: 'public, max-age=300', contentType: 'application/json' })
+  await bucket.putText(COMPARISONS_KEY, `${JSON.stringify(appendComparison(record, comparison), null, 2)}\n`, WRITE_OPTIONS)
   return comparison
 }
 

@@ -8,7 +8,7 @@
 //
 // In the shadow period it writes the shadow file. Its key is a constant here rather than a setting, so that no setting
 // can point a shadow-period Worker at the statistics file: the switch is the commit that changes it.
-import { collect, hourOf, isCount, isUtc, shaped, STATISTICS_KEY } from './download-count-core.mjs'
+import { collect, hourOf, isCount, isUtc, shaped, STATISTICS_KEY, WRITE_OPTIONS } from './download-count-core.mjs'
 
 export const SHADOW_KEY = 'stats/downloads-shadow.json'
 export const RUNS_KEY = 'stats/worker-runs.json'
@@ -16,8 +16,8 @@ export const RUNS_KEY = 'stats/worker-runs.json'
 const KEY = SHADOW_KEY
 const SEED_KEY = STATISTICS_KEY
 const MAX_RUNS = 336
-const WRITTEN = { cacheControl: 'public, max-age=300', contentType: 'application/json' }
-const SHA256 = /^[0-9a-f]{64}$/
+/** A SHA-256 as the run record writes it, and the comparison record copies it: 64 lowercase hex digits */
+export const SHA256 = /^[0-9a-f]{64}$/
 
 // The settings infra binds besides BUCKET (the R2 binding) and CORE_SHA256 (the core's pinned hash); ACCEPT_GAP_FROM,
 // a cursor whose gap a run accepts (Failure G3), is bound only while a gap is to be accepted, and empty means unset
@@ -105,7 +105,7 @@ async function updateRuns(bucket, change) {
     }
     validateRuns(record)
   }
-  await bucket.putText(RUNS_KEY, asText(validateRuns(change(record))), WRITTEN)
+  await bucket.putText(RUNS_KEY, asText(validateRuns(change(record))), WRITE_OPTIONS)
 }
 
 /**

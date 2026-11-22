@@ -128,7 +128,7 @@ export function planRanges({ cursor, now, notOlderThan, maxDuration, acceptGap }
     else if (acceptGap) gap = { from: cursor, to: iso(oldest) }
     else {
       throw new Error(`the cursor ${cursor} is older than ${iso(oldest)}, the oldest full hour the analytics hold; ` +
-        'a manual run that accepts the gap resumes from there (docs/ops/download-count.md)')
+        'a run that accepts the gap resumes from there (docs/ops/download-count.md)')
     }
   }
   const ranges = []
@@ -188,6 +188,11 @@ export function validateStatistics(file, name = 'the statistics file') {
 }
 
 export const STATISTICS_KEY = 'stats/downloads.json'
+/**
+ * How every file of the count is written (Implementation Decisions "The collection", "The run record" and "The shadow
+ * period"): JSON, which the download host caches for five minutes
+ */
+export const WRITE_OPTIONS = Object.freeze({ cacheControl: 'public, max-age=300', contentType: 'application/json' })
 
 /**
  * The previous run's file, read from the bucket itself, never through the download host's cache: the object at `key`,
@@ -414,7 +419,7 @@ export async function collect({
       // of bytes, or bytes beyond a whole number JavaScript holds exactly (some 9 PB)
       validateStatistics(statistics, `the new ${key}`)
       await beforeWrite?.({ previous: previous.file, previousKey: previous.key })
-      await bucket.putText(key, `${JSON.stringify(statistics, null, 2)}\n`, { cacheControl: 'public, max-age=300', contentType: 'application/json' })
+      await bucket.putText(key, `${JSON.stringify(statistics, null, 2)}\n`, WRITE_OPTIONS)
     })
     return { statistics, previous: previous.file, previousKey: previous.key }
   } catch (error) {
