@@ -114,9 +114,10 @@ published once the whole artifact set has passed its gates, and never with only 
   directory per version, under the custom download host.
 - mac-distribution::REQ-004/AC-02: The latest pointer names the current formal version and its
   download URLs.
-- mac-distribution::REQ-004/AC-03: Visitors' browsers on the landing page's origin can read the
-  pointer cross-origin, with GET requests only. Before the first formal release there is no pointer,
-  and a read finds it absent (landing-page::REQ-001).
+- mac-distribution::REQ-004/AC-03: Visitors' browsers on the landing page's origin, and on no other
+  origin, can read the pointer and the statistics file ([landing-page::REQ-011](landing-page.md))
+  cross-origin, with GET requests only. Before the first formal release there is no pointer, and a
+  read finds it absent (landing-page::REQ-001).
 
 The download host is `dl.agentshed.aloongplanet.com`, whose certificate was checked from outside Cloudflare on
 2026-10-17 (ADR-0031).

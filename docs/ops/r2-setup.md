@@ -85,7 +85,7 @@ The mirrored DMG's sha256 equals the digest GitHub shows for the same file. Down
 
 On 2026-10-18 the mirror was checked from outside Cloudflare, with the bucket still empty. Each line is
 `curl -sS -o /dev/null -D - [-X OPTIONS] -H 'Origin: …' [-H 'Access-Control-Request-Method: …'] https://dl.agentshed.aloongplanet.com/latest.json`.
-This is the evidence for mac-distribution::REQ-004/AC-03:
+This is the evidence for mac-distribution::REQ-004/AC-03 on the pointer:
 
 | Request | Origin | Answer |
 |---|---|---|
@@ -99,7 +99,8 @@ The raw output is kept with the ticket's records.
 
 On 2026-11-22 the statistics file was checked the same way, before its first run (so the bucket did not hold it
 yet), with `GET` and each origin on `https://dl.agentshed.aloongplanet.com/stats/downloads.json`. This is the evidence
-for landing-page Failure G7: a page served from any other origin, such as a Pages preview, shows no count.
+for mac-distribution::REQ-004/AC-03 on the statistics file, and for landing-page Failure G7: a page served from any
+other origin, such as a Pages preview, shows no count.
 
 | Request | Origin | Answer |
 |---|---|---|
