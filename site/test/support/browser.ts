@@ -43,7 +43,8 @@ const TYPES: Record<string, string> = {
 /**
  * Opens a page of the build at `site` in a browser context of its own, runs `run` on it, and closes the context.
  * Gives what `run` gives. Rejects when the page made a request with no answer (no stand-in for it, or no such file in
- * the build), naming each, and with `run`'s own failure as the cause if it failed too.
+ * the build), naming each, and with `run`'s own failure as the cause if it failed too. A wait inside `run` must give up
+ * before the test's own timeout: a case the test run times out never gets here, and its failure names nothing.
  */
 export async function visit<T>(browser: Browser, site: string, options: Visit, run: (page: Page) => Promise<T>): Promise<T> {
   const context = await browser.newContext({

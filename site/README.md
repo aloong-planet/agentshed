@@ -9,12 +9,17 @@ ADR-0050. It is a package of its own, with its own lockfile, outside the app's d
 ```sh
 cd site
 pnpm install --frozen-lockfile
+pnpm exec playwright install --only-shell chromium   # once per Playwright version: the browser the tests run
 pnpm dev        # http://localhost:4321/
 pnpm build      # the static site, into site/dist/
 pnpm preview    # serve site/dist/
 pnpm check      # astro check: the TypeScript of every .astro and .ts file
-pnpm test       # unit tests and the built-site check
+pnpm test       # unit tests, the built-site check and the browser cases
 ```
+
+The browser cases run the headless Chromium of the Playwright `package.json` pins, which the root's Playwright does
+not install: without it every browser test file fails at launch, naming the missing executable. On Linux,
+`--with-deps` also installs the system libraries and fonts it needs, as `site-checks` does.
 
 From the repository root, `pnpm test:site` runs `check` and `test`. It is part of `pnpm verify`, and CI runs
 it in `site-checks` when a pull request changes website inputs, and on every push to `main`. That job also runs `pnpm lint:site` with the root ESLint
@@ -69,8 +74,13 @@ theme also selects website checks because the palette test reads it. See [CI rou
 - Unit tests sit next to the modules they test (`src/**/*.test.ts`).
 - `test/built-site.test.ts` checks the pages one fresh build produces: `test/build-site.ts` builds the site
   into a new temporary directory once per test run, so the check never reads an old `dist/`. Its file header
-  says what it cannot see (scrolling, layout across widths, the two appearances), which is measured in a browser
-  instead.
+  says what it cannot see (scrolling, layout, the two appearances): what has no browser case yet is measured in a
+  browser by hand.
+- `test/support/browser.ts` loads that build in a real browser, with no server and no network: it serves the
+  build's files and the stand-in answers a case gives to the page's reads, and refuses any other request, which fails
+  the case, named. `test/support/browser.test.ts` is its own check. `test/landing-page-layout.test.ts` measures the
+  layout there (landing-page::QR-001/AC-01) at four widths, in both languages, both appearances and every download
+  state.
 - `test/apply-download.test.ts` and `test/init-download.test.ts` apply the download states to that build's
   pages, the second through the page's script with a fake network. The reads' tests answer through an injected
   fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the

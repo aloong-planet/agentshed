@@ -5,6 +5,9 @@
 // A button is an element the page styles as one (`.btn`), or a `button` or `role="button"` element. Its card is the
 // `.dl` or `.step` that holds it, measured inside the card's border and padding; the hero's button, which no card
 // holds, is measured against the hero's column, the hero's box inside its padding.
+//
+// Not driven by any case here: a state that never lands. It fails the case through `land`'s wait; shown when this was
+// written by pointing the page's pointer read at a URL no stand-in answers, and by removing the count's mark.
 import { afterAll, beforeAll, describe, inject, test, vi } from 'vitest'
 import { view, type DownloadState } from '../src/download'
 import { countText } from '../src/download-count'
@@ -50,6 +53,11 @@ const cases = STATES.flatMap(({ state, reads }) =>
   )
 )
 
+// A state that has not landed by LANDING fails the case through the visit, whose error names every request the page
+// made that no stand-in answers; the case's own limit stays well past it, because the run's timeout names nothing
+const LANDING = 5_000
+const CASE_LIMIT = LANDING + 10_000
+
 /** Waits until the page shows the state and the count: the hero's button has the state's label, the count its line */
 async function land(page: Page, state: DownloadState, locale: Locale): Promise<void> {
   const expected = JSON.stringify([view(state, locale).hero.label, countText(COUNT, locale)])
@@ -58,7 +66,7 @@ async function land(page: Page, state: DownloadState, locale: Locale): Promise<v
       const now = JSON.stringify(await page.evaluate(shows))
       if (now !== expected) throw new Error(`The state never landed: the page shows ${now}, not ${expected}`)
     },
-    { timeout: 10_000, interval: 50 }
+    { timeout: LANDING, interval: 50 }
   )
 }
 
@@ -146,7 +154,7 @@ const past = (inner: Box, outer: Box, vertical: boolean): string[] => {
 
 // landing-page::QR-001/AC-01
 describe('the layout at each width, in each language, appearance and download state', () => {
-  test.for(cases)('$name', async ({ state, reads, locale, colorScheme, width }, { expect }) => {
+  test.for(cases)('$name', { timeout: CASE_LIMIT }, async ({ state, reads, locale, colorScheme, width }, { expect }) => {
     const layout = await visit(
       browser,
       inject('builtSite'),
