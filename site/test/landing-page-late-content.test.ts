@@ -151,11 +151,13 @@ describe('a download state that lands after the page is shown leaves what the vi
     [COUNT_URL]: 'fail'
   }
   /** Where the visitor is when the state lands, relative to the hero's download block: scrolled past it, scrolled
-   *  until it is under the header, put past it by a language switch, or with it in view */
+   *  until it is under the header, put past it by a language switch, scrolled until only its foot shows below the
+   *  header, or with it in view */
   const PLACES = {
     'past it': 'past',
     'under the header': 'under',
     'switched past it': 'switch',
+    'partly in view': 'partly',
     'in view': 'in view'
   } as const
   type Place = (typeof PLACES)[keyof typeof PLACES]
@@ -204,13 +206,15 @@ describe('a download state that lands after the page is shown leaves what the vi
       }))
     }
   }
-  /** Scrolls the page to the place, the block's bottom 10px above the window or 20px under the header's bottom */
+  /** Scrolls the page to the place: the block's bottom 10px above the window, 20px up behind the header, 20px down
+   *  below the header's bottom, or the top of the page */
   function goTo(place: Place): void {
     const block = document.querySelector('.hero .cta')
     const header = document.querySelector('.site-header')
     if (!block || !header) throw new Error('the page has no hero download block or no header')
     const bottom = block.getBoundingClientRect().bottom + scrollY
-    const top = place === 'past' ? bottom + 10 : place === 'under' ? bottom - header.getBoundingClientRect().bottom + 20 : 0
+    const viewTop = header.getBoundingClientRect().bottom
+    const top = place === 'past' ? bottom + 10 : place === 'under' ? bottom - viewTop + 20 : place === 'partly' ? bottom - viewTop - 20 : 0
     scrollTo({ top, behavior: 'instant' })
   }
 
@@ -242,8 +246,9 @@ describe('a download state that lands after the page is shown leaves what the vi
     })
     // The state landed, and changed the block's height
     expect(Math.abs(after.block.bottom - after.block.top - (before.block.bottom - before.block.top)), "the change of the block's height").toBeGreaterThan(1)
-    if (place === 'in view') {
+    if (place === 'in view' || place === 'partly') {
       expect(before.block.bottom, "the block's bottom, below the view's top").toBeGreaterThan(before.viewTop)
+      if (place === 'partly') expect(before.block.top, "the block's top, behind the header").toBeLessThan(before.viewTop)
       expect(after.scrollY, 'the scroll position').toBe(before.scrollY)
       expect(after.block.top, "the block's top").toBeCloseTo(before.block.top, 0)
       return
