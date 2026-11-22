@@ -292,6 +292,9 @@ test('a shadow run accepts a stale cursor only when ACCEPT_GAP_FROM is that curs
     if (refused) {
       await assert.rejects(settled, refused, label)
       assert.equal(bucket.peek('stats/downloads-shadow.json').text, stale, label)
+      // A refused gap fails no read: every source answered
+      const [entry] = fileOf(bucket, 'stats/worker-runs.json').runs
+      assert.deepEqual([entry.written, entry.github, entry.analytics, entry.bucket], [false, 'ok', 'ok', 'ok'], label)
       continue
     }
     await settled
