@@ -25,9 +25,9 @@ collection" and "The statistics file"). Decision: ADR-0055. The bucket and its d
 4. It reads the analytics' limits: how far back a query may reach (`notOlderThan`), the widest range a query may span
    (`maxDuration`) and the page size. Then it reads the download host's traffic from the file's cursor, in ranges
    no wider than `maxDuration`, to the last full hour that ended at least 30 minutes before the run started. A run
-   on time, at minute 47, counts to the last full hour; one that GitHub delays into the next hour, or one started by
-   hand in the first half of an hour, stops an hour sooner, and the next run counts that hour. A first run starts at
-   the oldest full hour the analytics hold.
+   on time, at minute 47, counts to the last full hour. A run that starts in the first half of an hour, delayed by
+   GitHub or started by hand, stops an hour sooner, and the next run counts that hour. A first run starts at the
+   oldest full hour the analytics hold.
 5. Only after every read has succeeded does it write the new file. A run that fails writes nothing, and the cursor
    stays where it was. The next run counts the hours the failed one missed (Failure G2).
 6. It logs one line: the total, GitHub's share, the download host's share, and the hour counted to. No credential is

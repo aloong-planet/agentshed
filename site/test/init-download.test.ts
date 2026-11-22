@@ -109,6 +109,21 @@ describe('the download count', () => {
     expect(doc.querySelectorAll('img[src="x"]')).toHaveLength(0)
   })
 
+  // landing-page::REQ-011/AC-05 on the page: the line is written only once a read brings a count. A read that brings
+  // none leaves the page as served ('neither source readable' above, whose count read is refused); one that has not
+  // answered leaves the line empty in the meantime
+  test('the line stays empty while the read has not answered', async () => {
+    const lineAfter = async (count: [number, string] | 'pending'): Promise<string | null> => {
+      const doc = page('en')
+      await initDownload(doc, network({ [COUNT_URL]: count, [POINTER_URL]: [200, POINTER] }))
+      // The fake network answers at once, so a read that lands has landed by then: the valid file shows it
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      return countLine(doc).textContent
+    }
+    expect(await lineAfter([200, statistics(3, 3, 0)])).toBe('Downloads so far: 3')
+    expect(await lineAfter('pending')).toBe('')
+  })
+
   // landing-page::REQ-011/AC-06: in each of the four states, the count read succeeding, failing or never answering
   // leaves the state and every part of the page the state writes as they are without it
   const PRE_ONLY = JSON.stringify(RELEASES.filter((r) => r.prerelease))

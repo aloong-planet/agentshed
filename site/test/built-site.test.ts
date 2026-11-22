@@ -5,11 +5,12 @@
 //
 // Not covered here, by the seam the owner chose: the features section's pinned showcase and how the scroll
 // turns its steps (landing-page::REQ-004, Failures C1–C3 and C5–C7), the layout across widths (landing-page::QR-001), and
-// what the page looks like in light and dark (landing-page::REQ-006, Failure D1), YouTube playback and click-to-load geometry,
-// and the download count's line keeping its height when its text appears (landing-page::REQ-011/AC-01; jsdom lays nothing
-// out). They are measured in a browser
+// what the page looks like in light and dark (landing-page::REQ-006, Failure D1), and YouTube playback and click-to-load geometry.
+// They are measured in a browser
 // against the built site, and the measurement record is kept with the ticket's evidence; they would become tests
-// only with a browser seam in these tests.
+// only with a browser seam in these tests. Nor is the download count's line keeping its height when its text appears
+// (landing-page::REQ-011/AC-01), which jsdom cannot lay out: the height before and after is measured in a browser
+// against the built site, in the delivery note of the change that added the line.
 // Host HTTP status and query/fragment preservation require a Cloudflare Pages runtime browser check;
 // this suite checks the emitted redirect fallback and host configuration, not the host itself.
 import { readdirSync, readFileSync } from 'node:fs'

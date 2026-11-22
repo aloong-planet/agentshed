@@ -521,8 +521,9 @@ test('a run whose bucket listing fails, or answers what cannot be read, writes n
   const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const answers = [
     ['fails', () => { throw new Error('aws s3api failed (exit 255)\nAn error occurred (InternalError)') }, () => /InternalError/],
-    ['prints nothing', () => ({ stdout: '' }), (prefix) => new RegExp(escaped(`aws listed ${prefix} as "", not a listing`))],
-    ['prints no listing', () => ({ stdout: '{}' }), (prefix) => new RegExp(escaped(`aws listed ${prefix} as "{}", not a listing`))]
+    // The adapter's error for any output it cannot read (its own case drives each output). aws-cli prints nothing for
+    // an empty result without --query, which makes reading this error as an empty listing a tempting mistake
+    ['prints nothing', () => ({ stdout: '' }), (prefix) => new RegExp(escaped(`aws listed ${prefix} as "", not a listing`))]
   ]
   for (const prefix of ['stats/downloads.json', 'releases/']) {
     for (const [label, answer, reason] of answers) {
