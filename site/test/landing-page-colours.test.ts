@@ -121,12 +121,14 @@ describe("each part of the page shows its token's colour as the stylesheet decla
   })
 })
 
-/** The ground's and the text's computed colour, once the page has drawn two frames; runs in the page */
-async function ground(): Promise<string[]> {
+/** What the page shows once it has drawn two frames: its ground's and its text's computed colour, and whether this is
+ * still the window the case marked, with no navigation started from it; runs in the page */
+async function look(): Promise<{ ground: string[]; mark: boolean; navigated: boolean }> {
   await new Promise((frame) => requestAnimationFrame(frame))
   await new Promise((frame) => requestAnimationFrame(frame))
   const { backgroundColor, color } = getComputedStyle(document.body)
-  return [backgroundColor, color]
+  const { appearanceMark, navigated } = window as { appearanceMark?: boolean; navigated?: boolean }
+  return { ground: [backgroundColor, color], mark: appearanceMark === true, navigated: navigated === true }
 }
 
 // Failure D1 (switching the system appearance recolours the page), landing-page::REQ-006 (following the visitor's system
@@ -145,16 +147,17 @@ describe('switching the system appearance recolours the open page, which does no
         const { navigation } = window as unknown as { navigation: EventTarget }
         navigation.addEventListener('navigate', () => Object.assign(window, { navigated: true }))
       })
-      const before = await page.evaluate(ground)
+      const before = await page.evaluate(look)
       await page.emulateMedia({ colorScheme: to })
-      const after = await page.evaluate(ground)
-      const stayed = await page.evaluate(() => ({ mark: 'appearanceMark' in window, navigated: (window as { navigated?: boolean }).navigated }))
-      return { before: before.map(hex), after: after.map(hex), stayed }
+      // A page that loads again can lose the window while this reads it: the reason it gives is what the case shows
+      const after = await page.evaluate(look).catch((error: unknown) => ({ lost: String(error) }))
+      return { before, after }
     })
-    expect(seen.before, `the ground and the text in the ${from} appearance`).toEqual([declared('--bg', from), declared('--text', from)])
-    expect(seen.after, `the ground and the text once switched to ${to}`).toEqual([declared('--bg', to), declared('--text', to)])
-    expect(seen.stayed, 'the page as opened, with no navigation started').toEqual({ mark: true, navigated: false })
+    expect(seen.after, 'once switched: the page as opened, with no navigation started').toMatchObject({ mark: true, navigated: false })
     expect(requests.filter((url) => url === ORIGIN + PAGE_PATH[locale]), "the page's own document, requested").toHaveLength(1)
+    expect(seen.before.ground.map(hex), `the ground and the text in the ${from} appearance`).toEqual([declared('--bg', from), declared('--text', from)])
+    const after = 'ground' in seen.after ? seen.after.ground.map(hex) : []
+    expect(after, `the ground and the text once switched to ${to}`).toEqual([declared('--bg', to), declared('--text', to)])
   })
 })
 
