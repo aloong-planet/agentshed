@@ -38,7 +38,7 @@ apply.
     {
       "name": "Agentshed-0.2.0-mac-arm64.dmg",
       "arch": "arm64",
-      "size": 127807045,
+      "size": 129610390,
       "url": "https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg"
     }
   ]
