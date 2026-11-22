@@ -32,8 +32,9 @@ application or website source is content in that product, not an extension-based
   runs typecheck, `lint:app`, unit and script tests, and the application copy check. The unit tests build the
   engine module (ADR-0045) from source for linux-x64 before any test runs. `e2e` installs the same toolchain,
   builds the engine module and the app, and drives Electron.
-- `site-checks` installs the root lint tools and the website's own dependencies, then runs `lint:site`
-  and `test:site`. The site's test setup builds it once into a fresh directory.
+- `site-checks` installs the root lint tools and the website's own dependencies, and the headless Chromium of the
+  website's own Playwright with its system libraries (in `site/`, uncached), then runs `lint:site` and `test:site`.
+  The site's test setup builds it once into a fresh directory; its browser cases load that build.
 - `ci-gate`, displayed as **CI gate**, always evaluates all those results. Classification and policy
   must succeed; a selected product job must succeed; a deliberately unselected job may be skipped.
   Failures, cancellations, missing results and invalid flags fail the gate. It installs no dependencies.

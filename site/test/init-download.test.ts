@@ -12,12 +12,8 @@ import { beforeAll, describe, expect, inject, test, vi } from 'vitest'
 import { ui } from '../src/i18n/ui'
 import type { Fetch } from '../src/releases'
 import { initDownload } from '../src/scripts/download'
+import { COUNT_URL, POINTER, POINTER_URL, RELEASES, RELEASES_API, statistics } from './support/stand-ins'
 
-const POINTER_URL = 'https://dl.agentshed.aloongplanet.com/latest.json'
-const RELEASES_API = 'https://api.github.com/repos/aloong-planet/agentshed/releases?per_page=100'
-const COUNT_URL = 'https://dl.agentshed.aloongplanet.com/stats/downloads.json'
-const POINTER = readFileSync(new URL('./fixtures/pointer.json', import.meta.url), 'utf8')
-const RELEASES = JSON.parse(readFileSync(new URL('./fixtures/github-releases.json', import.meta.url), 'utf8')) as { prerelease: boolean }[]
 const html: Record<'zh' | 'en', string> = { zh: '', en: '' }
 
 beforeAll(() => {
@@ -73,18 +69,6 @@ test('neither source readable: the page stays as served, the release list', asyn
   expect(net.urls).toEqual([COUNT_URL, POINTER_URL, RELEASES_API])
 })
 
-/** The statistics file as the collection writes it, its summary given */
-const statistics = (total: number, github: number, r2: number, extra: Record<string, unknown> = {}): string =>
-  JSON.stringify({
-    schemaVersion: 1,
-    updatedAt: '2026-11-22T09:47:12.000Z',
-    r2Cursor: '2026-11-22T09:00:00Z',
-    r2Gaps: [],
-    summary: { total, sources: { github, r2 } },
-    github: { assets: { 665347607: { name: 'Agentshed-0.1.0-beta-mac-arm64.dmg', downloads: github } } },
-    r2: { objects: {} },
-    ...extra
-  })
 const countLine = (doc: Document): Element => doc.querySelector('#download [data-download-count]') ?? expect.unreachable('no count line')
 
 describe('the download count', () => {

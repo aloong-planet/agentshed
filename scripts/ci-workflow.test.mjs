@@ -51,7 +51,13 @@ test('product jobs follow classification independently and do not require anothe
 test('the split retains the original product and repository checks with independent installs', () => {
   const expected = {
     'app-checks': ['pnpm install --frozen-lockfile', 'rustup toolchain install --no-self-update', 'pnpm typecheck', 'pnpm lint:app', 'pnpm test', 'pnpm test:scripts', 'pnpm check:i18n'],
-    'site-checks': ['pnpm install --frozen-lockfile', 'pnpm install --frozen-lockfile', 'pnpm lint:site', 'pnpm test:site'],
+    'site-checks': [
+      'pnpm install --frozen-lockfile',
+      'pnpm install --frozen-lockfile',
+      'pnpm exec playwright install --with-deps --only-shell chromium',
+      'pnpm lint:site',
+      'pnpm test:site'
+    ],
     'repo-policy': ['pnpm install --frozen-lockfile', 'pnpm test:ci', 'pnpm check:ui', 'pnpm check:lang', 'pnpm check:nul']
   }
   for (const [id, runs] of Object.entries(expected)) assert.deepEqual(commands(id), runs, id)
@@ -67,6 +73,9 @@ test('the split retains the original product and repository checks with independ
     assert.ok(job(id).steps.every((step) => step['working-directory'] !== 'site'), id)
   }
   assert.equal(job('site-checks').steps.filter((step) => step.run === 'pnpm install --frozen-lockfile' && step['working-directory'] === 'site').length, 1)
+  // The website's browser cases run the browser of the Playwright the website pins, which only the website's own
+  // install of it installs: the root's Playwright is another version, with another browser
+  assert.equal(job('site-checks').steps.find((step) => step.run?.startsWith('pnpm exec playwright install'))?.['working-directory'], 'site')
   assert.ok(commands('e2e').includes('xvfb-run -a pnpm e2e'))
   assert.equal(pkg.scripts.e2e, 'node scripts/build-engine.mjs --quiet && electron-vite build && playwright test')
   // The engine module (ADR-0045) builds from source wherever the app is tested: the toolchain engine/ pins is installed

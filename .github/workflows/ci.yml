@@ -87,6 +87,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm install --frozen-lockfile
         working-directory: site
+      # The website's browser cases run the headless Chromium of the Playwright the website pins, with the system
+      # libraries and fonts it needs on this runner. Nothing is cached: by Playwright's CI guide, restoring a cache
+      # takes about as long as the download, and the system libraries cannot be cached.
+      - run: pnpm exec playwright install --with-deps --only-shell chromium
+        working-directory: site
       - run: pnpm lint:site
       # The website test setup builds once into a fresh directory.
       - run: pnpm test:site
