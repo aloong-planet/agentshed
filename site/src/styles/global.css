@@ -239,6 +239,16 @@ a {
   align-items: center;
   gap: 10px;
 }
+/* The label wraps inside the column rather than running into the side gutters (landing-page::QR-001/AC-01): kept on
+   one line, the pre-release label with a version such as 0.1.0-beta.9 came within 11px of a phone screen's edges and
+   ran past a narrower one's. Balanced, its two lines come out of about even length: for the versions measured
+   (1.2.0-beta, 0.1.0-beta.9, 10.10.10-beta.12) that kept the version whole, which plain wrapping split at its hyphen.
+   Where the label fits, it stays on one line. */
+.hero .cta .btn {
+  white-space: normal;
+  text-wrap: balance;
+  text-align: center;
+}
 .cta .meta {
   font-size: 13px;
   color: var(--text-2);
