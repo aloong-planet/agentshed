@@ -8,16 +8,15 @@
 
 ## Problem Statement
 
-Agentshed has never been released. The repository is public and its READMEs face users, yet the only way
-to get the app is to build it from source. The local package (`pnpm dist:mac:local`) is signed but never
-notarized, which is right for the developer's own Mac and wrong for anyone else's: on another Mac,
-Gatekeeper refuses it. Distributing to others brings in the macOS distribution policy, a place to
-download from, and an entry point for people who have never seen the repository (the landing page,
-specified separately).
+The repository is public and its READMEs face users, who want to install the app rather than build it
+from source. The local package (`pnpm dist:mac:local`) is signed but never notarized, which is right for
+the developer's own Mac and wrong for anyone else's: on another Mac, Gatekeeper refuses it. Distributing
+to others brings in the macOS distribution policy, a place to download from, and an entry point for
+people who have never seen the repository (the landing page, specified separately).
 
 A signed build is also something macOS trusts: what the user has granted it, and what it can read, belong to whatever runs
-inside it. The fuses close Node's way in, and Chromium's switches and the app's own environment variables remained
-(ADR-0042 has the measurements).
+inside it. The fuses close Node's way in, but not Chromium's switches or the app's own environment variables
+(ADR-0042).
 
 ## Solution
 

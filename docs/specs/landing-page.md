@@ -8,10 +8,10 @@
 ## Problem Statement
 
 People who have never seen the repository need a place that says what Agentshed is and lets them
-download it. The README is written for people already on GitHub. Releases come in two kinds, and for a
-while only pre-releases will exist: the first release is `v0.1.0-beta`, and the R2 mirror holds formal
-releases only. So the page has to offer whichever release exists, say plainly when that is a test
-version, and keep doing so release after release without being edited. A visitor weighing an app they have
+download it. The README is written for people already on GitHub. Releases come in two kinds,
+pre-releases and formal releases, and the R2 mirror holds formal releases only. So the page has to offer
+whichever release exists, say plainly when that is a test version, and keep doing so release after
+release without being edited. A visitor weighing an app they have
 never heard of also looks for a sign that other people download it.
 
 ## Solution
