@@ -9,7 +9,7 @@ collection" and "The statistics file"). Decision: ADR-0055. The bucket and its d
 | What | Value |
 |---|---|
 | Workflow | `.github/workflows/download-count.yml`, "Download count": every hour at minute 47, and by hand; one run at a time, a new one waiting for the one in progress |
-| Script | `scripts/download-count.mjs`, reaching the bucket through aws-cli (`scripts/lib/r2-bucket.mjs`, shared with the release mirror) |
+| Script | `scripts/download-count.mjs`, which runs the count's core (`scripts/download-count-core.mjs`) on the bucket through aws-cli (`scripts/lib/r2-bucket.mjs`, shared with the release mirror) |
 | Statistics file | `stats/downloads.json` in the release bucket, served at `https://dl.agentshed.aloongplanet.com/stats/downloads.json` (r2-setup.md, "Layout") |
 | Analytics token | `agentshed-download-count`: an account API token with the zone permission group "Analytics Read" on `aloongplanet.com`, and nothing else. Managed with Terraform in [`aloong-planet/infra`](https://github.com/aloong-planet/infra), stack `apps` (`stacks/apps/download-counts.tf`) |
 | Repository secrets | `CF_ANALYTICS_API_TOKEN` (that token's value) and `CF_ZONE_ID` (the zone's ID), written by the same stack; the bucket's four `R2_*` secrets, written for the release mirror (r2-setup.md) |

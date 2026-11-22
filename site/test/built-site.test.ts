@@ -5,14 +5,14 @@
 //
 // Not covered here, by the seam the owner chose: the features section's pinned showcase and how the scroll
 // turns its steps (landing-page::REQ-004, Failures C1–C3 and C5–C7), what the page looks like in light and dark
-// (landing-page::REQ-006, Failure D1), and YouTube playback and click-to-load geometry. They are measured in a browser
+// (landing-page::REQ-006, Failure D1), and YouTube's own playback. They are measured in a browser
 // against the built site, and the measurement record is kept with the ticket's evidence, until they have cases in the
 // site's browser harness (`test/support/browser.ts`). The layout across widths (landing-page::QR-001/AC-01) has its
-// cases there, in `test/landing-page-layout.test.ts`. Nor is the download count's line keeping its height when its text appears
-// (landing-page::REQ-011/AC-01), which jsdom cannot lay out: the height before and after is measured in a browser
-// against the built site, in the delivery note of the change that added the line. Nor are the header trail's sizes,
-// colours, gaps and narrow-window layout (landing-page::REQ-012/AC-02, AC-03): they are read in a browser against the
-// built site, in the delivery note of the change that added the trail.
+// cases there, in `test/landing-page-layout.test.ts`. So do the header's layout (landing-page::REQ-003,
+// REQ-012/AC-02, AC-03), in `test/landing-page-header.test.ts`; the space held for the screenshots and for the
+// download count's line, and the view kept when a download state lands (landing-page::REQ-005/AC-03, REQ-011/AC-01,
+// Failure A7), in `test/landing-page-late-content.test.ts`; and the walkthrough before and after activation
+// (landing-page::REQ-009/AC-02), in `test/landing-page-video.test.ts`.
 // Host HTTP status and query/fragment preservation require a Cloudflare Pages runtime browser check;
 // this suite checks the emitted redirect fallback and host configuration, not the host itself.
 import { readdirSync, readFileSync } from 'node:fs'
