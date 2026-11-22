@@ -9,9 +9,11 @@
 //
 // A case that looks at the page before something lands holds its answers back (`hold`, given in a visit's `holds`)
 // and releases them when it has looked; a hold that held nothing fails the case through `reached`, so a case cannot
-// measure "before" on a page that had already had its answer. A case that asserts what the page asked for reads the
-// visit's `requests`, which the harness fills from the document's own request on: a listener the case adds once the
-// page has opened misses what the page asked for while it loaded.
+// measure "before" on a page that had already had its answer. Once the case is done, the visit releases every hold
+// still held before it checks what went unanswered. A case that looked only at "before" then leaves no answer
+// hanging into the context's close. A case that asserts what the page asked for reads the visit's `requests`, which
+// the harness fills from the document's own request on: a listener the case adds once the page has opened misses what
+// the page asked for while it loaded.
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright'
@@ -110,9 +112,10 @@ const TYPES: Record<string, string> = {
 
 /**
  * Opens a page of the build at `site` in a browser context of its own, runs `run` on it, and closes the context.
- * Gives what `run` gives. Rejects when the page made a request with no answer (no stand-in for it, or no such file in
- * the build), naming each, and with `run`'s own failure as the cause if it failed too. A wait inside `run` must give up
- * before the test's own timeout: a case the test run times out never gets here, and its failure names nothing.
+ * Gives what `run` gives. Once `run` has returned or failed, releases every hold still held, then checks. Rejects when
+ * the page made a request with no answer (no stand-in for it, or no such file in the build), naming each, and with
+ * `run`'s own failure as the cause if it failed too. A wait inside `run` must give up before the test's own timeout: a
+ * case the test run times out never gets here, and its failure names nothing.
  */
 export async function visit<T>(browser: Browser, site: string, options: Visit, run: (page: Page) => Promise<T>): Promise<T> {
   const context = await browser.newContext({
@@ -130,6 +133,7 @@ export async function visit<T>(browser: Browser, site: string, options: Visit, r
     } catch (error) {
       outcome = { ok: false, error }
     }
+    for (const held of options.holds ?? []) held.release()
     if (unanswered.length > 0) {
       throw new Error(`The page made requests no stand-in answers, refused: ${unanswered.join(', ')}`, {
         cause: outcome.ok ? undefined : outcome.error

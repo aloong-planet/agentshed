@@ -1,8 +1,8 @@
 // The browser harness's own check: no browser case reaches the network. A request the harness has no answer for
 // is refused inside the browser, and the visit fails naming it, also when the case has failed on its own first; a
 // visit whose every request is answered does not. A held answer lands only when the case releases it, a hold never
-// holds a request with no answer, a hold that held nothing fails the case, and the request log misses nothing the
-// page asked for while it loaded.
+// holds a request with no answer, a hold that held nothing fails the case, a hold the case left held is released once
+// the case is done, and the request log misses nothing the page asked for while it loaded.
 import { afterAll, beforeAll, expect, inject, test, vi } from 'vitest'
 import { hold, launch, ORIGIN, visit, type Browser, type Visit } from './browser'
 import { COUNT_URL, POINTER_URL, RELEASES_API, statistics } from './stand-ins'
@@ -129,6 +129,51 @@ test('a hold that held nothing fails the case, naming the hold', async () => {
     (e: unknown) => e
   )
   expect(String(error)).toContain('the read the page never makes')
+})
+
+// However the case ends. Run, release, check: the release comes before the visit checks for unanswered requests, so
+// it is made when that check fails too
+const ENDINGS = [
+  { ending: 'returns', fails: false, stray: false, ends: 'returned' },
+  { ending: 'fails', fails: true, stray: false, ends: 'the case failed' },
+  { ending: 'returns leaving a request unanswered', fails: false, stray: true, ends: STRAY }
+]
+test.for(ENDINGS)('a hold the case left held is released once its run $ending', async ({ fails, stray, ends }) => {
+  const read = hold('the probe read', (url) => url === HELD)
+  const reads = { ...listPage.reads, [HELD]: [200, '"held"'] } as Visit['reads']
+  const ended = await visit(browser, inject('builtSite'), { ...listPage, reads, holds: [read] }, async (page) => {
+    await page.evaluate(
+      async ([held, unanswered]) => {
+        void fetch(held)
+        if (unanswered) await fetch(unanswered).catch(() => undefined)
+      },
+      [HELD, stray ? STRAY : null] as const
+    )
+    await read.reached(WAIT)
+    if (fails) throw new Error('the case failed')
+    return 'returned'
+  }).then(
+    (value) => value,
+    (e: unknown) => String(e)
+  )
+  expect(ended).toContain(ends)
+  // The release cannot be seen in that visit: its context closes before the released answer has landed. Seen through
+  // the hold itself, in a second visit: released, it answers a request it picks at once, and holds none
+  const later = await visit(browser, inject('builtSite'), { ...listPage, reads, holds: [read] }, (page) =>
+    page.evaluate(
+      ([url, wait]) =>
+        Promise.race([
+          fetch(url).then(
+            () => 'answered',
+            () => 'refused'
+          ),
+          new Promise<string>((still) => setTimeout(() => still('still held'), wait))
+        ]),
+      [HELD, WAIT] as const
+    )
+  )
+  expect(later, 'a request the hold picks once the first visit is over').toBe('answered')
+  expect(read.held).toEqual([HELD])
 })
 
 test('a page whose image is held opens all the same, without the image until the release', async () => {
