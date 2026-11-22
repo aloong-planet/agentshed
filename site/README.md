@@ -88,8 +88,11 @@ theme also selects website checks because the palette test reads it. See [CI rou
   jsdom and in the browser (landing-page::REQ-009/AC-02). `test/landing-page-features.test.ts` drives the features
   section there (landing-page::REQ-004), in both languages: the pinned showcase at four widths, the step each scroll
   position gives, a step turning, the stacked steps below 760px and without scripts, a resize and a language switch.
-  Every browser case opens the build through `visit()`, and `pnpm lint:site` fails on any other import of Playwright
-  by its package name in a JavaScript or TypeScript file under `site/`.
+  `test/landing-page-colours.test.ts` checks the page's colours in the browser, in both appearances: every colour of
+  its text, grounds and borders a palette token's, the parts the palette names their role's, its recolouring when the
+  system appearance changes, the screenshots staying light and the GitHub button beside Download
+  (landing-page::REQ-006, Failure D1). Every browser case opens the build through `visit()`, and `pnpm lint:site`
+  fails on any other import of Playwright by its package name in a JavaScript or TypeScript file under `site/`.
 - `test/apply-download.test.ts` and `test/init-download.test.ts` apply the download states to that build's
   pages, the second through the page's script with a fake network. The reads' tests answer through an injected
   fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the

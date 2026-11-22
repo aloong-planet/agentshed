@@ -14,6 +14,8 @@
 // download count's line, and the view kept when a download state lands (landing-page::REQ-005/AC-03, REQ-011/AC-01,
 // Failure A7), in `test/landing-page-late-content.test.ts`; and the walkthrough before and after activation
 // (landing-page::REQ-009/AC-02), in `test/landing-page-video.test.ts`.
+// What the page looks like in light and dark, listed above, now has its cases there too, switching between them and
+// the screenshots staying light included (landing-page::REQ-006, Failure D1), in `test/landing-page-colours.test.ts`.
 // Host HTTP status and query/fragment preservation require a Cloudflare Pages runtime browser check;
 // this suite checks the emitted redirect fallback and host configuration, not the host itself.
 import { readdirSync, readFileSync } from 'node:fs'
