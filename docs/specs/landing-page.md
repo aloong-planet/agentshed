@@ -399,16 +399,19 @@ visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
   with only a few memory files, with other projects still in view. The English session retake uses a 1240pt
   window, in which the session pane fits the 920pt cut with its right edge whole.
 - **The collection** is a scheduled workflow in this repository, one run at a time (ADR-0055). A DMG is an
-  asset or object named `Agentshed-<version>-mac-<arch>.dmg`, the packaged name. A run reads the previous
-  statistics file from the bucket itself, never through the download host's cache; GitHub's releases, every
-  page, drafts skipped; the bucket's listing under `releases/`; and Cloudflare's `httpRequestsAdaptiveGroups`
-  for the zone, filtered to the download host as `clientRequestHTTPHost`, method `GET`, status 200 or 206,
-  `clientRequestPath` under `/releases/` and `requestSource` `eyeball`, summing `edgeResponseBytes` by
-  `clientRequestPath`. It first reads the dataset's `notOlderThan` and `maxDuration` from the analytics'
-  `settings`, queries from the cursor to the hour landing-page::REQ-011/AC-04 counts to, in ranges no wider
-  than `maxDuration`, and on a first run starts at the oldest full hour `notOlderThan` allows. Only after
-  every read has succeeded does it write the new file, as `application/json` with `public, max-age=300`. A
-  run without its credentials fails.
+  asset or object named `Agentshed-<version>-mac-<arch>.dmg`, the packaged name, with `<version>` an `x.y.z`
+  version, optionally with a pre-release suffix, and `<arch>` one of `arm64`, `x64` and `universal`. A run
+  reads the previous statistics file from the bucket itself, never through the download host's cache; GitHub's
+  releases, every page, drafts skipped; the bucket's listing under `releases/`; and Cloudflare's
+  `httpRequestsAdaptiveGroups` for the zone, filtered to the download host as `clientRequestHTTPHost`, method
+  `GET`, status 200 or 206, `clientRequestPath` under `/releases/` and `requestSource` `eyeball`, summing
+  `edgeResponseBytes` by `clientRequestPath`. It first reads the dataset's `notOlderThan`, `maxDuration` and
+  `maxPageSize` from the analytics' `settings`, queries from the cursor to the hour
+  landing-page::REQ-011/AC-04 counts to, in ranges no wider than `maxDuration`, each asking for `maxPageSize`
+  rows, and on a first run starts at the oldest full hour `notOlderThan` allows. A range answered with a full
+  page fails the run, and so does an analytics answer that carries `errors`, even with HTTP 200, or that is
+  not for exactly one zone. Only after every read has succeeded does it write the new file, as
+  `application/json` with `public, max-age=300`. A run without its credentials fails.
 - **The statistics file** is JSON with these fields; the page reads `schemaVersion` and `summary` only.
 
 | Field | Type | Meaning |
