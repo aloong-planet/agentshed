@@ -587,6 +587,9 @@ const ENV = {
   DOWNLOAD_HOST: 'https://dl.agentshed.aloongplanet.com'
 }
 
+// What GitHub sets in the workflow run, which the comparison records
+const WORKFLOW_RUN = { GITHUB_RUN_ID: '45059518239', GITHUB_SHA: '247110db9f2a6c3f0b1e5d4c8a7b6e5f4d3c2b1a' }
+
 /** aws-cli as the entry point drives it, answering at once from a world's bucket */
 function awsOf({ syncStore }) {
   const calls = []
@@ -630,7 +633,7 @@ test('the entry point counts on the account endpoint with each credential where 
   }
   const w = setup()
   const aws = awsOf(w)
-  await main({ ...ENV, ACCEPT_GAP: 'true' }, { run: aws.run, fetch: w.fetch, now: () => NOW, log: (line) => lines.push(line) })
+  await main({ ...ENV, ...WORKFLOW_RUN, ACCEPT_GAP: 'true' }, { run: aws.run, fetch: w.fetch, now: () => NOW, log: (line) => lines.push(line) })
 
   for (const args of aws.calls) assert.deepEqual(args.slice(args.indexOf('--endpoint-url'), args.indexOf('--endpoint-url') + 2), ['--endpoint-url', 'https://acct.r2.cloudflarestorage.com'])
   assert.equal(w.requests.find(({ to }) => to === 'github').headers.authorization, 'Bearer gh-token')
@@ -643,8 +646,119 @@ test('the entry point counts on the account endpoint with each credential where 
   assert.deepEqual(file.r2Gaps, [{ from: '2026-10-01T00:00:00Z', to: '2026-10-22T10:00:00Z' }])
   assert.equal(file.r2.objects[DMG_KEY].bytes, 3000)
   assert.equal(w.bucket.get('stats/downloads.json').contentType, 'application/json')
-  assert.deepEqual(lines, ['[download-count] 23 downloads: 20 on GitHub, 3 from the download host, counted to 2026-11-22T09:00:00Z'])
+  assert.deepEqual(lines, [
+    '[download-count] 23 downloads: 20 on GitHub, 3 from the download host, counted to 2026-11-22T09:00:00Z',
+    '[download-count] compared with the shadow file: cursors-differ'
+  ])
   for (const secret of ['r2-key', 'r2-secret', 'cf-token', 'gh-token']) assert.equal(lines.join('\n').includes(secret), false, secret)
+})
+
+// The core's hash as infra pins it, by a tool other than the entry's own (Implementation Decisions "The collection")
+const CORE_SHA256 = spawnSync('shasum', ['-a', '256', new URL('./download-count-core.mjs', import.meta.url).pathname], { encoding: 'utf8' }).stdout.split(' ')[0]
+const SEED = { at: '2026-11-20T10:31:04.000Z', r2Cursor: '2026-11-20T10:00:00Z', r2Bytes: 2500 }
+const WORKER_RUN = {
+  scheduledTime: '2026-11-22T09:31:00.000Z', coreSha256: CORE_SHA256, key: 'stats/downloads-shadow.json', written: true, github: 'ok', analytics: 'ok', bucket: 'ok', failure: null, r2Cursor: '2026-11-22T09:00:00Z'
+}
+// The statistics file the run below writes, as the Worker wrote it 16 minutes earlier
+const SHADOW = {
+  ...writtenFile(),
+  updatedAt: '2026-11-22T09:31:20.000Z',
+  summary: { total: 23.5, sources: { github: 20, r2: 3.5 } },
+  github: { assets: REAL_ASSETS },
+  r2: { objects: { [DMG_KEY]: { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 3500 } } }
+}
+/** The bucket in the shadow period: the statistics file an hour behind, the Worker's shadow file and run record */
+const shadowWorld = (objects = {}, answer = {}) => world({
+  objects: {
+    [DMG_KEY]: { size: 1000 },
+    'stats/downloads.json': { text: asText({ ...writtenFile(), r2Cursor: '2026-11-22T08:00:00Z' }) },
+    'stats/downloads-shadow.json': { text: asText(SHADOW) },
+    'stats/worker-runs.json': { text: asText({ schemaVersion: 1, seed: SEED, runs: [WORKER_RUN] }) },
+    ...objects
+  },
+  traffic: { '2026-11-22T08:00:00Z': [{ path: `/${DMG_KEY}`, bytes: 1000 }] },
+  answer
+})
+const asText = (file) => `${JSON.stringify(file, null, 2)}\n`
+
+// "The shadow period": after each run in which it wrote the statistics file, the workflow appends its comparison with
+// the shadow file
+test('a run that wrote the statistics file appends its comparison with the shadow file to the comparison record', async () => {
+  assert.match(CORE_SHA256, /^[0-9a-f]{64}$/)
+  const earlier = {
+    at: '2026-11-22T08:52:40.000Z', workflowRunId: 45059000001, workflowCommit: '1'.repeat(40), workflowCoreSha256: CORE_SHA256,
+    workerScheduledTime: null, workerCoreSha256: null, r2Cursor: { statistics: '2026-11-22T08:00:00Z', shadow: null },
+    status: 'cursors-differ', checks: null, r2BytesSinceSeed: null
+  }
+  const w = shadowWorld({ 'stats/shadow-comparisons.json': { text: asText({ schemaVersion: 1, comparisons: [earlier] }) } })
+  const lines = []
+  await main({ ...ENV, ...WORKFLOW_RUN }, { ...awsOf(w), fetch: w.fetch, now: () => NOW, log: (line) => lines.push(line) })
+
+  assert.deepEqual(published(w.bucket), { ...SHADOW, updatedAt: '2026-11-22T09:47:12.000Z' })
+  const record = w.bucket.get('stats/shadow-comparisons.json')
+  assert.deepEqual([record.contentType, record.cacheControl], ['application/json', 'public, max-age=300'])
+  assert.deepEqual(JSON.parse(record.text), {
+    schemaVersion: 1,
+    comparisons: [earlier, {
+      at: '2026-11-22T09:47:12.000Z',
+      workflowRunId: 45059518239,
+      workflowCommit: '247110db9f2a6c3f0b1e5d4c8a7b6e5f4d3c2b1a',
+      workflowCoreSha256: CORE_SHA256,
+      workerScheduledTime: '2026-11-22T09:31:00.000Z',
+      workerCoreSha256: CORE_SHA256,
+      r2Cursor: { statistics: '2026-11-22T09:00:00Z', shadow: '2026-11-22T09:00:00Z' },
+      status: 'equal',
+      checks: { r2Bytes: true, githubAssets: true, core: true },
+      // 3500 bytes counted, 2500 when the shadow file started
+      r2BytesSinceSeed: 1000
+    }]
+  })
+  assert.equal(lines.at(-1), '[download-count] compared with the shadow file: equal')
+
+  const failed = shadowWorld({}, { traffic: () => text('upstream error', 500) })
+  await assert.rejects(main({ ...ENV, ...WORKFLOW_RUN }, { ...awsOf(failed), fetch: failed.fetch, now: () => NOW, log: () => {} }), /answered HTTP 500/)
+  assert.equal(failed.bucket.has('stats/shadow-comparisons.json'), false)
+  assert.deepEqual(failed.requests.filter(({ to, key, prefix }) => to !== 'traffic' && [key, prefix].some((k) => k?.startsWith('stats/downloads-shadow') || k?.startsWith('stats/worker-runs'))), [])
+})
+
+// "The shadow period" (a comparison never fails the run) and Failure G9: a file the comparison cannot read, or that
+// is not one, appends nothing and leaves the record as it was; the run reports it on one line of the log
+test('a comparison that cannot be made or recorded leaves the comparison record as it was and never fails the run', async () => {
+  const record = { text: asText({ schemaVersion: 1, comparisons: [] }) }
+  const failingGet = (failed, message) => (answer, w) => {
+    answer.get = (key) => {
+      if (key === failed) throw new Error(message)
+      return w.bucket.get(key).text
+    }
+  }
+  const cases = [
+    ['the record cannot be written', { 'stats/shadow-comparisons.json': record }, (answer) => {
+      answer.put = (key) => { if (key === 'stats/shadow-comparisons.json') throw new Error('aws s3 cp failed (exit 1)') }
+    }, 'aws s3 cp failed (exit 1)'],
+    ['the record is not JSON', { 'stats/shadow-comparisons.json': { text: '{"schemaVersion": 1,' } }, null, 'stats/shadow-comparisons.json in the bucket is not JSON'],
+    ['the record is not one', { 'stats/shadow-comparisons.json': { text: asText({ schemaVersion: 2, comparisons: [] }) } }, null, 'the comparison record has schemaVersion 2, not 1'],
+    ['the record cannot be read', { 'stats/shadow-comparisons.json': record }, failingGet('stats/shadow-comparisons.json', 'aws s3api failed (exit 255)\n::error::An error occurred (AccessDenied) 100%'),
+      'aws s3api failed (exit 255)%0A::error::An error occurred (AccessDenied) 100%25'],
+    ['the shadow file cannot be read', { 'stats/shadow-comparisons.json': record }, failingGet('stats/downloads-shadow.json', 'aws s3api failed (exit 255)\r\nAn error occurred (InternalError)'),
+      'aws s3api failed (exit 255)%0D%0AAn error occurred (InternalError)'],
+    ['the shadow file is not a statistics file', { 'stats/downloads-shadow.json': { text: asText({ ...SHADOW, schemaVersion: 2 }) }, 'stats/shadow-comparisons.json': record }, null, 'the statistics file has schemaVersion 2, not 1'],
+    ['the run record is not one', { 'stats/worker-runs.json': { text: asText({ schemaVersion: 1, seed: SEED, runs: [{ ...WORKER_RUN, written: 'yes' }] }) } }, null, 'the run record has a run that is not one: entry 0'],
+    ['no run ID', { 'stats/shadow-comparisons.json': record }, null, 'the comparison record has a comparison that is not one: entry 0', { GITHUB_RUN_ID: undefined }]
+  ]
+  for (const [label, objects, failing, reason, env = {}] of cases) {
+    const answer = {}
+    const w = shadowWorld(objects, answer)
+    failing?.(answer, w)
+    const before = w.bucket.get('stats/shadow-comparisons.json')
+    const lines = []
+    await main({ ...ENV, ...WORKFLOW_RUN, ...env }, { ...awsOf(w), fetch: w.fetch, now: () => NOW, log: (line) => lines.push(line) })
+    assert.equal(published(w.bucket).r2Cursor, '2026-11-22T09:00:00Z', label)
+    assert.equal(w.bucket.get('stats/shadow-comparisons.json'), before, label)
+    assert.deepEqual(lines, [
+      '[download-count] 23.5 downloads: 20 on GitHub, 3.5 from the download host, counted to 2026-11-22T09:00:00Z',
+      `::warning::[download-count] no comparison with the shadow file was recorded: ${reason}`
+    ], label)
+  }
 })
 
 test('the script run as a process exits with a failure when it cannot count', () => {
