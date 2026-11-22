@@ -16,7 +16,8 @@ import { createServer } from 'node:http'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { awsBucket, httpProbe, main, mirrorRelease, pointRelease } from './mirror-release.mjs'
+import { awsBucket } from './lib/r2-bucket.mjs'
+import { httpProbe, main, mirrorRelease, pointRelease } from './mirror-release.mjs'
 
 const HOST = 'https://dl.agentshed.aloongplanet.com'
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')

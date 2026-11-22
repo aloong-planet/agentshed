@@ -12,6 +12,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { strings } from './testing/workflow.mjs'
 
 const require = createRequire(import.meta.url)
 // The js-yaml electron-builder ships, through the packaging asset's own loader: no second YAML parser here
@@ -25,12 +26,6 @@ const workflows = readdirSync(DIR)
     const text = readFileSync(new URL(name, DIR), 'utf8')
     return { name, text, uses: [...strings(yaml.load(text))].filter(({ path }) => path.endsWith('.uses')).map(({ value }) => value) }
   })
-
-/** Every string in the parsed workflow, with the path that leads to it */
-function* strings(value, path = []) {
-  if (typeof value === 'string') yield { path: path.join('.'), value }
-  else if (value !== null && typeof value === 'object') for (const [key, item] of Object.entries(value)) yield* strings(item, [...path, key])
-}
 
 /** A `uses:` line with its version comment: the value, then `# v<major>.<minor>.<patch>` */
 const PINNED_LINE = /^\s*(?:-\s+)?uses:\s*(\S+)\s+#\s*(v\d+\.\d+\.\d+)\s*$/

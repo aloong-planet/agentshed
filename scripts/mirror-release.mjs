@@ -9,13 +9,11 @@
 // Environment: GITHUB_REF_NAME (the tag), R2_ACCOUNT_ID, R2_BUCKET, DOWNLOAD_HOST, and the aws-cli credentials the
 // workflow maps from the R2 secrets (docs/ops/r2-setup.md). A pre-release tag is refused: pre-releases never reach
 // R2 (mac-distribution::CON-004), whatever the workflow's condition says.
-import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { readFileSync, statSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import { awsBucket, runAws } from './lib/r2-bucket.mjs'
 import { releaseFiles } from './lib/release-artifact.mjs'
 
 /** The release's DMGs, for a formal tag only: pre-releases never reach R2 (mac-distribution::CON-004) */
@@ -82,26 +80,6 @@ export async function pointRelease({ dir, tag, host, bucket, probe, sleep, log =
   log(`[mirror] latest.json now points at ${version}`)
 }
 
-/** The bucket through aws-cli on R2's S3 endpoint; `run` takes aws-cli's arguments, and throws when it fails */
-export function awsBucket({ bucket, endpoint, run }) {
-  const copy = (file, key, { cacheControl, contentType }) =>
-    run(['s3', 'cp', file, `s3://${bucket}/${key}`, '--endpoint-url', endpoint, '--region', 'auto',
-      '--cache-control', cacheControl, '--content-type', contentType, '--only-show-errors'])
-  return {
-    put: (key, file, headers) => copy(file, key, headers),
-    putText: (key, text, headers) => {
-      const dir = mkdtempSync(join(tmpdir(), 'latest-'))
-      try {
-        const file = join(dir, 'object')
-        writeFileSync(file, text)
-        copy(file, key, headers)
-      } finally {
-        rmSync(dir, { recursive: true, force: true })
-      }
-    }
-  }
-}
-
 /** A public read of a URL: its status, and for a 200 the size and sha256 of the body, hashed as it streams */
 export function httpProbe() {
   return async (url) => {
@@ -131,17 +109,6 @@ export async function main(argv, env, { run, probe, sleep }) {
   const bucket = awsBucket({ bucket: env.R2_BUCKET, endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, run })
   if (step === 'upload') mirrorRelease({ dir, tag: env.GITHUB_REF_NAME, bucket })
   else await pointRelease({ dir, tag: env.GITHUB_REF_NAME, host: env.DOWNLOAD_HOST, bucket, probe, sleep })
-}
-
-/** aws with the given arguments; its output on failure — the credentials stay in the environment it reads */
-function runAws(args) {
-  const result = spawnSync('aws', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 })
-  if (result.error) throw new Error(`aws could not start: ${result.error.message}`)
-  if (result.status !== 0) {
-    const output = [result.stdout, result.stderr].filter(Boolean).join('\n').trim()
-    throw new Error(`aws ${args.slice(0, 2).join(' ')} failed (exit ${result.status})${output ? `\n${output}` : ''}`)
-  }
-  return { stdout: result.stdout ?? '' }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

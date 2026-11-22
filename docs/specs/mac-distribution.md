@@ -114,9 +114,10 @@ published once the whole artifact set has passed its gates, and never with only 
   directory per version, under the custom download host.
 - mac-distribution::REQ-004/AC-02: The latest pointer names the current formal version and its
   download URLs.
-- mac-distribution::REQ-004/AC-03: Visitors' browsers on the landing page's origin can read the
-  pointer cross-origin, with GET requests only. Before the first formal release there is no pointer,
-  and a read finds it absent (landing-page::REQ-001).
+- mac-distribution::REQ-004/AC-03: Visitors' browsers on the landing page's origin, and on no other
+  origin, can read the pointer and the statistics file ([landing-page::REQ-011](landing-page.md))
+  cross-origin, with GET requests only. Before the first formal release there is no pointer, and a
+  read finds it absent (landing-page::REQ-001).
 
 The download host is `dl.agentshed.aloongplanet.com`, whose certificate was checked from outside Cloudflare on
 2026-10-17 (ADR-0031).
@@ -330,7 +331,8 @@ not a packaged build.
   the pointer `latest.json` at the bucket's root, cached for five minutes. The pointer is
   `{ version, files: [{ name, arch, size, url }] }`; it carries each file's download URL
   (mac-distribution::REQ-004/AC-02), and it is what the landing page reads. The mirror job needs the
-  publish job, so the GitHub release is public before any file reaches R2 (Failure C1). The pointer
+  publish job, so the GitHub release is public before any file reaches R2 (Failure C1). The bucket also
+  holds the landing page's statistics file ([landing-page::REQ-011](landing-page.md)). The pointer
   job reads every mirrored file back through the download host and compares its size and sha256 with
   the gated file before it writes the pointer (mac-distribution::REQ-003). The bucket, its own
   token, its CORS rule (GET from the landing page's origin) and the custom domain are managed with
@@ -355,7 +357,6 @@ not a packaged build.
 - The Mac App Store line (the second app ID is only kept on file in the packaging configuration).
 - A mainland-China mirror or a second copy of the landing page (ADR-0031 option 3, ADR-0050 option 4).
 - Pre-releases on R2, and a pre-release pointer (ADR-0031 option 4).
-- Download statistics (deferred, ADR-0050 option 5).
 - The in-app updater itself ([app-update](app-update.md)), and the landing page
   ([landing-page](landing-page.md)).
 

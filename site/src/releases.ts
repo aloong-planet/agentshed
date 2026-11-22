@@ -1,5 +1,6 @@
-// The two reads that decide what the page offers (landing-page::REQ-001), and nothing else at run time
-// (landing-page::CON-003): the R2 latest pointer, and GitHub's public releases API for this repository.
+// The two reads that decide what the page offers (landing-page::REQ-001): the R2 latest pointer, and GitHub's public
+// releases API for this repository. The page's only other read is the statistics file, for the download count
+// (download-count.ts, through get() here; landing-page::CON-003).
 //
 // Both answers are outside data (landing-page Failure E1): only a validated version comes out of them, and a
 // link only when it is exactly the one the release layout gives for that version. A pointer that is anything
@@ -11,8 +12,8 @@ export const DOWNLOAD_HOST = 'https://dl.agentshed.aloongplanet.com'
 export const POINTER_URL = `${DOWNLOAD_HOST}/latest.json`
 export const RELEASES_API = 'https://api.github.com/repos/aloong-planet/agentshed/releases?per_page=100'
 
-/** How long a read may take before the page stops waiting for it (Failure A5) */
-const TIMEOUT_MS = 5000
+/** How long a read may take before the page stops waiting for it (Implementation Decisions "Every read") */
+export const TIMEOUT_MS = 5000
 
 export type PointerRead = { kind: 'formal'; version: string; url: string } | { kind: 'absent' } | { kind: 'unreadable' }
 
@@ -33,14 +34,17 @@ export const dmgName = (version: string): string => `Agentshed-${version}-mac-ar
 /** A version's DMG on the download host, in the mirror's layout (releases/v<version>/) */
 export const r2Dmg = (version: string): string => `${DOWNLOAD_HOST}/releases/v${version}/${dmgName(version)}`
 
-/** The answer's status and parsed body, or null when there is none to read: failed, aborted, timed out, not JSON */
-async function get(fetch: Fetch, url: string, timeoutMs: number): Promise<{ status: number; body: unknown } | null> {
+/**
+ * The answer's status and, for a 2xx, its parsed body; or null when there is none to read: failed, aborted, timed
+ * out, not JSON. Its one header is CORS-safelisted, so no read needs a preflight (Implementation Decisions "Every read").
+ */
+export async function get(fetch: Fetch, url: string, timeoutMs: number): Promise<{ status: number; body: unknown } | null> {
   const abort = new AbortController()
   const timer = setTimeout(() => abort.abort(), timeoutMs)
   try {
     const response = await fetch(url, { signal: abort.signal, headers: { accept: 'application/json' } })
-    if (response.status !== 200) return { status: response.status, body: undefined }
-    return { status: 200, body: (await response.json()) as unknown }
+    if (!response.ok) return { status: response.status, body: undefined }
+    return { status: response.status, body: (await response.json()) as unknown }
   } catch {
     return null
   } finally {
@@ -48,7 +52,7 @@ async function get(fetch: Fetch, url: string, timeoutMs: number): Promise<{ stat
   }
 }
 
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+export const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 export async function readPointer(fetch: Fetch, { timeoutMs = TIMEOUT_MS }: { timeoutMs?: number } = {}): Promise<PointerRead> {
   const answer = await get(fetch, POINTER_URL, timeoutMs)

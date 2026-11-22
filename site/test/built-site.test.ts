@@ -8,7 +8,9 @@
 // what the page looks like in light and dark (landing-page::REQ-006, Failure D1), and YouTube playback and click-to-load geometry.
 // They are measured in a browser
 // against the built site, and the measurement record is kept with the ticket's evidence; they would become tests
-// only with a browser seam in these tests.
+// only with a browser seam in these tests. Nor is the download count's line keeping its height when its text appears
+// (landing-page::REQ-011/AC-01), which jsdom cannot lay out: the height before and after is measured in a browser
+// against the built site, in the delivery note of the change that added the line.
 // Host HTTP status and query/fragment preservation require a Cloudflare Pages runtime browser check;
 // this suite checks the emitted redirect fallback and host configuration, not the host itself.
 import { readdirSync, readFileSync } from 'node:fs'
@@ -125,6 +127,22 @@ describe('the download as served: the list state', () => {
 
     // No version anywhere in the buttons
     for (const b of [hero, ...buttons]) expect(text(b)).not.toMatch(/\d+\.\d+/)
+  })
+
+  // landing-page::REQ-011/AC-01, AC-05: below the card, empty until its read fills it
+  test.each(LOCALES)('%s: the download count’s line sits right below the download card, served empty', (locale) => {
+    const line = pages[locale].querySelector('#download .dl')?.nextElementSibling
+    expect(line?.matches('p.dl-count[data-download-count]')).toBe(true)
+    expect(line?.textContent).toBe('')
+    expect(line?.nextElementSibling).toBeNull()
+  })
+
+  // landing-page::CON-003: the page as built reads the statistics file at its public URL on the download host
+  test('the built script reads the statistics file on the download host', () => {
+    const built = files()
+      .filter((f) => /\.(js|html)$/.test(f))
+      .map((f) => [f, readFileSync(join(outDir, f), 'utf8')] as const)
+    expect(built.filter(([, body]) => body.includes('dl.agentshed.aloongplanet.com') && body.includes('/stats/downloads.json')).length).toBeGreaterThan(0)
   })
 
   test('the English list state reads as the spec’s', () => {
@@ -298,10 +316,11 @@ describe('two languages', () => {
     return value && typeof value === 'object' ? Object.values(value).flatMap(leaves) : []
   }
 
-  test.each(LOCALES)('%s: every string of the language’s copy is on its page, but the copy of the states a read brings', (locale) => {
-    // The formal and test states' copy appears only once a read brings that state: the apply check holds it
-    const { formal, test: testState, ...served } = ui[locale].download
-    expect(leaves(formal).length + leaves(testState).length).toBeGreaterThan(5)
+  test.each(LOCALES)('%s: every string of the language’s copy is on its page, but the copy a read brings', (locale) => {
+    // The formal and test states' copy appears only once a read brings that state: the apply check holds it. The
+    // download count's line is served empty and filled by its read (landing-page::REQ-011/AC-05)
+    const { formal, test: testState, count, ...served } = ui[locale].download
+    expect(leaves(formal).length + leaves(testState).length + leaves(count).length).toBeGreaterThan(6)
     const page = words(pages[locale])
     const missing = leaves({ ...ui[locale], download: served }).filter((s) => !page.includes(s.replace(/\s+/g, ' ')))
     expect(missing).toEqual([])

@@ -1,0 +1,407 @@
+[
+  {
+    "id": 452479479,
+    "tag_name": "v0.1.0-beta.9",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-20T09:15:13Z",
+    "assets": [
+      {
+        "id": 771176132,
+        "name": "Agentshed-0.1.0-beta.9-mac-arm64.dmg",
+        "content_type": "application/x-apple-diskimage",
+        "state": "uploaded",
+        "size": 129601307,
+        "download_count": 2,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.9/Agentshed-0.1.0-beta.9-mac-arm64.dmg"
+      },
+      {
+        "id": 771176130,
+        "name": "Agentshed-0.1.0-beta.9-mac-arm64.zip",
+        "content_type": "application/zip",
+        "state": "uploaded",
+        "size": 123038850,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.9/Agentshed-0.1.0-beta.9-mac-arm64.zip"
+      },
+      {
+        "id": 771176122,
+        "name": "Agentshed-0.1.0-beta.9-mac-arm64.zip.blockmap",
+        "content_type": "application/octet-stream",
+        "state": "uploaded",
+        "size": 130186,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.9/Agentshed-0.1.0-beta.9-mac-arm64.zip.blockmap"
+      },
+      {
+        "id": 771176125,
+        "name": "latest-mac.yml",
+        "content_type": "application/yaml",
+        "state": "uploaded",
+        "size": 376,
+        "download_count": 5,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.9/latest-mac.yml"
+      }
+    ]
+  },
+  {
+    "id": 436190432,
+    "tag_name": "v0.1.0-beta.8",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-06T06:52:19Z",
+    "assets": [
+      {
+        "id": 716218198,
+        "name": "Agentshed-0.1.0-beta.8-mac-arm64.dmg",
+        "content_type": "application/x-apple-diskimage",
+        "state": "uploaded",
+        "size": 127772235,
+        "download_count": 2,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.8/Agentshed-0.1.0-beta.8-mac-arm64.dmg"
+      },
+      {
+        "id": 716218191,
+        "name": "Agentshed-0.1.0-beta.8-mac-arm64.zip",
+        "content_type": "application/zip",
+        "state": "uploaded",
+        "size": 121275135,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.8/Agentshed-0.1.0-beta.8-mac-arm64.zip"
+      },
+      {
+        "id": 716218192,
+        "name": "Agentshed-0.1.0-beta.8-mac-arm64.zip.blockmap",
+        "content_type": "application/octet-stream",
+        "state": "uploaded",
+        "size": 127874,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.8/Agentshed-0.1.0-beta.8-mac-arm64.zip.blockmap"
+      },
+      {
+        "id": 716218194,
+        "name": "latest-mac.yml",
+        "content_type": "application/yaml",
+        "state": "uploaded",
+        "size": 376,
+        "download_count": 32,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.8/latest-mac.yml"
+      }
+    ]
+  },
+  {
+    "id": 435500722,
+    "tag_name": "v0.1.0-beta.7",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-05T17:21:22Z",
+    "assets": [
+      {
+        "id": 714192334,
+        "name": "Agentshed-0.1.0-beta.7-mac-arm64.dmg",
+        "content_type": "application/x-apple-diskimage",
+        "state": "uploaded",
+        "size": 127768613,
+        "download_count": 2,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.7/Agentshed-0.1.0-beta.7-mac-arm64.dmg"
+      },
+      {
+        "id": 714192338,
+        "name": "Agentshed-0.1.0-beta.7-mac-arm64.zip",
+        "content_type": "application/zip",
+        "state": "uploaded",
+        "size": 121275045,
+        "download_count": 2,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.7/Agentshed-0.1.0-beta.7-mac-arm64.zip"
+      },
+      {
+        "id": 714192337,
+        "name": "Agentshed-0.1.0-beta.7-mac-arm64.zip.blockmap",
+        "content_type": "application/octet-stream",
+        "state": "uploaded",
+        "size": 127679,
+        "download_count": 2,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.7/Agentshed-0.1.0-beta.7-mac-arm64.zip.blockmap"
+      },
+      {
+        "id": 714192343,
+        "name": "latest-mac.yml",
+        "content_type": "application/yaml",
+        "state": "uploaded",
+        "size": 376,
+        "download_count": 6,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.7/latest-mac.yml"
+      }
+    ]
+  },
+  {
+    "id": 434921946,
+    "tag_name": "v0.1.0-beta.6",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-05T08:04:55Z",
+    "assets": [
+      {
+        "id": 712587166,
+        "name": "Agentshed-0.1.0-beta.6-mac-arm64.dmg",
+        "content_type": "application/x-apple-diskimage",
+        "state": "uploaded",
+        "size": 127772395,
+        "download_count": 2,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.6/Agentshed-0.1.0-beta.6-mac-arm64.dmg"
+      },
+      {
+        "id": 712587165,
+        "name": "Agentshed-0.1.0-beta.6-mac-arm64.zip",
+        "content_type": "application/zip",
+        "state": "uploaded",
+        "size": 121274618,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.6/Agentshed-0.1.0-beta.6-mac-arm64.zip"
+      },
+      {
+        "id": 712587162,
+        "name": "Agentshed-0.1.0-beta.6-mac-arm64.zip.blockmap",
+        "content_type": "application/octet-stream",
+        "state": "uploaded",
+        "size": 127529,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.6/Agentshed-0.1.0-beta.6-mac-arm64.zip.blockmap"
+      },
+      {
+        "id": 712587167,
+        "name": "latest-mac.yml",
+        "content_type": "application/yaml",
+        "state": "uploaded",
+        "size": 376,
+        "download_count": 8,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.6/latest-mac.yml"
+      }
+    ]
+  },
+  {
+    "id": 434683645,
+    "tag_name": "v0.1.0-beta.5",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-05T02:08:05Z",
+    "assets": [
+      {
+        "id": 711706094,
+        "name": "Agentshed-0.1.0-beta.5-mac-arm64.dmg",
+        "content_type": "application/x-apple-diskimage",
+        "state": "uploaded",
+        "size": 127780098,
+        "download_count": 2,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.5/Agentshed-0.1.0-beta.5-mac-arm64.dmg"
+      },
+      {
+        "id": 711706099,
+        "name": "Agentshed-0.1.0-beta.5-mac-arm64.zip",
+        "content_type": "application/zip",
+        "state": "uploaded",
+        "size": 121274585,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.5/Agentshed-0.1.0-beta.5-mac-arm64.zip"
+      },
+      {
+        "id": 711706095,
+        "name": "Agentshed-0.1.0-beta.5-mac-arm64.zip.blockmap",
+        "content_type": "application/octet-stream",
+        "state": "uploaded",
+        "size": 127886,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.5/Agentshed-0.1.0-beta.5-mac-arm64.zip.blockmap"
+      },
+      {
+        "id": 711706097,
+        "name": "latest-mac.yml",
+        "content_type": "application/yaml",
+        "state": "uploaded",
+        "size": 376,
+        "download_count": 5,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.5/latest-mac.yml"
+      }
+    ]
+  },
+  {
+    "id": 433507003,
+    "tag_name": "v0.1.0-beta.4",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-04T04:16:50Z",
+    "assets": [
+      {
+        "id": 708189336,
+        "name": "Agentshed-0.1.0-beta.4-mac-arm64.dmg",
+        "content_type": "application/x-apple-diskimage",
+        "state": "uploaded",
+        "size": 127775849,
+        "download_count": 2,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.4/Agentshed-0.1.0-beta.4-mac-arm64.dmg"
+      },
+      {
+        "id": 708189334,
+        "name": "Agentshed-0.1.0-beta.4-mac-arm64.zip",
+        "content_type": "application/zip",
+        "state": "uploaded",
+        "size": 121270805,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.4/Agentshed-0.1.0-beta.4-mac-arm64.zip"
+      },
+      {
+        "id": 708189337,
+        "name": "Agentshed-0.1.0-beta.4-mac-arm64.zip.blockmap",
+        "content_type": "application/octet-stream",
+        "state": "uploaded",
+        "size": 127587,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.4/Agentshed-0.1.0-beta.4-mac-arm64.zip.blockmap"
+      },
+      {
+        "id": 708189335,
+        "name": "latest-mac.yml",
+        "content_type": "application/yaml",
+        "state": "uploaded",
+        "size": 376,
+        "download_count": 4,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.4/latest-mac.yml"
+      }
+    ]
+  },
+  {
+    "id": 428820306,
+    "tag_name": "v0.1.0-beta.3",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-10-30T08:57:52Z",
+    "assets": [
+      {
+        "id": 691524290,
+        "name": "Agentshed-0.1.0-beta.3-mac-arm64.dmg",
+        "content_type": "application/x-apple-diskimage",
+        "state": "uploaded",
+        "size": 127778114,
+        "download_count": 2,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.3/Agentshed-0.1.0-beta.3-mac-arm64.dmg"
+      },
+      {
+        "id": 691524286,
+        "name": "Agentshed-0.1.0-beta.3-mac-arm64.zip",
+        "content_type": "application/zip",
+        "state": "uploaded",
+        "size": 121270217,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.3/Agentshed-0.1.0-beta.3-mac-arm64.zip"
+      },
+      {
+        "id": 691524288,
+        "name": "Agentshed-0.1.0-beta.3-mac-arm64.zip.blockmap",
+        "content_type": "application/octet-stream",
+        "state": "uploaded",
+        "size": 127603,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.3/Agentshed-0.1.0-beta.3-mac-arm64.zip.blockmap"
+      },
+      {
+        "id": 691524289,
+        "name": "latest-mac.yml",
+        "content_type": "application/yaml",
+        "state": "uploaded",
+        "size": 376,
+        "download_count": 10,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.3/latest-mac.yml"
+      }
+    ]
+  },
+  {
+    "id": 425801842,
+    "tag_name": "v0.1.0-beta.2",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-10-27T17:53:39Z",
+    "assets": [
+      {
+        "id": 682397225,
+        "name": "Agentshed-0.1.0-beta.2-mac-arm64.dmg",
+        "content_type": "application/x-apple-diskimage",
+        "state": "uploaded",
+        "size": 127729984,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.2/Agentshed-0.1.0-beta.2-mac-arm64.dmg"
+      },
+      {
+        "id": 682397222,
+        "name": "Agentshed-0.1.0-beta.2-mac-arm64.zip",
+        "content_type": "application/zip",
+        "state": "uploaded",
+        "size": 121249705,
+        "download_count": 4,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.2/Agentshed-0.1.0-beta.2-mac-arm64.zip"
+      },
+      {
+        "id": 682397224,
+        "name": "Agentshed-0.1.0-beta.2-mac-arm64.zip.blockmap",
+        "content_type": "application/octet-stream",
+        "state": "uploaded",
+        "size": 127672,
+        "download_count": 4,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.2/Agentshed-0.1.0-beta.2-mac-arm64.zip.blockmap"
+      },
+      {
+        "id": 682397231,
+        "name": "latest-mac.yml",
+        "content_type": "application/yaml",
+        "state": "uploaded",
+        "size": 376,
+        "download_count": 12,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta.2/latest-mac.yml"
+      }
+    ]
+  },
+  {
+    "id": 420534420,
+    "tag_name": "v0.1.0-beta",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-10-22T09:34:05Z",
+    "assets": [
+      {
+        "id": 665347607,
+        "name": "Agentshed-0.1.0-beta-mac-arm64.dmg",
+        "content_type": "application/x-apple-diskimage",
+        "state": "uploaded",
+        "size": 127736335,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.dmg"
+      },
+      {
+        "id": 665347609,
+        "name": "Agentshed-0.1.0-beta-mac-arm64.zip",
+        "content_type": "application/zip",
+        "state": "uploaded",
+        "size": 121249114,
+        "download_count": 3,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip"
+      },
+      {
+        "id": 665347610,
+        "name": "Agentshed-0.1.0-beta-mac-arm64.zip.blockmap",
+        "content_type": "application/octet-stream",
+        "state": "uploaded",
+        "size": 127800,
+        "download_count": 4,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip.blockmap"
+      },
+      {
+        "id": 665347608,
+        "name": "latest-mac.yml",
+        "content_type": "application/yaml",
+        "state": "uploaded",
+        "size": 370,
+        "download_count": 10,
+        "browser_download_url": "https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/latest-mac.yml"
+      }
+    ]
+  }
+]

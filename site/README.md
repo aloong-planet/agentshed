@@ -35,14 +35,19 @@ theme also selects website checks because the palette test reads it. See [CI rou
   from the app's (`src/shared/i18n/`). New copy goes here, in both languages.
 - `src/styles/global.css`: the palette (the app's purple theme, light and dark, by the visitor's system
   appearance) and every rule of the page, interaction states included. Markup carries classes only.
-- `src/releases.ts`: the two things the page reads in the visitor's browser, the R2 latest pointer and GitHub's
-  releases for this repository, each answer validated before anything of it is used.
+- `src/releases.ts`: the two things the page reads in the visitor's browser to decide the download, the R2 latest
+  pointer and GitHub's releases for this repository, each answer validated before anything of it is used.
+- `src/download-count.ts`: the page's one other read, the download count's statistics file on the download host,
+  of which only a validated total reaches the page. The hourly workflow that writes it is in
+  [its runbook](../docs/ops/download-count.md). The download host answers CORS for the landing page's own origin
+  only, so `pnpm dev`, `pnpm preview` and a Pages preview show no count, as they show no formal release from R2.
 - `src/download.ts`: the download state the two reads decide (formal from R2, formal from GitHub, test, or the
   list), and what each state's buttons say and where they lead. The page is served in the list state, which
   leads to GitHub's release list.
 - `src/scripts/`: the features section's pinned showcase, whose step follows the scroll (`features.ts`), the language switch that keeps
   the current step and scroll position (`language-switch.ts`), and the download script that reads, decides and
-  shows the state in place (`download.ts`, applying it with `apply-download.ts`).
+  shows the state in place (`download.ts`, applying it with `apply-download.ts`), and fills the download count's
+  line without the download waiting for it.
 - `src/shots.ts` and `public/shots/`: the screenshots, one set per language. The hero, overview, project,
   token and Chinese session cuts show the owner's data, approved for publication (2026-10-13; the hero's
   retake 2026-10-21). The memory, search and English session cuts show made-up data (the English session
@@ -68,6 +73,8 @@ theme also selects website checks because the palette test reads it. See [CI rou
   pages, the second through the page's script with a fake network. The reads' tests answer through an injected
   fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the
   release script writes it, and a real releases answer from GitHub reshaped to this repository.
+- `test/build-site.ts` builds as production, as `pnpm build` does: the tests run with `NODE_ENV=test`, under which
+  the build would otherwise keep the dev server's choices, such as `import.meta.env.DEV` being true.
 
 ## Deploying (Cloudflare Pages)
 

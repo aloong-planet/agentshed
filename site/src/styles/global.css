@@ -503,6 +503,17 @@ a {
   display: flex;
   gap: 10px;
 }
+/* The download count's line under the card (landing-page::REQ-011/AC-01): one line's height is held while it is
+   empty, so nothing below moves when its read fills it */
+.dl-count {
+  max-width: 680px;
+  margin: 14px auto 0;
+  min-height: 1.6em;
+  line-height: 1.6;
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: center;
+}
 
 .site-footer {
   border-top: 1px solid var(--line);

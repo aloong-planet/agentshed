@@ -12,8 +12,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { evaluate } from './testing/workflow.mjs'
-import { truthy } from '@actions/expressions/result'
+import { holds, jobEnv, strings } from './testing/workflow.mjs'
 import { parse as parseToml } from 'smol-toml'
 
 const require = createRequire(import.meta.url)
@@ -21,18 +20,6 @@ const require = createRequire(import.meta.url)
 const yaml = require('../build/mac-packaging.cjs').yamlParser()
 const workflow = yaml.load(readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8'))
 const profiles = parseToml(readFileSync(new URL('../capabilities.toml', import.meta.url), 'utf8'))['macos-distribution'].profiles
-
-const TEMPLATE = /^\$\{\{([\s\S]*)\}\}$/
-
-/** Whether a job's or a step's `if` holds; no `if` always holds */
-const holds = (condition, context) => condition === undefined || truthy(evaluate(condition, context))
-
-/** A job's env as the runner sets it: each `${{ }}` value evaluated and turned into a string, the rest literal */
-function jobEnv(job, context) {
-  return Object.fromEntries(
-    Object.entries(job.env ?? {}).map(([key, value]) => [key, TEMPLATE.test(value.trim()) ? evaluate(value, context).coerceString() : String(value)])
-  )
-}
 
 // Event contexts shaped as GitHub documents them: a tag push has refs/tags/<tag>; a dispatch has the branch or tag
 // it was dispatched on, and its inputs (none when dispatched without them)
@@ -200,12 +187,6 @@ test("the packages, the update files and Apple's logs are kept with the run, and
   assert.ok(publish.steps.indexOf(download) < publish.steps.indexOf(run))
   assert.equal(run.env.GH_TOKEN, '${{ github.token }}')
 })
-
-/** Every string in the parsed workflow, with the path that leads to it */
-function* strings(value, path = []) {
-  if (typeof value === 'string') yield { path: path.join('.'), value }
-  else if (value !== null && typeof value === 'object') for (const [key, item] of Object.entries(value)) yield* strings(item, [...path, key])
-}
 
 test('credentials reach only the packaging steps and the two R2 steps, the local packaging never gets Apple credentials, and no run block interpolates', () => {
   const release = packagingSteps().find((step) => step.run === profiles.release.command)

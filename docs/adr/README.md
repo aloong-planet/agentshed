@@ -110,6 +110,7 @@ ADR conventions for this repository:
 | [0031](0031-macos-release-line.md) | A notarized macOS release line, built in CI and mirrored to R2 | Accepted |
 | [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted |
 | [0050](0050-landing-page-in-this-repository.md) | The landing page is a `site/` project in this repository, in Chinese and English | Accepted |
+| [0055](0055-download-count.md) | The download count is the disk image's downloads from GitHub and the download host, collected every hour by this repository's workflow | Accepted |
 
 ## Retired numbers
 
