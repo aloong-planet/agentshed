@@ -38,7 +38,7 @@ apply.
     {
       "name": "Agentshed-0.2.0-mac-arm64.dmg",
       "arch": "arm64",
-      "size": 127807045,
+      "size": 129610390,
       "url": "https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg"
     }
   ]
@@ -107,8 +107,16 @@ other origin, such as a Pages preview, shows no count.
 | `GET` | `https://agentshed.aloongplanet.com` | 404 (no file yet), `access-control-allow-origin: https://agentshed.aloongplanet.com`, `vary: Origin` |
 | `GET` | `https://example.com` | 404, `vary: Origin`, no CORS header |
 
-## Not yet observed
+## The first formal release
 
-The mirror and pointer jobs have not run: only a formal tag runs them, and the first release is a pre-release. The
-first formal release is their first real run. Keep its pointer job's log — the line for each file it read back —
-as the evidence of mac-distribution::REQ-003 and REQ-004/AC-01, AC-02.
+The mirror and pointer jobs first ran for `v0.2.0` on 2026-11-22 (Release run 45022055256), after its publish job.
+The mirror job logged `[mirror] uploaded releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg` at 12:33:06Z. The pointer
+job then logged, for the one file it read back, `[mirror] https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg
+serves the gated file (129610390 bytes, sha256 a04428e8…)` at 12:33:22Z and `[mirror] latest.json now points at
+0.2.0` at 12:33:24Z. This is the evidence of mac-distribution::REQ-003 and REQ-004/AC-01, AC-02.
+
+Read back at 12:59Z the same way as the tables above: `latest.json` answers 200 with `public, max-age=300`, naming
+0.2.0 and that DMG's URL; `GET` with the landing page's origin gets `access-control-allow-origin:
+https://agentshed.aloongplanet.com`, and with `https://example.com` no CORS header. The DMG answers 200 with
+`application/x-apple-diskimage`, 129610390 bytes and `public, max-age=31536000, immutable`; downloaded that day,
+its sha256 equalled GitHub's digest for the same file.

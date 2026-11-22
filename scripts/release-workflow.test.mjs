@@ -1,4 +1,4 @@
-// A static test of the release workflow (.github/workflows/release.yml; mac-distribution Testing Decisions): the
+// A static test of the release workflow (.github/workflows/release.yml): the
 // four tiers follow the trigger, a manual run cannot reach publishing under any input, publishing needs the macOS
 // gate job, credentials fail closed and stay confined, and the tag check comes before packaging.
 //

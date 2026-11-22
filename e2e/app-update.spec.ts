@@ -1,6 +1,6 @@
 import type {} from '../src/renderer/src/env'
 // App updates (docs/specs/app-update.md) through the real IPC chain and the real renderer, with the
-// scripted update source the spec's Testing Decisions confirm: AGENTSHED_UPDATE_SCRIPT names a JSON file the
+// scripted update source: AGENTSHED_UPDATE_SCRIPT names a JSON file the
 // main process reads at every request and logs every request beside (`<script>.log`). The seam also stands
 // in for "packaged", so the lifecycle runs in this unpackaged build. What it cannot reach is the real
 // electron-updater ↔ GitHub ↔ system updater path and the restart itself: accepted by evidence once two
@@ -683,10 +683,10 @@ test('a development run disables the item, and a click on it reports nothing (US
 })
 
 // The settings "Updates" section (docs/specs/app-update.md, REQ-003, REQ-004, US-002, US-003, US-005) through the
-// real IPC chain and the real renderer, with the scripted update source the spec's Testing Decisions confirm
+// real IPC chain and the real renderer, with the scripted update source
 // (AGENTSHED_UPDATE_SCRIPT, read at every request, every request logged beside it; it also stands in for
 // "packaged"). The post-update line is driven by seeding the version the previous run recorded in the isolated
-// userData (Testing Decisions). A later automatic check is reached through the real wake path: the main
+// userData. A later automatic check is reached through the real wake path: the main
 // process's clock is moved past the 24-hour period and the system's resume event is emitted.
 
 function seedRecordedVersion(f: Fixture, content: string): void {

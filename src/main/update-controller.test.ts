@@ -1,5 +1,5 @@
-// The update controller driven through its public surface with a fake update source and a fake clock —
-// the seam app-update's Testing Decisions confirm. Covers the lifecycle table, gating by the switch and by
+// The update controller driven through its public surface with a fake update source and a fake clock.
+// Covers the lifecycle table, gating by the switch and by
 // the development run, joined checks, the schedule and every failure path of the spec's sequences A–C.
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
