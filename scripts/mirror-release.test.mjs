@@ -7,8 +7,8 @@
 // records which objects existed when the pointer was written. awsBucket is tested for the aws-cli arguments it
 // sends (Transfer's flags, which R2 serves today), httpProbe against a real HTTP server on localhost.
 //
-// Gap: nothing here touches R2 or the download host. The mirror and pointer jobs run only on a formal tag, so their
-// first real run is the first formal release (Waiting in #236).
+// Gap: nothing here touches R2 or the download host. The mirror and pointer jobs run only on a formal tag, so only a
+// formal release's run exercises them for real.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'

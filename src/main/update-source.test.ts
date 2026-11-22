@@ -9,7 +9,7 @@
 // be seen there, since a save is written at once and nothing is pending at a click, and rests on the quit path the
 // install takes; a package the system updater rejects at install, after the app has quit, is left to Squirrel.Mac,
 // which keeps the version in place, and no test of the app reaches it (H2); channel selection for a formal
-// installation waits for a pre-release published after the first formal release (app-update Testing Decisions).
+// installation waits for a pre-release published after the first formal release (app-update::US-004/AC-01).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -56,7 +56,7 @@ describe('chooseUpdateSource', () => {
   it('a packaged app reads GitHub; a development run has no source; the script seam overrides both', () => {
     expect(chooseUpdateSource({ packaged: true, env: {} })).toEqual({ kind: 'github' })
     expect(chooseUpdateSource({ packaged: false, env: {} })).toBeNull()
-    // The seam stands in for "packaged" for the update feature only (Testing Decisions)
+    // The seam stands in for "packaged" for the update feature only
     expect(chooseUpdateSource({ packaged: false, env: { AGENTSHED_UPDATE_SCRIPT: '/tmp/u.json' } }))
       .toEqual({ kind: 'scripted', script: '/tmp/u.json' })
     expect(chooseUpdateSource({ packaged: true, env: { AGENTSHED_UPDATE_SCRIPT: '/tmp/u.json' } }))

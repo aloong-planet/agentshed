@@ -1,4 +1,4 @@
-// The built-site check (landing-page Testing Decisions): the pages one build produces, read as files.
+// The built-site check: the pages one build produces, read as files.
 //
 // It reads the HTML as served, before any script runs, so what it sees is what a visitor without scripts
 // gets (landing-page::REQ-001/AC-04).
