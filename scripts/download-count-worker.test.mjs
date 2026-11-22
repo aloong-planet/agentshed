@@ -3,13 +3,19 @@
 // the Worker's run(), with the bucket's binding (scripts/testing/r2-binding.mjs), GitHub and the analytics
 // (scripts/testing/download-count-sources.mjs) standing in at the system boundary and the clock fixed.
 //
-// Gaps, each checked by the Worker's first runs in production and their run record (docs/ops/download-count.md):
-// - the real binding: whether put enforces etagMatches and If-None-Match: *, and how its listing cuts pages, come from
-//   Cloudflare's docs only (the stand-in's header);
+// Gaps: nothing here runs in Cloudflare, and a run in production shows only its own case (docs/ops/download-count.md).
+// - The real binding: whether put enforces etagMatches and If-None-Match: *, and how its listing cuts pages, come from
+//   Cloudflare's docs only (the stand-in's header). The first shadow write shows that put accepts If-None-Match: *;
+//   a write refused by either condition, or a listing of more than one page, is seen only if one happens.
 // - workerd: the fetch the handler passes calls the runtime's own at call time, as its own case shows, but whether a
-//   detached fetch would throw there cannot be seen in Node;
-// - Workers Free's 10 ms of CPU and 50 subrequests a run, and the Cron Trigger firing every hour
-//   (landing-page::REQ-011/AC-04): nothing here runs in Cloudflare.
+//   detached fetch would throw there cannot be seen in Node; a production run that reads its sources shows that the
+//   passed one works.
+// - Workers Free's 10 ms of CPU and 50 subrequests a run: the first runs, seeded from a recent statistics file, read
+//   one range of traffic over a run record of a few entries. The heaviest runs are seen only when they happen: one
+//   that catches up over the analytics' whole hold, a range for every maxDuration of it besides GitHub's pages (and
+//   the binding's calls, if Cloudflare counts them as subrequests), and one that rewrites a run record of 336
+//   entries, from about the shadow period's fourteenth day.
+// - The Cron Trigger firing every hour (landing-page::REQ-011/AC-04): the run record after the apply.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -141,6 +147,12 @@ test('a shadow run with the shadow file in the bucket builds on it, leaving the 
   assert.equal(shadow.r2Cursor, '2026-11-22T09:00:00Z')
   assert.deepEqual(shadow.r2.objects[DMG_KEY], { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 3500 })
   assert.deepEqual(requests.filter(({ to }) => to === 'traffic').map(({ variables }) => variables.filter.datetime_geq), ['2026-11-22T08:00:00Z'])
+  // The Worker's settings reach the analytics: its token, its zone, and the download host's name as the traffic's host
+  const analytics = requests.filter(({ to }) => to === 'settings' || to === 'traffic')
+  assert.deepEqual(analytics.map(({ to, headers, variables }) => [to, headers.authorization, variables.zoneTag, variables.filter?.clientRequestHTTPHost]), [
+    ['settings', 'Bearer cf-token', 'zone-tag', undefined],
+    ['traffic', 'Bearer cf-token', 'zone-tag', 'dl.agentshed.aloongplanet.com']
+  ])
   assert.equal(bucket.peek('stats/downloads.json'), before)
   assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), { schemaVersion: 1, seed, runs: [earlier, wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z')] })
 })

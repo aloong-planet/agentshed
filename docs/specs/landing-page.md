@@ -340,6 +340,8 @@ runs within Cloudflare's Workers Free plan and triggers no paid plan.
   data in the watchdog's log (Failure G8): each is printed as one line of JSON, so no text in it is read as a
   workflow command.
 
+  > Pending: the Download count workflow is the watchdog.
+
 **Sequence F: watching the walkthrough in either language**
 
 - F1 A visitor opens the page → only the local poster loads; no sound or YouTube request starts.
@@ -481,7 +483,7 @@ runs within Cloudflare's Workers Free plan and triggers no paid plan.
 | `runs[].coreSha256` | string, 64 lowercase hex digits | The pinned SHA-256 of the core module the run used |
 | `runs[].key` | string | The file the run writes, `stats/downloads.json` or `stats/downloads-shadow.json` |
 | `runs[].written` | boolean | Whether the run wrote that file |
-| `runs[].github` | `ok`, `rate-limited`, `failed` or `not-read` | GitHub's read. `rate-limited`: GitHub answered 403 or 429 with `x-ratelimit-remaining` `0`, or with a message naming a secondary rate limit; `failed`: any other failed read or answer the run cannot validate; `not-read`: the run failed before that read |
+| `runs[].github` | `ok`, `rate-limited`, `failed` or `not-read` | GitHub's read. `rate-limited`: GitHub answered 403 or 429 with `x-ratelimit-remaining` `0`, or with a message naming a secondary rate limit; `failed`: any other failed read or answer the run cannot validate; `not-read`: the run failed before any of these reads started. A run refused for a cursor the analytics no longer hold (Failure G3) fails none of them |
 | `runs[].analytics` | `ok`, `failed` or `not-read` | The analytics' settings and traffic reads, as for `github` |
 | `runs[].bucket` | `ok`, `failed` or `not-read` | The previous file, the listing and the write, as for `github` |
 | `runs[].failure` | string or null | What failed the run, never a credential; null when it wrote its file |
@@ -496,7 +498,9 @@ runs within Cloudflare's Workers Free plan and triggers no paid plan.
 
   After each run in which it wrote the statistics file, the workflow compares it with the shadow file and appends
   the comparison to `stats/shadow-comparisons.json`, which it alone writes, with the run record's content type and
-  cache control. A comparison never fails the run.
+  cache control. A comparison never fails the run. A shadow file or run record that cannot be read, or is not one
+  (Failure G1 for the shadow file, Failure G9 for the run record), leaves the run with no comparison: nothing is
+  appended, and the run reports it. One the bucket does not hold is taken as null.
 
 | Field | Type | Meaning |
 |---|---|---|

@@ -83,35 +83,38 @@ test("GitHub's assets hold when the later file has every asset of the earlier wi
   const earlier = '2026-11-22T09:31:20.000Z'
   const later = '2026-11-22T09:47:12.000Z'
   const cases = [
-    ['the later statistics file higher', at(later, { 1: 4 }), at(earlier, { 1: 3 }), true],
-    ['the later shadow file higher', at(earlier, { 1: 3 }), at(later, { 1: 4 }), true],
-    ['the earlier statistics file higher', at(earlier, { 1: 4 }), at(later, { 1: 3 }), false],
-    ['the earlier shadow file higher', at(later, { 1: 3 }), at(earlier, { 1: 4 }), false],
-    ['an asset the later file lacks', at(later, { 1: 3 }), at(earlier, { 1: 3, 2: 1 }), false],
-    ['an asset only the later file has', at(later, { 1: 3, 2: 1 }), at(earlier, { 1: 3 }), true],
-    ['written at the same instant, one asset higher in the statistics file', at(later, { 1: 4 }), at(later, { 1: 3 }), false],
-    ['written at the same instant, one asset higher in the shadow file', at(later, { 1: 3 }), at(later, { 1: 4 }), false],
-    ['written at the same instant, the same', at(later, { 1: 3 }), at(later, { 1: 3 }), true]
+    ['the later statistics file higher', at(later, { 1: 4 }), at(earlier, { 1: 3 }), true, 'equal'],
+    ['the later shadow file higher', at(earlier, { 1: 3 }), at(later, { 1: 4 }), true, 'equal'],
+    ['the earlier statistics file higher', at(earlier, { 1: 4 }), at(later, { 1: 3 }), false, 'not-equal'],
+    ['the earlier shadow file higher', at(later, { 1: 3 }), at(earlier, { 1: 4 }), false, 'not-equal'],
+    ['an asset the later file lacks', at(later, { 1: 3 }), at(earlier, { 1: 3, 2: 1 }), false, 'not-equal'],
+    ['an asset only the later file has', at(later, { 1: 3, 2: 1 }), at(earlier, { 1: 3 }), true, 'equal'],
+    ['written at the same instant, one asset higher in the statistics file', at(later, { 1: 4 }), at(later, { 1: 3 }), false, 'not-equal'],
+    ['written at the same instant, one asset higher in the shadow file', at(later, { 1: 3 }), at(later, { 1: 4 }), false, 'not-equal'],
+    ['written at the same instant, the same', at(later, { 1: 3 }), at(later, { 1: 3 }), true, 'equal']
   ]
-  for (const [label, statistics, shadow, holds] of cases) {
-    assert.equal(compare(comparing({ statistics, shadow })).checks.githubAssets, holds, label)
+  // The download host's bytes and the core hold in every case, so the status follows GitHub's assets alone
+  for (const [label, statistics, shadow, holds, status] of cases) {
+    const comparison = compare(comparing({ statistics, shadow }))
+    assert.deepEqual([comparison.checks.githubAssets, comparison.status], [holds, status], label)
   }
 })
 
 test("the core holds only when the Worker's newest run that wrote the shadow file used the workflow's core", () => {
   const runs = (...entries) => ({ ...RUNS, runs: entries })
   const cases = [
-    ['the same core', runs(ran('2026-11-22T09:31:00.000Z')), '2026-11-22T09:31:00.000Z', WORKFLOW_CORE, true],
-    ['another core', runs(ran('2026-11-22T09:31:00.000Z', { coreSha256: WORKER_CORE })), '2026-11-22T09:31:00.000Z', WORKER_CORE, false],
+    ['the same core', runs(ran('2026-11-22T09:31:00.000Z')), '2026-11-22T09:31:00.000Z', WORKFLOW_CORE, true, 'equal'],
+    ['another core', runs(ran('2026-11-22T09:31:00.000Z', { coreSha256: WORKER_CORE })), '2026-11-22T09:31:00.000Z', WORKER_CORE, false, 'not-equal'],
     ['the newest written run, past later runs that wrote nothing or wrote the statistics file',
       runs(ran('2026-11-22T07:31:00.000Z', { coreSha256: WORKER_CORE }), ran('2026-11-22T08:31:00.000Z'), ran('2026-11-22T09:31:00.000Z', { coreSha256: WORKER_CORE, written: false }), ran('2026-11-22T10:31:00.000Z', { coreSha256: WORKER_CORE, key: 'stats/downloads.json' })),
-      '2026-11-22T08:31:00.000Z', WORKFLOW_CORE, true],
-    ['no run that wrote the shadow file', runs(ran('2026-11-22T09:31:00.000Z', { written: false })), null, null, false],
-    ['no run record', null, null, null, false]
+      '2026-11-22T08:31:00.000Z', WORKFLOW_CORE, true, 'equal'],
+    ['no run that wrote the shadow file', runs(ran('2026-11-22T09:31:00.000Z', { written: false })), null, null, false, 'not-equal'],
+    ['no run record', null, null, null, false, 'not-equal']
   ]
-  for (const [label, record, scheduledTime, coreSha256, holds] of cases) {
+  // The download host's bytes and GitHub's assets hold in every case, so the status follows the core alone
+  for (const [label, record, scheduledTime, coreSha256, holds, status] of cases) {
     const comparison = compare(comparing({ runs: record }))
-    assert.deepEqual([comparison.workerScheduledTime, comparison.workerCoreSha256, comparison.checks.core], [scheduledTime, coreSha256, holds], label)
+    assert.deepEqual([comparison.workerScheduledTime, comparison.workerCoreSha256, comparison.checks.core, comparison.status], [scheduledTime, coreSha256, holds, status], label)
   }
 })
 
