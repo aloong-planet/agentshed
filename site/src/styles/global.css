@@ -570,7 +570,10 @@ a {
   color: var(--text-2);
 }
 
-@media (max-width: 760px) {
+/* Below 760px (landing-page::REQ-003, REQ-004/AC-06): a window 760px wide gets the wide layout. Not 759px: a window
+   can be a fraction of a pixel wide (under zoom), and 759.5px is below 760 too. Not the range form `(width < 760px)`:
+   a Safari older than 16.4 cannot read it and would never apply this block. */
+@media (max-width: 759.98px) {
   .hero h1 {
     font-size: 32px;
   }

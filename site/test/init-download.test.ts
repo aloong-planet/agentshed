@@ -4,7 +4,7 @@
 // asserted: CON-003 makes the three reads the requirement.
 //
 // Not covered here: keeping the visitor's place when a state lands while they are scrolled (jsdom has no layout);
-// measured in a browser (evidence/ticket-238/).
+// checked in a browser, in `test/landing-page-late-content.test.ts`.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { JSDOM } from 'jsdom'

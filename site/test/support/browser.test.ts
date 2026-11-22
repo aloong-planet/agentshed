@@ -1,10 +1,12 @@
 // The browser harness's own check: no browser case reaches the network. A request the harness has no answer for
 // is refused inside the browser, and the visit fails naming it, also when the case has failed on its own first; a
-// visit whose every request is answered does not.
+// visit whose every request is answered does not. A held answer lands only when the case releases it, a hold never
+// holds a request with no answer, a hold that held nothing fails the case, a hold the case left held is released once
+// the case is done, and the request log misses nothing the page asked for while it loaded.
 // The browser settings a case gives (a motion preference, scripts off) reach the page it visits. A request the page
 // makes as the case ends is counted too: the visit waits for the page's requests to settle first.
-import { afterAll, beforeAll, expect, inject, test } from 'vitest'
-import { launch, visit, type Browser, type Page, type Visit } from './browser'
+import { afterAll, beforeAll, expect, inject, test, vi } from 'vitest'
+import { hold, launch, ORIGIN, visit, type Browser, type Page, type Visit } from './browser'
 import { COUNT_URL, POINTER_URL, RELEASES_API, statistics } from './stand-ins'
 
 let browser: Browser
@@ -98,4 +100,139 @@ test('a request the page makes as the case ends is waited for, and the visit fai
     (e: unknown) => e
   )
   expect(String(error)).toContain(STRAY)
+})
+
+// The self-tests' own waits, well inside the run's 5 s per test
+const WAIT = 2_000
+const HELD = 'https://stand-in.invalid/held.json'
+const UNHELD = 'https://stand-in.invalid/unheld.json'
+
+test('a held answer lands only once the case releases it, and a request the hold picks after that is answered at once', async () => {
+  const read = hold('the probe read', (url) => url === HELD)
+  const reads = { ...listPage.reads, [HELD]: [200, '"held"'], [UNHELD]: [200, '"unheld"'] } as Visit['reads']
+  const landed = await visit(browser, inject('builtSite'), { ...listPage, reads, holds: [read] }, async (page) => {
+    const record = (url: string) =>
+      page.evaluate((url) => {
+        const page = globalThis as unknown as { landed?: string[]; reads?: Promise<unknown>[] }
+        const landed = (page.landed ??= [])
+        ;(page.reads ??= []).push(fetch(url).then(async (r) => landed.push((await r.json()) as string)))
+      }, url)
+    const settled = () => page.evaluate(() => Promise.all((globalThis as unknown as { reads: Promise<unknown>[] }).reads))
+    const landedSoFar = () => page.evaluate(() => [...((globalThis as unknown as { landed: string[] }).landed)])
+    await record(HELD)
+    await read.reached(WAIT)
+    // Asked for after the held read and answered at once: the held read has had every chance to land before it
+    await record(UNHELD)
+    await vi.waitFor(async () => expect(await landedSoFar()).toContain('unheld'), { timeout: WAIT })
+    const beforeRelease = await landedSoFar()
+    read.release()
+    await record(HELD)
+    await settled()
+    return { beforeRelease, afterRelease: await landedSoFar() }
+  })
+  expect(landed.beforeRelease).toEqual(['unheld'])
+  expect(landed.afterRelease).toEqual(['unheld', 'held', 'held'])
+  // Only the read asked for before the release was held
+  expect(read.held).toEqual([HELD])
+})
+
+test('a request a hold picks that nothing answers is refused at once, not held, and the visit fails naming it', async () => {
+  const stray = hold('the stray read', (url) => url === STRAY)
+  let outcome = ''
+  const error: unknown = await visit(browser, inject('builtSite'), { ...listPage, holds: [stray] }, async (page) => {
+    outcome = await page.evaluate(
+      ([url, wait]) =>
+        Promise.race([
+          fetch(url).then(
+            () => 'answered',
+            () => 'refused'
+          ),
+          new Promise<string>((still) => setTimeout(() => still('still waiting'), wait))
+        ]),
+      [STRAY, WAIT] as const
+    )
+  }).then(
+    () => expect.unreachable('the visit made a request with no answer, and passed'),
+    (e: unknown) => e
+  )
+  expect(outcome).toBe('refused')
+  expect(stray.held).toEqual([])
+  expect(String(error)).toContain(STRAY)
+})
+
+test('a hold that held nothing fails the case, naming the hold', async () => {
+  const never = hold('the read the page never makes', (url) => url === HELD)
+  const error: unknown = await visit(browser, inject('builtSite'), { ...listPage, holds: [never] }, () => never.reached(500)).then(
+    () => expect.unreachable('the hold held nothing, and the case passed'),
+    (e: unknown) => e
+  )
+  expect(String(error)).toContain('the read the page never makes')
+})
+
+// However the case ends. Run, release, settle, check: the release comes before the visit checks for unanswered
+// requests, so it is made when that check fails too
+const ENDINGS = [
+  { ending: 'returns', fails: false, stray: false, ends: 'returned' },
+  { ending: 'fails', fails: true, stray: false, ends: 'the case failed' },
+  { ending: 'returns leaving a request unanswered', fails: false, stray: true, ends: STRAY }
+]
+test.for(ENDINGS)('a hold the case left held is released once its run $ending', async ({ fails, stray, ends }) => {
+  const read = hold('the probe read', (url) => url === HELD)
+  const reads = { ...listPage.reads, [HELD]: [200, '"held"'] } as Visit['reads']
+  const ended = await visit(browser, inject('builtSite'), { ...listPage, reads, holds: [read] }, async (page) => {
+    await page.evaluate(
+      async ([held, unanswered]) => {
+        void fetch(held)
+        if (unanswered) await fetch(unanswered).catch(() => undefined)
+      },
+      [HELD, stray ? STRAY : null] as const
+    )
+    await read.reached(WAIT)
+    if (fails) throw new Error('the case failed')
+    return 'returned'
+  }).then(
+    (value) => value,
+    (e: unknown) => String(e)
+  )
+  expect(ended).toContain(ends)
+  // The release cannot be seen in that visit, which the case has left by then. Seen through the hold itself, in a
+  // second visit: released, it answers a request it picks at once, and holds none
+  const later = await visit(browser, inject('builtSite'), { ...listPage, reads, holds: [read] }, (page) =>
+    page.evaluate(
+      ([url, wait]) =>
+        Promise.race([
+          fetch(url).then(
+            () => 'answered',
+            () => 'refused'
+          ),
+          new Promise<string>((still) => setTimeout(() => still('still held'), wait))
+        ]),
+      [HELD, WAIT] as const
+    )
+  )
+  expect(later, 'a request the hold picks once the first visit is over').toBe('answered')
+  expect(read.held).toEqual([HELD])
+})
+
+test('a page whose image is held opens all the same, without the image until the release', async () => {
+  const POSTER = `${ORIGIN}/media/agentshed-intro-poster.jpg`
+  const poster = hold('the poster', (url) => url === POSTER)
+  const widths = await visit(browser, inject('builtSite'), { ...listPage, holds: [poster] }, async (page) => {
+    const width = () => page.evaluate((src) => document.querySelector<HTMLImageElement>(`img[src="${new URL(src).pathname}"]`)?.naturalWidth, POSTER)
+    await poster.reached(WAIT)
+    const held = await width()
+    poster.release()
+    await page.waitForFunction((src) => document.querySelector<HTMLImageElement>(`img[src="${new URL(src).pathname}"]`)?.complete, POSTER, { timeout: WAIT })
+    return { held, released: await width() }
+  })
+  expect(widths).toEqual({ held: 0, released: 1600 })
+})
+
+test("a visit's request log has every request the page made, its document's own first", async () => {
+  const requests: string[] = []
+  await visit(browser, inject('builtSite'), { ...listPage, requests }, () =>
+    // The page asks for its reads while it loads, and a read can still be on its way to the harness once it has loaded
+    vi.waitFor(() => expect(requests).toEqual(expect.arrayContaining([POINTER_URL, COUNT_URL])), { timeout: WAIT })
+  )
+  expect(requests[0]).toBe(`${ORIGIN}/`)
 })

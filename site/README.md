@@ -80,10 +80,16 @@ theme also selects website checks because the palette test reads it. See [CI rou
   build's files and the stand-in answers a case gives to the page's reads, and refuses any other request, which fails
   the case, named. `test/support/browser.test.ts` is its own check. `test/landing-page-layout.test.ts` measures the
   layout there (landing-page::QR-001/AC-01) at four widths, in both languages, both appearances and every download
-  state. `test/landing-page-features.test.ts` drives the features section there (landing-page::REQ-004), in both
-  languages: the pinned showcase at four widths, the step each scroll position gives, a step turning, the stacked steps
-  below 760px and without scripts, a resize and a language switch. Every browser case opens the build through
-  `visit()`, and `pnpm lint:site` fails on any other import of Playwright under `site/`.
+  state. A case that measures the page before something arrives holds its answers back (`hold`) and releases them;
+  a case that asserts what the page asked for reads the visit's `requests`. `test/landing-page-header.test.ts`
+  checks the header (landing-page::REQ-003, REQ-012/AC-02, AC-03); `test/landing-page-late-content.test.ts` the
+  space held for the screenshots and the download count's line, and the view kept when a download state lands
+  (landing-page::REQ-005/AC-03, REQ-011/AC-01, Failure A7); `test/landing-page-video.test.ts` the walkthrough, in
+  jsdom and in the browser (landing-page::REQ-009/AC-02). `test/landing-page-features.test.ts` drives the features
+  section there (landing-page::REQ-004), in both languages: the pinned showcase at four widths, the step each scroll
+  position gives, a step turning, the stacked steps below 760px and without scripts, a resize and a language switch.
+  Every browser case opens the build through `visit()`, and `pnpm lint:site` fails on any other import of Playwright
+  under `site/`.
 - `test/apply-download.test.ts` and `test/init-download.test.ts` apply the download states to that build's
   pages, the second through the page's script with a fake network. The reads' tests answer through an injected
   fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the
