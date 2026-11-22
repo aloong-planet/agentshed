@@ -2,8 +2,7 @@
 // each run in which it wrote the statistics file, the Download count workflow compares that file with the Worker's
 // shadow file and appends the comparison to the comparison record, which it alone writes. The rules here read and
 // write no file; the workflow's entry (download-count.mjs) reads the three files and writes the record.
-import { hourOf, isUtc, shaped } from './download-count-core.mjs'
-import { SHA256, SHADOW_KEY } from './download-count-worker.mjs'
+import { hourOf, isUtc, SHA256, SHADOW_KEY, shaped } from './download-count-core.mjs'
 
 export const COMPARISONS_KEY = 'stats/shadow-comparisons.json'
 

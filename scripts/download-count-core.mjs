@@ -188,6 +188,11 @@ export function validateStatistics(file, name = 'the statistics file') {
 }
 
 export const STATISTICS_KEY = 'stats/downloads.json'
+/** The shadow period's files that the Worker writes (Implementation Decisions "The shadow period", "The run record") */
+export const SHADOW_KEY = 'stats/downloads-shadow.json'
+export const RUNS_KEY = 'stats/worker-runs.json'
+/** A SHA-256 as the run record writes it, and the comparison record copies it: 64 lowercase hex digits */
+export const SHA256 = /^[0-9a-f]{64}$/
 /**
  * How every file of the count is written (Implementation Decisions "The collection", "The run record" and "The shadow
  * period"): JSON, which the download host caches for five minutes

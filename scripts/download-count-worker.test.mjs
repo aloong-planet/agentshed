@@ -9,7 +9,8 @@
 //   a write refused by either condition, or a listing of more than one page, is seen only if one happens.
 // - workerd: the fetch the handler passes calls the runtime's own at call time, as its own case shows, but whether a
 //   detached fetch would throw there cannot be seen in Node; a production run that reads its sources shows that the
-//   passed one works.
+//   passed one works. Whether Cloudflare's runtime loads the main module is seen at the deploy; here a case holds its
+//   exports to the kinds the runtime takes.
 // - Workers Free's 10 ms of CPU and 50 subrequests a run: the first runs, seeded from a recent statistics file, read
 //   one range of traffic over a run record of a few entries. The heaviest runs are seen only when they happen: one
 //   that catches up over the analytics' whole hold, a range for every maxDuration of it besides GitHub's pages (and
@@ -518,6 +519,20 @@ test("a run record is taken only when it matches the spec's fields exactly", () 
   for (const [label, change] of mismatches) {
     const record = valid()
     assert.throws(() => validateRuns(change(record) ?? record), /^Error: the run record /, label)
+  }
+})
+
+// The runtime takes every export of a Worker's main module for a handler or an entrypoint, and refuses to load a main
+// module with any other: workerd 1.20261101.1 answers "Incorrect type for map entry 'X': the provided value is not of
+// type 'function or ExportedHandler'" for a string, and runs nothing. Only the handlers object and functions are
+// exported here; the files' keys and forms are the core's
+test("the Worker's main module exports its handlers and functions only", async () => {
+  const main = await import('./download-count-worker.mjs')
+  const exported = Object.entries(main)
+  assert.ok(exported.length > 1)
+  for (const [name, value] of exported) {
+    const loads = name === 'default' ? typeof value?.scheduled === 'function' : typeof value === 'function'
+    assert.ok(loads, `${name} is exported as ${typeof value}`)
   }
 })
 

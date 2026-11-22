@@ -13,9 +13,9 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { awsBucket, runAws } from './lib/r2-bucket.mjs'
-import { collect, validateStatistics, WRITE_OPTIONS } from './download-count-core.mjs'
+import { collect, RUNS_KEY, SHADOW_KEY, validateStatistics, WRITE_OPTIONS } from './download-count-core.mjs'
 import { appendComparison, compare, COMPARISONS_KEY, validateComparisons } from './download-count-compare.mjs'
-import { RUNS_KEY, SHADOW_KEY, validateRuns } from './download-count-worker.mjs'
+import { validateRuns } from './download-count-worker.mjs'
 
 // The collection's credentials (docs/ops/download-count.md): the bucket's, which aws-cli reads from the environment,
 // the analytics token and zone, and the workflow's own token for GitHub
