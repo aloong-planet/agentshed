@@ -82,6 +82,36 @@ a {
   gap: 22px;
   height: 58px;
 }
+/* The trail at the header's left end (landing-page::REQ-012): "aloong planet" back to the author's homepage, a "/"
+   that assistive technology skips, then the brand, in the navigation links' size and grey. A navigation landmark
+   holding an ordered list, with the brand marked as the current page, after the WAI-ARIA breadcrumb pattern. */
+.crumbs {
+  min-width: 0;
+}
+.crumbs ol {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+.crumbs-up {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.crumbs-home,
+.crumbs-sep {
+  font-size: 14px;
+  color: var(--text-2);
+}
+.crumbs-home {
+  white-space: nowrap;
+  text-decoration: none;
+}
+.crumbs-home:hover {
+  color: var(--accent);
+}
 .brand {
   display: flex;
   align-items: center;
@@ -567,5 +597,23 @@ a {
     justify-content: center;
     white-space: normal;
     text-align: center;
+  }
+}
+/* Narrow phones: on one line beside the language toggle the trail no longer fits (measured on the built site: at
+   401px the bar has 11px to spare, at 390px none), so "aloong planet /" goes small above the brand, inside the same
+   header height. */
+@media (max-width: 400px) {
+  .crumbs ol {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+  .crumbs-up {
+    gap: 4px;
+  }
+  .crumbs-home,
+  .crumbs-sep {
+    font-size: 11px;
+    line-height: 1.3;
   }
 }
