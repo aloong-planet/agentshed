@@ -15,9 +15,9 @@
 // reads the visit's `requests`, which the harness fills from the document's own request on: a listener the case adds
 // once the page has opened misses what the page asked for while it loaded.
 //
-// Every site browser case opens the build through `visit`, and `pnpm lint:site` fails on an import of Playwright
-// anywhere else under `site/`: a page opened past it would reach the network, and a read the page newly makes would
-// go unanswered with no case failing.
+// Every site browser case opens the build through `visit`, and `pnpm lint:site` fails on an import of Playwright by
+// its package name in any other JavaScript or TypeScript file under `site/`: a page opened past it would reach the
+// network, and a read the page newly makes would go unanswered with no case failing.
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
 import { chromium, type Browser, type BrowserContext, type Page, type Request, type Route } from 'playwright'

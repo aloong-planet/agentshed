@@ -36,6 +36,7 @@ const EVERY_FORM = [
   "import type { Page } from 'playwright'",
   "export { chromium } from 'playwright'",
   "export * from 'playwright'",
+  "type P = import('playwright').Page",
   "void import('playwright')",
   ...REQUIRE,
   "createRequire(import.meta.url)('playwright')"
@@ -54,7 +55,9 @@ const cases = [
     "import { chromium } from 'playwright-core' // reported",
     "const p = import('playwright') // reported",
     'const p = import(`playwright`) // reported',
-    "const p = import('@playwright/test') // reported"
+    "const p = import('@playwright/test') // reported",
+    "type P = import('playwright').Page // reported",
+    'type P = import(`playwright`).Page // reported'
   ].map((line) => ({ name: `site: ${line.replace(' // reported', '')}`, file: PROBE, lines: [line] })),
   { name: 'site: a require made by createRequire, called at once', file: PROBE,
     lines: [...REQUIRE, "const { chromium } = createRequire(import.meta.url)('playwright') // reported"] },

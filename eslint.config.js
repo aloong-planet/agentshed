@@ -106,9 +106,15 @@ const guardCast = [{
 }]
 
 // One way into a browser for the site's cases: visit() in site/test/support/browser.ts (the reason is in its header).
-// Nothing else under site/ imports Playwright, by an import, a re-export or a dynamic import(), types included, or
-// names it to a call, as require(), a require made by createRequire() or any other loader takes it. What it cannot
-// see: a module name built at run time.
+// Nothing else under site/ names a Playwright package, written whole as a string or a template with no substitution:
+// as the source of an import, a re-export (`import x = require()` too) or an import(), as an expression or as a type,
+// or to a call, as require(), a require made by createRequire() or any other loader takes it. What it cannot see,
+// each form linted in a probe beside a form it reports: a name built at run time or reaching the loader any other way
+// (held in a variable, built from parts or with a substitution, wrapped in `as` or a conditional, in an array, a
+// tagged template, code in a string for eval or new Function); a path specifier, into node_modules or anywhere else;
+// a module that loads Playwright in turn, a file outside site/ (e2e/support/launch.ts, say) or a package of another
+// name; and anything in an .astro file, which is not linted at all. Nor, though these load nothing, a name in a
+// comment (a triple-slash reference, a JSDoc import() type or @import) or in a `declare module` block.
 const SITE_BROWSER = 'Open the site in a browser through visit() in site/test/support/browser.ts.'
 const playwrightModule = '^(@playwright/|playwright(-core)?($|/))'
 // A selector's regex ends at its first unescaped slash, so each slash in the pattern is escaped there
@@ -117,6 +123,8 @@ const playwrightLoaded = [{
   selector: [
     `ImportExpression > Literal.source[value=${playwrightInSelector}]`,
     `ImportExpression > TemplateLiteral.source > TemplateElement[value.raw=${playwrightInSelector}]`,
+    `TSImportType > Literal.source[value=${playwrightInSelector}]`,
+    `TSImportType > TemplateLiteral.source > TemplateElement[value.raw=${playwrightInSelector}]`,
     `CallExpression > Literal.arguments[value=${playwrightInSelector}]`,
     `CallExpression > TemplateLiteral.arguments > TemplateElement[value.raw=${playwrightInSelector}]`
   ].join(', '),
