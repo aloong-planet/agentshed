@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, inject, test, vi } from 'vitest'
 import { countText } from '../src/download-count'
 import { LOCALES, PAGE_PATH, type Locale } from '../src/i18n/ui'
 import { hold, launch, ORIGIN, visit, type Answer, type Browser, type Visit } from './support/browser'
-import { COUNT_URL, POINTER_URL, RELEASES_API, statistics } from './support/stand-ins'
+import { COUNT_URL, POINTER_URL, RELEASES, RELEASES_API, statistics } from './support/stand-ins'
 
 let browser: Browser
 beforeAll(async () => {
@@ -138,5 +138,123 @@ describe("the count's line holds its space: nothing from it on moves while its r
     // The line itself, then what follows it
     expect(held.boxes.length, 'elements measured').toBeGreaterThan(1)
     expect(moved(held.boxes, after.boxes), `what moved when the read ${read === 'lands' ? 'landed' : 'failed'}`).toEqual([])
+  })
+})
+
+// landing-page Failure A7
+describe('a download state that lands after the page is shown leaves what the visitor looks at in place', () => {
+  // The test state: no pointer, and only pre-releases on GitHub. Its download block is taller than the list state's
+  // the page was served in, so the block changes height when it lands
+  const READS: Record<string, Answer> = {
+    [POINTER_URL]: 'fail',
+    [RELEASES_API]: [200, JSON.stringify(RELEASES.filter((r) => r.prerelease))],
+    [COUNT_URL]: 'fail'
+  }
+  /** Where the visitor is when the state lands, relative to the hero's download block: scrolled past it, scrolled
+   *  until it is under the header, put past it by a language switch, or with it in view */
+  const PLACES = {
+    'past it': 'past',
+    'under the header': 'under',
+    'switched past it': 'switch',
+    'in view': 'in view'
+  } as const
+  type Place = (typeof PLACES)[keyof typeof PLACES]
+  // Scroll anchoring can keep the place on its own, hiding a page that does not: each place also runs without it
+  const ANCHORING = ['on', 'off'] as const
+  const NO_ANCHORING = '* { overflow-anchor: none !important; }'
+  const cases = LOCALES.flatMap((locale) =>
+    Object.entries(PLACES).flatMap(([where, place]) =>
+      ANCHORING.map((anchoring) => ({ name: `${locale}/${where}/anchoring ${anchoring}`, locale, place, anchoring }))
+    )
+  )
+
+  interface Look {
+    scrollY: number
+    /** The header's bottom: the visitor's view starts below it */
+    viewTop: number
+    block: { top: number; bottom: number }
+    label: string
+    /** The elements after the block that were in view when the first look was taken, and their tops in the window */
+    inView: { name: string; top: number }[]
+  }
+  /** The block, the view and what is in it; the first look notes the elements in view, later looks find them again;
+   *  runs in the page */
+  function look(first: boolean): Look {
+    const page = globalThis as unknown as { inView?: Element[] }
+    const block = document.querySelector('.hero .cta')
+    const header = document.querySelector('.site-header')
+    if (!block || !header) throw new Error('the page has no hero download block or no header')
+    const viewTop = header.getBoundingClientRect().bottom
+    if (first) {
+      page.inView = [...document.body.querySelectorAll('*')].filter((el) => {
+        if (block.contains(el) || !(block.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) return false
+        const r = el.getBoundingClientRect()
+        return r.width > 0 && r.height > 0 && r.bottom > viewTop && r.top < innerHeight
+      })
+    }
+    const { top, bottom } = block.getBoundingClientRect()
+    return {
+      scrollY,
+      viewTop,
+      block: { top, bottom },
+      label: (block.querySelector('a.btn')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+      inView: (page.inView ?? []).map((el, i) => ({
+        name: `#${i} ${el.tagName.toLowerCase()}${[...el.classList].map((c) => `.${c}`).join('')}`,
+        top: el.getBoundingClientRect().top
+      }))
+    }
+  }
+  /** Scrolls the page to the place, the block's bottom 10px above the window or 20px under the header's bottom */
+  function goTo(place: Place): void {
+    const block = document.querySelector('.hero .cta')
+    const header = document.querySelector('.site-header')
+    if (!block || !header) throw new Error('the page has no hero download block or no header')
+    const bottom = block.getBoundingClientRect().bottom + scrollY
+    const top = place === 'past' ? bottom + 10 : place === 'under' ? bottom - header.getBoundingClientRect().bottom + 20 : 0
+    scrollTo({ top, behavior: 'instant' })
+  }
+
+  test.for(cases)('$name', { timeout: CASE_LIMIT }, async ({ locale, place, anchoring }, { expect }) => {
+    const pointer = hold('the pointer read', (url) => url === POINTER_URL)
+    const other = LOCALES.find((l) => l !== locale) ?? locale
+    const start = place === 'switch' ? other : locale
+    const { before, after } = await visit(browser, inject('builtSite'), { ...open(start, 1280, READS), holds: [pointer] }, async (page) => {
+      await pointer.reached(WAIT)
+      if (place === 'switch') {
+        // On the other language's page, the install section across the middle of the view, then the toggle
+        await page.evaluate(() => {
+          const install = document.getElementById('install')
+          if (!install) throw new Error('the page has no install section')
+          scrollTo({ top: scrollY + install.getBoundingClientRect().top - innerHeight * 0.3, behavior: 'instant' })
+        })
+        await Promise.all([
+          page.waitForURL(ORIGIN + PAGE_PATH[locale], { waitUntil: 'domcontentloaded', timeout: WAIT }),
+          page.click('a[data-switch-language]', { timeout: WAIT })
+        ])
+        // The new page's own read is held too
+        await vi.waitFor(() => expect(pointer.held).toHaveLength(2), { timeout: WAIT })
+      } else await page.evaluate(goTo, place)
+      if (anchoring === 'off') await page.addStyleTag({ content: NO_ANCHORING })
+      const before = await page.evaluate(look, true)
+      pointer.release()
+      await vi.waitFor(async () => expect((await page.evaluate(look, false)).label).not.toBe(before.label), { timeout: WAIT })
+      return { before, after: await page.evaluate(look, false) }
+    })
+    // The state landed, and changed the block's height
+    expect(Math.abs(after.block.bottom - after.block.top - (before.block.bottom - before.block.top)), "the change of the block's height").toBeGreaterThan(1)
+    if (place === 'in view') {
+      expect(before.block.bottom, "the block's bottom, below the view's top").toBeGreaterThan(before.viewTop)
+      expect(after.scrollY, 'the scroll position').toBe(before.scrollY)
+      expect(after.block.top, "the block's top").toBeCloseTo(before.block.top, 0)
+      return
+    }
+    expect(before.block.bottom, "the block's bottom, at or above the view's top").toBeLessThanOrEqual(before.viewTop)
+    if (place === 'under') expect(before.block.bottom, "the block's bottom, inside the window under the header").toBeGreaterThan(0)
+    expect(before.inView.length, 'elements in view').toBeGreaterThan(0)
+    const shifted = before.inView.flatMap((b, i) => {
+      const a = after.inView[i]
+      return a && Math.abs(a.top - b.top) <= TOLERANCE ? [] : [`${b.name}: top ${b.top.toFixed(1)} -> ${a?.top.toFixed(1)}`]
+    })
+    expect(shifted, 'what moved in the view when the state landed').toEqual([])
   })
 })
