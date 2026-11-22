@@ -4,7 +4,9 @@
 // sum as stats/downloads.json in the release bucket, which the landing page reads through the download host.
 //
 // It imports nothing, Node's modules included, and reaches the bucket only through the one it is given, whose calls it
-// awaits: list(prefix) answering [{ key, size }], getText(key) and putText(key, text, { cacheControl, contentType }).
+// awaits: list(prefix) answering [{ key, size }] for every object whose key starts with prefix, every page of the
+// listing joined (the core takes the answer as complete: a DMG missing from it is not counted), getText(key) and
+// putText(key, text, { cacheControl, contentType }).
 // So a runtime without Node, such as a Cloudflare Worker, can run it with a bucket of its own; the Download count
 // workflow runs it through scripts/download-count.mjs, with aws-cli's.
 //

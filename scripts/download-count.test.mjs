@@ -742,11 +742,33 @@ test('the script run as a process exits with a failure when it cannot count', ()
   assert.match(result.stderr, /\[download-count\] R2_ACCOUNT_ID is not set/)
 })
 
-// The core runs where neither Node's modules nor the files beside it are: TypeScript's parser lists a module's
-// imports of every form, as the five of the sample show
+// The core runs where neither Node's modules nor the files beside it are. A module's static imports are its import
+// declarations and export-from declarations (ECMAScript's module requests), every one of which the walk of
+// TypeScript's syntax tree takes; at run time it loads one through `import()`, `import.source()`, `import.defer()` or
+// CommonJS's `require()`, which the walk takes too, as the sample's forms show. (TypeScript's preProcessFile, used
+// before, lists neither `export * as` nor `import defer`.)
 test('the core imports nothing, neither a module of Node nor a file', () => {
-  const imports = (source) => ts.preProcessFile(source, true, true).importedFiles.map(({ fileName }) => fileName)
-  const sample = "import a from 'node:url'\nimport './b.mjs'\nexport * from './c.mjs'\nconst d = await import('node:fs')\nconst e = require('node:os')\n"
-  assert.deepEqual(imports(sample), ['node:url', './b.mjs', './c.mjs', 'node:fs', 'node:os'])
+  const imports = (source) => {
+    const found = []
+    const named = (node) => (ts.isStringLiteralLike(node) ? node.text : node.getText())
+    const loads = (callee) => callee.kind === ts.SyntaxKind.ImportKeyword
+      || (ts.isMetaProperty(callee) && callee.keywordToken === ts.SyntaxKind.ImportKeyword)
+      || (ts.isIdentifier(callee) && callee.text === 'require')
+    const visit = (node) => {
+      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) found.push(named(node.moduleSpecifier))
+      if (ts.isCallExpression(node) && loads(node.expression)) found.push(node.arguments.map(named).join(', '))
+      ts.forEachChild(node, visit)
+    }
+    visit(ts.createSourceFile('module.mjs', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS))
+    return found
+  }
+  const sample = [
+    "import a from 'node:url'", "import './b.mjs'", "import defer * as c from './c.mjs'", "export * from './d.mjs'",
+    "export * as e from 'node:path'", "export { f } from './f.mjs'", 'export { a }', "const g = await import('node:fs')",
+    "const h = await import.source('./h.wasm')", "const i = await import.defer('./i.mjs')", "const j = require('node:os')",
+    'const k = await import(name)',
+  ].join('\n')
+  assert.deepEqual(imports(sample),
+    ['node:url', './b.mjs', './c.mjs', './d.mjs', 'node:path', './f.mjs', 'node:fs', './h.wasm', './i.mjs', 'node:os', 'name'])
   assert.deepEqual(imports(readFileSync(new URL('./download-count-core.mjs', import.meta.url), 'utf8')), [])
 })
