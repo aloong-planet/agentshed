@@ -63,6 +63,7 @@ requests are limited to 60 an hour per originating IP address
 account, 10 ms of CPU and 50 subrequests a Cron invocation, errors rather than charges past them
 (<https://developers.cloudflare.com/workers/platform/limits/>, 2026-11-22). Terraform: the GitHub provider 6.13.0 has
 no resource that creates a GitHub App or token; a provider block cannot use a resource attribute computed in its own
-configuration (Terraform 1.16). R2's added operations: about 2,160 Class A and 1,440 Class B a month, at most about
-$0.01 at $4.50 and $0.36 a million, and only when the account is already beyond R2's free tier
-(<https://developers.cloudflare.com/r2/pricing/>, 2026-11-22).
+configuration (Terraform 1.16). R2's added operations in the shadow period: about 5,760 Class A and 3,600 Class B a
+month (the Worker's 2,880 and 1,440, the comparisons' 2,880 and 2,160), at most about $0.03 at $4.50 and $0.36 a
+million, and only when the account is already beyond R2's free tier (<https://developers.cloudflare.com/r2/pricing/>,
+2026-11-22).

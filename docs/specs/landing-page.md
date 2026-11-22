@@ -514,8 +514,8 @@ runs within Cloudflare's Workers Free plan and triggers no paid plan.
 | `comparisons[].workerCoreSha256` | string, 64 lowercase hex digits, or null | That entry's `coreSha256` |
 | `comparisons[].r2Cursor` | `{ statistics, shadow }`, each ISO 8601 UTC or null | Each file's `r2Cursor` |
 | `comparisons[].status` | `cursors-differ`, `equal` or `not-equal` | `cursors-differ` when the two cursors differ, in which case nothing else is compared; otherwise `equal` when every check holds and `not-equal` when one fails |
-| `comparisons[].checks` | `{ r2Bytes, githubAssets, core }`, each boolean, or null | `r2Bytes`: every key of either file's `r2.objects` has the same bytes in the other, a key one file lacks counting as 0, and the same size where both have it; `githubAssets`: every asset of the file with the earlier `updatedAt` is in the other with at least its downloads; `core`: the two core hashes are equal. Null for `cursors-differ` |
-| `comparisons[].r2BytesSinceSeed` | number or null | The sum of `bytes` over the statistics file's `r2.objects` minus the seed's `r2Bytes` |
+| `comparisons[].checks` | `{ r2Bytes, githubAssets, core }`, each boolean, or null | `r2Bytes`: every key of either file's `r2.objects` has the same bytes in the other, a key one file lacks counting as 0, and the same size where both have it; `githubAssets`: every asset of the file with the earlier `updatedAt` is in the other with at least its downloads, each way when the two `updatedAt` are the same instant; `core`: the two core hashes are equal. Null for `cursors-differ` |
+| `comparisons[].r2BytesSinceSeed` | number or null | The sum of `bytes` over the statistics file's `r2.objects` minus the seed's `r2Bytes`; null when the run record holds no seed, or the bucket holds no run record |
 
   The Worker takes the statistics file over only when, over a window of at least 7 consecutive UTC days and at
   least 168 scheduled hours, all five hold:
