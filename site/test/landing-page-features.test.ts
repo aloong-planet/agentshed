@@ -192,7 +192,9 @@ describe('the step the scroll position gives', () => {
         }
         await at(end, 6, 'at the end of the page')
         for (const [turns, step] of [...POSITIONS].reverse()) await at(pinPoint + turns * turn, step, `back at ${turns} turns`)
-        await at(pinPoint - turn / 2, 1, 'back half a turn before the pin point')
+        // Back before the pin point from the second step, so that the first step shows there by the position alone
+        await at(pinPoint + 0.6 * turn, 2, 'at 0.6 turns again')
+        await at(pinPoint - turn / 2, 1, 'back half a turn before the pin point, from the second step')
       }
     )
   })
@@ -357,9 +359,15 @@ describe('a resize shows the form the width gives and the step of where the page
 
 const OTHER = { en: 'zh', zh: 'en' } as const
 
-/** Clicks the header's language link and waits until the other language's page has loaded */
+/** Clicks the header's language link and waits until the other language's page, at its own path, has loaded */
 async function switchLanguage(page: Page, to: keyof typeof OTHER): Promise<void> {
-  await Promise.all([page.waitForURL(`**${PAGE_PATH[to]}`, { timeout: SETTLE }), page.click('a[data-switch-language]', { timeout: SETTLE })])
+  const from = new URL(page.url()).pathname
+  await Promise.all([
+    page.waitForURL((url) => url.pathname === PAGE_PATH[to], { timeout: SETTLE }).catch((error: unknown) => {
+      throw new Error(`the language link on ${from} did not load ${PAGE_PATH[to]}: the page is at ${page.url()}`, { cause: error })
+    }),
+    page.click('a[data-switch-language]', { timeout: SETTLE })
+  ])
 }
 
 // landing-page::REQ-004/AC-07, Failure C5
@@ -401,7 +409,7 @@ describe('a language switch keeps the step and the place', () => {
           // The other page's pin point, for the next leg: where the page is, less how far past the pin point it is
           start = (await page.evaluate(() => scrollY)) - before * turn
         }
-        expect(page.url()).toMatch(new RegExp(`${PAGE_PATH[locale]}$`))
+        expect(new URL(page.url()).pathname, 'the page the case ends on').toBe(PAGE_PATH[locale])
       }
     )
   })

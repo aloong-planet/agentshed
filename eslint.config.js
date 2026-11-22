@@ -106,17 +106,19 @@ const guardCast = [{
 }]
 
 // One way into a browser for the site's cases: visit() in site/test/support/browser.ts (the reason is in its header).
-// Nothing else under site/ imports Playwright, by an import, a re-export, a dynamic import() or require(), types
-// included. What it cannot see: a module name built at run time.
+// Nothing else under site/ imports Playwright, by an import, a re-export or a dynamic import(), types included, or
+// names it to a call, as require(), a require made by createRequire() or any other loader takes it. What it cannot
+// see: a module name built at run time.
 const SITE_BROWSER = 'Open the site in a browser through visit() in site/test/support/browser.ts.'
 const playwrightModule = '^(@playwright/|playwright(-core)?($|/))'
-// A selector's regex ends at the first slash, escaped or not, so the slash is written as \x2F there
+// A selector's regex ends at its first unescaped slash, so each slash in the pattern is escaped there
 const playwrightInSelector = `/${playwrightModule.replaceAll('/', '\\x2F')}/`
 const playwrightLoaded = [{
   selector: [
     `ImportExpression > Literal.source[value=${playwrightInSelector}]`,
     `ImportExpression > TemplateLiteral.source > TemplateElement[value.raw=${playwrightInSelector}]`,
-    `CallExpression[callee.name="require"] > Literal[value=${playwrightInSelector}]`
+    `CallExpression > Literal.arguments[value=${playwrightInSelector}]`,
+    `CallExpression > TemplateLiteral.arguments > TemplateElement[value.raw=${playwrightInSelector}]`
   ].join(', '),
   message: SITE_BROWSER
 }]
