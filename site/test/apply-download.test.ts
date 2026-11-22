@@ -2,7 +2,7 @@
 // pages come from the run's fresh build, and each case gets its own DOM, since applying a view writes to it.
 //
 // Not covered here: whether the page keeps the visitor's place when a state lands while they are scrolled down
-// (jsdom has no layout); that is measured in a browser (evidence/ticket-238/).
+// (jsdom has no layout); that is checked in a browser, in `test/landing-page-late-content.test.ts`.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { JSDOM } from 'jsdom'
