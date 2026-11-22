@@ -28,6 +28,9 @@ apply.
 | `releases/v<version>/Agentshed-<version>-mac-<arch>.dmg` | `application/x-apple-diskimage` | `public, max-age=31536000, immutable`: a version's URL never changes content |
 | `latest.json` | `application/json` | `public, max-age=300`: it moves with every formal release |
 | `stats/downloads.json` | `application/json` | `public, max-age=300`: the download count's statistics file, rewritten every hour (`docs/ops/download-count.md`) |
+| `stats/downloads-shadow.json` | `application/json` | `public, max-age=300`: the Worker's statistics file in the shadow period |
+| `stats/worker-runs.json` | `application/json` | `public, max-age=300`: the Worker's run record, its newest 336 runs |
+| `stats/shadow-comparisons.json` | `application/json` | `public, max-age=300`: the workflow's comparisons of the two files in the shadow period |
 
 `latest.json` is what the landing page reads (mac-distribution::REQ-004/AC-02, landing-page::REQ-001):
 
