@@ -6,7 +6,7 @@
 
 网站：[agentshed.aloongplanet.com](https://agentshed.aloongplanet.com)
 
-![Agentshed 的 Agents 总览](site/public/shots/hero-zh.png)
+![Agentshed 的 Agents 总览](docs/assets/readme/hero-zh.png)
 
 ## 能做什么
 

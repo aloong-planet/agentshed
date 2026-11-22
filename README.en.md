@@ -9,7 +9,7 @@ skills from your global library into any project.
 
 Website: [agentshed.aloongplanet.com](https://agentshed.aloongplanet.com)
 
-![The Agents overview in Agentshed](site/public/shots/hero-en.png)
+![The Agents overview in Agentshed](docs/assets/readme/hero-en.png)
 
 ## What it does
 
