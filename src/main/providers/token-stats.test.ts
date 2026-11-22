@@ -3517,7 +3517,7 @@ describe('usage rows are the one source the projections derive from (ADR-0025)',
     const r = await engine().build(roots(), [proj])
     reconcile(r)
     expect(new Set(r.rows.map((x) => x.side)), 'the fixture must actually produce rows on every side').toEqual(new Set(AGENT_SIDES))
-    // A per-side keying mistake is invisible while only one side has data on a day (Testing Decisions)
+    // A per-side keying mistake is invisible while only one side has data on a day
     const shared = r.global.byDay.find((d) => d.day === r.rows.find((x) => x.side === 'antigravity' && x.total === 1230)?.day)
     expect(shared?.bySide.antigravity).toBe(1230)
     expect(shared?.bySide.claude).toBeGreaterThan(0)

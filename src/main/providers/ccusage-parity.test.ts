@@ -14,7 +14,7 @@
 // The meter reads only Codex's legacy usage event; this application reads Codex's usage records from
 // a rollout's usage boundary on (ADR-0027). On a day any rollout's records fall on, the meter is
 // expected to read lower, so such days are reported as an expected divergence and do not fail the
-// reconciliation — it keeps its meaning for legacy data only (spec token-stats, Testing Decisions).
+// reconciliation — it keeps its meaning for legacy data only (spec token-stats, Implementation Decisions, Accounting).
 import { execFileSync } from 'node:child_process'
 import { readFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
