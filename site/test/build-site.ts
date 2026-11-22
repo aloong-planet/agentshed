@@ -10,7 +10,7 @@
 //
 // It is built as production, as `astro build` builds it: Vitest runs with NODE_ENV=test, and Vite takes a set
 // NODE_ENV as given and builds as production only for "production", so the build would otherwise ship the dev
-// server's choices (import.meta.env.DEV true; the download count's dev path, src/download-count.ts).
+// server's choices (import.meta.env.DEV true).
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'

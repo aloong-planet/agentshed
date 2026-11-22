@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // The download count's collection (landing-page::REQ-011, Implementation Decisions "The collection" and "The statistics
-// file"; ADR-0055): an hourly run adds the download host's traffic, read from Cloudflare's analytics up to the last
-// full hour, to the download counts GitHub reports for the DMG assets, and publishes the sum as stats/downloads.json
-// in the release bucket, which the landing page reads through the download host.
+// file"; ADR-0055): an hourly run adds the download host's traffic, read from Cloudflare's analytics up to the hour
+// REQ-011/AC-04 counts to, to the download counts GitHub reports for the DMG assets, and publishes the sum as
+// stats/downloads.json in the release bucket, which the landing page reads through the download host.
 //
 //   node scripts/download-count.mjs     the Download count workflow's one step (.github/workflows/download-count.yml)
 //
@@ -82,9 +82,8 @@ export function summarize(assets, objects) {
 }
 
 const HOUR_MS = 3_600_000
-// The margin a run keeps under notOlderThan for its own reads, longer than the workflow's ten-minute timeout: an hour
-// the analytics hold when the run plans its ranges is still held when its last query reaches them
-const MARGIN_MS = 15 * 60_000
+// How long before the run an hour must have ended for the run to count it (landing-page::REQ-011/AC-04)
+const SETTLED_MS = 30 * 60_000
 const ON_THE_HOUR = /^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/
 
 /** An instant as the statistics file writes it, ISO 8601 UTC to the second */
@@ -99,13 +98,14 @@ export function hourOf(text) {
 
 /**
  * The ranges of the download host's traffic a run reads (Implementation Decisions "The collection"): from the cursor,
- * or on a first run from the oldest full hour notOlderThan allows, to the last full hour before `now`, each no wider
- * than maxDuration (both in seconds, from the analytics' settings). The new cursor is that last full hour. A cursor
- * older than the analytics hold fails the run, unless it accepts the gap, which it then records (Failure G3).
+ * or on a first run from the oldest full hour notOlderThan allows, to the end of the last hour that ended at least
+ * SETTLED_MS before `now`, each no wider than maxDuration (both in seconds, from the analytics' settings). The new
+ * cursor is that end. A cursor older than the analytics hold fails the run, unless it accepts the gap, which it then
+ * records (Failure G3).
  */
 export function planRanges({ cursor, now, notOlderThan, maxDuration, acceptGap }) {
-  const end = Math.floor(now / HOUR_MS) * HOUR_MS
-  const oldest = Math.ceil((now - notOlderThan * 1000 + MARGIN_MS) / HOUR_MS) * HOUR_MS
+  const end = Math.floor((now - SETTLED_MS) / HOUR_MS) * HOUR_MS
+  const oldest = Math.ceil((now - notOlderThan * 1000) / HOUR_MS) * HOUR_MS
   const width = Math.floor(maxDuration / 3600) * HOUR_MS
   if (width === 0) throw new Error(`the analytics' maxDuration ${maxDuration} is narrower than an hour`)
   if (oldest > end) throw new Error(`the analytics hold no full hour: notOlderThan is ${notOlderThan} seconds`)
@@ -114,7 +114,7 @@ export function planRanges({ cursor, now, notOlderThan, maxDuration, acceptGap }
   if (cursor !== null) {
     const at = hourOf(cursor)
     if (at === null) throw new Error(`the cursor ${cursor} is not on the hour`)
-    if (at > end) throw new Error(`the cursor ${cursor} is after the last full hour, ${iso(end)}`)
+    if (at > end) throw new Error(`the cursor ${cursor} is after ${iso(end)}, the end of the hours this run may count`)
     if (at >= oldest) start = at
     else if (acceptGap) gap = { from: cursor, to: iso(oldest) }
     else {

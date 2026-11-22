@@ -5,11 +5,6 @@ import { HTML_LANG, ui, type Locale } from './i18n/ui'
 import { DOWNLOAD_HOST, get, isObject, TIMEOUT_MS, type Fetch } from './releases'
 
 export const COUNT_URL = `${DOWNLOAD_HOST}/stats/downloads.json`
-/**
- * The same file through the dev server (astro.config.mjs): the download host answers CORS for the landing page's own
- * origin only (Failure G7), so a page served from localhost reads it from its own origin instead
- */
-export const DEV_COUNT_PATH = '/__download-count'
 
 const MAX_TOTAL = 9007199254740991
 const TOLERANCE = 0.000001
@@ -21,8 +16,8 @@ const isShare = (v: unknown): v is number => typeof v === 'number' && Number.isF
  * CORS, the time limit, an answer other than 2xx), is not JSON, has another schemaVersion, or holds a total or share
  * that is negative or not finite, a total above 9007199254740991 or one that is not the sum of the two shares
  */
-export async function readCount(fetch: Fetch, { url = COUNT_URL, timeoutMs = TIMEOUT_MS }: { url?: string; timeoutMs?: number } = {}): Promise<number | null> {
-  const answer = await get(fetch, url, timeoutMs)
+export async function readCount(fetch: Fetch, { timeoutMs = TIMEOUT_MS }: { timeoutMs?: number } = {}): Promise<number | null> {
+  const answer = await get(fetch, COUNT_URL, timeoutMs)
   if (!answer || answer.status < 200 || answer.status > 299 || !isObject(answer.body)) return null
   const { schemaVersion, summary } = answer.body
   if (schemaVersion !== 1 || !isObject(summary) || !isObject(summary['sources'])) return null

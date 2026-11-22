@@ -37,16 +37,13 @@ describe('the download count', () => {
     expect(COUNT_URL).toBe('https://dl.agentshed.aloongplanet.com/stats/downloads.json')
   })
 
-  test('any 2xx answer is read', async () => {
-    expect(await readCount(answering(203, file({ total: 3, sources: { github: 3, r2: 0 } })))).toBe(3)
-  })
-
   test.each([
-    ['the largest total, 9007199254740991', { total: 9007199254740991, sources: { github: 9007199254740991, r2: 0 } }, 9007199254740991],
-    ['a total off the shares by 0.0000005', { total: 7.7500005, sources: { github: 5, r2: 2.75 } }, 7],
-    ['nothing counted yet', { total: 0, sources: { github: 0, r2: 0 } }, 0]
-  ])('accepted: %s', async (_, summary, count) => {
-    expect(await readCount(answering(200, file(summary)))).toBe(count)
+    ['an answer other than 200 in 2xx, 203', 203, { total: 3, sources: { github: 3, r2: 0 } }, 3],
+    ['the largest total, 9007199254740991', 200, { total: 9007199254740991, sources: { github: 9007199254740991, r2: 0 } }, 9007199254740991],
+    ['a total off the shares by 0.0000005', 200, { total: 7.7500005, sources: { github: 5, r2: 2.75 } }, 7],
+    ['nothing counted yet', 200, { total: 0, sources: { github: 0, r2: 0 } }, 0]
+  ])('accepted: %s', async (_, status, summary, count) => {
+    expect(await readCount(answering(status, file(summary)))).toBe(count)
   })
 
   const valid = { total: 7.75, sources: { github: 5, r2: 2.75 } }

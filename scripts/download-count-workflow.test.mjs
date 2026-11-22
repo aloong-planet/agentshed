@@ -45,8 +45,6 @@ test('one run at a time, queued rather than cancelled, reading the repository on
   assert.deepEqual(otherJobs, [])
   assert.deepEqual(workflow.concurrency, { group: 'download-count', 'cancel-in-progress': false })
   assert.deepEqual(workflow.permissions, { contents: 'read' })
-  // The collection's margin under notOlderThan (scripts/download-count.mjs, MARGIN_MS) is a quarter of an hour
-  assert.ok(job['timeout-minutes'] > 0 && job['timeout-minutes'] < 15, String(job['timeout-minutes']))
 })
 
 test('a missing credential fails the run first, naming the six secrets, and the credentials reach only the counting step', () => {

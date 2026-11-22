@@ -171,9 +171,9 @@ test('the summary adds the shares unrounded: downloads on GitHub, and bytes over
   assert.deepEqual(summarize({}, {}), { total: 0, sources: { github: 0, r2: 0 } })
 })
 
-// The clock reads 09:47:12 UTC, the minute the schedule runs at: the last full hour ends at 09:00. A day of
-// notOlderThan reaches back to 09:47:12 the day before; the run keeps a quarter of an hour's margin for its own reads
-// (a run times out after ten minutes), so the oldest full hour the analytics hold for it starts at 11:00.
+// The clock reads 09:47:12 UTC, the minute the schedule runs at: the last full hour ended at 09:00, 47 minutes
+// before. A day of notOlderThan reaches back to 09:47:12 the day before, so the oldest full hour the analytics hold
+// starts at 10:00.
 const NOW = Date.UTC(2026, 10, 22, 9, 47, 12)
 const DAY = 86400
 
@@ -202,12 +202,31 @@ test('the traffic is read from the cursor to the last full hour, in ranges no wi
   ])
 })
 
+// landing-page::REQ-011/AC-04: a run counts an hour once it ended at least half an hour before the run, whether
+// the run is on time, delayed by GitHub into the next hour, or started by hand
+test('an hour is counted once it ended half an hour before the run, so a run early in an hour stops an hour sooner', () => {
+  const run = { cursor: '2026-11-22T07:00:00Z', notOlderThan: 31 * DAY, maxDuration: 3 * DAY, acceptGap: false }
+  const counted = (now) => planRanges({ ...run, now })
+  assert.deepEqual(counted(Date.UTC(2026, 10, 22, 10, 5, 0)), {
+    ranges: [{ from: '2026-11-22T07:00:00Z', to: '2026-11-22T09:00:00Z' }],
+    cursor: '2026-11-22T09:00:00Z',
+    gap: null
+  })
+  assert.equal(counted(Date.UTC(2026, 10, 22, 10, 29, 59, 999)).cursor, '2026-11-22T09:00:00Z')
+  assert.deepEqual(counted(Date.UTC(2026, 10, 22, 10, 30, 0)), {
+    ranges: [{ from: '2026-11-22T07:00:00Z', to: '2026-11-22T10:00:00Z' }],
+    cursor: '2026-11-22T10:00:00Z',
+    gap: null
+  })
+  assert.equal(counted(Date.UTC(2026, 10, 22, 10, 47, 12)).cursor, '2026-11-22T10:00:00Z')
+})
+
 test('a first run starts at the oldest full hour notOlderThan allows', () => {
   assert.deepEqual(planRanges({ cursor: null, now: NOW, notOlderThan: DAY, maxDuration: 36000, acceptGap: false }), {
     ranges: [
-      { from: '2026-11-21T11:00:00Z', to: '2026-11-21T21:00:00Z' },
-      { from: '2026-11-21T21:00:00Z', to: '2026-11-22T07:00:00Z' },
-      { from: '2026-11-22T07:00:00Z', to: '2026-11-22T09:00:00Z' }
+      { from: '2026-11-21T10:00:00Z', to: '2026-11-21T20:00:00Z' },
+      { from: '2026-11-21T20:00:00Z', to: '2026-11-22T06:00:00Z' },
+      { from: '2026-11-22T06:00:00Z', to: '2026-11-22T09:00:00Z' }
     ],
     cursor: '2026-11-22T09:00:00Z',
     gap: null
@@ -220,20 +239,22 @@ test('a cursor older than the analytics hold fails the run, unless the run accep
   const stale = { cursor: '2026-11-20T00:00:00Z', now: NOW, notOlderThan: DAY, maxDuration: 3 * DAY }
   assert.throws(
     () => planRanges({ ...stale, acceptGap: false }),
-    /the cursor 2026-11-20T00:00:00Z is older than 2026-11-21T11:00:00Z, the oldest full hour the analytics hold/
+    /the cursor 2026-11-20T00:00:00Z is older than 2026-11-21T10:00:00Z, the oldest full hour the analytics hold/
   )
   assert.deepEqual(planRanges({ ...stale, acceptGap: true }), {
-    ranges: [{ from: '2026-11-21T11:00:00Z', to: '2026-11-22T09:00:00Z' }],
+    ranges: [{ from: '2026-11-21T10:00:00Z', to: '2026-11-22T09:00:00Z' }],
     cursor: '2026-11-22T09:00:00Z',
-    gap: { from: '2026-11-20T00:00:00Z', to: '2026-11-21T11:00:00Z' }
+    gap: { from: '2026-11-20T00:00:00Z', to: '2026-11-21T10:00:00Z' }
   })
-  assert.deepEqual(planRanges({ ...stale, cursor: '2026-11-21T11:00:00Z', acceptGap: false }).gap, null)
+  // The oldest full hour held is read; the hour before it began before 09:47:12, so not all of it is held
+  assert.deepEqual(planRanges({ ...stale, cursor: '2026-11-21T10:00:00Z', acceptGap: false }).gap, null)
+  assert.throws(() => planRanges({ ...stale, cursor: '2026-11-21T09:00:00Z', acceptGap: false }), /is older than 2026-11-21T10:00:00Z/)
 })
 
 test('a cursor at the last full hour reads nothing, and one after it or off the hour fails the run', () => {
   const limits = { now: NOW, notOlderThan: 31 * DAY, maxDuration: 3 * DAY, acceptGap: false }
   assert.deepEqual(planRanges({ ...limits, cursor: '2026-11-22T09:00:00Z' }), { ranges: [], cursor: '2026-11-22T09:00:00Z', gap: null })
-  assert.throws(() => planRanges({ ...limits, cursor: '2026-11-22T10:00:00Z' }), /the cursor 2026-11-22T10:00:00Z is after the last full hour, 2026-11-22T09:00:00Z/)
+  assert.throws(() => planRanges({ ...limits, cursor: '2026-11-22T10:00:00Z' }), /the cursor 2026-11-22T10:00:00Z is after 2026-11-22T09:00:00Z, the end of the hours this run may count/)
   assert.throws(() => planRanges({ ...limits, cursor: '2026-11-22T08:30:00Z' }), /the cursor 2026-11-22T08:30:00Z is not on the hour/)
   assert.throws(() => planRanges({ ...limits, cursor: '2026-11-22T08:00:00.000Z' }), /is not on the hour/)
   assert.throws(() => planRanges({ ...limits, cursor: null, notOlderThan: 600 }), /the analytics hold no full hour/)
@@ -390,7 +411,7 @@ test("a first run publishes the statistics file with GitHub's count, a download 
   const order = requests.map(({ to }) => to)
   assert.deepEqual(order, ['list', 'github', 'list', 'settings', 'traffic', 'put'])
   assert.deepEqual(requests.filter(({ to }) => to === 'list').map(({ prefix }) => prefix), ['stats/downloads.json', 'releases/'])
-  assert.deepEqual(requests.filter(({ to }) => to === 'traffic').map(({ variables }) => [variables.filter.datetime_geq, variables.filter.datetime_lt]), [['2026-11-21T11:00:00Z', '2026-11-22T09:00:00Z']])
+  assert.deepEqual(requests.filter(({ to }) => to === 'traffic').map(({ variables }) => [variables.filter.datetime_geq, variables.filter.datetime_lt]), [['2026-11-21T10:00:00Z', '2026-11-22T09:00:00Z']])
 })
 
 test("the next run takes the previous file, adds the hour since its cursor, and moves the cursor on", async () => {
@@ -425,8 +446,8 @@ test("the analytics are asked, with their own token, for the download host's suc
   }
   const [first] = traffic
   assert.deepEqual(first.variables.filter, {
-    datetime_geq: '2026-10-22T11:00:00Z',
-    datetime_lt: '2026-10-25T11:00:00Z',
+    datetime_geq: '2026-10-22T10:00:00Z',
+    datetime_lt: '2026-10-25T10:00:00Z',
     clientRequestHTTPHost: 'dl.agentshed.aloongplanet.com',
     clientRequestHTTPMethodName: 'GET',
     clientRequestPath_like: '/releases/%',
@@ -492,6 +513,32 @@ test('a run in which any read fails, or answers what the run cannot validate, wr
   }
 })
 
+// Failures G1 and G2 through the bucket's two listings, read through the aws-cli adapter: one that fails, or answers
+// what the adapter cannot read, fails the run. Neither reads as an empty bucket, which would start the count over (the
+// statistics file's listing) or drop the DMGs not yet recorded (the listing under releases/)
+test('a run whose bucket listing fails, or answers what cannot be read, writes nothing, whichever listing it is', async () => {
+  const previousFile = { text: `${JSON.stringify({ ...writtenFile(), r2Cursor: '2026-11-22T08:00:00Z' }, null, 2)}\n` }
+  const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const answers = [
+    ['fails', () => { throw new Error('aws s3api failed (exit 255)\nAn error occurred (InternalError)') }, () => /InternalError/],
+    ['prints nothing', () => ({ stdout: '' }), (prefix) => new RegExp(escaped(`aws listed ${prefix} as "", not a listing`))],
+    ['prints no listing', () => ({ stdout: '{}' }), (prefix) => new RegExp(escaped(`aws listed ${prefix} as "{}", not a listing`))]
+  ]
+  for (const prefix of ['stats/downloads.json', 'releases/']) {
+    for (const [label, answer, reason] of answers) {
+      const w = world({ objects: { 'stats/downloads.json': previousFile, [DMG_KEY]: { size: 1000 } } })
+      const aws = awsOf(w)
+      const listsPrefix = (args) => args[1] === 'list-objects-v2' && args[args.indexOf('--prefix') + 1] === prefix
+      const run = (args) => (listsPrefix(args) ? answer() : aws.run(args))
+      const bucket = awsBucket({ bucket: 'agentshed-releases', endpoint: 'https://acct.r2.cloudflarestorage.com', run })
+      const before = w.bucket.get('stats/downloads.json')
+      await assert.rejects(collect({ ...RUN, bucket, fetch: w.fetch, now: NOW }), reason(prefix), `${prefix} ${label}`)
+      assert.equal(w.requests.some(({ to }) => to === 'put'), false, `${prefix} ${label}`)
+      assert.equal(w.bucket.get('stats/downloads.json'), before, `${prefix} ${label}`)
+    }
+  }
+})
+
 test('after a failed run, the next run counts the hours the failed one missed', async () => {
   const objects = { [DMG_KEY]: { size: 1000 } }
   const traffic = { '2026-11-22T08:00:00Z': [{ path: `/${DMG_KEY}`, bytes: 1000 }], '2026-11-22T09:00:00Z': [{ path: `/${DMG_KEY}`, bytes: 2000 }] }
@@ -513,8 +560,8 @@ test('after a failed run, the next run counts the hours the failed one missed', 
 })
 
 // Failure G3: eight days of notOlderThan. A run on 1 September, then nothing until 1 October, when the oldest full
-// hour held is 23 September 02:00 (00:47:12 eight days back, plus the margin); then nothing until now, when it is
-// 14 November 11:00. Each stall fails the scheduled run and is resumed by a manual run that accepts it.
+// hour held is 23 September 01:00 (the first after 00:47:12 eight days back); then nothing until now, when it is
+// 14 November 10:00. Each stall fails the scheduled run and is resumed by a manual run that accepts it.
 test('a stalled count fails every scheduled run, and a manual run that accepts the gap resumes it, recording the gap and keeping the counts', async () => {
   const limits = { ...LIMITS, notOlderThan: 8 * DAY }
   const objects = { [DMG_KEY]: { size: 1000 } }
@@ -530,14 +577,14 @@ test('a stalled count fails every scheduled run, and a manual run that accepts t
     return w.bucket.get('stats/downloads.json')
   }
   const september = await runAt(Date.UTC(2026, 8, 1, 0, 47, 12), null, false)
-  await assert.rejects(runAt(Date.UTC(2026, 9, 1, 0, 47, 12), september, false), /the cursor 2026-09-01T00:00:00Z is older than 2026-09-23T02:00:00Z/)
+  await assert.rejects(runAt(Date.UTC(2026, 9, 1, 0, 47, 12), september, false), /the cursor 2026-09-01T00:00:00Z is older than 2026-09-23T01:00:00Z/)
   const october = await runAt(Date.UTC(2026, 9, 1, 0, 47, 12), september, true)
-  await assert.rejects(runAt(NOW, october, false), /the cursor 2026-10-01T00:00:00Z is older than 2026-11-14T11:00:00Z/)
+  await assert.rejects(runAt(NOW, october, false), /the cursor 2026-10-01T00:00:00Z is older than 2026-11-14T10:00:00Z/)
   const file = JSON.parse((await runAt(NOW, october, true)).text)
 
   assert.deepEqual(file.r2Gaps, [
-    { from: '2026-09-01T00:00:00Z', to: '2026-09-23T02:00:00Z' },
-    { from: '2026-10-01T00:00:00Z', to: '2026-11-14T11:00:00Z' }
+    { from: '2026-09-01T00:00:00Z', to: '2026-09-23T01:00:00Z' },
+    { from: '2026-10-01T00:00:00Z', to: '2026-11-14T10:00:00Z' }
   ])
   assert.equal(file.r2Cursor, '2026-11-22T09:00:00Z')
   assert.deepEqual(file.r2.objects[DMG_KEY], { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 3000 })
@@ -645,7 +692,7 @@ test('the entry point counts on the account endpoint with each credential where 
   }
   assert.equal(w.requests.find(({ to }) => to === 'traffic').variables.filter.clientRequestHTTPHost, 'dl.agentshed.aloongplanet.com')
   const file = published(w.bucket)
-  assert.deepEqual(file.r2Gaps, [{ from: '2026-10-01T00:00:00Z', to: '2026-10-22T11:00:00Z' }])
+  assert.deepEqual(file.r2Gaps, [{ from: '2026-10-01T00:00:00Z', to: '2026-10-22T10:00:00Z' }])
   assert.equal(file.r2.objects[DMG_KEY].bytes, 3000)
   assert.equal(w.bucket.get('stats/downloads.json').contentType, 'application/json')
   assert.deepEqual(lines, ['[download-count] 23 downloads: 20 on GitHub, 3 from the download host, counted to 2026-11-22T09:00:00Z'])

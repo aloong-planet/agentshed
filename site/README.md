@@ -40,8 +40,7 @@ theme also selects website checks because the palette test reads it. See [CI rou
 - `src/download-count.ts`: the page's one other read, the download count's statistics file on the download host,
   of which only a validated total reaches the page. The hourly workflow that writes it is in
   [its runbook](../docs/ops/download-count.md). The download host answers CORS for the landing page's own origin
-  only, so `pnpm dev` reads the file through the dev server's proxy (`/__download-count`, `astro.config.mjs`).
-  `pnpm preview` and a Pages preview read the public URL from their own origin, and show no count.
+  only, so `pnpm dev`, `pnpm preview` and a Pages preview show no count, as they show no formal release from R2.
 - `src/download.ts`: the download state the two reads decide (formal from R2, formal from GitHub, test, or the
   list), and what each state's buttons say and where they lead. The page is served in the list state, which
   leads to GitHub's release list.
@@ -75,7 +74,7 @@ theme also selects website checks because the palette test reads it. See [CI rou
   fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the
   release script writes it, and a real releases answer from GitHub reshaped to this repository.
 - `test/build-site.ts` builds as production, as `pnpm build` does: the tests run with `NODE_ENV=test`, under which
-  the build would otherwise keep the dev server's choices, such as the download count's proxy path.
+  the build would otherwise keep the dev server's choices, such as `import.meta.env.DEV` being true.
 
 ## Deploying (Cloudflare Pages)
 

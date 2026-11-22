@@ -1,9 +1,10 @@
 name: Download count
 
 # The landing page's download count (docs/specs/landing-page.md, REQ-011; ADR-0055): every hour, GitHub's DMG
-# download counts and the download host's traffic up to the last full hour, published as stats/downloads.json in the
-# release bucket (scripts/download-count.mjs). The credentials, the first runs and resuming a stalled count are in
-# docs/ops/download-count.md; scripts/download-count-workflow.test.mjs guards the triggers and every condition below.
+# download counts and the download host's traffic up to the hour REQ-011/AC-04 counts to, published as
+# stats/downloads.json in the release bucket (scripts/download-count.mjs). The credentials, the first runs and
+# resuming a stalled count are in docs/ops/download-count.md; scripts/download-count-workflow.test.mjs guards the
+# triggers and every condition below.
 on:
   schedule:
     # Minute 47 rather than the hour, when GitHub's scheduled runs crowd and are most often delayed
@@ -31,7 +32,7 @@ jobs:
   count:
     name: count the downloads
     runs-on: ubuntu-latest
-    # Under the collection's quarter-hour margin under notOlderThan (scripts/download-count.mjs)
+    # A run that hangs would hold up the next one, which waits for it
     timeout-minutes: 10
     env:
       # A secret cannot appear in a step's `if`, so the job turns the set of secrets into a boolean first

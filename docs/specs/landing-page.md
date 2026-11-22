@@ -204,9 +204,9 @@ In both languages, the existing footer copyright line links the author name "alo
   between the two sources or between visitors.
 - landing-page::REQ-011/AC-03: The count never goes down. A DMG asset deleted from GitHub keeps the last
   count read for it, and a DMG removed from the bucket keeps the bytes it was served.
-- landing-page::REQ-011/AC-04: The count is brought up to date every hour, over the download host's
-  traffic up to the last full hour, and published as the statistics file `stats/downloads.json` on the
-  download host.
+- landing-page::REQ-011/AC-04: The count is brought up to date every hour and published as the statistics
+  file `stats/downloads.json` on the download host. Each update counts the download host's traffic up to the
+  last full hour that ended at least 30 minutes before the update started.
 - landing-page::REQ-011/AC-05: The line stays empty, and the rest of the page is unaffected, when the
   statistics file is absent, cannot be fetched (the network, CORS, the time limit, an answer other than
   2xx), is not JSON, has a `schemaVersion` other than 1, or holds a total, GitHub share or R2 share that is
@@ -353,8 +353,8 @@ visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
 
 - **The hero video** uses a local 1600×900 poster and a progressively enhanced YouTube link.
   Activation creates an iframe on `youtube-nocookie.com` with playback requested, inline playback
-  and fullscreen allowed, and `strict-origin-when-cross-origin` referrer policy to identify the
-  embedding origin. No YouTube API library is loaded.
+  and fullscreen allowed, and the `strict-origin-when-cross-origin` referrer policy, which sends YouTube
+  the embedding origin. No YouTube API library is loaded.
 
 - **The Pages project** has its root directory set to `site`. It permanently redirects the legacy English URLs; the static build includes a fallback for local previews.
 - **The pointer read** takes a pointer only when its version is a formal version and its files name the
@@ -385,20 +385,19 @@ visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
 - **The language toggle** is a link to the other language's page, so it works without scripts. Before
   leaving, a script notes the element in view, its distance from the top of the window and the current
   step; the other page puts the same element back at the same distance and makes the same step current
-  (landing-page::REQ-004/AC-07). An element rather than a scroll offset, because the two languages' texts
-  wrap to different heights. The pinned showcase is never that element (Failure C5).
+  (landing-page::REQ-004/AC-07). The pinned showcase is never that element (Failure C5).
 - **The features section**: the showcase is pinned inside a block one window tall plus 60% of a
   window for each further step, so the number of steps sets the block's height. The current step is
   the distance scrolled past the point where it pins, in turns, rounded and kept within the steps,
   both measured from the page; it is computed on scroll and on resize. The steps' texts share one
-  place, and so do their screenshots; the others are hidden with visibility as well as opacity,
-  since a transparent screenshot would still lie on top and take the pointer.
+  place, and so do their screenshots; the others are hidden with visibility as well as opacity, and
+  take no pointer.
 - **The screenshots** ship as static assets with their width and height declared. They are taken at 2×
-  pixels from a window 1280pt wide and 800pt tall. Each feature cut is 920×517pt (16:9), the narrowest that
-  holds the token page's trend chart and per-model figures whole. The search and memory screenshots are
-  taken from a window narrowed to 984pt, so that the pane reflows into the 920pt cut; the memory cut
-  expands a project with only a few memory files, so that other projects stay in view. The English session
-  retake uses a 1240pt window so the session pane fits the 920pt cut without truncating its right edge.
+  pixels from a window 1280pt wide and 800pt tall. Each feature cut is 920×517pt (16:9) and holds the
+  token page's trend chart and per-model figures whole. The search and memory screenshots are taken from a
+  window narrowed to 984pt, in which the pane reflows into the 920pt cut; the memory cut expands a project
+  with only a few memory files, with other projects still in view. The English session retake uses a 1240pt
+  window, in which the session pane fits the 920pt cut with its right edge whole.
 - **The collection** is a scheduled workflow in this repository, one run at a time (ADR-0055). A DMG is an
   asset or object named `Agentshed-<version>-mac-<arch>.dmg`, the packaged name. A run reads the previous
   statistics file from the bucket itself, never through the download host's cache; GitHub's releases, every
@@ -406,9 +405,10 @@ visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
   for the zone, filtered to the download host as `clientRequestHTTPHost`, method `GET`, status 200 or 206,
   `clientRequestPath` under `/releases/` and `requestSource` `eyeball`, summing `edgeResponseBytes` by
   `clientRequestPath`. It first reads the dataset's `notOlderThan` and `maxDuration` from the analytics'
-  `settings`, queries from the cursor to the last full hour in ranges no wider than `maxDuration`, and on a
-  first run starts at the oldest full hour `notOlderThan` allows. Only after every read has succeeded does it
-  write the new file, as `application/json` with `public, max-age=300`. A run without its credentials fails.
+  `settings`, queries from the cursor to the hour landing-page::REQ-011/AC-04 counts to, in ranges no wider
+  than `maxDuration`, and on a first run starts at the oldest full hour `notOlderThan` allows. Only after
+  every read has succeeded does it write the new file, as `application/json` with `public, max-age=300`. A
+  run without its credentials fails.
 - **The statistics file** is JSON with these fields; the page reads `schemaVersion` and `summary` only.
 
 | Field | Type | Meaning |

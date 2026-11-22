@@ -5,8 +5,9 @@
 //
 // Not covered here, by the seam the owner chose: the features section's pinned showcase and how the scroll
 // turns its steps (landing-page::REQ-004, Failures C1–C3 and C5–C7), the layout across widths (landing-page::QR-001), and
-// what the page looks like in light and dark (landing-page::REQ-006, Failure D1), and YouTube playback and click-to-load geometry.
-// They are measured in a browser
+// what the page looks like in light and dark (landing-page::REQ-006, Failure D1), YouTube playback and click-to-load geometry,
+// and the download count's line keeping its height when its text appears (landing-page::REQ-011/AC-01; jsdom lays nothing
+// out). They are measured in a browser
 // against the built site, and the measurement record is kept with the ticket's evidence; they would become tests
 // only with a browser seam in these tests.
 // Host HTTP status and query/fragment preservation require a Cloudflare Pages runtime browser check;
@@ -127,7 +128,7 @@ describe('the download as served: the list state', () => {
     for (const b of [hero, ...buttons]) expect(text(b)).not.toMatch(/\d+\.\d+/)
   })
 
-  // landing-page::REQ-011/AC-01, AC-05: below the card, its space held by its style, empty until its read fills it
+  // landing-page::REQ-011/AC-01, AC-05: below the card, empty until its read fills it
   test.each(LOCALES)('%s: the download count’s line sits right below the download card, served empty', (locale) => {
     const line = pages[locale].querySelector('#download .dl')?.nextElementSibling
     expect(line?.matches('p.dl-count[data-download-count]')).toBe(true)
@@ -135,14 +136,12 @@ describe('the download as served: the list state', () => {
     expect(line?.nextElementSibling).toBeNull()
   })
 
-  // landing-page::CON-003, Failure G7: the built page reads the statistics file on the download host; the dev
-  // server's own path to it is chosen only under the dev server
-  test('the built script reads the statistics file on the download host, never the dev server’s path', () => {
+  // landing-page::CON-003: the page as built reads the statistics file at its public URL on the download host
+  test('the built script reads the statistics file on the download host', () => {
     const built = files()
       .filter((f) => /\.(js|html)$/.test(f))
       .map((f) => [f, readFileSync(join(outDir, f), 'utf8')] as const)
     expect(built.filter(([, body]) => body.includes('dl.agentshed.aloongplanet.com') && body.includes('/stats/downloads.json')).length).toBeGreaterThan(0)
-    expect(built.filter(([, body]) => body.includes('__download-count')).map(([f]) => f)).toEqual([])
   })
 
   test('the English list state reads as the spec’s', () => {

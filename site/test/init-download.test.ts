@@ -98,14 +98,6 @@ describe('the download count', () => {
     await vi.waitFor(() => expect(countLine(doc).textContent).toBe(line))
   })
 
-  test('the file is read from the URL the page is given, so the dev server can read it from its own origin', async () => {
-    const doc = page('en')
-    const net = network({ '/__download-count': [200, statistics(5, 5, 0)], [POINTER_URL]: [200, POINTER] })
-    await initDownload(doc, net, '/__download-count')
-    await vi.waitFor(() => expect(countLine(doc).textContent).toBe('Downloads so far: 5'))
-    expect(net.urls).toEqual(['/__download-count', POINTER_URL])
-  })
-
   // Failure E3: only the validated total reaches the page, as text
   test('markup in the file never reaches the page: the line holds the number as text and nothing else', async () => {
     const doc = page('en')
