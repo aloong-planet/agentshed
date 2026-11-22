@@ -19,7 +19,8 @@
 // each put is evaluated, where another writer may come in between the caller's read and its write; `unlisted` keys
 // are left out of every listing while get still answers them, as a listing that misses an object would; `failing`
 // makes a call reject, as a binding's call does when its round trip fails: for each of get, put and list, a function
-// of the call's key (the prefix for list) answering the error, or nothing for a call that goes through.
+// of the call's key (the prefix for list; the key and the value for put) answering the error, or nothing for a call
+// that goes through.
 //
 // Gap: the docs are the only source. Whether the real runtime enforces etagMatches and If-None-Match: * on put, and how
 // its pages are cut, was not observed; the Worker's first runs in production are that check (docs/ops/download-count.md).
@@ -42,8 +43,8 @@ const later = (call) => new Promise((resolve, reject) => {
  */
 export function r2Binding({ objects = {}, pageSize = MAX_LIMIT, unlisted = [], beforePut, failing = {} } = {}) {
   const store = new Map()
-  const fails = (call, key) => {
-    const error = failing[call]?.(key)
+  const fails = (call, ...args) => {
+    const error = failing[call]?.(...args)
     if (error) throw error
   }
   let uploads = 0
@@ -80,7 +81,7 @@ export function r2Binding({ objects = {}, pageSize = MAX_LIMIT, unlisted = [], b
     }),
     put: (key, value, { onlyIf, httpMetadata } = {}) => later(() => {
       beforePut?.(key, binding)
-      fails('put', key)
+      fails('put', key, value)
       if (typeof value !== 'string') throw new Error('the stand-in stores text only')
       if (!holds(key, onlyIf)) return null
       return meta(save(key, { text: value, httpMetadata }))

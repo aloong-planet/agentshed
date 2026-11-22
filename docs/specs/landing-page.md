@@ -477,7 +477,7 @@ runs within Cloudflare's Workers Free plan and triggers no paid plan.
 | Field | Type | Meaning |
 |---|---|---|
 | `schemaVersion` | number | `1` |
-| `seed` | `{ at, r2Cursor, r2Bytes }` or null | The statistics file the shadow file started from ("The shadow period"): when it was read, its `r2Cursor`, and the sum of `bytes` over its `r2.objects` |
+| `seed` | `{ at, r2Cursor, r2Bytes }` or null | The statistics file the shadow file started from ("The shadow period"): when it was read, its `r2Cursor`, and the sum of `bytes` over its `r2.objects`; null when the shadow file started over |
 | `runs` | array, oldest first | The newest 336 runs; appending one more drops the oldest |
 | `runs[].scheduledTime` | string, ISO 8601 UTC | The Cron Trigger's scheduled time for the run |
 | `runs[].coreSha256` | string, 64 lowercase hex digits | The pinned SHA-256 of the core module the run used |
@@ -485,7 +485,7 @@ runs within Cloudflare's Workers Free plan and triggers no paid plan.
 | `runs[].written` | boolean | Whether the run wrote that file |
 | `runs[].github` | `ok`, `rate-limited`, `failed` or `not-read` | GitHub's read. `rate-limited`: GitHub answered 403 or 429 with `x-ratelimit-remaining` `0`, or with a message naming a secondary rate limit; `failed`: any other failed read or answer the run cannot validate; `not-read`: the run failed before any of these reads started. A run refused for a cursor the analytics no longer hold (Failure G3) fails none of them |
 | `runs[].analytics` | `ok`, `failed` or `not-read` | The analytics' settings and traffic reads, as for `github` |
-| `runs[].bucket` | `ok`, `failed` or `not-read` | The previous file, the listing and the write, as for `github` |
+| `runs[].bucket` | `ok`, `failed` or `not-read` | The previous file, the listing, the seed's write ("The shadow period") and the file's write, as for `github` |
 | `runs[].failure` | string or null | What failed the run, never a credential; null when it wrote its file |
 | `runs[].r2Cursor` | string, ISO 8601 UTC, on the hour, or null | The cursor of the file the run wrote; null when it wrote nothing |
 
@@ -494,7 +494,9 @@ runs within Cloudflare's Workers Free plan and triggers no paid plan.
   workflow keeps collecting into the statistics file, one run at a time, on GitHub's schedule and when run by
   hand, accepting a gap only in a manual run asked to. While the shadow file is absent, the Worker takes the
   statistics file as the previous file, starting over only when that is absent too (Failure G1), and records it
-  as the run record's `seed`.
+  as the run record's `seed`. It writes the seed into the run record before it writes the shadow file. A run that
+  cannot write the seed fails and writes no shadow file, and the next run seeds again; so does a run whose run record
+  cannot be read or is not one, an exception to Failure G9.
 
   After each run in which it wrote the statistics file, the workflow compares it with the shadow file and appends
   the comparison to `stats/shadow-comparisons.json`, which it alone writes, with the run record's content type and
@@ -522,8 +524,8 @@ runs within Cloudflare's Workers Free plan and triggers no paid plan.
 
   1. scheduled hours with no run record entry are at most 5% of the scheduled hours;
   2. entries whose `github` is `ok` are at least 95% of the scheduled hours;
-  3. every comparison other than `cursors-differ` is `equal`, at least one is made on every UTC day of the window,
-     and at least one has an `r2BytesSinceSeed` above 0;
+  3. every comparison other than `cursors-differ` is `equal`, at least one such comparison is made on every UTC day of
+     the window, and at least one such comparison has an `r2BytesSinceSeed` above 0;
   4. landing-page::CON-004 holds;
   5. the workflow's scheduled runs started on every UTC day of the window.
 

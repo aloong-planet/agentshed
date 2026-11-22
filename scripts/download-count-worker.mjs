@@ -93,8 +93,8 @@ function bindingBucket(binding) {
 const asText = (file) => `${JSON.stringify(file, null, 2)}\n`
 const messageOf = (error) => (error instanceof Error ? error.message : String(error))
 
-/** The run's entry appended to the run record, with the seed when the run set it; absent, the record starts here */
-async function appendRun(bucket, entry, seed) {
+/** The run record changed by `change` and written back, on the etag read (Failure G10); absent, it starts here */
+async function updateRuns(bucket, change) {
   const text = await bucket.read(RUNS_KEY)
   let record = { schemaVersion: 1, seed: null, runs: [] }
   if (text !== null) {
@@ -105,8 +105,7 @@ async function appendRun(bucket, entry, seed) {
     }
     validateRuns(record)
   }
-  const next = validateRuns({ schemaVersion: 1, seed: seed === undefined ? record.seed : seed, runs: [...record.runs, entry].slice(-MAX_RUNS) })
-  await bucket.putText(RUNS_KEY, asText(next), WRITTEN)
+  await bucket.putText(RUNS_KEY, asText(validateRuns(change(record))), WRITTEN)
 }
 
 /**
@@ -126,6 +125,21 @@ export async function run(controller, env, { fetch, now, log = console.log, erro
   const redact = (text) => (token ? text.replaceAll(token, '[the analytics token]') : text)
   const at = now()
 
+  // A run that starts from the file it writes is where the shadow file starts: from the statistics file, or from
+  // nothing when the bucket held neither. Its seed is written before the shadow file, so that the shadow file never
+  // exists without one: a run that cannot write it fails, and the next run, finding no shadow file, seeds again
+  const seedFirst = async ({ previous, previousKey }) => {
+    if (previousKey === KEY) return
+    const seed = previousKey === SEED_KEY
+      ? { at: new Date(at).toISOString(), r2Cursor: previous.r2Cursor, r2Bytes: Object.values(previous.r2.objects).reduce((sum, { bytes }) => sum + bytes, 0) }
+      : null
+    try {
+      await updateRuns(bucket, (record) => ({ ...record, seed }))
+    } catch (error) {
+      throw new Error(`the seed was not written to ${RUNS_KEY}: ${messageOf(error)}`, { cause: error })
+    }
+  }
+
   let counted = null
   let failure = null
   let outcomes = { github: 'not-read', analytics: 'not-read', bucket: 'not-read' }
@@ -141,7 +155,8 @@ export async function run(controller, env, { fetch, now, log = console.log, erro
       host: new URL(env.DOWNLOAD_HOST).hostname,
       acceptGapFrom: env.ACCEPT_GAP_FROM || null,
       key: KEY,
-      seedKey: SEED_KEY
+      seedKey: SEED_KEY,
+      beforeWrite: seedFirst
     })
     outcomes = { github: 'ok', analytics: 'ok', bucket: 'ok' }
   } catch (error) {
@@ -149,18 +164,6 @@ export async function run(controller, env, { fetch, now, log = console.log, erro
     outcomes = error?.outcomes ?? outcomes
   }
 
-  // A run that wrote the file it starts from is where the shadow file started: from the statistics file, or from
-  // nothing when the bucket held neither
-  let seed
-  if (counted !== null && counted.previousKey !== KEY) {
-    seed = counted.previousKey === SEED_KEY
-      ? {
-          at: new Date(at).toISOString(),
-          r2Cursor: counted.previous.r2Cursor,
-          r2Bytes: Object.values(counted.previous.r2.objects).reduce((sum, { bytes }) => sum + bytes, 0)
-        }
-      : null
-  }
   const entry = {
     scheduledTime: new Date(controller.scheduledTime).toISOString(),
     coreSha256: env.CORE_SHA256,
@@ -172,7 +175,7 @@ export async function run(controller, env, { fetch, now, log = console.log, erro
   }
   let unrecorded = null
   try {
-    await appendRun(bucket, entry, seed)
+    await updateRuns(bucket, (record) => ({ ...record, runs: [...record.runs, entry].slice(-MAX_RUNS) }))
   } catch (error) {
     unrecorded = `the run's entry was not appended to ${RUNS_KEY}: ${redact(messageOf(error))}`
   }

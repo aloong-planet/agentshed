@@ -15,8 +15,8 @@ the Worker that takes the collection over. The bucket and its download host: `do
 | Analytics token | `agentshed-download-count`: an account API token with the zone permission group "Analytics Read" on `aloongplanet.com`, and nothing else. Managed with Terraform in [`aloong-planet/infra`](https://github.com/aloong-planet/infra), stack `apps` (`stacks/apps/download-counts.tf`) |
 | Repository secrets | `CF_ANALYTICS_API_TOKEN` (that token's value) and `CF_ZONE_ID` (the zone's ID), written by the same stack; the bucket's four `R2_*` secrets, written for the release mirror (r2-setup.md) |
 | GitHub | The workflow's own token, with `contents: read`, for the releases' download counts |
-| Worker | `agentshed-download-count`, run every hour by a Cron Trigger; see "The Worker in the shadow period" below |
-| Shadow period files | `stats/downloads-shadow.json` and `stats/worker-runs.json`, written by the Worker; `stats/shadow-comparisons.json`, written by the workflow (r2-setup.md, "Layout") |
+| Worker | `agentshed-download-count`, run every hour by a Cron Trigger, once aloong-planet/infra's `workers` stack is applied; see "The Worker in the shadow period" below |
+| Shadow period files | `stats/downloads-shadow.json` and `stats/worker-runs.json`, written by the Worker once it runs; `stats/shadow-comparisons.json`, written by the workflow (r2-setup.md, "Layout") |
 
 ## What a run does
 
@@ -71,9 +71,10 @@ listing output. Check:
   aloong-planet/infra.
 - **A read fails** (GitHub, the bucket, the analytics, or an answer the run cannot validate): the run fails and
   writes nothing. Nothing is lost: the next run counts from the same cursor. Look closer only when runs keep failing.
-- **"the statistics file …"**: the file in the bucket is not one the run can take (Failure G1). Do not delete it
-  to start over: the counts it holds, those of deleted GitHub assets and removed objects included, cannot be read
-  back from anywhere else. Only this workflow writes it, so find which run wrote it and why.
+- **"stats/downloads.json in the bucket is not JSON"** or **"stats/downloads.json has …"**: the file in the bucket is
+  not one the run can take (Failure G1). Do not delete it to start over: the counts it holds, those of deleted GitHub
+  assets and removed objects included, cannot be read back from anywhere else. Only this workflow writes it, so find
+  which run wrote it and why.
 - **"… is N bytes in the bucket, not the M recorded"**: a mirrored DMG was replaced at the same key (Failure G5).
   A version's DMG never changes, so find out what wrote it.
 - **"… is older than …, the oldest full hour the analytics hold"**: the count stalled for longer than the
@@ -88,6 +89,8 @@ listing output. Check:
   hours are never counted. A scheduled run never accepts a gap.
 
 ## The Worker in the shadow period
+
+What this section describes exists once aloong-planet/infra's `workers` stack is applied.
 
 The Worker `agentshed-download-count` runs the same core on the same bucket every hour, at minute 31, so that its
 cursor is the one a workflow run at minute 47 reaches. Until the switch (the spec's "The shadow period"), it writes
@@ -123,18 +126,20 @@ curl -sS https://dl.agentshed.aloongplanet.com/stats/shadow-comparisons.json | j
 Note that the download host caches both files for five minutes.
 
 **The first run** finds no shadow file, so it starts from the statistics file and records it as the run record's
-`seed`. Its write is conditioned on there being no shadow file yet, so it is the first to show that the binding
-accepts `If-None-Match: *`. Whether the binding enforces that condition, and the etag condition every later write
-carries (Failure G10), is what Cloudflare documents; it has not been observed. The run record's newest entries are
-what to check after the deploy: one an hour, `written` true.
+`seed`, which it writes before the shadow file: a run that cannot write the seed writes no shadow file and fails with
+"the seed was not written to stats/worker-runs.json: …", and the next run seeds again. The shadow file's first write
+is conditioned on there being no shadow file yet, so it is the first to show that the binding accepts
+`If-None-Match: *`. Whether the binding enforces that condition, and the etag condition every later write carries
+(Failure G10), is what Cloudflare documents; it has not been observed. The run record's newest entries are what to
+check after the deploy: one an hour, `written` true.
 
 **Every UTC day until the switch**, start the workflow by hand at least once
 (`gh workflow run download-count.yml -R aloong-planet/agentshed`), so that a comparison is made every day, which
 GitHub's schedule does not promise.
 
-**When no comparison has `r2BytesSinceSeed` above 0 by the fifth day** of the window, no visitor has downloaded from
-the download host since the seed. Read 1 KB of the newest DMG through it, once, so that both counts have bytes to
-agree on; it counts like any download (Failure G6):
+**When no comparison other than `cursors-differ` has `r2BytesSinceSeed` above 0 by the fifth day** of the window, no
+visitor has downloaded from the download host since the seed. Read 1 KB of the newest DMG through it, once, so that
+both counts have bytes to agree on; it counts like any download (Failure G6):
 
 ```bash
 curl -sS -r 0-1023 -o /dev/null -w '%{http_code}\n' https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg

@@ -1,6 +1,6 @@
 # ADR-0055: The download count is the disk image's downloads from GitHub and the download host, added up hour by hour in a statistics file that starts over only when absent
 
-- Status: Accepted (2026-11-22)
+- Status: Accepted (2026-11-23)
 
 ## Context
 

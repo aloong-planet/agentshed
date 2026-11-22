@@ -20,7 +20,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { r2Binding } from './testing/r2-binding.mjs'
-import { copyOf, DMG_KEY, json, NOW, REAL_ASSETS, REAL_RELEASES, sources, text, writtenFile } from './testing/download-count-sources.mjs'
+import { copyOf, DMG_KEY, json, LIMITS, NOW, REAL_ASSETS, REAL_RELEASES, sources, text, writtenFile } from './testing/download-count-sources.mjs'
 import worker, { run, validateRuns } from './download-count-worker.mjs'
 import { imports } from './testing/module-imports.mjs'
 
@@ -108,9 +108,11 @@ const wrote = (scheduledTime, r2Cursor) => ({
   scheduledTime, coreSha256: CORE, key: 'stats/downloads-shadow.json', written: true, github: 'ok', analytics: 'ok', bucket: 'ok', failure: null, r2Cursor
 })
 
-// Failure G4 and Failure G1's start over: neither file in the bucket, nothing mirrored yet
+// Failure G4 and Failure G1's start over: neither file in the bucket, nothing mirrored yet. The run record holds the
+// seed of a run whose shadow write failed, from a statistics file deleted since: a run that starts over has no seed
 test('a shadow run with neither file in the bucket starts the count over, with no seed and a download host share of zero', async () => {
-  const bucket = r2Binding()
+  const left = { at: '2026-11-22T08:47:12.000Z', r2Cursor: '2026-11-22T08:00:00Z', r2Bytes: 2500 }
+  const bucket = r2Binding({ objects: { 'stats/worker-runs.json': asText({ schemaVersion: 1, seed: left, runs: [] }) } })
   const { settled } = await runOn(bucket)
   await settled
   const shadow = fileOf(bucket, 'stats/downloads-shadow.json')
@@ -238,11 +240,25 @@ test('a shadow run in which any read fails writes nothing, and records each sour
       { github: 'not-read', analytics: 'not-read', bucket: 'failed' }, /^R2 get failed: InternalError$/],
     ['the listing under releases/ failing', { failing: { list: (prefix) => (prefix === 'releases/' ? new Error('R2 list failed: InternalError') : undefined) } },
       { github: 'ok', analytics: 'not-read', bucket: 'failed' }, /^R2 list failed: InternalError$/],
+    // A file the run cannot take is named by its key, so the shadow file never reads as the statistics file
     ['the shadow file that is not JSON', { objects: { 'stats/downloads-shadow.json': '{"schemaVersion": 1,' } },
-      { github: 'not-read', analytics: 'not-read', bucket: 'failed' }, /is not JSON$/],
+      { github: 'not-read', analytics: 'not-read', bucket: 'failed' }, /^stats\/downloads-shadow\.json in the bucket is not JSON$/],
+    ['the shadow file of another schema', { objects: { 'stats/downloads-shadow.json': asText({ ...writtenFile(), schemaVersion: 2 }) } },
+      { github: 'not-read', analytics: 'not-read', bucket: 'failed' }, /^stats\/downloads-shadow\.json has schemaVersion 2, not 1$/],
     ['the statistics file of another schema while the shadow file is absent',
       { objects: { 'stats/downloads-shadow.json': undefined, 'stats/downloads.json': asText({ ...writtenFile(), schemaVersion: 2 }) } },
-      { github: 'not-read', analytics: 'not-read', bucket: 'failed' }, /has schemaVersion 2, not 1$/],
+      { github: 'not-read', analytics: 'not-read', bucket: 'failed' }, /^stats\/downloads\.json has schemaVersion 2, not 1$/],
+    // An answer the run cannot use fails the source it came from, though the run finds it out after the read: the
+    // analytics' limits leaving no hour to read, the previous file's cursor after the hours the run may count, and the
+    // listing's object that the new file cannot hold
+    ["the analytics' limits with a widest range under an hour", { limits: { ...LIMITS, maxDuration: 1800 } },
+      { github: 'ok', analytics: 'failed', bucket: 'ok' }, /^the analytics' maxDuration 1800 is narrower than an hour$/],
+    ["the analytics' limits holding no full hour", { limits: { ...LIMITS, notOlderThan: 1800 } },
+      { github: 'ok', analytics: 'failed', bucket: 'ok' }, /^the analytics hold no full hour: notOlderThan is 1800 seconds$/],
+    ['the shadow file with a cursor after the hours the run may count', { objects: { 'stats/downloads-shadow.json': asText({ ...writtenFile(), r2Cursor: '2026-11-22T10:00:00Z' }) } },
+      { github: 'ok', analytics: 'ok', bucket: 'failed' }, /^the cursor 2026-11-22T10:00:00Z is after 2026-11-22T09:00:00Z, the end of the hours this run may count$/],
+    ['a DMG listed at a size that is not a whole number of bytes', { objects: { 'releases/v0.2.1/Agentshed-0.2.1-mac-arm64.dmg': { size: 1.5 } } },
+      { github: 'ok', analytics: 'ok', bucket: 'failed' }, /^the new stats\/downloads-shadow\.json has an object that is not a DMG's bytes: releases\/v0\.2\.1\/Agentshed-0\.2\.1-mac-arm64\.dmg$/],
     ['a mirrored DMG at another size than recorded', { objects: { [DMG_KEY]: { size: 999 } } },
       { github: 'ok', analytics: 'ok', bucket: 'failed' }, /is 999 bytes in the bucket, not the 1000 recorded$/],
     ['the write of the shadow file failing', { failing: { put: (key) => (key === 'stats/downloads-shadow.json' ? new Error('R2 put failed: InternalError') : undefined) } },
@@ -336,6 +352,83 @@ test('a run record that cannot be read or is not one is left as it is, while the
     assert.equal(bucket.peek('stats/worker-runs.json'), before, label)
     assert.equal(fileOf(bucket, 'stats/downloads-shadow.json').r2Cursor, '2026-11-22T09:00:00Z', label)
   }
+})
+
+// "The shadow period": a run that starts from the statistics file writes the seed into the run record before it writes
+// the shadow file, so that no shadow file exists without its seed
+const STATISTICS_AT_EIGHT = asText({ ...writtenFile(), r2Cursor: '2026-11-22T08:00:00Z' })
+const AN_HOUR_LATER = { scheduledTime: SCHEDULED + 3_600_000, now: NOW + 3_600_000 }
+const putFailed = () => new Error('R2 put failed: InternalError')
+const settledError = (settled) => settled.then(() => null, (error) => error)
+
+test('a run that cannot write the seed writes no shadow file, and the next run seeds again', async () => {
+  let puts = 0
+  const failing = { put: (key) => (key === 'stats/worker-runs.json' && (puts += 1) === 1 ? putFailed() : undefined) }
+  const bucket = r2Binding({ objects: { 'stats/downloads.json': STATISTICS_AT_EIGHT, [DMG_KEY]: { size: 1000 } }, failing })
+  const error = await settledError((await runOn(bucket)).settled)
+  assert.equal(bucket.peek('stats/downloads-shadow.json'), undefined)
+  assert.equal(error?.message, 'the seed was not written to stats/worker-runs.json: R2 put failed: InternalError')
+  const failed = { ...failedEntry({ github: 'ok', analytics: 'ok', bucket: 'failed' }), failure: error.message }
+  assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), { schemaVersion: 1, seed: null, runs: [failed] })
+
+  await (await runOn(bucket, AN_HOUR_LATER)).settled
+  assert.equal(fileOf(bucket, 'stats/downloads-shadow.json').r2Cursor, '2026-11-22T10:00:00Z')
+  assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), {
+    schemaVersion: 1,
+    seed: { at: '2026-11-22T10:47:12.000Z', r2Cursor: '2026-11-22T08:00:00Z', r2Bytes: 2500 },
+    runs: [failed, wrote('2026-11-22T10:47:00.000Z', '2026-11-22T10:00:00Z')]
+  })
+})
+
+test('a run whose shadow write fails after the seed leaves that seed, and the next run seeds again over it', async () => {
+  let puts = 0
+  const failing = { put: (key) => (key === 'stats/downloads-shadow.json' && (puts += 1) === 1 ? putFailed() : undefined) }
+  const bucket = r2Binding({ objects: { 'stats/downloads.json': STATISTICS_AT_EIGHT, [DMG_KEY]: { size: 1000 } }, failing })
+  const error = await settledError((await runOn(bucket)).settled)
+  assert.equal(bucket.peek('stats/downloads-shadow.json'), undefined)
+  assert.equal(error?.message, 'R2 put failed: InternalError')
+  const failed = { ...failedEntry({ github: 'ok', analytics: 'ok', bucket: 'failed' }), failure: error.message }
+  assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), {
+    schemaVersion: 1, seed: { at: '2026-11-22T09:47:12.000Z', r2Cursor: '2026-11-22T08:00:00Z', r2Bytes: 2500 }, runs: [failed]
+  })
+
+  // The workflow counts the next hour into the statistics file before the Worker's next run
+  bucket.write('stats/downloads.json', asText(writtenFile()))
+  await (await runOn(bucket, AN_HOUR_LATER)).settled
+  assert.equal(fileOf(bucket, 'stats/downloads-shadow.json').r2Cursor, '2026-11-22T10:00:00Z')
+  assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), {
+    schemaVersion: 1,
+    seed: { at: '2026-11-22T10:47:12.000Z', r2Cursor: '2026-11-22T09:00:00Z', r2Bytes: 2500 },
+    runs: [failed, wrote('2026-11-22T10:47:00.000Z', '2026-11-22T10:00:00Z')]
+  })
+})
+
+test('a run whose seed and shadow file are written but whose entry is not keeps the seed for the runs after it', async () => {
+  let appends = 0
+  const failing = {
+    put: (key, value) => (key === 'stats/worker-runs.json' && JSON.parse(value).runs.length > 0 && (appends += 1) === 1 ? putFailed() : undefined)
+  }
+  const bucket = r2Binding({ objects: { 'stats/downloads.json': STATISTICS_AT_EIGHT, [DMG_KEY]: { size: 1000 } }, failing })
+  const error = await settledError((await runOn(bucket)).settled)
+  const seed = { at: '2026-11-22T09:47:12.000Z', r2Cursor: '2026-11-22T08:00:00Z', r2Bytes: 2500 }
+  assert.deepEqual(JSON.parse(bucket.peek('stats/worker-runs.json')?.text ?? 'null'), { schemaVersion: 1, seed, runs: [] })
+  assert.equal(fileOf(bucket, 'stats/downloads-shadow.json').r2Cursor, '2026-11-22T09:00:00Z')
+  assert.equal(error?.message, "the run's entry was not appended to stats/worker-runs.json: R2 put failed: InternalError")
+
+  await (await runOn(bucket, AN_HOUR_LATER)).settled
+  assert.equal(fileOf(bucket, 'stats/downloads-shadow.json').r2Cursor, '2026-11-22T10:00:00Z')
+  assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), { schemaVersion: 1, seed, runs: [wrote('2026-11-22T10:47:00.000Z', '2026-11-22T10:00:00Z')] })
+})
+
+// Failure G9 while the shadow file is absent: a run record that is not one cannot take the seed, so the run writes no
+// shadow file and leaves the record as it is
+test('a run that would seed over a run record that is not one writes no shadow file and leaves the record as it is', async () => {
+  const bucket = r2Binding({ objects: { 'stats/downloads.json': STATISTICS_AT_EIGHT, 'stats/worker-runs.json': '{"schemaVersion": 1,', [DMG_KEY]: { size: 1000 } } })
+  const before = bucket.peek('stats/worker-runs.json')
+  const error = await settledError((await runOn(bucket)).settled)
+  assert.equal(bucket.peek('stats/downloads-shadow.json'), undefined)
+  assert.equal(bucket.peek('stats/worker-runs.json'), before)
+  assert.equal(error?.message, "the seed was not written to stats/worker-runs.json: the run record is not JSON; the run's entry was not appended to stats/worker-runs.json: the run record is not JSON")
 })
 
 test('a Worker without its pinned core hash or its bucket reads and writes nothing, and fails', async () => {

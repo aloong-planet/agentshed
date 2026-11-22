@@ -42,7 +42,7 @@ async function readJson(bucket, key, validate) {
  * (Failure G9).
  */
 async function recordComparison({ bucket, env, at, statistics }) {
-  const shadow = await readJson(bucket, SHADOW_KEY, validateStatistics)
+  const shadow = await readJson(bucket, SHADOW_KEY, (file) => validateStatistics(file, SHADOW_KEY))
   const runs = await readJson(bucket, RUNS_KEY, validateRuns)
   const record = await readJson(bucket, COMPARISONS_KEY, validateComparisons)
   const comparison = compare({

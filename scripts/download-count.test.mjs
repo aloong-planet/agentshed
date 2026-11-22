@@ -394,6 +394,19 @@ test("the analytics are asked, with their own token, for the download host's suc
   assert.deepEqual(traffic.at(-1).variables.filter.datetime_lt, '2026-11-22T09:00:00Z')
 })
 
+// "The collection": a range's answer is taken whole below a full page, whatever page size the analytics allow; 200,000
+// rows are more than a call takes as arguments
+test('a range whose answer holds 200,000 rows is counted whole', async () => {
+  const rows = Array.from({ length: 200_000 }, (_, i) => ({ path: `/releases/v0.2.0/part-${i}`, bytes: 1 }))
+  const { bucket, store, fetch } = world({
+    objects: { [DMG_KEY]: { size: 1000 } },
+    limits: { ...LIMITS, notOlderThan: DAY, maxPageSize: 250_000 },
+    traffic: { '2026-11-22T08:00:00Z': [...rows, { path: `/${DMG_KEY}`, bytes: 1500 }] }
+  })
+  await collect({ ...RUN, bucket: store, fetch, now: NOW })
+  assert.deepEqual(published(bucket).r2.objects, { [DMG_KEY]: { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 1500 } })
+})
+
 test("GitHub's releases are read page after page with the workflow's token, until a page holds fewer than a hundred", async () => {
   const copies = Array.from({ length: 241 }, (_, i) => copyOf(`v0.2.${i}`, { dmgDownloads: 1, idBase: 800000000 + i * 10 }))
   const { bucket, store, fetch, requests } = world({ releases: [...REAL_RELEASES, ...copies] })
@@ -423,8 +436,8 @@ test('a run in which any read fails, or answers what the run cannot validate, wr
     ['the listing of the statistics file failing', { answer: { list: failingList('stats/downloads.json') } }, /the listing of stats\/downloads\.json failed/],
     ['the listing under releases/ failing', { answer: { list: failingList('releases/') } }, /the listing of releases\/ failed/],
     ['the statistics file that cannot be read', { answer: { get: () => { throw new Error('aws s3api failed (exit 255)\nAccessDenied') } } }, /AccessDenied/],
-    ['the statistics file that is not JSON', { objects: { ...mirrored, 'stats/downloads.json': { text: '{"schemaVersion": 1,' } } }, /the statistics file in the bucket is not JSON/],
-    ['the statistics file of another schema', { objects: { ...mirrored, 'stats/downloads.json': { text: JSON.stringify({ ...writtenFile(), schemaVersion: 2 }) } } }, /has schemaVersion 2, not 1/],
+    ['the statistics file that is not JSON', { objects: { ...mirrored, 'stats/downloads.json': { text: '{"schemaVersion": 1,' } } }, /^Error: stats\/downloads\.json in the bucket is not JSON$/],
+    ['the statistics file of another schema', { objects: { ...mirrored, 'stats/downloads.json': { text: JSON.stringify({ ...writtenFile(), schemaVersion: 2 }) } } }, /^Error: stats\/downloads\.json has schemaVersion 2, not 1$/],
     ['a mirrored DMG at another size than recorded', { objects: { ...mirrored, [DMG_KEY]: { size: 999 } } }, /is 999 bytes in the bucket, not the 1000 recorded/],
     ["GitHub's first page failing", { answer: { github: () => json({ message: 'Server Error' }, 500) } }, /page 1 of GitHub's releases answered HTTP 500/],
     ["GitHub's second page failing", { releases: [...REAL_RELEASES, ...Array.from({ length: 91 }, (_, i) => copyOf(`v0.3.${i}`, { idBase: 700000000 + i * 10 }))], answer: { github: (page) => (page === 2 ? json({ message: 'rate limited' }, 403) : undefined) } }, /page 2 of GitHub's releases answered HTTP 403/],
@@ -741,7 +754,7 @@ test('a comparison that cannot be made or recorded leaves the comparison record 
       'aws s3api failed (exit 255)%0A::error::An error occurred (AccessDenied) 100%25'],
     ['the shadow file cannot be read', { 'stats/shadow-comparisons.json': record }, failingGet('stats/downloads-shadow.json', 'aws s3api failed (exit 255)\r\nAn error occurred (InternalError)'),
       'aws s3api failed (exit 255)%0D%0AAn error occurred (InternalError)'],
-    ['the shadow file is not a statistics file', { 'stats/downloads-shadow.json': { text: asText({ ...SHADOW, schemaVersion: 2 }) }, 'stats/shadow-comparisons.json': record }, null, 'the statistics file has schemaVersion 2, not 1'],
+    ['the shadow file is not a statistics file', { 'stats/downloads-shadow.json': { text: asText({ ...SHADOW, schemaVersion: 2 }) }, 'stats/shadow-comparisons.json': record }, null, 'stats/downloads-shadow.json has schemaVersion 2, not 1'],
     ['the run record is not one', { 'stats/worker-runs.json': { text: asText({ schemaVersion: 1, seed: SEED, runs: [{ ...WORKER_RUN, written: 'yes' }] }) } }, null, 'the run record has a run that is not one: entry 0'],
     ['no run ID', { 'stats/shadow-comparisons.json': record }, null, 'the comparison record has a comparison that is not one: entry 0', { GITHUB_RUN_ID: undefined }]
   ]

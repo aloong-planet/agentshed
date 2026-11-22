@@ -106,19 +106,24 @@ export function hourOf(text) {
  * SETTLED_MS before `now`, each no wider than maxDuration (both in seconds, from the analytics' settings). The new
  * cursor is that end. A cursor older than the analytics hold fails the run, unless it accepts the gap, which it then
  * records (Failure G3).
+ *
+ * An input it cannot use fails the run with the error's `source` naming where the input came from ("The run record"):
+ * `analytics` for limits that leave no hour to read, `bucket` for a cursor, the previous file's, that is not one or
+ * is after the hours the run may count. A refused gap names none: every source answered what it holds.
  */
 export function planRanges({ cursor, now, notOlderThan, maxDuration, acceptGap }) {
+  const unusable = (source, message) => Object.assign(new Error(message), { source })
   const end = Math.floor((now - SETTLED_MS) / HOUR_MS) * HOUR_MS
   const oldest = Math.ceil((now - notOlderThan * 1000) / HOUR_MS) * HOUR_MS
   const width = Math.floor(maxDuration / 3600) * HOUR_MS
-  if (width === 0) throw new Error(`the analytics' maxDuration ${maxDuration} is narrower than an hour`)
-  if (oldest > end) throw new Error(`the analytics hold no full hour: notOlderThan is ${notOlderThan} seconds`)
+  if (width === 0) throw unusable('analytics', `the analytics' maxDuration ${maxDuration} is narrower than an hour`)
+  if (oldest > end) throw unusable('analytics', `the analytics hold no full hour: notOlderThan is ${notOlderThan} seconds`)
   let start = oldest
   let gap = null
   if (cursor !== null) {
     const at = hourOf(cursor)
-    if (at === null) throw new Error(`the cursor ${cursor} is not on the hour`)
-    if (at > end) throw new Error(`the cursor ${cursor} is after ${iso(end)}, the end of the hours this run may count`)
+    if (at === null) throw unusable('bucket', `the cursor ${cursor} is not on the hour`)
+    if (at > end) throw unusable('bucket', `the cursor ${cursor} is after ${iso(end)}, the end of the hours this run may count`)
     if (at >= oldest) start = at
     else if (acceptGap) gap = { from: cursor, to: iso(oldest) }
     else {
@@ -143,10 +148,10 @@ export const shaped = (value, fields) => isObject(value) && Object.keys(value).s
 /**
  * The previous run's statistics file, taken only when it has exactly the fields and types of the spec's table
  * (Implementation Decisions "The statistics file"); anything else fails the run, which then writes nothing rather
- * than start the count over (Failure G1).
+ * than start the count over (Failure G1). `name` is what a failure calls the file: its key, when it was read from one.
  */
-export function validateStatistics(file) {
-  const fail = (reason) => { throw new Error(`the statistics file ${reason}`) }
+export function validateStatistics(file, name = 'the statistics file') {
+  const fail = (reason) => { throw new Error(`${name} ${reason}`) }
   if (!shaped(file, ['schemaVersion', 'updatedAt', 'r2Cursor', 'r2Gaps', 'summary', 'github', 'r2'])) {
     fail(`does not have the statistics file's fields: ${JSON.stringify(isObject(file) ? Object.keys(file) : file)}`)
   }
@@ -197,9 +202,9 @@ async function readPrevious(bucket, key, seedKey) {
     try {
       file = JSON.parse(text)
     } catch {
-      throw new Error(`the statistics file in the bucket is not JSON`)
+      throw new Error(`${candidate} in the bucket is not JSON`)
     }
-    return { key: candidate, file: validateStatistics(file) }
+    return { key: candidate, file: validateStatistics(file, candidate) }
   }
   return { key: null, file: null }
 }
@@ -346,14 +351,20 @@ async function readTraffic(fetch, analytics, { host, range, limit }) {
  * (Failure G2). While the bucket holds nothing at `key`, the previous file is the one at `seedKey`, if given.
  *
  * A cursor older than the analytics hold is accepted when `acceptGap` is true, or when it equals `acceptGapFrom`
- * (Failure G3). The run answers the file it wrote, the previous file and the key it was read from (null for both when
- * there was none). A run that fails throws with `outcomes`, each source's state when it failed (Implementation
- * Decisions "The run record"): `ok` when every read of it that started succeeded, `rate-limited` or `failed` for the one
- * that failed, `not-read` when none started; the bucket's reads are the previous file, the listing and the write.
+ * (Failure G3). `beforeWrite`, if given, is awaited with the previous file and the key it was read from once the new
+ * file is ready, just before it is written, and fails the run as the write would (the Worker writes the run record's
+ * seed there: Implementation Decisions "The shadow period"). The run answers the file it wrote, the previous file and
+ * the key it was read from (null for both when there was none).
+ *
+ * A run that fails throws with `outcomes`, each source's state when it failed (Implementation Decisions "The run
+ * record"): `ok` when every read of it that started succeeded, `rate-limited` or `failed` for the one that failed,
+ * `not-read` when none started. The bucket's reads are the previous file, the listing and the write, with
+ * `beforeWrite`. An answer the run finds it cannot use only after the read fails that read's source too: the
+ * analytics' limits, the previous file's cursor (planRanges) and an object the listing answered (the new file's check).
  */
 export async function collect({
   bucket, fetch, now, repository, githubToken, analyticsToken, zone, host, acceptGap = false, acceptGapFrom = null,
-  key = STATISTICS_KEY, seedKey = null
+  key = STATISTICS_KEY, seedKey = null, beforeWrite = null
 }) {
   const outcomes = { github: 'not-read', analytics: 'not-read', bucket: 'not-read' }
   const from = async (source, read) => {
@@ -373,13 +384,22 @@ export async function collect({
     const listing = await from('bucket', () => bucket.list('releases/'))
     const { maxPageSize, ...limits } = await from('analytics', () => readLimits(fetch, analytics))
     const cursor = previous.file?.r2Cursor ?? null
-    const plan = planRanges({ cursor, now, ...limits, acceptGap: acceptGap || (acceptGapFrom !== null && cursor === acceptGapFrom) })
+    let plan
+    try {
+      plan = planRanges({ cursor, now, ...limits, acceptGap: acceptGap || (acceptGapFrom !== null && cursor === acceptGapFrom) })
+    } catch (error) {
+      if (error.source !== undefined) outcomes[error.source] = 'failed'
+      throw error
+    }
     const rows = []
-    for (const range of plan.ranges) rows.push(...await from('analytics', () => readTraffic(fetch, analytics, { host, range, limit: maxPageSize })))
+    for (const range of plan.ranges) {
+      // Row by row: a call takes only so many arguments, and a page may hold more
+      for (const row of await from('analytics', () => readTraffic(fetch, analytics, { host, range, limit: maxPageSize }))) rows.push(row)
+    }
 
     const assets = await from('github', () => mergeGitHub(previous.file?.github.assets ?? {}, releases))
     const objects = await from('bucket', () => mergeR2(previous.file?.r2.objects ?? {}, listing, rows))
-    const statistics = validateStatistics({
+    const statistics = {
       schemaVersion: 1,
       updatedAt: new Date(now).toISOString(),
       r2Cursor: plan.cursor,
@@ -387,8 +407,15 @@ export async function collect({
       summary: summarize(assets, objects),
       github: { assets },
       r2: { objects }
+    }
+    await from('bucket', async () => {
+      // The new file is checked as the next run will read it. Its cursor, gaps, GitHub's assets and summary hold by how
+      // they were made, so only its objects, the bucket's, can fail it: one listed at a size that is not a whole number
+      // of bytes, or bytes beyond a whole number JavaScript holds exactly (some 9 PB)
+      validateStatistics(statistics, `the new ${key}`)
+      await beforeWrite?.({ previous: previous.file, previousKey: previous.key })
+      await bucket.putText(key, `${JSON.stringify(statistics, null, 2)}\n`, { cacheControl: 'public, max-age=300', contentType: 'application/json' })
     })
-    await from('bucket', () => bucket.putText(key, `${JSON.stringify(statistics, null, 2)}\n`, { cacheControl: 'public, max-age=300', contentType: 'application/json' }))
     return { statistics, previous: previous.file, previousKey: previous.key }
   } catch (error) {
     throw Object.assign(error instanceof Error ? error : new Error(String(error)), { outcomes: { ...outcomes } })
