@@ -57,7 +57,7 @@ describe('the preference handlers', () => {
       expect(h.setTrendSpan(span).trendSpan).toBe(span)
       expect(new PrefsStore(dir).get().trendSpan).toBe(span)
     }
-    for (const invalid of [0, 31, '60', null, {}, NaN]) {
+    for (const invalid of [0, 31, '60', null, NaN]) {
       expect(codeOf(() => h.setTrendSpan(invalid))).toBe(ERR.invalidPref)
     }
     expect(new PrefsStore(dir).get()).toEqual({
@@ -74,7 +74,7 @@ describe('the preference handlers', () => {
     expect(new PrefsStore(dir).get()).toEqual({ ...DEFAULT_PREFS, theme: 'blue', autoCheckUpdates: false })
     expect(h.setAutoCheckUpdates(true).autoCheckUpdates).toBe(true)
     expect(new PrefsStore(dir).get().autoCheckUpdates).toBe(true)
-    for (const invalid of ['false', 0, 1, null, undefined, {}]) {
+    for (const invalid of ['false', 0, 1, null, undefined]) {
       expect(codeOf(() => h.setAutoCheckUpdates(invalid))).toBe(ERR.invalidPref)
     }
     expect(new PrefsStore(dir).get().autoCheckUpdates).toBe(true)
@@ -151,6 +151,22 @@ describe('the preference handlers', () => {
     for (const removed of ['fr', 'es', 'ru', 'ja']) expect(codeOf(() => handlers().setLanguage(removed)), removed).toBe(ERR.invalidPref)
     // An invalid call must leave no trace
     expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'zh', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
+  })
+
+  // The page's value reaches these setters as sent (checkedByPrefsHandlers in ipc-guards.ts, #538), so each is what
+  // refuses an object or an array. The value kept is not the default, which a store reads back for one it cannot use
+  it.each([
+    ['setTheme', 'theme', 'amber', 'blue'],
+    ['setLanguage', 'language', 'zh', 'en'],
+    ['setMode', 'mode', 'dark', 'light'],
+    ['setTrendSpan', 'trendSpan', 90, 60],
+    ['setAutoCheckUpdates', 'autoCheckUpdates', false, true]
+  ] as const)('%s refuses a value sent in an object or an array, and persists nothing', (setter, field, kept, wrapped) => {
+    const h = handlers()
+    h[setter](kept)
+    expect(codeOf(() => h[setter]({ [field]: wrapped }))).toBe(ERR.invalidPref)
+    expect(codeOf(() => h[setter]([wrapped]))).toBe(ERR.invalidPref)
+    expect(new PrefsStore(dir).get()[field]).toBe(kept)
   })
 
   it('neither setTheme nor setLanguage touches themeSource', () => {

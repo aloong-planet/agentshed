@@ -1,5 +1,6 @@
 // Each channel's guard against every input it refuses (#405). The expected codes and parameters are written as the
 // strings that cross IPC, not as ERR's constants, so a code renamed in errors.ts shows here as the refusal it changes.
+// What each guard returns, and the row a guard fails without, are at the end (#538).
 //
 // Gap: what calls these is index.ts's wiring, which unit tests do not load (ADR-0038); e2e cases carry it, each
 // sending over real IPC a request that only the wiring under test refuses:
@@ -27,6 +28,7 @@ import { decodeAppError, type AppError } from '@shared/errors'
 import type { RegistrationScope } from '@shared/display-data'
 import { ReadRegistry } from './read-registrations'
 import { regularTarget } from './source-identity'
+import * as exported from './ipc-guards'
 import {
   admitMemoryFile,
   admitSkillPackage,
@@ -46,6 +48,7 @@ import {
   skillFileArg,
   skillHoldingsArgs,
   uninstallSkillArgs,
+  type Guard,
   type GuardState,
   type Register
 } from './ipc-guards'
@@ -130,9 +133,6 @@ describe('projectDetailArgs', () => {
   it.each([42, null, undefined, {}, ''])('refuses %j as bad arguments for path', (raw) => {
     expect(refusal(() => projectDetailArgs(raw, state()))).toEqual({ code: 'bad-args', params: { channel: 'getProjectDetail', field: 'path' } })
   })
-  it('admits a directory the snapshot of this moment lists as a project', () => {
-    expect(projectDetailArgs('/p', listing())).toBe('/p')
-  })
   it('refuses a directory the snapshot does not list as not listed, before any probe of the disk', () => {
     let probes = 0
     const probe = (): boolean => { probes++; return true }
@@ -148,9 +148,6 @@ const notListed = { code: 'session-not-whitelisted', params: {} }
 describe('listedSessionArg', () => {
   it.each([42, null, undefined, '', '/s/b.jsonl', '/s/x/../a.jsonl'])('refuses %j as not in the allow-list', (raw) => {
     expect(refusal(() => listedSessionArg(raw, listed()))).toEqual(notListed)
-  })
-  it('admits a listed session as the allow-list spells it', () => {
-    expect(listedSessionArg(SESSION, listed())).toBe(SESSION)
   })
 })
 
@@ -176,9 +173,8 @@ describe('sessionTurnArgs', () => {
     expect(refusal(() => sessionTurnArgs({ file: SESSION, i }, listed())))
       .toEqual({ code: 'bad-args', params: { channel: 'getSessionTurn', field: 'i' } })
   })
-  it('admits a listed session and an index, with or without a revision', () => {
+  it('admits a listed session and an index without a revision', () => {
     expect(sessionTurnArgs({ file: SESSION, i: 0 }, listed())).toEqual({ file: SESSION, i: 0, revision: undefined })
-    expect(sessionTurnArgs({ file: SESSION, i: 3, revision: 'r1' }, listed())).toEqual({ file: SESSION, i: 3, revision: 'r1' })
   })
 })
 
@@ -218,26 +214,20 @@ describe('searchSessionsArgs', () => {
   it.each(['no', undefined, 1])('refuses fullText %j', (fullText) => {
     expect(refusal(() => searchSessionsArgs({ ...valid, fullText }, state()))).toEqual(badArgs('searchSessions', 'fullText'))
   })
-  it('admits a needle of the limit\'s length', () => {
-    expect(searchSessionsArgs({ path: '/p', needle: needle(200), fullText: true }, state())).toEqual({ path: '/p', needle: needle(200), fullText: true })
-  })
 })
 
 describe('globalSearchArgs', () => {
   it.each([42, null, needle(201)])('refuses %j', (raw) => {
     expect(refusal(() => globalSearchArgs(raw, state()))).toEqual(badArgs('globalSearch', 'needle'))
   })
-  it.each([needle(200), ''])('admits %j', (raw) => {
-    expect(globalSearchArgs(raw, state())).toBe(raw)
+  it('admits an empty keyword', () => {
+    expect(globalSearchArgs('', state())).toBe('')
   })
 })
 
 describe('copyTextArgs', () => {
   it.each([42, null, ''])('refuses %j', (raw) => {
     expect(refusal(() => copyTextArgs(raw, state()))).toEqual(badArgs('copyText', 'text'))
-  })
-  it('admits text', () => {
-    expect(copyTextArgs('x', state())).toBe('x')
   })
 })
 
@@ -275,12 +265,13 @@ describe('installSkillArgs', () => {
     ['sides that are not a list', { ...valid, sides: 'claude' }],
     ['no sides', { ...valid, sides: [] }],
     ['an unknown side', { ...valid, sides: ['claude', 'vim'] }],
+    // Structured clone keeps a hole (measured under Electron 43, #538), and no check would have looked at its place
+    ['sides with a hole', { ...valid, sides: Object.assign([], { 1: 'claude' }) }],
+    // A sparse list crosses in a few bytes whatever its length, and a copy of this one would not fit in an array
+    ['more sides than there are, sent sparse', { ...valid, sides: Object.assign([], { [2 ** 32 - 2]: 'claude' }) }],
     ['no arguments', undefined]
   ])('refuses %s', (_what, raw) => {
     expect(refusal(() => installSkillArgs(raw, state()))).toEqual(badArgs('installSkill'))
-  })
-  it('passes on only the three fields an install takes', () => {
-    expect(installSkillArgs({ ...valid, side: 'claude', extra: 1 }, state())).toEqual({ skillName: 'tidy', sides: ['claude', 'codex'], targetProjectPath: '/p' })
   })
   it('leaves a name that is not one path segment to the install, which refuses it', () => {
     expect(refusal(() => installSkillArgs({ ...valid, skillName: '../x' }, state()))).toBeNull()
@@ -298,17 +289,11 @@ describe('uninstallSkillArgs', () => {
   ])('refuses %s', (_what, raw) => {
     expect(refusal(() => uninstallSkillArgs(raw, state()))).toEqual(badArgs('skillOp'))
   })
-  it('admits a skill, a side and a target', () => {
-    expect(uninstallSkillArgs({ skillName: 'tidy', side: 'grok', targetProjectPath: '/p' }, state())).toEqual({ skillName: 'tidy', side: 'grok', targetProjectPath: '/p' })
-  })
 })
 
 describe('skillHoldingsArgs', () => {
   it.each([42, null, undefined])('refuses %j', (raw) => {
     expect(refusal(() => skillHoldingsArgs(raw, state()))).toEqual(badArgs('skillHoldings'))
-  })
-  it('admits a name', () => {
-    expect(skillHoldingsArgs('tidy', state())).toBe('tidy')
   })
 })
 
@@ -333,7 +318,6 @@ describe('listSkillFilesArgs', () => {
     ['a global package', { name: 'tidy', side: 'codex', scope: 'global' }, { name: 'tidy', side: 'codex', scope: 'global' }],
     ['a global package sent with a project and a plugin root', { name: 'tidy', side: 'codex', scope: 'global', projectPath: '/p', pluginRoot: '/r' },
       { name: 'tidy', side: 'codex', scope: 'global' }],
-    ['a project package', { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }, { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }],
     ['a project package sent with a plugin root', { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p', pluginRoot: '/r' },
       { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }],
     ['a plugin package', { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }, { name: 'tidy', side: 'antigravity', scope: 'plugin', pluginRoot: '/r' }],
@@ -390,5 +374,112 @@ describe('skillFileArg', () => {
   it('admits a restored regular file, and a live registration that is a link', () => {
     expect(skillFileArg({ absPath: file }, state({ registry: restored({ skillFiles: [file] }), ...disk }))).toBe(file)
     expect(skillFileArg({ absPath: link }, state({ registry: live({ skillFiles: [link] }), ...disk }))).toBe(link)
+  })
+})
+
+// What every guard returns is built from what it checked, never an object or an array the page sent (postmortem
+// 2026-11-22-a-key-read-strictly-built-from-what-the-page-sent). Each guard has a row in GUARDS saying what it takes:
+// - an object: it is sent its canonical arguments with a stray path at every level that holds an object or an array,
+//   and returns its canonical result, written out here, sharing no object or array with what was sent;
+// - a primitive: it admits that primitive and refuses it sent in an array or an object, so nothing it returns is one;
+// - nothing: it returns nothing, whatever is sent;
+// - the one exception, checkedByPrefsHandlers, which passes on the preference value: each setter refuses an object and
+//   an array with invalid-pref (prefs-handlers.test.ts).
+// How a guard is told from a recheck: Guard's brand is a type alone, so at run time every function this module exports
+// counts as a guard unless RECHECKS names it, and typecheck holds RECHECKS to exports without the brand and GUARDS to a
+// row for each export with it. A new export of either kind fails here until it has a row or a place in RECHECKS.
+type GuardName = { [K in keyof typeof exported]: (typeof exported)[K] extends Guard<unknown> ? K : never }[keyof typeof exported]
+const RECHECKS = ['listedProject', 'listedSession', 'admitMemoryFile', 'admitSkillPackage'] as const satisfies readonly Exclude<
+  keyof typeof exported,
+  GuardName
+>[]
+type Takes =
+  | { takes: 'an object'; sends: object; at?: () => GuardState; returns: unknown }
+  | { takes: 'a primitive'; sends: string; at?: () => GuardState }
+  | { takes: 'nothing' }
+  | { takes: 'the exception' }
+const GUARDS: Record<GuardName, Takes> = {
+  noArgs: { takes: 'nothing' },
+  checkedByPrefsHandlers: { takes: 'the exception' },
+  projectDetailArgs: { takes: 'a primitive', sends: '/p', at: listing },
+  listedSessionArg: { takes: 'a primitive', sends: SESSION, at: listed },
+  sessionTurnArgs: { takes: 'an object', sends: { file: SESSION, i: 3, revision: 'r1' }, at: listed, returns: { file: SESSION, i: 3, revision: 'r1' } },
+  revealSessionArg: { takes: 'a primitive', sends: file, at: () => state({ sessions: new Set([file]), ...disk }) },
+  searchSessionsArgs: {
+    takes: 'an object',
+    sends: { path: '/p', needle: needle(200), fullText: true },
+    returns: { path: '/p', needle: needle(200), fullText: true }
+  },
+  globalSearchArgs: { takes: 'a primitive', sends: needle(200) },
+  memoryFileArg: { takes: 'a primitive', sends: '/m/a.md', at: () => state({ registry: live({ memoryFiles: ['/m/a.md'] }) }) },
+  copyTextArgs: { takes: 'a primitive', sends: 'x' },
+  installSkillArgs: {
+    takes: 'an object',
+    // Every side, the longest list a page sends
+    sends: { skillName: 'tidy', sides: ['claude', 'codex', 'grok', 'antigravity'], targetProjectPath: '/p' },
+    returns: { skillName: 'tidy', sides: ['claude', 'codex', 'grok', 'antigravity'], targetProjectPath: '/p' }
+  },
+  uninstallSkillArgs: {
+    takes: 'an object',
+    sends: { skillName: 'tidy', side: 'grok', targetProjectPath: '/p' },
+    returns: { skillName: 'tidy', side: 'grok', targetProjectPath: '/p' }
+  },
+  skillHoldingsArgs: { takes: 'a primitive', sends: 'tidy' },
+  listSkillFilesArgs: {
+    takes: 'an object',
+    sends: { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' },
+    returns: { name: 'tidy', side: 'claude', scope: 'project', projectPath: '/p' }
+  },
+  skillFileArg: { takes: 'an object', sends: { absPath: file }, at: () => state({ registry: live({ skillFiles: [file] }), ...disk }), returns: file }
+}
+
+/** A copy of what a page sends with a stray path at every level that holds an object or an array. Structured clone,
+ * which carries IPC arguments, keeps a property on an array as on any object (measured under Electron 43, #538) */
+function withStrays<T extends object>(sends: T): T {
+  const sent = structuredClone(sends)
+  const stray = (v: unknown): void => {
+    if (typeof v !== 'object' || v === null) return
+    for (const inner of Object.values(v)) stray(inner)
+    Object.assign(v, { stray: '/stray' })
+  }
+  stray(sent)
+  return sent
+}
+
+/** Every object and array reachable from a value, the value itself included */
+function reachable(v: unknown, found = new Set<object>()): Set<object> {
+  if (typeof v !== 'object' || v === null || found.has(v)) return found
+  found.add(v)
+  for (const inner of Object.values(v)) reachable(inner, found)
+  return found
+}
+
+describe('what every guard returns', () => {
+  const rows = Object.entries(GUARDS) as [GuardName, Takes][]
+  const taking = <T extends Takes['takes']>(t: T) => rows.filter((r): r is [GuardName, Extract<Takes, { takes: T }>] => r[1].takes === t)
+  const run = (name: GuardName): Guard<unknown> => exported[name]
+
+  it('has a row for every guard the module exports, and checkedByPrefsHandlers is the one exception', () => {
+    const recheck: readonly string[] = RECHECKS
+    const guards = Object.entries(exported).filter(([name, v]) => typeof v === 'function' && !recheck.includes(name)).map(([name]) => name)
+    expect(guards.sort()).toEqual(Object.keys(GUARDS).sort())
+    expect(taking('the exception').map(([name]) => name)).toEqual(['checkedByPrefsHandlers'])
+  })
+  it.each(taking('an object'))('%s returns what it checked, built anew, whatever else the page sends', (name, row) => {
+    const sent = withStrays(row.sends)
+    const result = run(name)(sent, (row.at ?? state)())
+    expect(result).toStrictEqual(row.returns)
+    const fromPage = reachable(sent)
+    expect([...reachable(result)].filter((o) => fromPage.has(o))).toEqual([])
+  })
+  // The admission first, so that the refusals are of the wrapping and not of the value
+  it.each(taking('a primitive'))('%s admits only a primitive', (name, row) => {
+    const at = row.at ?? state
+    expect(run(name)(row.sends, at())).toBe(row.sends)
+    expect(refusal(() => run(name)([row.sends], at()))).not.toBeNull()
+    expect(refusal(() => run(name)({ value: row.sends }, at()))).not.toBeNull()
+  })
+  it.each(taking('nothing'))('%s returns nothing, whatever the page sends', (name) => {
+    expect(run(name)({ file: '/x' }, state())).toBeUndefined()
   })
 })
