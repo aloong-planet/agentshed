@@ -222,10 +222,12 @@ In both languages, the existing footer copyright line links the author name "alo
   "/" is not a link and assistive technology does not read it; the brand keeps its link. Both languages
   show "aloong planet", untranslated.
 - landing-page::REQ-012/AC-02: "aloong planet" and "/" take the size and grey of the header's navigation
-  links, with 10px between each of the three ("aloong planet", "/", the brand). Hovering "aloong planet"
-  turns it the navigation links' hover colour.
-- landing-page::REQ-012/AC-03: In a window 400px wide or narrower, "aloong planet /" shrinks to 11px on its
-  own line above the brand; the header keeps its height and the language toggle stays at the right.
+  links, with 10px between each of the three ("aloong planet", "/", the brand); in the narrow window of
+  landing-page::REQ-012/AC-03, "aloong planet" and "/" are 4px apart. Hovering "aloong planet" turns it the
+  navigation links' hover colour.
+- landing-page::REQ-012/AC-03: In a window 400px wide or narrower, "aloong planet /" shrinks to 11px, with a
+  line height 1.3 times that size, on its own line 1px above the brand's line; the header keeps its height
+  and the language toggle stays at the right.
 
 ## Quality Requirements
 
