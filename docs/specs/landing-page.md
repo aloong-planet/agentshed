@@ -399,8 +399,8 @@ visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
   step; the other page puts the same element back at the same distance and makes the same step current
   (landing-page::REQ-004/AC-07). The pinned showcase is never that element (Failure C5).
 - **The header's trail** (landing-page::REQ-012) is a navigation landmark named "Breadcrumb" in English and
-  "面包屑" in Chinese. It holds "aloong planet" and the brand as an ordered list of two links, and the brand is
-  marked as the current page.
+  its Chinese counterpart in Chinese. It holds "aloong planet" and the brand as an ordered list of two links,
+  and the brand is marked as the current page.
 - **The features section**: the showcase is pinned inside a block one window tall plus 60% of a
   window for each further step, so the number of steps sets the block's height. The current step is
   the distance scrolled past the point where it pins, in turns, rounded and kept within the steps,
