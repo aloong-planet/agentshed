@@ -27,8 +27,8 @@ theme also selects website checks because the palette test reads it. See [CI rou
 - `src/pages/index.astro`, `src/pages/zh/index.astro`: the two pages, the same sections in the same order.
 - `public/_redirects`: permanent Cloudflare Pages redirects from `/en` and `/en/` to `/`.
   The Astro redirect also emits a static fallback for local previews.
-- `src/layouts/Base.astro`: the head, the sticky header (brand, navigation, language toggle), the footer, and
-  the page's one script.
+- `src/layouts/Base.astro`: the head, the sticky header (the trail back to the author's homepage ending in the brand,
+  navigation, language toggle), the footer, and the page's one script.
 - `src/components/`: one component per section (`Hero`, `Features`, `Install`, `Download`), and `Icon.astro`,
   the page's icons as inline SVG copied from Lucide. A new icon goes there, never a character or an emoji.
 - `src/i18n/ui.ts`: every string of the page, in both languages. This dictionary is the site's own, separate

@@ -599,9 +599,9 @@ a {
     text-align: center;
   }
 }
-/* Narrow phones: on one line beside the language toggle the trail no longer fits (measured on the prototype: at
-   390px Agentshed's header had no room to spare, at 401px it kept its gap), so "aloong planet /" goes small above
-   the brand, inside the same header height. */
+/* Narrow phones: on one line beside the language toggle the trail no longer fits (measured on the built site: at
+   401px the bar has 11px to spare, at 390px none), so "aloong planet /" goes small above the brand, inside the same
+   header height. */
 @media (max-width: 400px) {
   .crumbs ol {
     flex-direction: column;
