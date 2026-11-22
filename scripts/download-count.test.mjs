@@ -7,12 +7,10 @@
 // call on a later turn of the event loop, as an asynchronous binding would: a call the core does not await has not
 // happened when the run goes on. The cases through the aws-cli adapter answer at once, as aws-cli does in the workflow.
 //
-// GitHub's answer is the repository's real one (scripts/fixtures/github-releases.json: `gh api
-// 'repos/aloong-planet/agentshed/releases?per_page=100'`, 2026-11-22, nine pre-releases, trimmed to the fields a
-// release and an asset are read for); a draft and a formal release are added by copying its entries.
+// GitHub and the analytics stand in through scripts/testing/download-count-sources.mjs, whose header says what their
+// answers are shaped from.
 //
-// Gaps: nothing here reaches R2, GitHub or Cloudflare. The analytics' answers are shaped from Cloudflare's documented
-// schema and the query Transfer runs hourly on the same zone; aws-cli's output for a listing is shaped from its source
+// Gaps: nothing here reaches R2, GitHub or Cloudflare. aws-cli's output for a listing is shaped from its source
 // (the JSON formatter applied to `--query '{objects: Contents}'`), since aws-cli could not run on the machine that
 // wrote these tests. The workflow's first runs are those checks (docs/ops/download-count.md). A global only Node has
 // (`process`, `Buffer`), used by the core, would fail only in a runtime without Node; every case here runs the core in
@@ -21,35 +19,13 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
-import ts from 'typescript'
 import { awsBucket } from './lib/r2-bucket.mjs'
 import { collect, isDmg, mergeGitHub, mergeR2, planRanges, summarize, validateStatistics } from './download-count-core.mjs'
 import { main } from './download-count.mjs'
-
-const REAL_RELEASES = JSON.parse(readFileSync(new URL('./fixtures/github-releases.json', import.meta.url), 'utf8'))
-
-/** The real answer's newest release, copied under another tag and other asset IDs */
-function copyOf(tag, { draft = false, prerelease = false, dmgDownloads = 0, idBase }) {
-  const [newest] = REAL_RELEASES
-  const version = tag.slice(1)
-  return {
-    ...newest,
-    id: idBase,
-    tag_name: tag,
-    draft,
-    prerelease,
-    assets: newest.assets.map((asset, i) => {
-      const name = asset.name.replace('0.1.0-beta.9', version)
-      return {
-        ...asset,
-        id: idBase + 1 + i,
-        name,
-        download_count: name.endsWith('.dmg') ? dmgDownloads : 40,
-        browser_download_url: `https://github.com/aloong-planet/agentshed/releases/download/${tag}/${name}`
-      }
-    })
-  }
-}
+import { imports } from './testing/module-imports.mjs'
+import {
+  copyOf, DAY, DMG_KEY, json, LIMITS, NOW, REAL_ASSETS, REAL_RELEASES, sources, text, writtenFile, zoneAnswer
+} from './testing/download-count-sources.mjs'
 
 test('a DMG is an asset or object with the packaged name, formal or pre-release, and nothing else is', () => {
   const counted = [
@@ -78,19 +54,6 @@ test('a DMG is an asset or object with the packaged name, formal or pre-release,
   for (const name of counted) assert.equal(isDmg(name), true, name)
   for (const name of passed) assert.equal(isDmg(name), false, name)
 })
-
-// The real answer's DMG counts on 2026-11-22: 2 for beta.3 to beta.9, 3 for beta and beta.2
-const REAL_ASSETS = {
-  771176132: { name: 'Agentshed-0.1.0-beta.9-mac-arm64.dmg', downloads: 2 },
-  716218198: { name: 'Agentshed-0.1.0-beta.8-mac-arm64.dmg', downloads: 2 },
-  714192334: { name: 'Agentshed-0.1.0-beta.7-mac-arm64.dmg', downloads: 2 },
-  712587166: { name: 'Agentshed-0.1.0-beta.6-mac-arm64.dmg', downloads: 2 },
-  711706094: { name: 'Agentshed-0.1.0-beta.5-mac-arm64.dmg', downloads: 2 },
-  708189336: { name: 'Agentshed-0.1.0-beta.4-mac-arm64.dmg', downloads: 2 },
-  691524290: { name: 'Agentshed-0.1.0-beta.3-mac-arm64.dmg', downloads: 2 },
-  682397225: { name: 'Agentshed-0.1.0-beta.2-mac-arm64.dmg', downloads: 3 },
-  665347607: { name: 'Agentshed-0.1.0-beta-mac-arm64.dmg', downloads: 3 }
-}
 
 test("GitHub's share is each published release's DMG count, formal or pre-release, and nothing of a draft or of the update files", () => {
   const answer = [
@@ -135,8 +98,6 @@ test("an entry of GitHub's answer the run cannot read fails the merge", () => {
   for (const [label, entry] of cases) assert.throws(() => mergeGitHub({}, [entry]), Error, label)
 })
 
-const DMG_KEY = 'releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg'
-
 test("the download host's share counts the listing's DMGs only, adding each counted request's bytes to its object", () => {
   const listing = [
     { key: DMG_KEY, size: 1000 },
@@ -179,12 +140,8 @@ test('the summary adds the shares unrounded: downloads on GitHub, and bytes over
   assert.deepEqual(summarize({}, {}), { total: 0, sources: { github: 0, r2: 0 } })
 })
 
-// The clock reads 09:47:12 UTC, the minute the schedule runs at: the last full hour ended at 09:00, 47 minutes
-// before. A day of notOlderThan reaches back to 09:47:12 the day before, so the oldest full hour the analytics hold
-// starts at 10:00.
-const NOW = Date.UTC(2026, 10, 22, 9, 47, 12)
-const DAY = 86400
-
+// NOW (the shared stand-ins) reads 09:47:12 UTC: the last full hour ended at 09:00, and a day of notOlderThan holds
+// from 10:00 the day before
 test('the traffic is read from the cursor to the last full hour, in ranges no wider than maxDuration', () => {
   assert.deepEqual(planRanges({ cursor: '2026-11-22T08:00:00Z', now: NOW, notOlderThan: 31 * DAY, maxDuration: 3 * DAY, acceptGap: false }), {
     ranges: [{ from: '2026-11-22T08:00:00Z', to: '2026-11-22T09:00:00Z' }],
@@ -269,22 +226,6 @@ test('a cursor at the last full hour reads nothing, and one after it or off the 
   assert.throws(() => planRanges({ ...limits, cursor: '2026-11-22T08:00:00Z', maxDuration: 1800 }), /maxDuration 1800 is narrower than an hour/)
 })
 
-/** A statistics file with every field of the spec's table, its summary added by hand */
-const writtenFile = () => ({
-  schemaVersion: 1,
-  updatedAt: '2026-11-22T09:47:12.000Z',
-  r2Cursor: '2026-11-22T09:00:00Z',
-  r2Gaps: [{ from: '2026-11-01T00:00:00Z', to: '2026-11-02T00:00:00Z' }],
-  summary: { total: 7.5, sources: { github: 5, r2: 2.5 } },
-  github: {
-    assets: {
-      682397225: { name: 'Agentshed-0.1.0-beta.2-mac-arm64.dmg', downloads: 3 },
-      665347607: { name: 'Agentshed-0.1.0-beta-mac-arm64.dmg', downloads: 2 }
-    }
-  },
-  r2: { objects: { [DMG_KEY]: { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 2500 } } }
-})
-
 // Failure G1: a file the run cannot take as the spec's statistics file fails the run rather than start the count over
 test("a statistics file is taken only when it matches the spec's fields exactly", () => {
   assert.deepEqual(validateStatistics(writtenFile()), writtenFile())
@@ -340,44 +281,16 @@ test("a statistics file is taken only when it matches the spec's fields exactly"
   }
 })
 
-const GRAPHQL = 'https://api.cloudflare.com/client/v4/graphql'
-const RELEASES_PAGE = 'https://api.github.com/repos/aloong-planet/agentshed/releases?per_page=100&page='
-const LIMITS = { enabled: true, notOlderThan: 31 * DAY, maxDuration: 3 * DAY, maxPageSize: 10000 }
-const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
-
 /**
- * The run's world: the release bucket as objects by key, GitHub's releases answered 100 to a page, and Cloudflare's
- * analytics answering the settings and, for a range, the rows of each hour in it (`traffic`: hour -> [{ path, bytes }]).
- * `answer` replaces an answer, or throws for a call that fails; `requests` records what was asked, in order. The
- * bucket is `store`, as the core is given it, and `syncStore`, the same bucket answering at once, as aws-cli does.
+ * The run's world: the release bucket as objects by key, and GitHub and the analytics as the shared stand-ins answer
+ * them (scripts/testing/download-count-sources.mjs). `answer` replaces an answer, or throws for a call that fails;
+ * `requests` records what was asked, in order. The bucket is `store`, as the core is given it, and `syncStore`, the
+ * same bucket answering at once, as aws-cli does.
  */
-function world({ objects = {}, releases = REAL_RELEASES, limits = LIMITS, traffic = {}, answer = {} } = {}) {
+function world({ objects = {}, releases, limits, traffic, answer = {} } = {}) {
   const bucket = new Map(Object.entries(objects))
   const requests = []
-  const fetch = async (url, init = {}) => {
-    if (url.startsWith(RELEASES_PAGE)) {
-      const page = Number(url.slice(RELEASES_PAGE.length))
-      requests.push({ to: 'github', page, headers: init.headers })
-      return answer.github?.(page) ?? json(releases.slice((page - 1) * 100, page * 100))
-    }
-    if (url === GRAPHQL && init.method === 'POST') {
-      const { query, variables } = JSON.parse(init.body)
-      if (query.includes('settings')) {
-        requests.push({ to: 'settings', headers: init.headers, variables })
-        return answer.settings?.() ?? json({ data: { viewer: { zones: [{ settings: { httpRequestsAdaptiveGroups: limits } }] } }, errors: null })
-      }
-      const { filter } = variables
-      requests.push({ to: 'traffic', headers: init.headers, query, variables })
-      const groups = new Map()
-      for (const [hour, rows] of Object.entries(traffic)) {
-        if (hour < filter.datetime_geq || hour >= filter.datetime_lt) continue
-        for (const { path, bytes } of rows) groups.set(path, (groups.get(path) ?? 0) + bytes)
-      }
-      const rows = [...groups].map(([path, bytes]) => ({ dimensions: { clientRequestPath: path }, sum: { edgeResponseBytes: bytes } }))
-      return answer.traffic?.(filter) ?? json({ data: { viewer: { zones: [{ httpRequestsAdaptiveGroups: rows }] } }, errors: null })
-    }
-    throw new Error(`unexpected request: ${url}`)
-  }
+  const fetch = sources({ releases, limits, traffic, answer, requests })
   const syncStore = {
     list: (prefix) => {
       requests.push({ to: 'list', prefix })
@@ -494,8 +407,6 @@ test("GitHub's releases are read page after page with the workflow's token, unti
   assert.equal(published(bucket).summary.sources.github, 261)
 })
 
-const text = (body, status = 200) => new Response(body, { status })
-const zoneAnswer = (zone) => json({ data: { viewer: { zones: [zone] } }, errors: null })
 /** A bucket whose listing of one prefix fails; the listing of any other is the bucket's */
 const failingList = (failed) => (prefix) => {
   if (prefix === failed) throw new Error(`the listing of ${prefix} failed: InternalError`)
@@ -742,33 +653,8 @@ test('the script run as a process exits with a failure when it cannot count', ()
   assert.match(result.stderr, /\[download-count\] R2_ACCOUNT_ID is not set/)
 })
 
-// The core runs where neither Node's modules nor the files beside it are. A module's static imports are its import
-// declarations and export-from declarations (ECMAScript's module requests), every one of which the walk of
-// TypeScript's syntax tree takes; at run time it loads one through `import()`, `import.source()`, `import.defer()` or
-// CommonJS's `require()`, which the walk takes too, as the sample's forms show. (TypeScript's preProcessFile, used
-// before, lists neither `export * as` nor `import defer`.)
+// The core runs where neither Node's modules nor the files beside it are (the walk and its sample:
+// scripts/testing/module-imports.mjs)
 test('the core imports nothing, neither a module of Node nor a file', () => {
-  const imports = (source) => {
-    const found = []
-    const named = (node) => (ts.isStringLiteralLike(node) ? node.text : node.getText())
-    const loads = (callee) => callee.kind === ts.SyntaxKind.ImportKeyword
-      || (ts.isMetaProperty(callee) && callee.keywordToken === ts.SyntaxKind.ImportKeyword)
-      || (ts.isIdentifier(callee) && callee.text === 'require')
-    const visit = (node) => {
-      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) found.push(named(node.moduleSpecifier))
-      if (ts.isCallExpression(node) && loads(node.expression)) found.push(node.arguments.map(named).join(', '))
-      ts.forEachChild(node, visit)
-    }
-    visit(ts.createSourceFile('module.mjs', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS))
-    return found
-  }
-  const sample = [
-    "import a from 'node:url'", "import './b.mjs'", "import defer * as c from './c.mjs'", "export * from './d.mjs'",
-    "export * as e from 'node:path'", "export { f } from './f.mjs'", 'export { a }', "const g = await import('node:fs')",
-    "const h = await import.source('./h.wasm')", "const i = await import.defer('./i.mjs')", "const j = require('node:os')",
-    'const k = await import(name)',
-  ].join('\n')
-  assert.deepEqual(imports(sample),
-    ['node:url', './b.mjs', './c.mjs', './d.mjs', 'node:path', './f.mjs', 'node:fs', './h.wasm', './i.mjs', 'node:os', 'name'])
   assert.deepEqual(imports(readFileSync(new URL('./download-count-core.mjs', import.meta.url), 'utf8')), [])
 })
