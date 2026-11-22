@@ -48,11 +48,13 @@ theme also selects website checks because the palette test reads it. See [CI rou
   the current step and scroll position (`language-switch.ts`), and the download script that reads, decides and
   shows the state in place (`download.ts`, applying it with `apply-download.ts`), and fills the download count's
   line without the download waiting for it.
-- `src/shots.ts` and `public/shots/`: the screenshots, one set per language. The hero, overview, project,
-  token and Chinese session cuts show the owner's data, approved for publication (2026-10-13; the hero's
-  retake 2026-10-21). The memory, search and English session cuts show made-up data (the English session
-  retaken 2026-11-09). They change only by retaking them from the app, at the same sizes (the hero
-  2560×1536, every feature cut 1840×1035).
+- `src/shots.ts` and `public/shots/`: the screenshots, one set per language. The overview, project, token and
+  Chinese session cuts show the owner's data, approved for publication (2026-10-13). The memory, search and
+  English session cuts show made-up data (the memory and search cuts by the owner's choice, 2026-10-21; the
+  English session retaken 2026-11-09). They change only by retaking them from the app, at the same size
+  (every cut 1840×1035). The root READMEs' picture is not among them: it shows the owner's data (approved
+  2026-10-13, retaken 2026-10-21, 2560×1536) and is kept in the repository's `docs/assets/readme/` so that
+  the site does not serve it.
 - `public/media/agentshed-intro-poster.jpg`: the shared 1600×900 poster. Both walkthroughs use the English narration.
   The [English captions](https://youtu.be/lQ-Bg8nXJKM) and [Chinese captions](https://youtu.be/TpCgkGiVqlk)
   are part of their respective YouTube videos. `src/scripts/hero-video.ts`
