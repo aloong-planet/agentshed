@@ -34,6 +34,11 @@ export interface Dictionary {
   nav: { features: string; install: string; download: string; github: string }
   /** The language toggle's accessible name */
   language: string
+  /**
+   * The trail at the header's left end (landing-page::REQ-012): its accessible name, and the name of the author's
+   * homepage it links back to, untranslated
+   */
+  trail: { label: string; home: string }
   hero: {
     title: string
     lede: string
@@ -71,6 +76,7 @@ export interface Dictionary {
 const zh: Dictionary = {
   nav: { features: '功能', install: '安装', download: '下载', github: 'GitHub' },
   language: '语言',
+  trail: { label: '面包屑', home: 'aloong planet' },
   hero: {
     title: '你的 coding agent，尽收眼底',
     lede: '一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，记住了什么，烧了多少 token；每次会话按提问回看，所有项目一起搜索；还能把全局 skill 装进任意项目。',
@@ -157,6 +163,7 @@ const zh: Dictionary = {
 const en: Dictionary = {
   nav: { features: 'Features', install: 'Install', download: 'Download', github: 'GitHub' },
   language: 'Language',
+  trail: { label: 'Breadcrumb', home: 'aloong planet' },
   hero: {
     title: 'Your coding agents, in full view',
     lede: 'See, across every project, which skills, plugins and MCP servers Claude Code, Codex and other coding agents have installed, what they remember and how many tokens they burned; revisit every session question by question, search what you asked across all of them, and install skills from your global library into any project.',

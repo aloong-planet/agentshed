@@ -1,6 +1,6 @@
 ---
-// The page's frame: the head, the sticky header (brand, navigation, language toggle) and the footer
-// (landing-page::REQ-003). Each language's page fills the main region with the same sections.
+// The page's frame: the head, the sticky header (the trail back to the author's homepage ending in the brand,
+// navigation, language toggle) and the footer (landing-page::REQ-003, landing-page::REQ-012). Each language's page fills the main region with the same sections.
 import '../styles/global.css'
 import { REPOSITORY, RELEASE_LIST } from '../download'
 import { HTML_LANG, LANGUAGE_NAME, LOCALES, PAGE_PATH, ui, type Locale } from '../i18n/ui'
@@ -25,7 +25,16 @@ const t = ui[locale]
   <body>
     <header class="site-header">
       <div class="wrap bar">
-        <a class="brand" href="#top"><img src="/icon-64.png" width="64" height="64" alt="" /><span>Agentshed</span></a>
+        <nav class="crumbs" aria-label={t.trail.label}>
+          <ol>
+            <li class="crumbs-up">
+              <a class="crumbs-home" href="https://aloongplanet.com/">{t.trail.home}</a><span class="crumbs-sep" aria-hidden="true">/</span>
+            </li>
+            <li>
+              <a class="brand" href="#top" aria-current="page"><img src="/icon-64.png" width="64" height="64" alt="" /><span>Agentshed</span></a>
+            </li>
+          </ol>
+        </nav>
         <nav class="nav-links">
           <a href="#features">{t.nav.features}</a>
           <a href="#install">{t.nav.install}</a>

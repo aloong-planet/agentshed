@@ -10,7 +10,9 @@
 // against the built site, and the measurement record is kept with the ticket's evidence; they would become tests
 // only with a browser seam in these tests. Nor is the download count's line keeping its height when its text appears
 // (landing-page::REQ-011/AC-01), which jsdom cannot lay out: the height before and after is measured in a browser
-// against the built site, in the delivery note of the change that added the line.
+// against the built site, in the delivery note of the change that added the line. Nor are the header trail's sizes,
+// colours, gaps and narrow-window layout (landing-page::REQ-012/AC-02, AC-03): they are read in a browser against the
+// built site, in the delivery note of the change that added the trail.
 // Host HTTP status and query/fragment preservation require a Cloudflare Pages runtime browser check;
 // this suite checks the emitted redirect fallback and host configuration, not the host itself.
 import { readdirSync, readFileSync } from 'node:fs'
@@ -47,7 +49,7 @@ describe('page structure', () => {
     expect(brand?.querySelector('img')?.getAttribute('src')).toMatch(/^\/icon-\d+\.png$/)
     expect(text(brand)).toBe('Agentshed')
 
-    const nav = [...(header?.querySelectorAll('nav a') ?? [])]
+    const nav = [...(header?.querySelectorAll('.nav-links a') ?? [])]
     expect(nav.map((a) => a.getAttribute('href'))).toEqual(['#features', '#install', '#download', REPOSITORY])
     for (const a of nav.slice(0, 3)) {
       expect(pages[locale].getElementById(a.getAttribute('href')!.slice(1)), a.getAttribute('href')!).not.toBeNull()
@@ -65,7 +67,34 @@ describe('page structure', () => {
   })
 
   test('the English navigation reads as the spec’s', () => {
-    expect([...pages.en.querySelectorAll('header nav a')].map(text)).toEqual(['Features', 'Install', 'Download', 'GitHub'])
+    expect([...pages.en.querySelectorAll('header .nav-links a')].map(text)).toEqual([
+      'Features',
+      'Install',
+      'Download',
+      'GitHub'
+    ])
+  })
+
+  // landing-page::REQ-012/AC-01. The expected names are literals rather than the dictionary's text.
+  test.each(LOCALES)('%s: the header opens with the trail back to the aloong planet homepage, then the brand', (locale) => {
+    const trail = pages[locale].querySelector('header .bar')?.firstElementChild
+    expect(trail?.tagName).toBe('NAV')
+    expect(trail?.getAttribute('aria-label')).toBe(locale === 'zh' ? '面包屑' : 'Breadcrumb')
+    const items = [...(trail?.querySelectorAll('ol > li') ?? [])]
+    expect(items.map((li) => text(li.querySelector('a')))).toEqual(['aloong planet', 'Agentshed'])
+
+    const [home, brand] = items.map((li) => li.querySelector('a'))
+    expect(home?.getAttribute('href')).toBe('https://aloongplanet.com/')
+    expect(home?.hasAttribute('target')).toBe(false)
+    expect(brand?.classList.contains('brand')).toBe(true)
+    expect(brand?.getAttribute('href')).toBe('#top')
+    expect(brand?.getAttribute('aria-current')).toBe('page')
+
+    // The separator follows the homepage link, outside it, and is hidden from assistive technology
+    const separator = home?.nextElementSibling
+    expect(text(separator)).toBe('/')
+    expect(separator?.closest('a')).toBeNull()
+    expect(separator?.getAttribute('aria-hidden')).toBe('true')
   })
 
   test.each(LOCALES)('%s: hero, features, install and download in that order, then the footer', (locale) => {
