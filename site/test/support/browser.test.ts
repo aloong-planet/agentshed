@@ -1,7 +1,8 @@
 // The browser harness's own check: no browser case reaches the network. A request the harness has no answer for
 // is refused inside the browser, and the visit fails naming it, also when the case has failed on its own first; a
 // visit whose every request is answered does not.
-// The browser settings a case gives (a motion preference, scripts off) reach the page it visits.
+// The browser settings a case gives (a motion preference, scripts off) reach the page it visits. A request the page
+// makes as the case ends is counted too: the visit waits for the page's requests to settle first.
 import { afterAll, beforeAll, expect, inject, test } from 'vitest'
 import { launch, visit, type Browser, type Page, type Visit } from './browser'
 import { COUNT_URL, POINTER_URL, RELEASES_API, statistics } from './stand-ins'
@@ -72,19 +73,29 @@ test('a visit that asks for reduced motion gets it, and one that does not gets n
 
 test("a visit with scripts off runs none of the page's scripts", async () => {
   const site = inject('builtSite')
-  // No stand-ins: the page's scripts make reads, so a visit that runs them fails naming the reads. Each half waits until
-  // the page's requests have settled, so that a read is refused before the visit ends rather than after
+  // No stand-ins: the page's scripts make reads, so a visit that runs them fails naming the reads
   const unread: Visit = { ...listPage, reads: {} }
-  const settled = (page: Page): Promise<void> => page.waitForLoadState('networkidle', { timeout: 5_000 })
-  const error: unknown = await visit(browser, site, unread, settled).then(
+  const error: unknown = await visit(browser, site, unread, () => Promise.resolve()).then(
     () => expect.unreachable('the page ran its scripts, made its reads with no stand-in, and the visit passed'),
     (e: unknown) => e
   )
   expect(String(error)).toContain(COUNT_URL)
   // Scripts off: the page asks for nothing, and its styles see a browser without scripting
-  const scripting = await visit(browser, site, { ...unread, scripts: false }, async (page) => {
-    await settled(page)
-    return page.evaluate(() => matchMedia('(scripting: none)').matches)
-  })
+  const scripting = await visit(browser, site, { ...unread, scripts: false }, (page) =>
+    page.evaluate(() => matchMedia('(scripting: none)').matches)
+  )
   expect(scripting).toBe(true)
+})
+
+test('a request the page makes as the case ends is waited for, and the visit fails naming it', async () => {
+  // The page asks for the stray read 30ms after the case has returned
+  const error: unknown = await visit(browser, inject('builtSite'), listPage, (page) =>
+    page.evaluate((stray) => {
+      setTimeout(() => void fetch(stray).catch(() => undefined), 30)
+    }, STRAY)
+  ).then(
+    () => expect.unreachable('the page asked for a read with no stand-in as the case ended, and the visit passed'),
+    (e: unknown) => e
+  )
+  expect(String(error)).toContain(STRAY)
 })

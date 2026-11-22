@@ -12,7 +12,7 @@
 // go unanswered with no case failing.
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
-import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright'
+import { chromium, type Browser, type BrowserContext, type Page, type Request, type Route } from 'playwright'
 
 export type { Browser, Page }
 
@@ -49,10 +49,20 @@ const TYPES: Record<string, string> = {
 }
 
 /**
+ * After `run`, before the unanswered requests are counted: the page must have made no request for QUIET_MS, with none
+ * still in flight. A request the page made as the case ended reaches the harness a moment later, and counted at once it
+ * would be missed. SETTLE_MS bounds the wait.
+ */
+const QUIET_MS = 100
+const SETTLE_MS = 2_000
+
+/**
  * Opens a page of the build at `site` in a browser context of its own, runs `run` on it, and closes the context.
- * Gives what `run` gives. Rejects when the page made a request with no answer (no stand-in for it, or no such file in
- * the build), naming each, and with `run`'s own failure as the cause if it failed too. A wait inside `run` must give up
- * before the test's own timeout: a case the test run times out never gets here, and its failure names nothing.
+ * Gives what `run` gives. Once `run` is done, waits for the page's requests to settle (QUIET_MS), then rejects when the
+ * page made a request with no answer (no stand-in for it, or no such file in the build), naming each, or when requests
+ * were still in flight SETTLE_MS on, naming those; with `run`'s own failure as the cause if it failed too. A wait inside
+ * `run` must give up before the test's own timeout, less SETTLE_MS: a case the test run times out never gets here, and
+ * its failure names nothing.
  */
 export async function visit<T>(browser: Browser, site: string, options: Visit, run: (page: Page) => Promise<T>): Promise<T> {
   const context = await browser.newContext({
@@ -62,6 +72,13 @@ export async function visit<T>(browser: Browser, site: string, options: Visit, r
     javaScriptEnabled: options.scripts ?? true
   })
   const unanswered: string[] = []
+  const requests = { inFlight: new Set<Request>(), last: 0 }
+  context.on('request', (request) => {
+    requests.inFlight.add(request)
+    requests.last = Date.now()
+  })
+  context.on('requestfinished', (request) => requests.inFlight.delete(request))
+  context.on('requestfailed', (request) => requests.inFlight.delete(request))
   try {
     await context.route('**/*', (route) => answer(route, site, options.reads, unanswered))
     const page = await context.newPage()
@@ -72,15 +89,29 @@ export async function visit<T>(browser: Browser, site: string, options: Visit, r
     } catch (error) {
       outcome = { ok: false, error }
     }
+    const stuck = await settle(requests)
+    const cause = outcome.ok ? undefined : outcome.error
     if (unanswered.length > 0) {
-      throw new Error(`The page made requests no stand-in answers, refused: ${unanswered.join(', ')}`, {
-        cause: outcome.ok ? undefined : outcome.error
-      })
+      throw new Error(`The page made requests no stand-in answers, refused: ${unanswered.join(', ')}`, { cause })
+    }
+    if (stuck.length > 0) {
+      throw new Error(`The page's requests were still in flight ${SETTLE_MS}ms after the case ended: ${stuck.join(', ')}`, { cause })
     }
     if (!outcome.ok) throw outcome.error
     return outcome.value
   } finally {
     await close(context)
+  }
+}
+
+/** Waits until the page has made no request for QUIET_MS and none is in flight; gives those still in flight at SETTLE_MS */
+async function settle(requests: { inFlight: Set<Request>; last: number }): Promise<string[]> {
+  const start = Date.now()
+  for (;;) {
+    const now = Date.now()
+    if (requests.inFlight.size === 0 && now - Math.max(requests.last, start) >= QUIET_MS) return []
+    if (now - start >= SETTLE_MS) return [...requests.inFlight].map((request) => request.url())
+    await new Promise((resolve) => setTimeout(resolve, 10))
   }
 }
 
