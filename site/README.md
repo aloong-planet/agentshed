@@ -93,6 +93,10 @@ theme also selects website checks because the palette test reads it. See [CI rou
   when the system appearance changes, the screenshots staying light and the GitHub button beside Download
   (landing-page::REQ-006, Failure D1). Every browser case opens the build through `visit()`, and `pnpm lint:site`
   fails on any other import of Playwright by its package name in a JavaScript or TypeScript file under `site/`.
+  `test/landing-page-colours.test.ts` also checks the test state's pills and note in the warning pair, and
+  `test/landing-page-font.test.ts` the font: the stylesheet's two families, the body's and the feature steps'
+  numbers', beginning with the system stack, and in the browser, in the test state at two widths, no font face, no
+  font file asked for and every text in the family its rule declares (landing-page::REQ-006).
 - `test/apply-download.test.ts` and `test/init-download.test.ts` apply the download states to that build's
   pages, the second through the page's script with a fake network. The reads' tests answer through an injected
   fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the
