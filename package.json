@@ -15,7 +15,7 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:scripts": "node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/restore-archive.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/download-count.test.mjs scripts/download-count-worker.test.mjs scripts/download-count-compare.test.mjs scripts/testing/r2-binding.test.mjs scripts/testing/module-imports.test.mjs scripts/download-count-workflow.test.mjs scripts/release-workflow.test.mjs scripts/workflow-actions.test.mjs scripts/build-engine.test.mjs scripts/bench-store-compare.test.mjs scripts/bench-search.test.mjs scripts/eslint-ipc-rules.test.mjs",
+    "test:scripts": "node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/restore-archive.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/download-count.test.mjs scripts/download-count-worker.test.mjs scripts/download-count-compare.test.mjs scripts/testing/r2-binding.test.mjs scripts/testing/module-imports.test.mjs scripts/download-count-workflow.test.mjs scripts/release-workflow.test.mjs scripts/workflow-actions.test.mjs scripts/build-engine.test.mjs scripts/bench-store-compare.test.mjs scripts/bench-search.test.mjs scripts/eslint-ipc-rules.test.mjs scripts/eslint-site-browser-rule.test.mjs",
     "test:site": "pnpm --dir site check && pnpm --dir site test",
     "dist:mac:local": "node build/mac-packaging.cjs local",
     "dist:mac:release": "node build/mac-packaging.cjs release && node build/mac-packaging.cjs notarize-dmg",
