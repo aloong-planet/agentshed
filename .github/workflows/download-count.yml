@@ -2,9 +2,10 @@ name: Download count
 
 # The landing page's download count (docs/specs/landing-page.md, REQ-011; ADR-0055): every hour, GitHub's DMG
 # download counts and the download host's traffic up to the hour REQ-011/AC-04 counts to, published as
-# stats/downloads.json in the release bucket (scripts/download-count.mjs). The credentials, the first runs and
-# resuming a stalled count are in docs/ops/download-count.md; scripts/download-count-workflow.test.mjs guards the
-# triggers and every condition below.
+# stats/downloads.json in the release bucket (scripts/download-count.mjs). In the shadow period (ADR-0056) a run that
+# wrote the file then compares it with the Worker's shadow file, appending to stats/shadow-comparisons.json, with the
+# run ID and commit GitHub sets in every run. The credentials, the first runs and resuming a stalled count are in
+# docs/ops/download-count.md; scripts/download-count-workflow.test.mjs guards the triggers and every condition below.
 on:
   schedule:
     # Minute 47 rather than the hour, when GitHub's scheduled runs crowd and are most often delayed
