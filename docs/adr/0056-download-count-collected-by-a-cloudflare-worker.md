@@ -34,10 +34,8 @@ may need a paid plan, and the R2 share cannot be recounted once the analytics no
 
 ## Decision
 
-We adopt **option 1**. Until the switch conditions of landing-page's "The shadow period" all hold, the Worker writes a
-shadow file and the workflow keeps writing the statistics file; then the Worker takes the statistics file over, and
-the workflow becomes a read-only watchdog that fails, and so notifies through GitHub, when the file stops being
-updated (landing-page Failure G8).
+We adopt **option 1**. The Worker takes the statistics file over only once landing-page's "The shadow period" has
+proven it against the workflow, which then becomes the watchdog (landing-page Failure G8).
 
 ## Consequences
 
@@ -50,6 +48,8 @@ updated (landing-page Failure G8).
   schedule, which GitHub disables after 60 days without activity in the repository.
 - Negative: every change to the Worker's code needs a second pull request in infra to pin it, and infra's state holds
   an account-wide Workers token.
+- Negative: the Worker and the shadow period's comparisons add R2 operations, charged only when the account is already
+  beyond R2's free tier (landing-page::CON-004).
 - Neutral: GitHub's 60-day disabling can no longer stop the count, only its watchdog.
 
 ## Sources
@@ -64,6 +64,5 @@ account, 10 ms of CPU and 50 subrequests a Cron invocation, errors rather than c
 (<https://developers.cloudflare.com/workers/platform/limits/>, 2026-11-22). Terraform: the GitHub provider 6.13.0 has
 no resource that creates a GitHub App or token; a provider block cannot use a resource attribute computed in its own
 configuration (Terraform 1.16). R2's added operations in the shadow period: about 5,760 Class A and 3,600 Class B a
-month (the Worker's 2,880 and 1,440, the comparisons' 2,880 and 2,160), at most about $0.03 at $4.50 and $0.36 a
-million, and only when the account is already beyond R2's free tier (<https://developers.cloudflare.com/r2/pricing/>,
-2026-11-22).
+month, at most about $0.03 at $4.50 and $0.36 a million, and only when the account is already beyond R2's free tier
+(<https://developers.cloudflare.com/r2/pricing/>, 2026-11-22).
