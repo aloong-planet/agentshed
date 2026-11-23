@@ -3,8 +3,10 @@
 // visit whose every request is answered does not. A held answer lands only when the case releases it, a hold never
 // holds a request with no answer, a hold that held nothing fails the case, a hold the case left held is released once
 // the case is done, and the request log misses nothing the page asked for while it loaded.
+// The browser settings a case gives (a motion preference, scripts off) reach the page it visits. A request the page
+// makes as the case ends is counted too: the visit waits for the page's requests to settle first.
 import { afterAll, beforeAll, expect, inject, test, vi } from 'vitest'
-import { hold, launch, ORIGIN, visit, type Browser, type Visit } from './browser'
+import { hold, launch, ORIGIN, visit, type Browser, type Page, type Visit } from './browser'
 import { COUNT_URL, POINTER_URL, RELEASES_API, statistics } from './stand-ins'
 
 let browser: Browser
@@ -62,6 +64,42 @@ test("a case that fails after a request with no stand-in fails naming the reques
   )
   expect(String(error)).toContain(STRAY)
   expect(String((error as Error).cause)).toContain('the case gave up waiting')
+})
+
+test('a visit that asks for reduced motion gets it, and one that does not gets no preference', async () => {
+  const site = inject('builtSite')
+  const reduced = (page: Page) => page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
+  expect(await visit(browser, site, { ...listPage, reducedMotion: 'reduce' }, reduced)).toBe(true)
+  expect(await visit(browser, site, listPage, reduced)).toBe(false)
+})
+
+test("a visit with scripts off runs none of the page's scripts", async () => {
+  const site = inject('builtSite')
+  // No stand-ins: the page's scripts make reads, so a visit that runs them fails naming the reads
+  const unread: Visit = { ...listPage, reads: {} }
+  const error: unknown = await visit(browser, site, unread, () => Promise.resolve()).then(
+    () => expect.unreachable('the page ran its scripts, made its reads with no stand-in, and the visit passed'),
+    (e: unknown) => e
+  )
+  expect(String(error)).toContain(COUNT_URL)
+  // Scripts off: the page asks for nothing, and its styles see a browser without scripting
+  const scripting = await visit(browser, site, { ...unread, scripts: false }, (page) =>
+    page.evaluate(() => matchMedia('(scripting: none)').matches)
+  )
+  expect(scripting).toBe(true)
+})
+
+test('a request the page makes as the case ends is waited for, and the visit fails naming it', async () => {
+  // The page asks for the stray read 30ms after the case has returned
+  const error: unknown = await visit(browser, inject('builtSite'), listPage, (page) =>
+    page.evaluate((stray) => {
+      setTimeout(() => void fetch(stray).catch(() => undefined), 30)
+    }, STRAY)
+  ).then(
+    () => expect.unreachable('the page asked for a read with no stand-in as the case ended, and the visit passed'),
+    (e: unknown) => e
+  )
+  expect(String(error)).toContain(STRAY)
 })
 
 // The self-tests' own waits, well inside the run's 5 s per test
@@ -131,8 +169,8 @@ test('a hold that held nothing fails the case, naming the hold', async () => {
   expect(String(error)).toContain('the read the page never makes')
 })
 
-// However the case ends. Run, release, check: the release comes before the visit checks for unanswered requests, so
-// it is made when that check fails too
+// However the case ends. Run, release, settle, check: the release comes before the visit checks for unanswered
+// requests, so it is made when that check fails too
 const ENDINGS = [
   { ending: 'returns', fails: false, stray: false, ends: 'returned' },
   { ending: 'fails', fails: true, stray: false, ends: 'the case failed' },
@@ -157,8 +195,8 @@ test.for(ENDINGS)('a hold the case left held is released once its run $ending', 
     (e: unknown) => String(e)
   )
   expect(ended).toContain(ends)
-  // The release cannot be seen in that visit: its context closes before the released answer has landed. Seen through
-  // the hold itself, in a second visit: released, it answers a request it picks at once, and holds none
+  // The release cannot be seen in that visit, which the case has left by then. Seen through the hold itself, in a
+  // second visit: released, it answers a request it picks at once, and holds none
   const later = await visit(browser, inject('builtSite'), { ...listPage, reads, holds: [read] }, (page) =>
     page.evaluate(
       ([url, wait]) =>
