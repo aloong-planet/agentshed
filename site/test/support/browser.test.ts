@@ -186,8 +186,9 @@ test.for([
   expect(first).toContain(ends)
   let ran = false
   const requests: string[] = []
-  const error: unknown = await visit(browser, inject('builtSite'), { ...listPage, holds: [read], requests }, async () => {
+  const error: unknown = await visit(browser, inject('builtSite'), { ...listPage, holds: [read], requests }, () => {
     ran = true
+    return Promise.resolve()
   }).then(
     () => expect.unreachable('a second visit took the hold an earlier visit was given'),
     (e: unknown) => e
