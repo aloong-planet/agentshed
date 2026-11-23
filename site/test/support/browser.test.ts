@@ -171,13 +171,15 @@ test('a hold that held nothing fails the case, naming the hold', async () => {
 })
 
 // A hold serves one visit: released by the earlier visit, it would answer the next one's requests at once, and a
-// request it held for the earlier visit would still satisfy its `reached`
+// request it held for the earlier visit would still satisfy its `reached`. Each visit is given another hold before
+// that one, so the refusal has to look at, and mark, every hold a visit is given, not only its first
 test.for([
   { ending: 'returned', fails: false, ends: 'returned' },
   { ending: 'failed', fails: true, ends: 'the case failed' }
 ])('a hold given to an earlier visit that $ending is refused by the next before it opens the page, naming the hold', async ({ fails, ends }) => {
   const read = hold('the probe read', (url) => url === HELD)
-  const first = await visit(browser, inject('builtSite'), { ...listPage, holds: [read] }, () =>
+  const another = hold('another read', (url) => url === UNHELD)
+  const first = await visit(browser, inject('builtSite'), { ...listPage, holds: [another, read] }, () =>
     fails ? Promise.reject(new Error('the case failed')) : Promise.resolve('returned')
   ).then(
     (value) => value,
@@ -186,7 +188,8 @@ test.for([
   expect(first).toContain(ends)
   let ran = false
   const requests: string[] = []
-  const error: unknown = await visit(browser, inject('builtSite'), { ...listPage, holds: [read], requests }, () => {
+  const own = hold('a read of its own', (url) => url === UNHELD)
+  const error: unknown = await visit(browser, inject('builtSite'), { ...listPage, holds: [own, read], requests }, () => {
     ran = true
     return Promise.resolve()
   }).then(
