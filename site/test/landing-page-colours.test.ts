@@ -9,9 +9,10 @@
 // app rather than of the page. Nor is the showcase's screenshot drawn the same in both appearances: the showcase turns its
 // steps as the page scrolls, so its screenshots are compared by source and filter, and by what is drawn only where
 // the steps are stacked, below 760px. Nor are shadows (--shadow, --icon-shadow), which are not single colours, or the
-// colours of parts only other download states put on the page, the GitHub button beside Download and the test state's
-// pills and note aside. A part added to the stylesheet later is held to the palette by the every-colour case, but to
-// its role only once ROLES lists it.
+// colours of parts only other download states put on the page. Of those, only these are read: the GitHub button's
+// ground and border, at rest and on hover, and in the test state the pills' ground and text colour and the note's text
+// colour. A part added to the stylesheet later is held to the palette by the every-colour case, but to its role only
+// once ROLES lists it.
 import { afterAll, beforeAll, describe, inject, test, vi } from 'vitest'
 import { LOCALES, PAGE_PATH, ui, type Locale } from '../src/i18n/ui'
 import { FEATURE_SHOTS } from '../src/shots'
