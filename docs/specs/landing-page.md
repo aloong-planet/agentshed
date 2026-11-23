@@ -266,7 +266,9 @@ visitor activates its poster (REQ-009). Pre-releases are never looked for on R2,
 ### landing-page::CON-004 What the collection may cost (direct acceptance)
 
 Applies to: the collection and every Cloudflare resource it uses (Implementation Decisions "The collection"). It
-runs within Cloudflare's Workers Free plan and triggers no paid plan.
+runs within Cloudflare's Workers Free plan and triggers no paid plan. The R2 operations that it and the shadow period's
+comparisons add cost at most about $0.03 a month at R2's listed prices, and only when the account is already beyond
+R2's free tier.
 
 ## Failure modes and boundaries
 
