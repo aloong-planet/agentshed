@@ -11,9 +11,11 @@
 // and releases them when it has looked; a hold that held nothing fails the case through `reached`, so a case cannot
 // measure "before" on a page that had already had its answer. Once the case is done, the visit releases every hold
 // still held, and waits for the page's requests to settle, before it checks what went unanswered. A case that looked
-// only at "before" then leaves no answer hanging into the context's close. A case that asserts what the page asked for
-// reads the visit's `requests`, which the harness fills from the document's own request on: a listener the case adds
-// once the page has opened misses what the page asked for while it loaded.
+// only at "before" then leaves no answer hanging into the context's close. A hold serves one visit: a visit given one
+// an earlier visit was given fails before it opens the page, naming the hold, since by then the hold answers at once
+// whatever it picks, and a request it held for the earlier visit still satisfies `reached`. A case that asserts what
+// the page asked for reads the visit's `requests`, which the harness fills from the document's own request on: a
+// listener the case adds once the page has opened misses what the page asked for while it loaded.
 //
 // Every site browser case opens the build through `visit`, and `pnpm lint:site` fails on an import of Playwright by
 // its package name in any other JavaScript or TypeScript file under `site/`: a page opened past it would reach the
@@ -45,7 +47,8 @@ export interface Visit {
   scripts?: boolean
   /**
    * Answers to hold back until the case releases them. A visit with holds opens the page once its document has loaded
-   * (DOMContentLoaded), not once all it loads has: a held image would keep the page's `load` from ever coming.
+   * (DOMContentLoaded), not once all it loads has: a held image would keep the page's `load` from ever coming. Each
+   * serves this visit only: one given to an earlier visit fails this one before it opens the page.
    */
   holds?: Hold[]
   /** Filled with the URL of every request the page makes, in order, its document's own first */
@@ -58,7 +61,7 @@ export interface Visit {
  * request the visit fails for.
  */
 export interface Hold {
-  /** What the failure of `reached` calls it */
+  /** What the failure of `reached`, and a later visit's refusal of it, call it */
   readonly name: string
   /** The URLs it has held back, in the order the page asked for them; a request picked after the release is not held */
   readonly held: readonly string[]
@@ -70,6 +73,9 @@ export interface Hold {
 
 /** What the visit calls before answering a request: waits until the case releases it when the hold picks it */
 const gates = new WeakMap<Hold, (url: string) => Promise<void>>()
+
+/** The holds a visit has started with: a hold serves one visit, and a later visit refuses one given before */
+const given = new WeakSet<Hold>()
 
 /** A hold on the requests whose URL `picks` accepts, called `name` when it fails */
 export function hold(name: string, picks: (url: string) => boolean): Hold {
@@ -129,6 +135,7 @@ const SETTLE_MS = 2_000
 
 /**
  * Opens a page of the build at `site` in a browser context of its own, runs `run` on it, and closes the context.
+ * Rejects at once, opening nothing, when a hold in `holds` was given to an earlier visit, naming it.
  * Gives what `run` gives. Once `run` has returned or failed, releases every hold still held, waits for the page's
  * requests to settle (QUIET_MS), then checks. Rejects when the page made a request with no answer (no stand-in for it,
  * or no such file in the build), naming each, or when requests were still in flight SETTLE_MS on, naming those; with
@@ -136,6 +143,11 @@ const SETTLE_MS = 2_000
  * less SETTLE_MS: a case the test run times out never gets here, and its failure names nothing.
  */
 export async function visit<T>(browser: Browser, site: string, options: Visit, run: (page: Page) => Promise<T>): Promise<T> {
+  const reused = options.holds?.find((held) => given.has(held))
+  if (reused) {
+    throw new Error(`The hold "${reused.name}" was given to an earlier visit: a hold serves one visit, so each visit needs its own`)
+  }
+  for (const held of options.holds ?? []) given.add(held)
   const context = await browser.newContext({
     viewport: { width: options.width, height: options.height ?? 800 },
     colorScheme: options.colorScheme,

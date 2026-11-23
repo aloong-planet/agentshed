@@ -80,7 +80,7 @@ theme also selects website checks because the palette test reads it. See [CI rou
   build's files and the stand-in answers a case gives to the page's reads, and refuses any other request, which fails
   the case, named. `test/support/browser.test.ts` is its own check. `test/landing-page-layout.test.ts` measures the
   layout there (landing-page::QR-001/AC-01) at four widths, in both languages, both appearances and every download
-  state. A case that measures the page before something arrives holds its answers back (`hold`) and releases them;
+  state. A case that measures the page before something arrives holds its answers back (`hold`, which serves one visit) and releases them;
   a case that asserts what the page asked for reads the visit's `requests`. `test/landing-page-header.test.ts`
   checks the header (landing-page::REQ-003, REQ-012/AC-02, AC-03); `test/landing-page-late-content.test.ts` the
   space held for the screenshots and the download count's line, and the view kept when a download state lands

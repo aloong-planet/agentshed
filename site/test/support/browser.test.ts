@@ -2,7 +2,8 @@
 // is refused inside the browser, and the visit fails naming it, also when the case has failed on its own first; a
 // visit whose every request is answered does not. A held answer lands only when the case releases it, a hold never
 // holds a request with no answer, a hold that held nothing fails the case, a hold the case left held is released once
-// the case is done, and the request log misses nothing the page asked for while it loaded.
+// the case is done, a hold given to an earlier visit is refused by the next, and the request log misses nothing the
+// page asked for while it loaded.
 // The browser settings a case gives (a motion preference, scripts off) reach the page it visits. A request the page
 // makes as the case ends is counted too: the visit waits for the page's requests to settle first.
 import { afterAll, beforeAll, expect, inject, test, vi } from 'vitest'
@@ -169,6 +170,33 @@ test('a hold that held nothing fails the case, naming the hold', async () => {
   expect(String(error)).toContain('the read the page never makes')
 })
 
+// A hold serves one visit: released by the earlier visit, it would answer the next one's requests at once, and a
+// request it held for the earlier visit would still satisfy its `reached`
+test.for([
+  { ending: 'returned', fails: false, ends: 'returned' },
+  { ending: 'failed', fails: true, ends: 'the case failed' }
+])('a hold given to an earlier visit that $ending is refused by the next before it opens the page, naming the hold', async ({ fails, ends }) => {
+  const read = hold('the probe read', (url) => url === HELD)
+  const first = await visit(browser, inject('builtSite'), { ...listPage, holds: [read] }, () =>
+    fails ? Promise.reject(new Error('the case failed')) : Promise.resolve('returned')
+  ).then(
+    (value) => value,
+    (e: unknown) => String(e)
+  )
+  expect(first).toContain(ends)
+  let ran = false
+  const requests: string[] = []
+  const error: unknown = await visit(browser, inject('builtSite'), { ...listPage, holds: [read], requests }, async () => {
+    ran = true
+  }).then(
+    () => expect.unreachable('a second visit took the hold an earlier visit was given'),
+    (e: unknown) => e
+  )
+  expect(String(error)).toContain('the probe read')
+  expect(ran, "the second visit's run").toBe(false)
+  expect(requests, "what the second visit's page asked for").toEqual([])
+})
+
 // However the case ends. Run, release, settle, check: the release comes before the visit checks for unanswered
 // requests, so it is made when that check fails too
 const ENDINGS = [
@@ -179,7 +207,9 @@ const ENDINGS = [
 test.for(ENDINGS)('a hold the case left held is released once its run $ending', async ({ fails, stray, ends }) => {
   const read = hold('the probe read', (url) => url === HELD)
   const reads = { ...listPage.reads, [HELD]: [200, '"held"'] } as Visit['reads']
+  const finished: string[] = []
   const ended = await visit(browser, inject('builtSite'), { ...listPage, reads, holds: [read] }, async (page) => {
+    page.on('requestfinished', (request) => finished.push(request.url()))
     await page.evaluate(
       async ([held, unanswered]) => {
         void fetch(held)
@@ -194,23 +224,11 @@ test.for(ENDINGS)('a hold the case left held is released once its run $ending', 
     (value) => value,
     (e: unknown) => String(e)
   )
+  // Seen in that visit: it waits for the page's requests to settle after the release, so a released read is answered
+  // before the visit ends, and one left held is still in flight when it closes. Before the visit's own error, which
+  // names the unanswered request whether or not the release came
+  expect(finished, 'the held read, answered once the case was done').toContain(HELD)
   expect(ended).toContain(ends)
-  // The release cannot be seen in that visit, which the case has left by then. Seen through the hold itself, in a
-  // second visit: released, it answers a request it picks at once, and holds none
-  const later = await visit(browser, inject('builtSite'), { ...listPage, reads, holds: [read] }, (page) =>
-    page.evaluate(
-      ([url, wait]) =>
-        Promise.race([
-          fetch(url).then(
-            () => 'answered',
-            () => 'refused'
-          ),
-          new Promise<string>((still) => setTimeout(() => still('still held'), wait))
-        ]),
-      [HELD, WAIT] as const
-    )
-  )
-  expect(later, 'a request the hold picks once the first visit is over').toBe('answered')
   expect(read.held).toEqual([HELD])
 })
 
