@@ -331,7 +331,8 @@ not a packaged build.
   `{ version, files: [{ name, arch, size, url }] }`; it carries each file's download URL
   (mac-distribution::REQ-004/AC-02), and it is what the landing page reads. The mirror job needs the
   publish job, so the GitHub release is public before any file reaches R2 (Failure C1). The bucket also
-  holds the landing page's statistics file ([landing-page::REQ-011](landing-page.md)). The pointer
+  holds the landing page's statistics file and the files its collection keeps
+  ([landing-page::REQ-011](landing-page.md)). The pointer
   job reads every mirrored file back through the download host and compares its size and sha256 with
   the gated file before it writes the pointer (mac-distribution::REQ-003). The bucket, its own
   token, its CORS rule (GET from the landing page's origin) and the custom domain are managed with
