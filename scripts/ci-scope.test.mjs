@@ -1,5 +1,6 @@
 // CI routing rules. Paths come from the repository's tracked tree; expected scopes come from
-// ci-routing::REQ-001. GitHub scheduling itself is covered by the PR run, not these local tests.
+// ci-routing::REQ-001, and the local commands' declarations from ci-routing::REQ-005. GitHub scheduling itself
+// is covered by the PR run, not these local tests.
 // Gap: what a real push to main selects on the hosted runner. A pull request's own run is a pull_request
 // event, so that shows only in the default-branch run after a merge, as does a newer push cancelling it.
 import { after, test } from 'node:test'
@@ -9,7 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, w
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { classifyPaths, collectChanges, comparisonForEvent } from './ci-scope.mjs'
+import { classifyPaths, collectChanges, comparisonForEvent, localCommand, localLine, localReadFailures } from './ci-scope.mjs'
 
 const pr = (from, to) => ({ pull_request: { base: { sha: from }, head: { sha: to } } })
 
@@ -83,6 +84,71 @@ test('a push selects both products whatever its event names, without reading a c
   }
 })
 
+// ci-routing::REQ-005/AC-02
+test('the routing accepts no arguments, or one --local-command with a command, and refuses any other list', () => {
+  assert.equal(localCommand([]), null)
+  assert.equal(localCommand(['--local-command', 'pnpm smoke']), 'pnpm smoke')
+  for (const argv of [['--bogus'], ['pnpm smoke'], ['--local-command'], ['--local-command', ''], ['--local-command', 'pnpm smoke', 'pnpm e2e']]) {
+    assert.throws(() => localCommand(argv), /argument/, JSON.stringify(argv))
+  }
+})
+
+// ci-routing::REQ-005/AC-01 and ci-routing::REQ-005/AC-03: the CI's call (null), an undeclared command and one
+// that differs from the declared command by a trailing space add nothing.
+test('a local call adds the scope of the command it names only where that command is declared exactly', () => {
+  for (const [command, line] of [[null, ''], ['pnpm smoke', 'local-scope=app\n'], ['pnpm e2e', ''], ['pnpm smoke ', '']]) {
+    assert.equal(localLine(command), line, JSON.stringify(command))
+  }
+})
+
+// ci-routing::REQ-005/AC-04. The theme stylesheet selects both scopes, so the passing list shows that a file of
+// every scope is accepted; the site/ and docs/ entries hold a file of the other scope and a file of none.
+test('the files a declared command reads fail the check where any of them does not select its scope', () => {
+  const tracked = ['src/main/index.ts', 'src/renderer/src/theme.css', 'site/src/pages/index.astro', 'docs/specs/ci-routing.md', 'package.json', 'scripts/smoke.sh']
+  for (const [reads, failures] of [
+    [{ 'pnpm smoke': ['src/', 'package.json', 'scripts/smoke.sh'] }, []],
+    [{}, ['"pnpm smoke" is declared but lists no files it reads']],
+    [{ 'pnpm smoke': ['src/'], 'pnpm e2e': ['src/'] }, ['"pnpm e2e" is not declared']],
+    [{ 'pnpm smoke': [] }, ['"pnpm smoke" lists no files it reads']],
+    [{ 'pnpm smoke': 'src/' }, ['"pnpm smoke" lists no files it reads']],
+    [{ 'pnpm smoke': ['src/', 'scripts/missing.sh'] }, ['"scripts/missing.sh" matches no tracked path']],
+    [{ 'pnpm smoke': ['src'] }, ['"src" matches no tracked path']],
+    [{ 'pnpm smoke': ['site/'] }, ['"site/src/pages/index.astro" does not select app']],
+    [{ 'pnpm smoke': ['docs/'] }, ['"docs/specs/ci-routing.md" does not select app']]
+  ]) assert.deepEqual(localReadFailures(reads, tracked), failures, JSON.stringify(reads))
+})
+
+// What `pnpm smoke` reads, judged for every top-level entry of `git ls-files`. package.json runs
+// `bash scripts/smoke.sh`, and pnpm reads pnpm-lock.yaml with it. smoke.sh runs scripts/quiet-electron.sh, which
+// copies only the untracked Electron binary, and `pnpm dev`, which is `node scripts/build-engine.mjs --quiet &&
+// electron-vite dev`. build-engine.mjs imports nothing but scripts/lib/engine-build.mjs and Node's own modules,
+// and cargo builds every tracked file under engine/ (Cargo.toml, Cargo.lock, build.rs, rust-toolchain.toml and
+// src/). electron-vite reads electron.vite.config.ts, which imports scripts/lib/engine-build.mjs, and the three
+// tsconfig files, and builds src/. In development the main process reads build/icon-dev.png.
+// Not read: .github/, .gitignore, .husky/, AGENTS.md, CLAUDE.md, LICENSE, README.md, README.en.md,
+// capabilities.toml, docs/, e2e/, electron-builder.yml, eslint.config.js, playwright.config.ts,
+// vitest.config.ts, site/, and the rest of build/ and scripts/. A scan of the import, url, src and href
+// specifiers in the tracked files under src/ found one that leaves src/, from a test file, which smoke does not
+// run; the main process's other reads of the repository are its own build output, which is not tracked.
+// Gap: the list is as complete as this enumeration. A file smoke starts to read outside these entries fails
+// nothing here until the list names it.
+const SMOKE_READS = {
+  'pnpm smoke': [
+    'package.json', 'pnpm-lock.yaml', 'scripts/smoke.sh', 'scripts/quiet-electron.sh', 'scripts/build-engine.mjs',
+    'scripts/lib/engine-build.mjs', 'engine/', 'electron.vite.config.ts', 'tsconfig.json', 'tsconfig.node.json',
+    'tsconfig.web.json', 'src/', 'build/icon-dev.png'
+  ]
+}
+
+// ci-routing::REQ-005/AC-04
+test('every tracked file pnpm smoke reads selects the application scope', () => {
+  const tracked = execFileSync('git', ['ls-files', '-z', '--full-name', '--', ':/'], {
+    cwd: dirname(fileURLToPath(import.meta.url)), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024
+  }).split('\0').filter(Boolean)
+  assert.ok(tracked.includes('scripts/ci-scope.mjs'), 'the tracked paths are the repository root\'s')
+  assert.deepEqual(localReadFailures(SMOKE_READS, tracked), [])
+})
+
 // One immutable Git history for the CLI wiring cases; no application build or network is involved.
 const dir = mkdtempSync(join(tmpdir(), 'agentshed-ci-scope-'))
 after(() => rmSync(dir, { recursive: true, force: true }))
@@ -124,7 +190,7 @@ git('add', '.')
 git('commit', '-qm', 'large change set')
 const large = git('rev-parse', 'HEAD')
 
-test('the CLI carries real PR diffs, moves, deletions and large path sets into workflow outputs, and both products for a push', () => {
+test('the CLI carries real PR diffs, moves, deletions and large path sets into workflow outputs, both products for a push, and a local call\'s declared scope', () => {
   const script = fileURLToPath(new URL('./ci-scope.mjs', import.meta.url))
   const cases = [
     ['pull_request', pr(advancedBase, head), 'app=true\nsite=true\n'],
@@ -132,14 +198,19 @@ test('the CLI carries real PR diffs, moves, deletions and large path sets into w
     ['push', { before: products, after: head }, 'app=true\nsite=true\n'],
     ['pull_request', pr(base, large), 'app=true\nsite=false\n'],
     ['pull_request', pr(head, head), 'app=false\nsite=false\n'],
-    ['pull_request', pr('f'.repeat(40), head), null]
+    ['pull_request', pr('f'.repeat(40), head), null],
+    // ci-routing::REQ-005/AC-01: the declared command's line follows the scope lines, here where its scope is not
+    // selected; an undeclared command adds none. ci-routing::REQ-005/AC-02: an unknown argument writes nothing.
+    ['pull_request', pr(head, head), 'app=false\nsite=false\nlocal-scope=app\n', ['--local-command', 'pnpm smoke']],
+    ['pull_request', pr(head, head), 'app=false\nsite=false\n', ['--local-command', 'pnpm e2e']],
+    ['pull_request', pr(head, head), null, ['--bogus']]
   ]
-  for (const [i, [name, event, expected]] of cases.entries()) {
+  for (const [i, [name, event, expected, args = []]] of cases.entries()) {
     const eventPath = join(dir, `event-${i}.json`)
     const outputPath = join(dir, `output-${i}`)
     const summaryPath = join(dir, `summary-${i}`)
     writeFileSync(eventPath, JSON.stringify(event))
-    const run = spawnSync(process.execPath, [script], {
+    const run = spawnSync(process.execPath, [script, ...args], {
       cwd: dir, encoding: 'utf8', maxBuffer: 2 * 1024 * 1024,
       env: { ...process.env, GITHUB_EVENT_NAME: name, GITHUB_EVENT_PATH: eventPath, GITHUB_OUTPUT: outputPath, GITHUB_STEP_SUMMARY: summaryPath }
     })

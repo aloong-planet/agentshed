@@ -1,6 +1,8 @@
 // Product impact for CI. A pull request is routed by its paths: unknown paths select both products;
 // documentation is an explicit exception, never a repository-wide Markdown exemption. A push selects both
-// products without looking at its paths (ci-routing::REQ-001).
+// products without looking at its paths (ci-routing::REQ-001). Called with `--local-command <command>`, it also
+// writes `local-scope=<scope>` for a command declared in LOCAL below, the scope of a test command CI does not
+// run (ci-routing::REQ-005).
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -52,6 +54,53 @@ export function comparisonForEvent(name, event) {
   return `${base}...${head}`
 }
 
+// Each test command that runs only on a developer's machine, under the one scope whose selection means it
+// needs a local run (ci-routing::REQ-005/AC-03). A Map, so a command such as "constructor" finds nothing.
+const LOCAL = new Map([['pnpm smoke', 'app']])
+
+// The extra output line of a local call, for a command equal to a declared one (ci-routing::REQ-005/AC-01).
+export function localLine(command) {
+  return LOCAL.has(command) ? `local-scope=${LOCAL.get(command)}\n` : ''
+}
+
+// What keeps the tracked files a declared command reads from all selecting its scope, one line each
+// (ci-routing::REQ-005/AC-04). `reads` maps each declared command to its entries: a tracked path, or a
+// directory ending in "/" for every tracked path under it.
+export function localReadFailures(reads, tracked) {
+  const failures = []
+  for (const command of LOCAL.keys()) {
+    if (!Object.hasOwn(reads, command)) failures.push(`${JSON.stringify(command)} is declared but lists no files it reads`)
+  }
+  for (const [command, entries] of Object.entries(reads)) {
+    if (!LOCAL.has(command)) {
+      failures.push(`${JSON.stringify(command)} is not declared`)
+      continue
+    }
+    if (!Array.isArray(entries) || entries.length === 0) {
+      failures.push(`${JSON.stringify(command)} lists no files it reads`)
+      continue
+    }
+    const scope = LOCAL.get(command)
+    for (const entry of entries) {
+      const matched = tracked.filter((path) => (entry.endsWith('/') ? path.startsWith(entry) : path === entry))
+      if (matched.length === 0) failures.push(`${JSON.stringify(entry)} matches no tracked path`)
+      for (const path of matched) {
+        if (!classifyPaths([path])[scope]) failures.push(`${JSON.stringify(path)} does not select ${scope}`)
+      }
+    }
+  }
+  return failures
+}
+
+// The CI calls the routing without arguments; a local call names one command (ci-routing::REQ-005/AC-02).
+export function localCommand(argv) {
+  if (argv.length === 0) return null
+  if (argv.length !== 2 || argv[0] !== '--local-command' || !argv[1]) {
+    throw new Error('Unexpected arguments; usage: node scripts/ci-scope.mjs [--local-command <command>]')
+  }
+  return argv[1]
+}
+
 export function collectChanges(name, event, cwd = process.cwd()) {
   const comparison = comparisonForEvent(name, event)
   if (comparison === null) return { app: true, site: true, reasons: ['Push: both products run, whatever it changed'] }
@@ -65,6 +114,7 @@ export function collectChanges(name, event, cwd = process.cwd()) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
+    const command = localCommand(process.argv.slice(2))
     const { GITHUB_EVENT_NAME, GITHUB_EVENT_PATH, GITHUB_OUTPUT, GITHUB_STEP_SUMMARY } = process.env
     if (!GITHUB_EVENT_PATH || !GITHUB_OUTPUT) throw new Error('CI event path and output file are required')
     const result = collectChanges(GITHUB_EVENT_NAME, JSON.parse(readFileSync(GITHUB_EVENT_PATH, 'utf8')))
@@ -72,7 +122,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(report)
     if (GITHUB_STEP_SUMMARY) appendFileSync(GITHUB_STEP_SUMMARY, `${report}\n`)
     // Publish flags only after all required work succeeded.
-    appendFileSync(GITHUB_OUTPUT, `app=${result.app}\nsite=${result.site}\n`)
+    appendFileSync(GITHUB_OUTPUT, `app=${result.app}\nsite=${result.site}\n${localLine(command)}`)
   } catch (error) {
     console.error(error.message)
     process.exitCode = 1
