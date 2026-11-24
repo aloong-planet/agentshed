@@ -16,6 +16,7 @@
 // (landing-page::REQ-009/AC-02), in `test/landing-page-video.test.ts`.
 // What the page looks like in light and dark, listed above, now has its cases there too, switching between them and
 // the screenshots staying light included (landing-page::REQ-006, Failure D1), in `test/landing-page-colours.test.ts`.
+// The page's font (landing-page::REQ-006) has its cases there too, in `test/landing-page-font.test.ts`.
 // Host HTTP status and query/fragment preservation require a Cloudflare Pages runtime browser check;
 // this suite checks the emitted redirect fallback and host configuration, not the host itself.
 import { readdirSync, readFileSync } from 'node:fs'

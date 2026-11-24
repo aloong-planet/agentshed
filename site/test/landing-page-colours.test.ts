@@ -1,22 +1,24 @@
 // The page's colours in a browser, in each language (landing-page::REQ-006, Failure D1): what the page paints itself
 // with in the light and the dark appearance, the page recolouring when the system appearance changes, the screenshots
-// staying light, and the GitHub button beside Download. That the stylesheet's tokens are the app's is the palette
-// test's (palette.test.ts); here the page must paint with them as the stylesheet declares them for the appearance the
-// browser has: every colour of its text, grounds and drawn borders one token's value, the same token in both
-// appearances, and the parts listed in ROLES their role's token.
+// staying light, the GitHub button beside Download, and the test state's pills and note in the warning pair. That the
+// stylesheet's tokens are the app's is the palette test's (palette.test.ts); here the page must paint with them as the
+// stylesheet declares them for the appearance the browser has: every colour of its text, grounds and drawn borders one
+// token's value, the same token in both appearances, and the parts listed in ROLES their role's token.
 //
 // Not checked here: that the screenshots were taken in the light appearance, a fact of the files as retaken from the
 // app rather than of the page. Nor is the showcase's screenshot drawn the same in both appearances: the showcase turns its
 // steps as the page scrolls, so its screenshots are compared by source and filter, and by what is drawn only where
 // the steps are stacked, below 760px. Nor are shadows (--shadow, --icon-shadow), which are not single colours, or the
-// colours of parts only other download states put on the page, the GitHub button beside Download aside. A part added
-// to the stylesheet later is held to the palette by the every-colour case, but to its role only once ROLES lists it.
+// colours of parts only other download states put on the page. Of those, only these are read: the GitHub button's
+// ground and border, at rest and on hover, and in the test state the pills' ground and text colour and the note's text
+// colour. A part added to the stylesheet later is held to the palette by the every-colour case, but to its role only
+// once ROLES lists it.
 import { afterAll, beforeAll, describe, inject, test, vi } from 'vitest'
 import { LOCALES, PAGE_PATH, ui, type Locale } from '../src/i18n/ui'
 import { FEATURE_SHOTS } from '../src/shots'
 import { launch, ORIGIN, visit, type Answer, type Browser, type Page, type Visit } from './support/browser'
 import { palette } from './support/palette'
-import { COUNT_URL, POINTER, POINTER_URL, RELEASES_API, statistics } from './support/stand-ins'
+import { COUNT_URL, POINTER, POINTER_URL, RELEASES, RELEASES_API, statistics } from './support/stand-ins'
 
 let browser: Browser
 beforeAll(async () => {
@@ -335,5 +337,49 @@ describe('the GitHub button beside Download has the card ground and the strong l
         .poll(async () => (await button.evaluate(paint)).map(hex), { timeout: WAIT, interval: 50, message: 'on hover: its ground, then its border' })
         .toEqual([declared('--accent-soft', colorScheme), ...sides('--accent')])
     })
+  })
+})
+
+// The test state: no pointer, and a GitHub answer that lists only pre-releases
+const TESTING: Record<string, Answer> = {
+  [POINTER_URL]: [404, '<html></html>'],
+  [RELEASES_API]: [200, JSON.stringify(RELEASES.filter((r) => r.prerelease))],
+  [COUNT_URL]: [200, statistics(3, 3, 0)]
+}
+/** What the test state puts on the page, each found by its place and its copy, and the token each property paints with */
+const WARNED = [
+  { part: "the pill on the hero's platform line", selector: '.hero .cta .meta .pill', copy: 'pill', paint: { 'background-color': '--warn-bg', color: '--warn-fg' } },
+  { part: "the pill before the download section's line", selector: '#download h2 + p .pill', copy: 'pill', paint: { 'background-color': '--warn-bg', color: '--warn-fg' } },
+  { part: "the note beneath the hero's button", selector: '.hero .cta .beta-note', copy: 'note', paint: { color: '--warn-fg' } }
+] as const
+
+// landing-page::REQ-006 (The palette: the pre-release version's pill and note use the app's warning pair)
+describe('in the test state the pills have the warning ground and the warning text, and the note beneath the button the warning text', () => {
+  const cases = LOCALES.flatMap((locale) => SCHEMES.map((colorScheme) => ({ name: `${locale}/${colorScheme}`, locale, colorScheme })))
+  test.for(cases)('$name', { timeout: CASE_LIMIT }, async ({ locale, colorScheme }, { expect }) => {
+    const copy = ui[locale].download.test
+    const asked = WARNED.map(({ selector, paint }) => ({ selector, properties: Object.keys(paint) }))
+    const found = await visit(browser, inject('builtSite'), { ...open(locale, colorScheme), reads: TESTING }, async (page) => {
+      // Each part once, with its copy: the state has landed, and no other element is read in its place
+      const landed = JSON.stringify(WARNED.map((w) => [copy[w.copy]]))
+      await vi.waitFor(
+        async () => {
+          const now = JSON.stringify(
+            await page.evaluate((asked) => asked.map(({ selector }) => [...document.querySelectorAll(selector)].map((el) => (el.textContent ?? '').trim())), asked)
+          )
+          if (now !== landed) throw new Error(`The test state never landed: ${WARNED.map((w) => w.part).join(', ')} show ${now}, not ${landed}`)
+        },
+        { timeout: LANDING, interval: 50 }
+      )
+      return page.evaluate(computed, asked)
+    })
+    const wrong = WARNED.flatMap(({ part, paint }, i) =>
+      Object.entries(paint).flatMap(([property, token], p) => {
+        const value = hex(found[i][0][p])
+        const expected = declared(token, colorScheme)
+        return value === expected ? [] : [`${part}: its ${property} is ${value}, not ${token} ${expected}`]
+      })
+    )
+    expect(wrong, `in the ${colorScheme} appearance`).toEqual([])
   })
 })
