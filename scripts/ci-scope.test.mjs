@@ -101,11 +101,13 @@ test('a local call adds the scope of the command it names only where that comman
   }
 })
 
-// ci-routing::REQ-005/AC-04. The theme stylesheet selects both scopes, so the passing list shows that a file of
-// every scope is accepted; the site/ and docs/ entries hold a file of the other scope and a file of none.
-test('the files a declared command reads fail the check where any of them does not select its scope', () => {
+// ci-routing::REQ-005/AC-04, and ci-routing::REQ-005/AC-01 for the scope a command is declared under. The theme
+// stylesheet selects both scopes, so the passing list shows that a file of every scope is accepted; the site/ and
+// docs/ entries hold a file of the other scope and a file of none. Where a row gives its own declarations, a
+// command under site passes on a site file, and "reasons", a field of the routing's result but not a scope, fails.
+test('the check fails a command declared under no scope of the routing, and any file it reads that does not select its scope', () => {
   const tracked = ['src/main/index.ts', 'src/renderer/src/theme.css', 'site/src/pages/index.astro', 'docs/specs/ci-routing.md', 'package.json', 'scripts/smoke.sh']
-  for (const [reads, failures] of [
+  for (const [reads, failures, local] of [
     [{ 'pnpm smoke': ['src/', 'package.json', 'scripts/smoke.sh'] }, []],
     [{}, ['"pnpm smoke" is declared but lists no files it reads']],
     [{ 'pnpm smoke': ['src/'], 'pnpm e2e': ['src/'] }, ['"pnpm e2e" is not declared']],
@@ -114,8 +116,13 @@ test('the files a declared command reads fail the check where any of them does n
     [{ 'pnpm smoke': ['src/', 'scripts/missing.sh'] }, ['"scripts/missing.sh" matches no tracked path']],
     [{ 'pnpm smoke': ['src'] }, ['"src" matches no tracked path']],
     [{ 'pnpm smoke': ['site/'] }, ['"site/src/pages/index.astro" does not select app']],
-    [{ 'pnpm smoke': ['docs/'] }, ['"docs/specs/ci-routing.md" does not select app']]
-  ]) assert.deepEqual(localReadFailures(reads, tracked), failures, JSON.stringify(reads))
+    [{ 'pnpm smoke': ['docs/'] }, ['"docs/specs/ci-routing.md" does not select app']],
+    [{ 'pnpm site': ['site/'] }, [], new Map([['pnpm site', 'site']])],
+    [{ 'pnpm smoke': ['src/main/index.ts'] }, [
+      '"pnpm smoke" is declared under "reasons", which is not a scope of the routing',
+      '"src/main/index.ts" does not select reasons'
+    ], new Map([['pnpm smoke', 'reasons']])]
+  ]) assert.deepEqual(localReadFailures(reads, tracked, local), failures, JSON.stringify(reads))
 })
 
 // What `pnpm smoke` reads, judged for every top-level entry of `git ls-files`. package.json runs
