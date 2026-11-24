@@ -1,5 +1,5 @@
 // CI wiring: the actual YAML's triggers, conditions, commands and final exit status. Rules are tested
-// in ci-scope/ci-gate tests. Gap: GitHub's scheduler and hosted runner need the actual PR CI run;
+// in ci-routing/ci-gate tests. Gap: GitHub's scheduler and hosted runner need the actual PR CI run;
 // evaluating expressions locally does not prove scheduling or the online ruleset configuration.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'

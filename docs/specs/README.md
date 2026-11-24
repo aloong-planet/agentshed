@@ -38,4 +38,4 @@ the table below says it in one line per feature.
 | [mac-distribution](mac-distribution.md) | How the macOS app is packaged, signed, notarized and published |
 | [landing-page](landing-page.md) | The website that introduces Agentshed in Chinese and English and offers whichever release exists |
 | [test-layers](test-layers.md) | Which test layers there are and what goes in each |
-| [ci-routing](ci-routing.md) | Which checks run for which changed paths |
+| [ci-routing](ci-routing.md) | Which checks run for which changed paths, and which scope a test command that runs only locally depends on |
