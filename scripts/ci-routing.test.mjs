@@ -3,13 +3,21 @@
 // is covered by the PR run, not these local tests.
 // Gap: what a real push to main selects on the hosted runner. A pull request's own run is a pull_request
 // event, so that shows only in the default-branch run after a merge, as does a newer push cancelling it.
+// Gap: of what `pnpm smoke` reads (SMOKE_READS below), only what the TypeScript files under src/ import is derived
+// from the files; the rest of the list is as complete as the enumeration written above it. A file smoke starts to
+// read another way (by path at run time, as the main process reads build/icon-dev.png; from the stylesheet or the
+// HTML file under src/; from a script that smoke.sh or `pnpm dev` runs) fails nothing here until the list names it.
+// It can be tested once a smoke run records the tracked files it opens; until then the enumeration is redone
+// whenever smoke.sh, the dev script, those two files or a read by path under src/main changes.
 import { after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { builtinModules } from 'node:module'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 import { classifyPaths, collectChanges, comparisonForEvent, localCommand, localLine, localReadFailures } from './ci-scope.mjs'
 
 const pr = (from, to) => ({ pull_request: { base: { sha: from }, head: { sha: to } } })
@@ -88,7 +96,7 @@ test('a push selects both products whatever its event names, without reading a c
 test('the routing accepts no arguments, or one --local-command with a command, and refuses any other list', () => {
   assert.equal(localCommand([]), null)
   assert.equal(localCommand(['--local-command', 'pnpm smoke']), 'pnpm smoke')
-  for (const argv of [['--bogus'], ['pnpm smoke'], ['--local-command'], ['--local-command', ''], ['--local-command', 'pnpm smoke', 'pnpm e2e']]) {
+  for (const argv of [['--bogus'], ['pnpm smoke'], ['--local-comand', 'pnpm smoke'], ['--local-command'], ['--local-command', ''], ['--local-command', 'pnpm smoke', 'pnpm e2e']]) {
     assert.throws(() => localCommand(argv), /argument/, JSON.stringify(argv))
   }
 })
@@ -126,19 +134,19 @@ test('the check fails a command declared under no scope of the routing, and any 
 })
 
 // What `pnpm smoke` reads, judged for every top-level entry of `git ls-files`. package.json runs
-// `bash scripts/smoke.sh`, and pnpm reads pnpm-lock.yaml with it. smoke.sh runs scripts/quiet-electron.sh, which
+// `bash scripts/smoke.sh`. smoke.sh runs scripts/quiet-electron.sh, which
 // copies only the untracked Electron binary, and `pnpm dev`, which is `node scripts/build-engine.mjs --quiet &&
 // electron-vite dev`. build-engine.mjs imports nothing but scripts/lib/engine-build.mjs and Node's own modules,
 // and cargo builds every tracked file under engine/ (Cargo.toml, Cargo.lock, build.rs, rust-toolchain.toml and
 // src/). electron-vite reads electron.vite.config.ts, which imports scripts/lib/engine-build.mjs, and the three
-// tsconfig files, and builds src/. In development the main process reads build/icon-dev.png.
+// tsconfig files, and builds src/; Vite's dependency pre-bundling reads pnpm-lock.yaml for its hash. In development
+// the main process reads build/icon-dev.png.
 // Not read: .github/, .gitignore, .husky/, AGENTS.md, CLAUDE.md, LICENSE, README.md, README.en.md,
 // capabilities.toml, docs/, e2e/, electron-builder.yml, eslint.config.js, playwright.config.ts,
-// vitest.config.ts, site/, and the rest of build/ and scripts/. A scan of the import, url, src and href
-// specifiers in the tracked files under src/ found one that leaves src/, from a test file, which smoke does not
-// run; the main process's other reads of the repository are its own build output, which is not tracked.
-// Gap: the list is as complete as this enumeration. A file smoke starts to read outside these entries fails
-// nothing here until the list names it.
+// vitest.config.ts, site/, and the rest of build/ and scripts/. What the TypeScript files under src/ import from
+// outside src/ is checked against this list by a case below; the stylesheet and the HTML file under src/ refer to
+// nothing outside it, and the main process's other reads of the repository are its own build output, which is not
+// tracked.
 const SMOKE_READS = {
   'pnpm smoke': [
     'package.json', 'pnpm-lock.yaml', 'scripts/smoke.sh', 'scripts/quiet-electron.sh', 'scripts/build-engine.mjs',
@@ -147,13 +155,86 @@ const SMOKE_READS = {
   ]
 }
 
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
+const TRACKED = execFileSync('git', ['ls-files', '-z', '--full-name', '--', ':/'], {
+  cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024
+}).split('\0').filter(Boolean)
+
 // ci-routing::REQ-005/AC-04
 test('every tracked file pnpm smoke reads selects the application scope', () => {
-  const tracked = execFileSync('git', ['ls-files', '-z', '--full-name', '--', ':/'], {
-    cwd: dirname(fileURLToPath(import.meta.url)), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024
-  }).split('\0').filter(Boolean)
-  assert.ok(tracked.includes('scripts/ci-scope.mjs'), 'the tracked paths are the repository root\'s')
-  assert.deepEqual(localReadFailures(SMOKE_READS, tracked), [])
+  assert.ok(TRACKED.includes('scripts/ci-scope.mjs'), 'the tracked paths are the repository root\'s')
+  assert.deepEqual(localReadFailures(SMOKE_READS, TRACKED), [])
+})
+
+// One line for each module specifier in `sources` ([path, text] of TypeScript files under src/) that keeps what
+// they import from outside src/ from being covered by `entries` (an exact path, or a directory ending in "/"): a
+// specifier that is not a string literal; a bare one that names neither a Node module nor one of `dependencies`;
+// a relative or @shared one (electron.vite.config.ts's only alias) that resolves outside src/ to a path no entry
+// covers. A path without its extension is covered by an entry that adds one. Specifiers are read from the syntax
+// tree: static imports and exports, import(), require() and new URL(<specifier>, import.meta.url).
+function srcImportFailures(sources, entries, dependencies) {
+  const failures = []
+  for (const [file, text] of sources) {
+    const tree = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+    const check = (node) => {
+      if (!node || !ts.isStringLiteralLike(node)) {
+        failures.push(`${file}: ${node ? node.getText(tree) : 'nothing'} is not a string literal`)
+        return
+      }
+      const specifier = node.text.replace(/\?.*$/, '')
+      let resolved
+      if (specifier.startsWith('.')) resolved = posix.normalize(posix.join(posix.dirname(file), specifier))
+      else if (specifier === '@shared' || specifier.startsWith('@shared/')) resolved = `src/shared${specifier.slice('@shared'.length)}`
+      else {
+        const name = specifier.split('/').slice(0, specifier.startsWith('@') ? 2 : 1).join('/')
+        if (!specifier.startsWith('node:') && !builtinModules.includes(name) && !dependencies.has(name)) failures.push(`${file}: ${JSON.stringify(node.text)} names neither a Node module nor a dependency`)
+        return
+      }
+      if (resolved.startsWith('src/')) return
+      if (!entries.some((entry) => (entry.endsWith('/') ? `${resolved}/`.startsWith(entry) : entry === resolved || entry.startsWith(`${resolved}.`)))) {
+        failures.push(`${file}: ${JSON.stringify(node.text)} reads ${resolved}, which no entry of the list covers`)
+      }
+    }
+    const visit = (node) => {
+      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) check(node.moduleSpecifier)
+      else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) check(node.moduleReference.expression)
+      else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) check(node.arguments[0])
+      else if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'URL' && node.arguments?.[1]?.getText(tree) === 'import.meta.url') check(node.arguments[0])
+      ts.forEachChild(node, visit)
+    }
+    visit(tree)
+  }
+  return failures
+}
+
+// ci-routing::REQ-005/AC-04: each way the files src/ imports from outside it fail the check, on sources written
+// here for a file at src/main/a/b.ts.
+test('what src/ imports from outside it fails the check where no entry of the list covers it', () => {
+  const at = (failure) => `src/main/a/b.ts: ${failure}`
+  for (const [source, failures] of [
+    ["import a from './a'\nimport b from '@shared/b'\nimport c from 'react'\nimport d from 'node:fs'\nimport f from 'fs'\nimport q from '@tanstack/react-query/x'", []],
+    ["export * as e from '../../../engine/dist/e.node'\nconst m = new URL('../../../scripts/lib/engine-build', import.meta.url)", []],
+    ["import copy from '../../../docs/prototypes/_shared/copy.js'", [at('"../../../docs/prototypes/_shared/copy.js" reads docs/prototypes/_shared/copy.js, which no entry of the list covers')]],
+    ["const s = await import('../../../site/src/s.ts?raw')", [at('"../../../site/src/s.ts?raw" reads site/src/s.ts, which no entry of the list covers')]],
+    ['export { r } from "../../../engine-build"', [at('"../../../engine-build" reads engine-build, which no entry of the list covers')]],
+    ["const p = new URL('../../../site/p.png', import.meta.url)", [at('"../../../site/p.png" reads site/p.png, which no entry of the list covers')]],
+    ["import x = require('../../../e2e/x')", [at('"../../../e2e/x" reads e2e/x, which no entry of the list covers')]],
+    ['const x = require(name)', [at('name is not a string literal')]],
+    ['const z = require()', [at('nothing is not a string literal')]],
+    ['const y = import(`./${name}`)', [at('`./${name}` is not a string literal')]],
+    ["import l from 'left-pad'", [at('"left-pad" names neither a Node module nor a dependency')]],
+    ["import t from '@site/t'", [at('"@site/t" names neither a Node module nor a dependency')]]
+  ]) assert.deepEqual(srcImportFailures([['src/main/a/b.ts', source]], ['engine/', 'scripts/lib/engine-build.mjs'], new Set(['react', '@tanstack/react-query'])), failures, source)
+})
+
+// ci-routing::REQ-005/AC-04: the non-test TypeScript files under src/ and the dependencies in package.json
+test('everything src/ imports from outside it is in the list of what pnpm smoke reads', () => {
+  const sources = TRACKED.filter((path) => path.startsWith('src/') && /\.tsx?$/.test(path) && !/\.test\.tsx?$/.test(path))
+    .map((path) => [path, readFileSync(join(ROOT, path), 'utf8')])
+  assert.ok(sources.some(([path]) => path === 'src/main/index.ts'), 'the sources are the repository\'s src/')
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
+  const dependencies = new Set([...Object.keys(pkg.dependencies), ...Object.keys(pkg.devDependencies)])
+  assert.deepEqual(srcImportFailures(sources, SMOKE_READS['pnpm smoke'], dependencies), [])
 })
 
 // One immutable Git history for the CLI wiring cases; no application build or network is involved.
