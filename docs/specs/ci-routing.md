@@ -2,9 +2,11 @@
 
 ## Problem Statement
 
-Every pull request currently pays for application tests, website tests and Electron E2E even when its
-changes affect only documentation or the website. Skipping the whole workflow would strand required
-checks, while accepting every skipped job would hide failures in jobs that should have run.
+Without routing, every pull request pays for application tests, website tests and Electron E2E even when
+its changes affect only documentation or the website. Skipping the whole workflow would strand required
+checks, while accepting every skipped job would hide failures in jobs that should have run. A test
+command that runs only on a developer's machine, such as the development smoke run, raises the same
+question before each delivery, and a second set of path rules would drift from the routing's.
 
 ## Solution
 
@@ -64,6 +66,20 @@ the independent message-language check; conditional product jobs are enforced th
   `message language (PR title, body, commits)`, with no legacy forwarding check or independently
   required product job. Removing the compatibility job follows successful verification of the gate
   and the online ruleset switch; opening an implementation PR alone does not change that ruleset.
+
+### ci-routing::REQ-005 Name the scope a local command depends on
+
+- ci-routing::REQ-005/AC-01: Called with `--local-command <command>`, the routing writes the lines it
+  writes without arguments and then, when `<command>` equals a declared command character for
+  character, one more line `local-scope=<scope>`, naming the scope whose selection means that command
+  needs a local run. Any other command adds no line.
+- ci-routing::REQ-005/AC-02: Called without arguments, as CI calls it, the routing writes no
+  `local-scope` line. Any other argument list fails classification, and no output is written: an
+  argument other than `--local-command`, `--local-command` with no command or an empty one, or anything
+  after the command.
+- ci-routing::REQ-005/AC-03: `pnpm smoke` is declared under the application scope: its line is
+  `local-scope=app`.
+- ci-routing::REQ-005/AC-04: Every tracked file that `pnpm smoke` reads selects the application scope.
 
 ## Failure modes and boundaries
 
