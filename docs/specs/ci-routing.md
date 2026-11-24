@@ -11,9 +11,7 @@ question before each delivery, and a second set of path rules would drift from t
 ## Solution
 
 Classify a pull request's complete change set, run each affected product's checks, and report a stable
-CI gate. A default-branch push runs both products' checks whatever it changed.
-Repository policy checks remain unconditional. The online ruleset requires the stable `CI gate` and
-the independent message-language check; conditional product jobs are enforced through the gate.
+CI gate. The same routing names the scope a test command that runs only locally depends on.
 
 ## Functional Requirements
 
