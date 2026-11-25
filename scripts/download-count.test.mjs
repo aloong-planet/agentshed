@@ -433,7 +433,9 @@ test("a refused read's reason is its answer's message, or else each of its error
     ['upstream error', null],
     ['null', null],
     ['{"success":false}', null],
-    ['{"message":"  "}', null],
+    ['{"message":"  ","errors":[{"code":10000,"message":"Authentication error"}]}', 'Authentication error'],
+    ['{"message":403,"errors":[{"code":10000,"message":"Authentication error"}]}', 'Authentication error'],
+    ['{"errors":[{"code":9106,"message":{"en":"Authentication failed"}}]}', null],
     ['{"errors":[{"code":9106}]}', null]
   ]
   for (const [answer, reason] of cases) assert.equal(reasonOf(answer), reason, answer)
