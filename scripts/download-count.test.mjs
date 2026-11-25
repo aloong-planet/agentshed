@@ -414,6 +414,18 @@ test("GitHub's releases are read page after page with the token the run is given
   assert.equal(published(bucket).summary.sources.github, 261)
 })
 
+// "The collection": a run without its credentials fails, and "The run record": a source with no read started is
+// `not-read`. No request goes out, so none carries a token that is not set
+test('a run given no GitHub token reads nothing and fails, with every source not read', async () => {
+  for (const githubToken of [undefined, '']) {
+    const { store, fetch, requests } = world()
+    const error = await collect({ ...RUN, githubToken, bucket: store, fetch, now: NOW }).then(() => null, (failure) => failure)
+    assert.equal(error?.message, 'the GitHub token is not set', String(githubToken))
+    assert.deepEqual(error.outcomes, { github: 'not-read', analytics: 'not-read', bucket: 'not-read' }, String(githubToken))
+    assert.deepEqual(requests, [], String(githubToken))
+  }
+})
+
 // "The run record": a read answered with another status than HTTP 200 quotes the reason its answer gives, whole. The
 // first two are GitHub's and Cloudflare's own answers to a token they do not take (requests with a made-up token,
 // 2026-11-25), GitHub's as it prints it

@@ -8,10 +8,9 @@
 // its handlers and functions: the runtime refuses to load a main module that exports anything else, a string included.
 //
 // It writes the statistics file, the one copy of the count. The key is a constant in the code rather than a setting,
-// so that no setting can point the Worker at another file. Each run also deletes the shadow file the shadow period
-// left (Implementation Decisions "The collection"), and its run record entry says what became of it.
+// so that no setting can point the Worker at another file.
 import {
-  collect, hourOf, isCount, isUtc, RUNS_KEY, SHA256, SHADOW_KEY, shaped, STATISTICS_KEY, WRITE_OPTIONS
+  collect, hourOf, isUtc, RUNS_KEY, SHA256, SHADOW_KEY, shaped, STATISTICS_KEY, WRITE_OPTIONS
 } from './download-count-core.mjs'
 
 /** The file this Worker writes */
@@ -25,28 +24,25 @@ const SETTINGS = ['CF_ANALYTICS_API_TOKEN', 'CF_ZONE_ID', 'DOWNLOAD_HOST', 'GITH
 const SOURCES = ['ok', 'failed', 'not-read']
 const GITHUB = ['ok', 'rate-limited', 'failed', 'not-read']
 const ENTRY = ['scheduledTime', 'coreSha256', 'key', 'written', 'github', 'analytics', 'bucket', 'failure', 'r2Cursor']
-// What a run found of the shadow file: deleted, not there, or there and not deleted
+// What a run of an earlier Worker, which deleted the shadow file, found of it: deleted, not there, or not found or not
+// deleted, its head or its delete having failed
 const SHADOW_FILE = ['deleted', 'absent', 'failed']
 
 /**
  * The run record, taken only when it has exactly the fields and types of the spec's table (Implementation Decisions
- * "The run record"); anything else is not one (Failure G9). A record the shadow period wrote is one too: it has a
- * `seed`, and its entries, which wrote the shadow file, have no `shadowFile`.
+ * "The run record"); anything else is not one (Failure G9). The entries earlier Workers wrote are ones too until they
+ * age out: the shadow period's, which wrote the shadow file and have no `shadowFile`, and those of the statistics file
+ * that say what the run found of the shadow file in `shadowFile`.
  */
 export function validateRuns(record) {
   const fail = (reason) => { throw new Error(`the run record ${reason}`) }
-  const seeded = shaped(record, ['schemaVersion', 'seed', 'runs'])
-  if (!seeded && !shaped(record, ['schemaVersion', 'runs'])) fail('does not have the run record\'s fields')
+  if (!shaped(record, ['schemaVersion', 'runs'])) fail('does not have the run record\'s fields')
   if (record.schemaVersion !== 1) fail(`has schemaVersion ${JSON.stringify(record.schemaVersion)}, not 1`)
-  const { seed = null } = record
-  if (seed !== null && !(shaped(seed, ['at', 'r2Cursor', 'r2Bytes']) && isUtc(seed.at) && hourOf(seed.r2Cursor) !== null && isCount(seed.r2Bytes))) {
-    fail(`has a seed that is not one: ${JSON.stringify(seed)}`)
-  }
   if (!Array.isArray(record.runs) || record.runs.length > MAX_RUNS) fail(`has runs that are not a list of at most ${MAX_RUNS}`)
   for (const [i, run] of record.runs.entries()) {
-    const shadowPeriod = run?.key === SHADOW_KEY
-    const holds = shaped(run, shadowPeriod ? ENTRY : [...ENTRY, 'shadowFile']) && isUtc(run.scheduledTime) &&
-      SHA256.test(run.coreSha256) && (shadowPeriod || (run.key === KEY && SHADOW_FILE.includes(run.shadowFile))) &&
+    const withShadowFile = run?.key === KEY && Object.hasOwn(run, 'shadowFile')
+    const holds = shaped(run, withShadowFile ? [...ENTRY, 'shadowFile'] : ENTRY) && isUtc(run.scheduledTime) &&
+      SHA256.test(run.coreSha256) && (run.key === SHADOW_KEY || run.key === KEY) && (!withShadowFile || SHADOW_FILE.includes(run.shadowFile)) &&
       typeof run.written === 'boolean' && GITHUB.includes(run.github) && SOURCES.includes(run.analytics) && SOURCES.includes(run.bucket) &&
       (run.written ? run.failure === null && hourOf(run.r2Cursor) !== null : typeof run.failure === 'string' && run.r2Cursor === null)
     if (!holds) fail(`has a run that is not one: entry ${i}`)
@@ -97,10 +93,7 @@ function bindingBucket(binding) {
 const asText = (file) => `${JSON.stringify(file, null, 2)}\n`
 const messageOf = (error) => (error instanceof Error ? error.message : String(error))
 
-/**
- * The run record changed by `change` and written back, on the etag read (Failure G10); absent, it starts here. A
- * shadow period's record is written back without its seed.
- */
+/** The run record changed by `change` and written back, on the etag read (Failure G10); absent, it starts here */
 async function updateRuns(bucket, change) {
   const text = await bucket.read(RUNS_KEY)
   let record = { schemaVersion: 1, runs: [] }
@@ -111,7 +104,6 @@ async function updateRuns(bucket, change) {
       throw new Error('the run record is not JSON')
     }
     validateRuns(record)
-    delete record.seed
   }
   await bucket.putText(RUNS_KEY, asText(validateRuns(change(record))), WRITE_OPTIONS)
 }
@@ -148,28 +140,12 @@ export async function run(controller, env, { fetch, now, log = console.log, erro
       analyticsToken: token,
       zone: env.CF_ZONE_ID,
       host: new URL(env.DOWNLOAD_HOST).hostname,
-      acceptGapFrom: env.ACCEPT_GAP_FROM || null,
-      key: KEY
+      acceptGapFrom: env.ACCEPT_GAP_FROM || null
     })
     outcomes = { github: 'ok', analytics: 'ok', bucket: 'ok' }
   } catch (error) {
     failure = redact(messageOf(error))
     outcomes = error?.outcomes ?? outcomes
-  }
-
-  // The shadow file, deleted whether the count succeeded or not: a deletion that fails fails nothing else, and the
-  // next run tries again
-  let shadowFile
-  try {
-    if (await env.BUCKET.head(SHADOW_KEY) === null) {
-      shadowFile = 'absent'
-    } else {
-      await env.BUCKET.delete(SHADOW_KEY)
-      shadowFile = 'deleted'
-    }
-  } catch (error) {
-    shadowFile = 'failed'
-    report(`[download-count] ${SHADOW_KEY} was not deleted: ${redact(messageOf(error))}`)
   }
 
   const entry = {
@@ -179,8 +155,7 @@ export async function run(controller, env, { fetch, now, log = console.log, erro
     written: counted !== null,
     ...outcomes,
     failure,
-    r2Cursor: counted?.statistics.r2Cursor ?? null,
-    shadowFile
+    r2Cursor: counted?.statistics.r2Cursor ?? null
   }
   let unrecorded = null
   try {

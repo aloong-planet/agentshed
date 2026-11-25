@@ -100,9 +100,7 @@ $0.03 a month at R2's listed prices, and only when the account is already beyond
   rows, and on a first run starts at the oldest full hour `notOlderThan` allows. A range answered with a full
   page fails the run, and so does an analytics answer that carries `errors`, even with HTTP 200, or that is
   not for exactly one zone. It writes the new file (Failures G2, G10) as `application/json` with
-  `public, max-age=300`. A run without its credentials fails. Every run that has its bucket and its core's pinned
-  hash, whether it wrote the file or not, also deletes `stats/downloads-shadow.json` when the bucket holds it; a
-  deletion that fails fails nothing else, and the next run tries again.
+  `public, max-age=300`. A run without its credentials fails.
 - **The statistics file** is JSON with these fields. The collection keeps publishing every one of them, with the
   type and meaning the table gives it.
 
@@ -119,9 +117,8 @@ $0.03 a month at R2's listed prices, and only when the account is already beyond
 | `r2.objects` | object keyed by the object's key in the bucket | `{ name, size, bytes }`: the DMG's file name, its size in bytes and the bytes it was served in counted requests |
 
 - **The run record** is `stats/worker-runs.json` in the bucket, written by the Worker alone after every run,
-  as `application/json` with `public, max-age=300`. Another `schemaVersion`, or any other shape: Failure G9. A run
-  record that also has a `seed`, `{ at, r2Cursor, r2Bytes }` or null, as the Worker wrote it before it took the
-  statistics file over, is one, and the next run writes it back without the `seed`.
+  as `application/json` with `public, max-age=300`, except a run of a Worker without its bucket binding or a pinned
+  core SHA-256 to record, which reads and writes nothing. Another `schemaVersion`, or any other shape: Failure G9.
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -136,4 +133,4 @@ $0.03 a month at R2's listed prices, and only when the account is already beyond
 | `runs[].bucket` | `ok`, `failed` or `not-read` | The previous file, the listing and the file's write, as for `github` |
 | `runs[].failure` | string or null | What failed the run, never a credential; null when it wrote its file. A read answered with another status than HTTP 200 names that status and, after a colon, the reason the answer gives, whole: the answer's `message`, or else the `message` of each of its `errors`, joined by `; `. A message that is not a string, or is blank, counts as none; a body that is not JSON, or gives none, gives no reason. An analytics answer with HTTP 200 whose `errors` are a list quotes their messages the same way; one that is not an object, or whose `errors` are not a list, is quoted as its JSON |
 | `runs[].r2Cursor` | string, ISO 8601 UTC, on the hour, or null | The cursor of the file the run wrote; null when it wrote nothing |
-| `runs[].shadowFile` | `deleted`, `absent` or `failed`; only in an entry whose `key` is `stats/downloads.json` | What the run did with `stats/downloads-shadow.json` ("The collection"): `deleted` it; `absent`, the bucket did not hold it; `failed` to find or delete it |
+| `runs[].shadowFile` | `deleted`, `absent` or `failed`; only in an entry whose `key` is `stats/downloads.json` that a Worker which deleted `stats/downloads-shadow.json` wrote; a run writes none | What that run did with `stats/downloads-shadow.json`: `deleted` it; `absent`, the bucket did not hold it; `failed` to find or delete it |

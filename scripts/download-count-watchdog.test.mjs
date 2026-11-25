@@ -3,8 +3,8 @@
 // workflow runs it, against a local HTTP server.
 //
 // Gaps: GitHub's runner reading the printed lines, and GitHub notifying of a failed scheduled run, are seen only in a
-// run that fails (docs/ops/download-count.md). The download host caches the files for 5 minutes, which the 6 hours
-// Failure G8 allows cover; no case reads through that cache.
+// run that fails (docs/ops/download-count.md). The files are served with public, max-age=300, so a cache on the way
+// may hold a copy 5 minutes old, which the 6 hours Failure G8 allows cover; no case reads through such a cache.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
@@ -35,7 +35,6 @@ const entry = (i, fields = {}) => ({
   bucket: 'ok',
   failure: `page 1 of GitHub's releases answered HTTP 403 for its rate limit (run ${i})`,
   r2Cursor: null,
-  shadowFile: 'absent',
   ...fields
 })
 const record = (runs) => json({ schemaVersion: 1, runs })
