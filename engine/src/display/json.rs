@@ -231,94 +231,13 @@ fn utf8(out: &mut Vec<u8>, point: u32) {
     out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
 }
 
-/// Number::toString(10) (ECMA-262): the shortest digits that read back as the same double, placed by its rules —
-/// plain up to 21 integer digits, `0.000…` down to six leading zeros, exponential beyond either
+/// Number::toString(10) (ECMA-262), as the module writes a double in its other text; a value that is not finite is
+/// `null`, as `JSON.stringify` writes it
 pub(crate) fn write_number(out: &mut Vec<u8>, value: f64) {
     if !value.is_finite() {
         out.extend_from_slice(b"null");
         return;
     }
-    // Minus zero is written as zero
-    if value == 0.0 {
-        out.push(b'0');
-        return;
-    }
-    // Every integer below 2^53 is its own shortest digits
-    if value.fract() == 0.0 && value.abs() < 9_007_199_254_740_992.0 {
-        out.extend_from_slice((value as i64).to_string().as_bytes());
-        return;
-    }
-    if value < 0.0 {
-        out.push(b'-');
-    }
-    let (digits, n) = shortest(value.abs());
-    let k = digits.len() as i32;
-    if k <= n && n <= 21 {
-        out.extend_from_slice(&digits);
-        out.extend(std::iter::repeat_n(b'0', (n - k) as usize));
-    } else if 0 < n && n <= 21 {
-        out.extend_from_slice(&digits[..n as usize]);
-        out.push(b'.');
-        out.extend_from_slice(&digits[n as usize..]);
-    } else if -6 < n && n <= 0 {
-        out.extend_from_slice(b"0.");
-        out.extend(std::iter::repeat_n(b'0', (-n) as usize));
-        out.extend_from_slice(&digits);
-    } else {
-        out.push(digits[0]);
-        if k > 1 {
-            out.push(b'.');
-            out.extend_from_slice(&digits[1..]);
-        }
-        out.push(b'e');
-        out.push(if n - 1 >= 0 { b'+' } else { b'-' });
-        out.extend_from_slice((n - 1).abs().to_string().as_bytes());
-    }
-}
-
-/// The digits ECMAScript's Number::toString chooses for a positive finite double, and the position of the decimal point
-/// after the first n of them (ECMA-262's s and n): the fewest that read back as the double, and among as few, the
-/// decimal nearest it, an exact tie going to the even one. Rust's shortest form reads back but is not always the nearest:
-/// 667082108456853.25 lies halfway between …853.2 and …853.3, and Rust gives the odd one.
-fn shortest(value: f64) -> (Vec<u8>, i32) {
-    let (digits, n) = exponential(&format!("{value:e}"));
-    // Every double's decimal expansion ends within 767 significant digits, so this one is exact
-    let (exact, exact_n) = exponential(&format!("{value:.800e}"));
-    let (nearest, nearest_n) = round_half_even(&exact, exact_n, digits.len());
-    if reads_back(&nearest, nearest_n, value) { (nearest, nearest_n) } else { (digits, n) }
-}
-
-/// The digits of a number written as `d.ddde±x`, and where its decimal point falls after them
-fn exponential(text: &str) -> (Vec<u8>, i32) {
-    let (mantissa, exponent) = text.split_once('e').expect("exponential form");
-    let digits = mantissa.bytes().filter(|b| *b != b'.').collect();
-    (digits, exponent.parse::<i32>().expect("an exponent") + 1)
-}
-
-/// `exact` rounded to `k` digits, half to even
-fn round_half_even(exact: &[u8], n: i32, k: usize) -> (Vec<u8>, i32) {
-    let mut kept = exact[..k].to_vec();
-    let next = exact.get(k).copied().unwrap_or(b'0');
-    let beyond = exact.get(k + 1..).is_some_and(|rest| rest.iter().any(|d| *d != b'0'));
-    let odd = (kept[k - 1] - b'0') % 2 == 1;
-    if next > b'5' || (next == b'5' && (beyond || odd)) {
-        for i in (0..k).rev() {
-            if kept[i] == b'9' {
-                kept[i] = b'0';
-            } else {
-                kept[i] += 1;
-                return (kept, n);
-            }
-        }
-        // 99…9 carried into a new leading digit
-        kept.insert(0, b'1');
-        kept.truncate(k);
-        return (kept, n + 1);
-    }
-    (kept, n)
-}
-
-fn reads_back(digits: &[u8], n: i32, value: f64) -> bool {
-    let text = format!("0.{}e{n}", String::from_utf8_lossy(digits));
-    text.parse::<f64>() == Ok(value)
+    let mut buffer = ryu_js::Buffer::new();
+    out.extend_from_slice(buffer.format_finite(value).as_bytes());
 }
