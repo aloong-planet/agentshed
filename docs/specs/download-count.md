@@ -117,7 +117,8 @@ $0.03 a month at R2's listed prices, and only when the account is already beyond
 | `r2.objects` | object keyed by the object's key in the bucket | `{ name, size, bytes }`: the DMG's file name, its size in bytes and the bytes it was served in counted requests |
 
 - **The run record** is `stats/worker-runs.json` in the bucket, written by the Worker alone after every run,
-  as `application/json` with `public, max-age=300`. Another `schemaVersion`, or any other shape: Failure G9.
+  as `application/json` with `public, max-age=300`, except a run of a Worker without its bucket binding or a pinned
+  core SHA-256 to record, which reads and writes nothing. Another `schemaVersion`, or any other shape: Failure G9.
 
 | Field | Type | Meaning |
 |---|---|---|

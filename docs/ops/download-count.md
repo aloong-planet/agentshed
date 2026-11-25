@@ -86,9 +86,10 @@ The run record's `failure`, and the Worker's Cron Events, say why:
 
 - **A read fails** (GitHub, the bucket, the analytics, or an answer the run cannot validate): the run fails and
   writes nothing. Nothing is lost: the next run counts from the same cursor. Look closer only when runs keep failing.
-- **"stats/downloads.json in the bucket is not JSON"** or **"stats/downloads.json has …"**: the file in the bucket is
-  not one the run can take (Failure G1). Do not delete it to start over: the counts it holds cannot be read back from
-  anywhere else. Only the Worker writes it, so find which run wrote it and why.
+- **"stats/downloads.json in the bucket is not JSON"**, **"stats/downloads.json has …"** or **"stats/downloads.json
+  does not have the statistics file's fields: …"**: the file in the bucket is not one the run can take (Failure G1).
+  Do not delete it to start over: the counts it holds cannot be read back from anywhere else. Only the Worker writes
+  it, so find which run wrote it and why.
 - **"… is N bytes in the bucket, not the M recorded"**: a mirrored DMG was replaced at the same key (Failure G5).
   A version's DMG never changes, so find out what wrote it.
 - **"stats/downloads.json changed in the bucket since the run read it"**: another writer replaced or created the
