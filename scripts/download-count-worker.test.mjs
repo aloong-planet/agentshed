@@ -236,6 +236,9 @@ const NOT_READ = { github: 'not-read', analytics: 'not-read', bucket: 'not-read'
 const githubAnswers = (response) => ({
   answer: { github: (page, { headers }) => (headers.authorization === 'Bearer gh-releases-token' ? response() : undefined) }
 })
+// An answer whose body cannot be read, as when the connection drops after its status and headers
+const unreadable = (status, headers) =>
+  new Response(new ReadableStream({ start(controller) { controller.error(new TypeError('terminated')) } }), { status, headers })
 
 // Failures G1, G2 and G5 through a shadow run, and "The run record": a run that fails writes no shadow file and
 // records which source failed it, and how, with what failed it
@@ -247,6 +250,9 @@ test('a shadow run in which any read fails writes nothing, and records each sour
       { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /answered HTTP 429 for its rate limit: Too many requests$/],
     ['GitHub naming a secondary rate limit', githubAnswers(() => json({ message: 'You have exceeded a secondary rate limit. Please wait a few minutes before you try again.' }, 403, { 'x-ratelimit-remaining': '41' })),
       { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /answered HTTP 403 for its rate limit: You have exceeded a secondary rate limit\. Please wait a few minutes before you try again\.$/],
+    // A body that cannot be read gives no reason; the refusal is still one for the rate limit, by its header
+    ['GitHub refusing for its rate limit with a body that cannot be read', githubAnswers(() => unreadable(403, { 'x-ratelimit-remaining': '0' })),
+      { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 403 for its rate limit$/],
     // A refusal for anything else quotes GitHub's reason, in the shape of GitHub's own answer to a token it does not take
     // (a request with a made-up token, 2026-11-25)
     ['GitHub refusing for anything else', githubAnswers(() => json({ message: 'Resource not accessible by personal access token', documentation_url: 'https://docs.github.com/rest', status: '403' }, 403, { 'x-ratelimit-remaining': '41' })),

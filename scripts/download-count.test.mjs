@@ -464,7 +464,10 @@ test('a run in which any read fails, or answers what the run cannot validate, wr
     ["GitHub's page that is not a list", { answer: { github: () => json({ message: 'Bad credentials' }) } }, /page 1 of GitHub's releases is not a list/],
     ["GitHub's entry that is not a release", { releases: [{ ...REAL_RELEASES[0], assets: null }] }, /GitHub listed a release that is not one/],
     ['the limits answered with HTTP 403', { answer: { settings: () => json({ success: false }, 403) } }, /Cloudflare's analytics answered HTTP 403/],
-    ['the limits answered with errors at HTTP 200', { answer: { settings: () => json({ data: null, errors: [{ message: 'not authorized for that zone' }] }) } }, /answered with errors: not authorized for that zone/],
+    // The errors' messages as for a refused read ("The run record"): an entry without one is left out
+    ['the limits answered with errors at HTTP 200', { answer: { settings: () => json({ data: null, errors: [{ code: 9106 }, { message: 'not authorized for that zone' }] }) } }, /answered with errors: not authorized for that zone$/],
+    ['the limits answered with errors that say nothing at HTTP 200', { answer: { settings: () => json({ data: null, errors: [{ code: 9106 }] }) } }, /^Error: Cloudflare's analytics answered with errors$/],
+    ['the limits answered with errors that are not a list at HTTP 200', { answer: { settings: () => json({ data: null, errors: 'denied' }) } }, /^Error: Cloudflare's analytics answered with errors: \{"data":null,"errors":"denied"\}$/],
     ['the limits for no zone', { answer: { settings: () => json({ data: { viewer: { zones: [] } }, errors: null }) } }, /did not answer for exactly one zone/],
     ['the dataset disabled', { limits: { ...LIMITS, enabled: false } }, /limits the run cannot use/],
     ['no notOlderThan', { limits: { ...LIMITS, notOlderThan: undefined } }, /limits the run cannot use/],

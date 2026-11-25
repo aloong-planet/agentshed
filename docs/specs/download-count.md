@@ -134,10 +134,10 @@ R2's free tier.
 | `runs[].coreSha256` | string, 64 lowercase hex digits | The pinned SHA-256 of the core module the run used |
 | `runs[].key` | string | The file the run writes, `stats/downloads.json` or `stats/downloads-shadow.json` |
 | `runs[].written` | boolean | Whether the run wrote that file |
-| `runs[].github` | `ok`, `rate-limited`, `failed` or `not-read` | GitHub's read. `rate-limited`: GitHub answered 403 or 429 with `x-ratelimit-remaining` `0`, or with a message naming a secondary rate limit; `failed`: any other failed read or answer the run cannot validate; `not-read`: the run failed before any of these reads started. A run refused for a cursor the analytics no longer hold (Failure G3) fails none of them |
+| `runs[].github` | `ok`, `rate-limited`, `failed` or `not-read` | GitHub's read. `rate-limited`: GitHub answered 403 or 429 with `x-ratelimit-remaining` `0`, or with a reason (`runs[].failure`) naming a secondary rate limit; `failed`: any other failed read or answer the run cannot validate; `not-read`: the run failed before any of these reads started. A run refused for a cursor the analytics no longer hold (Failure G3) fails none of them |
 | `runs[].analytics` | `ok`, `failed` or `not-read` | The analytics' settings and traffic reads, as for `github` |
 | `runs[].bucket` | `ok`, `failed` or `not-read` | The previous file, the listing, the seed's write ("The shadow period") and the file's write, as for `github` |
-| `runs[].failure` | string or null | What failed the run, never a credential; null when it wrote its file |
+| `runs[].failure` | string or null | What failed the run, never a credential; null when it wrote its file. A read answered with another status than HTTP 200 names that status and, after a colon, the reason the answer gives, whole: the answer's `message`, or else the `message` of each of its `errors`, joined by `; `. A message that is not a string, or is blank, counts as none; a body that is not JSON, or gives none, gives no reason. An analytics answer that carries `errors` with HTTP 200 quotes their messages the same way |
 | `runs[].r2Cursor` | string, ISO 8601 UTC, on the hour, or null | The cursor of the file the run wrote; null when it wrote nothing |
 
 - **The shadow period** lasts until the switch below. The Worker writes `stats/downloads-shadow.json`, a

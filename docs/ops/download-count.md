@@ -116,7 +116,8 @@ infra's plan, and nothing is deployed.
 **What each run leaves**: the shadow file, when the run succeeded, and one entry in `stats/worker-runs.json`, the
 run record, which keeps the newest 336 runs. An entry says which file the run wrote, whether it did, how each source
 fared (`github` is `rate-limited` when GitHub refused the read for its rate limit), what failed the run, with both
-tokens removed, and the cursor reached. A run that failed, or whose entry could not be appended, also fails
+tokens removed, and the cursor reached. A read GitHub or Cloudflare refused shows as the status they answered and,
+after a colon, the reason they gave, if any. A run that failed, or whose entry could not be appended, also fails
 the invocation, which then shows as an error, with that text, in the Worker's Cron Events in Cloudflare's dashboard.
 
 ```bash
@@ -166,8 +167,10 @@ The Worker never reads GitHub without the token. The run record shows when it ca
 - **"RELEASES_READ_TOKEN is not set"**, with every source `not-read`: the binding is missing or empty, and every run
   fails. A Worker at a commit that reads the token fails this way until infra binds it, so the infra pull request that
   pins such a commit binds the token too.
-- **"page 1 of GitHub's releases answered HTTP 401"**, with `github` `failed`: GitHub does not take the token, which
-  has expired or been revoked. Every run fails until it is replaced.
+- **"page 1 of GitHub's releases answered HTTP 401: Bad credentials"**, with `github` `failed`: GitHub does not take
+  the token, which has expired or been revoked. Every run fails until it is replaced.
+- **"page 1 of GitHub's releases answered HTTP 403: …"**, with `github` `failed`: GitHub refused the read for another
+  reason than its rate limit; the text after the colon is GitHub's reason.
 
 **To renew or replace it**, before its expiration if it was given one, or once GitHub refuses it:
 

@@ -222,9 +222,21 @@ async function readPrevious(bucket, key, seedKey) {
 const RELEASES_PER_PAGE = 100
 const MAX_RELEASE_PAGES = 100
 
+/** Whether an answer's message says anything: a string that is not blank */
+const says = (message) => typeof message === 'string' && message.trim() !== ''
+
+/**
+ * The `message` of each of an answer's `errors` that says anything, joined by "; " (Implementation Decisions "The run
+ * record"); null when none does
+ */
+function messagesOf(errors) {
+  const messages = errors.map((error) => error?.message).filter(says)
+  return messages.length > 0 ? messages.join('; ') : null
+}
+
 /**
  * The reason an answer refusing a read gives, whole (Implementation Decisions "The run record"): its `message`, or
- * else the `message` of each of its `errors`, joined by "; "; null for a body that is not JSON or gives neither
+ * else its errors' messages; null for a body that is not JSON or gives neither
  */
 export function reasonOf(text) {
   let answer
@@ -233,10 +245,8 @@ export function reasonOf(text) {
   } catch {
     return null
   }
-  const said = (message) => typeof message === 'string' && message.trim() !== ''
-  if (said(answer?.message)) return answer.message
-  const messages = Array.isArray(answer?.errors) ? answer.errors.map((error) => error?.message).filter(said) : []
-  return messages.length > 0 ? messages.join('; ') : null
+  if (says(answer?.message)) return answer.message
+  return Array.isArray(answer?.errors) ? messagesOf(answer.errors) : null
 }
 
 /**
@@ -310,8 +320,8 @@ async function zoneQuery(fetch, { token, zone }, query, variables) {
   const answer = await jsonOf(response, "Cloudflare's analytics")
   // GraphQL reports a failed query with HTTP 200 and its errors beside whatever data it has
   if (!isObject(answer) || (answer.errors !== undefined && answer.errors !== null)) {
-    const messages = Array.isArray(answer?.errors) ? answer.errors.map((error) => error?.message).join('; ') : JSON.stringify(answer)
-    throw new Error(`Cloudflare's analytics answered with errors: ${messages}`)
+    const messages = Array.isArray(answer?.errors) ? messagesOf(answer.errors) : JSON.stringify(answer)
+    throw new Error(`Cloudflare's analytics answered with errors${messages === null ? '' : `: ${messages}`}`)
   }
   const zones = answer.data?.viewer?.zones
   if (!Array.isArray(zones) || zones.length !== 1 || !isObject(zones[0])) {
