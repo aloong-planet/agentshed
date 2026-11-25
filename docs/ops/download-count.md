@@ -185,6 +185,10 @@ The Worker never reads GitHub without the token. The run record shows when it ca
    gh workflow run terraform-workers.yml -R aloong-planet/infra
    ```
 
+   A Plan that stops at `releases_read_token` refuses the value stored: it is empty, or it is not the token alone (a
+   token of another kind, or the token with a space, a line break or another character a token cannot hold). Nothing
+   is deployed, and the Worker keeps the token it has. Store the token again (step 2), then start the run again.
+
 4. Check that the run record's next entry reads `github` `ok`, or `rate-limited` at worst; then delete the old token
    on GitHub.
 
