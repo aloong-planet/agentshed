@@ -42,6 +42,9 @@
 //! - The JSON string seam: a test reads a text as one string value through the reader every line is read by, so that
 //!   a test can hold what the reader makes of each character, wherever it falls in the reader's scan, to what
 //!   `JSON.parse` makes of it.
+//! - The JSON line seam: a test reads a text as a whole line through the reader every line is read by, as a side reads
+//!   one (`json::line`), and has the text `JSON.stringify` gives of the value the line holds, so that a test can hold
+//!   which lines the reader takes, and what it makes of each value in them, to `JSON.parse` over any line.
 
 /// Called by every function that parses a session file, before it reads the file: in a build made for tests, it panics
 /// when the file is the one the panic seam names, and otherwise does nothing.
@@ -500,5 +503,20 @@ pub(crate) mod json_string_seam {
         let string = reader.string().ok()?;
         reader.end().ok()?;
         Some(string.units())
+    }
+}
+
+#[cfg(feature = "test-seams")]
+pub(crate) mod json_line_seam {
+    use crate::json::{Gap, Reader, line, stringify};
+
+    /// What the reader makes of `text` as a whole line: whether it reads the line to its end, an object's members read
+    /// as a side reads those it keeps none of, and the text `JSON.stringify` gives of the value the line holds, or None
+    /// when that read refuses the line
+    pub(crate) fn read(text: &str) -> (bool, Option<String>) {
+        let accepted = line(text, |r| r.members(|_, r| r.skip())).is_ok();
+        let mut reader = Reader::new(text);
+        let written = stringify(&mut reader, Gap::None).ok();
+        (accepted, written.filter(|_| reader.end().is_ok()))
     }
 }

@@ -64,6 +64,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      # The engine module's Rust tests (its JSON reader's, engine/src/json/tests.rs), with the same toolchain
+      - run: pnpm test:engine
       - run: pnpm test:scripts
       - run: pnpm check:i18n
 

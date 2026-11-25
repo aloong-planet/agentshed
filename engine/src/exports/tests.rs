@@ -138,4 +138,21 @@ mod seam {
     pub fn seam_read_json_string(text: String) -> Option<String> {
         seams::json_string_seam::read(&text).map(|units| String::from_utf16_lossy(&units))
     }
+
+    /// What the reader makes of a whole line (`seams.rs`)
+    #[napi(object)]
+    pub struct SeamJsonLine {
+        /// Whether it reads the line to its end, as a side reads one
+        pub accepted: bool,
+        /// The text `JSON.stringify` gives of the value the line holds, or none when that read refuses the line
+        pub text: Option<String>,
+    }
+
+    /// Reads `line` as a whole line through the reader every line is read by, and answers whether it takes the line and
+    /// the text `JSON.stringify` gives of the value the line holds (`seams.rs`)
+    #[napi(catch_unwind)]
+    pub fn seam_read_json_line(line: String) -> SeamJsonLine {
+        let (accepted, text) = seams::json_line_seam::read(&line);
+        SeamJsonLine { accepted, text }
+    }
 }

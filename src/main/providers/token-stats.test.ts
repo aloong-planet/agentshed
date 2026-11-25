@@ -34,7 +34,7 @@ import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromStoreSnapshot, runParseJob, type ParseJob, type ParseResult, type ParseRunner, type TokenBuildResult } from './token-stats'
-import { TEST_ENGINE, type JsonStringSeam, type LineLimitSeam, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
+import { TEST_ENGINE, type JsonLineSeam, type JsonStringSeam, type LineLimitSeam, type PanicSeam, type StoreWriteSeam } from '../testing/engine'
 import { STORE_FILE, onStore, openElsewhere, storeFileBytes, storedEntries, storedGroups, storePath, storeRows, storeVersion } from '../testing/token-store'
 import { loadEngineModule, threadEngineModule } from '../engine-module'
 import { compareScanOrder } from './scan-order'
@@ -4808,6 +4808,93 @@ describe('how a line\'s string is read', () => {
     // Many texts of each outcome
     expect(outcomes.taken).toBeGreaterThan(10000)
     expect(outcomes.refused).toBeGreaterThan(10000)
+  })
+})
+
+// token-stats, Implementation Decisions, The engine module: a line is "read by the grammar of ECMAScript's JSON.parse,
+// with its results: a repeated key keeps its last value, a number beyond the double range is infinite and so no finite
+// count, a lone surrogate escape stays that code unit, and a line JSON.parse refuses is a bad line (A8)". Lines drawn
+// from a seeded generator — values of every kind nested a few deep, numbers of every form the grammar writes, strings
+// of every character class and escape, keys repeated and keys that name array indexes, whitespace of the four kinds —
+// and each one again with one byte deleted, inserted or replaced, decoded as UTF-8 as a line is, are read whole
+// through the reader every line is read by (the JSON line seam) and held to JSON.parse: the same lines taken, and the
+// same text JSON.stringify writes of the value each holds, which writes every decoded string and number back.
+describe('how a whole line is read', () => {
+  it('takes the lines JSON.parse takes, with the values it gives, and refuses the others', () => {
+    const seam = loadEngineModule(TEST_ENGINE) as JsonLineSeam
+    const BS = String.fromCharCode(0x5c)
+    // mulberry32: the same lines on every run
+    let seed = 0x5eed573
+    const random = (): number => {
+      seed = (seed + 0x6d2b79f5) | 0
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    const below = (n: number): number => Math.floor(random() * n)
+    const pick = <T,>(xs: readonly T[]): T => xs[below(xs.length)]
+    const space = (): string => (random() < 0.7 ? '' : Array.from({ length: 1 + below(3) }, () => pick([' ', '\t', '\n', '\r'])).join(''))
+    const chars = [
+      'a', 'Z', '0', ' ', '/', String.fromCharCode(0x7f), String.fromCharCode(0xe9), String.fromCharCode(0x2028), String.fromCharCode(0x4e2d),
+      String.fromCharCode(0xfffd), String.fromCodePoint(0x1f600), String.fromCodePoint(0x10ffff),
+      ...['"', BS, '/', 'b', 'f', 'n', 'r', 't', 'u0000', 'u001f', 'u0041', 'u00E9', 'u4e2d', 'uD83D' + BS + 'uDE00', 'ud800', 'uDC00', 'uDE00' + BS + 'uD83D', 'ufffe'].map((e) => BS + e)
+    ]
+    const string = (): string => '"' + Array.from({ length: below(6) }, () => pick(chars)).join('') + '"'
+    const digits = (n: number): string => Array.from({ length: n }, () => String(below(10))).join('')
+    const number = (): string => {
+      const fixed = ['0', '-0', '1e400', '-1e400', '1e-400', '2.4703282292062328e-324', '1.7976931348623159e308', '9007199254740993', '0.1', '123456789012345678901234567890']
+      if (random() < 0.2) return pick(fixed)
+      const int = random() < 0.3 ? '0' : String(1 + below(9)) + digits(below(20))
+      const frac = random() < 0.4 ? '.' + digits(1 + below(20)) : ''
+      const exp = random() < 0.4 ? pick(['e', 'E']) + pick(['', '+', '-']) + digits(1 + below(3)) : ''
+      return (random() < 0.3 ? '-' : '') + int + frac + exp
+    }
+    const keys = ['"a"', '"b"', '"type"', `"${BS}u0061"`, '"0"', '"1"', '"10"', '"01"', '"4294967294"', '"4294967295"', '"__proto__"', '""']
+    const value = (depth: number): string => {
+      const kind = below(depth > 3 ? 4 : 6)
+      if (kind === 0) return number()
+      if (kind === 1) return string()
+      if (kind === 2) return pick(['true', 'false', 'null'])
+      if (kind === 3) return random() < 0.5 ? number() : string()
+      const n = below(5)
+      if (kind === 4) return '[' + space() + Array.from({ length: n }, () => value(depth + 1)).join(space() + ',' + space()) + space() + ']'
+      return '{' + space() + Array.from({ length: n }, () => (random() < 0.8 ? pick(keys) : string()) + space() + ':' + space() + value(depth + 1)).join(space() + ',' + space()) + space() + '}'
+    }
+    const bytes = [...'{}[],:"\\-+.eEu0 x', '\t', '\v', '\0'].map((c) => c.charCodeAt(0)).concat([0x1f, 0x7f, 0x80, 0xbf, 0xc3, 0xe4, 0xf0, 0xff])
+    const decoder = new TextDecoder()
+    const mutated = (line: string): string => {
+      const from = Buffer.from(line, 'utf8')
+      const at = below(from.length + 1)
+      const op = below(3)
+      const byte = random() < 0.8 ? pick(bytes) : below(256)
+      const out = op === 0 ? Buffer.concat([from.subarray(0, at), from.subarray(at + 1)]) : Buffer.concat([from.subarray(0, at), Buffer.from([byte]), from.subarray(op === 1 ? at : at + 1)])
+      return decoder.decode(out)
+    }
+    const expected = (line: string): string | null => {
+      try {
+        return JSON.stringify(JSON.parse(line))
+      } catch {
+        return null
+      }
+    }
+    const outcomes = { taken: 0, refused: 0 }
+    const differ: string[] = []
+    const check = (line: string): void => {
+      const text = expected(line)
+      outcomes[text === null ? 'refused' : 'taken']++
+      const read = seam.seamReadJsonLine(line)
+      if (read.accepted !== (text !== null) || (read.text ?? null) !== text) differ.push(JSON.stringify({ line, read, text }))
+    }
+    for (let i = 0; i < 8000; i++) {
+      const line = space() + value(0) + space()
+      check(line)
+      check(mutated(line))
+      check(mutated(line))
+    }
+    expect(differ.slice(0, 20)).toEqual([])
+    // Many lines of each outcome
+    expect(outcomes.taken).toBeGreaterThan(5000)
+    expect(outcomes.refused).toBeGreaterThan(5000)
   })
 })
 

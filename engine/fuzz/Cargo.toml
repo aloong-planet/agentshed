@@ -1,0 +1,25 @@
+# The fuzz targets over the engine module's reading of a line (engine/src/fuzzing.rs), run with cargo-fuzz on a nightly
+# toolchain, from this directory: cargo +nightly fuzz run -s none json_line -- -dict=json.dict. With no sanitizer: the
+# target looks for a panic, and with AddressSanitizer the module's cdylib does not link on macOS. Its own workspace, so
+# the module's build and tests never compile it.
+[package]
+name = "agentshed-engine-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.10"
+agentshed-engine = { path = ".." }
+
+[[bin]]
+name = "json_line"
+path = "fuzz_targets/json_line.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
