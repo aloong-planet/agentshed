@@ -222,8 +222,52 @@ async function readPrevious(bucket, key, seedKey) {
 const RELEASES_PER_PAGE = 100
 const MAX_RELEASE_PAGES = 100
 
-async function jsonOf(response, what) {
-  if (response.status !== 200) throw new Error(`${what} answered HTTP ${response.status}`)
+/** Whether an answer's message says anything: a string that is not blank */
+const says = (message) => typeof message === 'string' && message.trim() !== ''
+
+/**
+ * The `message` of each of an answer's `errors` that says anything, joined by "; " (Implementation Decisions "The run
+ * record"); null when none does
+ */
+function messagesOf(errors) {
+  const messages = errors.map((error) => error?.message).filter(says)
+  return messages.length > 0 ? messages.join('; ') : null
+}
+
+/**
+ * The reason an answer refusing a read gives, whole (Implementation Decisions "The run record"): its `message`, or
+ * else its errors' messages; null for a body that is not JSON or gives neither
+ */
+export function reasonOf(text) {
+  let answer
+  try {
+    answer = JSON.parse(text)
+  } catch {
+    return null
+  }
+  if (says(answer?.message)) return answer.message
+  return Array.isArray(answer?.errors) ? messagesOf(answer.errors) : null
+}
+
+/**
+ * An answer's JSON. An answer with another status than HTTP 200 fails the read with the reason it gives, if any; one
+ * that `limited` takes for a rate limit says so and is marked as one.
+ */
+async function jsonOf(response, what, { limited = () => false } = {}) {
+  if (response.status !== 200) {
+    let body = null
+    try {
+      body = await response.text()
+    } catch {
+      // A body that cannot be read gives no reason
+    }
+    const reason = body === null ? null : reasonOf(body)
+    const quoted = reason === null ? '' : `: ${reason}`
+    if (limited(response, reason)) {
+      throw Object.assign(new Error(`${what} answered HTTP ${response.status} for its rate limit${quoted}`), { rateLimited: true })
+    }
+    throw new Error(`${what} answered HTTP ${response.status}${quoted}`)
+  }
   try {
     return await response.json()
   } catch {
@@ -233,18 +277,12 @@ async function jsonOf(response, what) {
 
 /**
  * Whether GitHub refused a read for its rate limit (Implementation Decisions "The run record"): HTTP 403 or 429 with
- * `x-ratelimit-remaining` 0, or with a message naming a secondary rate limit
+ * `x-ratelimit-remaining` 0, or with a reason naming a secondary rate limit
  */
-async function rateLimited(response) {
+function rateLimited(response, reason) {
   if (response.status !== 403 && response.status !== 429) return false
   if (response.headers.get('x-ratelimit-remaining') === '0') return true
-  let message
-  try {
-    message = (await response.json())?.message
-  } catch {
-    return false
-  }
-  return typeof message === 'string' && /secondary rate limit/i.test(message)
+  return reason !== null && /secondary rate limit/i.test(reason)
 }
 
 /**
@@ -262,10 +300,7 @@ async function readReleases(fetch, { repository, token }) {
         'x-github-api-version': '2022-11-28'
       }
     })
-    if (await rateLimited(response)) {
-      throw Object.assign(new Error(`page ${page} of GitHub's releases answered HTTP ${response.status} for its rate limit`), { rateLimited: true })
-    }
-    const answer = await jsonOf(response, `page ${page} of GitHub's releases`)
+    const answer = await jsonOf(response, `page ${page} of GitHub's releases`, { limited: rateLimited })
     if (!Array.isArray(answer)) throw new Error(`page ${page} of GitHub's releases is not a list`)
     releases.push(...answer)
     if (answer.length < RELEASES_PER_PAGE) return releases
@@ -285,8 +320,8 @@ async function zoneQuery(fetch, { token, zone }, query, variables) {
   const answer = await jsonOf(response, "Cloudflare's analytics")
   // GraphQL reports a failed query with HTTP 200 and its errors beside whatever data it has
   if (!isObject(answer) || (answer.errors !== undefined && answer.errors !== null)) {
-    const messages = Array.isArray(answer?.errors) ? answer.errors.map((error) => error?.message).join('; ') : JSON.stringify(answer)
-    throw new Error(`Cloudflare's analytics answered with errors: ${messages}`)
+    const messages = Array.isArray(answer?.errors) ? messagesOf(answer.errors) : JSON.stringify(answer)
+    throw new Error(`Cloudflare's analytics answered with errors${messages === null ? '' : `: ${messages}`}`)
   }
   const zones = answer.data?.viewer?.zones
   if (!Array.isArray(zones) || zones.length !== 1 || !isObject(zones[0])) {
