@@ -1,8 +1,8 @@
-// The release bucket through aws-cli on R2's S3 endpoint, shared by the release workflow's mirror
-// (scripts/mirror-release.mjs) and the download count's collection (scripts/download-count.mjs). The credentials stay
-// in the environment aws-cli reads (docs/ops/r2-setup.md); nothing here sees them.
+// The release bucket through aws-cli on R2's S3 endpoint, for the release workflow's mirror
+// (scripts/mirror-release.mjs). The credentials stay in the environment aws-cli reads (docs/ops/r2-setup.md); nothing
+// here sees them.
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -25,31 +25,6 @@ export function awsBucket({ bucket, endpoint, run }) {
     putText: (key, text, headers) => throughFile((file) => {
       writeFileSync(file, text)
       copy(file, key, headers)
-    }),
-    /** The objects whose keys start with `prefix`, every page of the listing: [{ key, size }] */
-    list: (prefix) => {
-      const { stdout } = run(['s3api', 'list-objects-v2', '--bucket', bucket, '--prefix', prefix, ...target,
-        '--output', 'json', '--query', '{objects: Contents}'])
-      const unreadable = () => new Error(`aws listed ${prefix} as ${JSON.stringify(stdout.slice(0, 200))}, not a listing`)
-      let answer
-      try {
-        answer = JSON.parse(stdout)
-      } catch {
-        throw unreadable()
-      }
-      // {"objects": null} is an empty listing; no output at all would be aws-cli's for no result, never this query's
-      if (typeof answer !== 'object' || answer === null || !('objects' in answer)) throw unreadable()
-      if (answer.objects === null) return []
-      if (!Array.isArray(answer.objects)) throw unreadable()
-      return answer.objects.map((entry) => {
-        if (typeof entry?.Key !== 'string' || !Number.isSafeInteger(entry.Size) || entry.Size < 0) throw unreadable()
-        return { key: entry.Key, size: entry.Size }
-      })
-    },
-    /** An object's content as text, read from the bucket itself */
-    getText: (key) => throughFile((file) => {
-      run(['s3api', 'get-object', '--bucket', bucket, '--key', key, ...target, file])
-      return readFileSync(file, 'utf8')
     })
   }
 }

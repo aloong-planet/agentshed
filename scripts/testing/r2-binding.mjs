@@ -2,6 +2,7 @@
 // Cloudflare's Workers API reference for R2 (cloudflare/cloudflare-docs, branch production at
 // 1c6e6325496800447ff31891173bc380ec188db6, src/content/docs/r2/api/workers/workers-api-reference.mdx):
 //
+// - head answers null for a key that does not exist, and otherwise the object's metadata only (:107);
 // - get answers null for a key that does not exist (:111), and otherwise the object with its size (:156), etag (:160),
 //   httpMetadata (:177) and text() (:221);
 // - put stores the value with its httpMetadata (:314), unless its onlyIf precondition (:310) fails, when it answers
@@ -12,18 +13,22 @@
 // - list answers the objects under a prefix ordered lexicographically (:131), at most `limit` of them, 1000 by default
 //   and at most (:378), and may answer fewer (:131): `pageSize` cuts every page shorter while it stays truncated, so
 //   only `truncated` tells whether more follow (:402), and `cursor` is there only when it is truncated (:475). The
-//   objects carry no httpMetadata, which a listing includes only when asked to (:396).
+//   objects carry no httpMetadata, which a listing includes only when asked to (:396);
+// - delete removes the key, and once it resolves no read sees the object (:123-124). It takes one key here; what
+//   deleting a key that does not exist answers is not documented, so that delete throws, and no case passes on it.
 //
 // Every call settles on a later macrotask, as a binding's call does after its round trip: a call not awaited has not
 // happened when the caller goes on. `write` is another writer's unconditional put, and `beforePut` runs just before
 // each put is evaluated, where another writer may come in between the caller's read and its write; `unlisted` keys
 // are left out of every listing while get still answers them, as a listing that misses an object would; `failing`
-// makes a call reject, as a binding's call does when its round trip fails: for each of get, put and list, a function
-// of the call's key (the prefix for list; the key and the value for put) answering the error, or nothing for a call
-// that goes through.
+// makes a call reject, as a binding's call does when its round trip fails: for each of head, get, put, delete and list,
+// a function of the call's key (the prefix for list; the key and the value for put) answering the error, or nothing for
+// a call that goes through.
 //
 // Gap: the docs are the only source. Whether the real runtime enforces etagMatches and If-None-Match: * on put, and how
 // its pages are cut, was not observed; the Worker's first runs in production are that check (docs/ops/download-count.md).
+// Neither was the real runtime's head and delete: the switched Worker's first run, whose run record entry says what
+// became of the shadow file, is their check.
 const MAX_LIMIT = 1000
 
 const byteLength = (text) => new TextEncoder().encode(text).length
@@ -73,6 +78,11 @@ export function r2Binding({ objects = {}, pageSize = MAX_LIMIT, unlisted = [], b
   }
 
   const binding = {
+    head: (key) => later(() => {
+      fails('head', key)
+      const object = store.get(key)
+      return object === undefined ? null : meta(object)
+    }),
     get: (key) => later(() => {
       fails('get', key)
       const object = store.get(key)
@@ -85,6 +95,12 @@ export function r2Binding({ objects = {}, pageSize = MAX_LIMIT, unlisted = [], b
       if (typeof value !== 'string') throw new Error('the stand-in stores text only')
       if (!holds(key, onlyIf)) return null
       return meta(save(key, { text: value, httpMetadata }))
+    }),
+    delete: (key) => later(() => {
+      fails('delete', key)
+      if (typeof key !== 'string') throw new Error('the stand-in deletes one key a call')
+      if (!store.has(key)) throw new Error(`the docs do not say what deleting ${key}, which does not exist, answers`)
+      store.delete(key)
     }),
     list: ({ prefix = '', cursor, limit = MAX_LIMIT } = {}) => later(() => {
       fails('list', prefix)

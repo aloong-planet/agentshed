@@ -4,16 +4,16 @@
 
 ## Context
 
-The Worker reads GitHub's releases every hour (ADR-0056), and how often those reads succeed decides whether it may take
-the statistics file over (download-count "The shadow period"). Terraform cannot create a GitHub token, so a GitHub
-credential is one the owner makes and renews by hand.
+The Worker reads GitHub's releases every hour (ADR-0056), and a run whose read fails writes no count (download-count
+Failure G2). Terraform cannot create a GitHub token, so a GitHub credential is one the owner makes and renews by hand.
 
 ## Options
 
 1. **A fine-grained personal access token on the owner's account, with public repositories read-only and no
    permissions** — chosen.
 2. Reading the releases without a token — rejected: those reads share GitHub's limit per originating address with
-   other users of Cloudflare's network, and too few of them succeed for the switch (Sources).
+   other users of Cloudflare's network, and too few of them succeed for a count brought up to date every hour
+   (Sources).
 3. A read without the token when GitHub refuses it — rejected: a token expired or revoked would then hide among the
    rate-limited runs, where a refusal shows in the run record as `failed`.
 
@@ -32,7 +32,8 @@ Failure G2).
   unbound, expired or revoked (docs/ops/download-count.md).
 - Negative: its reads count toward the owner's personal limit of 5,000 requests an hour, which the owner's other
   authenticated use of GitHub shares.
-- Neutral: the Download count workflow reads the releases with its own token, not with this one.
+- Neutral: the token is the only GitHub credential the download count uses; its watchdog, the Download count workflow,
+  holds none.
 
 ## Sources
 

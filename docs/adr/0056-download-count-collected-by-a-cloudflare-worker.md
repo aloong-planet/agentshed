@@ -1,6 +1,6 @@
-# ADR-0056: A Cloudflare Worker on a Cron Trigger collects the download count every hour, deployed from infra and proven against the workflow before it takes over
+# ADR-0056: A Cloudflare Worker on a Cron Trigger collects the download count every hour, deployed from infra, and a workflow that holds no secret watches it
 
-- Status: Proposed
+- Status: Accepted (2026-11-25)
 
 ## Context
 
@@ -31,23 +31,27 @@ longer hold its hours.
    count that cannot be recounted, where a shadow file compared with the workflow's file risks nothing.
 9. Alerting through a Cloudflare monitor — rejected: it is created in the dashboard only, by the owner, and fails along
    with Cloudflare.
+10. Taking the statistics file over only after 7 consecutive UTC days in which, among five conditions, GitHub
+    read `ok` in 95% of the hours and every comparison with the workflow's file was equal — rejected (not recorded).
 
 ## Decision
 
-We adopt **option 1**. The Worker takes the statistics file over only once download-count's "The shadow period" has
-proven it against the workflow, which then becomes the watchdog (download-count Failure G8).
+We adopt **option 1**. The Worker writes the statistics file, and the Download count workflow, holding no secret, is
+its watchdog (download-count Failure G8).
 
 ## Consequences
 
-- Positive: the count is brought up to date every hour without GitHub's scheduler, and once the Worker takes over no
-  scheduled job holds the bucket's write key; the key stays in Actions for the release workflow's mirror job.
+- Positive: the count is brought up to date every hour without GitHub's scheduler, and no scheduled job holds the
+  bucket's write key; the key stays in Actions for the release workflow's mirror job.
 - Positive: the collection needs no paid plan.
 - Negative: the Worker's own failures show only in Cloudflare and in the run record, and the watchdog runs on GitHub's
   schedule, which GitHub disables after 60 days without activity in the repository.
 - Negative: every change to the Worker's code needs a second pull request in infra to pin it, and infra's state holds
   an account-wide Workers token.
-- Negative: the Worker and the shadow period's comparisons add R2 operations, charged only when the account is already
-  beyond R2's free tier (download-count::CON-004).
+- Negative: the Worker took the count over after a shadow period of under two days and few comparisons, and nothing
+  catches a wrong count it writes: the watchdog checks only that the file is brought up to date.
+- Negative: the Worker adds R2 operations, charged only when the account is already beyond R2's free tier
+  (download-count::CON-004).
 - Neutral: GitHub's 60-day disabling can stop only the watchdog, not the count.
 
 ## Sources
@@ -59,6 +63,8 @@ can be delayed during periods of high loads" and "some queued jobs may be droppe
 Cron Triggers an account, 10 ms of CPU and 50 subrequests a Cron invocation, errors rather than charges past them
 (<https://developers.cloudflare.com/workers/platform/limits/>, 2026-11-22). Terraform: the GitHub provider 6.13.0 has
 no resource that creates a GitHub App or token; a provider block cannot use a resource attribute computed in its own
-configuration (Terraform 1.16). R2's added operations in the shadow period: about 5,760 Class A and 3,600 Class B a
-month, at most about $0.03 at $4.50 and $0.36 a million, and only when the account is already beyond R2's free tier
-(<https://developers.cloudflare.com/r2/pricing/>, 2026-11-22).
+configuration (Terraform 1.16). R2's added operations, at most those of the shadow period: about 5,760 Class A and
+3,600 Class B a month, at most about $0.03 at $4.50 and $0.36 a million, and only when the account is already beyond
+R2's free tier (<https://developers.cloudflare.com/r2/pricing/>, 2026-11-22). The shadow period's comparisons:
+`stats/shadow-comparisons.json`, written no more. The owner's decision of 2026-11-25, in translation from Chinese:
+"Switch directly."
