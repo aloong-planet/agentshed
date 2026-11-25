@@ -1,16 +1,15 @@
 // The download count's core (download-count::REQ-011, Implementation Decisions "The collection" and "The statistics
 // file"; ADR-0055, ADR-0056): an hourly run adds the download host's traffic, read from Cloudflare's analytics up to
 // the hour download-count::REQ-011/AC-04 counts to, to the download counts GitHub reports for the DMG assets, and
-// publishes the sum in the release bucket: as stats/downloads.json, which the landing page reads through the download
-// host, or in the shadow period as the Worker's shadow file (Implementation Decisions "The shadow period").
+// publishes the sum in the release bucket as stats/downloads.json, which the landing page reads through the download
+// host.
 //
 // It imports nothing, Node's modules included, and reaches the bucket only through the one it is given, whose calls it
 // awaits: list(prefix) answering [{ key, size }] for every object whose key starts with prefix, every page of the
 // listing joined (the core takes the answer as complete: a DMG missing from it is not counted), getText(key) and
 // putText(key, text, { cacheControl, contentType }).
-// So a runtime without Node, such as a Cloudflare Worker, can run it with a bucket of its own; the Download count
-// workflow runs it through scripts/download-count.mjs, with aws-cli's and the workflow's GitHub token, and the Worker
-// through scripts/download-count-worker.mjs, with its binding's and its read-only GitHub token.
+// So a runtime without Node, such as a Cloudflare Worker, can run it with a bucket of its own; the Worker runs it
+// through scripts/download-count-worker.mjs, with its binding's bucket and its read-only GitHub token.
 //
 // Every read comes first; only when all of them succeeded is the file written, so a failed run leaves the previous
 // file and its cursor as they were, and says which source failed it.
@@ -24,7 +23,7 @@ export const isDmg = (name) => typeof name === 'string' && DMG.test(name)
 
 const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value)
 /** Whether a value is a whole number of zero or more, as every count and byte total is */
-export const isCount = (value) => Number.isSafeInteger(value) && value >= 0
+const isCount = (value) => Number.isSafeInteger(value) && value >= 0
 
 /**
  * GitHub's share merged into the recorded assets (download-count::REQ-011/AC-02, AC-03): every DMG asset of a
@@ -188,35 +187,34 @@ export function validateStatistics(file, name = 'the statistics file') {
 }
 
 export const STATISTICS_KEY = 'stats/downloads.json'
-/** The shadow period's files that the Worker writes (Implementation Decisions "The shadow period", "The run record") */
+/**
+ * The file the Worker wrote in the shadow period, which the run record's oldest entries name (Implementation Decisions
+ * "The run record")
+ */
 export const SHADOW_KEY = 'stats/downloads-shadow.json'
 export const RUNS_KEY = 'stats/worker-runs.json'
-/** A SHA-256 as the run record writes it, and the comparison record copies it: 64 lowercase hex digits */
+/** A SHA-256 as the run record writes it: 64 lowercase hex digits */
 export const SHA256 = /^[0-9a-f]{64}$/
 /**
- * How every file of the count is written (Implementation Decisions "The collection", "The run record" and "The shadow
- * period"): JSON, which the download host caches for five minutes
+ * How every file of the count is written (Implementation Decisions "The collection" and "The run record"): JSON, which
+ * the download host caches for five minutes
  */
 export const WRITE_OPTIONS = Object.freeze({ cacheControl: 'public, max-age=300', contentType: 'application/json' })
 
 /**
- * The previous run's file, read from the bucket itself, never through the download host's cache: the object at `key`,
- * or while there is none the one at `seedKey` (Implementation Decisions "The shadow period"), with the key it was read
- * from; or null when the bucket holds neither, the one case in which the count starts over (Failure G1)
+ * The previous run's file, read from the bucket itself, never through the download host's cache; or null when the
+ * bucket holds none, the one case in which the count starts over (Failure G1)
  */
-async function readPrevious(bucket, key, seedKey) {
-  for (const candidate of seedKey ? [key, seedKey] : [key]) {
-    if (!(await bucket.list(candidate)).some((object) => object.key === candidate)) continue
-    const text = await bucket.getText(candidate)
-    let file
-    try {
-      file = JSON.parse(text)
-    } catch {
-      throw new Error(`${candidate} in the bucket is not JSON`)
-    }
-    return { key: candidate, file: validateStatistics(file, candidate) }
+async function readPrevious(bucket) {
+  if (!(await bucket.list(STATISTICS_KEY)).some((object) => object.key === STATISTICS_KEY)) return null
+  const text = await bucket.getText(STATISTICS_KEY)
+  let file
+  try {
+    file = JSON.parse(text)
+  } catch {
+    throw new Error(`${STATISTICS_KEY} in the bucket is not JSON`)
   }
-  return { key: null, file: null }
+  return validateStatistics(file, STATISTICS_KEY)
 }
 
 const RELEASES_PER_PAGE = 100
@@ -286,8 +284,8 @@ function rateLimited(response, reason) {
 }
 
 /**
- * GitHub's releases of the repository, every page, read with the token given: the workflow's, or the Worker's read-only
- * one (Implementation Decisions "The collection")
+ * GitHub's releases of the repository, every page, each read with the token given, the Worker's read-only one
+ * (Implementation Decisions "The collection")
  */
 async function readReleases(fetch, { repository, token }) {
   const releases = []
@@ -295,7 +293,7 @@ async function readReleases(fetch, { repository, token }) {
     const response = await fetch(`https://api.github.com/repos/${repository}/releases?per_page=${RELEASES_PER_PAGE}&page=${page}`, {
       headers: {
         accept: 'application/vnd.github+json',
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        authorization: `Bearer ${token}`,
         'user-agent': 'agentshed-download-count',
         'x-github-api-version': '2022-11-28'
       }
@@ -391,26 +389,21 @@ async function readTraffic(fetch, analytics, { host, range, limit }) {
 
 /**
  * One run (Implementation Decisions "The collection"): every source is read first, and only after every read has
- * succeeded is the new statistics file written at `key`; a read that fails, or answers what the run cannot validate,
- * fails the run with nothing written and the cursor where it was, so the next run counts the hours this one missed
- * (Failure G2). While the bucket holds nothing at `key`, the previous file is the one at `seedKey`, if given.
+ * succeeded is the new statistics file written at stats/downloads.json; a read that fails, or answers what the run
+ * cannot validate, fails the run with nothing written and the cursor where it was, so the next run counts the hours
+ * this one missed (Failure G2). A run given no GitHub token, `githubToken` not a string or empty, fails before any read
+ * ("A run without its credentials fails"): GitHub would answer a public repository's releases to a read without one.
  *
- * A cursor older than the analytics hold is accepted when `acceptGap` is true, or when it equals `acceptGapFrom`
- * (Failure G3). `beforeWrite`, if given, is awaited with the previous file and the key it was read from once the new
- * file is ready, just before it is written, and fails the run as the write would (the Worker writes the run record's
- * seed there: Implementation Decisions "The shadow period"). The run answers the file it wrote, the previous file and
- * the key it was read from (null for both when there was none).
+ * A cursor older than the analytics hold is accepted when it equals `acceptGapFrom` (Failure G3). The run answers the
+ * file it wrote.
  *
  * A run that fails throws with `outcomes`, each source's state when it failed (Implementation Decisions "The run
  * record"): `ok` when every read of it that started succeeded, `rate-limited` or `failed` for the one that failed,
- * `not-read` when none started. The bucket's reads are the previous file, the listing and the write, with
- * `beforeWrite`. An answer the run finds it cannot use only after the read fails that read's source too: the
- * analytics' limits, the previous file's cursor (planRanges) and an object the listing answered (the new file's check).
+ * `not-read` when none started. The bucket's reads are the previous file, the listing and the write. An answer the run
+ * finds it cannot use only after the read fails that read's source too: the analytics' limits, the previous file's
+ * cursor (planRanges) and an object the listing answered (the new file's check).
  */
-export async function collect({
-  bucket, fetch, now, repository, githubToken, analyticsToken, zone, host, acceptGap = false, acceptGapFrom = null,
-  key = STATISTICS_KEY, seedKey = null, beforeWrite = null
-}) {
+export async function collect({ bucket, fetch, now, repository, githubToken, analyticsToken, zone, host, acceptGapFrom = null }) {
   const outcomes = { github: 'not-read', analytics: 'not-read', bucket: 'not-read' }
   const from = async (source, read) => {
     try {
@@ -423,15 +416,16 @@ export async function collect({
     }
   }
   try {
+    if (typeof githubToken !== 'string' || githubToken === '') throw new Error('the GitHub token is not set')
     const analytics = { token: analyticsToken, zone }
-    const previous = await from('bucket', () => readPrevious(bucket, key, seedKey))
+    const previous = await from('bucket', () => readPrevious(bucket))
     const releases = await from('github', () => readReleases(fetch, { repository, token: githubToken }))
     const listing = await from('bucket', () => bucket.list('releases/'))
     const { maxPageSize, ...limits } = await from('analytics', () => readLimits(fetch, analytics))
-    const cursor = previous.file?.r2Cursor ?? null
+    const cursor = previous?.r2Cursor ?? null
     let plan
     try {
-      plan = planRanges({ cursor, now, ...limits, acceptGap: acceptGap || (acceptGapFrom !== null && cursor === acceptGapFrom) })
+      plan = planRanges({ cursor, now, ...limits, acceptGap: acceptGapFrom !== null && cursor === acceptGapFrom })
     } catch (error) {
       if (error.source !== undefined) outcomes[error.source] = 'failed'
       throw error
@@ -442,13 +436,13 @@ export async function collect({
       for (const row of await from('analytics', () => readTraffic(fetch, analytics, { host, range, limit: maxPageSize }))) rows.push(row)
     }
 
-    const assets = await from('github', () => mergeGitHub(previous.file?.github.assets ?? {}, releases))
-    const objects = await from('bucket', () => mergeR2(previous.file?.r2.objects ?? {}, listing, rows))
+    const assets = await from('github', () => mergeGitHub(previous?.github.assets ?? {}, releases))
+    const objects = await from('bucket', () => mergeR2(previous?.r2.objects ?? {}, listing, rows))
     const statistics = {
       schemaVersion: 1,
       updatedAt: new Date(now).toISOString(),
       r2Cursor: plan.cursor,
-      r2Gaps: [...(previous.file?.r2Gaps ?? []), ...(plan.gap ? [plan.gap] : [])],
+      r2Gaps: [...(previous?.r2Gaps ?? []), ...(plan.gap ? [plan.gap] : [])],
       summary: summarize(assets, objects),
       github: { assets },
       r2: { objects }
@@ -457,11 +451,10 @@ export async function collect({
       // The new file is checked as the next run will read it. Its cursor, gaps, GitHub's assets and summary hold by how
       // they were made, so only its objects, the bucket's, can fail it: one listed at a size that is not a whole number
       // of bytes, or bytes beyond a whole number JavaScript holds exactly (some 9 PB)
-      validateStatistics(statistics, `the new ${key}`)
-      await beforeWrite?.({ previous: previous.file, previousKey: previous.key })
-      await bucket.putText(key, `${JSON.stringify(statistics, null, 2)}\n`, WRITE_OPTIONS)
+      validateStatistics(statistics, `the new ${STATISTICS_KEY}`)
+      await bucket.putText(STATISTICS_KEY, `${JSON.stringify(statistics, null, 2)}\n`, WRITE_OPTIONS)
     })
-    return { statistics, previous: previous.file, previousKey: previous.key }
+    return { statistics }
   } catch (error) {
     throw Object.assign(error instanceof Error ? error : new Error(String(error)), { outcomes: { ...outcomes } })
   }

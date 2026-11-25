@@ -4,11 +4,10 @@
 // the system boundary and the clock fixed.
 //
 // Gaps: nothing here runs in Cloudflare, and a run in production shows only its own case (docs/ops/download-count.md).
-// - The real binding: whether put enforces etagMatches and If-None-Match: *, how its listing cuts pages, and what head
-//   and delete answer, come from Cloudflare's docs only (the stand-in's header). The shadow period's first writes
-//   showed that put accepts If-None-Match: *, and the switched Worker's first run, whose entry says whether it deleted
-//   the shadow file, shows head and delete; a write refused by either condition, or a listing of more than one page, is
-//   seen only if one happens.
+// - The real binding: whether put enforces etagMatches and If-None-Match: *, and how its listing cuts pages, come from
+//   Cloudflare's docs only (the stand-in's header). The shadow period's first writes showed that put accepts
+//   If-None-Match: *; a write refused by either condition, or a listing of more than one page, is seen only if one
+//   happens.
 // - workerd: the fetch the handler passes calls the runtime's own at call time, as its own case shows, but whether a
 //   detached fetch would throw there cannot be seen in Node; a production run that reads its sources shows that the
 //   passed one works. Whether Cloudflare's runtime loads the main module is seen at the deploy; here a case holds its
@@ -63,30 +62,22 @@ async function runOn(bucket, { env = {}, scheduledTime = SCHEDULED, now = NOW, .
 const shadowRun = (scheduledTime, r2Cursor) => ({
   scheduledTime, coreSha256: CORE, key: 'stats/downloads-shadow.json', written: true, github: 'ok', analytics: 'ok', bucket: 'ok', failure: null, r2Cursor
 })
-/** A run record entry for a run that wrote the statistics file, at a scheduled time and cursor, and found the shadow file `shadowFile` */
-const wrote = (scheduledTime, r2Cursor, shadowFile = 'absent') => ({
-  scheduledTime, coreSha256: CORE, key: 'stats/downloads.json', written: true, github: 'ok', analytics: 'ok', bucket: 'ok', failure: null, r2Cursor, shadowFile
+/** A run record entry for a run that wrote the statistics file, at a scheduled time and cursor */
+const wrote = (scheduledTime, r2Cursor) => ({
+  scheduledTime, coreSha256: CORE, key: 'stats/downloads.json', written: true, github: 'ok', analytics: 'ok', bucket: 'ok', failure: null, r2Cursor
 })
+/** The same entry as an earlier Worker wrote it while it deleted the shadow file: with what it found of it */
+const wroteDeleting = (scheduledTime, r2Cursor, shadowFile) => ({ ...wrote(scheduledTime, r2Cursor), shadowFile })
 
-// Implementation Decisions "The collection" and "The run record", and download-count::REQ-011/AC-04: the switched
-// Worker's first run starts from the statistics file the workflow last wrote, never from the shadow file, writes the
-// statistics file, deletes the shadow file and writes the run record back without its seed
-test('the first switched run counts on from the statistics file the workflow wrote, deletes the shadow file and drops the seed', async () => {
+// Implementation Decisions "The collection" and "The run record", and download-count::REQ-011/AC-04: a run starts from
+// the statistics file in the bucket, writes it, and appends its entry to the run record after the shadow period's
+test("a run counts on from the statistics file and appends its entry to the run record, after the shadow period's", async () => {
   const statistics = asText({ ...writtenFile(), r2Cursor: '2026-11-22T08:00:00Z' })
-  // The shadow file at the same cursor with other bytes: a run that started from it would count 10000 bytes
-  const shadow = asText({
-    ...writtenFile(),
-    r2Cursor: '2026-11-22T08:00:00Z',
-    summary: { total: 14, sources: { github: 5, r2: 9 } },
-    r2: { objects: { [DMG_KEY]: { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 9000 } } }
-  })
-  const seed = { at: '2026-11-21T10:47:12.000Z', r2Cursor: '2026-11-21T10:00:00Z', r2Bytes: 100 }
   const shadowPeriod = [shadowRun('2026-11-22T07:47:00.000Z', '2026-11-22T07:00:00Z'), shadowRun('2026-11-22T08:47:00.000Z', '2026-11-22T08:00:00Z')]
   const bucket = r2Binding({
     objects: {
       'stats/downloads.json': statistics,
-      'stats/downloads-shadow.json': shadow,
-      'stats/worker-runs.json': asText({ schemaVersion: 1, seed, runs: shadowPeriod }),
+      'stats/worker-runs.json': asText({ schemaVersion: 1, runs: shadowPeriod }),
       [DMG_KEY]: { size: 1000 }
     }
   })
@@ -117,7 +108,6 @@ test('the first switched run counts on from the statistics file the workflow wro
     },
     r2: { objects: { [DMG_KEY]: { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 3500 } } }
   })
-  assert.equal(bucket.peek('stats/downloads-shadow.json'), undefined)
 
   const record = bucket.peek('stats/worker-runs.json')
   assert.deepEqual(record.httpMetadata, { contentType: 'application/json', cacheControl: 'public, max-age=300' })
@@ -132,29 +122,26 @@ test('the first switched run counts on from the statistics file the workflow wro
       analytics: 'ok',
       bucket: 'ok',
       failure: null,
-      r2Cursor: '2026-11-22T09:00:00Z',
-      shadowFile: 'deleted'
+      r2Cursor: '2026-11-22T09:00:00Z'
     }]
   })
   assert.deepEqual(lines, ['[download-count] 23.5 downloads: 20 on GitHub, 3.5 from the download host, counted to 2026-11-22T09:00:00Z in stats/downloads.json'])
 })
 
-// Failure G4 and Failure G1's start over: neither file in the bucket, nothing mirrored yet. The run record is the shadow
-// period's, with a seed left: the run writes it back without one
-test('a run with neither file in the bucket starts the count over, with a download host share of zero, and finds no shadow file', async () => {
-  const left = { at: '2026-11-22T08:47:12.000Z', r2Cursor: '2026-11-22T08:00:00Z', r2Bytes: 2500 }
-  const bucket = r2Binding({ objects: { 'stats/worker-runs.json': asText({ schemaVersion: 1, seed: left, runs: [] }) } })
+// Failure G4 and Failure G1's start over: an empty bucket, nothing mirrored yet and no run record, which the run starts
+test('a run on an empty bucket starts the count over, with a download host share of zero, and starts the run record', async () => {
+  const bucket = r2Binding()
   const { settled } = await runOn(bucket)
   await settled
   const statistics = fileOf(bucket, 'stats/downloads.json')
   assert.deepEqual([statistics.r2Cursor, statistics.r2Gaps, statistics.r2.objects, statistics.summary], ['2026-11-22T09:00:00Z', [], {}, { total: 20, sources: { github: 20, r2: 0 } }])
   assert.deepEqual(statistics.github.assets, REAL_ASSETS)
-  assert.equal(bucket.peek('stats/downloads-shadow.json'), undefined)
-  assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), { schemaVersion: 1, runs: [wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z', 'absent')] })
+  assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), { schemaVersion: 1, runs: [wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z')] })
 })
 
+// An earlier Worker's entry, with what it found of the shadow file, stays in the record as it was written
 test('a run with the statistics file in the bucket builds on it, with the analytics settings it is given', async () => {
-  const earlier = wrote('2026-11-22T08:47:00.000Z', '2026-11-22T08:00:00Z', 'deleted')
+  const earlier = wroteDeleting('2026-11-22T08:47:00.000Z', '2026-11-22T08:00:00Z', 'deleted')
   const bucket = r2Binding({
     objects: {
       'stats/downloads.json': asText({ ...writtenFile(), r2Cursor: '2026-11-22T08:00:00Z' }),
@@ -175,37 +162,11 @@ test('a run with the statistics file in the bucket builds on it, with the analyt
     ['settings', 'Bearer cf-token', 'zone-tag', undefined],
     ['traffic', 'Bearer cf-token', 'zone-tag', 'dl.agentshed.aloongplanet.com']
   ])
-  assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), { schemaVersion: 1, runs: [earlier, wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z', 'absent')] })
+  assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), { schemaVersion: 1, runs: [earlier, wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z')] })
 })
 
-// Implementation Decisions "The collection" and "The run record": a deletion of the shadow file that fails fails
-// nothing else, and the next run tries again
+/** A statistics file whose cursor is 08:00: a run counts the hour after it */
 const STATISTICS_AT_EIGHT = asText({ ...writtenFile(), r2Cursor: '2026-11-22T08:00:00Z' })
-const AN_HOUR_LATER = { scheduledTime: SCHEDULED + 3_600_000, now: NOW + 3_600_000 }
-
-test('a run whose deletion of the shadow file fails writes the statistics file and its entry, and the next run deletes it', async () => {
-  for (const call of ['head', 'delete']) {
-    let refusing = true
-    const failing = { [call]: (key) => (refusing && key === 'stats/downloads-shadow.json' ? new Error(`R2 ${call} failed: InternalError`) : undefined) }
-    const bucket = r2Binding({ objects: { 'stats/downloads.json': STATISTICS_AT_EIGHT, 'stats/downloads-shadow.json': STATISTICS_AT_EIGHT, [DMG_KEY]: { size: 1000 } }, failing })
-    const shadow = bucket.peek('stats/downloads-shadow.json')
-    const { settled, lines } = await runOn(bucket)
-    await settled
-    assert.equal(fileOf(bucket, 'stats/downloads.json').r2Cursor, '2026-11-22T09:00:00Z', call)
-    assert.equal(bucket.peek('stats/downloads-shadow.json'), shadow, call)
-    const failed = wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z', 'failed')
-    assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), { schemaVersion: 1, runs: [failed] }, call)
-    assert.deepEqual(lines, [
-      `[download-count] stats/downloads-shadow.json was not deleted: R2 ${call} failed: InternalError`,
-      '[download-count] 22.5 downloads: 20 on GitHub, 2.5 from the download host, counted to 2026-11-22T09:00:00Z in stats/downloads.json'
-    ], call)
-
-    refusing = false
-    await (await runOn(bucket, AN_HOUR_LATER)).settled
-    assert.equal(bucket.peek('stats/downloads-shadow.json'), undefined, call)
-    assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json').runs, [failed, wrote('2026-11-22T10:47:00.000Z', '2026-11-22T10:00:00Z', 'deleted')], call)
-  }
-})
 
 // "The collection": GitHub's releases with the read-only token and a User-Agent, every page; the token goes to GitHub
 // only (any other address fails the stand-in, and so the run)
@@ -266,8 +227,8 @@ test('a run counts the DMGs on every page of the listing, and a recorded DMG lef
   assert.deepEqual(written.summary, { total: 30.5, sources: { github: 20, r2: 10.5 } })
 })
 
-const failedEntry = (outcomes, shadowFile = 'absent') => ({
-  scheduledTime: '2026-11-22T09:47:00.000Z', coreSha256: CORE, key: 'stats/downloads.json', written: false, ...outcomes, r2Cursor: null, shadowFile
+const failedEntry = (outcomes) => ({
+  scheduledTime: '2026-11-22T09:47:00.000Z', coreSha256: CORE, key: 'stats/downloads.json', written: false, ...outcomes, r2Cursor: null
 })
 const NOT_READ = { github: 'not-read', analytics: 'not-read', bucket: 'not-read' }
 // GitHub answering `response` to a read with the Worker's token, and as usual to one without it: a run that read
@@ -280,7 +241,7 @@ const unreadable = (status, headers) =>
   new Response(new ReadableStream({ start(controller) { controller.error(new TypeError('terminated')) } }), { status, headers })
 
 // Failures G1, G2 and G5, and "The run record": a run that fails writes no statistics file and records which source
-// failed it, and how, with what failed it; it deletes the shadow file all the same
+// failed it, and how, with what failed it
 test('a run in which any read fails writes nothing, and records each source as it stood and what failed it', async () => {
   const cases = [
     ['GitHub refusing for its rate limit, no request left', githubAnswers(() => json({ message: 'API rate limit exceeded for 203.0.113.7.' }, 403, { 'x-ratelimit-remaining': '0' })),
@@ -333,16 +294,15 @@ test('a run in which any read fails writes nothing, and records each source as i
     ['the GitHub token empty', { env: { RELEASES_READ_TOKEN: '' } }, NOT_READ, /^RELEASES_READ_TOKEN is not set$/]
   ]
   for (const [label, { objects = {}, failing, ...world }, outcomes, reason] of cases) {
-    const held = { 'stats/downloads.json': STATISTICS_AT_EIGHT, 'stats/downloads-shadow.json': STATISTICS_AT_EIGHT, [DMG_KEY]: { size: 1000 }, ...objects }
+    const held = { 'stats/downloads.json': STATISTICS_AT_EIGHT, [DMG_KEY]: { size: 1000 }, ...objects }
     const bucket = r2Binding({ objects: held, failing })
     const before = bucket.peek('stats/downloads.json')
     const { settled, lines } = await runOn(bucket, { traffic: { '2026-11-22T08:00:00Z': [{ path: `/${DMG_KEY}`, bytes: 1000 }] }, ...world })
     await assert.rejects(settled, (error) => reason.test(error.message), label)
     assert.equal(bucket.peek('stats/downloads.json'), before, label)
-    assert.equal(bucket.peek('stats/downloads-shadow.json'), undefined, label)
     const [entry] = fileOf(bucket, 'stats/worker-runs.json').runs
     const { failure, ...fields } = entry
-    assert.deepEqual(fields, failedEntry(outcomes, 'deleted'), label)
+    assert.deepEqual(fields, failedEntry(outcomes), label)
     assert.match(failure, reason, label)
     assert.deepEqual(lines, [`[download-count] ${failure}`], label)
   }
@@ -424,7 +384,7 @@ test('a run record that cannot be read or is not one is left as it is, while the
   }
 })
 
-test('a Worker without its pinned core hash or its bucket reads, writes and deletes nothing, and fails', async () => {
+test('a Worker without its pinned core hash or its bucket reads and writes nothing, and fails', async () => {
   const cases = [
     ['a hash in capitals', { CORE_SHA256: CORE.toUpperCase() }, /^CORE_SHA256 is not 64 lowercase hex digits$/],
     ['a hash one digit short', { CORE_SHA256: CORE.slice(1) }, /^CORE_SHA256 is not 64 lowercase hex digits$/],
@@ -432,12 +392,12 @@ test('a Worker without its pinned core hash or its bucket reads, writes and dele
     ['no bucket', { BUCKET: undefined }, /^BUCKET is not bound$/]
   ]
   for (const [label, env, reason] of cases) {
-    const bucket = r2Binding({ objects: { 'stats/downloads.json': STATISTICS_AT_EIGHT, 'stats/downloads-shadow.json': STATISTICS_AT_EIGHT } })
-    const before = [bucket.peek('stats/downloads.json'), bucket.peek('stats/downloads-shadow.json')]
+    const bucket = r2Binding({ objects: { 'stats/downloads.json': STATISTICS_AT_EIGHT } })
+    const before = bucket.peek('stats/downloads.json')
     const { settled, requests } = await runOn(bucket, { env })
     await assert.rejects(settled, (error) => reason.test(error.message), label)
     assert.deepEqual(requests, [], label)
-    assert.deepEqual([bucket.peek('stats/downloads.json'), bucket.peek('stats/downloads-shadow.json')], before, label)
+    assert.equal(bucket.peek('stats/downloads.json'), before, label)
     assert.equal(bucket.peek('stats/worker-runs.json'), undefined, label)
   }
 })
@@ -445,7 +405,7 @@ test('a Worker without its pinned core hash or its bucket reads, writes and dele
 // "The run record": the newest 336 runs
 test('a run appended to a full run record drops the oldest run', async () => {
   const hour = (i) => new Date(Date.UTC(2026, 10, 8, 9, 47) + i * 3_600_000).toISOString()
-  const runs = Array.from({ length: 336 }, (_, i) => wrote(hour(i), new Date(Date.UTC(2026, 10, 8, 9) + i * 3_600_000).toISOString().replace('.000Z', 'Z'), 'deleted'))
+  const runs = Array.from({ length: 336 }, (_, i) => wroteDeleting(hour(i), new Date(Date.UTC(2026, 10, 8, 9) + i * 3_600_000).toISOString().replace('.000Z', 'Z'), 'deleted'))
   const bucket = r2Binding({ objects: { 'stats/downloads.json': STATISTICS_AT_EIGHT, 'stats/worker-runs.json': asText({ schemaVersion: 1, runs }) } })
   const { settled } = await runOn(bucket)
   await settled
@@ -482,25 +442,22 @@ test('a failure that quotes either token whole is recorded, printed and thrown w
   }
 })
 
-test("a run record is taken only when it matches the spec's fields exactly, the shadow period's included", () => {
-  // The record as the first switched run writes it back: the shadow period's entries, then the switched Worker's
+test("a run record is taken only when it matches the spec's fields exactly, earlier Workers' entries included", () => {
+  // The record as runs write it now: the shadow period's entries, then those of the runs that deleted the shadow file,
+  // then the runs' since
   const current = () => ({
     schemaVersion: 1,
     runs: [
       shadowRun('2026-11-22T07:47:00.000Z', '2026-11-22T07:00:00Z'),
       { ...shadowRun('2026-11-22T08:47:00.000Z', null), written: false, github: 'rate-limited', analytics: 'not-read', failure: 'page 1 answered HTTP 403 for its rate limit' },
-      wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z', 'deleted'),
-      { ...failedEntry({ github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, 'failed'), scheduledTime: '2026-11-22T10:47:00.000Z', failure: 'page 1 answered HTTP 403 for its rate limit' },
-      wrote('2026-11-22T11:47:00.000Z', '2026-11-22T11:00:00Z', 'absent')
+      wroteDeleting('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z', 'deleted'),
+      { ...failedEntry({ github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }), shadowFile: 'failed', scheduledTime: '2026-11-22T10:47:00.000Z', failure: 'page 1 answered HTTP 403 for its rate limit' },
+      wroteDeleting('2026-11-22T11:47:00.000Z', '2026-11-22T11:00:00Z', 'absent'),
+      wrote('2026-11-22T12:47:00.000Z', '2026-11-22T12:00:00Z'),
+      { ...failedEntry({ github: 'ok', analytics: 'failed', bucket: 'ok' }), scheduledTime: '2026-11-22T13:47:00.000Z', failure: "Cloudflare's analytics answered HTTP 500" }
     ]
   })
-  // The record as the shadow period left it
-  const seeded = () => ({
-    schemaVersion: 1,
-    seed: { at: '2026-11-22T09:47:12.000Z', r2Cursor: '2026-11-22T08:00:00Z', r2Bytes: 2500 },
-    runs: [shadowRun('2026-11-22T07:47:00.000Z', '2026-11-22T07:00:00Z')]
-  })
-  for (const record of [current(), seeded(), { schemaVersion: 1, runs: [] }, { schemaVersion: 1, seed: null, runs: [] }]) {
+  for (const record of [current(), { schemaVersion: 1, runs: [] }]) {
     assert.deepEqual(validateRuns(structuredClone(record)), record)
   }
   const entry = (record, i) => record.runs[i]
@@ -509,17 +466,16 @@ test("a run record is taken only when it matches the spec's fields exactly, the 
     ['schemaVersion 2', current, (r) => { r.schemaVersion = 2 }],
     ['a field the table does not have', current, (r) => { r.note = 'hi' }],
     ['no runs', current, (r) => { delete r.runs }],
-    ['a seed with another field', seeded, (r) => { r.seed.key = 'stats/downloads.json' }],
-    ['a seed read at no time', seeded, (r) => { r.seed.at = 'yesterday' }],
-    ['a seed cursor off the hour', seeded, (r) => { r.seed.r2Cursor = '2026-11-22T08:30:00Z' }],
-    ['a seed of negative bytes', seeded, (r) => { r.seed.r2Bytes = -1 }],
+    // The shadow period's seed, which the runs that deleted the shadow file dropped
+    ['a seed', current, (r) => { r.seed = { at: '2026-11-22T09:47:12.000Z', r2Cursor: '2026-11-22T08:00:00Z', r2Bytes: 2500 } }],
+    ['a seed of null', current, (r) => { r.seed = null }],
     ['runs not a list', current, (r) => { r.runs = {} }],
     ['337 runs', current, (r) => { r.runs = Array.from({ length: 337 }, () => entry(r, 2)) }],
     ['a run with another field', current, (r) => { entry(r, 2).note = 'x' }],
     ['a shadow period run with another field', current, (r) => { entry(r, 0).note = 'x' }],
     ['a scheduled time not UTC', current, (r) => { entry(r, 2).scheduledTime = '2026-11-22T17:47:00+08:00' }],
     ['a core hash in capitals', current, (r) => { entry(r, 2).coreSha256 = CORE.toUpperCase() }],
-    ['another key', current, (r) => { entry(r, 2).key = 'stats/other.json' }],
+    ['another key', current, (r) => { entry(r, 5).key = 'stats/other.json' }],
     ['written as text', current, (r) => { entry(r, 2).written = 'true' }],
     ['GitHub in another state', current, (r) => { entry(r, 2).github = 'skipped' }],
     ['the analytics rate-limited', current, (r) => { entry(r, 2).analytics = 'rate-limited' }],
@@ -529,7 +485,6 @@ test("a run record is taken only when it matches the spec's fields exactly, the 
     ['a failed run without a failure', current, (r) => { entry(r, 3).failure = null }],
     ['a failed run with a cursor', current, (r) => { entry(r, 3).r2Cursor = '2026-11-22T09:00:00Z' }],
     ['a failed shadow period run with a cursor', current, (r) => { entry(r, 1).r2Cursor = '2026-11-22T08:00:00Z' }],
-    ['a run of the statistics file without shadowFile', current, (r) => { delete entry(r, 2).shadowFile }],
     ['a shadow period run with shadowFile', current, (r) => { entry(r, 0).shadowFile = 'absent' }],
     ['shadowFile of another value', current, (r) => { entry(r, 4).shadowFile = 'kept' }]
   ]

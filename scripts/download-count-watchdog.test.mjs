@@ -35,7 +35,6 @@ const entry = (i, fields = {}) => ({
   bucket: 'ok',
   failure: `page 1 of GitHub's releases answered HTTP 403 for its rate limit (run ${i})`,
   r2Cursor: null,
-  shadowFile: 'absent',
   ...fields
 })
 const record = (runs) => json({ schemaVersion: 1, runs })
