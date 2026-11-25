@@ -27,9 +27,9 @@ Failure G2).
 - Positive: GitHub counts the Worker's reads against the owner's own limit, not against one that an address on
   Cloudflare's network shares with its other users.
 - Positive: the token reads only public repositories, so whoever obtained it could read nothing that is not public.
-- Negative: the owner makes, renews and revokes the token by hand, outside Terraform (aloong-planet/infra,
-  `docs/ops/releases-read-token.md`), and every run fails while it is unbound, expired or revoked
-  (docs/ops/download-count.md).
+- Negative: the owner makes, renews and revokes the token by hand, outside Terraform
+  (<https://github.com/aloong-planet/infra/blob/main/docs/ops/releases-read-token.md>), and every run fails while it is
+  unbound, expired or revoked (docs/ops/download-count.md).
 - Negative: its reads count toward the owner's personal limit of 5,000 requests an hour, which the owner's other
   authenticated use of GitHub shares.
 - Neutral: the Download count workflow reads the releases with its own token, not with this one.

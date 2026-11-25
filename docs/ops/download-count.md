@@ -169,7 +169,8 @@ GitHub with the token:
   reason than its rate limit; the text after the colon is GitHub's reason. A token whose lifetime aloong-planet's
   policy does not allow is refused this way, and every run fails until it is replaced.
 
-To make, store, renew or replace the token: aloong-planet/infra, `docs/ops/releases-read-token.md`.
+To make, store, renew or replace the token: aloong-planet/infra's
+[`docs/ops/releases-read-token.md`](https://github.com/aloong-planet/infra/blob/main/docs/ops/releases-read-token.md).
 
 ## The schedule stops after 60 days without activity
 
