@@ -240,11 +240,6 @@ const RULES = [
     why: 'the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository'
   },
   {
-    match: (f) => f === 'site/src/i18n/ui.ts',
-    test: citedOrLiteral,
-    why: 'the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English'
-  },
-  {
     match: (f) =>
       f === 'e2e/agents-overview.spec.ts' ||
       f === 'e2e/i18n.spec.ts' ||
@@ -270,7 +265,6 @@ const RULES = [
       f === 'src/shared/i18n/types.ts' ||
       f === 'src/renderer/src/subagent-error-label.test.ts' ||
       f === 'src/renderer/src/SubagentsView.tsx' ||
-      f === 'site/test/built-site.test.ts' ||
       f === 'scripts/check-lang.mjs',
     test: citedOrLiteral,
     why: 'code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose'

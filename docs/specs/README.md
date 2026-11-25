@@ -36,7 +36,6 @@ the table below says it in one line per feature.
 | [appearance](appearance.md) | App-wide light/dark (follow system / light / dark) × theme (purple / mist blue / amber brown), the two independent |
 | [app-update](app-update.md) | New versions are found and downloaded in the background, and installed with one click or on quit |
 | [mac-distribution](mac-distribution.md) | How the macOS app is packaged, signed, notarized and published |
-| [landing-page](landing-page.md) | The website that introduces Agentshed in Chinese and English and offers whichever release exists |
 | [download-count](download-count.md) | How many times the disk image has been downloaded, added up every hour from GitHub and the download host into the statistics file the landing page reads |
 | [test-layers](test-layers.md) | Which test layers there are and what goes in each |
 | [ci-routing](ci-routing.md) | Which checks run for which changed paths, and which scope a test command that runs only locally depends on |

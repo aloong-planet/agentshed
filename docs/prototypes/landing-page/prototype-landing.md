@@ -8,7 +8,7 @@ light and dark, and answers whether it reads right: the hero with the download, 
 six of the app's views (pinned under the header and turned by the scroll on a wide screen, stacked on a phone),
 the three install steps, and the download offer in each of its four states — a formal release from the R2 mirror,
 a formal release with every link on GitHub, only a test version, and the list of releases on GitHub when nothing
-can be read. It prototypes the landing page feature (`landing-page`).
+can be read. It prototypes the landing page feature ([`agentshed-site`](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md) in aloong-planet-home).
 
 ## Structure basis
 
@@ -57,8 +57,8 @@ can be read. It prototypes the landing page feature (`landing-page`).
 
 - **The dashed note box at the foot of the page**: its lists are a log tied to the dates they name, not the
   page's conclusions. In its 验收 list, ① counts 三种首屏, though the page draws four download states and ①
-  itself goes on to describe four; authoritative: the four states of landing-page::REQ-002 (formal from R2,
+  itself goes on to describe four; authoritative: the four states of [agentshed-site::REQ-002](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md) (formal from R2,
   formal from GitHub, test, list). Items (h) and (i) are marked 待看原型确认, though the list state and the
   formal state from GitHub are settled, and item (o)'s word-for-word match between the hero paragraph and the
   README does not apply (the box itself says so). Authoritative for the rest of the box: what the rest of the
-  page draws, and the landing-page spec for the download states and the screenshots.
+  page draws, and the [agentshed-site](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md) spec for the download states and the screenshots.

@@ -23,7 +23,6 @@ const CHINESE_NAME = String.fromCodePoint(0x7b80, 0x4f53, 0x4e2d, 0x6587)
 const SEEDS = {
   'scripts/check-shared-ui.mjs': `const side = /${CN}/\n`,
   'src/shared/i18n/zh.ts': `export const zh = { a: '${CN}' }\n`,
-  'site/src/i18n/ui.ts': `export const ui = { a: '${CN}' }\n`,
   'e2e/i18n.spec.ts': `const label = '${CN}'\n`,
   'docs/specs/i18n.md': `The value \`${CN}\` is cited.\n`,
   'docs/prototypes/seed/prototype-seed.html': `<p>${CN}</p>\n`,
@@ -58,7 +57,7 @@ function check(files = {}) {
 test('the seeds alone pass, one permitted line each', () => {
   const result = check()
   assert.equal(result.status, 0, result.stderr)
-  assert.match(result.stdout, /Working language: 8 line\(s\)/)
+  assert.match(result.stdout, /Working language: 7 line\(s\)/)
 })
 
 // Each copy's Chinese sits on the line given; the shapes are the real copies' headers where one exists
@@ -145,7 +144,7 @@ test("Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an
   assert.ok(result.stderr.includes(`${file}:2 `), result.stderr)
 })
 
-// The permitted count rising from the seeds' 8 to 9 shows the file was read and its line permitted, not skipped
+// The permitted count rising from the seeds' 7 to 8 shows the file was read and its line permitted, not skipped
 for (const [file, what] of [
   ['docs/prototypes/shell/prototype-app-shell.html', 'a mockup page'],
   ['docs/prototypes/project-list/visibility/index.html', 'a logic page that shares the gallery shell’s file name'],
@@ -155,7 +154,7 @@ for (const [file, what] of [
   test(`Chinese stays permitted in ${what}`, () => {
     const result = check({ [file]: withChinese(file) })
     assert.equal(result.status, 0, result.stderr)
-    assert.match(result.stdout, /Working language: 9 line\(s\)/)
+    assert.match(result.stdout, /Working language: 8 line\(s\)/)
   })
 }
 
@@ -210,7 +209,7 @@ for (const [what, file, text] of [
   test(`Chinese stays permitted in ${what}`, () => {
     const result = check({ [file]: text })
     assert.equal(result.status, 0, result.stderr)
-    assert.match(result.stdout, /Working language: 9 line\(s\)/)
+    assert.match(result.stdout, /Working language: 8 line\(s\)/)
   })
 }
 
@@ -222,7 +221,7 @@ test('Chinese stays permitted in a notes file beside its page', () => {
     'docs/prototypes/shell/prototype-app-shell.md': `## Question\n\n${CN}\n`
   })
   assert.equal(result.status, 0, result.stderr)
-  assert.match(result.stdout, /Working language: 9 line\(s\)/)
+  assert.match(result.stdout, /Working language: 8 line\(s\)/)
 })
 
 test("Chinese stays permitted in a candidates page's notes file beside it", () => {
@@ -231,7 +230,7 @@ test("Chinese stays permitted in a candidates page's notes file beside it", () =
     'docs/prototypes/shell/candidates-app-shell.md': `## Question\n\n${CN}\n`
   })
   assert.equal(result.status, 0, result.stderr)
-  assert.match(result.stdout, /Working language: 9 line\(s\)/)
+  assert.match(result.stdout, /Working language: 8 line\(s\)/)
 })
 
 // A notes file is known by its name and by its page beside it; each Markdown file below misses one of the two and

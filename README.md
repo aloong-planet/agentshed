@@ -71,13 +71,13 @@ Agentshed 是一个 Electron 应用，使用 pnpm 9 与 Node.js 22。它的 toke
 ```sh
 pnpm install
 pnpm dev      # 运行应用，改动后自动刷新
-pnpm verify   # 完整检查：类型、lint、单元测试、脚本与网站测试、文案与语言检查、在新构建上跑端到端测试，以及开发模式下的冒烟运行
+pnpm verify   # 完整检查：类型、lint、单元测试、脚本测试、文案与语言检查、在新构建上跑端到端测试，以及开发模式下的冒烟运行
 ```
 
 - [`docs/specs/`](docs/specs/README.md)：应用现在能做什么，按功能分篇，以及每个功能背后的需求与边界情况。
 - [`docs/adr/`](docs/adr/README.md)：架构决策。
 - [`docs/CONTEXT.md`](docs/CONTEXT.md)：代码与文档共用的术语表。
-- [`site/`](site/README.md)：网站，一个独立的项目。
+- 网站：在 [aloong-planet-home](https://github.com/aloong-planet/aloong-planet-home) 仓库里构建和部署（`apps/agentshed/`），需求见 [`agentshed-site`](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md)。
 
 ## 许可
 

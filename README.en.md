@@ -92,7 +92,7 @@ fetched on the first build.
 ```sh
 pnpm install
 pnpm dev      # run the app, reloading as you edit
-pnpm verify   # the full check: types, lint, unit tests, script and site tests, the copy and language
+pnpm verify   # the full check: types, lint, unit tests, script tests, the copy and language
               # checks, the end-to-end tests on a fresh build, and a smoke run of the app in development
 ```
 
@@ -100,7 +100,7 @@ pnpm verify   # the full check: types, lint, unit tests, script and site tests, 
   requirements behind each feature and its edge cases.
 - [`docs/adr/`](docs/adr/README.md): the architecture decisions.
 - [`docs/CONTEXT.md`](docs/CONTEXT.md): the vocabulary the code and the documents share.
-- [`site/`](site/README.md): the website, a project of its own.
+- The website is built and deployed from the [aloong-planet-home](https://github.com/aloong-planet/aloong-planet-home) repository (`apps/agentshed/`); its requirements are in [`agentshed-site`](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md).
 
 ## Licence
 

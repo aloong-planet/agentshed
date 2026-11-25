@@ -15,12 +15,11 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:scripts": "node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/restore-archive.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/download-count.test.mjs scripts/download-count-worker.test.mjs scripts/download-count-compare.test.mjs scripts/testing/r2-binding.test.mjs scripts/testing/module-imports.test.mjs scripts/download-count-workflow.test.mjs scripts/release-workflow.test.mjs scripts/workflow-actions.test.mjs scripts/build-engine.test.mjs scripts/bench-store-compare.test.mjs scripts/bench-search.test.mjs scripts/eslint-ipc-rules.test.mjs scripts/eslint-site-browser-rule.test.mjs scripts/site-assets.test.mjs",
-    "test:site": "pnpm --dir site check && pnpm --dir site test",
+    "test:scripts": "node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/restore-archive.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/download-count.test.mjs scripts/download-count-worker.test.mjs scripts/download-count-compare.test.mjs scripts/testing/r2-binding.test.mjs scripts/testing/module-imports.test.mjs scripts/download-count-workflow.test.mjs scripts/release-workflow.test.mjs scripts/workflow-actions.test.mjs scripts/build-engine.test.mjs scripts/bench-store-compare.test.mjs scripts/bench-search.test.mjs scripts/eslint-ipc-rules.test.mjs scripts/site-assets.test.mjs",
     "dist:mac:local": "node build/mac-packaging.cjs local",
     "dist:mac:release": "node build/mac-packaging.cjs release && node build/mac-packaging.cjs notarize-dmg",
     "e2e": "node scripts/build-engine.mjs --quiet && electron-vite build && playwright test",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:scripts && pnpm test:ci && pnpm test:site && pnpm check:ui && pnpm check:lang && pnpm check:i18n && pnpm check:nul && pnpm e2e && pnpm smoke",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:scripts && pnpm test:ci && pnpm check:ui && pnpm check:lang && pnpm check:i18n && pnpm check:nul && pnpm e2e && pnpm smoke",
     "smoke": "bash scripts/smoke.sh",
     "check:ui": "node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs",
     "check:lang": "node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs",
@@ -29,8 +28,6 @@
     "bench:scan": "node scripts/bench-scan.mjs",
     "restore:archive": "node scripts/restore-archive.mjs",
     "site:assets": "node scripts/site-assets.mjs",
-    "lint:app": "eslint . --ignore-pattern site/ --max-warnings 0",
-    "lint:site": "eslint site/ --max-warnings 0",
     "test:ci": "node --test scripts/ci-routing.test.mjs scripts/ci-gate.test.mjs scripts/ci-workflow.test.mjs"
   },
   "devDependencies": {

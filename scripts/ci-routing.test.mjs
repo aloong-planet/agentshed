@@ -22,39 +22,34 @@ import { classifyPaths, collectChanges, comparisonForEvent, localCommand, localL
 
 const pr = (from, to) => ({ pull_request: { base: { sha: from }, head: { sha: to } } })
 
-test('changes select the affected products and retain a reason for every path', () => {
+test('changes select the application where they affect it and retain a reason for every path', () => {
   const cases = [
-    [[], false, false],
-    [['README.md', 'README.en.md', 'AGENTS.md', 'CLAUDE.md', 'LICENSE'], false, false],
-    [['docs/specs/landing-page.md', 'docs/ops/mac-signing.md'], false, false],
-    [['docs/prototypes/landing-page/prototype-landing.html', 'docs/prototypes/_shared/copy.js'], false, false],
-    [['site/README.md', 'build/README.md'], false, false],
-    [['site/src/pages/index.astro'], false, true],
-    [['site/public/shots/overview-en.png'], false, true],
-    [['site/package.json', 'site/pnpm-lock.yaml', 'site/test/build-site.ts'], false, true],
-    [['site/src/content/intro.md'], false, true],
-    [['src/main/index.ts', 'src/main/fixture.md'], true, false],
-    [['e2e/support/launch.ts', 'playwright.config.ts'], true, false],
-    [['build/mac-packaging.cjs', 'scripts/release-tag.mjs'], true, false],
-    [['engine/src/lib.rs', 'engine/Cargo.lock', 'engine/rust-toolchain.toml'], true, false],
-    [['electron-builder.yml', 'electron.vite.config.ts', 'tsconfig.node.json', 'vitest.config.ts'], true, false],
-    [['src/renderer/src/theme.css'], true, true],
-    [['src/main/index.ts', 'site/src/download.ts', 'README.md'], true, true],
-    [['package.json'], true, true],
-    [['pnpm-lock.yaml'], true, true],
-    [['eslint.config.js'], true, true],
-    [['scripts/testing/workflow.mjs'], true, true],
-    [['capabilities.toml'], true, true],
-    [['.github/workflows/ci.yml'], true, true],
-    [['scripts/ci-scope.mjs', 'scripts/ci-gate.test.mjs'], true, true],
-    [['new-package/index.js'], true, true],
-    [['docs/new-tool.js'], true, true],
-    [['site/a file\nwith newline.ts'], false, true]
+    [[], false],
+    [['README.md', 'README.en.md', 'AGENTS.md', 'CLAUDE.md', 'LICENSE'], false],
+    [['docs/specs/ci-routing.md', 'docs/ops/mac-signing.md'], false],
+    [['docs/prototypes/landing-page/prototype-landing.html', 'docs/prototypes/_shared/copy.js'], false],
+    [['build/README.md'], false],
+    [['src/main/index.ts', 'src/main/fixture.md'], true],
+    [['e2e/support/launch.ts', 'playwright.config.ts'], true],
+    [['build/mac-packaging.cjs', 'scripts/release-tag.mjs'], true],
+    [['engine/src/lib.rs', 'engine/Cargo.lock', 'engine/rust-toolchain.toml'], true],
+    [['electron-builder.yml', 'electron.vite.config.ts', 'tsconfig.node.json', 'vitest.config.ts'], true],
+    [['src/renderer/src/theme.css'], true],
+    [['src/main/index.ts', 'README.md'], true],
+    [['package.json'], true],
+    [['pnpm-lock.yaml'], true],
+    [['eslint.config.js'], true],
+    [['scripts/testing/workflow.mjs'], true],
+    [['capabilities.toml'], true],
+    [['.github/workflows/ci.yml'], true],
+    [['scripts/ci-scope.mjs', 'scripts/ci-gate.test.mjs'], true],
+    [['new-package/index.js'], true],
+    [['docs/new-tool.js'], true],
+    [['src/a file\nwith newline.ts'], true]
   ]
-  for (const [paths, app, site] of cases) {
+  for (const [paths, app] of cases) {
     const actual = classifyPaths(paths)
     assert.equal(actual.app, app, JSON.stringify(paths))
-    assert.equal(actual.site, site, JSON.stringify(paths))
     assert.ok(actual.reasons.length > 0)
     for (const path of paths) assert.ok(actual.reasons.some((reason) => reason.includes(JSON.stringify(path))))
   }
@@ -62,7 +57,7 @@ test('changes select the affected products and retain a reason for every path', 
 })
 
 test('invalid path lists fail rather than becoming documentation-only changes', () => {
-  for (const paths of [null, {}, 'src/main/index.ts', [''], [null], ['/src/main.ts'], ['../site/a.ts'], ['site/./a.ts'], ['site/a\0.ts']]) {
+  for (const paths of [null, {}, 'src/main/index.ts', [''], [null], ['/src/main.ts'], ['../src/a.ts'], ['src/./a.ts'], ['src/a\0.ts']]) {
     assert.throws(() => classifyPaths(paths), /path/i)
   }
 })
@@ -81,13 +76,12 @@ test('event comparisons use the complete PR branch and reject unsupported events
 
 // ci-routing::REQ-001/AC-06. Commits no repository holds, no commits named, and equal endpoints: a push is
 // neither compared nor checked, so none of them can fail or narrow the selection.
-test('a push selects both products whatever its event names, without reading a comparison', () => {
+test('a push selects the application whatever its event names, without reading a comparison', () => {
   const a = 'a'.repeat(40)
   const b = 'b'.repeat(40)
   for (const event of [{ before: a, after: b }, {}, { before: a, after: a }]) {
     const actual = collectChanges('push', event)
     assert.equal(actual.app, true, JSON.stringify(event))
-    assert.equal(actual.site, true, JSON.stringify(event))
     assert.ok(actual.reasons.length > 0)
   }
 })
@@ -109,12 +103,11 @@ test('a local call adds the scope of the command it names only where that comman
   }
 })
 
-// ci-routing::REQ-005/AC-04, and ci-routing::REQ-005/AC-01 for the scope a command is declared under. The theme
-// stylesheet selects both scopes, so the passing list shows that a file of every scope is accepted; the site/ and
-// docs/ entries hold a file of the other scope and a file of none. Where a row gives its own declarations, a
-// command under site passes on a site file, and "reasons", a field of the routing's result but not a scope, fails.
+// ci-routing::REQ-005/AC-04, and ci-routing::REQ-005/AC-01 for the scope a command is declared under. The docs/
+// entry holds a file that selects no scope. Where a row gives its own declarations, "reasons", a field of the
+// routing's result but not a scope, fails.
 test('the check fails a command declared under no scope of the routing, and any file it reads that does not select its scope', () => {
-  const tracked = ['src/main/index.ts', 'src/renderer/src/theme.css', 'site/src/pages/index.astro', 'docs/specs/ci-routing.md', 'package.json', 'scripts/smoke.sh']
+  const tracked = ['src/main/index.ts', 'src/renderer/src/theme.css', 'docs/specs/ci-routing.md', 'package.json', 'scripts/smoke.sh']
   for (const [reads, failures, local] of [
     [{ 'pnpm smoke': ['src/', 'package.json', 'scripts/smoke.sh'] }, []],
     [{}, ['"pnpm smoke" is declared but lists no files it reads']],
@@ -123,9 +116,7 @@ test('the check fails a command declared under no scope of the routing, and any 
     [{ 'pnpm smoke': 'src/' }, ['"pnpm smoke" lists no files it reads']],
     [{ 'pnpm smoke': ['src/', 'scripts/missing.sh'] }, ['"scripts/missing.sh" matches no tracked path']],
     [{ 'pnpm smoke': ['src'] }, ['"src" matches no tracked path']],
-    [{ 'pnpm smoke': ['site/'] }, ['"site/src/pages/index.astro" does not select app']],
     [{ 'pnpm smoke': ['docs/'] }, ['"docs/specs/ci-routing.md" does not select app']],
-    [{ 'pnpm site': ['site/'] }, [], new Map([['pnpm site', 'site']])],
     [{ 'pnpm smoke': ['src/main/index.ts'] }, [
       '"pnpm smoke" is declared under "reasons", which is not a scope of the routing',
       '"src/main/index.ts" does not select reasons'
@@ -143,7 +134,7 @@ test('the check fails a command declared under no scope of the routing, and any 
 // the main process reads build/icon-dev.png.
 // Not read: .github/, .gitignore, .husky/, AGENTS.md, CLAUDE.md, LICENSE, README.md, README.en.md,
 // capabilities.toml, docs/, e2e/, electron-builder.yml, eslint.config.js, playwright.config.ts,
-// vitest.config.ts, site/, and the rest of build/ and scripts/. What the TypeScript files under src/ import from
+// vitest.config.ts, and the rest of build/ and scripts/. What the TypeScript files under src/ import from
 // outside src/ is checked against this list by a case below; the stylesheet and the HTML file under src/ refer to
 // nothing outside it, and the main process's other reads of the repository are its own build output, which is not
 // tracked.
@@ -215,15 +206,15 @@ test('what src/ imports from outside it fails the check where no entry of the li
     ["import a from './a'\nimport b from '@shared/b'\nimport c from 'react'\nimport d from 'node:fs'\nimport f from 'fs'\nimport q from '@tanstack/react-query/x'", []],
     ["export * as e from '../../../engine/dist/e.node'\nconst m = new URL('../../../scripts/lib/engine-build', import.meta.url)", []],
     ["import copy from '../../../docs/prototypes/_shared/copy.js'", [at('"../../../docs/prototypes/_shared/copy.js" reads docs/prototypes/_shared/copy.js, which no entry of the list covers')]],
-    ["const s = await import('../../../site/src/s.ts?raw')", [at('"../../../site/src/s.ts?raw" reads site/src/s.ts, which no entry of the list covers')]],
+    ["const s = await import('../../../build/s.ts?raw')", [at('"../../../build/s.ts?raw" reads build/s.ts, which no entry of the list covers')]],
     ['export { r } from "../../../engine-build"', [at('"../../../engine-build" reads engine-build, which no entry of the list covers')]],
-    ["const p = new URL('../../../site/p.png', import.meta.url)", [at('"../../../site/p.png" reads site/p.png, which no entry of the list covers')]],
+    ["const p = new URL('../../../build/p.png', import.meta.url)", [at('"../../../build/p.png" reads build/p.png, which no entry of the list covers')]],
     ["import x = require('../../../e2e/x')", [at('"../../../e2e/x" reads e2e/x, which no entry of the list covers')]],
     ['const x = require(name)', [at('name is not a string literal')]],
     ['const z = require()', [at('nothing is not a string literal')]],
     ['const y = import(`./${name}`)', [at('`./${name}` is not a string literal')]],
     ["import l from 'left-pad'", [at('"left-pad" names neither a Node module nor a dependency')]],
-    ["import t from '@site/t'", [at('"@site/t" names neither a Node module nor a dependency')]]
+    ["import t from '@other/t'", [at('"@other/t" names neither a Node module nor a dependency')]]
   ]) assert.deepEqual(srcImportFailures([['src/main/a/b.ts', source]], ['engine/', 'scripts/lib/engine-build.mjs'], new Set(['react', '@tanstack/react-query'])), failures, source)
 })
 
@@ -258,7 +249,7 @@ const base = git('rev-parse', 'HEAD')
 rmSync(join(dir, 'src/main/deleted.ts'))
 mkdirSync(join(dir, 'docs/prototypes'), { recursive: true })
 renameSync(join(dir, 'src/main/moved.ts'), join(dir, 'docs/prototypes/moved.ts'))
-put('site/space and\nnewline.ts')
+put('src/space and\nnewline.ts')
 git('add', '-A')
 git('commit', '-qm', 'product changes')
 const products = git('rev-parse', 'HEAD')
@@ -278,19 +269,19 @@ git('add', '.')
 git('commit', '-qm', 'large change set')
 const large = git('rev-parse', 'HEAD')
 
-test('the CLI carries real PR diffs, moves, deletions and large path sets into workflow outputs, both products for a push, and a local call\'s declared scope', () => {
+test('the CLI carries real PR diffs, moves, deletions and large path sets into workflow outputs, the application for a push, and a local call\'s declared scope', () => {
   const script = fileURLToPath(new URL('./ci-scope.mjs', import.meta.url))
   const cases = [
-    ['pull_request', pr(advancedBase, head), 'app=true\nsite=true\n'],
-    // The pushed commit adds README.md alone: both products cannot come from its paths (ci-routing::REQ-001/AC-06)
-    ['push', { before: products, after: head }, 'app=true\nsite=true\n'],
-    ['pull_request', pr(base, large), 'app=true\nsite=false\n'],
-    ['pull_request', pr(head, head), 'app=false\nsite=false\n'],
+    ['pull_request', pr(advancedBase, head), 'app=true\n'],
+    // The pushed commit adds README.md alone: the application cannot come from its paths (ci-routing::REQ-001/AC-06)
+    ['push', { before: products, after: head }, 'app=true\n'],
+    ['pull_request', pr(base, large), 'app=true\n'],
+    ['pull_request', pr(head, head), 'app=false\n'],
     ['pull_request', pr('f'.repeat(40), head), null],
-    // ci-routing::REQ-005/AC-01: the declared command's line follows the scope lines, here where its scope is not
+    // ci-routing::REQ-005/AC-01: the declared command's line follows the scope line, here where its scope is not
     // selected; an undeclared command adds none. ci-routing::REQ-005/AC-02: an unknown argument writes nothing.
-    ['pull_request', pr(head, head), 'app=false\nsite=false\nlocal-scope=app\n', ['--local-command', 'pnpm smoke']],
-    ['pull_request', pr(head, head), 'app=false\nsite=false\n', ['--local-command', 'pnpm e2e']],
+    ['pull_request', pr(head, head), 'app=false\nlocal-scope=app\n', ['--local-command', 'pnpm smoke']],
+    ['pull_request', pr(head, head), 'app=false\n', ['--local-command', 'pnpm e2e']],
     ['pull_request', pr(head, head), null, ['--bogus']]
   ]
   for (const [i, [name, event, expected, args = []]] of cases.entries()) {
@@ -314,7 +305,7 @@ test('the CLI carries real PR diffs, moves, deletions and large path sets into w
       assert.match(run.stdout, /src\/main\/deleted\.ts/)
       assert.match(run.stdout, /src\/main\/moved\.ts/)
       assert.match(run.stdout, /docs\/prototypes\/moved\.ts/)
-      assert.ok(run.stdout.includes('site/space and\\nnewline.ts'))
+      assert.ok(run.stdout.includes('src/space and\\nnewline.ts'))
       assert.ok(!run.stdout.includes('new-main-only.js'))
     }
   }

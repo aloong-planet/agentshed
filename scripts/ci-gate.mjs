@@ -8,7 +8,7 @@ export function gateFailures(needs) {
   for (const id of ['changes', 'repo-policy']) {
     if (needs[id]?.result !== 'success') errors.push(`${id}: ${needs[id]?.result ?? 'missing'}`)
   }
-  for (const [scope, jobs] of Object.entries({ app: ['app-checks', 'e2e'], site: ['site-checks'] })) {
+  for (const [scope, jobs] of Object.entries({ app: ['app-checks', 'e2e'] })) {
     const required = needs.changes?.outputs?.[scope]
     if (required !== 'true' && required !== 'false') {
       errors.push(`Invalid ${scope} classification`)

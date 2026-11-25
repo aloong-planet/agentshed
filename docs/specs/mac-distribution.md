@@ -3,7 +3,7 @@
 > Related: [ADR-0031](../adr/0031-macos-release-line.md) ·
 > [ADR-0032](../adr/0032-app-updates.md) (why each release carries a ZIP) ·
 > [ADR-0042](../adr/0042-packaged-build-refuses-launch-inputs.md) (what a packaged build refuses at launch) ·
-> [app-update](app-update.md) · [landing-page](landing-page.md) · electron-scaffold's macOS signing
+> [app-update](app-update.md) · [agentshed-site](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md) (in aloong-planet-home) · electron-scaffold's macOS signing
 > policy (`macos-signing.md`), cited by section below
 
 ## Problem Statement
@@ -116,7 +116,7 @@ published once the whole artifact set has passed its gates, and never with only 
 - mac-distribution::REQ-004/AC-03: Visitors' browsers on the landing page's origin, and on no other
   origin, can read the pointer and the statistics file ([download-count::REQ-011/AC-04](download-count.md))
   cross-origin, with GET requests only. Before the first formal release there is no pointer, and a
-  read finds it absent (landing-page::REQ-001).
+  read finds it absent ([agentshed-site::REQ-001](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md)).
 
 The download host is `dl.agentshed.aloongplanet.com`, whose certificate was checked from outside Cloudflare on
 2026-10-17 (ADR-0031).
@@ -233,7 +233,7 @@ not a packaged build.
 
 - C1 A formal release's GitHub release is published, then the R2 upload fails partway: the pointer is
   not touched, so the landing page keeps reading the previous pointer and offers that release from R2,
-  or, for the first formal release, finds none and offers the new release from GitHub (landing-page
+  or, for the first formal release, finds none and offers the new release from GitHub ([agentshed-site](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md)
   Failure A3). Re-running the mirror job completes the copy and then the pointer.
 - C2 A file on R2 is not reachable after upload: the pointer is not updated (mac-distribution::REQ-003).
 - C3 A re-run after a failure never leaves the release or the mirror holding a mix of two builds'
@@ -358,7 +358,7 @@ not a packaged build.
 - A mainland-China mirror or a second copy of the landing page (ADR-0031 option 3, ADR-0050 option 4).
 - Pre-releases on R2, and a pre-release pointer (ADR-0031 option 4).
 - The in-app updater itself ([app-update](app-update.md)), and the landing page
-  ([landing-page](landing-page.md)).
+  ([agentshed-site](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md), in aloong-planet-home).
 
 ## Further Notes
 

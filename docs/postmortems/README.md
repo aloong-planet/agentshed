@@ -3,6 +3,10 @@
 One file per trap, append-only. **Written the same time the real bug is diagnosed**: the symptom,
 the root cause, why no test caught it, and the defence that was put in place.
 
+The entries of 2026-11-22 and 2026-11-23 name files under `site/`: that is where they were then. The site's source now
+lives in aloong-planet-home, under [`apps/agentshed/`](https://github.com/aloong-planet/aloong-planet-home/tree/main/apps/agentshed)
+with the same paths below it (see [ADR-0050](../adr/0050-landing-page-in-this-repository.md)).
+
 | Date | Event |
 |---|---|
 | 2026-07-30 | [A cache structure change without a version bump crashed startup](2026-07-30-cache-version-crash.md) |
