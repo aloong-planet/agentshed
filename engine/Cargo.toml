@@ -8,7 +8,12 @@ edition = "2024"
 publish = false
 
 [lib]
-crate-type = ["cdylib"]
+# The module, and a library the fuzz targets in fuzz/ link (src/fuzzing.rs)
+crate-type = ["cdylib", "rlib"]
+
+[lints.rust]
+# cargo-fuzz builds with --cfg fuzzing, which src/fuzzing.rs is compiled under
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }
 
 [features]
 # The test seams, in builds made for tests only: packaging builds without them and refuses a module that has one

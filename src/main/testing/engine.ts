@@ -60,6 +60,13 @@ export interface JsonStringSeam extends EngineModule {
   seamReadJsonString(text: string): string | null
 }
 
+/** The JSON line seam a build made for tests exports (engine/src/seams.rs) */
+export interface JsonLineSeam extends EngineModule {
+  /** Reads `line` as a whole line through the reader every line is read by, as a side reads one: whether it takes the
+   * line, and the text JSON.stringify gives of the value the line holds, or none when that read refuses the line */
+  seamReadJsonLine(line: string): { accepted: boolean; text?: string | null }
+}
+
 /** The observed-reads seam a build made for tests exports (engine/src/seams.rs) */
 export interface ObservedReadsSeam extends EngineModule {
   /** Has every read of one of `file`'s turns from now on hand over, for its body, the lines the read kept, unassembled

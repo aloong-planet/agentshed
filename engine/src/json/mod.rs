@@ -15,6 +15,8 @@
 use crate::text::{JsString, Units};
 
 mod stringify;
+#[cfg(test)]
+mod tests;
 pub(crate) use stringify::{Gap, stringify};
 
 /// The line is not JSON: `JSON.parse` would throw on it

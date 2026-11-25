@@ -27,7 +27,8 @@ extension-based exemption.
 - `repo-policy` always runs CI routing/wiring tests, shared-piece/document/prototype checks, working
   language checks and the raw-NUL check.
 - `app-checks` installs only the root package and the Rust toolchain `engine/rust-toolchain.toml` pins, and
-  runs typecheck, `lint`, unit and script tests, and the application copy check. The unit tests build the
+  runs typecheck, `lint`, unit tests, the engine module's Rust tests (`pnpm test:engine`), script tests, and the
+  application copy check. The unit tests build the
   engine module (ADR-0045) from source for linux-x64 before any test runs. `e2e` installs the same toolchain,
   builds the engine module and the app, and drives Electron.
 - `ci-gate`, displayed as **CI gate**, always evaluates all those results. Classification and policy

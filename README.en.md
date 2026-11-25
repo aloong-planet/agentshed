@@ -92,8 +92,9 @@ fetched on the first build.
 ```sh
 pnpm install
 pnpm dev      # run the app, reloading as you edit
-pnpm verify   # the full check: types, lint, unit tests, script tests, the copy and language
-              # checks, the end-to-end tests on a fresh build, and a smoke run of the app in development
+pnpm verify   # the full check: types, lint, unit tests, the engine's Rust tests, script tests, the copy
+              # and language checks, the end-to-end tests on a fresh build, and a smoke run of the app
+              # in development
 ```
 
 - [`docs/specs/`](docs/specs/README.md): what the app does today, feature by feature, with the

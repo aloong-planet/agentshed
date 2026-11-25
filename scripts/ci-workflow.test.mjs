@@ -47,7 +47,7 @@ test('the application jobs follow classification', () => {
 
 test('the jobs retain the application and repository checks with independent installs', () => {
   const expected = {
-    'app-checks': ['pnpm install --frozen-lockfile', 'rustup toolchain install --no-self-update', 'pnpm typecheck', 'pnpm lint', 'pnpm test', 'pnpm test:scripts', 'pnpm check:i18n'],
+    'app-checks': ['pnpm install --frozen-lockfile', 'rustup toolchain install --no-self-update', 'pnpm typecheck', 'pnpm lint', 'pnpm test', 'pnpm test:engine', 'pnpm test:scripts', 'pnpm check:i18n'],
     'repo-policy': ['pnpm install --frozen-lockfile', 'pnpm test:ci', 'pnpm check:ui', 'pnpm check:lang', 'pnpm check:nul']
   }
   for (const [id, runs] of Object.entries(expected)) assert.deepEqual(commands(id), runs, id)
@@ -69,6 +69,9 @@ test('the jobs retain the application and repository checks with independent ins
     assert.equal(install['working-directory'], 'engine', id)
     assert.ok(runs.indexOf(install.run) < runs.indexOf(builds), id)
   }
+  // and the module's Rust tests run in that job (the list above), in engine/, where rustup reads the pinned toolchain
+  assert.equal(pkg.scripts['test:engine'], 'cd engine && cargo test --locked --lib')
+  assert.ok(pkg.scripts.verify.includes('pnpm test:engine'))
   assert.ok(pkg.scripts.verify.includes('pnpm test:ci'))
   assert.ok(pkg.scripts.verify.includes('pnpm e2e'))
 })

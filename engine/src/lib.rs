@@ -29,6 +29,7 @@
 //!   no other file reads one, but for the arguments napi-rs converts at the call. An export converts and dispatches,
 //!   and holds no rule.
 //! - `seams.rs`: the test seams, in builds made for tests only.
+//! - `fuzzing.rs`: what the fuzz targets in `engine/fuzz/` call, in fuzzing builds only.
 //!
 //! Nothing is laid down ahead of the change that needs it: no file, module or trait method waits for later work.
 //!
@@ -39,6 +40,8 @@
 
 mod display;
 mod exports;
+#[cfg(fuzzing)]
+pub mod fuzzing;
 mod group;
 mod json;
 mod question;
