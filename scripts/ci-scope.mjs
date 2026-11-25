@@ -1,6 +1,6 @@
-// Product impact for CI. A pull request is routed by its paths: unknown paths select both products;
-// documentation is an explicit exception, never a repository-wide Markdown exemption. A push selects both
-// products without looking at its paths (ci-routing::REQ-001). Called with `--local-command <command>`, it also
+// Product impact for CI. A pull request is routed by its paths: unknown paths select the application;
+// documentation is an explicit exception, never a repository-wide Markdown exemption. A push selects the
+// application without looking at its paths (ci-routing::REQ-001). Called with `--local-command <command>`, it also
 // writes `local-scope=<scope>` for a command declared in LOCAL below, the scope of a test command CI does not
 // run (ci-routing::REQ-005).
 import { execFileSync } from 'node:child_process'
@@ -9,36 +9,32 @@ import { fileURLToPath } from 'node:url'
 
 const SHARED = new Set(['package.json', 'pnpm-lock.yaml', 'eslint.config.js', 'capabilities.toml', '.gitignore', 'scripts/testing/workflow.mjs'])
 const APP_CONFIG = new Set(['electron-builder.yml', 'electron.vite.config.ts', 'playwright.config.ts', 'vitest.config.ts', 'tsconfig.json', 'tsconfig.node.json', 'tsconfig.web.json'])
-const DOCUMENTS = new Set(['AGENTS.md', 'CLAUDE.md', 'LICENSE', 'site/README.md', 'build/README.md'])
+const DOCUMENTS = new Set(['AGENTS.md', 'CLAUDE.md', 'LICENSE', 'build/README.md'])
 
 export function classifyPaths(paths) {
   if (!Array.isArray(paths)) throw new Error('Changed paths must be an array')
   let app = false
-  let site = false
   const reasons = []
   for (const path of paths) {
     if (typeof path !== 'string' || !path || path.includes('\0') || path.startsWith('/') || path.split('/').some((part) => !part || part === '.' || part === '..')) {
       throw new Error('Invalid changed path')
     }
     let reason
-    if (SHARED.has(path) || path.startsWith('.github/workflows/') || path.startsWith('scripts/ci-') || path === 'src/renderer/src/theme.css') {
-      app = site = true
+    if (SHARED.has(path) || path.startsWith('.github/workflows/') || path.startsWith('scripts/ci-')) {
+      app = true
       reason = 'Shared input'
     } else if (DOCUMENTS.has(path) || /^README(?:\.[^/]+)?\.md$/.test(path) || path.startsWith('docs/prototypes/') || (path.startsWith('docs/') && path.endsWith('.md'))) {
       reason = 'Repository policy only'
-    } else if (path.startsWith('site/')) {
-      site = true
-      reason = 'Website'
     } else if (APP_CONFIG.has(path) || ['src/', 'engine/', 'e2e/', 'build/', 'scripts/'].some((prefix) => path.startsWith(prefix))) {
       app = true
       reason = 'Application'
     } else {
-      app = site = true
-      reason = 'Unknown path: run both products'
+      app = true
+      reason = 'Unknown path: run the application'
     }
     reasons.push(`${reason}: ${JSON.stringify(path)}`)
   }
-  return { app, site, reasons: reasons.length ? reasons : ['No changed paths; repository policy still runs'] }
+  return { app, reasons: reasons.length ? reasons : ['No changed paths; repository policy still runs'] }
 }
 
 export function comparisonForEvent(name, event) {
@@ -55,7 +51,7 @@ export function comparisonForEvent(name, event) {
 }
 
 // The scopes the routing writes a line for, in the order it writes them.
-const SCOPES = ['app', 'site']
+const SCOPES = ['app']
 
 // Each test command that runs only on a developer's machine, under the one scope whose selection means it
 // needs a local run (ci-routing::REQ-005/AC-03). A Map, so a command such as "constructor" finds nothing.
@@ -108,7 +104,7 @@ export function localCommand(argv) {
 
 export function collectChanges(name, event, cwd = process.cwd()) {
   const comparison = comparisonForEvent(name, event)
-  if (comparison === null) return { app: true, site: true, reasons: ['Push: both products run, whatever it changed'] }
+  if (comparison === null) return { app: true, reasons: ['Push: the application runs, whatever it changed'] }
   // No API pagination limit; a failed command or exhausted buffer fails classification, never an empty diff.
   const output = execFileSync('git', ['diff', '--no-renames', '--name-only', '-z', comparison, '--'], {
     cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024
@@ -123,7 +119,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const { GITHUB_EVENT_NAME, GITHUB_EVENT_PATH, GITHUB_OUTPUT, GITHUB_STEP_SUMMARY } = process.env
     if (!GITHUB_EVENT_PATH || !GITHUB_OUTPUT) throw new Error('CI event path and output file are required')
     const result = collectChanges(GITHUB_EVENT_NAME, JSON.parse(readFileSync(GITHUB_EVENT_PATH, 'utf8')))
-    const report = [`Application checks: ${result.app}`, `Website checks: ${result.site}`, ...result.reasons].join('\n')
+    const report = [`Application checks: ${result.app}`, ...result.reasons].join('\n')
     console.log(report)
     if (GITHUB_STEP_SUMMARY) appendFileSync(GITHUB_STEP_SUMMARY, `${report}\n`)
     // Publish flags only after all required work succeeded.
