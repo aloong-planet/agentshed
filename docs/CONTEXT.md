@@ -297,7 +297,7 @@ _Avoid_: refresh, sync, polling
 
 **Download count**:
 How many times Agentshed's disk image has been downloaded, from GitHub and from the download host, over
-every published release (landing-page spec). An app update's download of its ZIP is not one of them.
+every published release (download-count spec). An app update's download of its ZIP is not one of them.
 _Avoid_: downloads (bare — the updater downloads too), install count (an install is never observed)
 
 ## Flagged ambiguities

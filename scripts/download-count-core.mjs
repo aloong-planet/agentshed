@@ -1,6 +1,6 @@
-// The download count's core (landing-page::REQ-011, Implementation Decisions "The collection" and "The statistics
+// The download count's core (download-count::REQ-011, Implementation Decisions "The collection" and "The statistics
 // file"; ADR-0055, ADR-0056): an hourly run adds the download host's traffic, read from Cloudflare's analytics up to
-// the hour landing-page::REQ-011/AC-04 counts to, to the download counts GitHub reports for the DMG assets, and
+// the hour download-count::REQ-011/AC-04 counts to, to the download counts GitHub reports for the DMG assets, and
 // publishes the sum in the release bucket: as stats/downloads.json, which the landing page reads through the download
 // host, or in the shadow period as the Worker's shadow file (Implementation Decisions "The shadow period").
 //
@@ -19,7 +19,7 @@ const VERSION = String.raw`\d+\.\d+\.\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?`
 // electron-builder builds for macOS
 const DMG = new RegExp(`^Agentshed-${VERSION}-mac-(?:arm64|x64|universal)\\.dmg$`)
 
-/** Whether a file name is a DMG's, the only file whose downloads count (landing-page::REQ-011/AC-02) */
+/** Whether a file name is a DMG's, the only file whose downloads count (download-count::REQ-011/AC-02) */
 export const isDmg = (name) => typeof name === 'string' && DMG.test(name)
 
 const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -27,7 +27,7 @@ const isObject = (value) => typeof value === 'object' && value !== null && !Arra
 export const isCount = (value) => Number.isSafeInteger(value) && value >= 0
 
 /**
- * GitHub's share merged into the recorded assets (landing-page::REQ-011/AC-02, AC-03): every DMG asset of a
+ * GitHub's share merged into the recorded assets (download-count::REQ-011/AC-02, AC-03): every DMG asset of a
  * published release, formal or pre-release, keyed by its ID with the highest count read for it; an asset no longer
  * listed keeps its last count. `releases` is GitHub's answer, every page; an entry not shaped like a release, or a
  * DMG asset without an ID and a count, fails the run (Failure G2).
@@ -55,7 +55,7 @@ export function mergeGitHub(recorded, releases) {
 const nameOf = (key) => key.slice(key.lastIndexOf('/') + 1)
 
 /**
- * The download host's share merged into the recorded objects (landing-page::REQ-011/AC-02, AC-03): every DMG the
+ * The download host's share merged into the recorded objects (download-count::REQ-011/AC-02, AC-03): every DMG the
  * bucket lists under releases/, keyed by its key, with the bytes of each counted request for it added. An object no
  * longer listed keeps its bytes and still takes the requests a cached copy serves; a request for anything else counts
  * for nothing. A DMG listed at another size than the one recorded fails the run (Failure G5).
@@ -86,7 +86,7 @@ export function summarize(assets, objects) {
 }
 
 const HOUR_MS = 3_600_000
-// How long before the run an hour must have ended for the run to count it (landing-page::REQ-011/AC-04)
+// How long before the run an hour must have ended for the run to count it (download-count::REQ-011/AC-04)
 const SETTLED_MS = 30 * 60_000
 const ON_THE_HOUR = /^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/
 

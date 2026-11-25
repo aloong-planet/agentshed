@@ -1,4 +1,4 @@
-// A static test of the download count's workflow (.github/workflows/download-count.yml; landing-page::REQ-011/AC-04,
+// A static test of the download count's workflow (.github/workflows/download-count.yml; download-count::REQ-011/AC-04,
 // Failure G3, Implementation Decisions "The collection"): it runs every hour and on demand, one run at a time, its
 // credentials fail closed and reach only the counting step, and only a manual run can accept a gap.
 //

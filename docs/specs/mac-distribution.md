@@ -114,7 +114,7 @@ published once the whole artifact set has passed its gates, and never with only 
 - mac-distribution::REQ-004/AC-02: The latest pointer names the current formal version and its
   download URLs.
 - mac-distribution::REQ-004/AC-03: Visitors' browsers on the landing page's origin, and on no other
-  origin, can read the pointer and the statistics file ([landing-page::REQ-011](landing-page.md))
+  origin, can read the pointer and the statistics file ([download-count::REQ-011/AC-04](download-count.md))
   cross-origin, with GET requests only. Before the first formal release there is no pointer, and a
   read finds it absent (landing-page::REQ-001).
 
@@ -332,7 +332,7 @@ not a packaged build.
   (mac-distribution::REQ-004/AC-02), and it is what the landing page reads. The mirror job needs the
   publish job, so the GitHub release is public before any file reaches R2 (Failure C1). The bucket also
   holds the landing page's statistics file and the files its collection keeps
-  ([landing-page::REQ-011](landing-page.md)). The pointer
+  ([download-count::REQ-011](download-count.md)). The pointer
   job reads every mirrored file back through the download host and compares its size and sha256 with
   the gated file before it writes the pointer (mac-distribution::REQ-003). The bucket, its own
   token, its CORS rule (GET from the landing page's origin) and the custom domain are managed with

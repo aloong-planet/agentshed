@@ -1,4 +1,4 @@
-// The download count's Worker in the shadow period (landing-page::REQ-011, Failures G1 to G5, G9 and G10,
+// The download count's Worker in the shadow period (download-count::REQ-011, Failures G1 to G5, G9 and G10,
 // Implementation Decisions "The collection", "The run record" and "The shadow period"; ADR-0056): a run driven through
 // the Worker's run(), with the bucket's binding (scripts/testing/r2-binding.mjs), GitHub and the analytics
 // (scripts/testing/download-count-sources.mjs) standing in at the system boundary and the clock fixed.
@@ -16,7 +16,7 @@
 //   that catches up over the analytics' whole hold, a range for every maxDuration of it besides GitHub's pages (and
 //   the binding's calls, if Cloudflare counts them as subrequests), and one that rewrites a run record of 336
 //   entries, from about the shadow period's fourteenth day.
-// - The Cron Trigger firing every hour (landing-page::REQ-011/AC-04): the run record after the apply.
+// - The Cron Trigger firing every hour (download-count::REQ-011/AC-04): the run record after the apply.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -175,7 +175,7 @@ test("a shadow run reads every page of GitHub's releases without a token and wit
   assert.equal(fileOf(bucket, 'stats/downloads-shadow.json').summary.sources.github, 261)
 })
 
-// "The collection" (the listing under releases/, every page of it) and landing-page::REQ-011/AC-03: a binding that
+// "The collection" (the listing under releases/, every page of it) and download-count::REQ-011/AC-03: a binding that
 // answers one object a page, and leaves a recorded DMG out of its listing
 test('a shadow run counts the DMGs on every page of the listing, and a recorded DMG left out of it keeps its bytes', async () => {
   const dmg = (version) => `releases/v${version}/Agentshed-${version}-mac-arm64.dmg`

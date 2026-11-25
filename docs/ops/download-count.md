@@ -1,7 +1,7 @@
 # Download count · this project's runbook
 
 This runbook holds **Agentshed's own values and steps** for the landing page's download count. What the count is and
-how a run must behave: `docs/specs/landing-page.md` (REQ-011, Failures G1–G10, Implementation Decisions "The
+how a run must behave: `docs/specs/download-count.md` (REQ-011, Failures G1–G6 and G8–G10, Implementation Decisions "The
 collection", "The statistics file", "The run record" and "The shadow period"). Decisions: ADR-0055, and ADR-0056 for
 the Worker that takes the collection over. The bucket and its download host: `docs/ops/r2-setup.md`.
 

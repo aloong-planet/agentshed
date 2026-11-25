@@ -1,4 +1,4 @@
-// The download count's collection (landing-page::REQ-011, Failures G1-G6, Implementation Decisions "The collection"
+// The download count's collection (download-count::REQ-011, Failures G1-G6, Implementation Decisions "The collection"
 // and "The statistics file"): the core's pure rules that merge each source into the statistics file and plan the
 // analytics ranges, a run of the core driven through its seams, with the bucket, GitHub and Cloudflare's analytics
 // standing in at the system boundary and the clock fixed, and the entry point that runs the core through aws-cli.
@@ -167,7 +167,7 @@ test('the traffic is read from the cursor to the last full hour, in ranges no wi
   ])
 })
 
-// landing-page::REQ-011/AC-04: a run counts an hour once it ended at least half an hour before the run, whether
+// download-count::REQ-011/AC-04: a run counts an hour once it ended at least half an hour before the run, whether
 // the run is on time, delayed by GitHub into the next hour, or started by hand
 test('an hour is counted once it ended half an hour before the run, so a run early in an hour stops an hour sooner', () => {
   const run = { cursor: '2026-11-22T07:00:00Z', notOlderThan: 31 * DAY, maxDuration: 3 * DAY, acceptGap: false }

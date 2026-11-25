@@ -1,6 +1,6 @@
 name: Download count
 
-# The landing page's download count (docs/specs/landing-page.md, REQ-011; ADR-0055): every hour, GitHub's DMG
+# The landing page's download count (docs/specs/download-count.md, REQ-011; ADR-0055): every hour, GitHub's DMG
 # download counts and the download host's traffic up to the hour REQ-011/AC-04 counts to, published as
 # stats/downloads.json in the release bucket (scripts/download-count.mjs). In the shadow period (ADR-0056) a run that
 # wrote the file then compares it with the Worker's shadow file, appending to stats/shadow-comparisons.json, with the

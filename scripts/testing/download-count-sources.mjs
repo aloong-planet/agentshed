@@ -1,4 +1,4 @@
-// The download count's sources standing in at the system boundary (landing-page::REQ-011, Implementation Decisions
+// The download count's sources standing in at the system boundary (download-count::REQ-011, Implementation Decisions
 // "The collection"), shared by the workflow's, the Worker's and the comparison's cases: GitHub's releases, answered 100
 // to a page, and Cloudflare's analytics, answering the dataset's settings and, for a range, the rows of each hour in it.
 //

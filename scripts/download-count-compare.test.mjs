@@ -1,4 +1,4 @@
-// The shadow period's comparison (landing-page::REQ-011, Implementation Decisions "The shadow period"): the rules that
+// The shadow period's comparison (download-count::REQ-011, Implementation Decisions "The shadow period"): the rules that
 // compare the workflow's statistics file with the Worker's shadow file and keep the comparison record. The workflow's
 // run that reads and writes the files is in download-count.test.mjs.
 import { test } from 'node:test'
