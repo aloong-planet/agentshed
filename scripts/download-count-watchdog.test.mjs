@@ -12,6 +12,7 @@ import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { judge, main } from './download-count-watchdog.mjs'
 import { json, text, writtenFile } from './testing/download-count-sources.mjs'
+import { listening } from './testing/local-server.mjs'
 
 const HOST = 'https://dl.agentshed.aloongplanet.com'
 const STATISTICS = `${HOST}/stats/downloads.json`
@@ -162,7 +163,6 @@ test('a watch without the download host fails and reads nothing', async () => {
 
 // The script as the workflow runs it: its exit code, its output, and the download host it is given
 const SCRIPT = fileURLToPath(new URL('./download-count-watchdog.mjs', import.meta.url))
-const listening = (server) => new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)))
 const runScript = (env) => new Promise((resolve) => {
   execFile(process.execPath, [SCRIPT], { env, encoding: 'utf8', timeout: 30_000 }, (error, stdout) => resolve({ code: error ? error.code : 0, stdout }))
 })
