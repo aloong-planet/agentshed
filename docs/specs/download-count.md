@@ -7,10 +7,9 @@
 
 ## Problem Statement
 
-The landing page shows how many times Agentshed has been downloaded, yet no single place holds that figure. GitHub
-counts the downloads of its release assets, while the download host serves disk images that GitHub never sees, and
-Cloudflare keeps that host's traffic for a limited time only. The two have to be added up, kept current, and never
-lose a download once it has been counted.
+The landing page shows how many times Agentshed has been downloaded, yet no single place holds that figure: GitHub
+counts the downloads of its release assets, while the download host serves disk images that GitHub never sees. The
+two have to be added up, kept current, and never lose a download once it has been counted.
 
 ## Solution
 
