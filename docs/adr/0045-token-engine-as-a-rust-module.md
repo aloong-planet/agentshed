@@ -1,6 +1,6 @@
 # ADR-0045: The token engine, the session walk, the question-text rules and the display copy's writer are one Rust module that builds only the values a rule reads
 
-- Status: Accepted (2026-11-20)
+- Status: Accepted (2026-11-25)
 
 ## Context
 
@@ -26,25 +26,17 @@ page and both searches show come from the same per-line rules.
 6. Keep the session page's and both searches' cold rollout reads on Node's zstd decoder — rejected: under
    Electron 43 it misses later frames (Sources), and the cut-short rule would exist twice.
 7. Claude Code's session list made by the planning — rejected: the walk makes the four sides' session lists in one place.
+8. Read lines with serde_json — rejected: a lone surrogate escape or a number beyond the double range in a value a
+   rule reads fails the whole line where `JSON.parse` reads it, and a Rust string cannot hold the lone surrogate
+   JavaScript keeps (Sources).
 
 ## Decision
 
 We adopt **option 1**.
 
 - **One module** in Rust, built from its source in this repository for each target; no binary is committed.
-- **What it owns** (token-stats, The engine module):
-  - the session walk (each side's session list and each Codex rollout's first line), whose lists the project scan
-    and the planning take, in TypeScript;
-  - reading and parsing every session file a scan reads, cold rollouts decompressed, and reading the cold ones the
-    session page and both searches read;
-  - the turns the session page expands (ADR-0054);
-  - each side's per-line rules, the question index and the titles;
-  - each file's entry, the store (ADR-0044), the grouping and the combination;
-  - the line rules that the session page and both searches read a question's text by;
-  - a project's search in both modes (ADR-0052);
-  - serialising and writing the display copy, at the moments ADR-0044 sets.
-- **Reading**: a value in a line is built only where a rule reads it, and every other value is scanned past.
-  Where `JSON.parse` and the module's parser would disagree on a line, the module gives JavaScript's result.
+- **What it owns, and how it reads a line**: as token-stats, Implementation Decisions, The engine module says, and
+  the display copy's writer besides (agents-overview, Startup implementation decisions).
 - **The cold full parse** is held to token-stats::QR-004.
 
 ## Consequences
@@ -59,7 +51,8 @@ We adopt **option 1**.
 - Negative: a slip in the cold rollout reader reaches the scan, the session page and both searches at once.
 - Negative: token-stats::QR-004's 600 MB leaves the module little room (Sources), so a change that keeps more of a
   scan in memory at once can break it.
-- Neutral: the prototype read all Codex lines as `JSON.parse` does, failing on none.
+- Neutral: speed is not what the module's own reader is kept for: on this machine's lines it reads the same
+  fields only 14–16% faster than serde_json (Sources).
 
 ## Sources
 
@@ -74,3 +67,7 @@ rollouts) took 9.0–9.3 s against 42.0–42.5 s, peaked at 516–561 MB against
 lines decompressed), 1-minute load at most 3.0: first figures at 12.38–12.88 s, peak 470 MB.
 #468, 2026-11-16, Electron 43.2.0 as Node (Node 24.18.0): a second frame starting in the read where the first ends is
 not decoded; all 3,001 cold rollouts here held one frame.
+`~/research/agentshed-engine/2026-11-25-extractable-libs.md`, 2026-11-25, serde_json 1.0.154: a lone surrogate escape
+or `1e400` fails the line in a value read and not in a value skipped. Over this machine's 1,807,671–1,807,800 Claude Code
+and plain Codex lines (8.75 GB), six fields read on one thread, neither parser refused a line and both read every field
+alike, the module's reader at 2.76–2.90 GB/s against serde_json's 2.41–2.55 GB/s.
