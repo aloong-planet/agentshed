@@ -342,7 +342,7 @@
         <h1>${esc(d.title)}</h1>
         <p class="lede">${esc(d.lede)}</p>
         <div class="cta">${heroCta}</div>
-        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div>${lang === 'en' ? `<div class="hero-video-frame"><a class="hero-video-play" href="https://www.youtube.com/watch?v=lQ-Bg8nXJKM" target="_blank" rel="noopener" aria-label="${esc(d.videoPlay)}"><img src="https://raw.githubusercontent.com/aloong-planet/aloong-planet-home/main/apps/agentshed/public/media/agentshed-intro-poster.jpg" width="1600" height="900" alt=""><span>${esc(d.videoPlay)}</span></a></div>` : `<img src="shots/hero-${lang}.png" width="2560" height="1536" alt="${esc(d.shotHero)}">`}</div>
+        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div>${lang === 'en' ? `<div class="hero-video-frame"><a class="hero-video-play" href="https://www.youtube.com/watch?v=lQ-Bg8nXJKM" target="_blank" rel="noopener" aria-label="${esc(d.videoPlay)}"><img src="https://raw.githubusercontent.com/aloong-planet/aloong-planet-home/daa379bb89dfb76cc0409b0601fc504122f07d4f/apps/agentshed/public/media/agentshed-intro-poster.jpg" width="1600" height="900" alt=""><span>${esc(d.videoPlay)}</span></a></div>` : `<img src="shots/hero-${lang}.png" width="2560" height="1536" alt="${esc(d.shotHero)}">`}</div>
         ${lang === 'en' ? `<a class="hero-video-fallback" href="https://www.youtube.com/watch?v=lQ-Bg8nXJKM" target="_blank" rel="noopener">${esc(d.videoFallback)}</a>` : ''}
       </div>
 
