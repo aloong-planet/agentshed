@@ -4,10 +4,11 @@
 use crate::json::{Event, Gap, Reader, line, number_value, stringify, take};
 use crate::text::JsString;
 
-/// Reads `bytes` as a line is read, every way the module reads one: skipped, read event by event with each string's
-/// code units, text and taken value and each number's value, read as a side reads a line, and written as
-/// `JSON.stringify` writes its value. It panics where the module would, and where two of the reads disagree on whether
-/// the line is JSON, or a string's taken value is not its text.
+/// Reads `bytes` as a line is read, in these of the module's reads: skipped, read event by event with each string's
+/// code units, text and taken value and each number's value, read as a side reads a line's object (each member skipped,
+/// or read as a value), and written as `JSON.stringify` writes its value. It does not call the other reads the sides
+/// make (`elements`, `raw`, `rows`, `truthy`, `string_or_skip`, `finite_or_zero`, `record`). It panics where the module
+/// would, and where two of the reads disagree on whether the line is JSON, or a string's taken value is not its text.
 pub fn json_line(bytes: &[u8]) {
     // As a line is decoded before it is read: UTF-8, an invalid sequence becoming U+FFFD
     let text = crate::text::line_text_owned(bytes.to_vec());
