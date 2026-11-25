@@ -1,27 +1,22 @@
 // The download count's collection (download-count::REQ-011, Failures G1-G6, Implementation Decisions "The collection"
 // and "The statistics file"): the core's pure rules that merge each source into the statistics file and plan the
-// analytics ranges, a run of the core driven through its seams, with the bucket, GitHub and Cloudflare's analytics
-// standing in at the system boundary and the clock fixed, and the entry point that runs the core through aws-cli.
+// analytics ranges, and a run of the core driven through its seams, with the bucket, GitHub and Cloudflare's analytics
+// standing in at the system boundary and the clock fixed.
 //
 // The core (download-count-core.mjs) awaits the bucket it is given, so the bucket standing in for it answers each
 // call on a later turn of the event loop, as an asynchronous binding would: a call the core does not await has not
-// happened when the run goes on. The cases through the aws-cli adapter answer at once, as aws-cli does in the workflow.
+// happened when the run goes on.
 //
 // GitHub and the analytics stand in through scripts/testing/download-count-sources.mjs, whose header says what their
 // answers are shaped from.
 //
-// Gaps: nothing here reaches R2, GitHub or Cloudflare. aws-cli's output for a listing is shaped from its source
-// (the JSON formatter applied to `--query '{objects: Contents}'`), since aws-cli could not run on the machine that
-// wrote these tests. The workflow's first runs are those checks (docs/ops/download-count.md). A global only Node has
-// (`process`, `Buffer`), used by the core, would fail only in a runtime without Node; every case here runs the core in
-// Node, so the first run of the core in such a runtime is that check.
+// Gaps: nothing here reaches R2, GitHub or Cloudflare; the Worker's runs are those checks (docs/ops/download-count.md).
+// A global only Node has (`process`, `Buffer`), used by the core, would fail only in a runtime without Node; every case
+// here runs the core in Node, so the first run of the core in such a runtime is that check.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { awsBucket } from './lib/r2-bucket.mjs'
+import { readFileSync } from 'node:fs'
 import { collect, isDmg, mergeGitHub, mergeR2, planRanges, reasonOf, summarize, validateStatistics } from './download-count-core.mjs'
-import { main } from './download-count.mjs'
 import { imports } from './testing/module-imports.mjs'
 import {
   copyOf, DAY, DMG_KEY, json, LIMITS, NOW, REAL_ASSETS, REAL_RELEASES, sources, text, writtenFile, zoneAnswer
@@ -284,8 +279,7 @@ test("a statistics file is taken only when it matches the spec's fields exactly"
 /**
  * The run's world: the release bucket as objects by key, and GitHub and the analytics as the shared stand-ins answer
  * them (scripts/testing/download-count-sources.mjs). `answer` replaces an answer, or throws for a call that fails;
- * `requests` records what was asked, in order. The bucket is `store`, as the core is given it, and `syncStore`, the
- * same bucket answering at once, as aws-cli does.
+ * `requests` records what was asked, in order. The bucket is `store`, as the core is given it.
  */
 function world({ objects = {}, releases, limits, traffic, answer = {} } = {}) {
   const bucket = new Map(Object.entries(objects))
@@ -321,10 +315,10 @@ function world({ objects = {}, releases, limits, traffic, answer = {} } = {}) {
     })
   })
   const store = { list: later(syncStore.list), getText: later(syncStore.getText), putText: later(syncStore.putText) }
-  return { bucket, store, syncStore, fetch, requests }
+  return { bucket, store, fetch, requests }
 }
 
-const RUN = { repository: 'aloong-planet/agentshed', githubToken: 'gh-token', analyticsToken: 'cf-token', zone: 'zone-tag', host: 'dl.agentshed.aloongplanet.com', acceptGap: false }
+const RUN = { repository: 'aloong-planet/agentshed', githubToken: 'gh-token', analyticsToken: 'cf-token', zone: 'zone-tag', host: 'dl.agentshed.aloongplanet.com' }
 const published = (bucket) => JSON.parse(bucket.get('stats/downloads.json').text)
 
 // Failure G4 and the first run of "The collection": no statistics file, nothing mirrored yet
@@ -407,7 +401,7 @@ test('a range whose answer holds 200,000 rows is counted whole', async () => {
   assert.deepEqual(published(bucket).r2.objects, { [DMG_KEY]: { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 1500 } })
 })
 
-test("GitHub's releases are read page after page with the workflow's token, until a page holds fewer than a hundred", async () => {
+test("GitHub's releases are read page after page with the token the run is given, until a page holds fewer than a hundred", async () => {
   const copies = Array.from({ length: 241 }, (_, i) => copyOf(`v0.2.${i}`, { dmgDownloads: 1, idBase: 800000000 + i * 10 }))
   const { bucket, store, fetch, requests } = world({ releases: [...REAL_RELEASES, ...copies] })
   await collect({ ...RUN, bucket: store, fetch, now: NOW })
@@ -491,33 +485,6 @@ test('a run in which any read fails, or answers what the run cannot validate, wr
   }
 })
 
-// Failures G1 and G2 through the bucket's two listings, read through the aws-cli adapter: one that fails, or answers
-// what the adapter cannot read, fails the run. Neither reads as an empty bucket, which would start the count over (the
-// statistics file's listing) or drop the DMGs not yet recorded (the listing under releases/)
-test('a run whose bucket listing fails, or answers what cannot be read, writes nothing, whichever listing it is', async () => {
-  const previousFile = { text: `${JSON.stringify({ ...writtenFile(), r2Cursor: '2026-11-22T08:00:00Z' }, null, 2)}\n` }
-  const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const answers = [
-    ['fails', () => { throw new Error('aws s3api failed (exit 255)\nAn error occurred (InternalError)') }, () => /InternalError/],
-    // The adapter's error for any output it cannot read (its own case drives each output). aws-cli prints nothing for
-    // an empty result without --query, which makes reading this error as an empty listing a tempting mistake
-    ['prints nothing', () => ({ stdout: '' }), (prefix) => new RegExp(escaped(`aws listed ${prefix} as "", not a listing`))]
-  ]
-  for (const prefix of ['stats/downloads.json', 'releases/']) {
-    for (const [label, answer, reason] of answers) {
-      const w = world({ objects: { 'stats/downloads.json': previousFile, [DMG_KEY]: { size: 1000 } } })
-      const aws = awsOf(w)
-      const listsPrefix = (args) => args[1] === 'list-objects-v2' && args[args.indexOf('--prefix') + 1] === prefix
-      const run = (args) => (listsPrefix(args) ? answer() : aws.run(args))
-      const bucket = awsBucket({ bucket: 'agentshed-releases', endpoint: 'https://acct.r2.cloudflarestorage.com', run })
-      const before = w.bucket.get('stats/downloads.json')
-      await assert.rejects(collect({ ...RUN, bucket, fetch: w.fetch, now: NOW }), reason(prefix), `${prefix} ${label}`)
-      assert.equal(w.requests.some(({ to }) => to === 'put'), false, `${prefix} ${label}`)
-      assert.equal(w.bucket.get('stats/downloads.json'), before, `${prefix} ${label}`)
-    }
-  }
-})
-
 // A write that fails fails the run, which is then reported, never taken for a count published
 test("a run whose write of the statistics file fails fails with the bucket's error", async () => {
   const { store, fetch } = world({ answer: { put: () => { throw new Error('the write of stats/downloads.json failed: AccessDenied') } } })
@@ -546,8 +513,8 @@ test('after a failed run, the next run counts the hours the failed one missed', 
 
 // Failure G3: eight days of notOlderThan. A run on 1 September, then nothing until 1 October, when the oldest full
 // hour held is 23 September 01:00 (the first after 00:47:12 eight days back); then nothing until now, when it is
-// 14 November 10:00. Each stall fails the scheduled run and is resumed by a manual run that accepts it.
-test('a stalled count fails every scheduled run, and a manual run that accepts the gap resumes it, recording the gap and keeping the counts', async () => {
+// 14 November 10:00. Each stall fails every run until one is given the stale cursor to accept the gap from.
+test('a stalled count fails every run, and a run told to accept the gap from its cursor resumes it, recording the gap and keeping the counts', async () => {
   const limits = { ...LIMITS, notOlderThan: 8 * DAY }
   const objects = { [DMG_KEY]: { size: 1000 } }
   const traffic = {
@@ -556,16 +523,16 @@ test('a stalled count fails every scheduled run, and a manual run that accepts t
     '2026-10-15T00:00:00Z': [{ path: `/${DMG_KEY}`, bytes: 9000 }],
     '2026-11-22T08:00:00Z': [{ path: `/${DMG_KEY}`, bytes: 1000 }]
   }
-  const runAt = async (now, previous, acceptGap) => {
+  const runAt = async (now, previous, acceptGapFrom = null) => {
     const w = world({ objects: { ...objects, ...(previous ? { 'stats/downloads.json': previous } : {}) }, limits, traffic })
-    await collect({ ...RUN, bucket: w.store, fetch: w.fetch, now, acceptGap })
+    await collect({ ...RUN, bucket: w.store, fetch: w.fetch, now, acceptGapFrom })
     return w.bucket.get('stats/downloads.json')
   }
-  const september = await runAt(Date.UTC(2026, 8, 1, 0, 47, 12), null, false)
-  await assert.rejects(runAt(Date.UTC(2026, 9, 1, 0, 47, 12), september, false), /the cursor 2026-09-01T00:00:00Z is older than 2026-09-23T01:00:00Z/)
-  const october = await runAt(Date.UTC(2026, 9, 1, 0, 47, 12), september, true)
-  await assert.rejects(runAt(NOW, october, false), /the cursor 2026-10-01T00:00:00Z is older than 2026-11-14T10:00:00Z/)
-  const file = JSON.parse((await runAt(NOW, october, true)).text)
+  const september = await runAt(Date.UTC(2026, 8, 1, 0, 47, 12), null)
+  await assert.rejects(runAt(Date.UTC(2026, 9, 1, 0, 47, 12), september), /the cursor 2026-09-01T00:00:00Z is older than 2026-09-23T01:00:00Z/)
+  const october = await runAt(Date.UTC(2026, 9, 1, 0, 47, 12), september, '2026-09-01T00:00:00Z')
+  await assert.rejects(runAt(NOW, october, '2026-09-01T00:00:00Z'), /the cursor 2026-10-01T00:00:00Z is older than 2026-11-14T10:00:00Z/)
+  const file = JSON.parse((await runAt(NOW, october, '2026-10-01T00:00:00Z')).text)
 
   assert.deepEqual(file.r2Gaps, [
     { from: '2026-09-01T00:00:00Z', to: '2026-09-23T01:00:00Z' },
@@ -575,235 +542,6 @@ test('a stalled count fails every scheduled run, and a manual run that accepts t
   assert.deepEqual(file.r2.objects[DMG_KEY], { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 3000 })
   assert.deepEqual(file.github.assets, REAL_ASSETS)
   assert.deepEqual(file.summary, { total: 23, sources: { github: 20, r2: 3 } })
-})
-
-// The arguments are the contract with aws-cli. With --query, aws-cli applies the expression to the whole paginated
-// listing and prints {"objects": null} when nothing matches (its JSON formatter prints nothing at all for an empty
-// result, which a bare listing would be)
-test('the aws-cli adapter lists a prefix on the R2 endpoint, and reads an object back into text', () => {
-  const calls = []
-  const answers = [
-    JSON.stringify({ objects: [{ Key: DMG_KEY, LastModified: '2026-11-22T09:00:00+00:00', ETag: '"abc"', Size: 129601307, StorageClass: 'STANDARD' }] }),
-    '{\n    "objects": null\n}\n'
-  ]
-  const run = (args) => {
-    calls.push(args)
-    if (args[1] === 'get-object') {
-      writeFileSync(args.at(-1), '{"schemaVersion":1}\n')
-      return { stdout: JSON.stringify({ ContentLength: 20, ContentType: 'application/json' }) }
-    }
-    return { stdout: answers.shift() }
-  }
-  const bucket = awsBucket({ bucket: 'agentshed-releases', endpoint: 'https://acct.r2.cloudflarestorage.com', run })
-  const target = ['--endpoint-url', 'https://acct.r2.cloudflarestorage.com', '--region', 'auto']
-
-  assert.deepEqual(bucket.list('releases/'), [{ key: DMG_KEY, size: 129601307 }])
-  assert.deepEqual(calls[0], ['s3api', 'list-objects-v2', '--bucket', 'agentshed-releases', '--prefix', 'releases/', ...target, '--output', 'json', '--query', '{objects: Contents}'])
-  assert.deepEqual(bucket.list('stats/downloads.json'), [])
-  assert.equal(bucket.getText('stats/downloads.json'), '{"schemaVersion":1}\n')
-  assert.deepEqual(calls[2].slice(0, -1), ['s3api', 'get-object', '--bucket', 'agentshed-releases', '--key', 'stats/downloads.json', ...target])
-  assert.throws(() => readFileSync(calls[2].at(-1)), /ENOENT/)
-})
-
-test('a listing the adapter cannot read fails rather than reads as empty', () => {
-  for (const stdout of ['', 'not json', '{}', '{"objects": {}}', '{"objects": [{"Key": "releases/a.dmg"}]}', '{"objects": [{"Key": 7, "Size": 1}]}', '{"objects": [{"Key": "releases/a.dmg", "Size": -1}]}']) {
-    const bucket = awsBucket({ bucket: 'b', endpoint: 'https://acct.r2.cloudflarestorage.com', run: () => ({ stdout }) })
-    assert.throws(() => bucket.list('releases/'), /aws listed releases\/ as/, JSON.stringify(stdout))
-  }
-})
-
-const ENV = {
-  R2_ACCOUNT_ID: 'acct',
-  R2_BUCKET: 'agentshed-releases',
-  AWS_ACCESS_KEY_ID: 'r2-key',
-  AWS_SECRET_ACCESS_KEY: 'r2-secret',
-  CF_ANALYTICS_API_TOKEN: 'cf-token',
-  CF_ZONE_ID: 'zone-tag',
-  GITHUB_TOKEN: 'gh-token',
-  GITHUB_REPOSITORY: 'aloong-planet/agentshed',
-  DOWNLOAD_HOST: 'https://dl.agentshed.aloongplanet.com'
-}
-
-// What GitHub sets in the workflow run, which the comparison records
-const WORKFLOW_RUN = { GITHUB_RUN_ID: '45059518239', GITHUB_SHA: '247110db9f2a6c3f0b1e5d4c8a7b6e5f4d3c2b1a' }
-
-/** aws-cli as the entry point drives it, answering at once from a world's bucket */
-function awsOf({ syncStore }) {
-  const calls = []
-  const run = (args) => {
-    calls.push(args)
-    const prefix = args[args.indexOf('--prefix') + 1]
-    if (args[1] === 'list-objects-v2') {
-      const objects = syncStore.list(prefix).map(({ key, size }) => ({ Key: key, Size: size }))
-      return { stdout: JSON.stringify({ objects: objects.length ? objects : null }) }
-    }
-    if (args[1] === 'get-object') {
-      writeFileSync(args.at(-1), syncStore.getText(args[args.indexOf('--key') + 1]))
-      return { stdout: '{}' }
-    }
-    syncStore.putText(args[3].slice('s3://agentshed-releases/'.length), readFileSync(args[2], 'utf8'), {
-      cacheControl: args[args.indexOf('--cache-control') + 1],
-      contentType: args[args.indexOf('--content-type') + 1]
-    })
-    return { stdout: '' }
-  }
-  return { calls, run }
-}
-
-// The collection's credentials: a run without any of them fails before it reads anything
-test('the entry point refuses a missing setting before any read', async () => {
-  const deps = { run: () => { throw new Error('aws was called') }, fetch: async () => { throw new Error('the network was used') }, now: () => NOW, log: () => {} }
-  assert.equal(Object.keys(ENV).length, 9)
-  for (const name of Object.keys(ENV)) {
-    const without = Object.fromEntries(Object.entries(ENV).filter(([key]) => key !== name))
-    await assert.rejects(main(without, deps), new RegExp(`${name} is not set`), name)
-  }
-})
-
-test('the entry point counts on the account endpoint with each credential where it belongs, and accepts a gap only when told to', async () => {
-  const stale = { ...writtenFile(), r2Cursor: '2026-10-01T00:00:00Z', r2Gaps: [] }
-  const setup = () => world({ objects: { [DMG_KEY]: { size: 1000 }, 'stats/downloads.json': { text: JSON.stringify(stale) } }, traffic: { '2026-11-22T08:00:00Z': [{ path: `/${DMG_KEY}`, bytes: 500 }] } })
-  const lines = []
-  for (const value of [undefined, 'false', 'yes']) {
-    const w = setup()
-    await assert.rejects(main({ ...ENV, ACCEPT_GAP: value }, { ...awsOf(w), fetch: w.fetch, now: () => NOW, log: () => {} }), /is older than/, String(value))
-  }
-  const w = setup()
-  const aws = awsOf(w)
-  await main({ ...ENV, ...WORKFLOW_RUN, ACCEPT_GAP: 'true' }, { run: aws.run, fetch: w.fetch, now: () => NOW, log: (line) => lines.push(line) })
-
-  for (const args of aws.calls) assert.deepEqual(args.slice(args.indexOf('--endpoint-url'), args.indexOf('--endpoint-url') + 2), ['--endpoint-url', 'https://acct.r2.cloudflarestorage.com'])
-  assert.equal(w.requests.find(({ to }) => to === 'github').headers.authorization, 'Bearer gh-token')
-  for (const { headers, variables } of w.requests.filter(({ to }) => to === 'settings' || to === 'traffic')) {
-    assert.equal(headers.authorization, 'Bearer cf-token')
-    assert.equal(variables.zoneTag, 'zone-tag')
-  }
-  assert.equal(w.requests.find(({ to }) => to === 'traffic').variables.filter.clientRequestHTTPHost, 'dl.agentshed.aloongplanet.com')
-  const file = published(w.bucket)
-  assert.deepEqual(file.r2Gaps, [{ from: '2026-10-01T00:00:00Z', to: '2026-10-22T10:00:00Z' }])
-  assert.equal(file.r2.objects[DMG_KEY].bytes, 3000)
-  assert.equal(w.bucket.get('stats/downloads.json').contentType, 'application/json')
-  assert.deepEqual(lines, [
-    '[download-count] 23 downloads: 20 on GitHub, 3 from the download host, counted to 2026-11-22T09:00:00Z',
-    '[download-count] compared with the shadow file: cursors-differ'
-  ])
-  for (const secret of ['r2-key', 'r2-secret', 'cf-token', 'gh-token']) assert.equal(lines.join('\n').includes(secret), false, secret)
-})
-
-// The core's hash as infra pins it, by a tool other than the entry's own (Implementation Decisions "The collection")
-const CORE_SHA256 = spawnSync('shasum', ['-a', '256', new URL('./download-count-core.mjs', import.meta.url).pathname], { encoding: 'utf8' }).stdout.split(' ')[0]
-const SEED = { at: '2026-11-20T10:31:04.000Z', r2Cursor: '2026-11-20T10:00:00Z', r2Bytes: 2500 }
-const WORKER_RUN = {
-  scheduledTime: '2026-11-22T09:31:00.000Z', coreSha256: CORE_SHA256, key: 'stats/downloads-shadow.json', written: true, github: 'ok', analytics: 'ok', bucket: 'ok', failure: null, r2Cursor: '2026-11-22T09:00:00Z'
-}
-// The statistics file the run below writes, as the Worker wrote it 16 minutes earlier
-const SHADOW = {
-  ...writtenFile(),
-  updatedAt: '2026-11-22T09:31:20.000Z',
-  summary: { total: 23.5, sources: { github: 20, r2: 3.5 } },
-  github: { assets: REAL_ASSETS },
-  r2: { objects: { [DMG_KEY]: { name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1000, bytes: 3500 } } }
-}
-/** The bucket in the shadow period: the statistics file an hour behind, the Worker's shadow file and run record */
-const shadowWorld = (objects = {}, answer = {}) => world({
-  objects: {
-    [DMG_KEY]: { size: 1000 },
-    'stats/downloads.json': { text: asText({ ...writtenFile(), r2Cursor: '2026-11-22T08:00:00Z' }) },
-    'stats/downloads-shadow.json': { text: asText(SHADOW) },
-    'stats/worker-runs.json': { text: asText({ schemaVersion: 1, seed: SEED, runs: [WORKER_RUN] }) },
-    ...objects
-  },
-  traffic: { '2026-11-22T08:00:00Z': [{ path: `/${DMG_KEY}`, bytes: 1000 }] },
-  answer
-})
-const asText = (file) => `${JSON.stringify(file, null, 2)}\n`
-
-// "The shadow period": after each run in which it wrote the statistics file, the workflow appends its comparison with
-// the shadow file
-test('a run that wrote the statistics file appends its comparison with the shadow file to the comparison record', async () => {
-  assert.match(CORE_SHA256, /^[0-9a-f]{64}$/)
-  const earlier = {
-    at: '2026-11-22T08:52:40.000Z', workflowRunId: 45059000001, workflowCommit: '1'.repeat(40), workflowCoreSha256: CORE_SHA256,
-    workerScheduledTime: null, workerCoreSha256: null, r2Cursor: { statistics: '2026-11-22T08:00:00Z', shadow: null },
-    status: 'cursors-differ', checks: null, r2BytesSinceSeed: null
-  }
-  const w = shadowWorld({ 'stats/shadow-comparisons.json': { text: asText({ schemaVersion: 1, comparisons: [earlier] }) } })
-  const lines = []
-  await main({ ...ENV, ...WORKFLOW_RUN }, { ...awsOf(w), fetch: w.fetch, now: () => NOW, log: (line) => lines.push(line) })
-
-  assert.deepEqual(published(w.bucket), { ...SHADOW, updatedAt: '2026-11-22T09:47:12.000Z' })
-  const record = w.bucket.get('stats/shadow-comparisons.json')
-  assert.deepEqual([record.contentType, record.cacheControl], ['application/json', 'public, max-age=300'])
-  assert.deepEqual(JSON.parse(record.text), {
-    schemaVersion: 1,
-    comparisons: [earlier, {
-      at: '2026-11-22T09:47:12.000Z',
-      workflowRunId: 45059518239,
-      workflowCommit: '247110db9f2a6c3f0b1e5d4c8a7b6e5f4d3c2b1a',
-      workflowCoreSha256: CORE_SHA256,
-      workerScheduledTime: '2026-11-22T09:31:00.000Z',
-      workerCoreSha256: CORE_SHA256,
-      r2Cursor: { statistics: '2026-11-22T09:00:00Z', shadow: '2026-11-22T09:00:00Z' },
-      status: 'equal',
-      checks: { r2Bytes: true, githubAssets: true, core: true },
-      // 3500 bytes counted, 2500 when the shadow file started
-      r2BytesSinceSeed: 1000
-    }]
-  })
-  assert.equal(lines.at(-1), '[download-count] compared with the shadow file: equal')
-
-  const failed = shadowWorld({}, { traffic: () => text('upstream error', 500) })
-  await assert.rejects(main({ ...ENV, ...WORKFLOW_RUN }, { ...awsOf(failed), fetch: failed.fetch, now: () => NOW, log: () => {} }), /answered HTTP 500/)
-  assert.equal(failed.bucket.has('stats/shadow-comparisons.json'), false)
-  assert.deepEqual(failed.requests.filter(({ to, key, prefix }) => to !== 'traffic' && [key, prefix].some((k) => k?.startsWith('stats/downloads-shadow') || k?.startsWith('stats/worker-runs'))), [])
-})
-
-// "The shadow period" (a comparison never fails the run) and Failure G9: a file the comparison cannot read, or that
-// is not one, appends nothing and leaves the record as it was; the run reports it on one line of the log
-test('a comparison that cannot be made or recorded leaves the comparison record as it was and never fails the run', async () => {
-  const record = { text: asText({ schemaVersion: 1, comparisons: [] }) }
-  const failingGet = (failed, message) => (answer, w) => {
-    answer.get = (key) => {
-      if (key === failed) throw new Error(message)
-      return w.bucket.get(key).text
-    }
-  }
-  const cases = [
-    ['the record cannot be written', { 'stats/shadow-comparisons.json': record }, (answer) => {
-      answer.put = (key) => { if (key === 'stats/shadow-comparisons.json') throw new Error('aws s3 cp failed (exit 1)') }
-    }, 'aws s3 cp failed (exit 1)'],
-    ['the record is not JSON', { 'stats/shadow-comparisons.json': { text: '{"schemaVersion": 1,' } }, null, 'stats/shadow-comparisons.json in the bucket is not JSON'],
-    ['the record is not one', { 'stats/shadow-comparisons.json': { text: asText({ schemaVersion: 2, comparisons: [] }) } }, null, 'the comparison record has schemaVersion 2, not 1'],
-    ['the record cannot be read', { 'stats/shadow-comparisons.json': record }, failingGet('stats/shadow-comparisons.json', 'aws s3api failed (exit 255)\n::error::An error occurred (AccessDenied) 100%'),
-      'aws s3api failed (exit 255)%0A::error::An error occurred (AccessDenied) 100%25'],
-    ['the shadow file cannot be read', { 'stats/shadow-comparisons.json': record }, failingGet('stats/downloads-shadow.json', 'aws s3api failed (exit 255)\r\nAn error occurred (InternalError)'),
-      'aws s3api failed (exit 255)%0D%0AAn error occurred (InternalError)'],
-    ['the shadow file is not a statistics file', { 'stats/downloads-shadow.json': { text: asText({ ...SHADOW, schemaVersion: 2 }) }, 'stats/shadow-comparisons.json': record }, null, 'stats/downloads-shadow.json has schemaVersion 2, not 1'],
-    ['the run record cannot be read', { 'stats/shadow-comparisons.json': record }, failingGet('stats/worker-runs.json', 'aws s3api failed (exit 255)\nAn error occurred (AccessDenied)'),
-      'aws s3api failed (exit 255)%0AAn error occurred (AccessDenied)'],
-    ['the run record is not one', { 'stats/worker-runs.json': { text: asText({ schemaVersion: 1, seed: SEED, runs: [{ ...WORKER_RUN, written: 'yes' }] }) } }, null, 'the run record has a run that is not one: entry 0'],
-    ['no run ID', { 'stats/shadow-comparisons.json': record }, null, 'the comparison record has a comparison that is not one: entry 0', { GITHUB_RUN_ID: undefined }]
-  ]
-  for (const [label, objects, failing, reason, env = {}] of cases) {
-    const answer = {}
-    const w = shadowWorld(objects, answer)
-    failing?.(answer, w)
-    const before = w.bucket.get('stats/shadow-comparisons.json')
-    const lines = []
-    await main({ ...ENV, ...WORKFLOW_RUN, ...env }, { ...awsOf(w), fetch: w.fetch, now: () => NOW, log: (line) => lines.push(line) })
-    assert.equal(published(w.bucket).r2Cursor, '2026-11-22T09:00:00Z', label)
-    assert.equal(w.bucket.get('stats/shadow-comparisons.json'), before, label)
-    assert.deepEqual(lines, [
-      '[download-count] 23.5 downloads: 20 on GitHub, 3.5 from the download host, counted to 2026-11-22T09:00:00Z',
-      `::warning::[download-count] no comparison with the shadow file was recorded: ${reason}`
-    ], label)
-  }
-})
-
-test('the script run as a process exits with a failure when it cannot count', () => {
-  const result = spawnSync(process.execPath, [new URL('./download-count.mjs', import.meta.url).pathname], { env: {}, encoding: 'utf8' })
-  assert.equal(result.status, 1)
-  assert.match(result.stderr, /\[download-count\] R2_ACCOUNT_ID is not set/)
 })
 
 // The core runs where neither Node's modules nor the files beside it are (the walk and its sample:

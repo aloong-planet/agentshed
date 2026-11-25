@@ -2,157 +2,131 @@
 
 This runbook holds **Agentshed's own values and steps** for the landing page's download count. What the count is and
 how a run must behave: `docs/specs/download-count.md` (REQ-011, Failures G1–G6 and G8–G10, Implementation Decisions "The
-collection", "The statistics file", "The run record" and "The shadow period"). Decisions: ADR-0055, ADR-0056 for the
-Worker that takes the collection over, and ADR-0057 for the token it reads GitHub with. The bucket and its download
-host: `docs/ops/r2-setup.md`.
+collection", "The statistics file" and "The run record"). Decisions: ADR-0055, ADR-0056 for the Worker that collects it
+and the workflow that watches it, and ADR-0057 for the token it reads GitHub with. The bucket and its download host:
+`docs/ops/r2-setup.md`.
 
 ## What exists, and where it is managed
 
 | What | Value |
 |---|---|
-| Workflow | `.github/workflows/download-count.yml`, "Download count": every hour at minute 47, and by hand; one run at a time, a new one waiting for the one in progress |
-| Script | `scripts/download-count.mjs`, which runs the count's core (`scripts/download-count-core.mjs`) on the bucket through aws-cli (`scripts/lib/r2-bucket.mjs`, shared with the release mirror) |
-| Statistics file | `stats/downloads.json` in the release bucket, served at `https://dl.agentshed.aloongplanet.com/stats/downloads.json` (r2-setup.md, "Layout") |
-| Analytics token | `agentshed-download-count`: an account API token with the zone permission group "Analytics Read" on `aloongplanet.com`, and nothing else. Managed with Terraform in [`aloong-planet/infra`](https://github.com/aloong-planet/infra), stack `apps` (`stacks/apps/download-counts.tf`) |
-| Repository secrets | `CF_ANALYTICS_API_TOKEN` (that token's value) and `CF_ZONE_ID` (the zone's ID), written by the same stack; the bucket's four `R2_*` secrets, written for the release mirror (r2-setup.md) |
-| GitHub | The workflow's own token, with `contents: read`, for the releases' download counts |
-| Worker | `agentshed-download-count`, run every hour by a Cron Trigger, once aloong-planet/infra's `workers` stack is applied; see "The Worker in the shadow period" below |
-| Shadow period files | `stats/downloads-shadow.json` and `stats/worker-runs.json`, written by the Worker once it runs; `stats/shadow-comparisons.json`, written by the workflow (r2-setup.md, "Layout") |
+| Worker | `agentshed-download-count`, run every hour at minute 31 by a Cron Trigger, deployed by aloong-planet/infra's `workers` stack ("The Worker" below) |
+| Statistics file | `stats/downloads.json` in the release bucket, written by the Worker alone, served at `https://dl.agentshed.aloongplanet.com/stats/downloads.json` (r2-setup.md, "Layout") |
+| Run record | `stats/worker-runs.json` in the release bucket: the Worker's newest 336 runs |
+| Watchdog | `.github/workflows/download-count.yml`, "Download count": every hour at minute 47, and by hand. It runs `scripts/download-count-watchdog.mjs`, holds no secret and writes nothing |
+| Analytics token | `agentshed-download-count`: an account API token with the zone permission group "Analytics Read" on `aloongplanet.com`, and nothing else. Managed with Terraform in [`aloong-planet/infra`](https://github.com/aloong-planet/infra), stack `apps` (`stacks/apps/download-counts.tf`), and bound to the Worker |
+| GitHub token | The read-only token bound to the Worker as `RELEASES_READ_TOKEN` ("When the Worker cannot read GitHub with its token" below) |
+| Left from the shadow period | `stats/downloads-shadow.json`, which every Worker run deletes while the bucket holds it; `stats/shadow-comparisons.json`, the shadow period's comparisons with the workflow's count, written no more |
 
-## What a run does
+## What a Worker run does
 
-1. It fails at once when any of the six secrets is missing.
-2. It reads the previous statistics file from the bucket itself, never through the download host's cache. When the
-   bucket holds no such object, the count starts over. A file that is there but cannot be read, or is not one the
-   run can take, fails the run (Failure G1).
-3. It reads GitHub's releases, every page, and the bucket's listing under `releases/`.
+1. It fails at once, reading and writing nothing, when `CORE_SHA256` is not a SHA-256 or `BUCKET` is not bound.
+2. It reads the previous statistics file from the bucket through its binding, never through the download host's
+   cache. When the bucket holds no such object, the count starts over. A file that is there but cannot be read, or
+   is not one the run can take, fails the run (Failure G1).
+3. It reads GitHub's releases, every page, with the read-only token, and the bucket's listing under `releases/`.
 4. It reads the analytics' limits: how far back a query may reach (`notOlderThan`), the widest range a query may span
    (`maxDuration`) and the page size. Then it reads the download host's traffic from the file's cursor, in ranges
-   no wider than `maxDuration`, to the last full hour that ended at least 30 minutes before the run started. A run
-   on time, at minute 47, counts to the last full hour. A run that starts in the first half of an hour, delayed by
-   GitHub or started by hand, stops an hour sooner, and the next run counts that hour. A first run starts at the
-   oldest full hour the analytics hold.
-5. Only after every read has succeeded does it write the new file. A run that fails writes nothing, and the cursor
-   stays where it was. The next run counts the hours the failed one missed (Failure G2).
-6. It logs one line: the total, GitHub's share, the download host's share, and the hour counted to. No credential is
-   ever logged.
-7. In the shadow period, it compares the file it wrote with the Worker's shadow file and appends the comparison to
-   `stats/shadow-comparisons.json`, then logs the comparison's status. When the shadow file, the run record or the
-   comparison record cannot be read or is not one, it appends nothing, leaves the record as it was, and logs one
-   warning; the run still succeeds.
+   no wider than `maxDuration`, to the last full hour that ended at least 30 minutes before the run started: a run
+   at minute 31 counts to the last full hour.
+5. Only after every read has succeeded does it write the new file, and only if the file is still the one it read
+   (Failure G10). A run that fails writes nothing, and the cursor stays where it was. The next run counts the hours
+   the failed one missed (Failure G2).
+6. It deletes `stats/downloads-shadow.json` when the bucket holds it, whether it wrote the statistics file or not. A
+   deletion that fails is logged as "stats/downloads-shadow.json was not deleted: …", fails nothing else, and the
+   next run tries again.
+7. It appends its entry to the run record and logs one line: the total, GitHub's share, the download host's share,
+   and the hour counted to. No credential is ever logged. A run that failed, or whose entry could not be appended,
+   also fails the invocation, which then shows as an error, with that text, in the Worker's Cron Events in
+   Cloudflare's dashboard.
 
-## The first runs
+An entry in the run record says which file the run wrote, whether it did, how each source fared (`github` is
+`rate-limited` when GitHub refused the read for its rate limit), what failed the run, with both tokens removed, the
+cursor reached, and what became of the shadow file (`shadowFile`: `deleted`, `absent` or `failed`). A read GitHub or
+Cloudflare refused shows as the status they answered and, after a colon, the reason they gave, if any. The entries
+from the shadow period, `key` `stats/downloads-shadow.json`, have no `shadowFile`. To read the newest entries:
 
-The secrets were written on 2026-11-22 (aloong-planet/infra#14, Terraform run 45007382234). The first run after this
-workflow reaches `main` creates the statistics file, scheduled or started by hand
-(`gh workflow run download-count.yml -R aloong-planet/agentshed`). The tests answer for GitHub, the bucket and
-Cloudflare with stand-ins. These runs are the first to meet the real services: the analytics' answers and aws-cli's
-listing output. Check:
+```bash
+curl -sS https://dl.agentshed.aloongplanet.com/stats/worker-runs.json | jq -c '.runs[-24:][]'
+```
 
-- The run succeeded, and its log line names the hour it counted to, as step 4 sets it.
-- The file is served:
+The download host caches both files for five minutes.
 
-  ```bash
-  curl -sS https://dl.agentshed.aloongplanet.com/stats/downloads.json
-  ```
+## What the watchdog does
 
-  It has `"schemaVersion": 1`, `r2Gaps` empty, and GitHub's share equal to the DMG counts GitHub reports:
+Each run reads `stats/downloads.json` through the download host, as the landing page does, and fails when the file
+answers other than 200, is not JSON, has a `schemaVersion` other than 1 or no `updatedAt` that is a UTC time, or was
+last updated more than 6 hours before the run's clock or more than 5 minutes after it (Failure G8). A failed run's
+log opens with the error, then prints the run record's newest 24 entries, one line of JSON each, oldest first; when
+the run record cannot be read, one line says why instead. GitHub notifies of the failed run. To run it by hand:
 
-  ```bash
-  gh api 'repos/aloong-planet/agentshed/releases?per_page=100' --paginate \
-    --jq '.[] | select(.draft | not) | .assets[] | select(.name | test("^Agentshed-.*-mac-(arm64|x64|universal)\\.dmg$")) | .download_count' \
-    | paste -sd+ - | bc
-  ```
+```bash
+gh workflow run download-count.yml -R aloong-planet/agentshed
+```
 
-- The landing page shows the line below the download card, in both languages.
+## When the watchdog fails
 
-## When something fails
+The error names what the file showed:
 
-- **The credentials are missing**: the first step fails, naming the six secrets. Apply the `apps` stack in
-  aloong-planet/infra.
+- **"… was last updated at …, more than 6 hours before …"**: the Worker has written no count for 6 hours. The entries
+  the run printed say why: a `failure` that repeats (the next section), or no entries for the recent hours, when the
+  Worker is not running: look at its Cron Events in Cloudflare's dashboard and at the last apply of infra's `workers`
+  stack.
+- **"… answered HTTP 404"**: the bucket no longer holds the file, or the download host does not serve it. Find out
+  why before the Worker's next run: a Worker that finds no file starts the count over (Failure G1), and the counts the
+  file held, those of deleted GitHub assets and removed objects included, cannot be read back from anywhere else.
+- **"… answered HTTP 5xx"** or **"… could not be read: …"**: the download host did not answer. Run the watchdog again
+  by hand later; look closer only when its runs keep failing.
+- **"… is not JSON"**, **"… has schemaVersion …"** or **"… has updatedAt …, not a UTC time"**: the file is not one the
+  Worker can take, so its runs fail too (Failure G1). Do not delete it to start over; find which run wrote it and why.
+- **"… more than 5 minutes after …"**: the file's `updatedAt` is ahead of the runner's clock, so one of the two
+  clocks is wrong. Run the watchdog again by hand.
+
+## When a Worker run fails
+
+The run record's `failure`, and the Worker's Cron Events, say why:
+
 - **A read fails** (GitHub, the bucket, the analytics, or an answer the run cannot validate): the run fails and
   writes nothing. Nothing is lost: the next run counts from the same cursor. Look closer only when runs keep failing.
 - **"stats/downloads.json in the bucket is not JSON"** or **"stats/downloads.json has …"**: the file in the bucket is
-  not one the run can take (Failure G1). Do not delete it to start over: the counts it holds, those of deleted GitHub
-  assets and removed objects included, cannot be read back from anywhere else. Only this workflow writes it, so find
-  which run wrote it and why.
+  not one the run can take (Failure G1). Do not delete it to start over: the counts it holds cannot be read back from
+  anywhere else. Only the Worker writes it, so find which run wrote it and why.
 - **"… is N bytes in the bucket, not the M recorded"**: a mirrored DMG was replaced at the same key (Failure G5).
   A version's DMG never changes, so find out what wrote it.
-- **"… is older than …, the oldest full hour the analytics hold"**: the count stalled for longer than the
-  analytics keep traffic, the workflow stopped or its runs kept failing (Failure G3). Every scheduled run fails
-  until a manual run accepts the gap: Actions → Download count → Run workflow, with "accept_gap" checked, or
+- **"stats/downloads.json changed in the bucket since the run read it"**: another writer replaced or created the
+  file during the run (Failure G10). Only the Worker writes it, so find out what else did.
+- **"the run's entry was not appended to stats/worker-runs.json: …"**: the run record cannot be read or is not one
+  (Failure G9). The statistics file is still written, but no entry is added, so the watchdog's failed runs print
+  none of the new ones until the record is repaired.
+- **"… is older than …, the oldest full hour the analytics hold"**: the count stalled for longer than the analytics
+  keep traffic, while the Worker stopped or its runs kept failing (Failure G3). See "A stalled Worker count" below.
 
-  ```bash
-  gh workflow run download-count.yml -R aloong-planet/agentshed -f accept_gap=true
-  ```
-
-  That run resumes from the oldest full hour the analytics hold and records the skipped range in `r2Gaps`. Those
-  hours are never counted. A scheduled run never accepts a gap.
-
-## The Worker in the shadow period
-
-What this section describes exists once aloong-planet/infra's `workers` stack is applied.
-
-The Worker `agentshed-download-count` runs the same core on the same bucket every hour, at minute 31, so that its
-cursor is the one a workflow run at minute 47 reaches. Until the switch (the spec's "The shadow period"), it writes
-`stats/downloads-shadow.json` and never the statistics file: the key is a constant in its code, not a setting.
+## The Worker
 
 | What | Value |
 |---|---|
 | Modules | `scripts/download-count-worker.mjs` (the main module) and `scripts/download-count-core.mjs`, as two ES modules under those names, from the agentshed commit aloong-planet/infra pins, each checked against its pinned SHA-256 before the deploy |
 | Deployed by | aloong-planet/infra, stack `workers`, with a Workers token that the stack `apps` mints with Workers Scripts Write only; `workers.dev` is off, so the Worker answers no request |
 | `BUCKET` | The R2 binding to the release bucket |
-| `CF_ANALYTICS_API_TOKEN`, `CF_ZONE_ID` | The analytics token (a secret binding) and the zone, as the workflow's |
+| `CF_ANALYTICS_API_TOKEN`, `CF_ZONE_ID` | The analytics token (a secret binding) and the `aloongplanet.com` zone |
 | `DOWNLOAD_HOST`, `GITHUB_REPOSITORY` | `https://dl.agentshed.aloongplanet.com` and `aloong-planet/agentshed` |
 | `CORE_SHA256` | The pinned SHA-256 of the core module, recorded in every run |
 | `ACCEPT_GAP_FROM` | Bound only while a gap is to be accepted (below) |
-| `RELEASES_READ_TOKEN` | The read-only GitHub token (a secret binding) the releases are read with, with the User-Agent `agentshed-download-count`; see "When the Worker cannot read GitHub with its token" below |
+| `RELEASES_READ_TOKEN` | The read-only GitHub token (a secret binding) the releases are read with, with the User-Agent `agentshed-download-count` |
 
 **A change to the Worker** takes two pull requests, in this order: the agentshed one, which changes the modules,
 merges first; then one in aloong-planet/infra pins its merge commit and the two modules' SHA-256 (`shasum -a 256
 scripts/download-count-worker.mjs scripts/download-count-core.mjs` at that commit). A hash that does not match fails
 infra's plan, and nothing is deployed.
 
-**What each run leaves**: the shadow file, when the run succeeded, and one entry in `stats/worker-runs.json`, the
-run record, which keeps the newest 336 runs. An entry says which file the run wrote, whether it did, how each source
-fared (`github` is `rate-limited` when GitHub refused the read for its rate limit), what failed the run, with both
-tokens removed, and the cursor reached. A read GitHub or Cloudflare refused shows as the status they answered and,
-after a colon, the reason they gave, if any. A run that failed, or whose entry could not be appended, also fails
-the invocation, which then shows as an error, with that text, in the Worker's Cron Events in Cloudflare's dashboard.
-
-```bash
-curl -sS https://dl.agentshed.aloongplanet.com/stats/worker-runs.json | jq -c '.runs[-24:][]'
-curl -sS https://dl.agentshed.aloongplanet.com/stats/shadow-comparisons.json | jq -c '.comparisons[-7:][] | [.at, .status, .checks, .r2BytesSinceSeed]'
-```
-
-Note that the download host caches both files for five minutes.
-
-**The first run** finds no shadow file, so it starts from the statistics file and records it as the run record's
-`seed`, which it writes before the shadow file: a run that cannot write the seed writes no shadow file and fails with
-"the seed was not written to stats/worker-runs.json: …", and the next run seeds again. The shadow file's first write
-is conditioned on there being no shadow file yet, so it is the first to show that the binding accepts
-`If-None-Match: *`. Whether the binding enforces that condition, and the etag condition every later write carries
-(Failure G10), is what Cloudflare documents; it has not been observed. The run record's newest entries are what to
-check after the deploy: one an hour, `written` true.
-
-**Every UTC day until the switch**, start the workflow by hand at least once
-(`gh workflow run download-count.yml -R aloong-planet/agentshed`), so that a comparison is made every day, which
-GitHub's schedule does not promise.
-
-**When no comparison other than `cursors-differ` has `r2BytesSinceSeed` above 0 by the fifth day** of the window, no
-visitor has downloaded from the download host since the seed. Read 1 KB of the newest DMG through it, once, so that
-both counts have bytes to agree on; it counts like any download (Failure G6):
-
-```bash
-curl -sS -r 0-1023 -o /dev/null -w '%{http_code}\n' https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg
-```
-
-It answers `206`.
+**After an apply**, check the run record's newest entries: one an hour, `key` `stats/downloads.json`, `written` true,
+and `shadowFile` `absent` once a run has deleted the shadow file. Whether the binding enforces the conditions every
+write carries (Failure G10), an etag or `If-None-Match: *`, is what Cloudflare documents; it has not been observed.
 
 **A stalled Worker count** (Failure G3): every run fails with "… is older than …, the oldest full hour the analytics
 hold", naming the cursor. An infra pull request binds `ACCEPT_GAP_FROM` to that cursor; the next run accepts the gap
-and records it in the shadow file's `r2Gaps`, and any run whose cursor differs ignores the setting. Then the next infra
-pull request removes it.
+and records it in the statistics file's `r2Gaps`, and any run whose cursor differs ignores the setting. Those hours
+are never counted. Then the next infra pull request removes the binding.
 
 ### When the Worker cannot read GitHub with its token
 
@@ -172,10 +146,12 @@ GitHub with the token:
 To make, store, renew or replace the token: aloong-planet/infra's
 [`docs/ops/releases-read-token.md`](https://github.com/aloong-planet/infra/blob/main/docs/ops/releases-read-token.md).
 
-## The schedule stops after 60 days without activity
+## The watchdog's schedule stops after 60 days without activity
 
-GitHub disables a public repository's scheduled workflows after 60 days in which the repository had no activity.
-When the count stops moving:
+GitHub disables a public repository's scheduled workflows after 60 days in which the repository had no activity. The
+count goes on, since the Worker runs it, but nothing watches it. When the Download count workflow has not run for a
+day, re-enable it:
 
-1. Re-enable the workflow (`gh workflow enable download-count.yml -R aloong-planet/agentshed`).
-2. If its cursor has aged past what the analytics hold, start a run that accepts the gap, as above.
+```bash
+gh workflow enable download-count.yml -R aloong-planet/agentshed
+```

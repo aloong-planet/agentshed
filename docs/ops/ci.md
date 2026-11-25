@@ -93,8 +93,8 @@ To end it, set `enabled = false` under `[docs-auto-merge]`.
 
 Message language remains separate and also runs when the PR title/body is edited; that edit does not
 restart the application tests. Release still runs on release tags and manual dispatch, with its existing gates.
-Download count runs every hour and on manual dispatch, never on a pull request
-([its runbook](download-count.md)).
+Download count, the download count's watchdog, runs every hour and on manual dispatch, never on a pull request, and
+holds no secret ([its runbook](download-count.md)).
 
 Agentshed's website is not built or deployed from this repository: the
 [aloong-planet-home](https://github.com/aloong-planet/aloong-planet-home) repository deploys it to Cloudflare Pages

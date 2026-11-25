@@ -18,6 +18,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { awsBucket } from './lib/r2-bucket.mjs'
 import { httpProbe, main, mirrorRelease, pointRelease } from './mirror-release.mjs'
+import { listening } from './testing/local-server.mjs'
 
 const HOST = 'https://dl.agentshed.aloongplanet.com'
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')
@@ -196,8 +197,6 @@ test('the aws-cli adapter copies each object with its headers to the bucket on t
   assert.equal(calls[1].body, '{"version":"0.2.0"}\n')
   assert.throws(() => readFileSync(calls[1].args[2]), /ENOENT/)
 })
-
-const listening = (server) => new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)))
 
 test('the HTTP probe reports the status, and the size and sha256 of the bytes it read', async (t) => {
   const body = Buffer.concat([Buffer.from('a DMG of '), Buffer.alloc(200_000, 7)])

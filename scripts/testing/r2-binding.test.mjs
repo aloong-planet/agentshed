@@ -77,6 +77,21 @@ test('get answers null for an absent key, and put stores only when its precondit
   await assert.rejects(binding.put('stats/x.json', '{}', { onlyIf: { etagDoesNotMatch: 'etag-1' } }), /does not evaluate etagDoesNotMatch/)
 })
 
+test('head answers an object\'s metadata without its body, or null, and a deleted object is gone from every read', async () => {
+  const binding = r2Binding({ objects: { 'stats/downloads-shadow.json': '{"a":1}', 'stats/downloads.json': '{}' } })
+  assert.equal(await binding.head('stats/worker-runs.json'), null)
+  const head = await binding.head('stats/downloads-shadow.json')
+  assert.deepEqual(head, { key: 'stats/downloads-shadow.json', size: 7, etag: 'etag-1', httpEtag: '"etag-1"' })
+
+  assert.equal(await binding.delete('stats/downloads-shadow.json'), undefined)
+  assert.equal(await binding.head('stats/downloads-shadow.json'), null)
+  assert.equal(await binding.get('stats/downloads-shadow.json'), null)
+  assert.deepEqual((await binding.list({ prefix: 'stats/' })).objects.map(({ key }) => key), ['stats/downloads.json'])
+  await assert.rejects(binding.delete('stats/downloads-shadow.json'), /do not say what deleting stats\/downloads-shadow\.json/)
+  await assert.rejects(binding.delete(['stats/downloads.json']), /one key a call/)
+  assert.equal(binding.peek('stats/downloads.json').text, '{}')
+})
+
 test('another writer coming in just before a put is there when its precondition is evaluated', async () => {
   const binding = r2Binding({
     objects: { 'stats/downloads-shadow.json': 'ours' },
@@ -91,8 +106,18 @@ test('a failing call rejects with its error and changes nothing, while the calls
   const error = new Error('the round trip failed')
   const binding = r2Binding({
     objects: { 'stats/a.json': 'a', 'stats/b.json': 'b' },
-    failing: { get: (key) => (key === 'stats/a.json' ? error : undefined), put: (key, value) => (value === 'c' ? error : undefined), list: (prefix) => (prefix === 'releases/' ? error : undefined) }
+    failing: {
+      head: (key) => (key === 'stats/a.json' ? error : undefined),
+      get: (key) => (key === 'stats/a.json' ? error : undefined),
+      put: (key, value) => (value === 'c' ? error : undefined),
+      delete: (key) => (key === 'stats/a.json' ? error : undefined),
+      list: (prefix) => (prefix === 'releases/' ? error : undefined)
+    }
   })
+  await assert.rejects(binding.head('stats/a.json'), error)
+  assert.equal((await binding.head('stats/b.json')).key, 'stats/b.json')
+  await assert.rejects(binding.delete('stats/a.json'), error)
+  assert.equal(binding.peek('stats/a.json').text, 'a')
   await assert.rejects(binding.get('stats/a.json'), error)
   assert.equal(await (await binding.get('stats/b.json')).text(), 'b')
   await assert.rejects(binding.put('stats/b.json', 'c'), error)

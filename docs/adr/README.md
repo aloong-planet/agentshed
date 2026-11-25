@@ -111,7 +111,7 @@ ADR conventions for this repository:
 | [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted |
 | [0050](0050-landing-page-in-this-repository.md) | The landing page is in Chinese and English | Accepted |
 | [0055](0055-download-count.md) | The download count is the disk image's downloads from GitHub and the download host, added up hour by hour in a statistics file that starts over only when absent | Accepted |
-| [0056](0056-download-count-collected-by-a-cloudflare-worker.md) | A Cloudflare Worker on a Cron Trigger collects the download count every hour, deployed from infra and proven against the workflow before it takes over | Proposed |
+| [0056](0056-download-count-collected-by-a-cloudflare-worker.md) | A Cloudflare Worker on a Cron Trigger collects the download count every hour, deployed from infra, and a workflow that holds no secret watches it | Accepted |
 | [0057](0057-download-count-reads-github-with-a-read-only-token.md) | The download count's Worker reads GitHub's releases with the owner's read-only token, and never without it | Accepted |
 
 ## Retired numbers

@@ -1,66 +1,35 @@
 name: Download count
 
-# The landing page's download count (docs/specs/download-count.md, REQ-011; ADR-0055): every hour, GitHub's DMG
-# download counts and the download host's traffic up to the hour REQ-011/AC-04 counts to, published as
-# stats/downloads.json in the release bucket (scripts/download-count.mjs). In the shadow period (ADR-0056) a run that
-# wrote the file then compares it with the Worker's shadow file, appending to stats/shadow-comparisons.json, with the
-# run ID and commit GitHub sets in every run. The credentials, the first runs and resuming a stalled count are in
-# docs/ops/download-count.md; scripts/download-count-workflow.test.mjs guards the triggers and every condition below.
+# The download count's watchdog (docs/specs/download-count.md, Failure G8; ADR-0056). The count itself is the Worker's,
+# which aloong-planet/infra deploys: every hour it brings stats/downloads.json up to date in the release bucket. This
+# workflow holds no secret and writes nothing: every hour it reads the published file through the download host and
+# fails, so that GitHub notifies, when the file shows that the count may have stopped
+# (scripts/download-count-watchdog.mjs). What to do then is in docs/ops/download-count.md;
+# scripts/download-count-workflow.test.mjs guards the triggers and that the workflow reads no secret.
 on:
   schedule:
     # Minute 47 rather than the hour, when GitHub's scheduled runs crowd and are most often delayed
     - cron: '47 * * * *'
   workflow_dispatch:
-    inputs:
-      accept_gap:
-        description: Resume a count whose cursor the analytics no longer hold, recording the skipped hours as never counted
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
-# One run at a time: two runs would each start from the same cursor and count its hours twice
-concurrency:
-  group: download-count
-  cancel-in-progress: false
-
 env:
-  # The R2 mirror's download host (mac-distribution::REQ-004), whose traffic is counted
+  # The R2 mirror's download host (mac-distribution::REQ-004), which serves the statistics file
   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
 
 jobs:
-  count:
-    name: count the downloads
+  watch:
+    name: watch the download count
     runs-on: ubuntu-latest
-    # A run that hangs would hold up the next one, which waits for it
-    timeout-minutes: 10
-    env:
-      # A secret cannot appear in a step's `if`, so the job turns the set of secrets into a boolean first
-      HAS_CREDENTIALS: ${{ secrets.CF_ANALYTICS_API_TOKEN != '' && secrets.CF_ZONE_ID != '' && secrets.R2_ACCOUNT_ID != '' && secrets.R2_ACCESS_KEY_ID != '' && secrets.R2_SECRET_ACCESS_KEY != '' && secrets.R2_BUCKET != '' }}
+    timeout-minutes: 5
     steps:
-      # Fails rather than skips: a run without its credentials is a failed run (Implementation Decisions "The collection")
-      - name: Require the credentials
-        if: env.HAS_CREDENTIALS != 'true'
-        run: |
-          echo "::error::The CF_ANALYTICS_API_TOKEN, CF_ZONE_ID, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET secrets are not all set. They are written by Terraform in aloong-planet/infra (docs/ops/download-count.md); apply it and run again."
-          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - name: Count and publish
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          CF_ANALYTICS_API_TOKEN: ${{ secrets.CF_ANALYTICS_API_TOKEN }}
-          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
-          # The workflow's own token, read-only here, for GitHub's releases with the authenticated rate limit
-          GITHUB_TOKEN: ${{ github.token }}
-          # Only a manual run asked to accept a gap does so (Failure G3); a scheduled run never does
-          ACCEPT_GAP: ${{ github.event_name == 'workflow_dispatch' && inputs.accept_gap }}
-        run: node scripts/download-count.mjs
+      - name: Read the statistics file
+        run: node scripts/download-count-watchdog.mjs
