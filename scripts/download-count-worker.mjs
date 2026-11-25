@@ -1,6 +1,7 @@
 // The download count's Worker (download-count::REQ-011, Implementation Decisions "The collection", "The run record" and
 // "The shadow period"; ADR-0056): a Cron Trigger runs it every hour. It runs the core (download-count-core.mjs) on the
-// release bucket through the Worker's R2 binding, reading GitHub without a token, and appends the run to the run record.
+// release bucket through the Worker's R2 binding, reading GitHub with its read-only token (ADR-0057), and appends the
+// run to the run record.
 //
 // aloong-planet/infra's `workers` stack deploys this module, as the main module, and the core beside it from the
 // agentshed commit it pins, each checked against its pinned SHA-256, and binds the settings below
@@ -20,7 +21,7 @@ const MAX_RUNS = 336
 
 // The settings infra binds besides BUCKET (the R2 binding) and CORE_SHA256 (the core's pinned hash); ACCEPT_GAP_FROM,
 // a cursor whose gap a run accepts (Failure G3), is bound only while a gap is to be accepted, and empty means unset
-const SETTINGS = ['CF_ANALYTICS_API_TOKEN', 'CF_ZONE_ID', 'DOWNLOAD_HOST', 'GITHUB_REPOSITORY']
+const SETTINGS = ['CF_ANALYTICS_API_TOKEN', 'CF_ZONE_ID', 'DOWNLOAD_HOST', 'GITHUB_REPOSITORY', 'RELEASES_READ_TOKEN']
 
 const SOURCES = ['ok', 'failed', 'not-read']
 const GITHUB = ['ok', 'rate-limited', 'failed', 'not-read']
@@ -110,7 +111,7 @@ async function updateRuns(bucket, change) {
 /**
  * One run of the Cron Trigger (`controller.scheduledTime`, in milliseconds) on the Worker's settings (`env`), with the
  * fetch and clock given. It rejects when the run failed or its entry could not be appended to the run record, so that
- * Cloudflare reports the invocation as failed; a failure's text never holds the analytics token.
+ * Cloudflare reports the invocation as failed; a failure's text never holds either token.
  */
 export async function run(controller, env, { fetch, now, log = console.log, error: report = console.error }) {
   const fail = (message) => {
@@ -121,7 +122,8 @@ export async function run(controller, env, { fetch, now, log = console.log, erro
   if (!env.BUCKET) fail('BUCKET is not bound')
   const bucket = bindingBucket(env.BUCKET)
   const token = env.CF_ANALYTICS_API_TOKEN
-  const redact = (text) => (token ? text.replaceAll(token, '[the analytics token]') : text)
+  const credentials = [[token, '[the analytics token]'], [env.RELEASES_READ_TOKEN, '[the GitHub token]']]
+  const redact = (text) => credentials.reduce((redacted, [value, name]) => (value ? redacted.replaceAll(value, name) : redacted), text)
   const at = now()
 
   // A run that starts from the file it writes is where the shadow file starts: from the statistics file, or from
@@ -149,6 +151,7 @@ export async function run(controller, env, { fetch, now, log = console.log, erro
       fetch,
       now: at,
       repository: env.GITHUB_REPOSITORY,
+      githubToken: env.RELEASES_READ_TOKEN,
       analyticsToken: token,
       zone: env.CF_ZONE_ID,
       host: new URL(env.DOWNLOAD_HOST).hostname,

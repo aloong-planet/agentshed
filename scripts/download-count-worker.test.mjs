@@ -17,6 +17,10 @@
 //   the binding's calls, if Cloudflare counts them as subrequests), and one that rewrites a run record of 336
 //   entries, from about the shadow period's fourteenth day.
 // - The Cron Trigger firing every hour (download-count::REQ-011/AC-04): the run record after the apply.
+// - GitHub taking the real token, a fine-grained personal access token with public repositories read-only: the first
+//   run after infra binds it, whose run record entry reads `github` `ok`, or `failed` with HTTP 401 if it is refused.
+// - A token across the 200-character cut of a release GitHub lists that is not one: the failure would quote the part
+//   before the cut, which is not replaced. Not driven: it needs GitHub's answer to quote the caller's token.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -35,6 +39,7 @@ const settings = (bucket) => ({
   CF_ZONE_ID: 'zone-tag',
   DOWNLOAD_HOST: 'https://dl.agentshed.aloongplanet.com',
   GITHUB_REPOSITORY: 'aloong-planet/agentshed',
+  RELEASES_READ_TOKEN: 'gh-releases-token',
   CORE_SHA256: CORE
 })
 
@@ -160,8 +165,9 @@ test('a shadow run with the shadow file in the bucket builds on it, leaving the 
   assert.deepEqual(fileOf(bucket, 'stats/worker-runs.json'), { schemaVersion: 1, seed, runs: [earlier, wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z')] })
 })
 
-// "The collection": GitHub's releases without a token and with a User-Agent, every page
-test("a shadow run reads every page of GitHub's releases without a token and with the collection's User-Agent", async () => {
+// "The collection": GitHub's releases with the read-only token and a User-Agent, every page; the token goes to GitHub
+// only (any other address fails the stand-in, and so the run)
+test("a shadow run reads every page of GitHub's releases with the read-only token and the collection's User-Agent, and sends the token nowhere else", async () => {
   const copies = Array.from({ length: 241 }, (_, i) => copyOf(`v0.2.${i}`, { dmgDownloads: 1, idBase: 800000000 + i * 10 }))
   const bucket = r2Binding()
   const { settled, requests } = await runOn(bucket, { releases: [...REAL_RELEASES, ...copies] })
@@ -169,8 +175,14 @@ test("a shadow run reads every page of GitHub's releases without a token and wit
   const pages = requests.filter(({ to }) => to === 'github')
   assert.deepEqual(pages.map(({ page }) => page), [1, 2, 3])
   for (const { headers } of pages) {
-    assert.equal('authorization' in headers, false)
+    assert.equal(headers.authorization, 'Bearer gh-releases-token')
     assert.equal(headers['user-agent'], 'agentshed-download-count')
+  }
+  const analytics = requests.filter(({ to }) => to !== 'github')
+  assert.ok(analytics.length > 0)
+  for (const request of analytics) {
+    assert.equal(request.headers.authorization, 'Bearer cf-token')
+    assert.equal(JSON.stringify(request).includes('gh-releases-token'), false)
   }
   assert.equal(fileOf(bucket, 'stats/downloads-shadow.json').summary.sources.github, 261)
 })
@@ -217,7 +229,11 @@ const failedEntry = (outcomes) => ({
   scheduledTime: '2026-11-22T09:47:00.000Z', coreSha256: CORE, key: 'stats/downloads-shadow.json', written: false, ...outcomes, r2Cursor: null
 })
 const NOT_READ = { github: 'not-read', analytics: 'not-read', bucket: 'not-read' }
-const githubAnswers = (response) => ({ answer: { github: () => response() } })
+// GitHub answering `response` to a read with the Worker's token, and as usual to one without it: a run that read
+// again without the token, after any of GitHub's failures, would succeed
+const githubAnswers = (response) => ({
+  answer: { github: (page, { headers }) => (headers.authorization === 'Bearer gh-releases-token' ? response() : undefined) }
+})
 
 // Failures G1, G2 and G5 through a shadow run, and "The run record": a run that fails writes no shadow file and
 // records which source failed it, and how, with what failed it
@@ -231,6 +247,9 @@ test('a shadow run in which any read fails writes nothing, and records each sour
       { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /answered HTTP 403 for its rate limit$/],
     ['GitHub refusing for anything else', githubAnswers(() => json({ message: 'Resource not accessible' }, 403, { 'x-ratelimit-remaining': '41' })),
       { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 403$/],
+    // A token expired or revoked: GitHub's answer to a token it does not take, without rate-limit headers
+    ['GitHub refusing the token', githubAnswers(() => json({ message: 'Bad credentials', documentation_url: 'https://docs.github.com/rest', status: '401' }, 401)),
+      { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 401$/],
     ['GitHub answering 500', githubAnswers(() => json({ message: 'Server Error' }, 500)),
       { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 500$/],
     ['GitHub out of reach', githubAnswers(() => { throw new TypeError('fetch failed') }),
@@ -264,7 +283,10 @@ test('a shadow run in which any read fails writes nothing, and records each sour
       { github: 'ok', analytics: 'ok', bucket: 'failed' }, /is 999 bytes in the bucket, not the 1000 recorded$/],
     ['the write of the shadow file failing', { failing: { put: (key) => (key === 'stats/downloads-shadow.json' ? new Error('R2 put failed: InternalError') : undefined) } },
       { github: 'ok', analytics: 'ok', bucket: 'failed' }, /^R2 put failed: InternalError$/],
-    ['a setting missing', { env: { CF_ZONE_ID: undefined } }, NOT_READ, /^CF_ZONE_ID is not set$/]
+    ['a setting missing', { env: { CF_ZONE_ID: undefined } }, NOT_READ, /^CF_ZONE_ID is not set$/],
+    // "A run without its credentials fails": without the GitHub token the run reads nothing, GitHub included
+    ['the GitHub token missing', { env: { RELEASES_READ_TOKEN: undefined } }, NOT_READ, /^RELEASES_READ_TOKEN is not set$/],
+    ['the GitHub token empty', { env: { RELEASES_READ_TOKEN: '' } }, NOT_READ, /^RELEASES_READ_TOKEN is not set$/]
   ]
   for (const [label, { objects = {}, failing, ...world }, outcomes, reason] of cases) {
     const held = Object.fromEntries(Object.entries({ 'stats/downloads-shadow.json': SHADOW_AT_EIGHT, [DMG_KEY]: { size: 1000 }, ...objects }).filter(([, value]) => value !== undefined))
@@ -466,17 +488,27 @@ test('a run appended to a full run record drops the oldest run', async () => {
   assert.deepEqual(record.runs.at(-1), wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z'))
 })
 
-// "The run record": a failure is never a credential, even where an answer quotes the token
-test("a failure that quotes the analytics token is recorded, printed and thrown without it", async () => {
-  const token = 'cf-0123456789-secret'
-  const bucket = r2Binding({ objects: { 'stats/downloads-shadow.json': SHADOW_AT_EIGHT } })
-  const echo = () => json({ data: null, errors: [{ message: `the token ${token} is not authorized for zone-tag; ${token}` }] })
-  const { settled, lines } = await runOn(bucket, { env: { CF_ANALYTICS_API_TOKEN: token }, answer: { settings: echo } })
-  const error = await settled.then(() => null, (rejection) => rejection)
-  const { failure } = fileOf(bucket, 'stats/worker-runs.json').runs[0]
-  assert.equal(failure, "Cloudflare's analytics answered with errors: the token [the analytics token] is not authorized for zone-tag; [the analytics token]")
-  assert.equal(error.message, failure)
-  assert.deepEqual(lines, [`[download-count] ${failure}`])
+// "The run record": a failure is never a credential, even where an answer quotes a token whole
+test('a failure that quotes either token whole is recorded, printed and thrown without it', async () => {
+  const analyticsToken = 'cf-0123456789-secret'
+  const githubToken = 'github_pat_0123456789_secret'
+  const cases = [
+    ['the analytics token', { settings: () => json({ data: null, errors: [{ message: `the token ${analyticsToken} is not authorized for zone-tag; ${analyticsToken}` }] }) },
+      "Cloudflare's analytics answered with errors: the token [the analytics token] is not authorized for zone-tag; [the analytics token]"],
+    ['the GitHub token', { github: () => json([{ note: `the token ${githubToken}; ${githubToken}` }]) },
+      'GitHub listed a release that is not one: {"note":"the token [the GitHub token]; [the GitHub token]"}']
+  ]
+  for (const [label, answer, expected] of cases) {
+    const bucket = r2Binding({ objects: { 'stats/downloads-shadow.json': SHADOW_AT_EIGHT } })
+    const { settled, lines } = await runOn(bucket, { env: { CF_ANALYTICS_API_TOKEN: analyticsToken, RELEASES_READ_TOKEN: githubToken }, answer })
+    const error = await settled.then(() => null, (rejection) => rejection)
+    const record = bucket.peek('stats/worker-runs.json').text
+    const { failure } = JSON.parse(record).runs[0]
+    assert.equal(failure, expected, label)
+    assert.equal(error.message, failure, label)
+    assert.deepEqual(lines, [`[download-count] ${failure}`], label)
+    for (const token of [analyticsToken, githubToken]) assert.equal(record.includes(token), false, label)
+  }
 })
 
 test("a run record is taken only when it matches the spec's fields exactly", () => {

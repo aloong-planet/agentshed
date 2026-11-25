@@ -1,0 +1,45 @@
+# ADR-0057: The download count's Worker reads GitHub's releases with the owner's read-only token, and never without it
+
+- Status: Proposed
+
+## Context
+
+The Worker reads GitHub's releases every hour (ADR-0056), and how often those reads succeed decides whether it may take
+the statistics file over (download-count "The shadow period"). Terraform cannot create a GitHub token, so a GitHub
+credential is one the owner makes and renews by hand.
+
+## Options
+
+1. **A fine-grained personal access token on the owner's account, with public repositories read-only and no
+   permissions** — chosen.
+2. Reading the releases without a token — rejected: those reads share GitHub's limit per originating address with
+   other users of Cloudflare's network, and too few of them succeed for the switch (Sources).
+3. A read without the token when GitHub refuses it — rejected: a token expired or revoked would then hide among the
+   rate-limited runs, where a refusal shows in the run record as `failed`.
+
+## Decision
+
+We adopt **option 1**, and no read of GitHub's releases goes without the token (download-count "The collection",
+Failure G2).
+
+## Consequences
+
+- Positive: GitHub counts the Worker's reads against the owner's own limit, not against one that an address on
+  Cloudflare's network shares with its other users.
+- Positive: the token reads only public repositories, so whoever obtained it could read nothing that is not public.
+- Negative: the owner makes, renews and revokes the token by hand, outside Terraform, and every run fails while it is
+  unbound, expired or revoked (docs/ops/download-count.md).
+- Negative: its reads count toward the owner's personal limit of 5,000 requests an hour, which the owner's other
+  authenticated use of GitHub shares.
+- Neutral: the Download count workflow reads the releases with its own token, not with this one.
+
+## Sources
+
+GitHub: unauthenticated requests are limited to 60 an hour per originating IP address, and a personal access token's
+count toward its user's personal limit of 5,000 an hour
+(<https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api>, 2026-11-25); a fine-grained
+personal access token always reads every public repository
+(<https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens>,
+2026-11-25). The Worker's runs without a token (`stats/worker-runs.json`, 2026-11-25T03:34Z): GitHub `ok` in 3 of the
+first 7 and in 4 of 11, `rate-limited` in the rest. The owner's decision of 2026-11-25, in translation from Chinese:
+"Agreed, make the read-only GitHub token" and "The token is made, and the secret is stored."
