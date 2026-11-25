@@ -106,7 +106,7 @@ cursor is the one a workflow run at minute 47 reaches. Until the switch (the spe
 | `DOWNLOAD_HOST`, `GITHUB_REPOSITORY` | `https://dl.agentshed.aloongplanet.com` and `aloong-planet/agentshed` |
 | `CORE_SHA256` | The pinned SHA-256 of the core module, recorded in every run |
 | `ACCEPT_GAP_FROM` | Bound only while a gap is to be accepted (below) |
-| `RELEASES_READ_TOKEN` | The read-only GitHub token (a secret binding) the releases are read with, with the User-Agent `agentshed-download-count`; see "The read-only GitHub token" below |
+| `RELEASES_READ_TOKEN` | The read-only GitHub token (a secret binding) the releases are read with, with the User-Agent `agentshed-download-count`; see "When the Worker cannot read GitHub with its token" below |
 
 **A change to the Worker** takes two pull requests, in this order: the agentshed one, which changes the modules,
 merges first; then one in aloong-planet/infra pins its merge commit and the two modules' SHA-256 (`shasum -a 256
@@ -154,15 +154,11 @@ hold", naming the cursor. An infra pull request binds `ACCEPT_GAP_FROM` to that 
 and records it in the shadow file's `r2Gaps`, and any run whose cursor differs ignores the setting. Then the next infra
 pull request removes it.
 
-### The read-only GitHub token
+### When the Worker cannot read GitHub with its token
 
-| What | Value |
-|---|---|
-| Token | `public-releases-count`, a fine-grained personal access token on the owner's GitHub account: repository access "Public repositories", read-only, and no permissions. It reads only what anyone can, and the Worker's reads of the releases are its only use |
-| Secret | `RELEASES_READ_TOKEN` in aloong-planet/infra's `production` environment, which the `workers` stack binds to the Worker as the secret binding of the same name. Terraform does not create the token (ADR-0057) |
-| Its value | Never in this repository, the run record or a log: a failure that quotes it shows `[the GitHub token]` instead |
-
-The Worker never reads GitHub without the token. The run record shows when it cannot:
+The Worker reads GitHub's releases with the token bound as `RELEASES_READ_TOKEN`, and never without it (ADR-0057). A
+failure that quotes the token's value shows `[the GitHub token]` instead. The run record shows when it cannot read
+GitHub with the token:
 
 - **"RELEASES_READ_TOKEN is not set"**, with every source `not-read`: the binding is missing or empty, and every run
   fails. A Worker at a commit that reads the token fails this way until infra binds it, so the infra pull request that
@@ -170,30 +166,10 @@ The Worker never reads GitHub without the token. The run record shows when it ca
 - **"page 1 of GitHub's releases answered HTTP 401: Bad credentials"**, with `github` `failed`: GitHub does not take
   the token, which has expired or been revoked. Every run fails until it is replaced.
 - **"page 1 of GitHub's releases answered HTTP 403: …"**, with `github` `failed`: GitHub refused the read for another
-  reason than its rate limit; the text after the colon is GitHub's reason.
+  reason than its rate limit; the text after the colon is GitHub's reason. A token whose lifetime aloong-planet's
+  policy does not allow is refused this way, and every run fails until it is replaced.
 
-**To renew or replace it**, before its expiration if it was given one, or once GitHub refuses it:
-
-1. On GitHub, Settings → Developer settings → Personal access tokens → Fine-grained tokens, generate a new token with
-   the same settings, on the owner's account.
-2. Store it in infra's environment, pasting it when the command asks, never on the command line:
-
-   ```bash
-   gh secret set RELEASES_READ_TOKEN --env production -R aloong-planet/infra
-   ```
-
-3. A secret changes no file in infra, so start the stack's run by hand, then approve its Plan and its Apply:
-
-   ```bash
-   gh workflow run terraform-workers.yml -R aloong-planet/infra
-   ```
-
-   A Plan that stops at `releases_read_token` refuses the value stored: it is empty, or it is not the token alone (a
-   token of another kind, or the token with a space, a line break or another character a token cannot hold). Nothing
-   is deployed, and the Worker keeps the token it has. Store the token again (step 2), then start the run again.
-
-4. Check that the run record's next entry reads `github` `ok`, or `rate-limited` at worst; then delete the old token
-   on GitHub.
+To make, store, renew or replace the token: aloong-planet/infra, `docs/ops/releases-read-token.md`.
 
 ## The schedule stops after 60 days without activity
 
