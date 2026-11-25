@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The download count's hourly run in the Download count workflow (landing-page::REQ-011; ADR-0055): the core
+// The download count's hourly run in the Download count workflow (download-count::REQ-011; ADR-0055): the core
 // (scripts/download-count-core.mjs) run on the release bucket through aws-cli, with its settings from the environment.
 // In the shadow period (ADR-0056), a run that wrote the statistics file then compares it with the Worker's shadow file
 // and appends the comparison to the comparison record (scripts/download-count-compare.mjs); a comparison never fails

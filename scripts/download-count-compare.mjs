@@ -1,4 +1,4 @@
-// The shadow period's comparison (landing-page::REQ-011, Implementation Decisions "The shadow period"; ADR-0056): after
+// The shadow period's comparison (download-count::REQ-011, Implementation Decisions "The shadow period"; ADR-0056): after
 // each run in which it wrote the statistics file, the Download count workflow compares that file with the Worker's
 // shadow file and appends the comparison to the comparison record, which it alone writes. The rules here read and
 // write no file; the workflow's entry (download-count.mjs) reads the three files and writes the record.

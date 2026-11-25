@@ -1,4 +1,4 @@
-// The download count's Worker (landing-page::REQ-011, Implementation Decisions "The collection", "The run record" and
+// The download count's Worker (download-count::REQ-011, Implementation Decisions "The collection", "The run record" and
 // "The shadow period"; ADR-0056): a Cron Trigger runs it every hour. It runs the core (download-count-core.mjs) on the
 // release bucket through the Worker's R2 binding, reading GitHub without a token, and appends the run to the run record.
 //

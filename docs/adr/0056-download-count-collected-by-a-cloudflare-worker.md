@@ -4,7 +4,7 @@
 
 ## Context
 
-The download count has to be brought up to date every hour (landing-page::REQ-011/AC-04), and GitHub's schedule does
+The download count has to be brought up to date every hour (download-count::REQ-011/AC-04), and GitHub's schedule does
 not run this repository's workflow anywhere near that often. New credentials may only come from Terraform, nothing
 may need a paid plan, and the R2 share cannot be recounted once the analytics no longer hold its hours.
 
@@ -34,8 +34,8 @@ may need a paid plan, and the R2 share cannot be recounted once the analytics no
 
 ## Decision
 
-We adopt **option 1**. The Worker takes the statistics file over only once landing-page's "The shadow period" has
-proven it against the workflow, which then becomes the watchdog (landing-page Failure G8).
+We adopt **option 1**. The Worker takes the statistics file over only once download-count's "The shadow period" has
+proven it against the workflow, which then becomes the watchdog (download-count Failure G8).
 
 ## Consequences
 
@@ -49,7 +49,7 @@ proven it against the workflow, which then becomes the watchdog (landing-page Fa
 - Negative: every change to the Worker's code needs a second pull request in infra to pin it, and infra's state holds
   an account-wide Workers token.
 - Negative: the Worker and the shadow period's comparisons add R2 operations, charged only when the account is already
-  beyond R2's free tier (landing-page::CON-004).
+  beyond R2's free tier (download-count::CON-004).
 - Neutral: GitHub's 60-day disabling can no longer stop the count, only its watchdog.
 
 ## Sources
