@@ -2,6 +2,7 @@
 
 > Related: [ADR-0055](../adr/0055-download-count.md) (what the count counts) ·
 > [ADR-0056](../adr/0056-download-count-collected-by-a-cloudflare-worker.md) (the Worker that collects it) ·
+> [ADR-0057](../adr/0057-download-count-reads-github-with-a-read-only-token.md) (the token it reads GitHub with) ·
 > [mac-distribution](mac-distribution.md) (the releases, the release bucket and the download host,
 > mac-distribution::REQ-004)
 
@@ -52,7 +53,7 @@ R2's free tier.
   other than 1 or does not match the statistics file's fields (Implementation Decisions) → the run fails
   and writes nothing. The count starts over only when the bucket holds no such object.
 - G2 A run in which any read fails or answers what the run cannot validate (GitHub's releases, GitHub
-  refusing a read without a token for its rate limit included; the bucket's listing; the analytics or their
+  refusing the token or refusing a read for its rate limit included; the bucket's listing; the analytics or their
   limits) → it writes nothing and the cursor stays where it was; the next run counts the hours this one missed.
 - G3 A cursor older than the oldest full hour the analytics still hold, after the collection stopped or its
   runs kept failing → every run fails, until the gap is accepted: a run whose cursor equals the Worker's
@@ -94,8 +95,9 @@ R2's free tier.
   asset or object named `Agentshed-<version>-mac-<arch>.dmg`, the packaged name, with `<version>` an `x.y.z`
   version, optionally with a pre-release suffix, and `<arch>` one of `arm64`, `x64` and `universal`. A run
   reads the previous statistics file from the bucket itself, through the Worker's binding to it, never through
-  the download host's cache; GitHub's releases, every page, drafts skipped, without a token and with a
-  User-Agent; the bucket's listing under `releases/`, every page of it; and Cloudflare's
+  the download host's cache; GitHub's releases, every page, drafts skipped, with a User-Agent and a read-only GitHub
+  token (ADR-0057) that no other request carries, never without it; the bucket's listing under `releases/`, every
+  page of it; and Cloudflare's
   `httpRequestsAdaptiveGroups` for the zone, filtered to the download host as `clientRequestHTTPHost`, to the
   method and statuses download-count::REQ-011/AC-02 counts, to `clientRequestPath` under `/releases/` and to
   `requestSource` `eyeball`, summing `edgeResponseBytes` by `clientRequestPath`. It first reads the dataset's

@@ -81,14 +81,15 @@ export const zoneAnswer = (zone) => json({ data: { viewer: { zones: [zone] } }, 
 /**
  * The sources as a fetch: GitHub's `releases`, 100 to a page, and the analytics answering `limits` and, for a range,
  * the rows of each hour in it (`traffic`: hour -> [{ path, bytes }]), summed by path. `answer` replaces an answer, or
- * throws for a call that fails; `requests` records what was asked, in order, and may be shared with a bucket's stand-in.
+ * throws for a call that fails, and leaves the usual answer where it answers undefined; GitHub's is given the page and
+ * the request. `requests` records what was asked, in order, and may be shared with a bucket's stand-in.
  */
 export function sources({ releases = REAL_RELEASES, limits = LIMITS, traffic = {}, answer = {}, requests = [] } = {}) {
   return async (url, init = {}) => {
     if (url.startsWith(RELEASES_PAGE)) {
       const page = Number(url.slice(RELEASES_PAGE.length))
       requests.push({ to: 'github', page, headers: init.headers })
-      return answer.github?.(page) ?? json(releases.slice((page - 1) * 100, page * 100))
+      return answer.github?.(page, init) ?? json(releases.slice((page - 1) * 100, page * 100))
     }
     if (url === GRAPHQL && init.method === 'POST') {
       const { query, variables } = JSON.parse(init.body)

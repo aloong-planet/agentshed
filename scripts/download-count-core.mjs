@@ -10,7 +10,7 @@
 // putText(key, text, { cacheControl, contentType }).
 // So a runtime without Node, such as a Cloudflare Worker, can run it with a bucket of its own; the Download count
 // workflow runs it through scripts/download-count.mjs, with aws-cli's and the workflow's GitHub token, and the Worker
-// through scripts/download-count-worker.mjs, with its binding's and no GitHub token.
+// through scripts/download-count-worker.mjs, with its binding's and its read-only GitHub token.
 //
 // Every read comes first; only when all of them succeeded is the file written, so a failed run leaves the previous
 // file and its cursor as they were, and says which source failed it.
@@ -248,8 +248,8 @@ async function rateLimited(response) {
 }
 
 /**
- * GitHub's releases of the repository, every page, read with the token when there is one (the workflow's) and
- * without one otherwise (the Worker's: Implementation Decisions "The collection")
+ * GitHub's releases of the repository, every page, read with the token given: the workflow's, or the Worker's read-only
+ * one (Implementation Decisions "The collection")
  */
 async function readReleases(fetch, { repository, token }) {
   const releases = []
