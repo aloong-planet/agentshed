@@ -222,8 +222,42 @@ async function readPrevious(bucket, key, seedKey) {
 const RELEASES_PER_PAGE = 100
 const MAX_RELEASE_PAGES = 100
 
-async function jsonOf(response, what) {
-  if (response.status !== 200) throw new Error(`${what} answered HTTP ${response.status}`)
+/**
+ * The reason an answer refusing a read gives, whole (Implementation Decisions "The run record"): its `message`, or
+ * else the `message` of each of its `errors`, joined by "; "; null for a body that is not JSON or gives neither
+ */
+export function reasonOf(text) {
+  let answer
+  try {
+    answer = JSON.parse(text)
+  } catch {
+    return null
+  }
+  const said = (message) => typeof message === 'string' && message.trim() !== ''
+  if (said(answer?.message)) return answer.message
+  const messages = Array.isArray(answer?.errors) ? answer.errors.map((error) => error?.message).filter(said) : []
+  return messages.length > 0 ? messages.join('; ') : null
+}
+
+/**
+ * An answer's JSON. An answer with another status than HTTP 200 fails the read with the reason it gives, if any; one
+ * that `limited` takes for a rate limit says so and is marked as one.
+ */
+async function jsonOf(response, what, { limited = () => false } = {}) {
+  if (response.status !== 200) {
+    let body = null
+    try {
+      body = await response.text()
+    } catch {
+      // A body that cannot be read gives no reason
+    }
+    const reason = body === null ? null : reasonOf(body)
+    const quoted = reason === null ? '' : `: ${reason}`
+    if (limited(response, reason)) {
+      throw Object.assign(new Error(`${what} answered HTTP ${response.status} for its rate limit${quoted}`), { rateLimited: true })
+    }
+    throw new Error(`${what} answered HTTP ${response.status}${quoted}`)
+  }
   try {
     return await response.json()
   } catch {
@@ -233,18 +267,12 @@ async function jsonOf(response, what) {
 
 /**
  * Whether GitHub refused a read for its rate limit (Implementation Decisions "The run record"): HTTP 403 or 429 with
- * `x-ratelimit-remaining` 0, or with a message naming a secondary rate limit
+ * `x-ratelimit-remaining` 0, or with a reason naming a secondary rate limit
  */
-async function rateLimited(response) {
+function rateLimited(response, reason) {
   if (response.status !== 403 && response.status !== 429) return false
   if (response.headers.get('x-ratelimit-remaining') === '0') return true
-  let message
-  try {
-    message = (await response.json())?.message
-  } catch {
-    return false
-  }
-  return typeof message === 'string' && /secondary rate limit/i.test(message)
+  return reason !== null && /secondary rate limit/i.test(reason)
 }
 
 /**
@@ -262,10 +290,7 @@ async function readReleases(fetch, { repository, token }) {
         'x-github-api-version': '2022-11-28'
       }
     })
-    if (await rateLimited(response)) {
-      throw Object.assign(new Error(`page ${page} of GitHub's releases answered HTTP ${response.status} for its rate limit`), { rateLimited: true })
-    }
-    const answer = await jsonOf(response, `page ${page} of GitHub's releases`)
+    const answer = await jsonOf(response, `page ${page} of GitHub's releases`, { limited: rateLimited })
     if (!Array.isArray(answer)) throw new Error(`page ${page} of GitHub's releases is not a list`)
     releases.push(...answer)
     if (answer.length < RELEASES_PER_PAGE) return releases

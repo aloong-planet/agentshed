@@ -19,6 +19,8 @@
 // - The Cron Trigger firing every hour (download-count::REQ-011/AC-04): the run record after the apply.
 // - GitHub taking the real token, a fine-grained personal access token with public repositories read-only: the first
 //   run after infra binds it, whose run record entry reads `github` `ok`, or `failed` with HTTP 401 if it is refused.
+// - A refusal's reason: the refusals here are shaped from GitHub's and Cloudflare's answers to a made-up token
+//   (2026-11-25); what either answers when it refuses the real token is seen only in a run it refuses.
 // - A token across the 200-character cut of a release GitHub lists that is not one: the failure would quote the part
 //   before the cut, which is not replaced. Not driven: it needs GitHub's answer to quote the caller's token.
 import { test } from 'node:test'
@@ -240,22 +242,22 @@ const githubAnswers = (response) => ({
 test('a shadow run in which any read fails writes nothing, and records each source as it stood and what failed it', async () => {
   const cases = [
     ['GitHub refusing for its rate limit, no request left', githubAnswers(() => json({ message: 'API rate limit exceeded for 203.0.113.7.' }, 403, { 'x-ratelimit-remaining': '0' })),
-      { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 403 for its rate limit$/],
+      { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 403 for its rate limit: API rate limit exceeded for 203\.0\.113\.7\.$/],
     ['GitHub answering 429, no request left', githubAnswers(() => json({ message: 'Too many requests' }, 429, { 'x-ratelimit-remaining': '0' })),
-      { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /answered HTTP 429 for its rate limit$/],
+      { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /answered HTTP 429 for its rate limit: Too many requests$/],
     ['GitHub naming a secondary rate limit', githubAnswers(() => json({ message: 'You have exceeded a secondary rate limit. Please wait a few minutes before you try again.' }, 403, { 'x-ratelimit-remaining': '41' })),
-      { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /answered HTTP 403 for its rate limit$/],
-    ['GitHub refusing for anything else', githubAnswers(() => json({ message: 'Resource not accessible' }, 403, { 'x-ratelimit-remaining': '41' })),
-      { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 403$/],
-    // A token expired or revoked: GitHub's answer to a token it does not take, without rate-limit headers
-    ['GitHub refusing the token', githubAnswers(() => json({ message: 'Bad credentials', documentation_url: 'https://docs.github.com/rest', status: '401' }, 401)),
-      { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 401$/],
-    ['GitHub answering 500', githubAnswers(() => json({ message: 'Server Error' }, 500)),
-      { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 500$/],
+      { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /answered HTTP 403 for its rate limit: You have exceeded a secondary rate limit\. Please wait a few minutes before you try again\.$/],
+    // A refusal for anything else quotes GitHub's reason, in the shape of GitHub's own answer to a token it does not take
+    // (a request with a made-up token, 2026-11-25)
+    ['GitHub refusing for anything else', githubAnswers(() => json({ message: 'Resource not accessible by personal access token', documentation_url: 'https://docs.github.com/rest', status: '403' }, 403, { 'x-ratelimit-remaining': '41' })),
+      { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 403: Resource not accessible by personal access token$/],
     ['GitHub out of reach', githubAnswers(() => { throw new TypeError('fetch failed') }),
       { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^fetch failed$/],
     ["the analytics' traffic answering 500", { answer: { traffic: () => text('upstream error', 500) } },
       { github: 'ok', analytics: 'failed', bucket: 'ok' }, /^Cloudflare's analytics answered HTTP 500$/],
+    // Cloudflare's own answer to a token it does not take (a request with a made-up token, 2026-11-25)
+    ['the analytics refusing the token', { answer: { settings: () => json({ success: false, errors: [{ code: 9106, message: 'Authentication failed (status: 400)' }], messages: [], result: null }, 400) } },
+      { github: 'ok', analytics: 'failed', bucket: 'ok' }, /^Cloudflare's analytics answered HTTP 400: Authentication failed \(status: 400\)$/],
     ['the shadow file that cannot be read', { failing: { get: (key) => (key === 'stats/downloads-shadow.json' ? new Error('R2 get failed: InternalError') : undefined) } },
       { github: 'not-read', analytics: 'not-read', bucket: 'failed' }, /^R2 get failed: InternalError$/],
     ['the listing under releases/ failing', { failing: { list: (prefix) => (prefix === 'releases/' ? new Error('R2 list failed: InternalError') : undefined) } },
@@ -496,7 +498,10 @@ test('a failure that quotes either token whole is recorded, printed and thrown w
     ['the analytics token', { settings: () => json({ data: null, errors: [{ message: `the token ${analyticsToken} is not authorized for zone-tag; ${analyticsToken}` }] }) },
       "Cloudflare's analytics answered with errors: the token [the analytics token] is not authorized for zone-tag; [the analytics token]"],
     ['the GitHub token', { github: () => json([{ note: `the token ${githubToken}; ${githubToken}` }]) },
-      'GitHub listed a release that is not one: {"note":"the token [the GitHub token]; [the GitHub token]"}']
+      'GitHub listed a release that is not one: {"note":"the token [the GitHub token]; [the GitHub token]"}'],
+    ["the GitHub token in a refusal's reason",
+      { github: () => json({ message: `the token ${githubToken} is not accepted; ${githubToken}`, documentation_url: 'https://docs.github.com/rest', status: '403' }, 403) },
+      "page 1 of GitHub's releases answered HTTP 403: the token [the GitHub token] is not accepted; [the GitHub token]"]
   ]
   for (const [label, answer, expected] of cases) {
     const bucket = r2Binding({ objects: { 'stats/downloads-shadow.json': SHADOW_AT_EIGHT } })

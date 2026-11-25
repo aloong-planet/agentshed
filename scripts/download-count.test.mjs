@@ -20,7 +20,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { awsBucket } from './lib/r2-bucket.mjs'
-import { collect, isDmg, mergeGitHub, mergeR2, planRanges, summarize, validateStatistics } from './download-count-core.mjs'
+import { collect, isDmg, mergeGitHub, mergeR2, planRanges, reasonOf, summarize, validateStatistics } from './download-count-core.mjs'
 import { main } from './download-count.mjs'
 import { imports } from './testing/module-imports.mjs'
 import {
@@ -418,6 +418,25 @@ test("GitHub's releases are read page after page with the workflow's token, unti
     assert.equal(headers['x-github-api-version'], '2022-11-28')
   }
   assert.equal(published(bucket).summary.sources.github, 261)
+})
+
+// "The run record": a read answered with another status than HTTP 200 quotes the reason its answer gives, whole. The
+// first two are GitHub's and Cloudflare's own answers to a token they do not take (requests with a made-up token,
+// 2026-11-25), GitHub's as it prints it
+test("a refused read's reason is its answer's message, or else each of its errors' messages, and none when it gives neither", () => {
+  const cases = [
+    ['{\n  "message": "Bad credentials",\n  "documentation_url": "https://docs.github.com/rest",\n  "status": "401"\n}', 'Bad credentials'],
+    ['{"success":false,"errors":[{"code":9106,"message":"Authentication failed (status: 400)"}],"messages":[],"result":null}', 'Authentication failed (status: 400)'],
+    ['{"success":false,"errors":[{"code":9106,"message":"Authentication failed (status: 400)"},{"code":10000,"message":"Authentication error"}],"messages":[],"result":null}',
+      'Authentication failed (status: 400); Authentication error'],
+    ['{"message":"Validation Failed","errors":[{"resource":"Release","code":"invalid","message":"tag_name is not valid"}]}', 'Validation Failed'],
+    ['upstream error', null],
+    ['null', null],
+    ['{"success":false}', null],
+    ['{"message":"  "}', null],
+    ['{"errors":[{"code":9106}]}', null]
+  ]
+  for (const [answer, reason] of cases) assert.equal(reasonOf(answer), reason, answer)
 })
 
 /** A bucket whose listing of one prefix fails; the listing of any other is the bucket's */
