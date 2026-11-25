@@ -392,7 +392,7 @@ async function readTraffic(fetch, analytics, { host, range, limit }) {
  * succeeded is the new statistics file written at stats/downloads.json; a read that fails, or answers what the run
  * cannot validate, fails the run with nothing written and the cursor where it was, so the next run counts the hours
  * this one missed (Failure G2). A run given no GitHub token, `githubToken` not a string or empty, fails before any read
- * ("A run without its credentials fails"): GitHub would answer a public repository's releases to a read without one.
+ * ("A run without its credentials fails"): no request goes out, and every source is `not-read`.
  *
  * A cursor older than the analytics hold is accepted when it equals `acceptGapFrom` (Failure G3). The run answers the
  * file it wrote.

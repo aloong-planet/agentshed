@@ -415,8 +415,7 @@ test("GitHub's releases are read page after page with the token the run is given
 })
 
 // "The collection": a run without its credentials fails, and "The run record": a source with no read started is
-// `not-read`. GitHub would answer a public repository's releases to a read without a token, so only the core's own
-// refusal keeps such a run from counting
+// `not-read`. No request goes out, so none carries a token that is not set
 test('a run given no GitHub token reads nothing and fails, with every source not read', async () => {
   for (const githubToken of [undefined, '']) {
     const { store, fetch, requests } = world()
