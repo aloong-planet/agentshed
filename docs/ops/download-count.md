@@ -16,7 +16,7 @@ and the workflow that watches it, and ADR-0057 for the token it reads GitHub wit
 | Watchdog | `.github/workflows/download-count.yml`, "Download count": every hour at minute 47, and by hand. It runs `scripts/download-count-watchdog.mjs`, holds no secret and writes nothing |
 | Analytics token | `agentshed-download-count`: an account API token with the zone permission group "Analytics Read" on `aloongplanet.com`, and nothing else. Managed with Terraform in [`aloong-planet/infra`](https://github.com/aloong-planet/infra), stack `apps` (`stacks/apps/download-counts.tf`), and bound to the Worker |
 | GitHub token | The read-only token bound to the Worker as `RELEASES_READ_TOKEN` ("When the Worker cannot read GitHub with its token" below) |
-| Left from the shadow period | `stats/downloads-shadow.json`, which every Worker run deletes while the bucket holds it; `stats/shadow-comparisons.json`, the shadow period's comparisons with the workflow's count, written no more |
+| Left from the shadow period | `stats/shadow-comparisons.json`, the shadow period's comparisons with the workflow's count, written no more |
 
 ## What a Worker run does
 
@@ -32,19 +32,17 @@ and the workflow that watches it, and ADR-0057 for the token it reads GitHub wit
 5. Only after every read has succeeded does it write the new file, and only if the file is still the one it read
    (Failure G10). A run that fails writes nothing, and the cursor stays where it was. The next run counts the hours
    the failed one missed (Failure G2).
-6. It deletes `stats/downloads-shadow.json` when the bucket holds it, whether it wrote the statistics file or not. A
-   deletion that fails is logged as "stats/downloads-shadow.json was not deleted: …", fails nothing else, and the
-   next run tries again.
-7. It appends its entry to the run record and logs one line: the total, GitHub's share, the download host's share,
+6. It appends its entry to the run record and logs one line: the total, GitHub's share, the download host's share,
    and the hour counted to. No credential is ever logged. A run that failed, or whose entry could not be appended,
    also fails the invocation, which then shows as an error, with that text, in the Worker's Cron Events in
    Cloudflare's dashboard.
 
 An entry in the run record says which file the run wrote, whether it did, how each source fared (`github` is
-`rate-limited` when GitHub refused the read for its rate limit), what failed the run, with both tokens removed, the
-cursor reached, and what became of the shadow file (`shadowFile`: `deleted`, `absent` or `failed`). A read GitHub or
-Cloudflare refused shows as the status they answered and, after a colon, the reason they gave, if any. The entries
-from the shadow period, `key` `stats/downloads-shadow.json`, have no `shadowFile`. To read the newest entries:
+`rate-limited` when GitHub refused the read for its rate limit), what failed the run, with both tokens removed, and
+the cursor reached. A read GitHub or Cloudflare refused shows as the status they answered and, after a colon, the
+reason they gave, if any. The oldest entries are earlier Workers', until they age out: the shadow period's, `key`
+`stats/downloads-shadow.json`, then those of the first runs on the statistics file, which also say what became of the
+shadow file (`shadowFile`: `deleted`, `absent` or `failed`). To read the newest entries:
 
 ```bash
 curl -sS https://dl.agentshed.aloongplanet.com/stats/worker-runs.json | jq -c '.runs[-24:][]'
@@ -119,9 +117,9 @@ merges first; then one in aloong-planet/infra pins its merge commit and the two 
 scripts/download-count-worker.mjs scripts/download-count-core.mjs` at that commit). A hash that does not match fails
 infra's plan, and nothing is deployed.
 
-**After an apply**, check the run record's newest entries: one an hour, `key` `stats/downloads.json`, `written` true,
-and `shadowFile` `absent` once a run has deleted the shadow file. Whether the binding enforces the conditions every
-write carries (Failure G10), an etag or `If-None-Match: *`, is what Cloudflare documents; it has not been observed.
+**After an apply**, check the run record's newest entries: one an hour, `key` `stats/downloads.json`, `written` true.
+Whether the binding enforces the conditions every write carries (Failure G10), an etag or `If-None-Match: *`, is what
+Cloudflare documents; it has not been observed.
 
 **A stalled Worker count** (Failure G3): every run fails with "… is older than …, the oldest full hour the analytics
 hold", naming the cursor. An infra pull request binds `ACCEPT_GAP_FROM` to that cursor; the next run accepts the gap
