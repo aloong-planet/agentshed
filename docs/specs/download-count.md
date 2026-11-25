@@ -71,7 +71,7 @@ $0.03 a month at R2's listed prices, and only when the account is already beyond
   the watchdog's clock or more than 5 minutes after it; the failed run shows the run record's newest 24 entries.
 - G9 A run record that cannot be read, or that is not one (Implementation Decisions) → the statistics file is
   counted and written as in any other run; nothing is appended to the run record, which is left as it is, and the
-  run reports it. A run whose run-record entry was not appended counts as missing.
+  run reports it.
 - G10 Two runs overlapping → a run writes its file only if it is still the object the run read, and creates it
   only if there is none; the run that finds it changed fails (Failure G2), so an older read never replaces a
   newer count.
@@ -100,9 +100,9 @@ $0.03 a month at R2's listed prices, and only when the account is already beyond
   rows, and on a first run starts at the oldest full hour `notOlderThan` allows. A range answered with a full
   page fails the run, and so does an analytics answer that carries `errors`, even with HTTP 200, or that is
   not for exactly one zone. It writes the new file (Failures G2, G10) as `application/json` with
-  `public, max-age=300`. A run without its credentials fails. Every run, whether it wrote the file or not, also
-  deletes `stats/downloads-shadow.json` when the bucket holds it; a deletion that fails fails nothing else, and the
-  next run tries again.
+  `public, max-age=300`. A run without its credentials fails. Every run that has its bucket and its core's pinned
+  hash, whether it wrote the file or not, also deletes `stats/downloads-shadow.json` when the bucket holds it; a
+  deletion that fails fails nothing else, and the next run tries again.
 - **The statistics file** is JSON with these fields. The collection keeps publishing every one of them, with the
   type and meaning the table gives it.
 
