@@ -48,7 +48,8 @@ shadow file (`shadowFile`: `deleted`, `absent` or `failed`). To read the newest 
 curl -sS https://dl.agentshed.aloongplanet.com/stats/worker-runs.json | jq -c '.runs[-24:][]'
 ```
 
-The download host caches both files for five minutes.
+Both files are served with `Cache-Control: public, max-age=300`, so a browser may show a copy up to five minutes old;
+Cloudflare's edge does not cache them (`cf-cache-status: DYNAMIC`).
 
 ## What the watchdog does
 

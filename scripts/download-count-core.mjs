@@ -1,8 +1,7 @@
 // The download count's core (download-count::REQ-011, Implementation Decisions "The collection" and "The statistics
 // file"; ADR-0055, ADR-0056): an hourly run adds the download host's traffic, read from Cloudflare's analytics up to
 // the hour download-count::REQ-011/AC-04 counts to, to the download counts GitHub reports for the DMG assets, and
-// publishes the sum in the release bucket as stats/downloads.json, which the landing page reads through the download
-// host.
+// publishes the sum in the release bucket as stats/downloads.json, which the download host serves.
 //
 // It imports nothing, Node's modules included, and reaches the bucket only through the one it is given, whose calls it
 // awaits: list(prefix) answering [{ key, size }] for every object whose key starts with prefix, every page of the
@@ -197,7 +196,7 @@ export const RUNS_KEY = 'stats/worker-runs.json'
 export const SHA256 = /^[0-9a-f]{64}$/
 /**
  * How every file of the count is written (Implementation Decisions "The collection" and "The run record"): JSON, which
- * the download host caches for five minutes
+ * a reader's cache may keep for five minutes
  */
 export const WRITE_OPTIONS = Object.freeze({ cacheControl: 'public, max-age=300', contentType: 'application/json' })
 

@@ -24,8 +24,8 @@ const SETTINGS = ['CF_ANALYTICS_API_TOKEN', 'CF_ZONE_ID', 'DOWNLOAD_HOST', 'GITH
 const SOURCES = ['ok', 'failed', 'not-read']
 const GITHUB = ['ok', 'rate-limited', 'failed', 'not-read']
 const ENTRY = ['scheduledTime', 'coreSha256', 'key', 'written', 'github', 'analytics', 'bucket', 'failure', 'r2Cursor']
-// What a run of an earlier Worker, which deleted the shadow file, found of it: deleted, not there, or there and not
-// deleted
+// What a run of an earlier Worker, which deleted the shadow file, found of it: deleted, not there, or not found or not
+// deleted, its head or its delete having failed
 const SHADOW_FILE = ['deleted', 'absent', 'failed']
 
 /**
