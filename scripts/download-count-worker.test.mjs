@@ -19,6 +19,8 @@
 // - The Cron Trigger firing every hour (download-count::REQ-011/AC-04): the run record after the apply.
 // - GitHub taking the real token, a fine-grained personal access token with public repositories read-only: the first
 //   run after infra binds it, whose run record entry reads `github` `ok`, or `failed` with HTTP 401 if it is refused.
+// - A token across the 200-character cut of a release GitHub lists that is not one: the failure would quote the part
+//   before the cut, which is not replaced. Not driven: it needs GitHub's answer to quote the caller's token.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -227,10 +229,9 @@ const failedEntry = (outcomes) => ({
   scheduledTime: '2026-11-22T09:47:00.000Z', coreSha256: CORE, key: 'stats/downloads-shadow.json', written: false, ...outcomes, r2Cursor: null
 })
 const NOT_READ = { github: 'not-read', analytics: 'not-read', bucket: 'not-read' }
-const githubAnswers = (response) => ({ answer: { github: () => response() } })
 // GitHub answering `response` to a read with the Worker's token, and as usual to one without it: a run that read
-// again without the token would succeed
-const refusingTheToken = (response) => ({
+// again without the token, after any of GitHub's failures, would succeed
+const githubAnswers = (response) => ({
   answer: { github: (page, { headers }) => (headers.authorization === 'Bearer gh-releases-token' ? response() : undefined) }
 })
 
@@ -244,10 +245,10 @@ test('a shadow run in which any read fails writes nothing, and records each sour
       { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /answered HTTP 429 for its rate limit$/],
     ['GitHub naming a secondary rate limit', githubAnswers(() => json({ message: 'You have exceeded a secondary rate limit. Please wait a few minutes before you try again.' }, 403, { 'x-ratelimit-remaining': '41' })),
       { github: 'rate-limited', analytics: 'not-read', bucket: 'ok' }, /answered HTTP 403 for its rate limit$/],
-    ['GitHub refusing for anything else', refusingTheToken(() => json({ message: 'Resource not accessible' }, 403, { 'x-ratelimit-remaining': '41' })),
+    ['GitHub refusing for anything else', githubAnswers(() => json({ message: 'Resource not accessible' }, 403, { 'x-ratelimit-remaining': '41' })),
       { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 403$/],
     // A token expired or revoked: GitHub's answer to a token it does not take, without rate-limit headers
-    ['GitHub refusing the token', refusingTheToken(() => json({ message: 'Bad credentials', documentation_url: 'https://docs.github.com/rest', status: '401' }, 401)),
+    ['GitHub refusing the token', githubAnswers(() => json({ message: 'Bad credentials', documentation_url: 'https://docs.github.com/rest', status: '401' }, 401)),
       { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 401$/],
     ['GitHub answering 500', githubAnswers(() => json({ message: 'Server Error' }, 500)),
       { github: 'failed', analytics: 'not-read', bucket: 'ok' }, /^page 1 of GitHub's releases answered HTTP 500$/],
@@ -487,8 +488,8 @@ test('a run appended to a full run record drops the oldest run', async () => {
   assert.deepEqual(record.runs.at(-1), wrote('2026-11-22T09:47:00.000Z', '2026-11-22T09:00:00Z'))
 })
 
-// "The run record": a failure is never a credential, even where an answer quotes a token
-test('a failure that quotes either token is recorded, printed and thrown without it', async () => {
+// "The run record": a failure is never a credential, even where an answer quotes a token whole
+test('a failure that quotes either token whole is recorded, printed and thrown without it', async () => {
   const analyticsToken = 'cf-0123456789-secret'
   const githubToken = 'github_pat_0123456789_secret'
   const cases = [

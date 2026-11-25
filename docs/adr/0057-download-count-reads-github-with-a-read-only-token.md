@@ -42,6 +42,4 @@ personal access token always reads every public repository
 (<https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens>,
 2026-11-25). The Worker's runs without a token (`stats/worker-runs.json`, 2026-11-25T03:34Z): GitHub `ok` in 3 of the
 first 7 and in 4 of 11, `rate-limited` in the rest. The owner's decision of 2026-11-25, in translation from Chinese:
-asked what a read-only GitHub token solves, the owner replied "Agreed, make the read-only GitHub token; how should it be
-done?", named it ("ok, call it public-releases-count; what next?") and reported "The token is made, and the secret is
-stored."
+"Agreed, make the read-only GitHub token" and "The token is made, and the secret is stored."
