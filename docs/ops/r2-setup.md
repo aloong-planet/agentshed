@@ -32,7 +32,7 @@ apply.
 | `stats/worker-runs.json` | `application/json` | `public, max-age=300`: the Worker's run record, its newest 336 runs |
 | `stats/shadow-comparisons.json` | `application/json` | `public, max-age=300`: the workflow's comparisons of the two files in the shadow period |
 
-`latest.json` is what the landing page reads (mac-distribution::REQ-004/AC-02, landing-page::REQ-001):
+`latest.json` is what the landing page reads (mac-distribution::REQ-004/AC-02, [agentshed-site::REQ-001](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md)):
 
 ```json
 {
@@ -102,7 +102,7 @@ The raw output is kept with the ticket's records.
 
 On 2026-11-22 the statistics file was checked the same way, before its first run (so the bucket did not hold it
 yet), with `GET` and each origin on `https://dl.agentshed.aloongplanet.com/stats/downloads.json`. This is the evidence
-for mac-distribution::REQ-004/AC-03 on the statistics file, and for landing-page Failure G7: a page served from any
+for mac-distribution::REQ-004/AC-03 on the statistics file, and for [agentshed-site](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md) Failure G7: a page served from any
 other origin, such as a Pages preview, shows no count.
 
 | Request | Origin | Answer |

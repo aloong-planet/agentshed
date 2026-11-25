@@ -4,7 +4,7 @@
 
 ## Context
 
-The landing page shows how many times Agentshed has been downloaded (landing-page::REQ-011). From the first formal
+The landing page shows how many times Agentshed has been downloaded ([agentshed-site::REQ-011](https://github.com/aloong-planet/aloong-planet-home/blob/main/docs/specs/agentshed-site.md), in aloong-planet-home). From the first formal
 release its hero downloads the disk image from the download host, which GitHub's counts never see. Cloudflare keeps
 the download host's traffic analytics for a limited time only.
 
