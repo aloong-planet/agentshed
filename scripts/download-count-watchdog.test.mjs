@@ -105,6 +105,47 @@ test('the watch takes an updatedAt from 6 hours before its clock to 5 minutes af
   })
 })
 
+// Failure G8: which spellings of an instant the watch reads as a UTC time. The watchdog holds its own test of it (ADR-0058),
+// which must keep to the form the files write their instants in: ISO 8601, UTC, to the second or the millisecond, and an
+// instant that exists. The expected answers are the core's at the commit this repository last held it (origin/main at
+// 6dd517fb), run over the same values.
+const judged = (updatedAt) => judge({ status: 200, body: JSON.stringify({ ...writtenFile(), updatedAt }) }, NOW)
+
+test('the watch reads an updatedAt written in UTC to the second or the millisecond as a time, and judges its age', () => {
+  const clock = '2026-11-25T12:47:30.000Z'
+  const cases = [
+    // The second form, which the existing cases never use (they write the millisecond, a non-zero one included)
+    ['to the second', '2026-11-25T11:47:12Z', { fresh: true, updatedAt: '2026-11-25T11:47:12Z' }],
+    // A year no instant of the files has: the form allows any four digits
+    ['the last millisecond of year 9999', '9999-12-31T23:59:59.999Z', {
+      fresh: false, reason: `was last updated at 9999-12-31T23:59:59.999Z, more than 5 minutes after ${clock}`
+    }]
+  ]
+  for (const [label, updatedAt, expected] of cases) assert.deepEqual(judged(updatedAt), expected, label)
+})
+
+test('the watch refuses an updatedAt that is not an instant written in UTC to the second or the millisecond', () => {
+  const cases = [
+    ['no zone', '2026-11-25T11:47:12'],
+    ['an offset of zero', '2026-11-25T11:47:12+00:00'],
+    ['a lowercase z', '2026-11-25T11:47:12z'],
+    ['one digit of a second', '2026-11-25T11:47:12.1Z'],
+    ['six digits of a second', '2026-11-25T11:47:12.123456Z'],
+    ['the 30th of February', '2026-02-30T00:00:00Z'],
+    ['a 29th of February in a year that has none', '2023-02-29T00:00:00Z'],
+    ['hour 24', '2026-11-25T24:00:00Z'],
+    ['month 13', '2026-13-01T00:00:00Z'],
+    ['second 60', '2026-11-25T11:47:60Z'],
+    // The date parser reads an instant with a NUL after it, so only the form's end keeps it out
+    ['a NUL after it', `2026-11-25T11:47:12Z${String.fromCharCode(0)}`]
+  ]
+  for (const [label, updatedAt] of cases) {
+    const verdict = judged(updatedAt)
+    assert.equal(verdict.fresh, false, label)
+    assert.match(verdict.reason, /^has updatedAt .+, not a UTC time$/, label)
+  }
+})
+
 // Failure G8: the failed run shows the run record's newest 24 entries
 test('a failing watch prints the run record\'s newest 24 entries, oldest first', async () => {
   const runs = Array.from({ length: 30 }, (_, i) => entry(i))

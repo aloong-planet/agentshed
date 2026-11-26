@@ -1,5 +1,5 @@
 // The download count's sources standing in at the system boundary (download-count::REQ-011, Implementation Decisions
-// "The collection"), shared by the core's and the Worker's cases and the watchdog's: GitHub's releases, answered 100 to
+// "The collection"), now used by the watchdog's cases alone: GitHub's releases, answered 100 to
 // a page, and Cloudflare's analytics, answering the dataset's settings and, for a range, the rows of each hour in it.
 //
 // GitHub's answer is the repository's real one (../fixtures/github-releases.json: `gh api

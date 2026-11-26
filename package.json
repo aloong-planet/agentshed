@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:engine": "cd engine && cargo test --locked --lib",
     "test:watch": "vitest",
-    "test:scripts": "node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/restore-archive.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/download-count.test.mjs scripts/download-count-worker.test.mjs scripts/download-count-watchdog.test.mjs scripts/testing/r2-binding.test.mjs scripts/testing/module-imports.test.mjs scripts/download-count-workflow.test.mjs scripts/release-workflow.test.mjs scripts/workflow-actions.test.mjs scripts/build-engine.test.mjs scripts/bench-store-compare.test.mjs scripts/bench-search.test.mjs scripts/eslint-ipc-rules.test.mjs scripts/site-assets.test.mjs",
+    "test:scripts": "node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/restore-archive.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/download-count-watchdog.test.mjs scripts/download-count-workflow.test.mjs scripts/release-workflow.test.mjs scripts/workflow-actions.test.mjs scripts/build-engine.test.mjs scripts/bench-store-compare.test.mjs scripts/bench-search.test.mjs scripts/eslint-ipc-rules.test.mjs scripts/site-assets.test.mjs",
     "dist:mac:local": "node build/mac-packaging.cjs local",
     "dist:mac:release": "node build/mac-packaging.cjs release && node build/mac-packaging.cjs notarize-dmg",
     "e2e": "node scripts/build-engine.mjs --quiet && electron-vite build && playwright test",
