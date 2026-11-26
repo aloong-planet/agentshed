@@ -1,6 +1,6 @@
 # ADR-0056: A Cloudflare Worker on a Cron Trigger collects the download count every hour, deployed from infra, and a workflow that holds no secret watches it
 
-- Status: Accepted (2026-11-25)
+- Status: Accepted (2026-11-26)
 
 ## Context
 
@@ -13,8 +13,8 @@ longer hold its hours.
 
 1. **A Worker with an hourly Cron Trigger runs the collection itself: GitHub's releases read with a read-only token
    (ADR-0057), the analytics with the existing analytics token, the bucket through an R2 binding; a stack in
-   aloong-planet/infra deploys it from the agentshed commit and module hashes it pins, with a Workers token another
-   stack mints** — chosen.
+   aloong-planet/infra deploys it from the repository ADR-0058 names, at the commit and module hashes it pins, with a
+   Workers token another stack mints** — chosen.
 2. Keep GitHub's schedule — rejected: it never ran this workflow, and Transfer's identical hourly cron runs 2 to 8 times
    a day, so "every hour" would not hold.
 3. A Worker cron that only dispatches the workflow — rejected: it needs a GitHub credential that can write to this
@@ -23,8 +23,8 @@ longer hold its hours.
    that holds the bucket's keys, and a chain that one failure ends with nothing to restart it.
 5. Cloudflare Workflows or a Durable Object alarm instead of a Cron Trigger — rejected: their retries add nothing when
    the next run counts a failed hour, for more moving parts.
-6. Deploying the Worker from this repository's CI — rejected: it puts an account-wide Workers write token in this
-   repository's secrets, and what such a token can bind in the account is unverified.
+6. Deploying the Worker from the CI of the repository that holds its code — rejected: it puts an account-wide Workers
+   write token in that repository's secrets, and what such a token can bind in the account is unverified.
 7. Widening the Terraform token by hand — rejected: it needs the owner, while a minted token keeps the permission in
    infra's state.
 8. The Worker writing the statistics file from its first run — rejected: a defect would write into the only copy of a
