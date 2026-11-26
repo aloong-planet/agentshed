@@ -113,6 +113,7 @@ ADR conventions for this repository:
 | [0055](0055-download-count.md) | The download count is the disk image's downloads from GitHub and the download host, added up hour by hour in a statistics file that starts over only when absent | Accepted |
 | [0056](0056-download-count-collected-by-a-cloudflare-worker.md) | A Cloudflare Worker on a Cron Trigger collects the download count every hour, deployed from infra, and a workflow that holds no secret watches it | Accepted |
 | [0057](0057-download-count-reads-github-with-a-read-only-token.md) | The download count's Worker reads GitHub's releases with the owner's read-only token, and never without it | Accepted |
+| [0058](0058-download-count-code-lives-in-aloong-planet-home.md) | The download count's Worker and core live in aloong-planet-home, which infra deploys them from at a pinned commit, and this repository keeps no copy | Accepted |
 
 ## Retired numbers
 

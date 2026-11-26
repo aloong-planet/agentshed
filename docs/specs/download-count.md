@@ -3,6 +3,7 @@
 > Related: [ADR-0055](../adr/0055-download-count.md) (what the count counts) ·
 > [ADR-0056](../adr/0056-download-count-collected-by-a-cloudflare-worker.md) (the Worker that collects it) ·
 > [ADR-0057](../adr/0057-download-count-reads-github-with-a-read-only-token.md) (the token it reads GitHub with) ·
+> [ADR-0058](../adr/0058-download-count-code-lives-in-aloong-planet-home.md) (where the Worker's code lives) ·
 > [mac-distribution](mac-distribution.md) (the releases, the release bucket and the download host,
 > mac-distribution::REQ-004)
 
@@ -101,6 +102,9 @@ $0.03 a month at R2's listed prices, and only when the account is already beyond
   page fails the run, and so does an analytics answer that carries `errors`, even with HTTP 200, or that is
   not for exactly one zone. It writes the new file (Failures G2, G10) as `application/json` with
   `public, max-age=300`. A run without its credentials fails.
+
+  > Pending: the modules come from the repository ADR-0058 names, at the commit aloong-planet/infra pins.
+
 - **The statistics file** is JSON with these fields. The collection keeps publishing every one of them, with the
   type and meaning the table gives it.
 
