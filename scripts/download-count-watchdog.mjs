@@ -3,9 +3,18 @@
 // the run, so that GitHub notifies, when the file shows that the collection may have stopped. A failing run prints the
 // run record's newest entries, each as one line of JSON, so that no text in them is read as a workflow command.
 //
-// It takes the files' keys and the test of a UTC time from the core, and runs nothing of the count.
+// It runs nothing of the count. It holds its own copies of the files' keys and of the test of a UTC time that the count's
+// core (aloong-planet-home, workers/download-count/scripts/) holds, and fetches nothing from there (ADR-0058): a change to
+// either key, or to the form in which the files write their instants, needs the copies here changed too.
 import { fileURLToPath } from 'node:url'
-import { isUtc, RUNS_KEY, STATISTICS_KEY } from './download-count-core.mjs'
+
+/** The statistics file's key in the bucket, and the run record's */
+const STATISTICS_KEY = 'stats/downloads.json'
+const RUNS_KEY = 'stats/worker-runs.json'
+const UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/
+/** Whether a text is an ISO 8601 UTC time to the second or the millisecond, as the files write their instants */
+const isUtc = (text) => typeof text === 'string' && UTC.test(text) && !Number.isNaN(Date.parse(text)) &&
+  new Date(Date.parse(text)).toISOString().slice(0, 19) === text.slice(0, 19)
 
 /** How far before the watchdog's clock, and after it, the statistics file's updatedAt may be (Failure G8) */
 const BEHIND = 6 * 3_600_000
