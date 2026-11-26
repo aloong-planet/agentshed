@@ -114,9 +114,8 @@ const judged = (updatedAt) => judge({ status: 200, body: JSON.stringify({ ...wri
 test('the watch reads an updatedAt written in UTC to the second or the millisecond as a time, and judges its age', () => {
   const clock = '2026-11-25T12:47:30.000Z'
   const cases = [
-    // The second form, which the existing cases never use; and the millisecond form with a non-zero millisecond
+    // The second form, which the existing cases never use (they write the millisecond, a non-zero one included)
     ['to the second', '2026-11-25T11:47:12Z', { fresh: true, updatedAt: '2026-11-25T11:47:12Z' }],
-    ['to the millisecond, 999', '2026-11-25T11:47:12.999Z', { fresh: true, updatedAt: '2026-11-25T11:47:12.999Z' }],
     // A year no instant of the files has: the form allows any four digits
     ['the last millisecond of year 9999', '9999-12-31T23:59:59.999Z', {
       fresh: false, reason: `was last updated at 9999-12-31T23:59:59.999Z, more than 5 minutes after ${clock}`

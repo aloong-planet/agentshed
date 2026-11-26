@@ -115,7 +115,8 @@ The run record's `failure`, and the Worker's Cron Events, say why:
 | `RELEASES_READ_TOKEN` | The read-only GitHub token (a secret binding) the releases are read with, with the User-Agent `agentshed-download-count` |
 
 **A change to the Worker** takes two pull requests, in this order: the aloong-planet-home one, which changes the
-modules in `workers/download-count/scripts/`, merges first; then one in aloong-planet/infra pins its merge commit and
+modules in `workers/download-count/scripts/` and whose `download-count-checks` job runs the Worker's cases, merges
+first; then one in aloong-planet/infra pins its merge commit and
 the two modules' SHA-256 (`shasum -a 256 workers/download-count/scripts/download-count-worker.mjs
 workers/download-count/scripts/download-count-core.mjs` at that commit). A hash that does not match fails infra's
 plan, and nothing is deployed. A change to either file's key, or to the form in which the files write their instants,
