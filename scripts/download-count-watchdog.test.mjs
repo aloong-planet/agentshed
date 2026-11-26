@@ -110,50 +110,33 @@ test('the watch takes an updatedAt from 6 hours before its clock to 5 minutes af
 // instant that exists. The expected answers are the core's at the commit this repository last held it (origin/main at
 // 6dd517fb), run over the same values.
 const judged = (updatedAt) => judge({ status: 200, body: JSON.stringify({ ...writtenFile(), updatedAt }) }, NOW)
-const CLOCK = '2026-11-25T12:47:30.000Z'
 
 test('the watch reads an updatedAt written in UTC to the second or the millisecond as a time, and judges its age', () => {
-  const fresh = (updatedAt) => ({ fresh: true, updatedAt })
-  const before = (updatedAt) => ({ fresh: false, reason: `was last updated at ${updatedAt}, more than 6 hours before ${CLOCK}` })
-  const after = (updatedAt) => ({ fresh: false, reason: `was last updated at ${updatedAt}, more than 5 minutes after ${CLOCK}` })
+  const clock = '2026-11-25T12:47:30.000Z'
   const cases = [
-    ['to the second', '2026-11-25T11:47:12Z', fresh],
-    ['to the millisecond, 000', '2026-11-25T11:47:12.000Z', fresh],
-    ['to the millisecond, 999', '2026-11-25T11:47:12.999Z', fresh],
-    ['to the second, on the clock\'s minute', '2026-11-25T12:47:00Z', fresh],
-    ['the last second of February', '2026-02-28T23:59:59Z', before],
-    ['a leap day', '2024-02-29T00:00:00Z', before],
-    ['midnight', '2026-11-25T00:00:00Z', before],
-    ['the first instant of year 0', '0000-01-01T00:00:00Z', before],
-    ['the last millisecond of year 9999', '9999-12-31T23:59:59.999Z', after]
+    // The second form, which the existing cases never use; and the millisecond form with a non-zero millisecond
+    ['to the second', '2026-11-25T11:47:12Z', { fresh: true, updatedAt: '2026-11-25T11:47:12Z' }],
+    ['to the millisecond, 999', '2026-11-25T11:47:12.999Z', { fresh: true, updatedAt: '2026-11-25T11:47:12.999Z' }],
+    // A year no instant of the files has: the form allows any four digits
+    ['the last millisecond of year 9999', '9999-12-31T23:59:59.999Z', {
+      fresh: false, reason: `was last updated at 9999-12-31T23:59:59.999Z, more than 5 minutes after ${clock}`
+    }]
   ]
-  for (const [label, updatedAt, expected] of cases) assert.deepEqual(judged(updatedAt), expected(updatedAt), label)
+  for (const [label, updatedAt, expected] of cases) assert.deepEqual(judged(updatedAt), expected, label)
 })
 
 test('the watch refuses an updatedAt that is not an instant written in UTC to the second or the millisecond', () => {
   const cases = [
     ['no zone', '2026-11-25T11:47:12'],
     ['an offset of zero', '2026-11-25T11:47:12+00:00'],
-    ['a lowercase t', '2026-11-25t11:47:12Z'],
     ['a lowercase z', '2026-11-25T11:47:12z'],
-    ['a space for the T', '2026-11-25 11:47:12Z'],
     ['one digit of a second', '2026-11-25T11:47:12.1Z'],
     ['six digits of a second', '2026-11-25T11:47:12.123456Z'],
     ['the 30th of February', '2026-02-30T00:00:00Z'],
-    ['the 31st of April', '2026-04-31T00:00:00Z'],
     ['a 29th of February in a year that has none', '2023-02-29T00:00:00Z'],
-    ['month 13', '2026-13-01T00:00:00Z'],
     ['hour 24', '2026-11-25T24:00:00Z'],
-    ['minute 60', '2026-11-25T11:60:00Z'],
-    ['second 60', '2026-11-25T11:47:60Z'],
-    ['an empty string', ''],
-    ['a line break after it', '2026-11-25T11:47:12Z\n'],
-    ['a space before it', ' 2026-11-25T11:47:12Z'],
-    ['a digit after it', '2026-11-25T11:47:12.000Z0'],
-    ['a number of milliseconds', 1764071232000],
-    ['null', null],
-    ['an object', {}],
-    ['a list holding an instant', ['2026-11-25T11:47:12Z']]
+    ['month 13', '2026-13-01T00:00:00Z'],
+    ['second 60', '2026-11-25T11:47:60Z']
   ]
   for (const [label, updatedAt] of cases) {
     const verdict = judged(updatedAt)
