@@ -136,7 +136,9 @@ test('the watch refuses an updatedAt that is not an instant written in UTC to th
     ['a 29th of February in a year that has none', '2023-02-29T00:00:00Z'],
     ['hour 24', '2026-11-25T24:00:00Z'],
     ['month 13', '2026-13-01T00:00:00Z'],
-    ['second 60', '2026-11-25T11:47:60Z']
+    ['second 60', '2026-11-25T11:47:60Z'],
+    // The date parser reads an instant with a NUL after it, so only the form's end keeps it out
+    ['a NUL after it', `2026-11-25T11:47:12Z${String.fromCharCode(0)}`]
   ]
   for (const [label, updatedAt] of cases) {
     const verdict = judged(updatedAt)
