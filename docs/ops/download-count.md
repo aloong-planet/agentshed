@@ -105,7 +105,7 @@ The run record's `failure`, and the Worker's Cron Events, say why:
 
 | What | Value |
 |---|---|
-| Modules | `scripts/download-count-worker.mjs` (the main module) and `scripts/download-count-core.mjs`, as two ES modules under those names, from the agentshed commit aloong-planet/infra pins, each checked against its pinned SHA-256 before the deploy |
+| Modules | `workers/download-count/scripts/download-count-worker.mjs` (the main module) and `download-count-core.mjs` beside it, in [`aloong-planet/aloong-planet-home`](https://github.com/aloong-planet/aloong-planet-home), as two ES modules under those names, from the aloong-planet-home commit aloong-planet/infra pins, each checked against its pinned SHA-256 before the deploy (ADR-0058); this repository holds no copy |
 | Deployed by | aloong-planet/infra, stack `workers`, with a Workers token that the stack `apps` mints with Workers Scripts Write only; `workers.dev` is off, so the Worker answers no request |
 | `BUCKET` | The R2 binding to the release bucket |
 | `CF_ANALYTICS_API_TOKEN`, `CF_ZONE_ID` | The analytics token (a secret binding) and the `aloongplanet.com` zone |
@@ -114,10 +114,12 @@ The run record's `failure`, and the Worker's Cron Events, say why:
 | `ACCEPT_GAP_FROM` | Bound only while a gap is to be accepted (below) |
 | `RELEASES_READ_TOKEN` | The read-only GitHub token (a secret binding) the releases are read with, with the User-Agent `agentshed-download-count` |
 
-**A change to the Worker** takes two pull requests, in this order: the agentshed one, which changes the modules,
-merges first; then one in aloong-planet/infra pins its merge commit and the two modules' SHA-256 (`shasum -a 256
-scripts/download-count-worker.mjs scripts/download-count-core.mjs` at that commit). A hash that does not match fails
-infra's plan, and nothing is deployed.
+**A change to the Worker** takes two pull requests, in this order: the aloong-planet-home one, which changes the
+modules in `workers/download-count/scripts/`, merges first; then one in aloong-planet/infra pins its merge commit and
+the two modules' SHA-256 (`shasum -a 256 workers/download-count/scripts/download-count-worker.mjs
+workers/download-count/scripts/download-count-core.mjs` at that commit). A hash that does not match fails infra's
+plan, and nothing is deployed. A change to either file's key, or to the form in which the files write their instants,
+also takes a pull request here, because the watchdog holds its own copies of both (`scripts/download-count-watchdog.mjs`).
 
 **After an apply**, check the run record's newest entries: one an hour, `key` `stats/downloads.json`, `written` true.
 Whether the binding enforces the conditions every write carries (Failure G10), an etag or `If-None-Match: *`, is what

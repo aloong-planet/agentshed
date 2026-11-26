@@ -86,7 +86,7 @@ $0.03 a month at R2's listed prices, and only when the account is already beyond
 ## Implementation Decisions
 
 - **The collection** is a Cloudflare Worker that a Cron Trigger runs every hour, running the modules of the
-  agentshed commit that aloong-planet/infra pins, each checked against its pinned SHA-256 (ADR-0056). A DMG is an
+  aloong-planet-home commit that aloong-planet/infra pins, each checked against its pinned SHA-256 (ADR-0058). A DMG is an
   asset or object named `Agentshed-<version>-mac-<arch>.dmg`, the packaged name, with `<version>` an `x.y.z`
   version, optionally with a pre-release suffix, and `<arch>` one of `arm64`, `x64` and `universal`. A run
   reads the previous statistics file from the bucket itself, through the Worker's binding to it, never through
@@ -102,8 +102,6 @@ $0.03 a month at R2's listed prices, and only when the account is already beyond
   page fails the run, and so does an analytics answer that carries `errors`, even with HTTP 200, or that is
   not for exactly one zone. It writes the new file (Failures G2, G10) as `application/json` with
   `public, max-age=300`. A run without its credentials fails.
-
-  > Pending: the modules come from the repository ADR-0058 names, at the commit aloong-planet/infra pins.
 
 - **The statistics file** is JSON with these fields. The collection keeps publishing every one of them, with the
   type and meaning the table gives it.

@@ -127,9 +127,6 @@ a retried "does not appear" check cannot prove absence.
   time (the reason is in the header of `e2e/support/dates.ts`).
 - Every workflow action is pinned as `owner/repo@<40-hex commit> # v<x.y.z>`, at the same commit in every
   workflow; `scripts/workflow-actions.test.mjs` enforces the form.
-- A Worker's main module exports only its handlers object and functions, never a constant;
-  `scripts/download-count-worker.test.mjs` enforces it for the download count's Worker (postmortem
-  `2026-11-23-a-worker-main-module-that-would-not-load`).
 - Every function the engine module exports catches a panic (`#[napi(catch_unwind)]`), and an export is named `seam_…`
   exactly when it sits behind the `test-seams` feature; `engine/build.rs` fails a build that breaks either, and
   packaging refuses a module exporting a seam (ADR-0046).
